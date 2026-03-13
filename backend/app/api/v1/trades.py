@@ -16,7 +16,7 @@ from app.core.deps import get_current_user
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
-from app.schemas.trade import TradeCreate, TradeRead, TradeUpdate
+from app.schemas.trade import TradeCreate, TradeCreateRequest, TradeRead, TradeUpdate
 from app.services.trade_service import TradeService
 
 router = APIRouter(prefix="/trades", tags=["trades"])
@@ -53,17 +53,16 @@ def _get_service(
     },
 )
 async def create_trade(
-    payload: TradeCreate,
+    payload: TradeCreateRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[TradeRead]:
     """Create and persist a new trading position.
 
     Args:
-        payload: Validated trade creation data.
+        payload: Validated trade creation data (without user_id).
         service: Injected trade service.
-        current_user: Injected authenticated user (required but unused until
-            full account-scoping is added in a later iteration).
+        current_user: Injected authenticated user — provides the user_id.
 
     Returns:
         A :class:`ResponseEnvelope` containing the created
@@ -72,7 +71,8 @@ async def create_trade(
     Raises:
         HTTPException: 422 if the payload fails Pydantic validation.
     """
-    trade = await service.create_trade(payload)
+    trade_create = payload.to_trade_create(user_id=current_user.id)
+    trade = await service.create_trade(trade_create)
     return ResponseEnvelope[TradeRead](data=trade)
 
 
@@ -145,6 +145,7 @@ async def list_trades(
             cursor=cursor,
             include_total=include_total,
             account_id=account_id,
+            user_id=current_user.id,
         )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

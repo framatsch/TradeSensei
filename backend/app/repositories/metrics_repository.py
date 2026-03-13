@@ -11,7 +11,6 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.account import Account
 from app.models.trade import Trade
 
 
@@ -19,7 +18,9 @@ class MetricsRepository:
     """Data-access object that fetches closed trades for metrics computation.
 
     Every query is scoped to a ``user_id`` to enforce data isolation
-    between users.
+    between users.  Queries filter directly on ``Trade.user_id`` without
+    requiring a JOIN on ``accounts``, so trades created without an account
+    are included correctly.
 
     Args:
         session: An open :class:`AsyncSession` managed by the caller.
@@ -42,7 +43,7 @@ class MetricsRepository:
     ) -> list[Trade]:
         """Return all closed trades (pnl is not null) for a specific account.
 
-        The query is scoped to ``user_id`` via a join to ``accounts`` to
+        The query is scoped to ``user_id`` directly on ``Trade.user_id`` to
         prevent cross-user data leakage.
 
         Args:
@@ -55,15 +56,11 @@ class MetricsRepository:
             An ordered list of :class:`~app.models.trade.Trade` ORM
             instances with ``pnl`` set, sorted by ``closed_at`` ascending.
         """
-        stmt = (
-            select(Trade)
-            .join(Account, Trade.account_id == Account.id)
-            .where(
-                Trade.account_id == account_id,
-                Account.user_id == user_id,
-                Trade.pnl.is_not(None),
-                Trade.closed_at.is_not(None),
-            )
+        stmt = select(Trade).where(
+            Trade.account_id == account_id,
+            Trade.user_id == user_id,
+            Trade.pnl.is_not(None),
+            Trade.closed_at.is_not(None),
         )
 
         if from_dt is not None:
@@ -84,8 +81,9 @@ class MetricsRepository:
     ) -> list[Trade]:
         """Return all closed trades for a user across all accounts.
 
-        When ``account_id`` is supplied the results are further narrowed
-        to that specific account (which must belong to ``user_id``).
+        Filters directly on ``Trade.user_id`` so trades without an
+        ``account_id`` are included.  When ``account_id`` is supplied the
+        results are further narrowed to that specific account.
 
         Args:
             user_id: UUID of the requesting user.
@@ -97,14 +95,10 @@ class MetricsRepository:
             An ordered list of :class:`~app.models.trade.Trade` ORM
             instances with ``pnl`` set, sorted by ``closed_at`` ascending.
         """
-        stmt = (
-            select(Trade)
-            .join(Account, Trade.account_id == Account.id)
-            .where(
-                Account.user_id == user_id,
-                Trade.pnl.is_not(None),
-                Trade.closed_at.is_not(None),
-            )
+        stmt = select(Trade).where(
+            Trade.user_id == user_id,
+            Trade.pnl.is_not(None),
+            Trade.closed_at.is_not(None),
         )
 
         if account_id is not None:

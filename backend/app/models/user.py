@@ -12,6 +12,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account import Account
+    from app.models.trade import Trade
 
 
 class User(Base):
@@ -31,6 +32,8 @@ class User(Base):
         updated_at: Row-update timestamp maintained by a DB trigger.
         accounts: Related :class:`~app.models.account.Account` objects
             owned by this user.
+        trades: All :class:`~app.models.trade.Trade` objects owned directly
+            by this user (independent of account association).
     """
 
     __tablename__ = "users"
@@ -83,6 +86,10 @@ class User(Base):
         "Account",
         back_populates="user",
         cascade="all, delete-orphan",
+    )
+    trades: Mapped[list["Trade"]] = relationship(
+        "Trade",
+        back_populates="user",
     )
 
     __table_args__ = (

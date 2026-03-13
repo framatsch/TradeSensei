@@ -100,12 +100,12 @@ class ImportService:
         create_warnings: list[str] = []
 
         for trade_data in parsed_trades:
-            # Stamp the account_id onto each trade before persisting (may be None).
-            trade_with_account = trade_data.model_copy(
-                update={"account_id": account_id}
+            # Stamp both account_id and user_id onto each trade before persisting.
+            trade_with_owner = trade_data.model_copy(
+                update={"account_id": account_id, "user_id": user_id}
             )
             try:
-                await self._trade_repo.create(trade_with_account)
+                await self._trade_repo.create(trade_with_owner)
                 trades_created += 1
             except Exception as exc:  # noqa: BLE001
                 msg = (

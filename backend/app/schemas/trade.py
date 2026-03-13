@@ -18,9 +18,16 @@ _UNSET: object = object()
 
 
 class TradeCreate(BaseModel):
-    """Request schema for creating a new trade.
+    """Internal schema for creating a new trade, including the resolved user_id.
+
+    This schema is used by the service and repository layers only.
+    The ``user_id`` field is injected by the route handler from the
+    authenticated user — it is never supplied by an API client.
+
+    See :class:`TradeCreateRequest` for the public-facing API request body.
 
     Attributes:
+        user_id: UUID of the owning user — injected by the route handler.
         symbol: Ticker symbol (e.g. ``"AAPL"``).
         direction: Long or short.
         asset_class: Asset class of the instrument.
@@ -37,6 +44,7 @@ class TradeCreate(BaseModel):
         notes: Free-text notes.
     """
 
+    user_id: uuid.UUID | None = None
     symbol: str = Field(
         ...,
         min_length=SYMBOL_MIN_LENGTH,
@@ -203,6 +211,215 @@ class TradeCreate(BaseModel):
         if self.closed_at is not None and self.closed_at <= self.opened_at:
             raise ValueError("closed_at must be after opened_at")
         return self
+
+
+class TradeCreateRequest(BaseModel):
+    """Public API request body for creating a new trade.
+
+    This is the schema exposed in the OpenAPI documentation and used as the
+    FastAPI request body type in route handlers.  It does **not** contain
+    ``user_id`` — that field is injected by the handler from the authenticated
+    user and merged into :class:`TradeCreate` before service calls.
+
+    Attributes:
+        symbol: Ticker symbol (e.g. ``"AAPL"``).
+        direction: Long or short.
+        asset_class: Asset class of the instrument.
+        quantity: Number of units / contracts traded.
+        entry_price: Execution price at open.
+        exit_price: Execution price at close (omit for open trades).
+        stop_loss: Optional stop-loss price.
+        take_profit: Optional take-profit price.
+        opened_at: Timezone-aware UTC timestamp of position open.
+        closed_at: Timezone-aware UTC timestamp of position close.
+        pnl: Realised PnL.
+        commission: Total commission paid; defaults to zero.
+        notes: Free-text notes.
+        account_id: Optional broker account UUID.
+        playbook_id: Optional playbook UUID.
+        tag_ids: List of tag UUIDs to attach.
+    """
+
+    symbol: str = Field(
+        ...,
+        min_length=SYMBOL_MIN_LENGTH,
+        max_length=SYMBOL_MAX_LENGTH,
+        description=(
+            "Ticker symbol of the traded instrument. "
+            "Maximum 20 characters (e.g. 'AAPL', 'EURUSD', 'BTCUSDT')."
+        ),
+        examples=["AAPL", "EURUSD", "BTCUSDT", "ES"],
+    )
+    direction: Direction = Field(
+        ...,
+        description=(
+            "Trade direction — 'LONG' for a buy position, 'SHORT' for a sell position."
+        ),
+        examples=["LONG", "SHORT"],
+    )
+    asset_class: AssetClass = Field(
+        ...,
+        description=(
+            "Asset class of the traded instrument. "
+            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO."
+        ),
+        examples=["EQUITY", "FOREX", "CRYPTO"],
+    )
+    quantity: Decimal = Field(
+        ...,
+        gt=Decimal("0"),
+        description=(
+            "Number of units, shares, or contracts traded. Must be greater than zero."
+        ),
+        examples=["100", "1.5", "0.01"],
+    )
+    entry_price: Decimal = Field(
+        ...,
+        gt=Decimal("0"),
+        description=(
+            "Execution price at which the position was opened. "
+            "Must be greater than zero."
+        ),
+        examples=["150.25", "1.0823", "42350.00"],
+    )
+    exit_price: Decimal | None = Field(
+        default=None,
+        gt=Decimal("0"),
+        description=(
+            "Execution price at which the position was closed. "
+            "Omit or set to null for trades that are still open."
+        ),
+        examples=["155.00", "1.0901", None],
+    )
+    stop_loss: Decimal | None = Field(
+        default=None,
+        gt=Decimal("0"),
+        description=(
+            "Stop-loss price level for the trade. "
+            "Omit or set to null if no stop-loss was set."
+        ),
+        examples=["148.00", "1.0780", None],
+    )
+    take_profit: Decimal | None = Field(
+        default=None,
+        gt=Decimal("0"),
+        description=(
+            "Take-profit price level for the trade. "
+            "Omit or set to null if no take-profit was set."
+        ),
+        examples=["158.00", "1.0950", None],
+    )
+    opened_at: datetime = Field(
+        ...,
+        description=(
+            "Timezone-aware UTC timestamp of when the position was opened. "
+            "Naive datetimes (without timezone info) are rejected."
+        ),
+        examples=["2024-03-15T09:30:00Z", "2024-03-15T09:30:00+00:00"],
+    )
+    closed_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Timezone-aware UTC timestamp of when the position was closed. "
+            "Omit or set to null for trades that are still open. "
+            "Naive datetimes are rejected."
+        ),
+        examples=["2024-03-15T15:45:00Z", None],
+    )
+    pnl: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised profit or loss for this trade in account currency. "
+            "Can be supplied manually; automated computation is planned "
+            "for a later iteration. Null for open trades."
+        ),
+        examples=["475.00", "-120.50", None],
+    )
+    commission: Decimal = Field(
+        default=Decimal("0"),
+        ge=Decimal("0"),
+        description="Total commission paid for this trade. Defaults to zero.",
+        examples=["1.50", "3.20", "0"],
+    )
+    notes: str | None = Field(
+        default=None,
+        max_length=NOTES_MAX_LENGTH,
+        description=(
+            "Free-text notes attached to this trade, e.g. trade rationale, "
+            "emotional state, or post-trade review."
+        ),
+        examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
+    )
+    account_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the broker account this trade belongs to. "
+            "Omit to create an unassigned trade."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    playbook_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the playbook (strategy) to associate with this trade. "
+            "Omit or set to null for no playbook."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    tag_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        description=(
+            "List of tag UUIDs to attach to this trade. "
+            "All UUIDs must belong to the authenticated user."
+        ),
+        examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
+    )
+
+    @field_validator("opened_at", "closed_at", mode="before")
+    @classmethod
+    def require_timezone(cls, value: object) -> object:
+        """Reject naive datetimes — all timestamps must carry timezone info.
+
+        Args:
+            value: Raw datetime value from the request payload.
+
+        Returns:
+            The original value unchanged if it is timezone-aware.
+
+        Raises:
+            ValueError: If the supplied ``datetime`` has no ``tzinfo``.
+        """
+        if isinstance(value, datetime) and value.tzinfo is None:
+            raise ValueError("Datetime must be timezone-aware (include UTC offset).")
+        return value
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "TradeCreateRequest":
+        """Ensure closed_at is strictly after opened_at when both are provided.
+
+        Returns:
+            The validated model instance.
+
+        Raises:
+            ValueError: If ``closed_at`` is not strictly after ``opened_at``.
+        """
+        if self.closed_at is not None and self.closed_at <= self.opened_at:
+            raise ValueError("closed_at must be after opened_at")
+        return self
+
+    def to_trade_create(self, user_id: uuid.UUID) -> "TradeCreate":
+        """Convert this request to an internal :class:`TradeCreate` with user_id set.
+
+        Args:
+            user_id: UUID of the authenticated user, injected by the route handler.
+
+        Returns:
+            A :class:`TradeCreate` ready for use by the service layer.
+        """
+        return TradeCreate(
+            user_id=user_id,
+            **self.model_dump(),
+        )
 
 
 class TradeUpdate(BaseModel):

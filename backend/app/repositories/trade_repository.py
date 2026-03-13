@@ -160,6 +160,7 @@ class TradeRepository:
         cursor: str | None = None,
         include_total: bool = False,
         account_id: uuid.UUID | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> tuple[list[Trade], str | None, int | None]:
         """Return a cursor-paginated page of trades.
 
@@ -179,6 +180,8 @@ class TradeRepository:
                 Defaults to ``False`` to avoid the extra query cost.
             account_id: When provided, filter results to only trades
                 belonging to the specified account UUID.
+            user_id: When provided, filter results to only trades
+                belonging to the specified user UUID.
 
         Returns:
             A three-tuple of:
@@ -198,6 +201,9 @@ class TradeRepository:
         stmt = _trade_query_with_eager_loads().order_by(
             Trade.opened_at.desc(), Trade.id.desc()
         )
+
+        if user_id is not None:
+            stmt = stmt.where(Trade.user_id == user_id)
 
         if account_id is not None:
             stmt = stmt.where(Trade.account_id == account_id)
@@ -232,9 +238,12 @@ class TradeRepository:
         # Reasonable for datasets up to ~1 M rows; skip by default.
         total: int | None = None
         if include_total:
-            count_result = await self._session.execute(
-                select(func.count()).select_from(Trade)
-            )
+            count_stmt = select(func.count()).select_from(Trade)
+            if user_id is not None:
+                count_stmt = count_stmt.where(Trade.user_id == user_id)
+            if account_id is not None:
+                count_stmt = count_stmt.where(Trade.account_id == account_id)
+            count_result = await self._session.execute(count_stmt)
             total = count_result.scalar_one_or_none()
 
         return items, next_cursor, total

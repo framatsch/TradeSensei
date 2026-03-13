@@ -7,7 +7,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import type {
-  CursorPage,
   Playbook,
   PlaybookCreate,
   PlaybookUpdate,
@@ -18,10 +17,10 @@ export function usePlaybooks() {
   return useQuery<Playbook[], Error>({
     queryKey: ["playbooks"],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<CursorPage<Playbook>>>(
+      const res = await apiClient.get<ResponseEnvelope<Playbook[]>>(
         "/api/v1/playbooks"
       );
-      return res.data.data.items;
+      return res.data.data;
     },
     staleTime: 60 * 1000,
   });

@@ -37,7 +37,7 @@ test.describe('Sidebar Navigation', () => {
   test('TC-043 navigates to Tags page', async ({ page }) => {
     await page.getByRole('link', { name: 'Tags' }).click();
     await expect(page).toHaveURL(/\/dashboard\/tags/);
-    await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole('heading', { name: 'Tags', exact: true })).toBeVisible({ timeout: 8_000 });
   });
 
   test('TC-044 navigates to Import page', async ({ page }) => {

@@ -2,7 +2,8 @@
 
 All methods return plain Python tuples — no ORM model instances — so the
 service layer can consume them without SQLAlchemy session lifetime concerns.
-Every query joins ``accounts`` to enforce ``user_id`` data isolation.
+Every query filters on ``Trade.user_id`` directly to enforce per-user data
+isolation without requiring a JOIN on ``accounts``.
 Only trades where both ``pnl IS NOT NULL`` and ``closed_at IS NOT NULL``
 are included.
 """
@@ -14,15 +15,15 @@ from decimal import Decimal
 from sqlalchemy import ColumnElement, Numeric, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.account import Account
 from app.models.trade import Trade
 
 
 class TimeSeriesRepository:
     """Data-access object for time-series and aggregation queries.
 
-    All queries are scoped to a ``user_id`` via a join on the ``accounts``
-    table to guarantee strict per-user data isolation.
+    All queries are scoped to a ``user_id`` directly on ``Trade.user_id``
+    to guarantee strict per-user data isolation without requiring a JOIN
+    on ``accounts``.
 
     Args:
         session: An open :class:`AsyncSession` managed by the caller.
@@ -55,7 +56,7 @@ class TimeSeriesRepository:
             A list of SQLAlchemy column expression predicates.
         """
         predicates: list[ColumnElement[bool]] = [
-            Account.user_id == user_id,
+            Trade.user_id == user_id,
             Trade.pnl.is_not(None),
             Trade.closed_at.is_not(None),
         ]
@@ -96,7 +97,6 @@ class TimeSeriesRepository:
 
         stmt = (
             select(date_col.label("trade_date"), total_pnl_col, count_col)
-            .join(Account, Trade.account_id == Account.id)
             .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
             .group_by(date_col)
             .order_by(date_col.asc())
@@ -130,7 +130,6 @@ class TimeSeriesRepository:
         """
         stmt = (
             select(Trade.closed_at, Trade.pnl, Trade.symbol)
-            .join(Account, Trade.account_id == Account.id)
             .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
             .order_by(Trade.closed_at.asc())
         )
@@ -166,7 +165,6 @@ class TimeSeriesRepository:
 
         stmt = (
             select(Trade.symbol, total_pnl_col, total_count_col, win_count_col)
-            .join(Account, Trade.account_id == Account.id)
             .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
             .group_by(Trade.symbol)
             .order_by(total_pnl_col.desc())
@@ -211,7 +209,6 @@ class TimeSeriesRepository:
                 total_count_col,
                 win_count_col,
             )
-            .join(Account, Trade.account_id == Account.id)
             .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
             .group_by(Trade.asset_class)
         )

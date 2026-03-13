@@ -7,7 +7,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import type {
-  CursorPage,
   ResponseEnvelope,
   Tag,
   TagCreate,
@@ -17,10 +16,10 @@ export function useTags() {
   return useQuery<Tag[], Error>({
     queryKey: ["tags"],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<CursorPage<Tag>>>(
+      const res = await apiClient.get<ResponseEnvelope<Tag[]>>(
         "/api/v1/tags"
       );
-      return res.data.data.items;
+      return res.data.data;
     },
     staleTime: 60 * 1000,
   });
