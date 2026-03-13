@@ -23,7 +23,7 @@ const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 
 export const E2E_USER = {
   username: 'e2e_testuser',
-  email: 'e2e_testuser@tradejournal.test',
+  email: 'e2e_testuser@example.com',
   password: 'E2eTestPass123!',
 };
 

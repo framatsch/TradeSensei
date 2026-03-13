@@ -6,6 +6,7 @@ account.  No HTTP concepts appear in this layer.
 
 import logging
 import uuid
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,14 +48,15 @@ class ImportService:
         content: bytes,
         filename: str,
         broker: BrokerType,
-        account_id: uuid.UUID,
+        account_id: Optional[uuid.UUID],
         user_id: uuid.UUID,
     ) -> ImportResult:
         """Parse a broker export file and bulk-create trades for an account.
 
         The method first verifies that the target account belongs to the
-        requesting user.  It then hands the raw bytes to the appropriate
-        broker parser, sets ``account_id`` on each parsed
+        requesting user (if ``account_id`` is provided).  It then hands the
+        raw bytes to the appropriate broker parser, optionally sets
+        ``account_id`` on each parsed
         :class:`~app.schemas.trade.TradeCreate`, and persists them via
         :class:`~app.repositories.trade_repository.TradeRepository`.
 
@@ -66,24 +68,27 @@ class ImportService:
             filename: Original filename (used by the parser for format
                 detection).
             broker: The broker type that identifies which parser to use.
-            account_id: UUID of the account to associate trades with.
+            account_id: Optional UUID of the account to associate trades
+                with.  When ``None`` trades are created without an account
+                association.
             user_id: UUID of the authenticated user — used to verify
-                account ownership.
+                account ownership when ``account_id`` is given.
 
         Returns:
             An :class:`~app.schemas.imports.ImportResult` summarising the
             outcome of the import.
 
         Raises:
-            AccountNotFoundError: If the account does not exist or does
-                not belong to ``user_id``.
+            AccountNotFoundError: If ``account_id`` is provided but the
+                account does not exist or does not belong to ``user_id``.
         """
-        # Verify the account belongs to the requesting user.
-        account = await self._account_repo.get_by_id(account_id, user_id)
-        if account is None:
-            raise AccountNotFoundError(
-                f"Account {account_id} not found for user {user_id}."
-            )
+        # Verify the account belongs to the requesting user (only if provided).
+        if account_id is not None:
+            account = await self._account_repo.get_by_id(account_id, user_id)
+            if account is None:
+                raise AccountNotFoundError(
+                    f"Account {account_id} not found for user {user_id}."
+                )
 
         parser: BrokerParser = get_parser(broker)
         parsed_trades: list[TradeCreate] = parser.parse(content, filename)
@@ -95,7 +100,7 @@ class ImportService:
         create_warnings: list[str] = []
 
         for trade_data in parsed_trades:
-            # Stamp the account_id onto each trade before persisting.
+            # Stamp the account_id onto each trade before persisting (may be None).
             trade_with_account = trade_data.model_copy(
                 update={"account_id": account_id}
             )

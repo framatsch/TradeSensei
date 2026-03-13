@@ -6,7 +6,7 @@ persisting trades.
 """
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -78,11 +78,11 @@ async def upload_import(
         BrokerType,
         Form(description="Broker type: 'ibkr' or 'schwab'."),
     ],
-    account_id: Annotated[
-        uuid.UUID,
-        Form(description="UUID of the account to import trades into."),
-    ],
     file: UploadFile,
+    account_id: Annotated[
+        Optional[uuid.UUID],
+        Form(description="UUID of the account to import trades into (optional)."),
+    ] = None,
 ) -> ResponseEnvelope[ImportResult]:
     """Upload a broker export file and import the trades it contains.
 
