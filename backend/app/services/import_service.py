@@ -6,7 +6,6 @@ account.  No HTTP concepts appear in this layer.
 
 import logging
 import uuid
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,7 +47,7 @@ class ImportService:
         content: bytes,
         filename: str,
         broker: BrokerType,
-        account_id: Optional[uuid.UUID],
+        account_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> ImportResult:
         """Parse a broker export file and bulk-create trades for an account.
@@ -92,6 +91,9 @@ class ImportService:
 
         parser: BrokerParser = get_parser(broker)
         parsed_trades: list[TradeCreate] = parser.parse(content, filename)
+
+        # Enrich pnl_eur — base class provides a no-op default so this is always safe.
+        await parser.enrich_pnl_eur(parsed_trades, self._session)
 
         # Collect parser warnings (IBKRParser / SchwabParser expose .warnings).
         parser_warnings: list[str] = getattr(parser, "warnings", [])

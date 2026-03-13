@@ -258,3 +258,20 @@ export interface PnlByAssetClass {
   pnl: string;
   trade_count: number;
 }
+
+// ─── Tax ──────────────────────────────────────────────────────────────────────
+
+export interface TaxCategoryBlock {
+  gains_eur: string;
+  losses_eur: string;
+  net_eur: string;
+  trade_count: number;
+}
+
+export interface TaxAnnualSummary {
+  year: number;
+  equities: TaxCategoryBlock;
+  derivatives: TaxCategoryBlock;
+  total_net_eur: string;
+  trades_missing_eur: number;
+}

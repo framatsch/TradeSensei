@@ -12,7 +12,14 @@ from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.trade import Trade
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.common import CursorPage
-from app.schemas.trade import TradeCreate, TradeRead, TradeUpdate
+from app.schemas.trade import (
+    BulkTagMode,
+    TradeCreate,
+    TradeFilterParams,
+    TradeRead,
+    TradeSortParams,
+    TradeUpdate,
+)
 
 
 class TradeService:
@@ -70,6 +77,8 @@ class TradeService:
         include_total: bool = False,
         account_id: uuid.UUID | None = None,
         user_id: uuid.UUID | None = None,
+        filters: TradeFilterParams | None = None,
+        sort: TradeSortParams | None = None,
     ) -> CursorPage[TradeRead]:
         """Return a cursor-paginated list of trades.
 
@@ -83,6 +92,9 @@ class TradeService:
                 returned.
             user_id: When provided, only trades belonging to this user
                 are returned.
+            filters: Optional filter parameters to narrow the result set.
+            sort: Optional sort parameters. Defaults to
+                ``(opened_at DESC, id DESC)``.
 
         Returns:
             A :class:`CursorPage` containing the trade DTOs, a
@@ -98,6 +110,8 @@ class TradeService:
                 include_total=include_total,
                 account_id=account_id,
                 user_id=user_id,
+                filters=filters,
+                sort=sort,
             )
         except ValueError as exc:
             raise InvalidCursorError("Invalid pagination cursor.") from exc
@@ -144,3 +158,80 @@ class TradeService:
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         await self._repo.delete(trade)
+
+    async def bulk_delete_trades(
+        self,
+        trade_ids: list[uuid.UUID],
+        user_id: uuid.UUID,
+    ) -> int:
+        """Bulk delete trades by their UUIDs.
+
+        Only trades owned by ``user_id`` are deleted.
+
+        Args:
+            trade_ids: UUIDs of trades to delete.
+            user_id: The authenticated user's UUID.
+
+        Returns:
+            Number of deleted trades.
+        """
+        return await self._repo.bulk_delete(trade_ids, user_id)
+
+    async def bulk_assign_tags(
+        self,
+        trade_ids: list[uuid.UUID],
+        tag_ids: list[uuid.UUID],
+        mode: BulkTagMode,
+        user_id: uuid.UUID,
+        tag_user_ids: list[uuid.UUID],
+    ) -> int:
+        """Bulk add or remove tags from trades.
+
+        Validates that all tags belong to the requesting user before
+        delegating to the repository.
+
+        Args:
+            trade_ids: UUIDs of trades to update.
+            tag_ids: UUIDs of tags to add/remove.
+            mode: ``BulkTagMode.add`` or ``BulkTagMode.remove``.
+            user_id: The authenticated user's UUID.
+            tag_user_ids: ``user_id`` values of the provided tags,
+                fetched by the route handler for ownership validation.
+
+        Returns:
+            Number of trades updated.
+
+        Raises:
+            PermissionError: If any tag does not belong to ``user_id``.
+        """
+        if any(uid != user_id for uid in tag_user_ids):
+            raise PermissionError("One or more tags do not belong to this user.")
+        return await self._repo.bulk_assign_tags(trade_ids, tag_ids, mode, user_id)
+
+    async def bulk_assign_playbook(
+        self,
+        trade_ids: list[uuid.UUID],
+        playbook_id: uuid.UUID | None,
+        user_id: uuid.UUID,
+        playbook_user_id: uuid.UUID | None,
+    ) -> int:
+        """Bulk assign or unassign a playbook on trades.
+
+        Validates that the playbook belongs to the requesting user.
+
+        Args:
+            trade_ids: UUIDs of trades to update.
+            playbook_id: UUID of playbook to assign, or ``None`` to unassign.
+            user_id: The authenticated user's UUID.
+            playbook_user_id: ``user_id`` of the playbook (``None`` if
+                unassigning), fetched by the route handler.
+
+        Returns:
+            Number of trades updated.
+
+        Raises:
+            PermissionError: If the playbook does not belong to ``user_id``.
+        """
+        if playbook_id is not None and playbook_user_id != user_id:
+            raise PermissionError("Playbook does not belong to this user.")
+        return await self._repo.bulk_assign_playbook(trade_ids, playbook_id, user_id)

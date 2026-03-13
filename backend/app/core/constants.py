@@ -118,3 +118,15 @@ NOTE_CONTENT_MAX_LENGTH: int = 10_000
 
 EMOTION_MAX_LENGTH: int = 50
 """Maximum length for an emotion label attached to a trade note."""
+
+# ─── FX Rates ─────────────────────────────────────────────────────────────────
+
+FX_RATE_SOURCE_BUNDESBANK: str = "bundesbank"
+"""Source identifier for Bundesbank EZB reference rates."""
+
+FX_BUNDESBANK_FALLBACK_DAYS: int = 3
+"""Number of calendar days to look back when no rate exists for a given date
+(accounts for weekends and public holidays)."""
+
+FX_BUNDESBANK_TIMEOUT_SECONDS: float = 5.0
+"""HTTP timeout in seconds for Bundesbank API calls."""

@@ -6,6 +6,10 @@ Schwab's trade history export is a plain CSV with the following header::
 
 This parser processes ``Buy`` and ``Sell`` action rows only and maps
 them to :class:`~app.schemas.trade.TradeCreate` objects.
+
+After calling :meth:`parse`, the caller should invoke
+:meth:`enrich_pnl_eur` to populate ``pnl_eur`` using the Bundesbank API
+via :class:`~app.services.fx_rate_service.FxRateService`.
 """
 
 import csv
@@ -13,6 +17,8 @@ import io
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ImportParseError
 from app.models.trade import AssetClass, Direction
@@ -98,9 +104,12 @@ class SchwabParser(BrokerParser):
     Rows that fail to parse are skipped; the warning message is stored in
     :attr:`warnings` and can be retrieved after calling :meth:`parse`.
 
+    After calling :meth:`parse`, call :meth:`enrich_pnl_eur` to populate
+    ``pnl_eur`` for all trades that have a ``pnl`` value.
+
     Attributes:
         warnings: List of non-fatal warning messages collected during
-            the most recent :meth:`parse` call.
+            the most recent :meth:`parse` / :meth:`enrich_pnl_eur` call.
     """
 
     def __init__(self) -> None:
@@ -109,6 +118,9 @@ class SchwabParser(BrokerParser):
 
     def parse(self, content: bytes, filename: str) -> list[TradeCreate]:
         """Parse a Schwab trade history CSV into :class:`TradeCreate` objects.
+
+        Sets ``currency="USD"`` on every parsed trade.  ``pnl_eur`` is not
+        populated here — call :meth:`enrich_pnl_eur` afterwards.
 
         Args:
             content: Raw CSV file bytes.
@@ -155,8 +167,62 @@ class SchwabParser(BrokerParser):
 
         return trades
 
+    async def enrich_pnl_eur(
+        self,
+        trades: list[TradeCreate],
+        session: AsyncSession,
+    ) -> None:
+        """Populate ``pnl_eur`` on closed trades using per-date Bundesbank rates.
+
+        For each unique ``opened_at`` date, fetches the EUR/USD rate via
+        :class:`~app.services.fx_rate_service.FxRateService` (DB cache first,
+        then Bundesbank API).  Applies ``pnl_eur = pnl * rate`` for all
+        trades with a non-null ``pnl``.
+
+        Trades without ``pnl`` (open positions) are left unchanged.
+
+        A warning is added to :attr:`warnings` for any date where the rate
+        cannot be retrieved.
+
+        Args:
+            trades: The list returned by :meth:`parse`.
+            session: Active async SQLAlchemy session (for rate caching).
+        """
+        # Import here to avoid circular imports at module load time.
+        from app.services.fx_rate_service import FxRateService  # noqa: PLC0415
+
+        fx_service = FxRateService()
+
+        # Build a set of unique dates for trades that have pnl.
+        dates_needed = {
+            trade.opened_at.date() for trade in trades if trade.pnl is not None
+        }
+
+        # Fetch rates for all needed dates up front.
+        rates: dict[object, Decimal | None] = {}
+        for trade_date in dates_needed:
+            rate = await fx_service.get_usd_to_eur(session, trade_date)
+            if rate is None:
+                msg = (
+                    f"EUR/USD rate unavailable for {trade_date} "
+                    "(Bundesbank API fallback failed). "
+                    "pnl_eur will be null for trades on this date."
+                )
+                logger.warning(msg)
+                self.warnings.append(msg)
+            rates[trade_date] = rate
+
+        # Apply pnl_eur to each trade.
+        for i, trade in enumerate(trades):
+            if trade.pnl is not None:
+                rate = rates.get(trade.opened_at.date())
+                if rate is not None:
+                    trades[i] = trade.model_copy(update={"pnl_eur": trade.pnl * rate})
+
     def _parse_row(self, row: dict[str, str]) -> TradeCreate:
         """Convert a single Schwab CSV row dict into a :class:`TradeCreate`.
+
+        Sets ``currency="USD"`` on every trade.
 
         Args:
             row: Dictionary of column name → raw string value.
@@ -192,4 +258,5 @@ class SchwabParser(BrokerParser):
             entry_price=entry_price,
             commission=commission,
             opened_at=opened_at,
+            currency="USD",
         )

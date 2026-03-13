@@ -3,6 +3,8 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -155,6 +157,24 @@ class TradeCreate(BaseModel):
         ),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
     )
+    currency: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=3,
+        description=(
+            "ISO-4217 currency code of the trade (e.g. 'USD'). "
+            "Set automatically by broker importers."
+        ),
+        examples=["USD", None],
+    )
+    pnl_eur: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised P&L converted to EUR at the official Bundesbank daily rate "
+            "on the trade date. Null for open trades or when the rate is unavailable."
+        ),
+        examples=["432.50", "-98.20", None],
+    )
     account_id: uuid.UUID | None = Field(
         default=None,
         description=(
@@ -233,6 +253,13 @@ class TradeCreateRequest(BaseModel):
         opened_at: Timezone-aware UTC timestamp of position open.
         closed_at: Timezone-aware UTC timestamp of position close.
         pnl: Realised PnL.
+        commission: Total commission paid; defaults to zero.
+        notes: Free-text notes.
+        currency: ISO-4217 currency code (e.g. ``"USD"``).
+        pnl_eur: Realised P&L in EUR (optional, set by broker importers or manually).
+        account_id: Optional broker account UUID.
+        playbook_id: Optional playbook UUID.
+        tag_ids: List of tag UUIDs to attach.
         commission: Total commission paid; defaults to zero.
         notes: Free-text notes.
         account_id: Optional broker account UUID.
@@ -349,6 +376,24 @@ class TradeCreateRequest(BaseModel):
             "emotional state, or post-trade review."
         ),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
+    )
+    currency: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=3,
+        description=(
+            "ISO-4217 currency code of the trade (e.g. 'USD'). "
+            "Set automatically by broker importers; can also be set manually."
+        ),
+        examples=["USD", None],
+    )
+    pnl_eur: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised P&L converted to EUR. Set automatically by broker importers "
+            "at the official Bundesbank daily rate; can also be set manually."
+        ),
+        examples=["432.50", "-98.20", None],
     )
     account_id: uuid.UUID | None = Field(
         default=None,
@@ -707,6 +752,22 @@ class TradeRead(BaseModel):
         ),
         examples=["Breakout above 50-day MA.", None],
     )
+    currency: str | None = Field(
+        default=None,
+        description=(
+            "ISO-4217 currency code of the trade (e.g. 'USD'). "
+            "Null for legacy trades imported before EUR-reporting was added."
+        ),
+        examples=["USD", None],
+    )
+    pnl_eur: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised P&L converted to EUR at the official Bundesbank daily rate "
+            "on the trade date. Null for open trades or when the rate is unavailable."
+        ),
+        examples=["432.50", "-98.20", None],
+    )
     playbook_id: uuid.UUID | None = Field(
         default=None,
         description=(
@@ -732,4 +793,213 @@ class TradeRead(BaseModel):
         ...,
         description="UTC timestamp of the most recent update to this record.",
         examples=["2024-03-15T15:45:02Z"],
+    )
+
+
+# ─── Filter / Sort schemas ────────────────────────────────────────────────────
+
+
+class TradeFilterParams(BaseModel):
+    """Query parameters for filtering the trade list.
+
+    All fields are optional. When multiple filters are provided,
+    they are combined with AND logic.
+
+    Attributes:
+        symbol: Case-insensitive partial match on symbol.
+        direction: Filter by LONG or SHORT.
+        asset_class: Filter by asset class.
+        tag_ids: Filter by tag UUIDs.
+        tag_filter_mode: AND or OR logic when multiple tag_ids are given.
+        playbook_id: Filter by playbook UUID.
+        opened_at_from: Filter trades opened at or after this datetime.
+        opened_at_to: Filter trades opened at or before this datetime.
+        pnl_positive: ``True`` for winners (pnl > 0), ``False`` for losers.
+    """
+
+    symbol: str | None = Field(
+        default=None,
+        description="Case-insensitive partial match on symbol",
+    )
+    direction: Direction | None = Field(
+        default=None,
+        description="Filter by LONG or SHORT",
+    )
+    asset_class: AssetClass | None = Field(
+        default=None,
+        description="Filter by asset class",
+    )
+    tag_ids: list[uuid.UUID] | None = Field(
+        default=None,
+        description="Filter by tag UUIDs",
+    )
+    tag_filter_mode: Literal["and", "or"] = Field(
+        default="and",
+        description="AND or OR logic for tag filter",
+    )
+    playbook_id: uuid.UUID | None = Field(
+        default=None,
+        description="Filter by playbook UUID",
+    )
+    opened_at_from: datetime | None = Field(
+        default=None,
+        description=("Filter trades opened at or after this datetime (timezone-aware)"),
+    )
+    opened_at_to: datetime | None = Field(
+        default=None,
+        description=(
+            "Filter trades opened at or before this datetime (timezone-aware)"
+        ),
+    )
+    pnl_positive: bool | None = Field(
+        default=None,
+        description="True = winners (pnl > 0), False = losers (pnl <= 0)",
+    )
+
+    @field_validator("opened_at_from", "opened_at_to", mode="before")
+    @classmethod
+    def require_timezone(cls, value: object) -> object:
+        """Reject naive datetimes — all timestamps must carry timezone info.
+
+        Args:
+            value: Raw datetime value from the request payload.
+
+        Returns:
+            The original value unchanged if it is timezone-aware or not a datetime.
+
+        Raises:
+            ValueError: If the supplied ``datetime`` has no ``tzinfo``.
+        """
+        if isinstance(value, datetime) and value.tzinfo is None:
+            raise ValueError("Datetime must be timezone-aware (include UTC offset).")
+        return value
+
+
+class TradeSortField(StrEnum):
+    """Sortable fields for the trade list."""
+
+    symbol = "symbol"
+    direction = "direction"
+    asset_class = "asset_class"
+    entry_price = "entry_price"
+    exit_price = "exit_price"
+    pnl = "pnl"
+    quantity = "quantity"
+    opened_at = "opened_at"
+    closed_at = "closed_at"
+
+
+class TradeSortParams(BaseModel):
+    """Query parameters for sorting the trade list.
+
+    Attributes:
+        sort_by: The field to sort by. Defaults to ``opened_at``.
+        sort_dir: Sort direction — ``"asc"`` or ``"desc"``. Defaults to ``"desc"``.
+    """
+
+    sort_by: TradeSortField = Field(
+        default=TradeSortField.opened_at,
+        description="Field to sort by",
+    )
+    sort_dir: Literal["asc", "desc"] = Field(
+        default="desc",
+        description="Sort direction",
+    )
+
+
+# ─── Bulk operation schemas ───────────────────────────────────────────────────
+
+
+class BulkDeleteRequest(BaseModel):
+    """Request body for bulk deletion of trades.
+
+    Attributes:
+        trade_ids: UUIDs of trades to delete (1–100).
+    """
+
+    trade_ids: list[uuid.UUID] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="UUIDs of trades to delete (1–100)",
+    )
+
+
+class BulkTagMode(StrEnum):
+    """Mode for bulk tag assignment."""
+
+    add = "add"
+    remove = "remove"
+
+
+class BulkAssignTagsRequest(BaseModel):
+    """Request body for bulk tag assignment/removal.
+
+    Attributes:
+        trade_ids: UUIDs of trades to update.
+        tag_ids: UUIDs of tags to add or remove.
+        mode: ``'add'`` to add tags, ``'remove'`` to remove them.
+    """
+
+    trade_ids: list[uuid.UUID] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="UUIDs of trades to update",
+    )
+    tag_ids: list[uuid.UUID] = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="UUIDs of tags to add or remove",
+    )
+    mode: BulkTagMode = Field(
+        ...,
+        description="'add' to add tags, 'remove' to remove them",
+    )
+
+
+class BulkAssignPlaybookRequest(BaseModel):
+    """Request body for bulk playbook assignment.
+
+    Attributes:
+        trade_ids: UUIDs of trades to update.
+        playbook_id: UUID of playbook to assign, or ``None`` to unassign.
+    """
+
+    trade_ids: list[uuid.UUID] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="UUIDs of trades to update",
+    )
+    playbook_id: uuid.UUID | None = Field(
+        default=None,
+        description="UUID of playbook to assign, or null to unassign",
+    )
+
+
+class BulkDeleteResponse(BaseModel):
+    """Response for bulk delete operations.
+
+    Attributes:
+        deleted_count: Number of trades actually deleted.
+    """
+
+    deleted_count: int = Field(
+        ...,
+        description="Number of trades actually deleted",
+    )
+
+
+class BulkUpdateResponse(BaseModel):
+    """Response for bulk update operations.
+
+    Attributes:
+        updated_count: Number of trades actually updated.
+    """
+
+    updated_count: int = Field(
+        ...,
+        description="Number of trades actually updated",
     )

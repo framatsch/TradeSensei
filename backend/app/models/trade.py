@@ -19,7 +19,12 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.constants import NUMERIC_PRECISION, NUMERIC_SCALE, SYMBOL_MAX_LENGTH
+from app.core.constants import (
+    CURRENCY_LENGTH,
+    NUMERIC_PRECISION,
+    NUMERIC_SCALE,
+    SYMBOL_MAX_LENGTH,
+)
 from app.core.database import Base
 
 if TYPE_CHECKING:
@@ -73,6 +78,11 @@ class Trade(Base):
         pnl: Realised profit or loss (``None`` while still open).
         commission: Total commission paid; defaults to zero.
         notes: Free-text notes attached to the trade.
+        currency: ISO-4217 currency code of the trade (e.g. ``"USD"``).
+            ``None`` for legacy trades that pre-date the EUR-reporting feature.
+        pnl_eur: Realised P&L converted to EUR at the official Bundesbank
+            daily rate on the trade date.  ``None`` for open trades, legacy
+            trades, or when the exchange rate could not be determined.
         account_id: Foreign key to the :class:`~app.models.account.Account`
             that this trade belongs to (``None`` if not assigned to an account).
         account: The related :class:`~app.models.account.Account` ORM instance
@@ -154,6 +164,19 @@ class Trade(Base):
     notes: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+    currency: Mapped[str | None] = mapped_column(
+        String(CURRENCY_LENGTH),
+        nullable=True,
+        comment="ISO-4217 currency code of the trade (e.g. USD).",
+    )
+    pnl_eur: Mapped[Decimal | None] = mapped_column(
+        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
+        nullable=True,
+        comment=(
+            "Realised P&L converted to EUR at the Bundesbank daily rate "
+            "on the trade date."
+        ),
     )
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),

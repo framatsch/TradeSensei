@@ -14,6 +14,7 @@ from app.api.v1 import (
     notes,
     playbooks,
     tags,
+    tax,
     timeseries,
     trades,
     users,
@@ -31,3 +32,4 @@ router.include_router(timeseries.router)
 router.include_router(playbooks.router)
 router.include_router(tags.router)
 router.include_router(notes.router)
+router.include_router(tax.router)
