@@ -24,6 +24,9 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account import Account
+    from app.models.playbook import Playbook
+    from app.models.tag import Tag
+    from app.models.trade_note import TradeNote
 
 
 class Direction(StrEnum):
@@ -70,6 +73,14 @@ class Trade(Base):
             that this trade belongs to (``None`` if not assigned to an account).
         account: The related :class:`~app.models.account.Account` ORM instance
             (``None`` if ``account_id`` is unset).
+        playbook_id: Optional foreign key to the
+            :class:`~app.models.playbook.Playbook` used for this trade.
+        playbook: The related :class:`~app.models.playbook.Playbook` ORM
+            instance (``None`` if no playbook assigned).
+        tags: Many-to-many collection of :class:`~app.models.tag.Tag` objects
+            attached to this trade via the ``trade_tags`` association table.
+        trade_notes: One-to-many collection of
+            :class:`~app.models.trade_note.TradeNote` objects.
         created_at: Row-creation timestamp set by the database.
         updated_at: Row-update timestamp maintained by the database.
     """
@@ -140,6 +151,12 @@ class Trade(Base):
         nullable=True,
         index=True,
     )
+    playbook_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("playbooks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -157,12 +174,29 @@ class Trade(Base):
         Index("ix_trades_opened_at", "opened_at"),
         Index("ix_trades_closed_at", "closed_at"),
         Index("ix_trades_account_id", "account_id"),
+        Index("ix_trades_playbook_id", "playbook_id"),
     )
 
     # Relationships
     account: Mapped[Optional["Account"]] = relationship(
         "Account",
         back_populates="trades",
+    )
+    playbook: Mapped[Optional["Playbook"]] = relationship(
+        "Playbook",
+        back_populates="trades",
+    )
+    tags: Mapped[list["Tag"]] = relationship(
+        "Tag",
+        secondary="trade_tags",
+        back_populates="trades",
+        lazy="selectin",
+    )
+    trade_notes: Mapped[list["TradeNote"]] = relationship(
+        "TradeNote",
+        back_populates="trade",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     def __repr__(self) -> str:

@@ -1,0 +1,127 @@
+"""Pydantic DTOs for Playbook request and response shapes."""
+
+import uuid
+from datetime import datetime
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+
+from app.core.constants import (
+    PLAYBOOK_DESCRIPTION_MAX_LENGTH,
+    PLAYBOOK_NAME_MAX_LENGTH,
+    PLAYBOOK_NAME_MIN_LENGTH,
+)
+
+
+class PlaybookCreate(BaseModel):
+    """Request schema for creating a new playbook.
+
+    Attributes:
+        name: Human-readable playbook name (unique per user).
+        description: Optional long-form description of the strategy.
+    """
+
+    name: str = Field(
+        ...,
+        min_length=PLAYBOOK_NAME_MIN_LENGTH,
+        max_length=PLAYBOOK_NAME_MAX_LENGTH,
+        description=(
+            "Human-readable playbook name, unique per user. "
+            "For example: 'Breakout Long', 'Mean Reversion'."
+        ),
+        examples=["Breakout Long", "VWAP Fade"],
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=PLAYBOOK_DESCRIPTION_MAX_LENGTH,
+        description=(
+            "Optional long-form description of the strategy or setup. "
+            "Maximum 2 000 characters."
+        ),
+        examples=["Enter on a confirmed breakout above the prior day high.", None],
+    )
+
+
+class PlaybookUpdate(BaseModel):
+    """Request schema for partially updating an existing playbook.
+
+    All fields are optional — only supplied fields will be written.
+
+    Attributes:
+        name: Updated playbook name.
+        description: Updated description.
+        is_active: Updated active flag.
+    """
+
+    name: str | None = Field(
+        default=None,
+        min_length=PLAYBOOK_NAME_MIN_LENGTH,
+        max_length=PLAYBOOK_NAME_MAX_LENGTH,
+        description="Updated playbook name. Omit to leave unchanged.",
+        examples=["Breakout Short", None],
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=PLAYBOOK_DESCRIPTION_MAX_LENGTH,
+        description=(
+            "Updated description. Omit to leave unchanged. "
+            "Set to null to clear the existing description."
+        ),
+        examples=["Revised criteria for entry.", None],
+    )
+    is_active: bool | None = Field(
+        default=None,
+        description="Updated active flag. Omit to leave unchanged.",
+        examples=[False, None],
+    )
+
+
+class PlaybookRead(BaseModel):
+    """Response schema for a single playbook.
+
+    Attributes:
+        id: UUID primary key.
+        user_id: UUID of the owning user.
+        name: Playbook label.
+        description: Optional description.
+        is_active: Whether the playbook is active.
+        created_at: UTC timestamp of playbook creation.
+        updated_at: UTC timestamp of the last update.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID = Field(
+        ...,
+        description="Unique playbook identifier (UUID v4).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    )
+    user_id: uuid.UUID = Field(
+        ...,
+        description="UUID of the user who owns this playbook.",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    )
+    name: str = Field(
+        ...,
+        description="Human-readable playbook label.",
+        examples=["Breakout Long"],
+    )
+    description: str | None = Field(
+        ...,
+        description="Optional strategy description. Null if not set.",
+        examples=["Enter on a confirmed breakout above prior day high.", None],
+    )
+    is_active: bool = Field(
+        ...,
+        description="Whether this playbook is currently active.",
+        examples=[True],
+    )
+    created_at: AwareDatetime = Field(
+        ...,
+        description="UTC timestamp of playbook creation.",
+        examples=["2024-03-15T09:30:00Z"],
+    )
+    updated_at: datetime = Field(
+        ...,
+        description="UTC timestamp of the most recent update to this playbook.",
+        examples=["2024-03-15T10:00:00Z"],
+    )

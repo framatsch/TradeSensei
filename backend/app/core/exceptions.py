@@ -35,3 +35,15 @@ class ImportParseError(ValueError):
 
 class UnsupportedBrokerError(ValueError):
     """Raised when a broker type is not supported."""
+
+
+class PlaybookNotFoundError(Exception):
+    """Raised when a playbook cannot be found for the requesting user."""
+
+
+class TagNotFoundError(Exception):
+    """Raised when a tag cannot be found for the requesting user."""
+
+
+class NoteNotFoundError(Exception):
+    """Raised when a trade note cannot be found."""

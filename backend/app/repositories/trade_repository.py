@@ -9,11 +9,14 @@ import binascii
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.selectable import Select
 
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
 from app.models.trade import Trade
+from app.models.trade_tag import TradeTag
 from app.schemas.trade import TradeCreate, TradeUpdate
 
 
@@ -58,6 +61,19 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
     return opened_at, trade_id
 
 
+def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
+    """Return a base SELECT for Trade with tags and notes eager-loaded.
+
+    Returns:
+        A :func:`select` statement with ``selectinload`` options applied
+        for the ``tags`` and ``trade_notes`` relationships.
+    """
+    return select(Trade).options(
+        selectinload(Trade.tags),
+        selectinload(Trade.trade_notes),
+    )
+
+
 class TradeRepository:
     """Data-access object for the ``trades`` table.
 
@@ -76,6 +92,24 @@ class TradeRepository:
         """
         self._session = session
 
+    async def _set_tags(self, trade: Trade, tag_ids: list[uuid.UUID]) -> None:
+        """Replace the tag associations for a trade.
+
+        Deletes existing ``trade_tags`` rows for the trade and inserts
+        new ones for the provided ``tag_ids``.  The caller is responsible
+        for ensuring all tag_ids belong to the same user as the trade.
+
+        Args:
+            trade: The trade ORM instance whose tags to replace.
+            tag_ids: New list of tag UUIDs to associate.
+        """
+        await self._session.execute(
+            delete(TradeTag).where(TradeTag.trade_id == trade.id)
+        )
+        for tag_id in tag_ids:
+            self._session.add(TradeTag(trade_id=trade.id, tag_id=tag_id))
+        await self._session.flush()
+
     async def create(self, data: TradeCreate) -> Trade:
         """Persist a new trade and return the flushed ORM instance.
 
@@ -83,21 +117,32 @@ class TradeRepository:
         defaults) but not committed — the service layer is responsible
         for committing.
 
+        If ``data.tag_ids`` is non-empty the association rows are
+        inserted into ``trade_tags`` after the trade is flushed.
+
         Args:
             data: Validated trade creation payload.
 
         Returns:
             The newly created :class:`Trade` with all server defaults
-            populated.
+            populated (including eager-loaded ``tags`` and
+            ``trade_notes``).
         """
-        trade = Trade(**data.model_dump())
+        create_dict = data.model_dump(exclude={"tag_ids"})
+        trade = Trade(**create_dict)
         self._session.add(trade)
         await self._session.flush()
-        await self._session.refresh(trade)
+
+        if data.tag_ids:
+            await self._set_tags(trade, data.tag_ids)
+
+        await self._session.refresh(trade, attribute_names=["tags", "trade_notes"])
         return trade
 
     async def get_by_id(self, trade_id: uuid.UUID) -> Trade | None:
         """Retrieve a single trade by its primary key.
+
+        Eagerly loads ``tags`` and ``trade_notes`` relationships.
 
         Args:
             trade_id: UUID of the trade to fetch.
@@ -105,7 +150,8 @@ class TradeRepository:
         Returns:
             The matching :class:`Trade`, or ``None`` if not found.
         """
-        result = await self._session.execute(select(Trade).where(Trade.id == trade_id))
+        stmt = _trade_query_with_eager_loads().where(Trade.id == trade_id)
+        result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def list_cursor(
@@ -121,6 +167,8 @@ class TradeRepository:
         pagination.  When a ``cursor`` is supplied the query applies a
         keyset filter so only rows *after* the cursor position are
         returned.
+
+        Eagerly loads ``tags`` and ``trade_notes`` on every row.
 
         Args:
             limit: Maximum number of items to return. Clamped to
@@ -147,7 +195,9 @@ class TradeRepository:
         """
         clamped_limit = max(1, min(limit, PAGINATION_MAX_LIMIT))
 
-        stmt = select(Trade).order_by(Trade.opened_at.desc(), Trade.id.desc())
+        stmt = _trade_query_with_eager_loads().order_by(
+            Trade.opened_at.desc(), Trade.id.desc()
+        )
 
         if account_id is not None:
             stmt = stmt.where(Trade.account_id == account_id)
@@ -197,22 +247,28 @@ class TradeRepository:
         """Apply a partial update to an existing trade.
 
         Only fields that are explicitly set in *data* (i.e. not
-        ``None``) are written.  The session is flushed but not
-        committed.
+        ``None``) are written.  When ``data.tag_ids`` is provided the
+        existing tag associations are replaced with the new set.
+        The session is flushed but not committed.
 
         Args:
             trade: The ORM instance to update (already loaded from DB).
             data: Validated partial update payload.
 
         Returns:
-            The updated :class:`Trade` instance after flush.
+            The updated :class:`Trade` instance after flush (with
+            eager-loaded ``tags`` and ``trade_notes``).
         """
-        update_data = data.model_dump(exclude_unset=True)
+        update_data = data.model_dump(exclude_unset=True, exclude={"tag_ids"})
         for field, value in update_data.items():
             setattr(trade, field, value)
         self._session.add(trade)
         await self._session.flush()
-        await self._session.refresh(trade)
+
+        if data.tag_ids is not None:
+            await self._set_tags(trade, data.tag_ids)
+
+        await self._session.refresh(trade, attribute_names=["tags", "trade_notes"])
         return trade
 
     async def delete(self, trade: Trade) -> None:

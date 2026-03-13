@@ -153,8 +153,8 @@ Tags: `latest` (main), `v1.2.3` (release tag), `sha-<commit>` (all builds)
 | 2         | User model, Account model, JWT auth (multi-user)    | Complete    |
 | 3         | Performance metrics, statistical aggregation         | Complete    |
 | 4         | Broker import: IBKR + Schwab (file upload + parser) | Complete    |
-| 5         | Time-series endpoints, initial frontend              | Open        |
-| 6         | Playbook, tagging, psychological notes              | Open        |
+| 5         | Time-series endpoints, initial frontend              | Complete    |
+| 6         | Playbook, tagging, psychological notes              | Complete    |
 | 7         | Live broker API connections (IBKR TWS, Schwab API)  | Stretch     |
 
 ---
@@ -223,4 +223,4 @@ For frontend-only changes: skip step 1 `backend-engineer` and step 3 `openapi-do
 
 ---
 
-*Last updated: Iteration 4 — Broker import complete*
+*Last updated: Iteration 6 — Playbook, tagging, and psychological notes complete*

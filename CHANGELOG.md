@@ -7,7 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- Iteration 6: Playbook, tagging, and psychological notes -->
+
 ### Added
+
+- [backend] `Playbook` model for named trade setup strategies, user-scoped with uniqueness constraint (`backend/app/models/playbook.py`)
+- [backend] `Tag` model for trade categorisation with hex color support (`backend/app/models/tag.py`)
+- [backend] `TradeTag` many-to-many association table (`backend/app/models/trade_tag.py`)
+- [backend] `TradeNote` model for psychological notes with optional emotion field (`backend/app/models/trade_note.py`)
+- [backend] Full CRUD `/api/v1/playbooks` and `/api/v1/tags` endpoints (`backend/app/api/v1/`)
+- [backend] Nested notes endpoints: `GET/POST /api/v1/trades/{id}/notes`, `PATCH/DELETE /api/v1/trades/{id}/notes/{note_id}` (`backend/app/api/v1/notes.py`)
+- [backend] Eager loading of tags and notes on all trade queries via `selectinload` (`backend/app/repositories/trade_repository.py`)
+- [backend] Alembic migration `0003`: playbooks, tags, trade_tags, trade_notes tables + playbook_id FK on trades (`backend/alembic/versions/0003_playbook_tags_notes.py`)
+- [frontend] Playbooks management page with inline CRUD forms
+- [frontend] Tags management page with color picker and `TagBadge` chips
+- [frontend] Trade detail page (`/dashboard/trades/[id]`) with `NoteList` and add note form
+- [backend] Unit tests for playbook service (9), tag service (9), note service (9) — all 27 passing
+
+<!-- Iteration 5: Time-series endpoints, initial frontend -->
+
+- [backend] Time-series aggregation endpoints: `GET /api/v1/timeseries/daily-pnl`, `/monthly-pnl`, `/pnl-by-symbol`, `/pnl-by-asset-class`, `/return-distribution` (`backend/app/api/v1/timeseries.py`)
+- [backend] Pydantic schemas: `DailyPnl`, `MonthlyPnl`, `PnlBySymbol`, `PnlByAssetClass`, `ReturnDistribution` (`backend/app/schemas/timeseries.py`)
+- [backend] `TimeSeriesRepository` with user-isolated aggregation queries (`backend/app/repositories/timeseries_repository.py`)
+- [backend] `TimeSeriesService` with equal-width histogram computation for return distribution (`backend/app/services/timeseries_service.py`)
+- [frontend] Next.js 14 App Router application at `frontend/` with TypeScript strict mode, Tailwind CSS dark theme
+- [frontend] Login and registration forms with JWT auth flow and Zustand auth store
+- [frontend] Dashboard page with MetricsCards (6 KPIs), EquityCurveChart (Recharts LineChart), DrawdownChart (Recharts AreaChart)
+- [frontend] Paginated trade list with cursor-based navigation
+- [frontend] Broker file import UI with broker selector, account selector, and ImportResult display
+- [frontend] React Query hooks for all data fetching (`frontend/hooks/`)
+
+<!-- Iteration 4: Broker import (IBKR + Schwab) -->
+
+- [backend] IBKR Activity Statement CSV parser (`backend/app/utils/parsers/ibkr.py`)
+- [backend] Charles Schwab trade history CSV parser (`backend/app/utils/parsers/schwab.py`)
+- [backend] Broker parser factory with `BrokerType` enum (`backend/app/utils/parsers/factory.py`)
+- [backend] `POST /api/v1/imports/upload` multipart file upload endpoint with 10 MB size limit (`backend/app/api/v1/imports.py`)
+- [backend] `ImportResult` schema with parsed/created/skipped counts and non-fatal warnings (`backend/app/schemas/imports.py`)
+- [backend] `ImportService` with account ownership validation before bulk trade creation (`backend/app/services/import_service.py`)
+- [backend] Domain exceptions: `ImportParseError`, `UnsupportedBrokerError`
+
+<!-- Iteration 3: Performance metrics and statistical aggregation -->
+
+- [backend] Performance metrics computation: win rate, loss rate, profit factor, expectancy, Sharpe ratio (annualised), max drawdown (`backend/app/utils/metrics.py`)
+- [backend] Equity curve and drawdown curve time-series computation (`backend/app/utils/metrics.py`)
+- [backend] `GET /api/v1/metrics/summary`, `GET /api/v1/metrics/equity-curve`, `GET /api/v1/metrics/drawdown` endpoints (`backend/app/api/v1/metrics.py`)
+- [backend] Pydantic schemas: `TradeMetrics`, `DrawdownPoint`, `EquityCurvePoint`, `MetricsSummary` (`backend/app/schemas/metrics.py`)
+- [backend] `MetricsRepository` for user-isolated closed trade retrieval (`backend/app/repositories/metrics_repository.py`)
+- [backend] Unit tests for metrics utilities (25) and metrics service (13)
+
+<!-- Iteration 2: User model, Account model, JWT auth (multi-user) -->
+
+- [backend] `User` SQLAlchemy model with bcrypt password hashing and `refresh_token_version` for revocation (`backend/app/models/user.py`)
+- [backend] `Account` SQLAlchemy model with user-scoped data isolation (`backend/app/models/account.py`)
+- [backend] JWT authentication: access tokens (15 min), httpOnly refresh token cookies (7 days) with rotation and revocation (`backend/app/core/security.py`)
+- [backend] `POST /api/v1/auth/register`, `POST /api/v1/auth/token`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` endpoints (`backend/app/api/v1/auth.py`)
+- [backend] `GET/PATCH/DELETE /api/v1/users/me` endpoints (`backend/app/api/v1/users.py`)
+- [backend] Full CRUD `/api/v1/accounts` endpoints with user isolation (`backend/app/api/v1/accounts.py`)
+- [backend] Domain exceptions: `UserAlreadyExistsError`, `InvalidCredentialsError`, `UserNotFoundError`, `AccountNotFoundError`, `InvalidTokenError` (`backend/app/core/exceptions.py`)
+- [backend] `get_current_user` FastAPI dependency with `is_active` guard (`backend/app/core/deps.py`)
+- [backend] Alembic migration `0002`: users and accounts tables with updated_at triggers and explicit FK constraint names (`backend/alembic/versions/0002_users_accounts_auth.py`)
+- [backend] Unit tests for auth service (12), account service (10), security utilities (16) — all 38 passing
+
+<!-- Iteration 1: Data model, Pydantic schemas, base API + DB -->
 
 - [backend] `User` SQLAlchemy ORM model with hashed password and email fields (`backend/app/models/user.py`)
 - [backend] `Account` SQLAlchemy ORM model with broker type, balance, and user FK (`backend/app/models/account.py`)

@@ -6,7 +6,18 @@ needs to mount a single router.
 
 from fastapi import APIRouter
 
-from app.api.v1 import accounts, auth, imports, metrics, trades, users
+from app.api.v1 import (
+    accounts,
+    auth,
+    imports,
+    metrics,
+    notes,
+    playbooks,
+    tags,
+    timeseries,
+    trades,
+    users,
+)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -16,3 +27,7 @@ router.include_router(accounts.router)
 router.include_router(trades.router)
 router.include_router(metrics.router)
 router.include_router(imports.router)
+router.include_router(timeseries.router)
+router.include_router(playbooks.router)
+router.include_router(tags.router)
+router.include_router(notes.router)

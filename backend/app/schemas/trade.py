@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
+from app.schemas.note import TradeNoteRead
+from app.schemas.tag import TagRead
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
 
@@ -152,6 +154,22 @@ class TradeCreate(BaseModel):
             "Omit to create an unassigned trade."
         ),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    playbook_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the playbook (strategy) to associate with this trade. "
+            "Omit or set to null for no playbook."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    tag_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        description=(
+            "List of tag UUIDs to attach to this trade. "
+            "All UUIDs must belong to the authenticated user."
+        ),
+        examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
     )
 
     @field_validator("opened_at", "closed_at", mode="before")
@@ -323,6 +341,23 @@ class TradeUpdate(BaseModel):
         ),
         examples=["Revised entry — slippage on open.", None],
     )
+    playbook_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Updated playbook UUID. Omit to leave unchanged. "
+            "Set to null to detach the current playbook."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    tag_ids: list[uuid.UUID] | None = Field(
+        default=None,
+        description=(
+            "Replacement list of tag UUIDs. When supplied, the existing tags "
+            "are replaced with this set. Omit to leave tags unchanged. "
+            "Pass an empty list ``[]`` to remove all tags."
+        ),
+        examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], [], None],
+    )
 
     @field_validator("opened_at", "closed_at", mode="before")
     @classmethod
@@ -361,6 +396,9 @@ class TradeRead(BaseModel):
         pnl: Realised PnL (``None`` if not yet closed / calculated).
         commission: Commission paid.
         notes: Free-text notes.
+        playbook_id: Optional UUID of the associated playbook.
+        tags: List of tags attached to this trade.
+        trade_notes: List of psychological / review notes on this trade.
         created_at: Row-creation timestamp.
         updated_at: Row-last-updated timestamp.
     """
@@ -451,6 +489,22 @@ class TradeRead(BaseModel):
             "Free-text notes attached to this trade. Null if no notes were added."
         ),
         examples=["Breakout above 50-day MA.", None],
+    )
+    playbook_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the playbook associated with this trade. "
+            "Null if no playbook is assigned."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    tags: list[TagRead] = Field(
+        default_factory=list,
+        description="Tags attached to this trade.",
+    )
+    trade_notes: list[TradeNoteRead] = Field(
+        default_factory=list,
+        description="Psychological and review notes attached to this trade.",
     )
     created_at: datetime = Field(
         ...,

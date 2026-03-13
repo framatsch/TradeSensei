@@ -73,6 +73,17 @@ METRICS_MIN_TRADES: int = 1
 EQUITY_CURVE_MAX_POINTS: int = 1000
 """Maximum number of data points returned for the equity curve endpoint."""
 
+# ─── Time-Series ──────────────────────────────────────────────────────────────
+
+RETURN_DISTRIBUTION_DEFAULT_BUCKETS: int = 20
+"""Default number of histogram buckets for the return distribution endpoint."""
+
+RETURN_DISTRIBUTION_MIN_BUCKETS: int = 5
+"""Minimum number of histogram buckets allowed for the return distribution endpoint."""
+
+RETURN_DISTRIBUTION_MAX_BUCKETS: int = 100
+"""Maximum number of histogram buckets allowed for the return distribution endpoint."""
+
 # ─── Broker Import ────────────────────────────────────────────────────────────
 
 IMPORT_MAX_FILE_SIZE_MB: int = 10
@@ -80,3 +91,30 @@ IMPORT_MAX_FILE_SIZE_MB: int = 10
 
 IMPORT_SUPPORTED_FORMATS: list[str] = ["csv", "xlsx"]
 """File extensions accepted by the broker import endpoint."""
+
+# ─── Playbook field sizes ─────────────────────────────────────────────────────
+
+PLAYBOOK_NAME_MIN_LENGTH: int = 1
+"""Minimum length for a playbook name."""
+
+PLAYBOOK_NAME_MAX_LENGTH: int = 100
+"""Maximum length for a playbook name."""
+
+PLAYBOOK_DESCRIPTION_MAX_LENGTH: int = 2000
+"""Maximum length for a playbook description."""
+
+# ─── Tag field sizes ──────────────────────────────────────────────────────────
+
+TAG_NAME_MIN_LENGTH: int = 1
+"""Minimum length for a tag name."""
+
+TAG_NAME_MAX_LENGTH: int = 50
+"""Maximum length for a tag name."""
+
+# ─── Trade Note field sizes ───────────────────────────────────────────────────
+
+NOTE_CONTENT_MAX_LENGTH: int = 10_000
+"""Maximum character length for trade note content."""
+
+EMOTION_MAX_LENGTH: int = 50
+"""Maximum length for an emotion label attached to a trade note."""
