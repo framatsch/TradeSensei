@@ -31,3 +31,52 @@ NUMERIC_PRECISION: int = 18
 
 NUMERIC_SCALE: int = 8
 """Decimal places for monetary / quantity NUMERIC columns."""
+
+# ─── Auth / JWT ───────────────────────────────────────────────────────────────
+
+ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+"""Lifetime of an access JWT in minutes."""
+
+REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+"""Lifetime of a refresh JWT in days."""
+
+TOKEN_ALGORITHM: str = "HS256"
+"""HMAC algorithm used when signing JWTs."""
+
+# ─── User field sizes ─────────────────────────────────────────────────────────
+
+PASSWORD_MIN_LENGTH: int = 8
+"""Minimum acceptable password length (characters)."""
+
+USERNAME_MIN_LENGTH: int = 3
+"""Minimum acceptable username length (characters)."""
+
+USERNAME_MAX_LENGTH: int = 50
+"""Maximum acceptable username length (characters)."""
+
+# ─── Account field sizes ──────────────────────────────────────────────────────
+
+ACCOUNT_NAME_MIN_LENGTH: int = 1
+"""Minimum length for a broker-account name."""
+
+ACCOUNT_NAME_MAX_LENGTH: int = 100
+"""Maximum length for a broker-account name."""
+
+CURRENCY_LENGTH: int = 3
+"""Fixed length for ISO-4217 currency codes (e.g. 'USD', 'EUR')."""
+
+# ─── Metrics ──────────────────────────────────────────────────────────────────
+
+METRICS_MIN_TRADES: int = 1
+"""Minimum number of closed trades required to compute performance metrics."""
+
+EQUITY_CURVE_MAX_POINTS: int = 1000
+"""Maximum number of data points returned for the equity curve endpoint."""
+
+# ─── Broker Import ────────────────────────────────────────────────────────────
+
+IMPORT_MAX_FILE_SIZE_MB: int = 10
+"""Maximum file size in megabytes allowed for broker import uploads."""
+
+IMPORT_SUPPORTED_FORMATS: list[str] = ["csv", "xlsx"]
+"""File extensions accepted by the broker import endpoint."""

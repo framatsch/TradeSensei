@@ -23,6 +23,8 @@ from alembic import context
 # isort: off
 from app.core.database import Base  # noqa: F401
 import app.models.trade  # noqa: F401
+import app.models.user  # noqa: F401
+import app.models.account  # noqa: F401
 # isort: on
 
 # Alembic Config object — provides access to alembic.ini values.

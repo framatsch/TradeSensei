@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     DateTime,
     Enum,
+    ForeignKey,
     Index,
     Numeric,
     String,
@@ -15,10 +17,13 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.constants import NUMERIC_PRECISION, NUMERIC_SCALE, SYMBOL_MAX_LENGTH
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.account import Account
 
 
 class Direction(StrEnum):
@@ -61,6 +66,10 @@ class Trade(Base):
         pnl: Realised profit or loss (``None`` while still open).
         commission: Total commission paid; defaults to zero.
         notes: Free-text notes attached to the trade.
+        account_id: Foreign key to the :class:`~app.models.account.Account`
+            that this trade belongs to (``None`` if not assigned to an account).
+        account: The related :class:`~app.models.account.Account` ORM instance
+            (``None`` if ``account_id`` is unset).
         created_at: Row-creation timestamp set by the database.
         updated_at: Row-update timestamp maintained by the database.
     """
@@ -125,6 +134,12 @@ class Trade(Base):
         Text,
         nullable=True,
     )
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -141,6 +156,13 @@ class Trade(Base):
         Index("ix_trades_symbol", "symbol"),
         Index("ix_trades_opened_at", "opened_at"),
         Index("ix_trades_closed_at", "closed_at"),
+        Index("ix_trades_account_id", "account_id"),
+    )
+
+    # Relationships
+    account: Mapped[Optional["Account"]] = relationship(
+        "Account",
+        back_populates="trades",
     )
 
     def __repr__(self) -> str:

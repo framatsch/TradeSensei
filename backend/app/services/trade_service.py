@@ -68,6 +68,7 @@ class TradeService:
         limit: int,
         cursor: str | None,
         include_total: bool = False,
+        account_id: uuid.UUID | None = None,
     ) -> CursorPage[TradeRead]:
         """Return a cursor-paginated list of trades.
 
@@ -77,6 +78,8 @@ class TradeService:
             include_total: When ``True``, include the total row count in
                 the response. Defaults to ``False`` to skip the extra
                 ``COUNT(*)`` query.
+            account_id: When provided, only trades for this account are
+                returned.
 
         Returns:
             A :class:`CursorPage` containing the trade DTOs, a
@@ -90,6 +93,7 @@ class TradeService:
                 limit=limit,
                 cursor=cursor,
                 include_total=include_total,
+                account_id=account_id,
             )
         except ValueError as exc:
             raise InvalidCursorError("Invalid pagination cursor.") from exc

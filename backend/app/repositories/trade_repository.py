@@ -113,6 +113,7 @@ class TradeRepository:
         limit: int = PAGINATION_DEFAULT_LIMIT,
         cursor: str | None = None,
         include_total: bool = False,
+        account_id: uuid.UUID | None = None,
     ) -> tuple[list[Trade], str | None, int | None]:
         """Return a cursor-paginated page of trades.
 
@@ -128,6 +129,8 @@ class TradeRepository:
             include_total: When ``True``, run an additional ``COUNT(*)``
                 query and include the result in the return value.
                 Defaults to ``False`` to avoid the extra query cost.
+            account_id: When provided, filter results to only trades
+                belonging to the specified account UUID.
 
         Returns:
             A three-tuple of:
@@ -145,6 +148,9 @@ class TradeRepository:
         clamped_limit = max(1, min(limit, PAGINATION_MAX_LIMIT))
 
         stmt = select(Trade).order_by(Trade.opened_at.desc(), Trade.id.desc())
+
+        if account_id is not None:
+            stmt = stmt.where(Trade.account_id == account_id)
 
         if cursor is not None:
             cursor_opened_at, cursor_id = _decode_cursor(cursor)

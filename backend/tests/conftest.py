@@ -17,7 +17,7 @@ os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://test:test@localhost:5432/test_tradejournal",
 )
-os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32chars")
 
 from collections.abc import AsyncGenerator  # noqa: E402
 

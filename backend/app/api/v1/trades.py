@@ -12,7 +12,9 @@ from app.core.constants import (
     PAGINATION_MIN_LIMIT,
 )
 from app.core.database import get_session
+from app.core.deps import get_current_user
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
+from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.schemas.trade import TradeCreate, TradeRead, TradeUpdate
 from app.services.trade_service import TradeService
@@ -53,12 +55,15 @@ def _get_service(
 async def create_trade(
     payload: TradeCreate,
     service: Annotated[TradeService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[TradeRead]:
     """Create and persist a new trading position.
 
     Args:
         payload: Validated trade creation data.
         service: Injected trade service.
+        current_user: Injected authenticated user (required but unused until
+            full account-scoping is added in a later iteration).
 
     Returns:
         A :class:`ResponseEnvelope` containing the created
@@ -93,6 +98,7 @@ async def create_trade(
 )
 async def list_trades(
     service: Annotated[TradeService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
     cursor: Annotated[str | None, Query(description="Opaque pagination cursor")] = None,
     limit: Annotated[
         int,
@@ -111,14 +117,20 @@ async def list_trades(
             )
         ),
     ] = False,
+    account_id: Annotated[
+        uuid.UUID | None,
+        Query(description="Filter trades by account UUID"),
+    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades ordered by ``opened_at`` descending.
 
     Args:
         service: Injected trade service.
+        current_user: Injected authenticated user (passed through for future isolation).
         cursor: Optional opaque cursor token from a previous response.
         limit: Number of items to return (1–100, default 20).
         include_total: When ``True``, include the total row count.
+        account_id: Optional UUID to filter trades by account.
 
     Returns:
         A :class:`ResponseEnvelope` wrapping a :class:`CursorPage` of
@@ -129,7 +141,10 @@ async def list_trades(
     """
     try:
         page = await service.list_trades(
-            limit=limit, cursor=cursor, include_total=include_total
+            limit=limit,
+            cursor=cursor,
+            include_total=include_total,
+            account_id=account_id,
         )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -154,12 +169,14 @@ async def list_trades(
 async def get_trade(
     trade_id: uuid.UUID,
     service: Annotated[TradeService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[TradeRead]:
     """Retrieve a single trade by its UUID.
 
     Args:
         trade_id: UUID path parameter.
         service: Injected trade service.
+        current_user: Injected authenticated user.
 
     Returns:
         A :class:`ResponseEnvelope` containing the :class:`TradeRead` DTO.
@@ -197,6 +214,7 @@ async def update_trade(
     trade_id: uuid.UUID,
     payload: TradeUpdate,
     service: Annotated[TradeService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[TradeRead]:
     """Apply a partial update to an existing trade.
 
@@ -206,6 +224,7 @@ async def update_trade(
         trade_id: UUID path parameter identifying the trade.
         payload: Partial update data.
         service: Injected trade service.
+        current_user: Injected authenticated user.
 
     Returns:
         A :class:`ResponseEnvelope` containing the updated
@@ -238,12 +257,14 @@ async def update_trade(
 async def delete_trade(
     trade_id: uuid.UUID,
     service: Annotated[TradeService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     """Delete a trade by its UUID.
 
     Args:
         trade_id: UUID path parameter identifying the trade to remove.
         service: Injected trade service.
+        current_user: Injected authenticated user.
 
     Raises:
         HTTPException: 404 if no trade with the given ID exists.

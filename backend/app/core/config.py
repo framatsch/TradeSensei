@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     Attributes:
         database_url: Async SQLAlchemy connection URL
             (``postgresql+asyncpg://...``).
-        secret_key: Signing key for JWT tokens (used from Iteration 2).
+        secret_key: Signing key for JWT tokens. Must be at least 32
+            characters long.
         environment: Runtime environment — ``development`` or
             ``production``.
         log_level: Python logging level string.
@@ -30,6 +31,25 @@ class Settings(BaseSettings):
     database_url: str
     secret_key: str
     environment: str = "development"
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, value: str) -> str:
+        """Ensure secret_key is at least 32 characters long.
+
+        Args:
+            value: Raw secret_key string from env var.
+
+        Returns:
+            Validated secret_key string.
+
+        Raises:
+            ValueError: If the value is shorter than 32 characters.
+        """
+        if len(value) < 32:
+            raise ValueError("secret_key must be at least 32 characters long")
+        return value
+
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
 

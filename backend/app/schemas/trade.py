@@ -10,6 +10,8 @@ from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_L
 from app.models.trade import AssetClass, Direction
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
+
+# Sentinel singleton used to distinguish "field not provided" from "field set to None"
 _UNSET: object = object()
 
 
@@ -142,6 +144,14 @@ class TradeCreate(BaseModel):
             "emotional state, or post-trade review."
         ),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
+    )
+    account_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the broker account this trade belongs to. "
+            "Omit to create an unassigned trade."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
 
     @field_validator("opened_at", "closed_at", mode="before")
