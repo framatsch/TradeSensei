@@ -47,3 +47,26 @@ class TagNotFoundError(Exception):
 
 class NoteNotFoundError(Exception):
     """Raised when a trade note cannot be found."""
+
+
+class FlexAPIError(Exception):
+    """Raised when the IBKR Flex Web Service API returns an error."""
+
+
+class RateLimitError(FlexAPIError):
+    """Raised when the IBKR Flex API rate limit is exceeded.
+
+    Attributes:
+        wait_seconds: Number of seconds to wait before retrying, as
+            reported by the IBKR error message.
+    """
+
+    def __init__(self, message: str, wait_seconds: int) -> None:
+        """Initialise with a message and the suggested wait time.
+
+        Args:
+            message: Human-readable error description from IBKR.
+            wait_seconds: Suggested retry delay in seconds.
+        """
+        super().__init__(message)
+        self.wait_seconds = wait_seconds

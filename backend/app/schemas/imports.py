@@ -1,5 +1,7 @@
 """Pydantic DTOs for the broker file import endpoint."""
 
+import uuid
+
 from pydantic import BaseModel, Field
 
 
@@ -61,4 +63,44 @@ class ImportResult(BaseModel):
             ["IBKR row 3: skipped — Row has only 5 columns; expected at least 16."],
             [],
         ],
+    )
+
+
+class FlexImportRequest(BaseModel):
+    """Request body for the IBKR Flex Query automatic import endpoint.
+
+    Attributes:
+        query_id: IBKR Flex Query ID configured in Account Management.
+        account_id: Optional UUID of the broker account to associate
+            imported trades with.
+        from_date: Optional start date (``YYYYMMDD``) to restrict the
+            report period sent to the Flex API.
+    """
+
+    query_id: str = Field(
+        ...,
+        min_length=1,
+        description=(
+            "IBKR Flex Query ID as configured in the IBKR Account Management "
+            "portal under Reports → Flex Queries."
+        ),
+        examples=["123456"],
+    )
+    account_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the broker account to associate imported trades with. "
+            "Omit to create trades without an account association."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    from_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{8}$",
+        description=(
+            "Optional start date in ``YYYYMMDD`` format. "
+            "When supplied, only trades on or after this date are included "
+            "in the Flex Query report."
+        ),
+        examples=["20240101", None],
     )

@@ -55,6 +55,7 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
+    ibkr_flex_token: str | None = None
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -73,7 +74,9 @@ class Settings(BaseSettings):
                 return []
             if stripped_value.startswith("["):
                 return stripped_value
-            return [origin.strip() for origin in stripped_value.split(",") if origin.strip()]
+            return [
+                origin.strip() for origin in stripped_value.split(",") if origin.strip()
+            ]
         return value
 
     @field_validator("environment")

@@ -1,0 +1,368 @@
+"""Business-logic service for IBKR Flex Query automatic trade import.
+
+Orchestrates the two-step IBKR Flex Web Service workflow:
+
+1. Request report generation via ``FlexStatementService.SendRequest``
+2. Poll ``FlexStatementService.GetStatement`` until the report is ready
+3. Parse the returned XML with :class:`~app.utils.parsers.ibkr_xml.IBKRXMLParser`
+4. Persist the parsed trades, skipping duplicates (same symbol + opened_at +
+   user_id already in the database)
+
+No HTTP concepts from FastAPI appear in this layer.
+"""
+
+import asyncio
+import logging
+import re
+import uuid
+import xml.etree.ElementTree as ET
+
+import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import AccountNotFoundError, FlexAPIError, RateLimitError
+from app.models.trade import Trade
+from app.repositories.account_repository import AccountRepository
+from app.repositories.trade_repository import TradeRepository
+from app.schemas.imports import ImportResult
+from app.schemas.trade import TradeCreate
+from app.utils.parsers.ibkr_xml import IBKRXMLParser
+
+logger = logging.getLogger(__name__)
+
+# ─── Flex Web Service constants ───────────────────────────────────────────────
+
+_FLEX_BASE_URL = "https://gdcdyn.interactivebrokers.com/Universal/servlet"
+_FLEX_API_VERSION = "3"
+_POLL_INTERVAL_SECONDS = 2
+_POLL_MAX_ATTEMPTS = 10
+
+
+class FlexImportService:
+    """Service for importing trades via the IBKR Flex Web Service API.
+
+    Wraps the two-step Flex API call (send request → poll for result),
+    parses the returned XML, deduplicates against existing trades and
+    persists the new ones.
+
+    Args:
+        session: An open :class:`~sqlalchemy.ext.asyncio.AsyncSession`
+            managed by the caller.
+        flex_token: IBKR Flex Web Service token.  Typically read from
+            application settings by the caller.
+        http_timeout: Timeout in seconds for individual HTTP requests
+            to the Flex API.
+    """
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        flex_token: str,
+        http_timeout: int = 60,
+    ) -> None:
+        """Initialise the service.
+
+        Args:
+            session: Database session for all repository operations.
+            flex_token: IBKR Flex Web Service token.
+            http_timeout: Per-request timeout in seconds.
+        """
+        self._session = session
+        self._token = flex_token
+        self._timeout = http_timeout
+        self._account_repo = AccountRepository(session)
+        self._trade_repo = TradeRepository(session)
+        self._parser = IBKRXMLParser()
+
+    # ─── Public method ────────────────────────────────────────────────────────
+
+    async def import_flex(
+        self,
+        query_id: str,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None = None,
+        from_date: str | None = None,
+    ) -> ImportResult:
+        """Fetch a Flex Query report and import all contained trades.
+
+        Args:
+            query_id: IBKR Flex Query ID (configured in Account Management).
+            user_id: UUID of the authenticated user.
+            account_id: Optional target broker account UUID.  When supplied,
+                the account must belong to ``user_id``.
+            from_date: Optional start date in ``YYYYMMDD`` format passed to
+                the Flex API to restrict the report period.
+
+        Returns:
+            An :class:`~app.schemas.imports.ImportResult` summarising the
+            outcome.
+
+        Raises:
+            AccountNotFoundError: If ``account_id`` is given but does not
+                belong to ``user_id``.
+            FlexAPIError: If the Flex API returns an error.
+            RateLimitError: If the Flex API rate-limit is hit (includes
+                ``wait_seconds``).
+        """
+        # Verify account ownership when provided.
+        if account_id is not None:
+            account = await self._account_repo.get_by_id(account_id, user_id)
+            if account is None:
+                raise AccountNotFoundError(
+                    f"Account {account_id} not found for user {user_id}."
+                )
+
+        xml_string = await self._fetch_flex_xml(query_id, from_date)
+        parsed_trades: list[TradeCreate] = self._parser.parse(
+            xml_string.encode("utf-8"), filename="flex_query.xml"
+        )
+        parser_warnings: list[str] = list(self._parser.warnings)
+
+        trades_created = 0
+        trades_skipped = 0
+        create_warnings: list[str] = []
+
+        for trade_data in parsed_trades:
+            trade_with_owner = trade_data.model_copy(
+                update={"account_id": account_id, "user_id": user_id}
+            )
+
+            # Duplicate check: same user + symbol + opened_at already exists.
+            if await self._is_duplicate(trade_with_owner):
+                trades_skipped += 1
+                logger.debug(
+                    "Skipping duplicate trade: %s @ %s",
+                    trade_with_owner.symbol,
+                    trade_with_owner.opened_at,
+                )
+                continue
+
+            try:
+                await self._trade_repo.create(trade_with_owner)
+                trades_created += 1
+            except Exception as exc:  # noqa: BLE001
+                msg = (
+                    f"Failed to persist trade {trade_data.symbol} "
+                    f"opened at {trade_data.opened_at}: {exc}"
+                )
+                logger.warning(msg)
+                create_warnings.append(msg)
+                trades_skipped += 1
+
+        all_warnings = parser_warnings + create_warnings
+
+        return ImportResult(
+            broker="ibkr_flex",
+            filename=f"flex_query_{query_id}.xml",
+            trades_parsed=len(parsed_trades),
+            trades_created=trades_created,
+            trades_skipped=trades_skipped,
+            warnings=all_warnings,
+        )
+
+    # ─── Flex API helpers ─────────────────────────────────────────────────────
+
+    async def _fetch_flex_xml(self, query_id: str, from_date: str | None) -> str:
+        """Execute the two-step Flex API request-and-poll workflow.
+
+        Args:
+            query_id: IBKR Flex Query ID.
+            from_date: Optional start date in ``YYYYMMDD`` format.
+
+        Returns:
+            Raw XML string of the Flex Query report.
+
+        Raises:
+            FlexAPIError: On any Flex API error.
+            RateLimitError: When IBKR rate-limits the request (error 1019).
+        """
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            reference_code = await self._send_request(client, query_id, from_date)
+            return await self._poll_report(client, reference_code)
+
+    async def _send_request(
+        self,
+        client: httpx.AsyncClient,
+        query_id: str,
+        from_date: str | None,
+    ) -> str:
+        """Send the initial Flex Query generation request.
+
+        Args:
+            client: Shared :class:`httpx.AsyncClient` instance.
+            query_id: IBKR Flex Query ID.
+            from_date: Optional start date filter (``YYYYMMDD``).
+
+        Returns:
+            The ``ReferenceCode`` to use for polling.
+
+        Raises:
+            FlexAPIError: On HTTP or API-level errors.
+            RateLimitError: When IBKR responds with error code ``1019``.
+        """
+        params: dict[str, str] = {
+            "t": self._token,
+            "q": query_id,
+            "v": _FLEX_API_VERSION,
+        }
+        if from_date:
+            params["period"] = from_date
+
+        url = f"{_FLEX_BASE_URL}/FlexStatementService.SendRequest"
+        logger.info("Requesting Flex Query %s generation…", query_id)
+
+        try:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise FlexAPIError(f"HTTP error sending Flex request: {exc}") from exc
+
+        try:
+            root = ET.fromstring(response.text)
+        except ET.ParseError as exc:
+            raise FlexAPIError(
+                f"Invalid XML in Flex SendRequest response: {exc}"
+            ) from exc
+
+        status_elem = root.find("Status")
+        if status_elem is None or status_elem.text != "Success":
+            error_code = _text(root.find("ErrorCode"))
+            error_msg = _text(root.find("ErrorMessage")) or "Unknown error"
+            if error_code and "1019" in error_code:
+                wait_seconds = _parse_wait_time(error_msg)
+                raise RateLimitError(error_msg, wait_seconds)
+            raise FlexAPIError(f"Flex SendRequest failed: {error_msg}")
+
+        ref_elem = root.find("ReferenceCode")
+        ref_code = _text(ref_elem)
+        if not ref_code:
+            raise FlexAPIError(
+                "Invalid Flex SendRequest response: missing ReferenceCode."
+            )
+
+        logger.info("Flex Query generation requested; reference code: %s", ref_code)
+        return ref_code
+
+    async def _poll_report(
+        self,
+        client: httpx.AsyncClient,
+        reference_code: str,
+    ) -> str:
+        """Poll the Flex API until the report is ready.
+
+        Args:
+            client: Shared :class:`httpx.AsyncClient` instance.
+            reference_code: Code received from :meth:`_send_request`.
+
+        Returns:
+            XML string of the completed report.
+
+        Raises:
+            FlexAPIError: If the report fails or polling times out.
+        """
+        url = f"{_FLEX_BASE_URL}/FlexStatementService.GetStatement"
+        params = {
+            "t": self._token,
+            "q": reference_code,
+            "v": _FLEX_API_VERSION,
+        }
+
+        for attempt in range(1, _POLL_MAX_ATTEMPTS + 1):
+            await asyncio.sleep(_POLL_INTERVAL_SECONDS)
+            logger.debug(
+                "Polling for Flex report (attempt %d/%d)…",
+                attempt,
+                _POLL_MAX_ATTEMPTS,
+            )
+
+            try:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise FlexAPIError(f"HTTP error polling Flex report: {exc}") from exc
+
+            try:
+                root = ET.fromstring(response.text)
+            except ET.ParseError as exc:
+                raise FlexAPIError(
+                    f"Invalid XML in Flex GetStatement response: {exc}"
+                ) from exc
+
+            # Report is ready when the root element is FlexQueryResponse.
+            if root.tag == "FlexQueryResponse":
+                logger.info("Flex report ready after %d attempt(s).", attempt)
+                return ET.tostring(root, encoding="unicode")
+
+            # Otherwise it's a FlexStatementResponse with a status code.
+            status = _text(root.find("Status"))
+            code = _text(root.find("ErrorCode"))
+            msg = _text(root.find("ErrorMessage")) or "Unknown"
+
+            if status == "Warn" and code and "1018" in code:
+                # 1018 = report still being generated, keep polling.
+                continue
+
+            raise FlexAPIError(f"Flex GetStatement error (status={status}): {msg}")
+
+        raise FlexAPIError(
+            f"Flex report not ready after {_POLL_MAX_ATTEMPTS} polling attempts."
+        )
+
+    # ─── DB helpers ───────────────────────────────────────────────────────────
+
+    async def _is_duplicate(self, trade: TradeCreate) -> bool:
+        """Check whether an identical trade already exists for this user.
+
+        Two trades are considered duplicates when they share the same
+        ``user_id``, ``symbol``, and ``opened_at`` timestamp.
+
+        Args:
+            trade: The candidate :class:`~app.schemas.trade.TradeCreate`.
+
+        Returns:
+            ``True`` if a matching row already exists in the database.
+        """
+        stmt = select(Trade.id).where(
+            Trade.user_id == trade.user_id,
+            Trade.symbol == trade.symbol,
+            Trade.opened_at == trade.opened_at,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
+
+# ─── Module-level helpers ─────────────────────────────────────────────────────
+
+
+def _text(elem: ET.Element | None) -> str | None:
+    """Return the text content of an XML element, or ``None``.
+
+    Args:
+        elem: An :class:`~xml.etree.ElementTree.Element` or ``None``.
+
+    Returns:
+        The stripped text content, or ``None`` if the element is absent
+        or has no text.
+    """
+    if elem is None:
+        return None
+    return (elem.text or "").strip() or None
+
+
+def _parse_wait_time(error_message: str) -> int:
+    """Extract the wait duration from an IBKR rate-limit error message.
+
+    IBKR messages typically read: ``"Please try again in X minutes"``.
+
+    Args:
+        error_message: The raw IBKR error message string.
+
+    Returns:
+        Wait time in seconds.  Defaults to 900 (15 minutes) when the
+        duration cannot be extracted.
+    """
+    match = re.search(r"(\d+)\s+minute", error_message, re.IGNORECASE)
+    if match:
+        return int(match.group(1)) * 60
+    return 900

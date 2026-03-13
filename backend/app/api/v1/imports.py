@@ -2,26 +2,32 @@
 
 Accepts multipart file uploads and delegates to
 :class:`~app.services.import_service.ImportService` for parsing and
-persisting trades.
+persisting trades.  Also exposes an IBKR Flex Query automatic import
+endpoint backed by :class:`~app.services.flex_import_service.FlexImportService`.
 """
 
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Body, Depends, HTTPException, UploadFile, status
+from fastapi import Form as FastAPIForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.constants import IMPORT_MAX_FILE_SIZE_MB, IMPORT_SUPPORTED_FORMATS
 from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.exceptions import (
     AccountNotFoundError,
+    FlexAPIError,
     ImportParseError,
+    RateLimitError,
     UnsupportedBrokerError,
 )
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
-from app.schemas.imports import ImportResult
+from app.schemas.imports import FlexImportRequest, ImportResult
+from app.services.flex_import_service import FlexImportService
 from app.services.import_service import ImportService
 from app.utils.parsers.factory import BrokerType
 
@@ -43,6 +49,32 @@ def _get_service(
         An :class:`ImportService` bound to the current session.
     """
     return ImportService(session)
+
+
+def _get_flex_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> FlexImportService:
+    """FastAPI dependency that constructs a :class:`FlexImportService`.
+
+    Args:
+        session: Injected async database session.
+
+    Returns:
+        A :class:`FlexImportService` bound to the current session.
+
+    Raises:
+        HTTPException: 503 if ``IBKR_FLEX_TOKEN`` is not configured.
+    """
+    token = settings.ibkr_flex_token
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "IBKR Flex import is not configured on this server. "
+                "Set the IBKR_FLEX_TOKEN environment variable to enable it."
+            ),
+        )
+    return FlexImportService(session, flex_token=token)
 
 
 @router.post(
@@ -76,12 +108,14 @@ async def upload_import(
     current_user: Annotated[User, Depends(get_current_user)],
     broker: Annotated[
         BrokerType,
-        Form(description="Broker type: 'ibkr' or 'schwab'."),
+        FastAPIForm(description="Broker type: 'ibkr' or 'schwab'."),
     ],
     file: UploadFile,
     account_id: Annotated[
-        Optional[uuid.UUID],
-        Form(description="UUID of the account to import trades into (optional)."),
+        uuid.UUID | None,
+        FastAPIForm(
+            description="UUID of the account to import trades into (optional)."
+        ),
     ] = None,
 ) -> ResponseEnvelope[ImportResult]:
     """Upload a broker export file and import the trades it contains.
@@ -145,6 +179,85 @@ async def upload_import(
             detail=str(exc),
         ) from exc
     except (ImportParseError, UnsupportedBrokerError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return ResponseEnvelope[ImportResult](data=result)
+
+
+@router.post(
+    "/flex",
+    response_model=ResponseEnvelope[ImportResult],
+    status_code=status.HTTP_200_OK,
+    summary="Import trades via IBKR Flex Query API",
+    description=(
+        "Automatically fetch a Flex Query report from the IBKR Flex Web "
+        "Service and import all contained trades. "
+        "The server must have ``IBKR_FLEX_TOKEN`` configured. "
+        "Duplicate trades (same symbol + timestamp already in the database) "
+        "are silently skipped."
+    ),
+    response_description=(
+        "A summary of the import operation wrapped in a response envelope, "
+        "including the number of trades created and any warnings."
+    ),
+    responses={
+        200: {"description": "Import completed. Check warnings for skipped entries."},
+        400: {"description": "Flex API returned an error."},
+        401: {"description": "Authentication required."},
+        404: {"description": "Account not found or not owned by the current user."},
+        429: {"description": "IBKR Flex API rate limit exceeded."},
+        503: {"description": "IBKR_FLEX_TOKEN not configured on this server."},
+    },
+)
+async def flex_import(
+    service: Annotated[FlexImportService, Depends(_get_flex_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    body: Annotated[FlexImportRequest, Body()],
+) -> ResponseEnvelope[ImportResult]:
+    """Fetch an IBKR Flex Query report and import the trades it contains.
+
+    Args:
+        service: Injected Flex import service.
+        current_user: The authenticated user.
+        body: Request payload with ``query_id``, optional ``account_id``,
+            and optional ``from_date``.
+
+    Returns:
+        A :class:`~app.schemas.common.ResponseEnvelope` wrapping an
+        :class:`~app.schemas.imports.ImportResult`.
+
+    Raises:
+        HTTPException: 400 if the Flex API returns an error.
+        HTTPException: 404 if the account is not found or not owned by
+            the current user.
+        HTTPException: 429 if the IBKR rate limit is hit.
+        HTTPException: 503 if the Flex token is not configured.
+    """
+    try:
+        result = await service.import_flex(
+            query_id=body.query_id,
+            user_id=current_user.id,
+            account_id=body.account_id,
+            from_date=body.from_date,
+        )
+    except AccountNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except RateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"IBKR Flex API rate limit exceeded. "
+                f"Retry after {exc.wait_seconds} seconds."
+            ),
+            headers={"Retry-After": str(exc.wait_seconds)},
+        ) from exc
+    except FlexAPIError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
