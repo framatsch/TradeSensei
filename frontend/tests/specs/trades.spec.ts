@@ -6,7 +6,16 @@
  * so the table should be populated.
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, chromium } from '@playwright/test';
+
+const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000';
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+
+const EMPTY_USER = {
+  username: 'e2e_emptyuser',
+  email: 'e2e_emptyuser@example.com',
+  password: 'E2eEmptyPass123!',
+};
 
 test.describe('Trades List', () => {
   test.beforeEach(async ({ page }) => {
@@ -112,5 +121,85 @@ test.describe('Trade Detail', () => {
     // Detail page should show some trade data
     // At minimum the page should render without a 404
     await expect(page.locator('main')).toBeVisible();
+  });
+});
+
+test.describe('Trades List — Empty State', () => {
+  // Run serially so TC-058 always precedes TC-059 and the shared page state
+  // is deterministic regardless of how many Playwright workers are active.
+  test.describe.configure({ mode: 'serial' });
+
+  let emptyUserToken: string;
+  // Shared browser/page — created once in beforeAll, reused by both tests.
+  let sharedBrowser: import('@playwright/test').Browser;
+  let sharedPage: import('@playwright/test').Page;
+
+  test.beforeAll(async () => {
+    // Register a fresh user with no trades
+    const regRes = await fetch(`${API_URL}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(EMPTY_USER),
+    });
+    // 201 = new user, 409 = already exists (leftover from a failed run) — both ok
+    if (regRes.status !== 201 && regRes.status !== 409) {
+      throw new Error(`Failed to register empty user: ${regRes.status}`);
+    }
+
+    // Log in to get a token
+    const loginRes = await fetch(`${API_URL}/api/v1/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        username: EMPTY_USER.username,
+        password: EMPTY_USER.password,
+      }).toString(),
+    });
+    if (!loginRes.ok) throw new Error(`Empty user login failed: ${loginRes.status}`);
+    const loginData = (await loginRes.json()) as { access_token: string };
+    emptyUserToken = loginData.access_token;
+
+    // Launch one shared browser + context, inject the token once.
+    sharedBrowser = await chromium.launch({ headless: true });
+    const context = await sharedBrowser.newContext({ baseURL: BASE_URL });
+    sharedPage = await context.newPage();
+
+    await sharedPage.goto('/dashboard/trades');
+    await sharedPage.evaluate(
+      (token) => localStorage.setItem('access_token', token),
+      emptyUserToken
+    );
+    await sharedPage.goto('/dashboard/trades');
+    await sharedPage.waitForLoadState('networkidle');
+  });
+
+  test.afterAll(async () => {
+    // Close the shared browser before deleting the user so no in-flight
+    // requests race against the DELETE.
+    if (sharedBrowser) await sharedBrowser.close();
+
+    // Delete the empty test user and all their data
+    if (emptyUserToken) {
+      await fetch(`${API_URL}/api/v1/users/me`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${emptyUserToken}` },
+      });
+    }
+  });
+
+  test('TC-058 empty state message is shown when user has no trades', async () => {
+    await expect(
+      sharedPage.getByText('No trades found. Import trades to get started.')
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('TC-059 pagination buttons are both disabled in empty state', async () => {
+    const prevBtn = sharedPage.getByRole('button', { name: 'Previous' });
+    const nextBtn = sharedPage.getByRole('button', { name: 'Next' });
+
+    await expect(prevBtn).toBeVisible({ timeout: 10_000 });
+    await expect(nextBtn).toBeVisible({ timeout: 10_000 });
+    await expect(prevBtn).toBeDisabled();
+    await expect(nextBtn).toBeDisabled();
   });
 });

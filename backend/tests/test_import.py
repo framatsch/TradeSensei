@@ -16,17 +16,26 @@ from app.schemas.imports import ImportResult
 from app.schemas.trade import TradeCreate
 from app.services.import_service import ImportService
 from app.utils.parsers.factory import BrokerType, get_parser
-from app.utils.parsers.ibkr import IBKRParser, _map_asset_class, _parse_ibkr_datetime
+from app.utils.parsers.ibkr import (
+    IBKRParser,
+    _extract_eur_usd_rate,
+    _map_asset_class,
+    _parse_ibkr_datetime,
+)
 from app.utils.parsers.schwab import SchwabParser, _parse_decimal, _parse_schwab_date
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _make_ibkr_csv(rows: list[str]) -> bytes:
+def _make_ibkr_csv(
+    rows: list[str],
+    forex_balances_rows: list[str] | None = None,
+) -> bytes:
     """Build a minimal IBKR Activity Statement CSV with a Trades section.
 
     Args:
-        rows: Data row lines to append after the header.
+        rows: Data row lines to append after the Trades header.
+        forex_balances_rows: Optional extra rows for the Forex Balances section.
 
     Returns:
         UTF-8 encoded CSV bytes.
@@ -37,6 +46,8 @@ def _make_ibkr_csv(rows: list[str]) -> bytes:
         "Realized P&L,MTM P&L,Code\n"
     )
     content = header + "\n".join(rows)
+    if forex_balances_rows:
+        content += "\n" + "\n".join(forex_balances_rows)
     return content.encode("utf-8")
 
 
@@ -520,6 +531,7 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse.return_value = parsed_trades
         mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with (
             patch(
@@ -567,6 +579,7 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse.return_value = parsed_trades
         mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         call_count = 0
 
@@ -615,6 +628,7 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse.return_value = []
         mock_parser.warnings = ["IBKR row 3: skipped — bad data"]
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with (
             patch(
@@ -653,6 +667,7 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse.return_value = parsed_trades
         mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         created_trades: list[TradeCreate] = []
 
@@ -685,3 +700,321 @@ class TestImportService:
 
         assert len(created_trades) == 1
         assert created_trades[0].account_id == target_account_id
+
+
+# ─── IBKRParser EUR/USD rate extraction ───────────────────────────────────────
+
+
+def _forex_balances_row(pair: str = "EUR.USD", rate: str = "0.9200") -> str:
+    """Build a Forex Balances data row for the IBKR CSV.
+
+    The format used by IBKR is roughly:
+    ``Forex Balances,Data,<acct>,<desc>,<pair>,<qty>,<price>,<rate>,...``
+
+    Args:
+        pair: Currency pair identifier (e.g. ``"EUR.USD"``).
+        rate: Rate value string.
+
+    Returns:
+        A comma-separated row string.
+    """
+    # Columns: [0]=section, [1]=Data, [2]=acct, [3]=desc, [4]=pair, [5]=qty, [6]=price, [7]=rate
+    return f"Forex Balances,Data,U123,EUR Base,{pair},1000,1.0,{rate},900.00"
+
+
+class TestExtractEurUsdRate:
+    """Unit tests for the _extract_eur_usd_rate helper."""
+
+    @pytest.mark.unit
+    def test_extracts_rate_when_present(self) -> None:
+        """Returns Decimal rate when EUR.USD row is present."""
+        rows_raw = "Forex Balances,Data,U123,EUR Base,EUR.USD,1000,1.0,0.9200,900.00"
+        import csv, io
+
+        rows = list(csv.reader(io.StringIO(rows_raw)))
+        result = _extract_eur_usd_rate(rows)
+        assert result == Decimal("0.9200")
+
+    @pytest.mark.unit
+    def test_returns_none_when_no_forex_balances(self) -> None:
+        """Returns None when no Forex Balances section exists."""
+        import csv, io
+
+        rows = list(csv.reader(io.StringIO("Trades,Header,foo,bar,baz\n")))
+        result = _extract_eur_usd_rate(rows)
+        assert result is None
+
+    @pytest.mark.unit
+    def test_returns_none_when_pair_is_not_eur_usd(self) -> None:
+        """Returns None when Forex Balances row is for a different pair."""
+        rows_raw = "Forex Balances,Data,U123,GBP Base,GBP.USD,500,1.0,0.7800,390.00"
+        import csv, io
+
+        rows = list(csv.reader(io.StringIO(rows_raw)))
+        result = _extract_eur_usd_rate(rows)
+        assert result is None
+
+    @pytest.mark.unit
+    def test_returns_none_on_invalid_rate_value(self) -> None:
+        """Returns None gracefully when the rate field is not numeric."""
+        rows_raw = "Forex Balances,Data,U123,EUR Base,EUR.USD,1000,1.0,N/A,900.00"
+        import csv, io
+
+        rows = list(csv.reader(io.StringIO(rows_raw)))
+        result = _extract_eur_usd_rate(rows)
+        assert result is None
+
+
+class TestIBKRParserEnrichPnlEur:
+    """Unit tests for IBKRParser.enrich_pnl_eur()."""
+
+    @pytest.mark.asyncio
+    async def test_pnl_eur_set_from_csv_rate(self) -> None:
+        """pnl_eur is computed from the CSV EUR.USD rate for closed trades."""
+        forex_row = _forex_balances_row(rate="0.9200")
+        trade_row = _ibkr_row(pnl="1000.00", dt="2024-03-15, 09:30:00")
+        csv_bytes = _make_ibkr_csv([trade_row], forex_balances_rows=[forex_row])
+
+        parser = IBKRParser()
+        trades = parser.parse(csv_bytes, "activity.csv")
+        mock_session = AsyncMock()
+
+        await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert trades[0].pnl_eur == Decimal("1000.00") * Decimal("0.9200")
+        assert trades[0].currency == "USD"
+
+    @pytest.mark.asyncio
+    async def test_currency_set_on_open_trade_with_csv_rate(self) -> None:
+        """currency='USD' is set even for open trades (pnl=None)."""
+        forex_row = _forex_balances_row(rate="0.9200")
+        trade_row = _ibkr_row(pnl="0")  # pnl=0 → open trade
+        csv_bytes = _make_ibkr_csv([trade_row], forex_balances_rows=[forex_row])
+
+        parser = IBKRParser()
+        trades = parser.parse(csv_bytes, "activity.csv")
+        mock_session = AsyncMock()
+
+        await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert trades[0].pnl_eur is None  # no pnl, so no pnl_eur
+        assert trades[0].currency == "USD"
+
+    @pytest.mark.asyncio
+    async def test_fallback_to_bundesbank_when_no_csv_rate(self) -> None:
+        """Falls back to FxRateService when no EUR.USD row is in the CSV."""
+        trade_row = _ibkr_row(pnl="500.00", dt="2024-03-15, 09:30:00")
+        csv_bytes = _make_ibkr_csv([trade_row])  # no forex_balances_rows
+
+        parser = IBKRParser()
+        trades = parser.parse(csv_bytes, "activity.csv")
+        mock_session = AsyncMock()
+
+        mock_fx = AsyncMock()
+        mock_fx.get_usd_to_eur = AsyncMock(return_value=Decimal("0.9100"))
+
+        with patch(
+            "app.services.fx_rate_service.FxRateService",
+            return_value=mock_fx,
+        ):
+            await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert trades[0].pnl_eur == Decimal("500.00") * Decimal("0.9100")
+        mock_fx.get_usd_to_eur.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_pnl_eur_null_when_fallback_also_fails(self) -> None:
+        """pnl_eur stays None and a warning is added when API is unavailable."""
+        trade_row = _ibkr_row(pnl="500.00")
+        csv_bytes = _make_ibkr_csv([trade_row])
+
+        parser = IBKRParser()
+        trades = parser.parse(csv_bytes, "activity.csv")
+        mock_session = AsyncMock()
+
+        mock_fx = AsyncMock()
+        mock_fx.get_usd_to_eur = AsyncMock(return_value=None)
+
+        with patch(
+            "app.services.fx_rate_service.FxRateService",
+            return_value=mock_fx,
+        ):
+            await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert trades[0].pnl_eur is None
+        assert any("unavailable" in w for w in parser.warnings)
+
+    @pytest.mark.asyncio
+    async def test_multi_day_warning_emitted(self) -> None:
+        """A warning is added when trades span multiple calendar days."""
+        forex_row = _forex_balances_row(rate="0.9200")
+        row_day1 = _ibkr_row(pnl="100.00", dt="2024-03-15, 09:30:00")
+        row_day2 = _ibkr_row(pnl="200.00", dt="2024-03-18, 10:00:00", symbol="MSFT")
+        csv_bytes = _make_ibkr_csv(
+            [row_day1, row_day2],
+            forex_balances_rows=[forex_row],
+        )
+
+        parser = IBKRParser()
+        trades = parser.parse(csv_bytes, "activity.csv")
+        mock_session = AsyncMock()
+
+        await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert any("multiple trading days" in w for w in parser.warnings)
+
+    @pytest.mark.asyncio
+    async def test_no_multi_day_warning_for_single_day(self) -> None:
+        """No multi-day warning when all trades share the same date."""
+        forex_row = _forex_balances_row(rate="0.9200")
+        row1 = _ibkr_row(pnl="100.00", dt="2024-03-15, 09:30:00")
+        row2 = _ibkr_row(pnl="200.00", dt="2024-03-15, 11:00:00", symbol="MSFT")
+        csv_bytes = _make_ibkr_csv(
+            [row1, row2],
+            forex_balances_rows=[forex_row],
+        )
+
+        parser = IBKRParser()
+        trades = parser.parse(csv_bytes, "activity.csv")
+        mock_session = AsyncMock()
+
+        await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert not any("multiple trading days" in w for w in parser.warnings)
+
+
+# ─── SchwabParser EUR/USD enrichment ──────────────────────────────────────────
+
+
+class TestSchwabParserCurrencyField:
+    """Tests that SchwabParser.parse() sets currency='USD' on each trade."""
+
+    @pytest.mark.unit
+    def test_currency_is_usd(self) -> None:
+        """Every parsed Schwab trade should have currency='USD'."""
+        csv_bytes = _make_schwab_csv([_schwab_row()])
+        parser = SchwabParser()
+        trades = parser.parse(csv_bytes, "trade_history.csv")
+        assert trades[0].currency == "USD"
+
+
+class TestSchwabParserEnrichPnlEur:
+    """Unit tests for SchwabParser.enrich_pnl_eur()."""
+
+    @pytest.mark.asyncio
+    async def test_pnl_eur_set_when_rate_available(self) -> None:
+        """pnl_eur is set for a closed trade when FxRateService returns a rate."""
+        # Build a Schwab trade with pnl set manually (Schwab parser leaves pnl=None,
+        # so we craft a TradeCreate directly to test the enrichment logic).
+        now = datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC)
+        trade = TradeCreate(
+            symbol="AAPL",
+            direction=Direction.LONG,
+            asset_class=AssetClass.EQUITY,
+            quantity=Decimal("10"),
+            entry_price=Decimal("150.00"),
+            opened_at=now,
+            pnl=Decimal("500.00"),
+            currency="USD",
+        )
+        trades = [trade]
+
+        mock_session = AsyncMock()
+        mock_fx = AsyncMock()
+        mock_fx.get_usd_to_eur = AsyncMock(return_value=Decimal("0.9150"))
+
+        parser = SchwabParser()
+
+        with patch(
+            "app.services.fx_rate_service.FxRateService",
+            return_value=mock_fx,
+        ):
+            await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert trades[0].pnl_eur == Decimal("500.00") * Decimal("0.9150")
+
+    @pytest.mark.asyncio
+    async def test_pnl_eur_null_when_rate_unavailable(self) -> None:
+        """pnl_eur stays None and a warning is added when rate is unavailable."""
+        now = datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC)
+        trade = TradeCreate(
+            symbol="AAPL",
+            direction=Direction.LONG,
+            asset_class=AssetClass.EQUITY,
+            quantity=Decimal("10"),
+            entry_price=Decimal("150.00"),
+            opened_at=now,
+            pnl=Decimal("300.00"),
+            currency="USD",
+        )
+        trades = [trade]
+
+        mock_session = AsyncMock()
+        mock_fx = AsyncMock()
+        mock_fx.get_usd_to_eur = AsyncMock(return_value=None)
+
+        parser = SchwabParser()
+
+        with patch(
+            "app.services.fx_rate_service.FxRateService",
+            return_value=mock_fx,
+        ):
+            await parser.enrich_pnl_eur(trades, mock_session)
+
+        assert trades[0].pnl_eur is None
+        assert any("unavailable" in w for w in parser.warnings)
+
+    @pytest.mark.asyncio
+    async def test_open_trade_not_enriched(self) -> None:
+        """Trades without pnl (open positions) should not trigger an FX lookup."""
+        csv_bytes = _make_schwab_csv([_schwab_row()])  # pnl=None (open)
+        parser = SchwabParser()
+        trades = parser.parse(csv_bytes, "trade_history.csv")
+
+        mock_session = AsyncMock()
+        mock_fx = AsyncMock()
+        mock_fx.get_usd_to_eur = AsyncMock(return_value=Decimal("0.9200"))
+
+        with patch(
+            "app.services.fx_rate_service.FxRateService",
+            return_value=mock_fx,
+        ):
+            await parser.enrich_pnl_eur(trades, mock_session)
+
+        mock_fx.get_usd_to_eur.assert_not_called()
+        assert trades[0].pnl_eur is None
+
+    @pytest.mark.asyncio
+    async def test_per_date_rate_lookup(self) -> None:
+        """Each unique trade date results in exactly one FxRateService call."""
+        day1 = datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC)
+        day2 = datetime(2024, 3, 18, 0, 0, 0, tzinfo=UTC)
+
+        def _make_t(opened_at: datetime) -> TradeCreate:
+            return TradeCreate(
+                symbol="AAPL",
+                direction=Direction.LONG,
+                asset_class=AssetClass.EQUITY,
+                quantity=Decimal("10"),
+                entry_price=Decimal("150.00"),
+                opened_at=opened_at,
+                pnl=Decimal("100.00"),
+                currency="USD",
+            )
+
+        trades = [_make_t(day1), _make_t(day1), _make_t(day2)]
+
+        mock_session = AsyncMock()
+        mock_fx = AsyncMock()
+        mock_fx.get_usd_to_eur = AsyncMock(return_value=Decimal("0.92"))
+
+        parser = SchwabParser()
+
+        with patch(
+            "app.services.fx_rate_service.FxRateService",
+            return_value=mock_fx,
+        ):
+            await parser.enrich_pnl_eur(trades, mock_session)
+
+        # Two unique dates → two calls.
+        assert mock_fx.get_usd_to_eur.call_count == 2
