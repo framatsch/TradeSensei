@@ -1,0 +1,11 @@
+Date,Action,Symbol,Description,Quantity,Price,Fees & Comm,Amount
+01/10/2024,Buy,NVDA,NVIDIA Corporation,30,$480.00,$1.80,-$14401.80
+01/11/2024,Sell,NVDA,NVIDIA Corporation,30,$501.50,$1.80,$15043.20
+01/15/2024,Buy,META,Meta Platforms Inc,40,$510.00,$1.60,-$20401.60
+01/16/2024,Sell,META,Meta Platforms Inc,40,$525.30,$1.60,$21010.40
+01/18/2024,Buy,MSFT,Microsoft Corporation,25,$415.00,$1.50,-$10376.50
+01/19/2024,Sell,MSFT,Microsoft Corporation,25,$428.75,$1.50,$10717.25
+01/22/2024,Buy,AMZN,Amazon.com Inc,20,$185.50,$1.20,-$3711.20
+01/23/2024,Sell,AMZN,Amazon.com Inc,20,$179.80,$1.20,-$3595.80
+01/25/2024,Buy,GOOGL,Alphabet Inc Class A,15,$165.00,$1.00,-$2476.00
+01/26/2024,Sell,GOOGL,Alphabet Inc Class A,15,$171.30,$1.00,$2568.50

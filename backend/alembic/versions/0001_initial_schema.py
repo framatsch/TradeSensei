@@ -7,10 +7,13 @@ Create Date: 2026-03-14 00:00:00.000000
 """
 
 from collections.abc import Sequence
+import logging
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import DBAPIError
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers, used by Alembic.
 revision: str = "0001"
@@ -18,13 +21,26 @@ down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+logger = logging.getLogger(__name__)
+
 
 def upgrade() -> None:
     """Create the ``trades`` table, its indexes, and the TimescaleDB hypertable."""
+    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
+    op.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
+
     # ── Enum types ─────────────────────────────────────────────────────────────
-    direction_enum = sa.Enum("LONG", "SHORT", name="direction_enum")
-    asset_class_enum = sa.Enum(
-        "EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO", name="asset_class_enum"
+    direction_enum = postgresql.ENUM(
+        "LONG", "SHORT", name="direction_enum", create_type=False
+    )
+    asset_class_enum = postgresql.ENUM(
+        "EQUITY",
+        "OPTION",
+        "FUTURE",
+        "FOREX",
+        "CRYPTO",
+        name="asset_class_enum",
+        create_type=False,
     )
     # op.get_bind() is deprecated in Alembic 1.12+; migrate when project upgrades to alembic 2.x
     direction_enum.create(op.get_bind(), checkfirst=True)
@@ -44,20 +60,12 @@ def upgrade() -> None:
         sa.Column("symbol", sa.String(20), nullable=False),
         sa.Column(
             "direction",
-            sa.Enum("LONG", "SHORT", name="direction_enum", create_type=False),
+            direction_enum,
             nullable=False,
         ),
         sa.Column(
             "asset_class",
-            sa.Enum(
-                "EQUITY",
-                "OPTION",
-                "FUTURE",
-                "FOREX",
-                "CRYPTO",
-                name="asset_class_enum",
-                create_type=False,
-            ),
+            asset_class_enum,
             nullable=False,
         ),
         sa.Column("quantity", sa.Numeric(18, 8), nullable=False),
@@ -112,17 +120,24 @@ def upgrade() -> None:
 
     # ── TimescaleDB hypertable ─────────────────────────────────────────────────
     # Partition by ``opened_at`` (always non-NULL) with monthly chunks.
-    op.execute(
-        """
-        SELECT create_hypertable(
-            'trades',
-            'opened_at',
-            migrate_data      => true,
-            if_not_exists     => true,
-            chunk_time_interval => INTERVAL '1 month'
-        )
-        """
-    )
+    with context.get_context().autocommit_block():
+        try:
+            op.execute(
+                """
+                SELECT create_hypertable(
+                    'trades',
+                    'opened_at',
+                    migrate_data      => true,
+                    if_not_exists     => true,
+                    chunk_time_interval => INTERVAL '1 month'
+                )
+                """
+            )
+        except DBAPIError as exc:
+            logger.warning(
+                "Skipping TimescaleDB hypertable conversion for trades: %s",
+                exc,
+            )
 
 
 def downgrade() -> None:

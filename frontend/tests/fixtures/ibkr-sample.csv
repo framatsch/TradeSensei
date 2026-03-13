@@ -1,0 +1,6 @@
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P&L,MTM P&L,Code
+Trades,Data,Order,Stocks,USD,AAPL,2024-01-15, 09:31:00,100,178.50,180.25,-17850.00,-1.50,17851.50,0,175.00,O
+Trades,Data,Order,Stocks,USD,AAPL,2024-01-15, 15:30:00,-100,185.20,184.00,18520.00,-1.50,17851.50,667.00,-120.00,C
+Trades,Data,Order,Stocks,USD,TSLA,2024-01-22, 10:05:00,50,245.00,248.30,-12250.00,-2.00,12252.00,0,165.00,O
+Trades,Data,Order,Stocks,USD,TSLA,2024-01-23, 14:20:00,-50,262.80,260.10,13140.00,-2.00,12252.00,886.00,-140.00,C
+Trades,Data,Order,Forex,USD,EURUSD,2024-01-29, 08:00:00,10000,1.0820,1.0835,-10820.00,-5.00,10825.00,0,15.00,O

@@ -1,5 +1,7 @@
 """Application settings loaded from environment variables via pydantic-settings."""
 
+from typing import Any
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +28,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        enable_decoding=False,
     )
 
     database_url: str
@@ -52,6 +55,26 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: Any) -> Any:
+        """Parse CORS origins from JSON arrays or comma-separated strings.
+
+        Args:
+            value: Raw CORS origins value from environment or defaults.
+
+        Returns:
+            A list of origin strings or the original value for Pydantic.
+        """
+        if isinstance(value, str):
+            stripped_value = value.strip()
+            if not stripped_value:
+                return []
+            if stripped_value.startswith("["):
+                return stripped_value
+            return [origin.strip() for origin in stripped_value.split(",") if origin.strip()]
+        return value
 
     @field_validator("environment")
     @classmethod

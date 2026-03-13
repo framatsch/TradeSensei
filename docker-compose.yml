@@ -47,14 +47,16 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - backend_venv:/app/.venv
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      start_period: 30s
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   # ─────────────────────────────────────────────
   # Next.js Frontend (placeholder — added in Iteration 5)
@@ -75,9 +77,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    profiles:
-      - frontend  # opt-in: docker compose --profile frontend up
 
 volumes:
   db_data:
+  backend_venv:
   frontend_node_modules:
