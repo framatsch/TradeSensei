@@ -1,0 +1,35 @@
+name: tradejournal-test
+
+# CI test stack — TimescaleDB service container only.
+# The backend and frontend run directly in CI (not in Docker)
+# and connect to this DB container.
+#
+# Usage in GitHub Actions:
+#   services:
+#     db:
+#       image: timescale/timescaledb:latest-pg16
+#       ... (see ci.yml)
+#
+# For local pre-flight test run:
+#   docker compose -f docker-compose.test.yml up -d
+#   DATABASE_URL=postgresql+asyncpg://test:test@localhost:5433/test_tradejournal \
+#     uv run pytest tests/ -v
+#   docker compose -f docker-compose.test.yml down -v
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: "no"
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test_tradejournal
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data  # in-memory — no persistent volume in CI
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test_tradejournal"]
+      interval: 3s
+      timeout: 3s
+      retries: 15

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb
+  namespace: tradejournal
+  labels:
+    app.kubernetes.io/name: timescaledb
+    app.kubernetes.io/component: database
+spec:
+  selector:
+    app.kubernetes.io/name: timescaledb
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSet DNS resolution

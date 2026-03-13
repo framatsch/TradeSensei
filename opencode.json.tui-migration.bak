@@ -1,0 +1,8 @@
+{
+  "$schema": "https://opencode.ai/config.schema.json",
+  "theme": "opencode",
+  "plugins": [
+    ".opencode/plugins/env-protection.js",
+    ".opencode/plugins/compaction-context.js"
+  ]
+}

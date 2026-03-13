@@ -1,0 +1,318 @@
+# Developer guide
+
+This guide covers everything you need to get the Trading Journal backend
+running locally, run the test suite, and add new features.
+
+---
+
+## Prerequisites
+
+| Tool | Minimum version | Install |
+|------|----------------|---------|
+| Python | 3.12 | [python.org](https://www.python.org/downloads/) |
+| uv | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| Docker | 24+ | [docs.docker.com](https://docs.docker.com/engine/install/) |
+| Docker Compose | v2 (bundled with Docker Desktop) | — |
+
+All Python dependency management uses `uv` exclusively. Do not use `pip` or
+`poetry` in this project.
+
+---
+
+## Quick start
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/<org>/tradejournal.git
+cd tradejournal
+
+# 2. Start the database
+docker compose up -d db
+
+# 3. Move into the backend directory and install dependencies
+cd backend
+uv sync
+
+# 4. Copy the example env file and fill in your values
+cp .env.example .env   # or create .env manually — see section below
+
+# 5. Apply migrations
+uv run alembic upgrade head
+
+# 6. Start the API server with hot-reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+The API is now live at `http://localhost:8000`.
+Interactive docs are available at `http://localhost:8000/docs`.
+
+---
+
+## Environment variables
+
+All configuration is loaded from environment variables. Create a `.env` file
+in `backend/` (it is gitignored) or export them in your shell.
+
+| Variable | Type | Default | Required | Description |
+|---|---|---|---|---|
+| `DATABASE_URL` | `str` | — | Yes | Async SQLAlchemy URL: `postgresql+asyncpg://user:pass@host:5432/dbname` |
+| `SECRET_KEY` | `str` | — | Yes | Random 256-bit key for JWT signing (used from Iteration 2) |
+| `ENVIRONMENT` | `str` | `development` | No | Runtime mode — `development` or `production` |
+| `LOG_LEVEL` | `str` | `INFO` | No | Python logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `CORS_ORIGINS` | `list[str]` | `["http://localhost:3000"]` | No | Comma-separated list of allowed CORS origins |
+
+Example `.env` for local development:
+
+```dotenv
+DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/tradejournal
+SECRET_KEY=change-me-to-a-long-random-string
+ENVIRONMENT=development
+LOG_LEVEL=DEBUG
+CORS_ORIGINS=http://localhost:3000
+```
+
+---
+
+## Running the database locally
+
+The project uses TimescaleDB (a PostgreSQL extension). The `docker-compose.yml`
+at the project root defines the `db` service.
+
+```bash
+# From the project root (tradejournal/)
+docker compose up -d db
+```
+
+The database is reachable at `localhost:5432` with:
+
+- **User**: `tradejournal`
+- **Password**: `tradejournal`
+- **Database**: `tradejournal`
+
+To reset the database completely (destroys all data):
+
+```bash
+docker compose down -v
+docker compose up -d db
+```
+
+---
+
+## Running migrations
+
+Migrations live in `backend/alembic/versions/`. Always run them from the
+`backend/` directory so Alembic can locate `alembic.ini`.
+
+```bash
+# Apply all pending migrations
+uv run alembic upgrade head
+
+# Check current migration state
+uv run alembic current
+
+# Roll back the last migration
+uv run alembic downgrade -1
+```
+
+The `DATABASE_URL` env var must be set before running any Alembic command.
+In local development this is picked up automatically from `backend/.env`.
+
+---
+
+## Running tests
+
+Tests are in `backend/tests/`. The suite is split into two groups:
+
+### Unit tests (no database required)
+
+These test business logic in isolation using mocks.
+
+```bash
+cd backend
+uv run pytest tests/test_trade_schemas.py tests/test_trade_service.py -v
+```
+
+### Integration tests (database required)
+
+Integration tests hit a real TimescaleDB instance. Start the database first,
+then apply migrations before running.
+
+```bash
+# Start DB and apply migrations
+docker compose up -d db
+uv run alembic upgrade head
+
+# Run integration tests
+uv run pytest -m integration -v
+```
+
+### Full suite with coverage
+
+```bash
+uv run pytest --cov=app --cov-report=term-missing
+```
+
+The coverage target for services and schemas is **≥ 80%**.
+
+### Test markers
+
+| Marker | Description |
+|---|---|
+| `unit` | Fast tests with no external dependencies |
+| `integration` | Tests that require a live database |
+
+Exclude integration tests in environments without a database:
+
+```bash
+uv run pytest -m "not integration"
+```
+
+---
+
+## Linting and type checking
+
+All checks must pass before opening a pull request. They run automatically in
+CI on every push to `main`.
+
+### Ruff (lint + format)
+
+```bash
+# Check for lint errors
+uv run ruff check app/
+
+# Check formatting
+uv run ruff format --check app/
+
+# Auto-fix lint errors and reformat
+uv run ruff check --fix app/ && uv run ruff format app/
+```
+
+### mypy (strict type checking)
+
+```bash
+uv run mypy --strict app/
+```
+
+The `pyproject.toml` enforces `line-length = 88` and selects rule sets `E`,
+`F`, `I`, `UP`, `B`, and `SIM`. No `type: ignore` comments are allowed unless
+accompanied by a code reference explaining why.
+
+---
+
+## Docker build
+
+The `backend/Dockerfile` uses multi-stage builds with three named targets.
+
+### Development image (with hot-reload)
+
+```bash
+# From the backend/ directory
+docker build --target development -t tradejournal-backend:dev .
+```
+
+### Production image (minimal, non-root)
+
+```bash
+docker build --target production -t tradejournal-backend:latest .
+```
+
+To run the full stack with Docker Compose (backend + DB, frontend optional):
+
+```bash
+# From the project root
+docker compose up -d
+
+# Optionally include the frontend (Iteration 5+)
+docker compose --profile frontend up -d
+```
+
+---
+
+## Project structure
+
+```
+backend/
+├── app/
+│   ├── api/          # FastAPI route handlers — HTTP logic only, no business rules
+│   │   └── v1/       # Versioned router; all endpoints live under /api/v1/
+│   ├── services/     # Business logic layer — orchestrates repositories, owns transactions
+│   ├── repositories/ # Data access layer — SQLAlchemy queries only, no business logic
+│   ├── models/       # SQLAlchemy ORM models mapping to database tables
+│   ├── schemas/      # Pydantic schemas (request/response DTOs); ORM models are never exposed directly
+│   ├── core/         # App-wide concerns: config.py, database.py, exceptions.py, constants.py
+│   ├── utils/        # Pure helper functions with no external dependencies
+│   └── main.py       # Application factory (create_app)
+├── alembic/          # Alembic migration environment and version scripts
+├── tests/            # pytest test suite (unit + integration)
+├── Dockerfile        # Multi-stage build: builder → development → production
+├── pyproject.toml    # Project metadata, dependencies, ruff and mypy config
+└── alembic.ini       # Alembic configuration (script_location, logging)
+```
+
+The strict layer rule: **route handlers call services; services call
+repositories; repositories call the database.** No layer may skip a level.
+
+---
+
+## Adding a new resource
+
+Follow this checklist in order when adding a new resource (for example,
+`Playbook`). Each step maps to a layer in the architecture.
+
+**1. ORM model** — `app/models/<resource>.py`
+
+Define the SQLAlchemy model. Use `NUMERIC_PRECISION` / `NUMERIC_SCALE` from
+`core/constants.py` for monetary columns. Add a TimescaleDB hypertable comment
+if the table is time-series.
+
+```python
+# app/models/playbook.py
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
+from app.core.database import Base
+
+class Playbook(Base):
+    __tablename__ = "playbooks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+```
+
+**2. Pydantic schemas** — `app/schemas/<resource>.py`
+
+Create `<Resource>Create`, `<Resource>Update`, and `<Resource>Response`
+schemas. All response schemas must be wrapped in `ResponseEnvelope` at the
+route level.
+
+**3. Repository** — `app/repositories/<resource>.py`
+
+Write async methods for `get`, `list`, `create`, `update`, `delete`.
+No business logic here — only SQLAlchemy queries.
+
+**4. Service** — `app/services/<resource>.py`
+
+Implement business rules. Call the repository. Manage `commit` / `rollback`.
+Raise domain exceptions from `core/exceptions.py` (never HTTP exceptions).
+
+**5. API router** — `app/api/v1/<resource>.py`
+
+Register the router in `app/api/v1/router.py`. Use the correct HTTP methods
+and status codes (201 for create, 204 for delete). Inject `AsyncSession` via
+`Depends(get_session)`.
+
+**6. Tests**
+
+- Add unit tests in `tests/test_<resource>_service.py` (mock the repository).
+- Add integration tests in `tests/test_<resource>_api.py` (use the `client`
+  fixture from `conftest.py`).
+
+**7. Migration**
+
+```bash
+uv run alembic revision --autogenerate -m "add playbooks table"
+# Review the generated file in alembic/versions/ before applying
+uv run alembic upgrade head
+```
+
+Check the generated migration manually — autogenerate does not detect
+TimescaleDB hypertable calls or custom index types. Add those by hand if needed.

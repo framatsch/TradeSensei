@@ -1,0 +1,100 @@
+name: tradejournal-prod
+
+# Production-like stack with Nginx reverse proxy.
+# All secrets are injected via environment variables — no secrets in images.
+#
+# Required environment variables (set in shell or .env.prod — never commit):
+#   DATABASE_URL
+#   SECRET_KEY
+#   CORS_ORIGINS
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml down
+
+services:
+  # ─────────────────────────────────────────────
+  # TimescaleDB
+  # ─────────────────────────────────────────────
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-tradejournal}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME:-tradejournal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  # ─────────────────────────────────────────────
+  # FastAPI Backend
+  # ─────────────────────────────────────────────
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/tradejournal-backend:${IMAGE_TAG:-latest}
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ENVIRONMENT: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://tradejournal.example.com}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # ─────────────────────────────────────────────
+  # Next.js Frontend (added in Iteration 5)
+  # ─────────────────────────────────────────────
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/tradejournal-frontend:${IMAGE_TAG:-latest}
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-https://api.tradejournal.example.com}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - internal
+    profiles:
+      - frontend
+
+  # ─────────────────────────────────────────────
+  # Nginx Reverse Proxy
+  # ─────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    networks:
+      - internal
+      - external
+
+networks:
+  internal:
+    driver: bridge
+  external:
+    driver: bridge
+
+volumes:
+  db_data:
