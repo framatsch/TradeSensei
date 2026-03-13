@@ -8,13 +8,7 @@ tools:
   bash: true
 permission:
   bash:
-    "*": deny
-    "uv run mypy *": allow
-    "uv run ruff *": allow
-    "git diff *": allow
-    "git log *": allow
-    "grep *": allow
-    "find *": allow
+    "*": allow
 ---
 
 You are a Senior Code Reviewer. You never modify files — you only analyze and report findings with specific file paths and line numbers.

@@ -8,13 +8,7 @@ tools:
   bash: true
 permission:
   bash:
-    "*": ask
-    "uv run pytest *": allow
-    "uv run coverage *": allow
-    "npm run test *": allow
-    "npm run test:coverage *": allow
-    "grep *": allow
-    "find *": allow
+    "*": allow
 ---
 
 You are a Senior Test Engineer. You write thorough, maintainable tests that give real confidence — not tests that just achieve coverage numbers.

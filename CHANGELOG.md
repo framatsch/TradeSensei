@@ -9,7 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- [backend] FastAPI application factory with CORS middleware (`backend/app/main.py`)
+- [backend] `User` SQLAlchemy ORM model with hashed password and email fields (`backend/app/models/user.py`)
+- [backend] `Account` SQLAlchemy ORM model with broker type, balance, and user FK (`backend/app/models/account.py`)
+- [backend] `account_id` nullable FK on `Trade` model linking trades to accounts (`backend/app/models/trade.py`)
+- [backend] Pydantic v2 schemas `UserCreate`, `UserUpdate`, `UserRead`, `AccountCreate`, `AccountUpdate`, `AccountRead`, `TokenResponse`, `LoginRequest` (`backend/app/schemas/`)
+- [backend] JWT authentication endpoints `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh` (`backend/app/api/v1/auth.py`)
+- [backend] Users REST API `GET/PATCH /api/v1/users/me` and admin list (`backend/app/api/v1/users.py`)
+- [backend] Accounts REST API `POST/GET/PATCH/DELETE /api/v1/accounts` scoped to authenticated user (`backend/app/api/v1/accounts.py`)
+- [backend] `UserRepository` and `AccountRepository` with async CRUD (`backend/app/repositories/`)
+- [backend] `AuthService`, `UserService`, `AccountService` business logic (`backend/app/services/`)
+- [backend] JWT/password security utilities (`backend/app/core/security.py`)
+- [backend] `get_current_user` FastAPI dependency injection (`backend/app/core/deps.py`)
+- [backend] Alembic migration 0002 adding `users` and `accounts` tables with indexes (`backend/alembic/versions/0002_users_accounts_auth.py`)
+- [backend] python-jose, passlib, bcrypt runtime dependencies
+- [backend] Unit + API tests for auth, users, accounts, and security (5 new test files, 50+ tests)
+- [backend] Pure metrics utility functions: win rate, profit factor, max drawdown, expectancy, Sharpe ratio, return distribution (`backend/app/utils/metrics.py`)
+- [backend] `MetricsRepository` with async equity curve and closed-trade queries (`backend/app/repositories/metrics_repository.py`)
+- [backend] `MetricsService` orchestrating repository queries and statistical calculations (`backend/app/services/metrics_service.py`)
+- [backend] Metrics Pydantic schemas: `MetricsSummary`, `EquityCurvePoint`, `DrawdownPoint`, `ReturnDistribution` (`backend/app/schemas/metrics.py`)
+- [backend] Metrics endpoints `GET /api/v1/metrics/summary`, `/equity-curve`, `/drawdown`, `/distribution` scoped to authenticated user's accounts (`backend/app/api/v1/metrics.py`)
+- [backend] Unit tests for metrics utility functions and metrics service (2 new test files)
+- [backend] Abstract `BrokerParser` base class for file import parsers (`backend/app/utils/parsers/base.py`)
+- [backend] `IBKRParser`: IBKR Activity Statement CSV parser locating the Trades section, mapping asset classes, handling direction from quantity sign (`backend/app/utils/parsers/ibkr.py`)
+- [backend] `SchwabParser`: Schwab trade history CSV parser with named column validation and dollar-sign stripping (`backend/app/utils/parsers/schwab.py`)
+- [backend] `get_parser()` factory keyed by `BrokerType` StrEnum (`ibkr` | `schwab`) (`backend/app/utils/parsers/factory.py`)
+- [backend] `ImportService` orchestrating account ownership check, file parsing, and bulk trade creation (`backend/app/services/import_service.py`)
+- [backend] `POST /api/v1/imports/upload` multipart endpoint with file size validation (10 MB limit), format check, 413/400/404 error responses, and auth guard (`backend/app/api/v1/imports.py`)
+- [backend] `ImportResult` Pydantic response schema with import statistics and per-row warnings (`backend/app/schemas/imports.py`)
+- [backend] `account_id` optional field added to `TradeCreate` schema for import stamping
+- [backend] openpyxl runtime + types-openpyxl dev dependencies for Excel file support
+- [backend] 44 unit tests covering parsers, import service, and import API layer
+
+### FastAPI application factory with CORS middleware (`backend/app/main.py`)
 - [backend] `Trade` SQLAlchemy ORM model with `Direction` and `AssetClass` enums (`backend/app/models/trade.py`)
 - [backend] Pydantic v2 schemas `TradeCreate`, `TradeUpdate`, and `TradeRead` with full field validation including timezone-aware datetimes and cross-field date order validation (`backend/app/schemas/trade.py`)
 - [backend] Generic response envelopes `ResponseEnvelope[T]` and `CursorPage[T]` for consistent API responses (`backend/app/schemas/common.py`)

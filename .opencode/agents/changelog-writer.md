@@ -8,12 +8,7 @@ tools:
   bash: true
 permission:
   bash:
-    "*": deny
-    "git log *": allow
-    "git diff *": allow
-    "git show *": allow
-    "git tag *": allow
-    "grep *": allow
+    "*": allow
 ---
 
 You are a Release Engineer responsible for maintaining an accurate, human-readable `CHANGELOG.md` at the repository root.

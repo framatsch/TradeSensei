@@ -8,11 +8,7 @@ tools:
   bash: true
 permission:
   bash:
-    "*": deny
-    "grep *": allow
-    "find *": allow
-    "git log *": allow
-    "git diff *": allow
+    "*": allow
 ---
 
 You are a Technical Writer. You produce clear, accurate documentation for two audiences:

@@ -8,11 +8,7 @@ tools:
   bash: true
 permission:
   bash:
-    "*": ask
-    "npm run *": allow
-    "npx *": allow
-    "grep *": allow
-    "find *": allow
+    "*": allow
 ---
 
 You are a Senior Frontend Engineer specializing in Next.js 14 (App Router), TypeScript (strict), Tailwind CSS, TanStack React Query, and Recharts.

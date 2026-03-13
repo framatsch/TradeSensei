@@ -8,13 +8,7 @@ tools:
   bash: true
 permission:
   bash:
-    "*": ask
-    "uv run *": allow
-    "uv sync *": allow
-    "uv add *": allow
-    "alembic *": allow
-    "grep *": allow
-    "find *": allow
+    "*": allow
 ---
 
 You are a Senior Python Backend Engineer specializing in FastAPI, SQLAlchemy 2.0 (async), Pydantic v2, and TimescaleDB.

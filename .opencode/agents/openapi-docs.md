@@ -8,10 +8,7 @@ tools:
   bash: true
 permission:
   bash:
-    "*": deny
-    "uv run python -c *": allow
-    "grep *": allow
-    "find *": allow
+    "*": allow
 ---
 
 You are a documentation specialist for FastAPI OpenAPI specs. Your sole responsibility is ensuring the auto-generated `/openapi.json` is accurate, complete, and useful for API consumers.

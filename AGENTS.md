@@ -150,9 +150,9 @@ Tags: `latest` (main), `v1.2.3` (release tag), `sha-<commit>` (all builds)
 | Iteration | Focus                                               | Status      |
 |-----------|-----------------------------------------------------|-------------|
 | 1         | Data model, Pydantic schemas, base API + DB         | Complete    |
-| 2         | User model, Account model, JWT auth (multi-user)    | Open        |
-| 3         | Performance metrics, statistical aggregation         | Open        |
-| 4         | Broker import: IBKR + Schwab (file upload + parser) | Open        |
+| 2         | User model, Account model, JWT auth (multi-user)    | Complete    |
+| 3         | Performance metrics, statistical aggregation         | Complete    |
+| 4         | Broker import: IBKR + Schwab (file upload + parser) | Complete    |
 | 5         | Time-series endpoints, initial frontend              | Open        |
 | 6         | Playbook, tagging, psychological notes              | Open        |
 | 7         | Live broker API connections (IBKR TWS, Schwab API)  | Stretch     |
@@ -223,4 +223,4 @@ For frontend-only changes: skip step 1 `backend-engineer` and step 3 `openapi-do
 
 ---
 
-*Last updated: Iteration 1 — Infrastructure complete*
+*Last updated: Iteration 4 — Broker import complete*
