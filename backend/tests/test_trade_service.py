@@ -242,6 +242,95 @@ class TestUpdateTrade:
             await service.update_trade(uuid.uuid4(), TradeUpdate(symbol="X"))
 
 
+class TestTradeUpdateNullableSentinel:
+    """Tests verifying the nullable sentinel behaviour of :class:`TradeUpdate`.
+
+    Pydantic v2 distinguishes between a field that was **omitted** from the
+    request payload (not in ``model_fields_set``) and one that was
+    **explicitly set to null** (present in ``model_fields_set`` with value
+    ``None``).  The repository uses ``model_dump(exclude_unset=True)`` so
+    that only the latter actually clears the DB column.
+    """
+
+    @pytest.mark.unit
+    def test_explicit_null_stop_loss_is_in_fields_set(self) -> None:
+        """TradeUpdate with stop_loss=None should include it in model_fields_set."""
+        payload = TradeUpdate(stop_loss=None)
+        assert "stop_loss" in payload.model_fields_set
+        assert payload.stop_loss is None
+
+    @pytest.mark.unit
+    def test_omitted_stop_loss_not_in_fields_set(self) -> None:
+        """TradeUpdate without stop_loss should NOT include it in model_fields_set."""
+        payload = TradeUpdate(symbol="AAPL")
+        assert "stop_loss" not in payload.model_fields_set
+
+    @pytest.mark.unit
+    def test_explicit_null_take_profit_is_in_fields_set(self) -> None:
+        """TradeUpdate with take_profit=None should include it in model_fields_set."""
+        payload = TradeUpdate(take_profit=None)
+        assert "take_profit" in payload.model_fields_set
+        assert payload.take_profit is None
+
+    @pytest.mark.unit
+    def test_omitted_take_profit_not_in_fields_set(self) -> None:
+        """TradeUpdate without take_profit should NOT include it in model_fields_set."""
+        payload = TradeUpdate(symbol="AAPL")
+        assert "take_profit" not in payload.model_fields_set
+
+    @pytest.mark.unit
+    def test_model_dump_exclude_unset_includes_explicit_null(self) -> None:
+        """model_dump(exclude_unset=True) should include fields set to null."""
+        payload = TradeUpdate(stop_loss=None, symbol="TSLA")
+        dumped = payload.model_dump(exclude_unset=True)
+        assert "stop_loss" in dumped
+        assert dumped["stop_loss"] is None
+        assert dumped["symbol"] == "TSLA"
+
+    @pytest.mark.unit
+    def test_model_dump_exclude_unset_excludes_omitted_fields(self) -> None:
+        """model_dump(exclude_unset=True) should exclude fields that were omitted."""
+        payload = TradeUpdate(symbol="TSLA")
+        dumped = payload.model_dump(exclude_unset=True)
+        assert "stop_loss" not in dumped
+        assert "take_profit" not in dumped
+        assert dumped["symbol"] == "TSLA"
+
+    @pytest.mark.unit
+    async def test_update_trade_passes_null_stop_loss_to_repo(
+        self, service: TradeService
+    ) -> None:
+        """update_trade should call repo.update with the full TradeUpdate payload.
+
+        The repository is responsible for applying model_dump(exclude_unset=True),
+        so we verify the service passes the unmodified payload through.
+        """
+        trade = _make_trade(stop_loss=Decimal("148.00"))
+        updated = _make_trade(stop_loss=None)
+        clear_payload = TradeUpdate(stop_loss=None)
+
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.update",
+                new_callable=AsyncMock,
+                return_value=updated,
+            ) as mock_update,
+        ):
+            result = await service.update_trade(
+                trade.id,  # type: ignore[arg-type]
+                clear_payload,
+            )
+
+        # Verify the repo received the exact payload (not a mutated copy)
+        mock_update.assert_awaited_once_with(trade, clear_payload)
+        assert result.stop_loss is None
+
+
 class TestDeleteTrade:
     """Unit tests for :meth:`TradeService.delete_trade`."""
 
