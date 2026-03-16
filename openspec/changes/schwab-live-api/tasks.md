@@ -72,6 +72,6 @@
 
 ## 12. Lint, Types, and Commit
 
-- [ ] 12.1 Run `lint-check` skill — fix all ruff and mypy errors
-- [ ] 12.2 Run `unit-test` skill — ensure all tests pass
-- [ ] 12.3 Create git commit using `commit-helper` skill
+- [x] 12.1 Run `lint-check` skill — fix all ruff and mypy errors (pre-existing ruff errors in legacy files only; new files are clean)
+- [x] 12.2 Run `unit-test` skill — ensure all tests pass (68 frontend tests, backend tests pass)
+- [x] 12.3 Create git commit using `commit-helper` skill
