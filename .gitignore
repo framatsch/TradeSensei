@@ -68,3 +68,5 @@ opencode.json.tui-migration.bak
 /playwright/.cache/
 /playwright/.auth/
 frontend/tests/.auth/
+frontend/test-results/
+frontend/playwright-report/
