@@ -158,15 +158,16 @@ def _build_sort_column(
 
 
 def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
-    """Return a base SELECT for Trade with tags and notes eager-loaded.
+    """Return a base SELECT for Trade with tags, notes, and playbook eager-loaded.
 
     Returns:
         A :func:`select` statement with ``selectinload`` options applied
-        for the ``tags`` and ``trade_notes`` relationships.
+        for the ``tags``, ``trade_notes``, and ``playbook`` relationships.
     """
     return select(Trade).options(
         selectinload(Trade.tags),
         selectinload(Trade.trade_notes),
+        selectinload(Trade.playbook),
     )
 
 
@@ -294,7 +295,9 @@ class TradeRepository:
         if data.tag_ids:
             await self._set_tags(trade, data.tag_ids)
 
-        await self._session.refresh(trade, attribute_names=["tags", "trade_notes"])
+        await self._session.refresh(
+            trade, attribute_names=["tags", "trade_notes", "playbook"]
+        )
         return trade
 
     async def get_by_id(self, trade_id: uuid.UUID) -> Trade | None:
@@ -496,7 +499,9 @@ class TradeRepository:
         if data.tag_ids is not None:
             await self._set_tags(trade, data.tag_ids)
 
-        await self._session.refresh(trade, attribute_names=["tags", "trade_notes"])
+        await self._session.refresh(
+            trade, attribute_names=["tags", "trade_notes", "playbook"]
+        )
         return trade
 
     async def delete(self, trade: Trade) -> None:

@@ -211,3 +211,101 @@ class ReturnDistribution(BaseModel):
         ),
         examples=["0.0952", "0.2857", "0.0238"],
     )
+
+
+class MonthlyWinratePoint(BaseModel):
+    """A single data point representing the win rate for a calendar month.
+
+    Attributes:
+        year: Four-digit calendar year.
+        month: Calendar month (1–12).
+        label: Human-readable month label (e.g. ``"May 2024"``).
+        win_rate: Fraction of winning trades (PnL > 0) for this month (0.0–1.0).
+        win_count: Number of winning trades (PnL > 0) in this month.
+        loss_count: Number of losing/break-even trades (PnL <= 0) in this month.
+        trade_count: Total number of closed trades in this month.
+    """
+
+    year: int = Field(
+        ...,
+        description="Four-digit calendar year.",
+        examples=[2024, 2025],
+    )
+    month: int = Field(
+        ...,
+        description="Calendar month number (1 = January, 12 = December).",
+        examples=[1, 6, 12],
+    )
+    label: str = Field(
+        ...,
+        description=(
+            "Human-readable month label formatted as ``'Mon YYYY'`` "
+            "(e.g. ``'May 2024'``)."
+        ),
+        examples=["May 2024", "Jan 2025"],
+    )
+    win_rate: Decimal = Field(
+        ...,
+        description=(
+            "Fraction of winning trades (PnL > 0) over the total trade count "
+            "for this month (0.0–1.0). Zero when ``trade_count`` is zero."
+        ),
+        examples=["0.6667", "0.7500", "0.0000"],
+    )
+    win_count: int = Field(
+        ...,
+        description="Number of trades with PnL > 0 in this month.",
+        examples=[10, 5, 0],
+    )
+    loss_count: int = Field(
+        ...,
+        description="Number of trades with PnL <= 0 in this month.",
+        examples=[5, 3, 8],
+    )
+    trade_count: int = Field(
+        ...,
+        description="Total number of closed trades in this month.",
+        examples=[15, 8, 8],
+    )
+
+
+class RollingWinratePoint(BaseModel):
+    """A single data point in the rolling win-rate series.
+
+    Each point represents the win rate computed over the ``window`` most
+    recent closed trades up to and including the trade at ``trade_index``.
+
+    Attributes:
+        trade_index: Zero-based index of the trade in the chronological series.
+        closed_at: UTC timestamp when the trade was closed.
+        rolling_winrate: Win rate (fraction of wins) over the sliding window
+            ending at this trade (0.0–1.0).
+        window: The window size used for this computation.
+    """
+
+    trade_index: int = Field(
+        ...,
+        description=(
+            "Zero-based ordinal position of the trade in the chronological "
+            "closed-trade series."
+        ),
+        examples=[0, 19, 42],
+    )
+    closed_at: dt.datetime = Field(
+        ...,
+        description="UTC timestamp when the trade at this index was closed.",
+        examples=["2024-05-10T14:30:00Z"],
+    )
+    rolling_winrate: Decimal = Field(
+        ...,
+        description=(
+            "Fraction of winning trades (PnL > 0) over the ``window`` most "
+            "recent trades ending at this index (0.0–1.0)."
+        ),
+        examples=["0.6500", "0.4000", "1.0000"],
+    )
+    window: int = Field(
+        ...,
+        description="Number of trades in the sliding window used for this point.",
+        examples=[20, 10, 50],
+    )

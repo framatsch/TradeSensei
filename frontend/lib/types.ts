@@ -57,6 +57,7 @@ export interface Account {
   name: string;
   broker: string | null;
   currency: string;
+  description?: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -138,8 +139,11 @@ export interface Trade {
   closed_at: string | null;
   pnl: string | null;
   commission: string;
+  currency: string | null;
+  pnl_eur: string | null;
   notes: string | null;
   playbook_id: string | null;
+  playbook_name: string | null;
   tags: Tag[];
   trade_notes: TradeNote[];
   created_at: string;
@@ -159,8 +163,11 @@ export interface TradeCreate {
   closed_at?: string | null;
   pnl?: string | null;
   commission?: string;
+  currency?: string | null;
   notes?: string | null;
   account_id?: string | null;
+  playbook_id?: string | null;
+  tag_ids?: string[];
 }
 
 export interface TradeUpdate {
@@ -177,6 +184,9 @@ export interface TradeUpdate {
   pnl?: string | null;
   commission?: string | null;
   notes?: string | null;
+  playbook_id?: string | null;
+  tag_ids?: string[] | null;
+  currency?: string | null;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -245,18 +255,39 @@ export interface MonthlyPnl {
   month: number;
   pnl: string;
   trade_count: number;
+  win_rate: string;
 }
 
 export interface PnlBySymbol {
   symbol: string;
-  pnl: string;
+  total_pnl: string;
   trade_count: number;
+  win_rate: string;
+  avg_pnl: string;
 }
 
 export interface PnlByAssetClass {
   asset_class: AssetClass;
-  pnl: string;
+  total_pnl: string;
   trade_count: number;
+  win_rate: string;
+}
+
+export interface ReturnDistribution {
+  bucket_min: string;
+  bucket_max: string;
+  count: number;
+  frequency: string;
+}
+
+// ─── Account (extended) ───────────────────────────────────────────────────────
+
+export interface AccountUpdate {
+  name?: string;
+  broker?: string | null;
+  currency?: string;
+  description?: string | null;
+  is_active?: boolean;
 }
 
 // ─── Tax ──────────────────────────────────────────────────────────────────────
@@ -274,4 +305,13 @@ export interface TaxAnnualSummary {
   derivatives: TaxCategoryBlock;
   total_net_eur: string;
   trades_missing_eur: number;
+}
+
+// ─── Rolling Winrate ──────────────────────────────────────────────────────────
+
+export interface RollingWinratePoint {
+  trade_index: number;
+  closed_at: string;
+  rolling_winrate: number;
+  window: number;
 }

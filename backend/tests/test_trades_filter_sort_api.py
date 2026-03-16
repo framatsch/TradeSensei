@@ -1,0 +1,306 @@
+"""Integration tests for filter and sort on GET /api/v1/trades.
+
+Covers TradeFilterParams (symbol, direction, asset_class, pnl_positive,
+opened_at_from/to, playbook_id, tag_ids) and TradeSortParams (sort_by,
+sort_dir) as wired in the list_trades route handler.
+"""
+
+from datetime import UTC, datetime
+
+import pytest
+from httpx import AsyncClient
+
+_REGISTER_URL = "/api/v1/auth/register"
+_TOKEN_URL = "/api/v1/auth/token"
+
+
+async def _get_auth_headers(client: AsyncClient) -> dict[str, str]:
+    """Register a throwaway user and return Bearer auth headers.
+
+    Args:
+        client: The HTTPX test client.
+
+    Returns:
+        A dict with the ``Authorization: Bearer …`` header.
+    """
+    import uuid
+
+    uid = uuid.uuid4().hex[:8]
+    reg = await client.post(
+        _REGISTER_URL,
+        json={
+            "username": f"filt_{uid}",
+            "email": f"filt_{uid}@example.com",
+            "password": "FiltTest@99",
+        },
+    )
+    assert reg.status_code == 201, reg.text
+    login = await client.post(
+        _TOKEN_URL,
+        data={"username": f"filt_{uid}", "password": "FiltTest@99"},
+    )
+    assert login.status_code == 200, login.text
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def _make_trade(
+    symbol: str = "AAPL",
+    direction: str = "LONG",
+    asset_class: str = "EQUITY",
+    pnl: str | None = None,
+    opened_at: str | None = None,
+    **kwargs: object,
+) -> dict[str, object]:
+    """Build a minimal trade payload.
+
+    Args:
+        symbol: Ticker symbol.
+        direction: LONG or SHORT.
+        asset_class: Asset class string.
+        pnl: Optional PnL value.
+        opened_at: Optional ISO-8601 opened_at (defaults to 2025-01-15).
+        **kwargs: Additional field overrides.
+
+    Returns:
+        A dict suitable for ``POST /api/v1/trades``.
+    """
+    payload: dict[str, object] = {
+        "symbol": symbol,
+        "direction": direction,
+        "asset_class": asset_class,
+        "quantity": "10.00000000",
+        "entry_price": "100.00000000",
+        "opened_at": opened_at or datetime(2025, 1, 15, 10, 0, tzinfo=UTC).isoformat(),
+    }
+    if pnl is not None:
+        payload["pnl"] = pnl
+        payload["exit_price"] = "110.00000000"
+        payload["closed_at"] = datetime(2025, 1, 15, 16, 0, tzinfo=UTC).isoformat()
+    payload.update(kwargs)
+    return payload
+
+
+async def _post_trade(
+    client: AsyncClient,
+    headers: dict[str, str],
+    **kwargs: object,
+) -> dict[str, object]:
+    """Post a trade and return the response data dict.
+
+    Args:
+        client: The HTTPX test client.
+        headers: Auth headers.
+        **kwargs: Passed to :func:`_make_trade`.
+
+    Returns:
+        The ``data`` portion of the response envelope.
+    """
+    resp = await client.post(
+        "/api/v1/trades", json=_make_trade(**kwargs), headers=headers
+    )
+    assert resp.status_code == 201, resp.text
+    return dict(resp.json()["data"])
+
+
+async def _list_trades(
+    client: AsyncClient,
+    headers: dict[str, str],
+    **params: object,
+) -> list[dict[str, object]]:
+    """Call GET /api/v1/trades and return the items list.
+
+    Args:
+        client: The HTTPX test client.
+        headers: Auth headers.
+        **params: Query parameters to pass.
+
+    Returns:
+        The ``items`` list from the cursor page.
+    """
+    resp = await client.get("/api/v1/trades", headers=headers, params=params)
+    assert resp.status_code == 200, resp.text
+    return list(resp.json()["data"]["items"])
+
+
+@pytest.mark.integration
+class TestTradeFilterSymbol:
+    """Tests for symbol filter on ``GET /api/v1/trades``."""
+
+    async def test_filter_by_symbol_exact(self, client: AsyncClient) -> None:
+        """symbol filter should return only trades with matching symbol."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="AAPL")
+        await _post_trade(client, h, symbol="GOOG")
+
+        items = await _list_trades(client, h, symbol="AAPL")
+        assert all(t["symbol"] == "AAPL" for t in items)
+        assert len(items) >= 1
+
+    async def test_filter_by_symbol_case_insensitive(self, client: AsyncClient) -> None:
+        """symbol filter should be case-insensitive."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="MSFT")
+
+        items = await _list_trades(client, h, symbol="msft")
+        assert any(t["symbol"] == "MSFT" for t in items)
+
+    async def test_filter_by_symbol_partial_match(self, client: AsyncClient) -> None:
+        """symbol filter should support partial match (ILIKE %value%)."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="NVDA")
+        await _post_trade(client, h, symbol="NVDX")
+
+        items = await _list_trades(client, h, symbol="NVD")
+        assert len(items) >= 2
+        symbols = [t["symbol"] for t in items]
+        assert "NVDA" in symbols
+        assert "NVDX" in symbols
+
+
+@pytest.mark.integration
+class TestTradeFilterDirection:
+    """Tests for direction filter on ``GET /api/v1/trades``."""
+
+    async def test_filter_long_only(self, client: AsyncClient) -> None:
+        """direction=LONG should exclude SHORT trades."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="SPY", direction="LONG")
+        await _post_trade(client, h, symbol="SPY", direction="SHORT")
+
+        items = await _list_trades(client, h, symbol="SPY", direction="LONG")
+        assert all(t["direction"] == "LONG" for t in items)
+
+    async def test_filter_short_only(self, client: AsyncClient) -> None:
+        """direction=SHORT should exclude LONG trades."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="QQQ", direction="LONG")
+        await _post_trade(client, h, symbol="QQQ", direction="SHORT")
+
+        items = await _list_trades(client, h, symbol="QQQ", direction="SHORT")
+        assert all(t["direction"] == "SHORT" for t in items)
+
+
+@pytest.mark.integration
+class TestTradeFilterAssetClass:
+    """Tests for asset_class filter on ``GET /api/v1/trades``."""
+
+    async def test_filter_equity_only(self, client: AsyncClient) -> None:
+        """asset_class=EQUITY should exclude non-equity trades."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="EQF1", asset_class="EQUITY")
+        await _post_trade(client, h, symbol="EQF1", asset_class="OPTION")
+
+        items = await _list_trades(client, h, symbol="EQF1", asset_class="EQUITY")
+        assert all(t["asset_class"] == "EQUITY" for t in items)
+
+
+@pytest.mark.integration
+class TestTradeFilterPnl:
+    """Tests for pnl_positive filter on ``GET /api/v1/trades``."""
+
+    async def test_filter_winners_only(self, client: AsyncClient) -> None:
+        """pnl_positive=true should return only winning trades."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="WIN1", pnl="100.00")
+        await _post_trade(client, h, symbol="WIN1", pnl="-50.00")
+
+        items = await _list_trades(client, h, symbol="WIN1", pnl_positive="true")
+        assert all(float(t["pnl"]) > 0 for t in items if t["pnl"] is not None)
+
+    async def test_filter_losers_only(self, client: AsyncClient) -> None:
+        """pnl_positive=false should return only losing trades."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="LOSE1", pnl="200.00")
+        await _post_trade(client, h, symbol="LOSE1", pnl="-75.00")
+
+        items = await _list_trades(client, h, symbol="LOSE1", pnl_positive="false")
+        pnl_values = [float(t["pnl"]) for t in items if t["pnl"] is not None]
+        assert all(v <= 0 for v in pnl_values)
+
+
+@pytest.mark.integration
+class TestTradeFilterDateRange:
+    """Tests for opened_at_from / opened_at_to filter on ``GET /api/v1/trades``."""
+
+    async def test_filter_from_date(self, client: AsyncClient) -> None:
+        """opened_at_from should exclude trades opened before that date."""
+        h = await _get_auth_headers(client)
+        early = datetime(2024, 1, 5, 10, 0, tzinfo=UTC).isoformat()
+        late = datetime(2025, 6, 1, 10, 0, tzinfo=UTC).isoformat()
+        await _post_trade(client, h, symbol="DT1", opened_at=early)
+        await _post_trade(client, h, symbol="DT1", opened_at=late)
+
+        cutoff = datetime(2025, 1, 1, tzinfo=UTC).isoformat()
+        items = await _list_trades(client, h, symbol="DT1", opened_at_from=cutoff)
+        opened_dates = [t["opened_at"] for t in items]
+        assert all(d >= cutoff for d in opened_dates)
+
+    async def test_filter_to_date(self, client: AsyncClient) -> None:
+        """opened_at_to should exclude trades opened after that date."""
+        h = await _get_auth_headers(client)
+        early = datetime(2024, 3, 1, 10, 0, tzinfo=UTC).isoformat()
+        late = datetime(2025, 9, 1, 10, 0, tzinfo=UTC).isoformat()
+        await _post_trade(client, h, symbol="DT2", opened_at=early)
+        await _post_trade(client, h, symbol="DT2", opened_at=late)
+
+        cutoff = datetime(2024, 12, 31, tzinfo=UTC).isoformat()
+        items = await _list_trades(client, h, symbol="DT2", opened_at_to=cutoff)
+        opened_dates = [t["opened_at"] for t in items]
+        assert all(d <= cutoff for d in opened_dates)
+
+
+@pytest.mark.integration
+class TestTradeSort:
+    """Tests for sort_by / sort_dir on ``GET /api/v1/trades``."""
+
+    async def test_sort_by_symbol_asc(self, client: AsyncClient) -> None:
+        """sort_by=symbol&sort_dir=asc should return trades in ascending symbol order."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="ZZZ")
+        await _post_trade(client, h, symbol="AAA")
+        await _post_trade(client, h, symbol="MMM")
+
+        items = await _list_trades(client, h, sort_by="symbol", sort_dir="asc")
+        symbols = [t["symbol"] for t in items]
+        assert symbols == sorted(symbols)
+
+    async def test_sort_by_symbol_desc(self, client: AsyncClient) -> None:
+        """sort_by=symbol&sort_dir=desc should return trades in descending symbol order."""
+        h = await _get_auth_headers(client)
+        await _post_trade(client, h, symbol="ZZZ")
+        await _post_trade(client, h, symbol="AAA")
+        await _post_trade(client, h, symbol="MMM")
+
+        items = await _list_trades(client, h, sort_by="symbol", sort_dir="desc")
+        symbols = [t["symbol"] for t in items]
+        assert symbols == sorted(symbols, reverse=True)
+
+    async def test_sort_by_opened_at_asc(self, client: AsyncClient) -> None:
+        """sort_by=opened_at&sort_dir=asc should return oldest trade first."""
+        h = await _get_auth_headers(client)
+        old = datetime(2023, 1, 1, tzinfo=UTC).isoformat()
+        new = datetime(2025, 1, 1, tzinfo=UTC).isoformat()
+        await _post_trade(client, h, symbol="SORT1", opened_at=new)
+        await _post_trade(client, h, symbol="SORT1", opened_at=old)
+
+        items = await _list_trades(
+            client, h, symbol="SORT1", sort_by="opened_at", sort_dir="asc"
+        )
+        dates = [t["opened_at"] for t in items]
+        assert dates == sorted(dates)
+
+    async def test_invalid_sort_by_returns_422(self, client: AsyncClient) -> None:
+        """An invalid sort_by value should return HTTP 422."""
+        h = await _get_auth_headers(client)
+        resp = await client.get(
+            "/api/v1/trades", headers=h, params={"sort_by": "invalid_field"}
+        )
+        assert resp.status_code == 422
+
+    async def test_invalid_sort_dir_returns_422(self, client: AsyncClient) -> None:
+        """An invalid sort_dir value should return HTTP 422."""
+        h = await _get_auth_headers(client)
+        resp = await client.get(
+            "/api/v1/trades", headers=h, params={"sort_dir": "sideways"}
+        )
+        assert resp.status_code == 422

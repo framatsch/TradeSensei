@@ -1,9 +1,10 @@
 /**
- * Trades list page with paginated TradeTable.
+ * Trades list page — server wrapper for metadata + client logic.
  */
 
-import { PageHeader } from "@/components/ui/PageHeader";
-import { TradeTable } from "@/components/trades/TradeTable";
+import { Suspense } from "react";
+import { TradesPageClient } from "./TradesPageClient";
+import { Spinner } from "@/components/ui/Spinner";
 
 export const metadata = {
   title: "Trades — Trade Journal",
@@ -11,12 +12,14 @@ export const metadata = {
 
 export default function TradesPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Trades"
-        subtitle="All recorded trading positions"
-      />
-      <TradeTable />
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <Spinner size="lg" />
+        </div>
+      }
+    >
+      <TradesPageClient />
+    </Suspense>
   );
 }

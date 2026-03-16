@@ -1,15 +1,20 @@
 /**
  * Trade detail page — full trade info + notes panel.
+ * Supports inline editing via an "Edit" toggle.
  */
 
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useTrade } from "@/hooks/useTrade";
+import { useTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { NoteList } from "@/components/notes/NoteList";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
+import { TradeEditForm } from "@/components/trades/TradeEditForm";
+import type { TradeUpdate } from "@/lib/types";
+import type { AxiosError } from "axios";
 
 function DetailRow({
   label,
@@ -61,6 +66,10 @@ export default function TradeDetailPage() {
   const params = useParams();
   const tradeId = typeof params.id === "string" ? params.id : "";
   const { data: trade, isLoading, isError, error } = useTrade(tradeId);
+  const { mutate: updateTrade, isPending: isSaving } = useUpdateTrade(tradeId);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -90,6 +99,21 @@ export default function TradeDetailPage() {
   }
 
   const isLong = trade.direction === "LONG";
+
+  function handleSave(payload: TradeUpdate) {
+    setSaveError(null);
+    updateTrade(payload, {
+      onSuccess: () => {
+        setIsEditing(false);
+      },
+      onError: (err) => {
+        const axiosErr = err as AxiosError<{ detail?: string }>;
+        setSaveError(
+          axiosErr.response?.data?.detail ?? "Failed to save trade."
+        );
+      },
+    });
+  }
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -134,79 +158,128 @@ export default function TradeDetailPage() {
             ))}
           </div>
         )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Trade details */}
-        <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-          <h2 className="text-sm font-semibold text-slate-300 mb-3">
-            Trade Details
-          </h2>
-          <dl>
-            <DetailRow label="Symbol">{trade.symbol}</DetailRow>
-            <DetailRow label="Direction">{trade.direction}</DetailRow>
-            <DetailRow label="Asset Class">{trade.asset_class}</DetailRow>
-            <DetailRow label="Quantity">{trade.quantity}</DetailRow>
-            <DetailRow label="Entry Price">
-              {formatPrice(trade.entry_price)}
-            </DetailRow>
-            <DetailRow label="Exit Price">
-              {formatPrice(trade.exit_price)}
-            </DetailRow>
-            <DetailRow label="Stop Loss">
-              {formatPrice(trade.stop_loss)}
-            </DetailRow>
-            <DetailRow label="Take Profit">
-              {formatPrice(trade.take_profit)}
-            </DetailRow>
-            <DetailRow label="PnL">
-              <PnlDisplay value={trade.pnl} />
-            </DetailRow>
-            <DetailRow label="Commission">
-              {formatPrice(trade.commission)}
-            </DetailRow>
-            <DetailRow label="Opened At">
-              {formatDate(trade.opened_at)}
-            </DetailRow>
-            <DetailRow label="Closed At">
-              {formatDate(trade.closed_at)}
-            </DetailRow>
-            {trade.playbook_id && (
-              <DetailRow label="Playbook">
-                <span className="text-blue-400">{trade.playbook_id}</span>
-              </DetailRow>
-            )}
-            {trade.notes && (
-              <DetailRow label="General Notes">{trade.notes}</DetailRow>
-            )}
-          </dl>
-        </div>
-
-        {/* Tags panel */}
-        {trade.tags.length > 0 && (
-          <div className="bg-slate-800 rounded-xl border border-slate-700 p-5 h-fit">
-            <h2 className="text-sm font-semibold text-slate-300 mb-3">Tags</h2>
-            <div className="flex flex-wrap gap-2">
-              {trade.tags.map((tag) => (
-                <TagBadge key={tag.id} tag={tag} />
-              ))}
-            </div>
-          </div>
+        {/* Edit toggle */}
+        {!isEditing && (
+          <button
+            onClick={() => {
+              setIsEditing(true);
+              setSaveError(null);
+            }}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-md transition-colors"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="w-4 h-4"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Edit
+          </button>
         )}
       </div>
 
-      {/* Notes section */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h2 className="text-sm font-semibold text-slate-300 mb-4">
-          Trade Notes
-          {trade.trade_notes.length > 0 && (
-            <span className="ml-2 text-xs font-normal text-slate-500">
-              ({trade.trade_notes.length})
-            </span>
-          )}
-        </h2>
-        <NoteList tradeId={trade.id} />
-      </div>
+      {/* Edit form or read-only view */}
+      {isEditing ? (
+        <TradeEditForm
+          trade={trade}
+          onSave={handleSave}
+          onCancel={() => {
+            setIsEditing(false);
+            setSaveError(null);
+          }}
+          isSaving={isSaving}
+          saveError={saveError}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Trade details */}
+            <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+              <h2 className="text-sm font-semibold text-slate-300 mb-3">
+                Trade Details
+              </h2>
+              <dl>
+                <DetailRow label="Symbol">{trade.symbol}</DetailRow>
+                <DetailRow label="Direction">{trade.direction}</DetailRow>
+                <DetailRow label="Asset Class">{trade.asset_class}</DetailRow>
+                <DetailRow label="Quantity">{trade.quantity}</DetailRow>
+                <DetailRow label="Entry Price">
+                  {formatPrice(trade.entry_price)}
+                </DetailRow>
+                <DetailRow label="Exit Price">
+                  {formatPrice(trade.exit_price)}
+                </DetailRow>
+                <DetailRow label="Stop Loss">
+                  {formatPrice(trade.stop_loss)}
+                </DetailRow>
+                <DetailRow label="Take Profit">
+                  {formatPrice(trade.take_profit)}
+                </DetailRow>
+                <DetailRow label="PnL">
+                  <PnlDisplay value={trade.pnl} />
+                </DetailRow>
+                <DetailRow label="Commission">
+                  {formatPrice(trade.commission)}
+                </DetailRow>
+                {trade.currency && (
+                  <DetailRow label="Currency">{trade.currency}</DetailRow>
+                )}
+                {trade.pnl_eur && (
+                  <DetailRow label="PnL (EUR)">
+                    <PnlDisplay value={trade.pnl_eur} />
+                  </DetailRow>
+                )}
+                <DetailRow label="Opened At">
+                  {formatDate(trade.opened_at)}
+                </DetailRow>
+                <DetailRow label="Closed At">
+                  {formatDate(trade.closed_at)}
+                </DetailRow>
+                {trade.playbook_name && (
+                  <DetailRow label="Playbook">
+                    <span className="text-blue-400">{trade.playbook_name}</span>
+                  </DetailRow>
+                )}
+                {trade.notes && (
+                  <DetailRow label="General Notes">{trade.notes}</DetailRow>
+                )}
+              </dl>
+            </div>
+
+            {/* Tags panel */}
+            {trade.tags.length > 0 && (
+              <div className="bg-slate-800 rounded-xl border border-slate-700 p-5 h-fit">
+                <h2 className="text-sm font-semibold text-slate-300 mb-3">
+                  Tags
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {trade.tags.map((tag) => (
+                    <TagBadge key={tag.id} tag={tag} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Notes section */}
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
+            <h2 className="text-sm font-semibold text-slate-300 mb-4">
+              Trade Notes
+              {trade.trade_notes.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-slate-500">
+                  ({trade.trade_notes.length})
+                </span>
+              )}
+            </h2>
+            <NoteList tradeId={trade.id} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

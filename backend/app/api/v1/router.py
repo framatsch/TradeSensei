@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     accounts,
     auth,
+    broker,
     imports,
     metrics,
     notes,
@@ -33,3 +34,4 @@ router.include_router(playbooks.router)
 router.include_router(tags.router)
 router.include_router(notes.router)
 router.include_router(tax.router)
+router.include_router(broker.router)

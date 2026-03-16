@@ -7,6 +7,7 @@ queries are issued here — all data access is delegated to the repository.
 """
 
 import uuid
+from collections import deque
 from datetime import datetime
 from decimal import Decimal
 
@@ -14,14 +15,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import (
     RETURN_DISTRIBUTION_DEFAULT_BUCKETS,
+    ROLLING_WINRATE_MAX_POINTS,
 )
 from app.repositories.timeseries_repository import TimeSeriesRepository
 from app.schemas.timeseries import (
     DailyPnl,
     MonthlyPnl,
+    MonthlyWinratePoint,
     PnlByAssetClass,
     PnlBySymbol,
     ReturnDistribution,
+    RollingWinratePoint,
 )
 
 _ZERO = Decimal("0")
@@ -145,6 +149,71 @@ class TimeSeriesService:
                     pnl=total_pnl,
                     trade_count=count,
                     win_rate=win_rate,
+                )
+            )
+        return result
+
+    async def get_monthly_winrate(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None = None,
+        from_dt: datetime | None = None,
+        to_dt: datetime | None = None,
+    ) -> list[MonthlyWinratePoint]:
+        """Aggregate closed-trade PnL series into monthly win-rate buckets.
+
+        Reuses the raw per-trade PnL series from the repository and computes
+        win/loss counts plus win rate for each calendar month in Python.
+
+        Args:
+            user_id: UUID of the authenticated user — scopes DB queries.
+            account_id: Optional account UUID to restrict the computation.
+            from_dt: Optional inclusive lower bound on ``closed_at``.
+            to_dt: Optional inclusive upper bound on ``closed_at``.
+
+        Returns:
+            A chronologically ordered list of
+            :class:`~app.schemas.timeseries.MonthlyWinratePoint` DTOs.
+        """
+        import calendar
+
+        rows = await self._repo.get_closed_pnl_series(
+            user_id=user_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+
+        monthly_wins: dict[tuple[int, int], int] = {}
+        monthly_losses: dict[tuple[int, int], int] = {}
+
+        for closed_at, pnl, _symbol in rows:
+            key = (closed_at.year, closed_at.month)
+            if pnl > _ZERO:
+                monthly_wins[key] = monthly_wins.get(key, 0) + 1
+            else:
+                monthly_losses[key] = monthly_losses.get(key, 0) + 1
+
+        # Union of all months that appear in either dict, in chronological order.
+        all_keys = sorted(set(monthly_wins) | set(monthly_losses))
+
+        result: list[MonthlyWinratePoint] = []
+        for year, month in all_keys:
+            wins = monthly_wins.get((year, month), 0)
+            losses = monthly_losses.get((year, month), 0)
+            total = wins + losses
+            win_rate = Decimal(wins) / Decimal(total) if total > 0 else _ZERO
+            month_abbr = calendar.month_abbr[month]
+            label = f"{month_abbr} {year}"
+            result.append(
+                MonthlyWinratePoint(
+                    year=year,
+                    month=month,
+                    label=label,
+                    win_rate=win_rate,
+                    win_count=wins,
+                    loss_count=losses,
+                    trade_count=total,
                 )
             )
         return result
@@ -314,4 +383,72 @@ class TimeSeriesService:
                     frequency=Decimal(counts[i]) / Decimal(total),
                 )
             )
+        return result
+
+    async def get_rolling_winrate(
+        self,
+        user_id: uuid.UUID,
+        window_trades: int = 20,
+        account_id: uuid.UUID | None = None,
+        from_dt: datetime | None = None,
+        to_dt: datetime | None = None,
+    ) -> list[RollingWinratePoint]:
+        """Compute a rolling win-rate series over closed trades.
+
+        Fetches the raw per-trade PnL series (ordered chronologically by
+        ``closed_at``) and slides a window of ``window_trades`` across it in
+        Python using a :class:`collections.deque`.  Each point in the returned
+        series represents the win rate over the ``window_trades`` most recent
+        trades ending at that position.
+
+        The first ``window_trades - 1`` trades do not yet have a full window;
+        for these positions the window size is the number of trades seen so far
+        (i.e. the window grows until it reaches ``window_trades``).
+
+        The response is capped at ``ROLLING_WINRATE_MAX_POINTS`` most-recent
+        points to avoid unbounded response sizes.
+
+        Args:
+            user_id: UUID of the authenticated user — scopes DB queries.
+            window_trades: Sliding window size in number of trades (5–100).
+            account_id: Optional account UUID to restrict the computation.
+            from_dt: Optional inclusive lower bound on ``closed_at``.
+            to_dt: Optional inclusive upper bound on ``closed_at``.
+
+        Returns:
+            A chronologically ordered list of
+            :class:`~app.schemas.timeseries.RollingWinratePoint` DTOs.
+            Empty when there are no closed trades with PnL data.
+        """
+        rows = await self._repo.get_closed_pnl_series(
+            user_id=user_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+
+        if not rows:
+            return []
+
+        win_deque: deque[bool] = deque(maxlen=window_trades)
+        result: list[RollingWinratePoint] = []
+
+        for trade_index, (closed_at, pnl, _symbol) in enumerate(rows):
+            win_deque.append(pnl > _ZERO)
+            window_size = len(win_deque)
+            wins = sum(1 for w in win_deque if w)
+            rolling_winrate = Decimal(wins) / Decimal(window_size)
+            result.append(
+                RollingWinratePoint(
+                    trade_index=trade_index,
+                    closed_at=closed_at,
+                    rolling_winrate=rolling_winrate,
+                    window=window_size,
+                )
+            )
+
+        # Cap at max points (most recent).
+        if len(result) > ROLLING_WINRATE_MAX_POINTS:
+            result = result[-ROLLING_WINRATE_MAX_POINTS:]
+
         return result

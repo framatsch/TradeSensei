@@ -11,6 +11,9 @@ from app.core.constants import (
     RETURN_DISTRIBUTION_DEFAULT_BUCKETS,
     RETURN_DISTRIBUTION_MAX_BUCKETS,
     RETURN_DISTRIBUTION_MIN_BUCKETS,
+    ROLLING_WINRATE_DEFAULT_WINDOW,
+    ROLLING_WINRATE_MAX_WINDOW,
+    ROLLING_WINRATE_MIN_WINDOW,
 )
 from app.core.database import get_session
 from app.core.deps import get_current_user
@@ -19,9 +22,11 @@ from app.schemas.common import ResponseEnvelope
 from app.schemas.timeseries import (
     DailyPnl,
     MonthlyPnl,
+    MonthlyWinratePoint,
     PnlByAssetClass,
     PnlBySymbol,
     ReturnDistribution,
+    RollingWinratePoint,
 )
 from app.services.timeseries_service import TimeSeriesService
 
@@ -540,3 +545,213 @@ async def get_return_distribution(
         buckets=buckets,
     )
     return ResponseEnvelope[list[ReturnDistribution]](data=data)
+
+
+@router.get(
+    "/rolling-winrate",
+    response_model=ResponseEnvelope[list[RollingWinratePoint]],
+    summary="Get Rolling Win Rate",
+    description=(
+        "Return a rolling win-rate series for the authenticated user's closed "
+        "trades, ordered chronologically by ``closed_at``.\n\n"
+        "**What each point contains:**\n"
+        "- `trade_index`: zero-based ordinal position in the series.\n"
+        "- `closed_at`: UTC timestamp of the trade at this index.\n"
+        "- `rolling_winrate`: fraction of wins in the sliding window ending "
+        "at this trade (0.0–1.0).\n"
+        "- `window`: actual window size at this point (grows up to "
+        "``window_trades`` for the first trades).\n\n"
+        "**Window:** the ``window_trades`` parameter controls the sliding "
+        f"window size ({ROLLING_WINRATE_MIN_WINDOW}–{ROLLING_WINRATE_MAX_WINDOW} "
+        f"trades, default {ROLLING_WINRATE_DEFAULT_WINDOW}).\n\n"
+        "**Date filtering:** `from_dt` and `to_dt` (both inclusive) narrow "
+        "the result by `closed_at`. Omitting both returns all-time data.\n\n"
+        "**Authentication:** a valid Bearer token is required."
+    ),
+    response_description=(
+        "A chronologically ordered list of rolling win-rate data points, "
+        "wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
+    ),
+    responses={
+        200: {"description": "Rolling win-rate series successfully returned."},
+        401: {
+            "description": (
+                "Not authenticated. The Bearer token is missing, expired, or invalid."
+            )
+        },
+        422: {
+            "description": (
+                "Query parameter validation error. Check that dates are valid "
+                "ISO-8601 strings and ``window_trades`` is between "
+                f"{ROLLING_WINRATE_MIN_WINDOW} and {ROLLING_WINRATE_MAX_WINDOW}."
+            )
+        },
+    },
+)
+async def get_rolling_winrate(
+    service: Annotated[TimeSeriesService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    window_trades: Annotated[
+        int,
+        Query(
+            ge=ROLLING_WINRATE_MIN_WINDOW,
+            le=ROLLING_WINRATE_MAX_WINDOW,
+            description=(
+                f"Sliding window size in number of trades. "
+                f"Must be between {ROLLING_WINRATE_MIN_WINDOW} and "
+                f"{ROLLING_WINRATE_MAX_WINDOW}. "
+                f"Defaults to {ROLLING_WINRATE_DEFAULT_WINDOW}."
+            ),
+            examples=[20, 10, 50],
+        ),
+    ] = ROLLING_WINRATE_DEFAULT_WINDOW,
+    account_id: Annotated[
+        uuid.UUID | None,
+        Query(
+            description=(
+                "Optional account UUID to restrict results to a single account. "
+                "When omitted, all of the user's accounts are included."
+            )
+        ),
+    ] = None,
+    from_dt: Annotated[
+        datetime | None,
+        Query(
+            alias="from_dt",
+            description=(
+                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
+                "When omitted, no lower bound is applied."
+            ),
+            examples=["2024-01-01T00:00:00Z"],
+        ),
+    ] = None,
+    to_dt: Annotated[
+        datetime | None,
+        Query(
+            alias="to_dt",
+            description=(
+                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
+                "When omitted, no upper bound is applied."
+            ),
+            examples=["2024-12-31T23:59:59Z"],
+        ),
+    ] = None,
+) -> ResponseEnvelope[list[RollingWinratePoint]]:
+    """Return a rolling win-rate series for the current user's closed trades.
+
+    Args:
+        service: Injected time-series service.
+        current_user: The currently authenticated user.
+        window_trades: Sliding window size in number of trades (5–100, default 20).
+        account_id: Optional account UUID filter.
+        from_dt: Optional inclusive lower bound on ``closed_at``.
+        to_dt: Optional inclusive upper bound on ``closed_at``.
+
+    Returns:
+        A :class:`~app.schemas.common.ResponseEnvelope` whose ``data`` field
+        contains a chronologically ordered list of
+        :class:`~app.schemas.timeseries.RollingWinratePoint` DTOs.
+
+    Raises:
+        HTTPException: 401 if the Bearer token is missing, expired, or invalid.
+    """
+    data = await service.get_rolling_winrate(
+        user_id=current_user.id,
+        window_trades=window_trades,
+        account_id=account_id,
+        from_dt=from_dt,
+        to_dt=to_dt,
+    )
+    return ResponseEnvelope[list[RollingWinratePoint]](data=data)
+
+
+@router.get(
+    "/monthly-winrate",
+    response_model=ResponseEnvelope[list[MonthlyWinratePoint]],
+    summary="Get Monthly Win Rate",
+    description=(
+        "Return per-calendar-month win-rate statistics for the authenticated "
+        "user's closed trades.\n\n"
+        "**What each point contains:**\n"
+        "- `year` / `month`: the calendar month.\n"
+        "- `label`: human-readable label (e.g. ``'May 2024'``).\n"
+        "- `win_rate`: fraction of winning trades (PnL > 0) for this month (0.0–1.0).\n"
+        "- `win_count`: number of trades with PnL > 0.\n"
+        "- `loss_count`: number of trades with PnL ≤ 0.\n"
+        "- `trade_count`: total closed trades in this month.\n\n"
+        "**Date filtering:** `from_dt` and `to_dt` (both inclusive) narrow "
+        "the result by `closed_at`. Omitting both returns all-time data.\n\n"
+        "**Authentication:** a valid Bearer token is required."
+    ),
+    response_description=(
+        "A chronologically ordered list of monthly win-rate data points, "
+        "wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
+    ),
+    responses={
+        200: {"description": "Monthly win-rate series successfully returned."},
+        401: {
+            "description": (
+                "Not authenticated. The Bearer token is missing, expired, or invalid."
+            )
+        },
+    },
+)
+async def get_monthly_winrate(
+    service: Annotated[TimeSeriesService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    account_id: Annotated[
+        uuid.UUID | None,
+        Query(
+            description=(
+                "Optional account UUID to restrict results to a single account. "
+                "When omitted, all of the user's accounts are included."
+            )
+        ),
+    ] = None,
+    from_dt: Annotated[
+        datetime | None,
+        Query(
+            alias="from_dt",
+            description=(
+                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
+                "When omitted, no lower bound is applied."
+            ),
+            examples=["2024-01-01T00:00:00Z"],
+        ),
+    ] = None,
+    to_dt: Annotated[
+        datetime | None,
+        Query(
+            alias="to_dt",
+            description=(
+                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
+                "When omitted, no upper bound is applied."
+            ),
+            examples=["2024-12-31T23:59:59Z"],
+        ),
+    ] = None,
+) -> ResponseEnvelope[list[MonthlyWinratePoint]]:
+    """Return per-month win-rate statistics for the current user's closed trades.
+
+    Args:
+        service: Injected time-series service.
+        current_user: The currently authenticated user.
+        account_id: Optional account UUID filter.
+        from_dt: Optional inclusive lower bound on ``closed_at``.
+        to_dt: Optional inclusive upper bound on ``closed_at``.
+
+    Returns:
+        A :class:`~app.schemas.common.ResponseEnvelope` whose ``data`` field
+        contains a chronologically ordered list of
+        :class:`~app.schemas.timeseries.MonthlyWinratePoint` DTOs.
+
+    Raises:
+        HTTPException: 401 if the Bearer token is missing, expired, or invalid.
+    """
+    data = await service.get_monthly_winrate(
+        user_id=current_user.id,
+        account_id=account_id,
+        from_dt=from_dt,
+        to_dt=to_dt,
+    )
+    return ResponseEnvelope[list[MonthlyWinratePoint]](data=data)
