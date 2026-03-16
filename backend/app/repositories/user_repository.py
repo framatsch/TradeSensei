@@ -69,6 +69,25 @@ class UserRepository:
         result = await self._session.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
+    async def get_by_provider_id(self, provider: str, provider_id: str) -> User | None:
+        """Retrieve a single user by their OAuth provider and provider ID.
+
+        Args:
+            provider: The authentication provider (e.g. ``'google'``).
+            provider_id: The provider-specific user identifier (e.g. Google
+                ``sub`` claim).
+
+        Returns:
+            The matching :class:`User`, or ``None`` if not found.
+        """
+        result = await self._session.execute(
+            select(User).where(
+                User.provider == provider,
+                User.provider_id == provider_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def create(self, data: UserCreate, hashed_password: str) -> User:
         """Persist a new user and return the flushed ORM instance.
 
@@ -88,6 +107,66 @@ class UserRepository:
             email=data.email,
             hashed_password=hashed_password,
         )
+        self._session.add(user)
+        await self._session.flush()
+        await self._session.refresh(user)
+        return user
+
+    async def create_oauth_user(
+        self,
+        email: str,
+        username: str,
+        provider: str,
+        provider_id: str,
+    ) -> User:
+        """Persist a new OAuth user without a local password.
+
+        The session is *flushed* so the database assigns server defaults
+        but not committed — the service layer is responsible for committing.
+
+        Args:
+            email: The user's email address from the OAuth provider.
+            username: A unique username derived from the provider profile.
+            provider: The authentication provider (e.g. ``'google'``).
+            provider_id: The provider-specific user identifier.
+
+        Returns:
+            The newly created :class:`User` with all server defaults populated.
+        """
+        user = User(
+            username=username,
+            email=email,
+            hashed_password=None,
+            provider=provider,
+            provider_id=provider_id,
+        )
+        self._session.add(user)
+        await self._session.flush()
+        await self._session.refresh(user)
+        return user
+
+    async def link_oauth_account(
+        self,
+        user: User,
+        provider: str,
+        provider_id: str,
+    ) -> User:
+        """Link an existing user to an OAuth provider.
+
+        Updates the user's ``provider`` and ``provider_id`` to associate
+        their account with the given OAuth provider.  The session is flushed
+        but not committed.
+
+        Args:
+            user: The existing :class:`User` ORM instance to update.
+            provider: The authentication provider (e.g. ``'google'``).
+            provider_id: The provider-specific user identifier.
+
+        Returns:
+            The updated :class:`User` instance after flush.
+        """
+        user.provider = provider
+        user.provider_id = provider_id
         self._session.add(user)
         await self._session.flush()
         await self._session.refresh(user)

@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useLogin } from "@/hooks/useAuth";
 import { Spinner } from "@/components/ui/Spinner";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import type { AxiosError } from "axios";
 
 export function LoginForm() {
@@ -29,7 +30,8 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label
           htmlFor="username"
@@ -83,5 +85,16 @@ export function LoginForm() {
         {isPending ? "Signing in…" : "Sign In"}
       </button>
     </form>
+
+      {/* Divider */}
+      <div className="relative flex items-center gap-3">
+        <div className="flex-1 border-t border-slate-700" />
+        <span className="text-xs text-slate-500 select-none">or</span>
+        <div className="flex-1 border-t border-slate-700" />
+      </div>
+
+      {/* Google sign-in */}
+      <GoogleSignInButton />
+    </div>
   );
 }

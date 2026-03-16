@@ -22,6 +22,10 @@ class Settings(BaseSettings):
             ``production``.
         log_level: Python logging level string.
         cors_origins: List of allowed CORS origins.
+        google_client_id: Google OAuth 2.0 client ID.
+        google_client_secret: Google OAuth 2.0 client secret.
+        google_redirect_uri: Absolute URL that Google redirects to after
+            user consent. Must be registered in the Google Cloud Console.
     """
 
     model_config = SettingsConfigDict(
@@ -56,6 +60,23 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
     ibkr_flex_token: str | None = None
+
+    # Google OAuth
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
+
+    # Broker (general)
+    broker_encryption_key: str | None = None
+    """URL-safe base64 Fernet key used to encrypt stored OAuth tokens."""
+
+    # Schwab OAuth
+    schwab_client_id: str | None = None
+    """Schwab API application client ID."""
+    schwab_client_secret: str | None = None
+    """Schwab API application client secret."""
+    schwab_redirect_uri: str = "http://localhost:8000/api/v1/broker/schwab/callback"
+    """Absolute URL registered with Schwab for the OAuth redirect."""
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -1,21 +1,27 @@
 """Route handlers for the ``/api/v1/auth`` endpoints.
 
 Covers registration, OAuth2 password-flow token issuance,
-token refresh via httpOnly cookie, and logout.
+token refresh via httpOnly cookie, logout, and Google OAuth.
 """
 
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from authlib.integrations.starlette_client import (  # type: ignore[import-untyped]
+    OAuth,
+    OAuthError,
+)
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.constants import REFRESH_TOKEN_EXPIRE_DAYS
 from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
 from app.models.user import User
-from app.schemas.auth import TokenResponse
+from app.schemas.auth import OAuthExchangeRequest, TokenResponse
 from app.schemas.common import ResponseEnvelope
 from app.schemas.user import UserCreate, UserLogin, UserRead
 from app.services.auth_service import AuthService
@@ -24,6 +30,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 _REFRESH_COOKIE = "refresh_token"
 _REFRESH_MAX_AGE = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60  # seconds
+
+# ---------------------------------------------------------------------------
+# Google OAuth client (authlib)
+# ---------------------------------------------------------------------------
+
+_oauth = OAuth()
+_oauth.register(
+    name="google",
+    client_id=settings.google_client_id,
+    client_secret=settings.google_client_secret,
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
 
 
 def _get_service(
@@ -268,3 +287,180 @@ async def logout(
         samesite="strict",
         path="/api/v1/auth",
     )
+
+
+# ---------------------------------------------------------------------------
+# Google OAuth routes
+# ---------------------------------------------------------------------------
+
+_FRONTEND_CALLBACK_URL = "http://localhost:3000/auth/callback"
+_FRONTEND_LOGIN_URL = "http://localhost:3000/login"
+
+
+@router.get(
+    "/google",
+    summary="Initiate Google OAuth Login",
+    description=(
+        "Redirects the browser to Google's OAuth 2.0 authorization page. "
+        "The user will be asked to grant access to their Google profile and "
+        "email. After consent, Google redirects back to ``GET /auth/google/callback``."
+    ),
+    response_description="HTTP 302 redirect to Google's authorization URL.",
+    status_code=status.HTTP_302_FOUND,
+    responses={
+        302: {"description": "Redirect to Google authorization URL."},
+        503: {"description": "Google OAuth is not configured."},
+    },
+    include_in_schema=True,
+)
+async def google_login(request: Request) -> RedirectResponse:
+    """Redirect the browser to Google's OAuth authorization page.
+
+    Args:
+        request: The incoming FastAPI request (needed for session state).
+
+    Returns:
+        A :class:`RedirectResponse` pointing to Google's authorization URL.
+
+    Raises:
+        HTTPException: 503 if ``GOOGLE_CLIENT_ID`` is not configured.
+    """
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth is not configured.",
+        )
+    redirect_uri = settings.google_redirect_uri
+    return await _oauth.google.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
+
+
+@router.get(
+    "/google/callback",
+    summary="Google OAuth Callback",
+    description=(
+        "Receives the authorization code from Google after user consent. "
+        "Exchanges the code for an ID token, provisions or retrieves the "
+        "local user, sets the ``refresh_token`` httpOnly cookie, and "
+        "redirects the browser to the frontend callback page with a "
+        "short-lived one-time token in the query string."
+    ),
+    response_description=(
+        "HTTP 302 redirect to the frontend callback page with ``?token=``."
+    ),
+    status_code=status.HTTP_302_FOUND,
+    responses={
+        302: {"description": "Redirect to frontend with one-time token or error."},
+    },
+    include_in_schema=True,
+)
+async def google_callback(
+    request: Request,
+    response: Response,
+    service: Annotated[AuthService, Depends(_get_service)],
+) -> RedirectResponse:
+    """Handle the Google OAuth callback and issue JWT tokens.
+
+    Validates the authorization code, retrieves the Google user info,
+    provisions or links the local account, sets the refresh token cookie,
+    and redirects to the frontend with a one-time exchange token.
+
+    Args:
+        request: The incoming FastAPI request (contains OAuth state).
+        response: FastAPI response object — used to set the refresh cookie.
+        service: Injected auth service.
+
+    Returns:
+        A :class:`RedirectResponse` to the frontend callback page.
+    """
+    try:
+        token = await _oauth.google.authorize_access_token(request)
+    except OAuthError:
+        redirect = RedirectResponse(
+            url=f"{_FRONTEND_LOGIN_URL}?error=oauth_cancelled",
+            status_code=status.HTTP_302_FOUND,
+        )
+        return redirect
+
+    user_info = token.get("userinfo")
+    if not user_info:
+        redirect = RedirectResponse(
+            url=f"{_FRONTEND_LOGIN_URL}?error=oauth_failed",
+            status_code=status.HTTP_302_FOUND,
+        )
+        return redirect
+
+    try:
+        access_token, refresh_token, one_time_token = await service.google_oauth_login(
+            google_sub=str(user_info["sub"]),
+            email=str(user_info["email"]),
+            display_name=str(user_info.get("name", user_info.get("email", "user"))),
+            email_verified=bool(user_info.get("email_verified", False)),
+        )
+    except InvalidCredentialsError:
+        redirect = RedirectResponse(
+            url=f"{_FRONTEND_LOGIN_URL}?error=oauth_failed",
+            status_code=status.HTTP_302_FOUND,
+        )
+        return redirect
+
+    # Commit is needed here — service methods flush but don't commit
+    await request.state.session.commit() if hasattr(request.state, "session") else None
+
+    redirect = RedirectResponse(
+        url=f"{_FRONTEND_CALLBACK_URL}?token={one_time_token}",
+        status_code=status.HTTP_302_FOUND,
+    )
+    redirect.set_cookie(
+        key=_REFRESH_COOKIE,
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",  # Must be lax (not strict) for cross-site OAuth redirects
+        max_age=_REFRESH_MAX_AGE,
+        path="/api/v1/auth",
+    )
+    return redirect
+
+
+@router.post(
+    "/google/exchange",
+    response_model=TokenResponse,
+    summary="Exchange One-Time OAuth Token",
+    description=(
+        "Exchange the short-lived one-time token received from the OAuth "
+        "callback redirect URL for a full JWT access token. "
+        "The one-time token is valid for 60 seconds and can only be used once. "
+        "The refresh token is already set as an httpOnly cookie by the callback."
+    ),
+    response_description="Access token in the response body.",
+    responses={
+        200: {"description": "Token exchange successful."},
+        401: {"description": "One-time token is invalid, expired, or already used."},
+        422: {"description": "Request body validation error."},
+    },
+)
+async def google_exchange(
+    payload: OAuthExchangeRequest,
+    service: Annotated[AuthService, Depends(_get_service)],
+) -> TokenResponse:
+    """Exchange a one-time OAuth token for an access token.
+
+    Args:
+        payload: Request body containing the one-time token.
+        service: Injected auth service.
+
+    Returns:
+        A :class:`TokenResponse` containing the access token.
+
+    Raises:
+        HTTPException: 401 if the one-time token is invalid or already used.
+    """
+    try:
+        access_token, _ = await service.exchange_one_time_token(payload.one_time_token)
+    except InvalidCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired one-time token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    return TokenResponse(access_token=access_token)

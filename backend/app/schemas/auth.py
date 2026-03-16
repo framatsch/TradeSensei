@@ -47,3 +47,24 @@ class TokenPayload(BaseModel):
         description="Token expiry timestamp.",
         examples=["2024-03-15T09:45:00Z"],
     )
+
+
+class OAuthExchangeRequest(BaseModel):
+    """Request body for the OAuth one-time token exchange endpoint.
+
+    After a successful Google OAuth callback the backend redirects the
+    browser to the frontend with a short-lived one-time token in the
+    query string.  The frontend posts that token here to receive a full
+    access + refresh token pair.
+
+    Attributes:
+        one_time_token: The short-lived JWT from the OAuth redirect URL.
+    """
+
+    one_time_token: str = Field(
+        ...,
+        description=(
+            "Short-lived one-time JWT received via the OAuth callback "
+            "redirect URL query parameter ``?token=``."
+        ),
+    )

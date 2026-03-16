@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import apiClient from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { Spinner } from "@/components/ui/Spinner";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import type { ResponseEnvelope, TokenResponse, User, UserCreate } from "@/lib/types";
 import type { AxiosError } from "axios";
 
@@ -67,7 +68,18 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      {/* Google sign-in */}
+      <GoogleSignInButton />
+
+      {/* Divider */}
+      <div className="relative flex items-center gap-3">
+        <div className="flex-1 border-t border-slate-700" />
+        <span className="text-xs text-slate-500 select-none">or</span>
+        <div className="flex-1 border-t border-slate-700" />
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label
           htmlFor="username"
@@ -143,5 +155,6 @@ export function RegisterForm() {
         {isPending ? "Creating account…" : "Create Account"}
       </button>
     </form>
+    </div>
   );
 }

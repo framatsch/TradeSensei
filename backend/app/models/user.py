@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +23,11 @@ class User(Base):
         username: Unique display name chosen at registration.
         email: Unique email address used for login.
         hashed_password: bcrypt-hashed password — never the plain text.
+            ``None`` for OAuth-only accounts that have no local password.
+        provider: Authentication provider — ``'local'`` for password-based
+            accounts or ``'google'`` for Google OAuth accounts.
+        provider_id: Provider-specific user identifier (e.g. Google ``sub``
+            claim). ``None`` for local accounts.
         is_active: Soft-disable flag; inactive users cannot authenticate.
         refresh_token_version: Monotonically incrementing counter used to
             invalidate all outstanding refresh tokens for this user.
@@ -53,9 +58,19 @@ class User(Base):
         unique=True,
         nullable=False,
     )
-    hashed_password: Mapped[str] = mapped_column(
+    hashed_password: Mapped[str | None] = mapped_column(
         String(255),
+        nullable=True,
+    )
+    provider: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
+        default="local",
+        server_default="local",
+    )
+    provider_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -95,6 +110,13 @@ class User(Base):
     __table_args__ = (
         Index("ix_users_username", "username", unique=True),
         Index("ix_users_email", "email", unique=True),
+        Index(
+            "ix_users_provider_provider_id",
+            "provider",
+            "provider_id",
+            unique=True,
+            postgresql_where=text("provider_id IS NOT NULL"),
+        ),
     )
 
     def __repr__(self) -> str:

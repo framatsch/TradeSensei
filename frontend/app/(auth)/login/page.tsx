@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { OAuthErrorBanner } from "@/components/auth/OAuthErrorBanner";
 
 export const metadata = {
   title: "Sign In — Trade Journal",
@@ -31,6 +33,11 @@ export default function LoginPage() {
 
         {/* Form card */}
         <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8">
+          {/* OAuth error banner — shown when redirected back from a failed OAuth flow */}
+          <Suspense>
+            <OAuthErrorBanner />
+          </Suspense>
+
           <LoginForm />
 
           <p className="text-center text-sm text-slate-400 mt-6">

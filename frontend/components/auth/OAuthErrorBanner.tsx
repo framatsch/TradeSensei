@@ -1,0 +1,35 @@
+/**
+ * OAuthErrorBanner — reads the `?error=` query parameter and displays a
+ * user-friendly message when the Google OAuth flow fails or is cancelled.
+ *
+ * Rendered on the login page so errors from the backend redirect are visible.
+ */
+
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  oauth_cancelled: "Google sign-in was cancelled. Please try again.",
+  oauth_failed:
+    "Google sign-in failed. Please try again or use your password.",
+  email_not_verified:
+    "Your Google account email is not verified. Please verify it and try again.",
+};
+
+export function OAuthErrorBanner() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+
+  if (!error) return null;
+
+  const message =
+    ERROR_MESSAGES[error] ??
+    "An unexpected sign-in error occurred. Please try again.";
+
+  return (
+    <div className="mb-4 text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+      {message}
+    </div>
+  );
+}

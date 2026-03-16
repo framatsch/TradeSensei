@@ -14,6 +14,7 @@ from passlib.context import CryptContext
 from app.core.config import settings
 from app.core.constants import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    ONE_TIME_TOKEN_EXPIRE_SECONDS,
     REFRESH_TOKEN_EXPIRE_DAYS,
     TOKEN_ALGORITHM,
 )
@@ -178,3 +179,72 @@ def decode_refresh_token(token: str) -> tuple[uuid.UUID, int]:
         raise
     except (JWTError, ValueError, Exception) as exc:
         raise InvalidTokenError("Invalid or expired refresh token.") from exc
+
+
+# ---------------------------------------------------------------------------
+# One-time OAuth exchange tokens
+# ---------------------------------------------------------------------------
+
+# In-memory store: jti → expiry. Small enough for single-process dev; for
+# multi-process production this should be replaced with a Redis set.
+_used_ott_jti: set[str] = set()
+
+
+def create_one_time_token(user_id: uuid.UUID) -> str:
+    """Create a short-lived one-time token for the OAuth callback exchange.
+
+    The token is a JWT with a unique ``jti`` claim.  After a single use
+    (validated via :func:`consume_one_time_token`) the ``jti`` is added to
+    an in-memory blocklist so it cannot be replayed.
+
+    Args:
+        user_id: UUID of the authenticated user.
+
+    Returns:
+        A signed JWT string valid for
+        :data:`~app.core.constants.ONE_TIME_TOKEN_EXPIRE_SECONDS` seconds.
+    """
+    jti = str(uuid.uuid4())
+    return _create_token(
+        user_id,
+        timedelta(seconds=ONE_TIME_TOKEN_EXPIRE_SECONDS),
+        extra_claims={"jti": jti, "ott": True},
+    )
+
+
+def consume_one_time_token(token: str) -> uuid.UUID:
+    """Decode and invalidate a one-time token, returning the user UUID.
+
+    The token is validated for signature, expiry, and the ``ott`` claim.
+    On success the ``jti`` is added to the blocklist so the same token
+    cannot be used again.
+
+    Args:
+        token: A signed one-time JWT string.
+
+    Returns:
+        The :class:`uuid.UUID` of the authenticated user.
+
+    Raises:
+        :class:`~app.core.exceptions.InvalidTokenError`: If the token is
+            expired, already used, malformed, or missing required claims.
+    """
+    try:
+        raw: dict[str, Any] = jwt.decode(
+            token, settings.secret_key, algorithms=[TOKEN_ALGORITHM]
+        )
+        if not raw.get("ott"):
+            raise InvalidTokenError("Not a one-time token.")
+        jti = raw.get("jti")
+        if not isinstance(jti, str):
+            raise InvalidTokenError("One-time token missing jti claim.")
+        if jti in _used_ott_jti:
+            raise InvalidTokenError("One-time token already used.")
+        validated = TokenPayload.model_validate(raw)
+        # Mark as used
+        _used_ott_jti.add(jti)
+        return validated.sub
+    except InvalidTokenError:
+        raise
+    except (JWTError, ValueError, Exception) as exc:
+        raise InvalidTokenError("Invalid or expired one-time token.") from exc
