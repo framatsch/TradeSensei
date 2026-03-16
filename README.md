@@ -1,3 +1,9 @@
+docker-c
+<div align="center">
+
+![Trading Journal Logo](logo.svg)
+</div>
+
 # Trading Journal
 
 A self-hosted platform for statistical analysis and visualization of your trading activity.
@@ -15,7 +21,7 @@ Trading Journal lets you record every trade, import activity from your broker, a
 - **Playbook system** — define named trade setups (e.g. "Breakout", "Mean Reversion") and tag trades to them
 - **Custom trade tags** — label trades with color-coded tags for filtering and review
 - **Psychological notes** — add per-trade notes with an optional emotion field to track behavioral patterns
-- **Multi-user support** — each user has isolated data; authentication via JWT
+- **Multi-user support** — each user has isolated data; authentication via JWT (password) or Google OAuth 2.0
 - **REST API** — fully documented OpenAPI spec available at `/docs`
 
 ---
@@ -44,23 +50,33 @@ cd tradejournal
 
 **2. Create your `.env` file**
 
-There is no `.env.example` yet. Create the file manually:
+Copy `.env.example` to `.env` and fill in the required values:
 
 ```bash
-cat > .env << 'EOF'
+cp .env.example .env
+```
+
+The complete set of variables:
+
+```dotenv
+# Required
 DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@db:5432/tradejournal
-SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_hex(32))">
+SECRET_KEY=                        # generate: python -c "import secrets; print(secrets.token_hex(32))"
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 CORS_ORIGINS=http://localhost:3000
-EOF
+
+# Optional — Google OAuth 2.0 (leave blank to use password login only)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+
+# Frontend (NextAuth)
+NEXTAUTH_SECRET=                   # generate: openssl rand -base64 32
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-Replace the `SECRET_KEY` placeholder with a real value before starting:
-
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
+Without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, the Google login button is visible in the UI but non-functional; password-based login works as normal.
 
 **3. Start the stack**
 
@@ -125,10 +141,11 @@ cd frontend
 npm install
 ```
 
-Create `frontend/.env.local`:
+Create `frontend/.env.local` (see `frontend/.env.example` for the full list):
 
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=      # same value as GOOGLE_CLIENT_ID above
 ```
 
 Start the development server:
@@ -155,6 +172,20 @@ In TWS or the Client Portal, go to Reports → Activity Statements. Set the peri
 Log in to schwab.com, go to Accounts → History, filter to the date range you need, and download the trade history as CSV.
 
 Duplicate detection is built in — re-uploading the same file will not create duplicate trades.
+
+---
+
+## Authentication
+
+### Password login
+
+Send a `POST` request to `/api/v1/auth/token` with your email and password. The response contains an `access_token` (JWT, 15-minute lifetime) and sets an httpOnly refresh-token cookie. Use the access token as a `Bearer` header on all subsequent requests.
+
+### Google OAuth 2.0
+
+Clicking "Continue with Google" on the login or registration page redirects the browser to `/api/v1/auth/google`. The backend initiates the Authorization Code Flow with Google, handles the redirect, and — on success — issues a JWT pair and redirects the user to the dashboard.
+
+Existing local accounts with a matching verified email are automatically linked to Google on the first Google login; no manual merging is required. Google-only accounts (created through OAuth, no password set) cannot log in with a password.
 
 ---
 

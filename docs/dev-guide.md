@@ -60,6 +60,9 @@ in `backend/` (it is gitignored) or export them in your shell.
 | `ENVIRONMENT` | `str` | `development` | No | Runtime mode — `development` or `production` |
 | `LOG_LEVEL` | `str` | `INFO` | No | Python logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `CORS_ORIGINS` | `list[str]` | `["http://localhost:3000"]` | No | Comma-separated list of allowed CORS origins |
+| `GOOGLE_CLIENT_ID` | `str` | — | No | OAuth 2.0 client ID from Google Cloud Console; required to enable Google login |
+| `GOOGLE_CLIENT_SECRET` | `str` | — | No | OAuth 2.0 client secret from Google Cloud Console; required to enable Google login |
+| `GOOGLE_REDIRECT_URI` | `str` | — | No | Redirect URI registered in Google Cloud Console (e.g. `http://localhost:8000/api/v1/auth/google/callback`) |
 
 Example `.env` for local development:
 
@@ -69,7 +72,46 @@ SECRET_KEY=change-me-to-a-long-random-string
 ENVIRONMENT=development
 LOG_LEVEL=DEBUG
 CORS_ORIGINS=http://localhost:3000
+
+# Optional — Google OAuth 2.0 (omit to disable Google login)
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+# GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
 ```
+
+---
+
+## Google OAuth setup
+
+To enable Google login locally, create an OAuth 2.0 client in Google Cloud Console and set the three `GOOGLE_*` variables above.
+
+**Step 1 — Create a client ID**
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) and select (or create) a project.
+2. Go to **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**.
+3. Set the application type to **Web application**.
+4. Under **Authorized redirect URIs**, add `http://localhost:8000/api/v1/auth/google/callback` for local development. For production, add the equivalent URI with your public domain, e.g. `https://app.example.com/api/v1/auth/google/callback`.
+5. Click **Create** and copy the **Client ID** and **Client Secret** into your `.env` file.
+
+**Step 2 — Set the frontend secret**
+
+The frontend uses NextAuth to manage session state. Generate a random secret and add it to `frontend/.env.local`:
+
+```bash
+openssl rand -base64 32
+```
+
+```dotenv
+# frontend/.env.local
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=<same value as GOOGLE_CLIENT_ID>
+NEXTAUTH_SECRET=<output of the openssl command above>
+NEXTAUTH_URL=http://localhost:3000
+```
+
+**Behavior without Google credentials**
+
+If `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` is not set, `GET /api/v1/auth/google` returns `503 Service Unavailable`. The "Continue with Google" button is still rendered in the UI but the redirect will fail. Password-based login continues to work normally.
 
 ---
 

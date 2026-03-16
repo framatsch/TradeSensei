@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- Google OAuth login -->
+
+### Added
+
+- [backend] `provider VARCHAR(20) NOT NULL DEFAULT 'local'` and `provider_id VARCHAR(255) NULL` columns on the `users` table; `hashed_password` made nullable to support OAuth-only accounts; Alembic migration `0006_google_oauth_provider_fields` (`backend/alembic/versions/0006_google_oauth_provider_fields.py`)
+- [backend] `get_by_provider_id`, `create_oauth_user`, and `link_oauth_account` methods on `UserRepository` for OAuth account resolution and linking (`backend/app/repositories/user_repository.py`)
+- [backend] `google_oauth_login` and `exchange_one_time_token` methods on `AuthService`; password login is rejected with `InvalidCredentialsError` for OAuth-only accounts (`backend/app/services/auth_service.py`)
+- [backend] One-time token (60 s TTL, single-use) in `backend/app/core/security.py` used to safely transfer the JWT pair across the OAuth callback redirect
+- [backend] `GET /api/v1/auth/google` — redirects browser to Google's OAuth authorization URL (`backend/app/api/v1/auth.py`)
+- [backend] `GET /api/v1/auth/google/callback` — receives authorization code from Google, issues JWT pair + one-time token, sets refresh cookie, redirects to frontend (`backend/app/api/v1/auth.py`)
+- [backend] `POST /api/v1/auth/google/exchange` — accepts one-time token, returns `TokenResponse` (`backend/app/api/v1/auth.py`)
+- [backend] `authlib>=1.3` dependency for the server-side OAuth 2.0 client (`backend/pyproject.toml`)
+- [frontend] `next-auth@^4` installed; `app/api/auth/[...nextauth]/route.ts` stub handler added for NextAuth session management (`frontend/`)
+- [frontend] `GoogleSignInButton` component with official Google brand colours; added to `LoginForm` and `RegisterForm` with a visual divider (`frontend/components/auth/GoogleSignInButton.tsx`)
+- [frontend] `OAuthErrorBanner` component displaying user-friendly error messages for OAuth failures (`frontend/components/auth/OAuthErrorBanner.tsx`)
+- [frontend] `app/(auth)/auth/callback/page.tsx` — exchanges the one-time token via `POST /api/v1/auth/google/exchange`, stores the access token, and redirects to `/dashboard` (`frontend/app/(auth)/auth/callback/page.tsx`)
+- [frontend] `frontend/.env.example` documenting all required environment variables: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (`frontend/.env.example`)
+- [backend] Unit tests for `google_oauth_login` (20 cases) and one-time token (21 cases); integration tests for the three OAuth routes (14 cases)
+
 <!-- Iteration 6: Playbook, tagging, and psychological notes -->
 
 ### Added
