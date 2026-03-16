@@ -315,3 +315,16 @@ export interface RollingWinratePoint {
   rolling_winrate: number;
   window: number;
 }
+
+// ─── Broker / Schwab ──────────────────────────────────────────────────────────
+
+export interface BrokerStatusResponse {
+  connected: boolean;
+  last_sync_at: string | null;
+}
+
+export interface SchwabSyncResult {
+  imported_count: number;
+  skipped_count: number;
+  errors: string[];
+}
