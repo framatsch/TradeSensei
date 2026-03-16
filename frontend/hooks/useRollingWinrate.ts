@@ -1,0 +1,22 @@
+/**
+ * React Query hook for rolling win-rate time-series data.
+ */
+
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/lib/api";
+import type { RollingWinratePoint, ResponseEnvelope } from "@/lib/types";
+
+export function useRollingWinrate(windowTrades: number = 20) {
+  return useQuery<RollingWinratePoint[], Error>({
+    queryKey: ["rolling-winrate", windowTrades],
+    queryFn: async () => {
+      const res = await apiClient.get<ResponseEnvelope<RollingWinratePoint[]>>(
+        `/api/v1/timeseries/rolling-winrate?window_trades=${windowTrades}`
+      );
+      return res.data.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
