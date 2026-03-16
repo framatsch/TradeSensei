@@ -5,6 +5,7 @@ discover every table when it inspects ``Base.metadata``.
 """
 
 from app.models.account import Account as Account
+from app.models.broker_connection import BrokerConnection as BrokerConnection
 from app.models.fx_rate import FxRate as FxRate
 from app.models.playbook import Playbook as Playbook
 from app.models.tag import Tag as Tag

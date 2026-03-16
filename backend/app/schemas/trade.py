@@ -1,10 +1,11 @@
 """Pydantic DTOs for Trade request and response shapes."""
 
+import contextlib
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -199,6 +200,15 @@ class TradeCreate(BaseModel):
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
     )
+    broker_order_id: str | None = Field(
+        default=None,
+        max_length=100,
+        description=(
+            "External broker order identifier used for deduplication during "
+            "live broker syncs. Set automatically by broker importers."
+        ),
+        examples=["1234567890", None],
+    )
 
     @field_validator("opened_at", "closed_at", mode="before")
     @classmethod
@@ -226,9 +236,9 @@ class TradeCreate(BaseModel):
             The validated model instance.
 
         Raises:
-            ValueError: If ``closed_at`` is not strictly after ``opened_at``.
+            ValueError: If ``closed_at`` is before ``opened_at``.
         """
-        if self.closed_at is not None and self.closed_at <= self.opened_at:
+        if self.closed_at is not None and self.closed_at < self.opened_at:
             raise ValueError("closed_at must be after opened_at")
         return self
 
@@ -446,9 +456,9 @@ class TradeCreateRequest(BaseModel):
             The validated model instance.
 
         Raises:
-            ValueError: If ``closed_at`` is not strictly after ``opened_at``.
+            ValueError: If ``closed_at`` is before ``opened_at``.
         """
-        if self.closed_at is not None and self.closed_at <= self.opened_at:
+        if self.closed_at is not None and self.closed_at < self.opened_at:
             raise ValueError("closed_at must be after opened_at")
         return self
 
@@ -470,7 +480,17 @@ class TradeCreateRequest(BaseModel):
 class TradeUpdate(BaseModel):
     """Request schema for partially updating an existing trade.
 
-    All fields are optional — only supplied fields will be written.
+    All fields are optional.  Pydantic v2 distinguishes between a field
+    that was **omitted** (not in ``model_fields_set``) and one that was
+    **explicitly set to** ``null`` (present in ``model_fields_set`` with
+    value ``None``).  The repository layer uses
+    ``model_dump(exclude_unset=True)`` so that:
+
+    - Omitting a field → the DB column is left unchanged.
+    - Sending ``"field": null`` → the DB column is set to ``NULL``.
+
+    This is particularly important for nullable optional fields such as
+    ``stop_loss`` and ``take_profit``.
 
     Attributes:
         symbol: Updated ticker symbol.
@@ -479,8 +499,8 @@ class TradeUpdate(BaseModel):
         quantity: Updated quantity.
         entry_price: Updated entry price.
         exit_price: Updated exit price (set to ``None`` to re-open).
-        stop_loss: Updated stop-loss level.
-        take_profit: Updated take-profit level.
+        stop_loss: Updated stop-loss level; ``null`` clears it.
+        take_profit: Updated take-profit level; ``null`` clears it.
         opened_at: Updated open timestamp.
         closed_at: Updated close timestamp.
         pnl: Updated PnL value.
@@ -540,24 +560,26 @@ class TradeUpdate(BaseModel):
     stop_loss: Decimal | None = Field(
         default=None,
         gt=Decimal("0"),
-        # NOTE: None means "not provided" (field omitted by client), not "set to null".
-        # To support explicit null-clearing, a sentinel type is needed (future work).
-        # TODO: Implement full sentinel pattern in a future iteration.
         description=(
             "Updated stop-loss price level. Set to null to remove the stop-loss. "
-            "Omit to leave unchanged."
+            "Omit to leave unchanged. "
+            "Pydantic v2 tracks whether this field was explicitly set via "
+            "``model_fields_set``; the repository uses ``model_dump(exclude_unset=True)`` "
+            "so that an explicit ``null`` clears the field while omitting it leaves it "
+            "unchanged."
         ),
         examples=["149.00", None],
     )
     take_profit: Decimal | None = Field(
         default=None,
         gt=Decimal("0"),
-        # NOTE: None means "not provided" (field omitted by client), not "set to null".
-        # To support explicit null-clearing, a sentinel type is needed (future work).
-        # TODO: Implement full sentinel pattern in a future iteration.
         description=(
             "Updated take-profit price level. Set to null to remove the take-profit. "
-            "Omit to leave unchanged."
+            "Omit to leave unchanged. "
+            "Pydantic v2 tracks whether this field was explicitly set via "
+            "``model_fields_set``; the repository uses ``model_dump(exclude_unset=True)`` "
+            "so that an explicit ``null`` clears the field while omitting it leaves it "
+            "unchanged."
         ),
         examples=["160.00", None],
     )
@@ -776,6 +798,14 @@ class TradeRead(BaseModel):
         ),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
+    playbook_name: str | None = Field(
+        default=None,
+        description=(
+            "Name of the playbook associated with this trade, resolved from the "
+            "joined playbook relationship. Null if no playbook is assigned."
+        ),
+        examples=["Breakout long", None],
+    )
     tags: list[TagRead] = Field(
         default_factory=list,
         description="Tags attached to this trade.",
@@ -794,6 +824,33 @@ class TradeRead(BaseModel):
         description="UTC timestamp of the most recent update to this record.",
         examples=["2024-03-15T15:45:02Z"],
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _resolve_playbook_name(cls, data: Any) -> Any:
+        """Populate ``playbook_name`` from the ORM ``playbook`` relationship.
+
+        When constructing from an ORM instance (``from_attributes=True``), the
+        ``playbook`` attribute may be an eagerly-loaded
+        :class:`~app.models.playbook.Playbook` object.  This validator extracts
+        its ``name`` so callers do not need to issue a separate query.
+
+        Args:
+            data: Raw input data — either a dict or an ORM instance.
+
+        Returns:
+            The (possibly augmented) input data.
+        """
+        if not isinstance(data, dict):
+            # Running from an ORM instance — try to resolve the relationship.
+            playbook = getattr(data, "playbook", None)
+            if playbook is not None and getattr(data, "playbook_name", None) is None:
+                # Attach the resolved name directly on the ORM object so Pydantic
+                # can read it via from_attributes.  We write to __dict__ to avoid
+                # triggering any SQLAlchemy descriptor.
+                with contextlib.suppress(Exception):
+                    data.__dict__["playbook_name"] = playbook.name
+        return data
 
 
 # ─── Filter / Sort schemas ────────────────────────────────────────────────────

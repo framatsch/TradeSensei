@@ -165,6 +165,12 @@ class Trade(Base):
         Text,
         nullable=True,
     )
+    broker_order_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+        comment="External broker order identifier for deduplication.",
+    )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
         nullable=True,
@@ -209,6 +215,7 @@ class Trade(Base):
         Index("ix_trades_user_id", "user_id"),
         Index("ix_trades_account_id", "account_id"),
         Index("ix_trades_playbook_id", "playbook_id"),
+        Index("ix_trades_broker_order_id", "broker_order_id"),
     )
 
     # Relationships

@@ -49,6 +49,14 @@ class NoteNotFoundError(Exception):
     """Raised when a trade note cannot be found."""
 
 
+class BrokerConnectionNotFoundError(Exception):
+    """Raised when a broker connection cannot be found for a user."""
+
+
+class ConfigurationError(Exception):
+    """Raised when a required configuration value is missing or invalid."""
+
+
 class FlexAPIError(Exception):
     """Raised when the IBKR Flex Web Service API returns an error."""
 
