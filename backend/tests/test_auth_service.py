@@ -75,6 +75,8 @@ def _make_user(
     user.username = username  # type: ignore[assignment]
     user.email = email  # type: ignore[assignment]
     user.hashed_password = hashed_password  # type: ignore[assignment]
+    user.provider = "local"  # type: ignore[assignment]
+    user.provider_id = None  # type: ignore[assignment]
     user.is_active = is_active  # type: ignore[assignment]
     user.refresh_token_version = refresh_token_version  # type: ignore[assignment]
     user.created_at = datetime.now(UTC)  # type: ignore[assignment]

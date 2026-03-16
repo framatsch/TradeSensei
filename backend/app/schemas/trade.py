@@ -210,21 +210,21 @@ class TradeCreate(BaseModel):
         examples=["1234567890", None],
     )
 
-    @field_validator("opened_at", "closed_at", mode="before")
+    @field_validator("opened_at", "closed_at", mode="after")
     @classmethod
-    def require_timezone(cls, value: object) -> object:
+    def require_timezone(cls, value: datetime | None) -> datetime | None:
         """Reject naive datetimes — all timestamps must carry timezone info.
 
         Args:
-            value: Raw datetime value from the request payload.
+            value: Parsed datetime value (already coerced from string by Pydantic).
 
         Returns:
-            The original value unchanged if it is timezone-aware.
+            The original value unchanged if it is timezone-aware or None.
 
         Raises:
             ValueError: If the supplied ``datetime`` has no ``tzinfo``.
         """
-        if isinstance(value, datetime) and value.tzinfo is None:
+        if value is not None and value.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware (include UTC offset).")
         return value
 
@@ -430,21 +430,21 @@ class TradeCreateRequest(BaseModel):
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
     )
 
-    @field_validator("opened_at", "closed_at", mode="before")
+    @field_validator("opened_at", "closed_at", mode="after")
     @classmethod
-    def require_timezone(cls, value: object) -> object:
+    def require_timezone(cls, value: datetime | None) -> datetime | None:
         """Reject naive datetimes — all timestamps must carry timezone info.
 
         Args:
-            value: Raw datetime value from the request payload.
+            value: Parsed datetime value (already coerced from string by Pydantic).
 
         Returns:
-            The original value unchanged if it is timezone-aware.
+            The original value unchanged if it is timezone-aware or None.
 
         Raises:
             ValueError: If the supplied ``datetime`` has no ``tzinfo``.
         """
-        if isinstance(value, datetime) and value.tzinfo is None:
+        if value is not None and value.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware (include UTC offset).")
         return value
 

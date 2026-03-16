@@ -499,6 +499,10 @@ class TradeRepository:
         if data.tag_ids is not None:
             await self._set_tags(trade, data.tag_ids)
 
+        # Refresh scalar columns first (e.g. updated_at set by DB trigger)
+        # then load relationships, preventing MissingGreenlet errors when
+        # model_validate accesses expired attributes outside the async context.
+        await self._session.refresh(trade)
         await self._session.refresh(
             trade, attribute_names=["tags", "trade_notes", "playbook"]
         )
