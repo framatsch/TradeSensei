@@ -6,8 +6,10 @@
 
 import { useNotes, useAddNote, useDeleteNote } from "@/hooks/useNotes";
 import { NoteForm } from "./NoteForm";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import { Spinner } from "@/components/ui/Spinner";
 import type { TradeNoteCreate } from "@/lib/types";
+import { formatDistanceToNow } from "date-fns";
 
 interface Props {
   tradeId: string;
@@ -42,13 +44,16 @@ function getEmotionClass(emotion: string): string {
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
+  const date = new Date(value);
+  const relative = formatDistanceToNow(date, { addSuffix: true });
+  const absolute = date.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
+  return `${relative} · ${absolute}`;
 }
 
 export function NoteList({ tradeId }: Props) {
@@ -104,9 +109,9 @@ export function NoteList({ tradeId }: Props) {
               </button>
 
               {/* Content */}
-              <p className="text-sm text-slate-200 leading-relaxed pr-8 whitespace-pre-wrap">
-                {note.content}
-              </p>
+              <div className="pr-8">
+                <MarkdownRenderer content={note.content} />
+              </div>
 
               {/* Footer */}
               <div className="mt-2.5 flex items-center gap-2 flex-wrap">

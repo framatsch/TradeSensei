@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from app.core.constants import EMOTION_MAX_LENGTH, NOTE_CONTENT_MAX_LENGTH
+from app.core.constants import EMOTION_MAX_LENGTH, NOTE_MAX_LENGTH
 
 
 class TradeNoteCreate(BaseModel):
@@ -19,9 +19,9 @@ class TradeNoteCreate(BaseModel):
     content: str = Field(
         ...,
         min_length=1,
-        max_length=NOTE_CONTENT_MAX_LENGTH,
+        max_length=NOTE_MAX_LENGTH,
         description=(
-            "Body of the trade note. Maximum 10 000 characters. "
+            "Body of the trade note. Maximum 5 000 characters. "
             "Used for post-trade reviews, observations, or emotional state."
         ),
         examples=["Entered too early — should have waited for confirmation.", ""],
@@ -51,7 +51,7 @@ class TradeNoteUpdate(BaseModel):
     content: str | None = Field(
         default=None,
         min_length=1,
-        max_length=NOTE_CONTENT_MAX_LENGTH,
+        max_length=NOTE_MAX_LENGTH,
         description="Updated note body. Omit to leave unchanged.",
         examples=["Actually, the setup was valid — I was too cautious.", None],
     )

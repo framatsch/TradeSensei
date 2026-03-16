@@ -5,12 +5,16 @@
 
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { Trade } from "@/lib/types";
 import { TagBadge } from "@/components/tags/TagBadge";
+import { QuickNoteInput } from "@/components/notes/QuickNoteInput";
 
 interface Props {
   trade: Trade;
+  isSelected?: boolean;
+  onSelect?: (id: string, checked: boolean) => void;
 }
 
 function formatPrice(value: string | null): string {
@@ -57,11 +61,24 @@ function DirectionBadge({ direction }: { direction: string }) {
   );
 }
 
-export function TradeRow({ trade }: Props) {
+export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
   const notesCount = trade.trade_notes?.length ?? 0;
+  const hasNotes = notesCount > 0;
+  const [showQuickNote, setShowQuickNote] = useState(false);
 
   return (
+    <>
     <tr className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors cursor-pointer">
+      <td className="px-3 py-3">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onSelect?.(trade.id, e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
+          className="w-4 h-4 rounded border-slate-600 accent-blue-500 cursor-pointer"
+          aria-label={`Select trade ${trade.symbol}`}
+        />
+      </td>
       <td className="px-4 py-3 text-sm font-medium text-slate-100">
         <Link
           href={`/dashboard/trades/${trade.id}`}
@@ -97,23 +114,43 @@ export function TradeRow({ trade }: Props) {
         </div>
       </td>
       <td className="px-4 py-3">
-        {notesCount > 0 ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-700 text-slate-300 border border-slate-600">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="w-3 h-3"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            {notesCount}
-          </span>
-        ) : (
-          <span className="text-slate-600 text-xs">—</span>
-        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowQuickNote((v) => !v);
+          }}
+          title={hasNotes ? `${notesCount} note${notesCount !== 1 ? "s" : ""} — click to add` : "Add note"}
+          aria-label={hasNotes ? `${notesCount} notes` : "Add note"}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border hover:border-blue-500 hover:text-blue-400 hover:bg-blue-900/20"
+          style={hasNotes
+            ? { background: "rgba(30,41,59,0.5)", color: "#94a3b8", borderColor: "#475569" }
+            : { background: "transparent", color: "#475569", borderColor: "#334155" }
+          }
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill={hasNotes ? "none" : "none"}
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-3 h-3"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {hasNotes ? notesCount : "+"}
+        </button>
       </td>
     </tr>
+    {showQuickNote && (
+      <tr className="border-b border-slate-700/30 bg-slate-800/30">
+        <td colSpan={11} className="px-4 py-2">
+          <QuickNoteInput
+            tradeId={trade.id}
+            onClose={() => setShowQuickNote(false)}
+          />
+        </td>
+      </tr>
+    )}
+    </>
   );
 }

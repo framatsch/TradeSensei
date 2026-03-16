@@ -43,6 +43,9 @@ REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 TOKEN_ALGORITHM: str = "HS256"
 """HMAC algorithm used when signing JWTs."""
 
+ONE_TIME_TOKEN_EXPIRE_SECONDS: int = 60
+"""Lifetime of a one-time OAuth exchange token in seconds."""
+
 # ─── User field sizes ─────────────────────────────────────────────────────────
 
 PASSWORD_MIN_LENGTH: int = 8
@@ -84,6 +87,18 @@ RETURN_DISTRIBUTION_MIN_BUCKETS: int = 5
 RETURN_DISTRIBUTION_MAX_BUCKETS: int = 100
 """Maximum number of histogram buckets allowed for the return distribution endpoint."""
 
+ROLLING_WINRATE_MAX_POINTS: int = 2000
+"""Maximum number of data points returned for the rolling win-rate endpoint."""
+
+ROLLING_WINRATE_DEFAULT_WINDOW: int = 20
+"""Default sliding window size (number of trades) for the rolling win-rate endpoint."""
+
+ROLLING_WINRATE_MIN_WINDOW: int = 5
+"""Minimum sliding window size for the rolling win-rate endpoint."""
+
+ROLLING_WINRATE_MAX_WINDOW: int = 100
+"""Maximum sliding window size for the rolling win-rate endpoint."""
+
 # ─── Broker Import ────────────────────────────────────────────────────────────
 
 IMPORT_MAX_FILE_SIZE_MB: int = 10
@@ -113,8 +128,11 @@ TAG_NAME_MAX_LENGTH: int = 50
 
 # ─── Trade Note field sizes ───────────────────────────────────────────────────
 
-NOTE_CONTENT_MAX_LENGTH: int = 10_000
-"""Maximum character length for trade note content."""
+NOTE_MAX_LENGTH: int = 5_000
+"""Maximum character length for trade note content (enforced at API boundary)."""
+
+NOTE_CONTENT_MAX_LENGTH: int = NOTE_MAX_LENGTH
+"""Alias for NOTE_MAX_LENGTH — kept for backward compatibility."""
 
 EMOTION_MAX_LENGTH: int = 50
 """Maximum length for an emotion label attached to a trade note."""
