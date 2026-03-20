@@ -64,16 +64,6 @@ def _make_account(
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`.
-
-    Returns:
-        A fresh :class:`AsyncMock` standing in for the SQLAlchemy session.
-    """
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> AccountService:
     """Return an :class:`AccountService` wired to a mock session.
 

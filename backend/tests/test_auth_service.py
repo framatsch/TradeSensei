@@ -121,16 +121,6 @@ def _make_login_payload(
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`.
-
-    Returns:
-        A fresh :class:`AsyncMock` standing in for the SQLAlchemy session.
-    """
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> AuthService:
     """Return an :class:`AuthService` wired to a mock session.
 

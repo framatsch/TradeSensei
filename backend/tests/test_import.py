@@ -130,34 +130,20 @@ class TestMapAssetClass:
     """Unit tests for the IBKR asset-class mapping helper."""
 
     @pytest.mark.unit
-    def test_stocks_maps_to_equity(self) -> None:
-        """'Stocks' should map to AssetClass.EQUITY."""
-        assert _map_asset_class("Stocks") == AssetClass.EQUITY
-
-    @pytest.mark.unit
-    def test_options_maps_to_option(self) -> None:
-        """'Options' should map to AssetClass.OPTION."""
-        assert _map_asset_class("Options") == AssetClass.OPTION
-
-    @pytest.mark.unit
-    def test_forex_maps_to_forex(self) -> None:
-        """'Forex' should map to AssetClass.FOREX."""
-        assert _map_asset_class("Forex") == AssetClass.FOREX
-
-    @pytest.mark.unit
-    def test_futures_maps_to_future(self) -> None:
-        """'Futures' should map to AssetClass.FUTURE."""
-        assert _map_asset_class("Futures") == AssetClass.FUTURE
-
-    @pytest.mark.unit
-    def test_unknown_maps_to_equity_fallback(self) -> None:
-        """Unknown category should fall back to AssetClass.EQUITY."""
-        assert _map_asset_class("Bonds") == AssetClass.EQUITY
-
-    @pytest.mark.unit
-    def test_strips_whitespace(self) -> None:
-        """Leading/trailing whitespace in the raw value should be stripped."""
-        assert _map_asset_class("  Stocks  ") == AssetClass.EQUITY
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("Stocks", AssetClass.EQUITY),
+            ("Options", AssetClass.OPTION),
+            ("Forex", AssetClass.FOREX),
+            ("Futures", AssetClass.FUTURE),
+            ("Bonds", AssetClass.EQUITY),  # unknown → fallback
+            ("  Stocks  ", AssetClass.EQUITY),  # whitespace stripped
+        ],
+    )
+    def test_map_asset_class(self, raw: str, expected: AssetClass) -> None:
+        """Each raw category string should map to the expected AssetClass."""
+        assert _map_asset_class(raw) == expected
 
 
 class TestParseIBKRDatetime:
@@ -304,19 +290,17 @@ class TestParseSchwabHelpers:
     """Unit tests for Schwab parser helper functions."""
 
     @pytest.mark.unit
-    def test_parse_decimal_strips_dollar(self) -> None:
-        """Dollar-prefixed strings should parse to correct Decimal."""
-        assert _parse_decimal("$150.25") == Decimal("150.25")
-
-    @pytest.mark.unit
-    def test_parse_decimal_handles_comma(self) -> None:
-        """Thousands-comma strings should parse correctly."""
-        assert _parse_decimal("$1,234.56") == Decimal("1234.56")
-
-    @pytest.mark.unit
-    def test_parse_decimal_no_prefix(self) -> None:
-        """Plain numeric strings should parse correctly."""
-        assert _parse_decimal("99.99") == Decimal("99.99")
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("$150.25", Decimal("150.25")),  # dollar prefix
+            ("$1,234.56", Decimal("1234.56")),  # thousands comma
+            ("99.99", Decimal("99.99")),  # no prefix
+        ],
+    )
+    def test_parse_decimal(self, raw: str, expected: Decimal) -> None:
+        """_parse_decimal should strip currency symbols and commas."""
+        assert _parse_decimal(raw) == expected
 
     @pytest.mark.unit
     def test_parse_schwab_date_utc_midnight(self) -> None:

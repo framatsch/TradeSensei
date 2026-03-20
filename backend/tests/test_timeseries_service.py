@@ -36,12 +36,6 @@ def _dt(day: int, month: int = 5, year: int = 2024) -> datetime:
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`."""
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> TimeSeriesService:
     """Return a :class:`TimeSeriesService` wired to a mock session."""
     return TimeSeriesService(mock_session)

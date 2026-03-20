@@ -42,12 +42,6 @@ def _make_tag(
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`."""
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> TagService:
     """Return a :class:`TagService` wired to a mock session."""
     return TagService(mock_session)

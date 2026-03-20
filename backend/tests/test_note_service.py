@@ -48,12 +48,6 @@ def _make_note(
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`."""
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> NoteService:
     """Return a :class:`NoteService` wired to a mock session."""
     return NoteService(mock_session)

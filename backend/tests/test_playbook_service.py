@@ -48,12 +48,6 @@ def _make_playbook(
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`."""
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> PlaybookService:
     """Return a :class:`PlaybookService` wired to a mock session."""
     return PlaybookService(mock_session)
