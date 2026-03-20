@@ -10,7 +10,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
-import type { BrokerStatusResponse, ResponseEnvelope, SchwabSyncResult } from "@/lib/types";
+import type { BrokerStatusResponse, ResponseEnvelope, BrokerSyncResult } from "@/lib/types";
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
@@ -41,9 +41,9 @@ export function useSchwabStatus() {
  */
 export function useSchwabSync() {
   const qc = useQueryClient();
-  return useMutation<SchwabSyncResult, Error, void>({
+  return useMutation<BrokerSyncResult, Error, void>({
     mutationFn: async () => {
-      const res = await apiClient.post<ResponseEnvelope<SchwabSyncResult>>(
+      const res = await apiClient.post<ResponseEnvelope<BrokerSyncResult>>(
         "/api/v1/broker/schwab/sync"
       );
       return res.data.data;

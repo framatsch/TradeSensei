@@ -16,14 +16,14 @@ import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useSchwabStatus, useSchwabSync, useDisconnectSchwab } from "@/hooks/useSchwabConnection";
 import { ConnectSchwabButton } from "./ConnectSchwabButton";
-import type { SchwabSyncResult } from "@/lib/types";
+import type { BrokerSyncResult } from "@/lib/types";
 
 export function SchwabConnectionCard() {
   const { data: status, isLoading } = useSchwabStatus();
   const { mutate: syncNow, isPending: isSyncing } = useSchwabSync();
   const { mutate: disconnect, isPending: isDisconnecting } = useDisconnectSchwab();
 
-  const [lastSyncResult, setLastSyncResult] = useState<SchwabSyncResult | null>(null);
+  const [lastSyncResult, setLastSyncResult] = useState<BrokerSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const handleSync = () => {
@@ -48,10 +48,10 @@ export function SchwabConnectionCard() {
     return (
       <div
         data-testid="schwab-card-loading"
-        className="bg-slate-800 rounded-xl border border-slate-700 p-6 animate-pulse"
+        className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 animate-pulse"
       >
-        <div className="h-5 w-32 bg-slate-700 rounded mb-4" />
-        <div className="h-4 w-48 bg-slate-700 rounded" />
+        <div className="h-5 w-32 bg-slate-100 dark:bg-slate-700 rounded mb-4" />
+        <div className="h-4 w-48 bg-slate-100 dark:bg-slate-700 rounded" />
       </div>
     );
   }
@@ -62,18 +62,18 @@ export function SchwabConnectionCard() {
   return (
     <div
       data-testid="schwab-connection-card"
-      className="bg-slate-800 rounded-xl border border-slate-700 p-6 space-y-4"
+      className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-4"
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Schwab brand mark */}
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700 text-white font-bold text-lg">
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 text-white font-bold text-lg">
             S
           </div>
           <div>
-            <h3 className="text-slate-100 font-semibold text-base">Schwab</h3>
-            <p className="text-slate-400 text-xs">Charles Schwab brokerage</p>
+            <h3 className="text-slate-900 dark:text-slate-100 font-semibold text-base">Schwab</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-xs">Charles Schwab brokerage</p>
           </div>
         </div>
 
@@ -83,7 +83,7 @@ export function SchwabConnectionCard() {
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
             connected
               ? "bg-green-900/40 text-green-400 border border-green-700/40"
-              : "bg-slate-700 text-slate-400 border border-slate-600"
+              : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600"
           }`}
         >
           <span
@@ -97,11 +97,11 @@ export function SchwabConnectionCard() {
       {connected && (
         <>
           {/* Last sync info */}
-          <div className="text-sm text-slate-400">
+          <div className="text-sm text-slate-600 dark:text-slate-400">
             {lastSyncAt ? (
               <span data-testid="last-sync-time">
                 Last synced{" "}
-                <span className="text-slate-300">
+                <span className="text-slate-700 dark:text-slate-300">
                   {formatDistanceToNow(new Date(lastSyncAt), { addSuffix: true })}
                 </span>
               </span>
@@ -114,14 +114,14 @@ export function SchwabConnectionCard() {
           {lastSyncResult && (
             <div
               data-testid="sync-result"
-              className="bg-slate-700/50 rounded-lg px-4 py-3 text-sm space-y-1"
+              className="bg-slate-100 dark:bg-slate-700/50 rounded-lg px-4 py-3 text-sm space-y-1"
             >
               <p className="text-green-400 font-medium">
                 {lastSyncResult.imported_count} trade
                 {lastSyncResult.imported_count !== 1 ? "s" : ""} imported
               </p>
               {lastSyncResult.skipped_count > 0 && (
-                <p className="text-slate-400">{lastSyncResult.skipped_count} skipped (duplicates)</p>
+                <p className="text-slate-600 dark:text-slate-400">{lastSyncResult.skipped_count} skipped (duplicates)</p>
               )}
               {lastSyncResult.errors.length > 0 && (
                 <ul className="text-red-400 mt-1 space-y-0.5">
@@ -193,7 +193,7 @@ export function SchwabConnectionCard() {
       {/* Disconnected state */}
       {!connected && (
         <div className="space-y-3">
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-600 dark:text-slate-400 text-sm">
             Connect your Schwab account to automatically import trades via OAuth.
           </p>
           <ConnectSchwabButton />

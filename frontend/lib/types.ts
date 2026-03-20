@@ -51,21 +51,26 @@ export interface UserCreate {
 
 // ─── Account ──────────────────────────────────────────────────────────────────
 
+export type AccountType = "manual" | "schwab" | "ibkr";
+
 export interface Account {
   id: string;
   user_id: string;
   name: string;
-  broker: string | null;
+  account_number: string | null;
+  type: AccountType;
   currency: string;
-  description?: string | null;
   is_active: boolean;
+  has_api_keys: boolean;
   created_at: string;
 }
 
 export interface AccountCreate {
   name: string;
-  broker?: string | null;
+  account_number?: string | null;
+  type?: AccountType;
   currency?: string;
+  properties?: Record<string, string> | null;
 }
 
 // ─── Playbook ─────────────────────────────────────────────────────────────────
@@ -284,10 +289,11 @@ export interface ReturnDistribution {
 
 export interface AccountUpdate {
   name?: string;
-  broker?: string | null;
+  account_number?: string | null;
+  type?: AccountType;
   currency?: string;
-  description?: string | null;
   is_active?: boolean;
+  properties?: Record<string, string> | null;
 }
 
 // ─── Tax ──────────────────────────────────────────────────────────────────────
@@ -316,15 +322,30 @@ export interface RollingWinratePoint {
   window: number;
 }
 
-// ─── Broker / Schwab ──────────────────────────────────────────────────────────
+// ─── Broker / Schwab / IBKR ───────────────────────────────────────────────────
 
 export interface BrokerStatusResponse {
   connected: boolean;
   last_sync_at: string | null;
 }
 
-export interface SchwabSyncResult {
+export interface BrokerSyncResult {
   imported_count: number;
   skipped_count: number;
   errors: string[];
+}
+
+// ─── User Settings ────────────────────────────────────────────────────────────
+
+export type Theme = "system" | "light" | "dark";
+export type DefaultDateRange = "all" | "ytd" | "last30";
+
+export interface UserSettings {
+  theme: Theme;
+  default_date_range: DefaultDateRange;
+}
+
+export interface UserSettingsUpdate {
+  theme?: Theme;
+  default_date_range?: DefaultDateRange;
 }

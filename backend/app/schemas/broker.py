@@ -1,4 +1,4 @@
-"""Pydantic DTOs for broker connection request and response shapes."""
+"""Pydantic DTOs for broker sync request and response shapes."""
 
 from datetime import datetime
 
@@ -9,7 +9,7 @@ class BrokerStatusResponse(BaseModel):
     """Response schema describing the current broker connection status.
 
     Attributes:
-        connected: ``True`` if an active OAuth connection exists for the
+        connected: ``True`` if an active connection exists for the
             authenticated user and the requested broker.
         last_sync_at: UTC timestamp of the most recent successful trade sync,
             or ``None`` if no sync has been performed.
@@ -18,7 +18,7 @@ class BrokerStatusResponse(BaseModel):
     connected: bool = Field(
         ...,
         description=(
-            "True if an active OAuth connection exists for this broker. "
+            "True if an active connection exists for this broker. "
             "False if the user has not connected or has disconnected."
         ),
         examples=[True, False],
@@ -33,12 +33,12 @@ class BrokerStatusResponse(BaseModel):
     )
 
 
-class SchwabSyncResult(BaseModel):
-    """Response schema summarising the result of a Schwab trade sync.
+class BrokerSyncResult(BaseModel):
+    """Response schema summarising the result of a broker account sync.
 
     Attributes:
         imported_count: Number of new trades successfully imported from
-            Schwab during this sync operation.
+            the broker API during this sync operation.
         skipped_count: Number of orders that were skipped — either because
             they already exist (deduplicated by ``broker_order_id``) or
             because they could not be normalised.
