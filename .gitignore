@@ -70,3 +70,4 @@ opencode.json.tui-migration.bak
 frontend/tests/.auth/
 frontend/test-results/
 frontend/playwright-report/
+tmp

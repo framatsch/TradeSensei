@@ -33,6 +33,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         enable_decoding=False,
+        extra="ignore",
     )
 
     database_url: str
@@ -59,6 +60,9 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
+    upload_dir: str = "/app/uploads"
+    """Directory where uploaded files (screenshots etc.) are stored."""
+
     ibkr_flex_token: str | None = None
 
     # Google OAuth

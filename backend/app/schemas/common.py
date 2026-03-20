@@ -64,3 +64,19 @@ class CursorPage(BaseModel, Generic[T]):
         ),
         examples=[142, None],
     )
+
+
+class OffsetPage(BaseModel, Generic[T]):
+    """Paginated response using limit/offset.
+
+    Attributes:
+        items: The list of result items for this page.
+        total: Total item count.
+        limit: The limit used.
+        offset: The offset used.
+    """
+
+    items: list[T] = Field(description="The list of result items.")
+    total: int = Field(description="Total number of items.")
+    limit: int = Field(description="The limit used.")
+    offset: int = Field(description="The offset used.")

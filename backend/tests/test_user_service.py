@@ -17,7 +17,6 @@ from app.models.user import User
 from app.schemas.user import UserRead, UserUpdate
 from app.services.user_service import UserService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

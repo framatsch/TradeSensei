@@ -1,3 +1,4 @@
+from app.schemas.cash_transaction import CashTransactionCreateRequest
 """Interactive Brokers (IBKR) Activity Statement CSV parser.
 
 IBKR exports a multi-section CSV.  This parser extracts the ``Trades``
@@ -163,7 +164,7 @@ class IBKRParser(BrokerParser):
         self._earliest_trade_date: date_type | None = None
         self._unique_trade_dates: set[date_type] = set()
 
-    def parse(self, content: bytes, filename: str) -> list[TradeCreate]:
+    def parse(self, content: bytes, filename: str) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse an IBKR Activity Statement CSV into :class:`TradeCreate` objects.
 
         Also extracts the ``EUR.USD`` rate from the ``Forex Balances`` section
@@ -239,7 +240,7 @@ class IBKRParser(BrokerParser):
                 logger.warning(msg)
                 self.warnings.append(msg)
 
-        return trades
+        return trades, []
 
     async def enrich_pnl_eur(
         self,

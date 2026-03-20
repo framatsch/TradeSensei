@@ -1,7 +1,7 @@
 """Tests for runtime database migration helpers."""
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 from _pytest.monkeypatch import MonkeyPatch
 

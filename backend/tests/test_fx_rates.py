@@ -12,7 +12,6 @@ import pytest
 
 from app.utils.fx_rates import _parse_sdmx_response, fetch_bundesbank_rate
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 

@@ -1,3 +1,6 @@
+from app.schemas.cash_transaction import CashTransactionCreateRequest
+from app.models.cash_transaction import CashTransactionType
+
 """Charles Schwab trade history CSV parser.
 
 Schwab's trade history export is a plain CSV with the following header::
@@ -32,9 +35,11 @@ logger = logging.getLogger(__name__)
 _COL_DATE: str = "Date"
 _COL_ACTION: str = "Action"
 _COL_SYMBOL: str = "Symbol"
+_COL_DESCRIPTION: str = "Description"
 _COL_QUANTITY: str = "Quantity"
 _COL_PRICE: str = "Price"
 _COL_FEES: str = "Fees & Comm"
+_COL_AMOUNT: str = "Amount"
 
 # ─── Schwab date format ───────────────────────────────────────────────────────
 
@@ -45,6 +50,47 @@ _SCHWAB_DATE_FORMAT: str = "%m/%d/%Y"
 _ACTION_BUY: str = "Buy"
 _ACTION_SELL: str = "Sell"
 _PROCESSABLE_ACTIONS: frozenset[str] = frozenset({_ACTION_BUY, _ACTION_SELL})
+
+
+def _map_cash_transaction_type(
+    action: str, amount: Decimal
+) -> CashTransactionType | None:
+    """Map a Schwab Action string to a CashTransactionType.
+
+    Returns None if the action is not a cash transaction.
+    """
+    action_upper = action.upper()
+
+    if action_upper in {"BUY", "SELL", "BUY TO COVER", "SELL SHORT"}:
+        return None
+
+    if "DIVIDEND" in action_upper:
+        return CashTransactionType.DIVIDEND
+    if "TAX" in action_upper:
+        return CashTransactionType.WITHHOLDING_TAX
+    if "INTEREST" in action_upper:
+        return CashTransactionType.INTEREST
+    if (
+        "DEPOSIT" in action_upper
+        or "FUNDS RECEIVED" in action_upper
+        or "WIRE IN" in action_upper
+    ):
+        return CashTransactionType.DEPOSIT
+    if (
+        "WITHDRAWAL" in action_upper
+        or "FUNDS PAID" in action_upper
+        or "WIRE OUT" in action_upper
+        or "FUNDS SENT" in action_upper
+    ):
+        return CashTransactionType.WITHDRAWAL
+    if "FEE" in action_upper or "COMMISSION" in action_upper:
+        return CashTransactionType.FEE
+
+    # Other cash events typically have an amount
+    if amount != Decimal("0"):
+        return CashTransactionType.OTHER
+
+    return None
 
 
 def _strip_currency_symbol(raw: str) -> str:
@@ -116,7 +162,9 @@ class SchwabParser(BrokerParser):
         """Initialise the parser with an empty warnings list."""
         self.warnings: list[str] = []
 
-    def parse(self, content: bytes, filename: str) -> list[TradeCreate]:
+    def parse(
+        self, content: bytes, filename: str
+    ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse a Schwab trade history CSV into :class:`TradeCreate` objects.
 
         Sets ``currency="USD"`` on every parsed trade.  ``pnl_eur`` is not
@@ -154,18 +202,21 @@ class SchwabParser(BrokerParser):
             )
 
         trades: list[TradeCreate] = []
+        cash_transactions: list[CashTransactionCreateRequest] = []
+
         for row_num, row in enumerate(reader, start=2):  # 1-based; row 1 is the header
-            action = row.get(_COL_ACTION, "").strip()
-            if action not in _PROCESSABLE_ACTIONS:
-                continue
             try:
-                trades.append(self._parse_row(row))
+                result = self._parse_row(row)
+                if isinstance(result, TradeCreate):
+                    trades.append(result)
+                elif isinstance(result, CashTransactionCreateRequest):
+                    cash_transactions.append(result)
             except (ValueError, InvalidOperation, KeyError) as exc:
                 msg = f"Schwab row {row_num}: skipped — {exc}"
                 logger.warning(msg)
                 self.warnings.append(msg)
 
-        return trades
+        return trades, cash_transactions
 
     async def enrich_pnl_eur(
         self,
@@ -219,27 +270,56 @@ class SchwabParser(BrokerParser):
                 if rate is not None:
                     trades[i] = trade.model_copy(update={"pnl_eur": trade.pnl * rate})
 
-    def _parse_row(self, row: dict[str, str]) -> TradeCreate:
-        """Convert a single Schwab CSV row dict into a :class:`TradeCreate`.
+    def _parse_row(
+        self, row: dict[str, str]
+    ) -> TradeCreate | CashTransactionCreateRequest | None:
+        """Convert a single Schwab CSV row dict into a :class:`TradeCreate` or :class:`CashTransactionCreateRequest`.
 
-        Sets ``currency="USD"`` on every trade.
+        Sets ``currency="USD"`` on every trade and cash transaction.
 
         Args:
             row: Dictionary of column name → raw string value.
 
         Returns:
-            A validated :class:`~app.schemas.trade.TradeCreate`.
+            A validated :class:`~app.schemas.trade.TradeCreate`,
+            :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`, or None.
 
         Raises:
             ValueError: If a required field is empty or invalid.
             KeyError: If an expected column is absent.
             decimal.InvalidOperation: If a numeric field cannot be parsed.
         """
+        action = row[_COL_ACTION].strip()
+
+        # Check if it's a cash transaction
+        amount_raw = row.get(_COL_AMOUNT, "").strip()
+        amount = _parse_decimal(amount_raw) if amount_raw else Decimal("0")
+
+        cash_tx_type = _map_cash_transaction_type(action, amount)
+        if cash_tx_type is not None:
+            if amount == Decimal("0"):
+                return None  # Skip cash transactions with zero amount
+
+            date = _parse_schwab_date(row[_COL_DATE])
+            symbol = row.get(_COL_SYMBOL, "").strip() or None
+            description = row.get(_COL_DESCRIPTION, "").strip() or action
+
+            return CashTransactionCreateRequest(
+                date=date,
+                type=cash_tx_type,
+                symbol=symbol,
+                amount=amount,
+                currency="USD",
+                description=description,
+            )
+
+        if action not in _PROCESSABLE_ACTIONS:
+            return None
+
         symbol = row[_COL_SYMBOL].strip()
         if not symbol:
             raise ValueError("Symbol column is empty.")
 
-        action = row[_COL_ACTION].strip()
         direction = Direction.LONG if action == _ACTION_BUY else Direction.SHORT
 
         quantity = abs(_parse_decimal(row[_COL_QUANTITY]))

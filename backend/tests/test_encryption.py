@@ -7,9 +7,10 @@ Fernet singleton so they do not interfere with each other.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
-from unittest.mock import patch
 
 import app.utils.encryption as enc_module
 from app.core.exceptions import ConfigurationError

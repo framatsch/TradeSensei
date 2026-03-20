@@ -49,8 +49,8 @@ class NoteNotFoundError(Exception):
     """Raised when a trade note cannot be found."""
 
 
-class BrokerConnectionNotFoundError(Exception):
-    """Raised when a broker connection cannot be found for a user."""
+class CashTransactionNotFoundError(Exception):
+    """Raised when a cash transaction cannot be found."""
 
 
 class ConfigurationError(Exception):

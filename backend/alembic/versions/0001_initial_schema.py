@@ -6,8 +6,8 @@ Create Date: 2026-03-14 00:00:00.000000
 
 """
 
-from collections.abc import Sequence
 import logging
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql

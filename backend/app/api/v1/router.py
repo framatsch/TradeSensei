@@ -10,10 +10,12 @@ from app.api.v1 import (
     accounts,
     auth,
     broker,
+    cash_transactions,
     imports,
     metrics,
     notes,
     playbooks,
+    screenshots,
     tags,
     tax,
     timeseries,
@@ -33,5 +35,7 @@ router.include_router(timeseries.router)
 router.include_router(playbooks.router)
 router.include_router(tags.router)
 router.include_router(notes.router)
+router.include_router(screenshots.router)
 router.include_router(tax.router)
 router.include_router(broker.router)
+router.include_router(cash_transactions.router)

@@ -36,7 +36,7 @@ function CategoryCard({ title, paragraph, block, colorClass }: CategoryCardProps
   const netPositive = net >= 0;
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 space-y-4">
       <div>
         <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
           {paragraph}
@@ -59,7 +59,7 @@ function CategoryCard({ title, paragraph, block, colorClass }: CategoryCardProps
         </div>
       </div>
 
-      <div className="pt-3 border-t border-slate-700 flex items-center justify-between">
+      <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
         <div>
           <p className="text-xs text-slate-500 mb-1">Netto</p>
           <p
@@ -72,7 +72,7 @@ function CategoryCard({ title, paragraph, block, colorClass }: CategoryCardProps
         </div>
         <div className="text-right">
           <p className="text-xs text-slate-500 mb-1">Trades</p>
-          <p className="text-lg font-semibold text-slate-300">
+          <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">
             {block.trade_count}
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function TaxPage() {
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
-          className="px-3 py-2 bg-slate-700 border border-slate-600 text-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label="Steuerjahr auswählen"
         >
           {YEAR_OPTIONS.map((y) => (
@@ -199,7 +199,7 @@ export default function TaxPage() {
 
       {/* Empty state */}
       {summary && isEmpty(summary) && (
-        <div className="flex flex-col items-center justify-center h-64 text-center bg-slate-800 border border-slate-700 rounded-xl px-8 py-12">
+        <div className="flex flex-col items-center justify-center h-64 text-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-8 py-12">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -210,7 +210,7 @@ export default function TaxPage() {
             <path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01" strokeLinecap="round" />
             <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
           </svg>
-          <p className="text-slate-400 font-medium text-lg mb-1">
+          <p className="text-slate-600 dark:text-slate-400 font-medium text-lg mb-1">
             Keine EUR-Daten für {year}
           </p>
           <p className="text-slate-500 text-sm max-w-sm">
@@ -240,9 +240,9 @@ export default function TaxPage() {
           </div>
 
           {/* Total net */}
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 Gesamt-Netto {year} (§20 EStG)
               </p>
               <p

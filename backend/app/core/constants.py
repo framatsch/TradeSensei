@@ -17,8 +17,12 @@ PAGINATION_MIN_LIMIT: int = 1
 
 # ─── Trade field sizes ────────────────────────────────────────────────────────
 
-SYMBOL_MAX_LENGTH: int = 20
-"""Maximum length for a trading symbol string (e.g. 'AAPL', 'ES')."""
+SYMBOL_MAX_LENGTH: int = 30
+"""Maximum length for a trading symbol string (e.g. 'AAPL', 'ES').
+
+Supports full OCC option symbol format (21 chars, e.g. 'CHTR  251003P00240000')
+and other long instrument identifiers with headroom to spare.
+"""
 
 SYMBOL_MIN_LENGTH: int = 1
 """Minimum length for a trading symbol string."""
@@ -68,6 +72,15 @@ ACCOUNT_NAME_MAX_LENGTH: int = 100
 CURRENCY_LENGTH: int = 3
 """Fixed length for ISO-4217 currency codes (e.g. 'USD', 'EUR')."""
 
+ACCOUNT_NUMBER_MAX_LENGTH: int = 50
+"""Maximum length for a broker account number string."""
+
+ACCOUNT_PROPERTY_KEY_MAX_LENGTH: int = 50
+"""Maximum length for an account property key (e.g. 'SCHWAB_APP_KEY')."""
+
+ACCOUNT_PROPERTY_VALUE_MAX_LENGTH: int = 2000
+"""Maximum length for an encrypted account property value."""
+
 # ─── Metrics ──────────────────────────────────────────────────────────────────
 
 METRICS_MIN_TRADES: int = 1
@@ -104,7 +117,7 @@ ROLLING_WINRATE_MAX_WINDOW: int = 100
 IMPORT_MAX_FILE_SIZE_MB: int = 10
 """Maximum file size in megabytes allowed for broker import uploads."""
 
-IMPORT_SUPPORTED_FORMATS: list[str] = ["csv", "xlsx"]
+IMPORT_SUPPORTED_FORMATS: list[str] = ["csv", "xlsx", "xml"]
 """File extensions accepted by the broker import endpoint."""
 
 # ─── Playbook field sizes ─────────────────────────────────────────────────────

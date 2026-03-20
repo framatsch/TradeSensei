@@ -114,13 +114,15 @@ class FlexImportService:
                 )
 
         xml_string = await self._fetch_flex_xml(query_id, from_date)
-        parsed_trades: list[TradeCreate] = self._parser.parse(
+        parsed_trades, parsed_cash_txs = self._parser.parse(
             xml_string.encode("utf-8"), filename="flex_query.xml"
         )
         parser_warnings: list[str] = list(self._parser.warnings)
 
         trades_created = 0
         trades_skipped = 0
+        cash_txs_created = 0
+        cash_txs_skipped = 0
         create_warnings: list[str] = []
 
         for trade_data in parsed_trades:
@@ -150,6 +152,28 @@ class FlexImportService:
                 create_warnings.append(msg)
                 trades_skipped += 1
 
+        if account_id is not None:
+            # Import here to avoid circular dependencies if needed, or at the top
+            from app.services.cash_transaction_service import CashTransactionService
+
+            for cash_tx_data in parsed_cash_txs:
+                # TODO: add duplicate check for cash transactions if required
+                try:
+                    await CashTransactionService.create(
+                        self._session, user_id, account_id, cash_tx_data
+                    )
+                    cash_txs_created += 1
+                except Exception as exc:  # noqa: BLE001
+                    msg = (
+                        f"Failed to persist cash transaction "
+                        f"at {cash_tx_data.date}: {exc}"
+                    )
+                    logger.warning(msg)
+                    create_warnings.append(msg)
+                    cash_txs_skipped += 1
+        else:
+            cash_txs_skipped += len(parsed_cash_txs)
+
         all_warnings = parser_warnings + create_warnings
 
         return ImportResult(
@@ -158,6 +182,9 @@ class FlexImportService:
             trades_parsed=len(parsed_trades),
             trades_created=trades_created,
             trades_skipped=trades_skipped,
+            cash_transactions_parsed=len(parsed_cash_txs),
+            cash_transactions_created=cash_txs_created,
+            cash_transactions_skipped=cash_txs_skipped,
             warnings=all_warnings,
         )
 

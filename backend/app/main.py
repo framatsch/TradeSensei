@@ -6,9 +6,11 @@ middleware, mounts all API routers, and applies startup migrations.
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
@@ -64,6 +66,13 @@ def create_app() -> FastAPI:
             when the service is running.
         """
         return ResponseEnvelope[dict[str, str]](data={"status": "ok"})
+
+    # ── Static file uploads ───────────────────────────────────────────────────
+    uploads_path = Path(settings.upload_dir)
+    uploads_path.mkdir(parents=True, exist_ok=True)
+    application.mount(
+        "/uploads", StaticFiles(directory=str(uploads_path)), name="uploads"
+    )
 
     # ── API routers ───────────────────────────────────────────────────────────
     application.include_router(v1_router)
