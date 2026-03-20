@@ -315,12 +315,22 @@ export interface TaxCategoryBlock {
   trade_count: number;
 }
 
+export interface AccountTaxSummary {
+  account_id: string | null;
+  account_name: string | null;
+  equities: TaxCategoryBlock;
+  derivatives: TaxCategoryBlock;
+  total_net_eur: string;
+  trades_missing_eur: number;
+}
+
 export interface TaxAnnualSummary {
   year: number;
   equities: TaxCategoryBlock;
   derivatives: TaxCategoryBlock;
   total_net_eur: string;
   trades_missing_eur: number;
+  accounts: AccountTaxSummary[];
 }
 
 // ─── Rolling Winrate ──────────────────────────────────────────────────────────

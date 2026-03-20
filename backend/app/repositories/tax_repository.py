@@ -9,7 +9,9 @@ from decimal import Decimal
 
 from sqlalchemy import and_, case, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
+from app.models.account import Account
 from app.models.trade import (  # noqa: F401 (AssetClass used in case expr)
     AssetClass,
     Trade,
@@ -27,12 +29,12 @@ class TaxRepository:
         session: AsyncSession,
         year: int,
         user_id: uuid.UUID,
-    ) -> list[tuple[bool, Decimal, Decimal, int, int]]:
+    ) -> list[tuple[uuid.UUID | None, str | None, bool, Decimal, Decimal, int, int]]:
         """Aggregate closed trades with pnl_eur for a given year and user.
 
-        Groups by ``is_equity`` (True for :attr:`~app.models.trade.AssetClass.EQUITY`,
-        False for all others) and returns aggregated gains, losses, trade count,
-        and count of trades with a NULL ``pnl_eur``.
+        Groups by ``Account.id``, ``Account.name``, and ``is_equity`` (True for
+        :attr:`~app.models.trade.AssetClass.EQUITY`, False for all others) and returns
+        aggregated gains, losses, trade count, and count of trades with a NULL ``pnl_eur``.
 
         Only trades where ``pnl IS NOT NULL`` (closed trades) are included.
         The ``pnl_eur IS NOT NULL`` filter is applied separately when computing
@@ -44,10 +46,13 @@ class TaxRepository:
             user_id: UUID of the authenticated user.
 
         Returns:
-            A list of 5-tuples ``(is_equity, gains_eur, losses_eur, trade_count,
-            missing_count)`` with one row per category that has at least one trade.
+            A list of 7-tuples ``(account_id, account_name, is_equity, gains_eur,
+            losses_eur, trade_count, missing_count)`` with one row per category and account
+            that has at least one trade.
 
             Each tuple contains:
+            - ``account_id`` (UUID | None): The account ID.
+            - ``account_name`` (str | None): The account name.
             - ``is_equity`` (bool): ``True`` for equity, ``False`` for derivatives.
             - ``gains_eur`` (Decimal): Sum of positive ``pnl_eur`` values.
             - ``losses_eur`` (Decimal): Sum of negative ``pnl_eur`` values
@@ -103,12 +108,15 @@ class TaxRepository:
 
         stmt = (
             select(
+                Account.id.label("account_id"),
+                Account.name.label("account_name"),
                 is_equity_expr.label("is_equity"),
                 gains_expr.label("gains_eur"),
                 losses_expr.label("losses_eur"),
                 trade_count_expr.label("trade_count"),
                 missing_count_expr.label("missing_count"),
             )
+            .outerjoin(Account, Trade.account_id == Account.id)
             .where(
                 and_(
                     Trade.user_id == user_id,
@@ -116,13 +124,17 @@ class TaxRepository:
                     extract("year", Trade.closed_at) == year,
                 )
             )
-            .group_by(is_equity_expr)
+            .group_by(Account.id, Account.name, is_equity_expr)
         )
 
         result = await session.execute(stmt)
         rows = result.all()
-        output: list[tuple[bool, Decimal, Decimal, int, int]] = [
+        output: list[
+            tuple[uuid.UUID | None, str | None, bool, Decimal, Decimal, int, int]
+        ] = [
             (
+                row.account_id,
+                row.account_name,
                 bool(row.is_equity),
                 Decimal(str(row.gains_eur)),
                 Decimal(str(row.losses_eur)),
@@ -156,6 +168,7 @@ class TaxRepository:
         """
         stmt = (
             select(Trade)
+            .options(joinedload(Trade.account))
             .where(
                 and_(
                     Trade.user_id == user_id,

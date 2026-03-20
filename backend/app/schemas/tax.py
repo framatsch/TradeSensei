@@ -4,6 +4,7 @@ Provides schemas for the annual tax summary endpoint, which groups
 realised P&L in EUR by asset class according to German §20 EStG categories.
 """
 
+import uuid
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -46,6 +47,46 @@ class TaxCategoryBlock(BaseModel):
         ...,
         description="Number of closed trades with a known pnl_eur in this category.",
         examples=[45],
+    )
+
+
+class AccountTaxSummary(BaseModel):
+    """Annual tax summary for a specific account."""
+
+    account_id: uuid.UUID | None = Field(
+        ...,
+        description="The account ID. Can be null if trades are not linked to an account.",
+    )
+    account_name: str | None = Field(
+        ...,
+        description="The name of the account.",
+        examples=["Interactive Brokers Main"],
+    )
+    equities: TaxCategoryBlock = Field(
+        ...,
+        description=(
+            "§20 Abs. 2 Nr. 1 EStG — realised gains and losses from equity trades for this account."
+        ),
+    )
+    derivatives: TaxCategoryBlock = Field(
+        ...,
+        description=(
+            "§20 Abs. 2 Nr. 3 EStG — realised gains and losses from derivatives "
+            "and other instruments for this account."
+        ),
+    )
+    total_net_eur: Decimal = Field(
+        ...,
+        description="Combined net P&L in EUR across both categories for this account.",
+        examples=["600.50"],
+    )
+    trades_missing_eur: int = Field(
+        default=0,
+        description=(
+            "Number of closed trades in this account/year where pnl_eur could not be "
+            "determined."
+        ),
+        examples=[0, 3],
     )
 
 
@@ -97,4 +138,8 @@ class TaxAnnualSummary(BaseModel):
             "determined (exchange rate was unavailable at import time)."
         ),
         examples=[0, 3],
+    )
+    accounts: list[AccountTaxSummary] = Field(
+        default_factory=list,
+        description="Detailed tax summaries broken down by individual accounts.",
     )

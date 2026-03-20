@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.trade import AssetClass
 from app.repositories.tax_repository import TaxRepository
-from app.schemas.tax import TaxAnnualSummary, TaxCategoryBlock
+from app.schemas.tax import AccountTaxSummary, TaxAnnualSummary, TaxCategoryBlock
 
 _ZERO = Decimal("0")
 
@@ -26,6 +26,7 @@ _EQUITY_CATEGORY = "Aktie (§20 Abs. 2 Nr. 1 EStG)"
 _DERIVATIVE_CATEGORY = "Derivat (§20 Abs. 2 Nr. 3 EStG)"
 
 _CSV_HEADERS = [
+    "Konto",
     "Symbol",
     "Asset-Klasse",
     "Kategorie",
@@ -81,44 +82,108 @@ class TaxService:
             user_id=user_id,
         )
 
-        equities_gains = _ZERO
-        equities_losses = _ZERO
-        equities_count = 0
-        derivatives_gains = _ZERO
-        derivatives_losses = _ZERO
-        derivatives_count = 0
-        total_missing = 0
+        overall_equities_gains = _ZERO
+        overall_equities_losses = _ZERO
+        overall_equities_count = 0
+        overall_derivatives_gains = _ZERO
+        overall_derivatives_losses = _ZERO
+        overall_derivatives_count = 0
+        overall_total_missing = 0
 
-        for is_equity, gains_eur, losses_eur, trade_count, missing_count in rows:
-            total_missing += missing_count
-            if is_equity:
-                equities_gains = Decimal(str(gains_eur))
-                equities_losses = Decimal(str(losses_eur))
-                equities_count = int(trade_count)
-            else:
-                derivatives_gains = Decimal(str(gains_eur))
-                derivatives_losses = Decimal(str(losses_eur))
-                derivatives_count = int(trade_count)
+        # Group rows by account
+        account_groups: dict[uuid.UUID | None, list] = {}
+        for row in rows:
+            acc_id = row[0]
+            if acc_id not in account_groups:
+                account_groups[acc_id] = []
+            account_groups[acc_id].append(row)
 
-        equities_net = equities_gains + equities_losses
-        derivatives_net = derivatives_gains + derivatives_losses
+        account_summaries: list[AccountTaxSummary] = []
+
+        for acc_id, acc_rows in account_groups.items():
+            acc_name = acc_rows[0][1]
+
+            acc_equities_gains = _ZERO
+            acc_equities_losses = _ZERO
+            acc_equities_count = 0
+            acc_derivatives_gains = _ZERO
+            acc_derivatives_losses = _ZERO
+            acc_derivatives_count = 0
+            acc_total_missing = 0
+
+            for (
+                _,
+                _,
+                is_equity,
+                gains_eur,
+                losses_eur,
+                trade_count,
+                missing_count,
+            ) in acc_rows:
+                acc_total_missing += missing_count
+                overall_total_missing += missing_count
+
+                if is_equity:
+                    acc_equities_gains = Decimal(str(gains_eur))
+                    acc_equities_losses = Decimal(str(losses_eur))
+                    acc_equities_count = int(trade_count)
+
+                    overall_equities_gains += acc_equities_gains
+                    overall_equities_losses += acc_equities_losses
+                    overall_equities_count += acc_equities_count
+                else:
+                    acc_derivatives_gains = Decimal(str(gains_eur))
+                    acc_derivatives_losses = Decimal(str(losses_eur))
+                    acc_derivatives_count = int(trade_count)
+
+                    overall_derivatives_gains += acc_derivatives_gains
+                    overall_derivatives_losses += acc_derivatives_losses
+                    overall_derivatives_count += acc_derivatives_count
+
+            acc_equities_net = acc_equities_gains + acc_equities_losses
+            acc_derivatives_net = acc_derivatives_gains + acc_derivatives_losses
+
+            account_summaries.append(
+                AccountTaxSummary(
+                    account_id=acc_id,
+                    account_name=acc_name,
+                    equities=TaxCategoryBlock(
+                        gains_eur=acc_equities_gains,
+                        losses_eur=acc_equities_losses,
+                        net_eur=acc_equities_net,
+                        trade_count=acc_equities_count,
+                    ),
+                    derivatives=TaxCategoryBlock(
+                        gains_eur=acc_derivatives_gains,
+                        losses_eur=acc_derivatives_losses,
+                        net_eur=acc_derivatives_net,
+                        trade_count=acc_derivatives_count,
+                    ),
+                    total_net_eur=acc_equities_net + acc_derivatives_net,
+                    trades_missing_eur=acc_total_missing,
+                )
+            )
+
+        overall_equities_net = overall_equities_gains + overall_equities_losses
+        overall_derivatives_net = overall_derivatives_gains + overall_derivatives_losses
 
         return TaxAnnualSummary(
             year=year,
             equities=TaxCategoryBlock(
-                gains_eur=equities_gains,
-                losses_eur=equities_losses,
-                net_eur=equities_net,
-                trade_count=equities_count,
+                gains_eur=overall_equities_gains,
+                losses_eur=overall_equities_losses,
+                net_eur=overall_equities_net,
+                trade_count=overall_equities_count,
             ),
             derivatives=TaxCategoryBlock(
-                gains_eur=derivatives_gains,
-                losses_eur=derivatives_losses,
-                net_eur=derivatives_net,
-                trade_count=derivatives_count,
+                gains_eur=overall_derivatives_gains,
+                losses_eur=overall_derivatives_losses,
+                net_eur=overall_derivatives_net,
+                trade_count=overall_derivatives_count,
             ),
-            total_net_eur=equities_net + derivatives_net,
-            trades_missing_eur=total_missing,
+            total_net_eur=overall_equities_net + overall_derivatives_net,
+            trades_missing_eur=overall_total_missing,
+            accounts=account_summaries,
         )
 
     async def get_annual_csv(
@@ -166,8 +231,11 @@ class TaxService:
             else:
                 fx_rate = ""
 
+            account_name = trade.account.name if trade.account else ""
+
             writer.writerow(
                 [
+                    account_name,
                     trade.symbol,
                     str(trade.asset_class),
                     category,

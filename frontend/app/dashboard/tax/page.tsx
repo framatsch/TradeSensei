@@ -268,6 +268,88 @@ export default function TaxPage() {
               </div>
             )}
           </div>
+
+          {/* Breakdown by Account */}
+          {summary.accounts && summary.accounts.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-4">
+                Aufschlüsselung nach Konto
+              </h2>
+              <div className="space-y-6">
+                {summary.accounts.map((acc) => (
+                  <div key={acc.account_id || "unknown"} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+                      <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">
+                        {acc.account_name || "Unbekanntes Konto"}
+                      </h3>
+                      <div className="text-right">
+                        <p className="text-sm text-slate-500">Konto-Netto</p>
+                        <p className={`text-xl font-bold ${
+                          parseFloat(acc.total_net_eur) >= 0 ? "text-green-400" : "text-red-400"
+                        }`}>
+                          {formatEur(acc.total_net_eur)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-blue-400 mb-3">Aktien (§20 Abs. 2 Nr. 1 EStG)</h4>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <p className="text-xs text-slate-500">Gewinne</p>
+                            <p className="text-sm font-semibold text-green-400">{formatEur(acc.equities.gains_eur)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Verluste</p>
+                            <p className="text-sm font-semibold text-red-400">{formatEur(acc.equities.losses_eur)}</p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                          <div>
+                            <p className="text-xs text-slate-500">Netto</p>
+                            <p className={`text-sm font-bold ${parseFloat(acc.equities.net_eur) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                              {formatEur(acc.equities.net_eur)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-500">{acc.equities.trade_count} Trades</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-purple-400 mb-3">Derivate (§20 Abs. 2 Nr. 3 EStG)</h4>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <p className="text-xs text-slate-500">Gewinne</p>
+                            <p className="text-sm font-semibold text-green-400">{formatEur(acc.derivatives.gains_eur)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Verluste</p>
+                            <p className="text-sm font-semibold text-red-400">{formatEur(acc.derivatives.losses_eur)}</p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                          <div>
+                            <p className="text-xs text-slate-500">Netto</p>
+                            <p className={`text-sm font-bold ${parseFloat(acc.derivatives.net_eur) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                              {formatEur(acc.derivatives.net_eur)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-500">{acc.derivatives.trade_count} Trades</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {acc.trades_missing_eur > 0 && (
+                      <p className="text-xs text-amber-500 mt-4 text-right">
+                        {acc.trades_missing_eur} Trade{acc.trades_missing_eur !== 1 ? "s" : ""} ohne EUR-Kurs
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
