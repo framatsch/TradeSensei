@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AccountNotFoundError
 from app.repositories.account_repository import AccountRepository
-from app.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from app.schemas.account import (
+    AccountCreate,
+    AccountMetrics,
+    AccountRead,
+    AccountUpdate,
+)
 from app.schemas.common import CursorPage
 from app.utils.encryption import encrypt_token
 
@@ -186,3 +191,27 @@ class AccountService:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         await self._repo.delete(account)
         await self._session.commit()
+
+    async def get_metrics(
+        self,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> AccountMetrics:
+        """Calculate and return aggregate cash metrics for a single account.
+
+        Args:
+            account_id: UUID of the account.
+            user_id: UUID of the authenticated user.
+
+        Returns:
+            An :class:`~app.schemas.account.AccountMetrics` DTO.
+
+        Raises:
+            :class:`~app.core.exceptions.AccountNotFoundError`: If no
+                account with that ID exists for the requesting user.
+        """
+        account = await self._repo.get_by_id(account_id, user_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
+        return await self._repo.get_metrics(account_id, user_id)

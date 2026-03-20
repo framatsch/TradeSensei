@@ -19,6 +19,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account_property import AccountProperty
+    from app.models.cash_transaction import CashTransaction
     from app.models.trade import Trade
     from app.models.user import User
 
@@ -122,6 +123,10 @@ class Account(Base):
     )
     trades: Mapped[list["Trade"]] = relationship(
         "Trade",
+        back_populates="account",
+    )
+    cash_transactions: Mapped[list["CashTransaction"]] = relationship(
+        "CashTransaction",
         back_populates="account",
     )
     properties: Mapped[list["AccountProperty"]] = relationship(

@@ -14,7 +14,12 @@ from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.exceptions import AccountNotFoundError
 from app.models.user import User
-from app.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from app.schemas.account import (
+    AccountCreate,
+    AccountMetrics,
+    AccountRead,
+    AccountUpdate,
+)
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.services.account_service import AccountService
 
@@ -259,3 +264,42 @@ async def delete_account(
         await service.delete_account(account_id, current_user.id)
     except AccountNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Account not found.") from exc
+
+
+@router.get(
+    "/{account_id}/metrics",
+    response_model=ResponseEnvelope[AccountMetrics],
+    summary="Get Account Cash Metrics",
+    description=(
+        "Calculate and return aggregate cash metrics (e.g. total dividends "
+        "and withholding tax) for the specified account."
+    ),
+    response_description="Aggregate metrics wrapped in a response envelope.",
+    responses={
+        200: {"description": "Metrics calculated successfully."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found (or owned by another user)."},
+    },
+)
+async def get_account_metrics(
+    account_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AccountService, Depends(_get_service)],
+) -> ResponseEnvelope[AccountMetrics]:
+    """Retrieve aggregate cash metrics for the account.
+
+    Args:
+        account_id: UUID of the account.
+        current_user: Authenticated user.
+        service: Account service.
+
+    Returns:
+        ResponseEnvelope containing an AccountMetrics DTO.
+    """
+    try:
+        metrics = await service.get_metrics(account_id, current_user.id)
+        return ResponseEnvelope[AccountMetrics](data=metrics)
+    except AccountNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found."
+        ) from exc

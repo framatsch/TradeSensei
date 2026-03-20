@@ -1,14 +1,17 @@
 """Pydantic DTOs for Account request and response shapes."""
 
 import uuid
+from decimal import Decimal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.core.constants import (
     ACCOUNT_NAME_MAX_LENGTH,
     ACCOUNT_NAME_MIN_LENGTH,
+    ACCOUNT_NUMBER_MAX_LENGTH,
     CURRENCY_LENGTH,
 )
+from app.models.account import AccountType
 
 
 class AccountCreate(BaseModel):
@@ -16,8 +19,12 @@ class AccountCreate(BaseModel):
 
     Attributes:
         name: Human-readable account name (e.g. "Interactive Brokers Main").
-        broker: Optional broker identifier (e.g. "IBKR", "Schwab").
+        account_number: Optional broker account number (e.g. "U1234567").
+        type: Account/broker type. Defaults to ``MANUAL``.
         currency: ISO-4217 currency code; defaults to ``"USD"``.
+        properties: Optional mapping of broker credential keys to plaintext
+            values.  The service layer encrypts each value before storage.
+            Pass ``null`` or omit to create an account without credentials.
     """
 
     name: str = Field(
@@ -27,13 +34,19 @@ class AccountCreate(BaseModel):
         description="Human-readable account label (e.g. 'Interactive Brokers Main').",
         examples=["Interactive Brokers Main", "Schwab Cash Account"],
     )
-    broker: str | None = Field(
+    account_number: str | None = Field(
         default=None,
-        max_length=50,
+        max_length=ACCOUNT_NUMBER_MAX_LENGTH,
+        description="Optional broker account number (e.g. 'U1234567').",
+        examples=["U1234567", None],
+    )
+    type: AccountType = Field(
+        default=AccountType.MANUAL,
         description=(
-            "Optional broker identifier (e.g. 'IBKR', 'Schwab', 'TD'). Omit if unknown."
+            "Account/broker type. Use 'schwab' for Charles Schwab, "
+            "'ibkr' for Interactive Brokers, or 'manual' for a manual account."
         ),
-        examples=["IBKR", "Schwab", None],
+        examples=["manual", "schwab", "ibkr"],
     )
     currency: str = Field(
         default="USD",
@@ -41,6 +54,18 @@ class AccountCreate(BaseModel):
         max_length=CURRENCY_LENGTH,
         description="ISO-4217 currency code for the account (exactly 3 characters).",
         examples=["USD", "EUR", "GBP"],
+    )
+    properties: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "Optional map of broker credential keys to plaintext values "
+            "(e.g. {'SCHWAB_APP_KEY': '...', 'SCHWAB_APP_SECRET': '...'}).  "
+            "Values are encrypted at rest. Pass null or omit to skip."
+        ),
+        examples=[
+            {"SCHWAB_APP_KEY": "abc123", "SCHWAB_APP_SECRET": "xyz789"},
+            None,
+        ],
     )
 
 
@@ -51,9 +76,13 @@ class AccountUpdate(BaseModel):
 
     Attributes:
         name: Updated account name.
-        broker: Updated broker identifier.
+        account_number: Updated broker account number. Pass ``null`` to clear.
+        type: Updated account/broker type.
         currency: Updated currency code.
         is_active: Updated active flag.
+        properties: Optional map of broker credential keys to updated
+            plaintext values.  Existing properties not included here are
+            left unchanged (merge semantics).
     """
 
     name: str | None = Field(
@@ -63,11 +92,16 @@ class AccountUpdate(BaseModel):
         description="Updated account label. Omit to leave unchanged.",
         examples=["IBKR Futures Account", None],
     )
-    broker: str | None = Field(
+    account_number: str | None = Field(
         default=None,
-        max_length=50,
-        description="Updated broker identifier. Omit to leave unchanged.",
-        examples=["IBKR", None],
+        max_length=ACCOUNT_NUMBER_MAX_LENGTH,
+        description="Updated broker account number. Pass null to clear.",
+        examples=["U7654321", None],
+    )
+    type: AccountType | None = Field(
+        default=None,
+        description="Updated account/broker type. Omit to leave unchanged.",
+        examples=["schwab", None],
     )
     currency: str | None = Field(
         default=None,
@@ -81,6 +115,17 @@ class AccountUpdate(BaseModel):
         description="Updated active flag. Omit to leave unchanged.",
         examples=[False, None],
     )
+    properties: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "Optional map of broker credential keys to updated plaintext values. "
+            "Upserts each supplied key-value pair; keys not listed here are unchanged."
+        ),
+        examples=[
+            {"SCHWAB_APP_KEY": "new-key-value"},
+            None,
+        ],
+    )
 
 
 class AccountRead(BaseModel):
@@ -90,10 +135,14 @@ class AccountRead(BaseModel):
         id: UUID primary key.
         user_id: UUID of the owning user.
         name: Account label.
-        broker: Broker identifier (``None`` if not set).
+        account_number: Optional broker account number.
+        type: Account/broker type.
         currency: ISO-4217 currency code.
         is_active: Whether the account is active.
         created_at: UTC timestamp of account creation.
+        has_api_keys: ``True`` if the account has any stored broker
+            credentials (computed by the service layer, never read directly
+            from the ORM).
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -113,10 +162,15 @@ class AccountRead(BaseModel):
         description="Human-readable account label.",
         examples=["Interactive Brokers Main"],
     )
-    broker: str | None = Field(
+    account_number: str | None = Field(
+        default=None,
+        description="Optional broker account number (e.g. 'U1234567').",
+        examples=["U1234567", None],
+    )
+    type: AccountType = Field(
         ...,
-        description="Broker identifier, or null if not specified.",
-        examples=["IBKR", None],
+        description="Account/broker type.",
+        examples=["manual", "schwab", "ibkr"],
     )
     currency: str = Field(
         ...,
@@ -132,4 +186,32 @@ class AccountRead(BaseModel):
         ...,
         description="UTC timestamp of account creation.",
         examples=["2024-03-15T09:30:00Z"],
+    )
+    has_api_keys: bool = Field(
+        default=False,
+        description=(
+            "True if the account has at least one stored broker credential. "
+            "Computed by the service layer."
+        ),
+        examples=[True, False],
+    )
+
+
+class AccountMetrics(BaseModel):
+    """Aggregate metrics for a single trading account.
+
+    Attributes:
+        total_dividends: Total dividends received in this account (in EUR).
+        total_withholding_tax: Total withholding tax paid in this account (in EUR).
+    """
+
+    total_dividends: Decimal = Field(
+        default=Decimal("0.0"),
+        description="Total dividends received across this account.",
+        examples=["150.50"],
+    )
+    total_withholding_tax: Decimal = Field(
+        default=Decimal("0.0"),
+        description="Total withholding tax paid across this account.",
+        examples=["-22.50"],
     )

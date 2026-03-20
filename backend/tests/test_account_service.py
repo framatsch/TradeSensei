@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.core.exceptions import AccountNotFoundError
-from app.models.account import Account
+from app.models.account import Account, AccountType
 from app.schemas.account import AccountCreate, AccountRead, AccountUpdate
 from app.schemas.common import CursorPage
 from app.services.account_service import AccountService
@@ -33,7 +33,7 @@ def _make_account(
     id: uuid.UUID | None = None,
     user_id: uuid.UUID | None = None,
     name: str = "IBKR Main",
-    broker: str | None = "IBKR",
+    account_type: AccountType = AccountType.MANUAL,
     currency: str = "USD",
     is_active: bool = True,
 ) -> Account:
@@ -43,7 +43,7 @@ def _make_account(
         id: UUID primary key. Defaults to a new random UUID.
         user_id: UUID of the owning user. Defaults to a new random UUID.
         name: Account label. Defaults to ``"IBKR Main"``.
-        broker: Broker identifier. Defaults to ``"IBKR"``.
+        account_type: Account/broker type. Defaults to ``AccountType.MANUAL``.
         currency: ISO-4217 currency code. Defaults to ``"USD"``.
         is_active: Whether the account is active. Defaults to ``True``.
 
@@ -54,11 +54,12 @@ def _make_account(
     account.id = id if id is not None else uuid.uuid4()  # type: ignore[assignment]
     account.user_id = user_id if user_id is not None else uuid.uuid4()  # type: ignore[assignment]
     account.name = name  # type: ignore[assignment]
-    account.broker = broker  # type: ignore[assignment]
+    account.type = account_type  # type: ignore[assignment]
     account.currency = currency  # type: ignore[assignment]
     account.is_active = is_active  # type: ignore[assignment]
     account.created_at = datetime.now(UTC)  # type: ignore[assignment]
     account.updated_at = datetime.now(UTC)  # type: ignore[assignment]
+    account.properties = []  # type: ignore[assignment]
     return account
 
 
@@ -189,15 +190,18 @@ class TestCreateAccount:
         returned ORM instance into a response DTO.
         """
         user_id = uuid.uuid4()
-        payload = AccountCreate(name="New Account", broker="Schwab", currency="USD")
-        created = _make_account(user_id=user_id, name="New Account", broker="Schwab")
+        payload = AccountCreate(name="New Account", type="schwab", currency="USD")
+        created = _make_account(
+            user_id=user_id, name="New Account", account_type=AccountType.SCHWAB
+        )
         service._repo.create = AsyncMock(return_value=created)  # type: ignore[method-assign]
+        service._repo.upsert_property = AsyncMock()  # type: ignore[method-assign]
 
         result = await service.create_account(payload, user_id)
 
         assert isinstance(result, AccountRead)
         assert result.name == "New Account"
-        assert result.broker == "Schwab"
+        assert result.type == AccountType.SCHWAB
         service._repo.create.assert_awaited_once_with(payload, user_id)
 
     @pytest.mark.unit

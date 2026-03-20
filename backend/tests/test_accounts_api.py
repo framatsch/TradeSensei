@@ -73,7 +73,7 @@ def _auth(token: str) -> dict[str, str]:
 
 _DEFAULT_ACCOUNT_PAYLOAD = {
     "name": "IBKR Main",
-    "broker": "IBKR",
+    "type": "ibkr",
     "currency": "USD",
 }
 
@@ -106,7 +106,7 @@ class TestCreateAccount:
 
         account = resp.json()["data"]
         assert account["name"] == "IBKR Main"
-        assert account["broker"] == "IBKR"
+        assert account["type"] == "ibkr"
         assert account["currency"] == "USD"
         assert account["is_active"] is True
         assert "id" in account
@@ -233,7 +233,7 @@ class TestUpdateAccount:
 
         create_resp = await client.post(
             _ACCOUNTS_URL,
-            json={"name": "Before Update", "broker": "IBKR", "currency": "USD"},
+            json={"name": "Before Update", "type": "ibkr", "currency": "USD"},
             headers=headers,
         )
         account_id = create_resp.json()["data"]["id"]
@@ -247,7 +247,7 @@ class TestUpdateAccount:
         updated = resp.json()["data"]
         assert updated["name"] == "After Update"
         # Untouched fields must be unchanged
-        assert updated["broker"] == "IBKR"
+        assert updated["type"] == "ibkr"
         assert updated["currency"] == "USD"
 
     @pytest.mark.integration
