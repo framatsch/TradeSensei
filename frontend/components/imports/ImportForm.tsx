@@ -25,6 +25,7 @@ export function ImportForm() {
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [uploadResult, setUploadResult] = useState<ImportResult | null>(null);
   const [syncResult, setSyncResult] = useState<BrokerSyncResult | null>(null);
+  const [syncDays, setSyncDays] = useState<number>(30);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: accounts, isLoading: loadingAccounts } = useAccounts();
@@ -68,7 +69,7 @@ export function ImportForm() {
   } = useMutation<BrokerSyncResult, Error, void>({
     mutationFn: async () => {
       const res = await apiClient.post<ResponseEnvelope<BrokerSyncResult>>(
-        `/api/v1/broker/sync/${accountId}?days=30`
+        `/api/v1/broker/sync/${accountId}?days=${syncDays}`
       );
       return res.data.data;
     },
@@ -148,7 +149,7 @@ export function ImportForm() {
                     Sync via API
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Fetch the last 30 days of trades directly from{" "}
+                    Fetch recent trades directly from{" "}
                     {TYPE_LABEL[accountType]}.
                     {!selectedAccount.has_api_keys && (
                       <span className="text-amber-400 ml-1">
@@ -157,6 +158,20 @@ export function ImportForm() {
                     )}
                   </p>
                 </div>
+                {selectedAccount.has_api_keys && !syncResult && (
+                  <select
+                    value={syncDays}
+                    onChange={(e) => setSyncDays(Number(e.target.value))}
+                    disabled={isSyncing}
+                    className="ml-4 px-2 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value={7}>Last 7 Days</option>
+                    <option value={30}>Last 30 Days</option>
+                    <option value={90}>Last 90 Days</option>
+                    <option value={180}>Last 180 Days</option>
+                    <option value={365}>Last 1 Year</option>
+                  </select>
+                )}
               </div>
 
               {syncErrorMsg && (
