@@ -44,12 +44,12 @@
 
 ## 8. Tests
 
-- [ ] 8.1 Write React Testing Library tests for `NoteForm` — character counter updates, preview toggle, save disabled when over limit
-- [ ] 8.2 Write React Testing Library tests for `QuickNoteInput` — save disabled when empty, note creation call on save
-- [ ] 8.3 Write React Testing Library tests for `MarkdownRenderer` — renders bold/italic/code correctly
+- [x]  8.1 Write React Testing Library tests for `NoteForm` — character counter updates, preview toggle, save disabled when over limit
+- [x]  8.2 Write React Testing Library tests for `QuickNoteInput` — save disabled when empty, note creation call on save
+- [x]  8.3 Write React Testing Library tests for `MarkdownRenderer` — renders bold/italic/code correctly
 
 ## 9. Lint, Types, and Commit
 
-- [ ] 9.1 Run `lint-check` skill — fix all ruff and mypy errors
-- [ ] 9.2 Run `unit-test` skill — ensure all tests pass
-- [ ] 9.3 Create git commit using `commit-helper` skill
+- [x]  9.1 Run `lint-check` skill — fix all ruff and mypy errors
+- [x]  9.2 Run `unit-test` skill — ensure all tests pass
+- [x]  9.3 Create git commit using `commit-helper` skill
