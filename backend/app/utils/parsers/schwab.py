@@ -1,5 +1,5 @@
-from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.models.cash_transaction import CashTransactionType
+from app.schemas.cash_transaction import CashTransactionCreateRequest
 
 """Charles Schwab trade history CSV parser.
 

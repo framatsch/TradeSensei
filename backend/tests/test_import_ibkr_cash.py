@@ -1,10 +1,13 @@
 
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
+
 import pytest
+
 from app.models.cash_transaction import CashTransactionType
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
+
 
 class TestIBKRXMLCashTransactionParsing:
     """Tests for IBKR Flex XML cash transaction parsing and CASH trade filtering."""

@@ -20,12 +20,12 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from app.core.exceptions import ImportParseError
-from app.models.trade import AssetClass, Direction
 from app.models.cash_transaction import CashTransactionType
-from app.schemas.trade import TradeCreate
+from app.models.trade import AssetClass, Direction
 from app.schemas.cash_transaction import CashTransactionCreateRequest
-from app.utils.parsers.base import BrokerParser
+from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import aggregate_executions_fifo
+from app.utils.parsers.base import BrokerParser
 
 logger = logging.getLogger(__name__)
 

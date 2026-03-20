@@ -12,9 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import AccountNotFoundError
 from app.repositories.account_repository import AccountRepository
 from app.repositories.trade_repository import TradeRepository
-from app.services.cash_transaction_service import CashTransactionService
 from app.schemas.imports import ImportResult
-from app.schemas.trade import TradeCreate
+from app.services.cash_transaction_service import CashTransactionService
 from app.utils.parsers.base import BrokerParser
 from app.utils.parsers.factory import BrokerType, get_parser
 
