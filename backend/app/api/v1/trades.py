@@ -1,7 +1,7 @@
 """Route handlers for the ``/api/v1/trades`` resource."""
 
 import uuid
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select as sa_select
@@ -34,6 +34,18 @@ from app.schemas.trade import (
 from app.services.trade_service import TradeService
 
 router = APIRouter(prefix="/trades", tags=["trades"])
+
+
+def _raise_not_found() -> NoReturn:
+    """Raise a 404 HTTPException for a missing trade.
+
+    Used as a single call-site for the repeated ``TradeNotFoundError``
+    catch block across GET / PATCH / DELETE trade endpoints.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Trade not found.",
+    )
 
 
 def _get_service(
@@ -403,11 +415,8 @@ async def get_trade(
     """
     try:
         trade = await service.get_trade(trade_id)
-    except TradeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Trade not found.",
-        ) from exc
+    except TradeNotFoundError:
+        _raise_not_found()
     return ResponseEnvelope[TradeRead](data=trade)
 
 
@@ -455,11 +464,8 @@ async def update_trade(
     """
     try:
         trade = await service.update_trade(trade_id, payload)
-    except TradeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Trade not found.",
-        ) from exc
+    except TradeNotFoundError:
+        _raise_not_found()
     return ResponseEnvelope[TradeRead](data=trade)
 
 
@@ -494,8 +500,5 @@ async def delete_trade(
     """
     try:
         await service.delete_trade(trade_id)
-    except TradeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Trade not found.",
-        ) from exc
+    except TradeNotFoundError:
+        _raise_not_found()

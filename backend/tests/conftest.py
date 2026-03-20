@@ -20,7 +20,9 @@ os.environ.setdefault(
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32chars")
 
 from collections.abc import AsyncGenerator  # noqa: E402
+from unittest.mock import AsyncMock  # noqa: E402
 
+import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
@@ -33,6 +35,19 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.core.database import get_session  # noqa: E402
 from app.main import app  # noqa: E402
+
+
+@pytest.fixture()
+def mock_session() -> AsyncMock:
+    """Return a mock :class:`AsyncSession` for use in unit tests.
+
+    This fixture is shared across all service unit tests so that each
+    test file does not need to define its own identical copy.
+
+    Returns:
+        A fresh :class:`AsyncMock` standing in for the SQLAlchemy session.
+    """
+    return AsyncMock()
 
 
 @pytest_asyncio.fixture(scope="session")

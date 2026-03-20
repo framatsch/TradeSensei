@@ -9,6 +9,7 @@ import binascii
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import delete, func, nullslast, select
 from sqlalchemy import update as sa_update
@@ -174,14 +175,17 @@ def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
 
 
 def _apply_filters(
-    stmt: Select[tuple[Trade]],
+    stmt: Select[Any],
     filters: TradeFilterParams,
-) -> Select[tuple[Trade]]:
+) -> Select[Any]:
     """Apply all active filter predicates to a SELECT statement.
 
     Filters are combined with AND logic at the top level. The tag filter
     supports both AND mode (trade must have **all** listed tags) and OR
     mode (trade must have **at least one** listed tag).
+
+    Compatible with any ``SELECT`` that queries the ``Trade`` table, including
+    both full-row selects and scalar-column selects (e.g. ``Trade.id``).
 
     Args:
         stmt: The base SELECT statement to augment.
@@ -466,15 +470,17 @@ class TradeRepository:
         # ── Optional total count ──────────────────────────────────────────────
         total: int | None = None
         if include_total:
-            count_stmt = select(func.count()).select_from(Trade)
+            # Build a filtered subquery from the same Trade base and wrap it
+            # in COUNT(*) — this reuses _apply_filters directly instead of
+            # duplicating its logic in a separate function.
+            base_count = select(Trade.id)
             if user_id is not None:
-                count_stmt = count_stmt.where(Trade.user_id == user_id)
+                base_count = base_count.where(Trade.user_id == user_id)
             if account_id is not None:
-                count_stmt = count_stmt.where(Trade.account_id == account_id)
+                base_count = base_count.where(Trade.account_id == account_id)
             if filters is not None:
-                # Re-apply filters to the count query via the base Trade select.
-                # We build a subquery approach: apply filter conditions directly.
-                count_stmt = _apply_filters_to_count(count_stmt, filters)
+                base_count = _apply_filters(base_count, filters)
+            count_stmt = select(func.count()).select_from(base_count.subquery())
             count_result = await self._session.execute(count_stmt)
             total = count_result.scalar_one_or_none()
 
@@ -639,74 +645,3 @@ class TradeRepository:
         updated = list(result.scalars().all())
         await self._session.flush()
         return len(updated)
-
-
-def _apply_filters_to_count(
-    count_stmt: Select[tuple[int]],
-    filters: TradeFilterParams,
-) -> Select[tuple[int]]:
-    """Apply filter predicates to a ``COUNT(*)`` SELECT statement.
-
-    Mirrors the logic in :func:`_apply_filters` but operates on the
-    count query which selects from the ``Trade`` table directly.
-
-    Args:
-        count_stmt: The ``COUNT(*)`` SELECT to augment.
-        filters: The filter parameters provided by the caller.
-
-    Returns:
-        The augmented count SELECT statement.
-    """
-    if filters.symbol:
-        count_stmt = count_stmt.where(Trade.symbol.ilike(f"%{filters.symbol}%"))
-
-    if filters.direction is not None:
-        count_stmt = count_stmt.where(Trade.direction == filters.direction)
-
-    if filters.asset_class is not None:
-        count_stmt = count_stmt.where(Trade.asset_class == filters.asset_class)
-
-    if filters.tag_ids:
-        if filters.tag_filter_mode == "and":
-            tag_subq = (
-                select(TradeTag.trade_id)
-                .where(TradeTag.tag_id.in_(filters.tag_ids))
-                .group_by(TradeTag.trade_id)
-                .having(
-                    func.count(func.distinct(TradeTag.tag_id)) == len(filters.tag_ids)
-                )
-                .scalar_subquery()
-            )
-        else:  # "or"
-            tag_subq = (
-                select(TradeTag.trade_id)
-                .where(TradeTag.tag_id.in_(filters.tag_ids))
-                .scalar_subquery()
-            )
-        count_stmt = count_stmt.where(Trade.id.in_(tag_subq))
-
-    if filters.playbook_id is not None:
-        count_stmt = count_stmt.where(Trade.playbook_id == filters.playbook_id)
-
-    if filters.opened_at_from is not None:
-        count_stmt = count_stmt.where(Trade.opened_at >= filters.opened_at_from)
-
-    if filters.opened_at_to is not None:
-        count_stmt = count_stmt.where(Trade.opened_at <= filters.opened_at_to)
-
-    if filters.pnl_positive is True:
-        count_stmt = count_stmt.where(Trade.pnl > Decimal("0"))
-    elif filters.pnl_positive is False:
-        count_stmt = count_stmt.where(
-            (Trade.pnl <= Decimal("0")) | (Trade.pnl.is_(None))
-        )
-
-    if filters.status == "open":
-        count_stmt = count_stmt.where(Trade.closed_at.is_(None))
-    elif filters.status == "closed":
-        count_stmt = count_stmt.where(Trade.closed_at.is_not(None))
-
-    if filters.account_id is not None:
-        count_stmt = count_stmt.where(Trade.account_id == filters.account_id)
-
-    return count_stmt

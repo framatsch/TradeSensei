@@ -56,12 +56,6 @@ def _make_trade_orm(
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`."""
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> MetricsService:
     """Return a :class:`MetricsService` wired to a mock session."""
     return MetricsService(mock_session)

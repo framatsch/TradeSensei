@@ -105,12 +105,6 @@ def _make_create_payload(**kwargs: object) -> TradeCreate:
 
 
 @pytest.fixture()
-def mock_session() -> AsyncMock:
-    """Return a mock :class:`AsyncSession`."""
-    return AsyncMock()
-
-
-@pytest.fixture()
 def service(mock_session: AsyncMock) -> TradeService:
     """Return a :class:`TradeService` wired to a mock session."""
     return TradeService(mock_session)

@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { MonthlyPnl } from "@/lib/types";
+import { ChartShell } from "./ChartShell";
 
 interface Props {
   data: MonthlyPnl[];
@@ -49,63 +50,58 @@ export function MonthlyPnlChart({ data }: Props) {
   const chartData = toChartData(data);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
-      <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-4">
-        Monthly PnL
-      </h3>
-      {chartData.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-12">
-          No monthly data available.
-        </p>
-      ) : (
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart
-            data={chartData}
-            margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: "#94a3b8", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#334155" }}
-            />
-            <YAxis
-              tick={{ fill: "#94a3b8", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#334155" }}
-              tickFormatter={formatCurrency}
-              width={70}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: "8px",
-                color: "#f1f5f9",
-              }}
-              formatter={(value, _name, props) => {
-                const num = typeof value === "number" ? value : parseFloat(String(value));
-                const entry = props.payload as ChartEntry;
-                return [
-                  `${formatCurrency(num)} (${entry.trade_count} trades)`,
-                  "PnL",
-                ];
-              }}
-              labelStyle={{ color: "#94a3b8" }}
-            />
-            <Bar dataKey="pnl" radius={[3, 3, 0, 0]}>
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={entry.pnl >= 0 ? "#22c55e" : "#ef4444"}
-                  fillOpacity={0.85}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      )}
-    </div>
+    <ChartShell
+      title="Monthly PnL"
+      emptyMessage="No monthly data available."
+      isEmpty={chartData.length === 0}
+    >
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: "#334155" }}
+          />
+          <YAxis
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: "#334155" }}
+            tickFormatter={formatCurrency}
+            width={70}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#0f172a",
+              border: "1px solid #334155",
+              borderRadius: "8px",
+              color: "#f1f5f9",
+            }}
+            formatter={(value, _name, props) => {
+              const num = typeof value === "number" ? value : parseFloat(String(value));
+              const entry = props.payload as ChartEntry;
+              return [
+                `${formatCurrency(num)} (${entry.trade_count} trades)`,
+                "PnL",
+              ];
+            }}
+            labelStyle={{ color: "#94a3b8" }}
+          />
+          <Bar dataKey="pnl" radius={[3, 3, 0, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={entry.pnl >= 0 ? "#22c55e" : "#ef4444"}
+                fillOpacity={0.85}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartShell>
   );
 }
