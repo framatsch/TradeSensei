@@ -13,6 +13,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.account import Account
     from app.models.trade import Trade
+    from app.models.user_setting import UserSetting
 
 
 class User(Base):
@@ -105,6 +106,11 @@ class User(Base):
     trades: Mapped[list["Trade"]] = relationship(
         "Trade",
         back_populates="user",
+    )
+    settings: Mapped[list["UserSetting"]] = relationship(
+        "UserSetting",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (

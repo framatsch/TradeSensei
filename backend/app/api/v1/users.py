@@ -14,7 +14,7 @@ from app.core.deps import get_current_user
 from app.core.exceptions import UserAlreadyExistsError, UserNotFoundError
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
-from app.schemas.user import UserRead, UserUpdate
+from app.schemas.user import UserRead, UserSettingsRead, UserSettingsUpdate, UserUpdate
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -116,6 +116,73 @@ async def update_me(
             detail="Username or email address is already in use.",
         ) from exc
     return ResponseEnvelope[UserRead](data=updated)
+
+
+@router.get(
+    "/me/settings",
+    response_model=ResponseEnvelope[UserSettingsRead],
+    summary="Get User Settings",
+    description=(
+        "Return the UI preferences of the currently authenticated user. "
+        "Missing keys are returned with their default values."
+    ),
+    response_description="The user's settings wrapped in a response envelope.",
+    responses={
+        200: {"description": "Settings returned successfully."},
+        401: {"description": "Missing or invalid Bearer token."},
+    },
+)
+async def get_settings(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[UserService, Depends(_get_service)],
+) -> ResponseEnvelope[UserSettingsRead]:
+    """Return the UI settings for the currently authenticated user.
+
+    Args:
+        current_user: Injected authenticated user ORM instance.
+        service: Injected user service.
+
+    Returns:
+        A :class:`ResponseEnvelope` containing the :class:`UserSettingsRead`
+        DTO with all settings keys populated (defaults for missing keys).
+    """
+    result = await service.get_settings(current_user.id)
+    return ResponseEnvelope[UserSettingsRead](data=result)
+
+
+@router.put(
+    "/me/settings",
+    response_model=ResponseEnvelope[UserSettingsRead],
+    summary="Update User Settings",
+    description=(
+        "Partially update the UI preferences of the currently authenticated user. "
+        "Only fields present in the request body are modified."
+    ),
+    response_description="The updated settings wrapped in a response envelope.",
+    responses={
+        200: {"description": "Settings updated successfully."},
+        401: {"description": "Missing or invalid Bearer token."},
+        422: {"description": "Request payload failed schema validation."},
+    },
+)
+async def update_settings(
+    payload: UserSettingsUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[UserService, Depends(_get_service)],
+) -> ResponseEnvelope[UserSettingsRead]:
+    """Update UI settings for the currently authenticated user.
+
+    Args:
+        payload: Partial settings update (``theme`` and/or ``default_date_range``).
+        current_user: Injected authenticated user ORM instance.
+        service: Injected user service.
+
+    Returns:
+        A :class:`ResponseEnvelope` containing the full updated
+        :class:`UserSettingsRead` DTO.
+    """
+    result = await service.update_settings(current_user.id, payload)
+    return ResponseEnvelope[UserSettingsRead](data=result)
 
 
 @router.delete(

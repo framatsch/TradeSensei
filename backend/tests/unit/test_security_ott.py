@@ -22,7 +22,6 @@ from app.core.constants import ONE_TIME_TOKEN_EXPIRE_SECONDS, TOKEN_ALGORITHM
 from app.core.exceptions import InvalidTokenError
 from app.core.security import consume_one_time_token, create_one_time_token
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -455,12 +454,14 @@ class TestConsumeOneTimeToken:
 
         before = len(sec._used_ott_jti)
 
-        with patch(
-            "app.core.security.jwt.decode",
-            side_effect=Exception("simulated decode failure"),
+        with (
+            patch(
+                "app.core.security.jwt.decode",
+                side_effect=Exception("simulated decode failure"),
+            ),
+            pytest.raises(InvalidTokenError),
         ):
-            with pytest.raises(InvalidTokenError):
-                consume_one_time_token("anything")
+            consume_one_time_token("anything")
 
         after = len(sec._used_ott_jti)
         assert after == before

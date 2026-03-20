@@ -19,14 +19,13 @@ during derivation, and the shape of the returned three-tuple.
 
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.core.exceptions import InvalidCredentialsError
 from app.models.user import User
 from app.services.auth_service import AuthService
-
 
 # ---------------------------------------------------------------------------
 # Helpers

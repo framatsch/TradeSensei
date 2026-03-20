@@ -1,6 +1,7 @@
 """Pydantic DTOs for User request and response shapes."""
 
 import uuid
+from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
 
@@ -105,6 +106,52 @@ class UserUpdate(BaseModel):
         default=None,
         description="Updated email address. Omit to leave unchanged.",
         examples=["newalice@example.com", None],
+    )
+
+
+class UserSettingsRead(BaseModel):
+    """Response schema for a user's UI preferences.
+
+    Attributes:
+        theme: UI theme preference — ``"system"``, ``"light"``, or ``"dark"``.
+        default_date_range: Default date range applied when no URL params are
+            present — ``"all"``, ``"ytd"``, or ``"last30"``.
+    """
+
+    theme: Literal["system", "light", "dark"] = Field(
+        default="system",
+        description="UI theme preference.",
+        examples=["system", "light", "dark"],
+    )
+    default_date_range: Literal["all", "ytd", "last30"] = Field(
+        default="all",
+        description=(
+            "Default date range filter for the trades page and dashboard. "
+            "Applied when no URL query parameters are present."
+        ),
+        examples=["all", "ytd", "last30"],
+    )
+
+
+class UserSettingsUpdate(BaseModel):
+    """Request schema for updating a user's UI preferences.
+
+    All fields are optional — only supplied fields are written.
+
+    Attributes:
+        theme: Updated theme preference.
+        default_date_range: Updated default date range.
+    """
+
+    theme: Literal["system", "light", "dark"] | None = Field(
+        default=None,
+        description="Updated theme preference. Omit to leave unchanged.",
+        examples=["dark", None],
+    )
+    default_date_range: Literal["all", "ytd", "last30"] | None = Field(
+        default=None,
+        description="Updated default date range. Omit to leave unchanged.",
+        examples=["ytd", None],
     )
 
 

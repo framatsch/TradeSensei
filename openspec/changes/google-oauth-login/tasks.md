@@ -9,7 +9,7 @@
 - [x] 2.1 Add `provider VARCHAR(20) NOT NULL DEFAULT 'local'` and `provider_id VARCHAR(255) NULL` columns to the `users` ORM model (`backend/app/models/user.py`)
 - [x] 2.2 Make `hashed_password` nullable in the ORM model
 - [x] 2.3 Create Alembic migration: add `provider`, `provider_id` columns; make `hashed_password` nullable; add unique index on `(provider, provider_id)` where `provider_id IS NOT NULL`
-- [ ] 2.4 Apply migration and verify it runs cleanly
+- [x]  2.4 Apply migration and verify it runs cleanly
 
 ## 3. Backend — Repository & Service
 

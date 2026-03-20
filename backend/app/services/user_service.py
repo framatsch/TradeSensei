@@ -12,7 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import UserAlreadyExistsError, UserNotFoundError
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserRead, UserUpdate
+from app.repositories.user_setting_repository import UserSettingRepository
+from app.schemas.user import UserRead, UserSettingsRead, UserSettingsUpdate, UserUpdate
+
+# Keys supported by the settings system with their defaults.
+_SETTINGS_DEFAULTS: dict[str, str] = {
+    "theme": "system",
+    "default_date_range": "all",
+}
 
 
 class UserService:
@@ -31,7 +38,9 @@ class UserService:
         Args:
             session: The session to use for all operations.
         """
+        self._session = session
         self._repo = UserRepository(session)
+        self._settings_repo = UserSettingRepository(session)
 
     async def get_user(self, user_id: uuid.UUID) -> UserRead:
         """Return the profile DTO for the given user.
@@ -102,3 +111,50 @@ class UserService:
             user: The ORM instance of the authenticated user to delete.
         """
         await self._repo.delete(user)
+
+    async def get_settings(self, user_id: uuid.UUID) -> UserSettingsRead:
+        """Return the UI preferences for the given user.
+
+        Missing keys are filled in with their default values so the response
+        always contains a complete settings object.
+
+        Args:
+            user_id: UUID of the authenticated user.
+
+        Returns:
+            A :class:`~app.schemas.user.UserSettingsRead` with all keys
+            populated (defaults applied for any missing rows).
+        """
+        rows = await self._settings_repo.get_all_for_user(user_id)
+        stored: dict[str, str] = {row.key: row.value for row in rows}
+        merged = {**_SETTINGS_DEFAULTS, **stored}
+        return UserSettingsRead(**merged)  # type: ignore[arg-type]
+
+    async def update_settings(
+        self,
+        user_id: uuid.UUID,
+        data: UserSettingsUpdate,
+    ) -> UserSettingsRead:
+        """Persist changed settings keys and return the full updated settings.
+
+        Only keys present in ``data`` (non-None values) are written. Unchanged
+        keys retain their current values (or defaults if never set).
+
+        Args:
+            user_id: UUID of the authenticated user.
+            data: Partial settings update payload.
+
+        Returns:
+            A :class:`~app.schemas.user.UserSettingsRead` reflecting all
+            current settings after the update.
+        """
+        update_dict = data.model_dump(exclude_unset=True)
+        for key, value in update_dict.items():
+            if value is not None:
+                await self._settings_repo.upsert(
+                    user_id=user_id,
+                    key=key,
+                    value=str(value),
+                )
+        await self._session.commit()
+        return await self.get_settings(user_id)
