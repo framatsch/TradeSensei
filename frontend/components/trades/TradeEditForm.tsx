@@ -136,8 +136,8 @@ export function TradeEditForm({
   }
 
   const inputCls =
-    "w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500";
-  const labelCls = "block text-xs font-medium text-slate-400 mb-1";
+    "w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500";
+  const labelCls = "block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1";
   const errorCls = "text-xs text-red-400 mt-0.5";
 
   return (
@@ -149,8 +149,8 @@ export function TradeEditForm({
       )}
 
       {/* ── Section 1: Instrument ───────────────────────────────────────────── */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
           Instrument
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -212,8 +212,8 @@ export function TradeEditForm({
       </div>
 
       {/* ── Section 2: Entry / Exit ─────────────────────────────────────────── */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
           Entry / Exit
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -328,8 +328,8 @@ export function TradeEditForm({
       </div>
 
       {/* ── Section 3: Timestamps ───────────────────────────────────────────── */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
           Timestamps (UTC)
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -359,8 +359,8 @@ export function TradeEditForm({
       </div>
 
       {/* ── Section 4: Tags & Playbook ──────────────────────────────────────── */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
           Tags &amp; Playbook
         </h3>
 
@@ -414,8 +414,8 @@ export function TradeEditForm({
       </div>
 
       {/* ── Section 5: Notes ───────────────────────────────────────────────── */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">Notes</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Notes</h3>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -432,7 +432,7 @@ export function TradeEditForm({
           type="button"
           onClick={onCancel}
           disabled={isSaving}
-          className="px-4 py-2 text-sm text-slate-300 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-md transition-colors"
+          className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-50 rounded-md transition-colors"
         >
           Cancel
         </button>

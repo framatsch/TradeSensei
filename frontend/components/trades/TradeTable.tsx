@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTrades } from "@/hooks/useTrades";
 import type { TradeFilters, TradeSortConfig } from "@/hooks/useTrades";
 import { TradeRow } from "./TradeRow";
@@ -16,6 +16,8 @@ interface Props {
   onSortChange?: (sort: TradeSortConfig) => void;
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
+  limit?: number;
+  onLimitChange?: (limit: number) => void;
 }
 
 type SortableColumn = "symbol" | "pnl" | "opened_at" | "closed_at";
@@ -26,6 +28,7 @@ const COLUMN_LABELS: Record<string, string> = {
   symbol: "Symbol",
   direction: "Direction",
   asset_class: "Asset Class",
+  broker: "Broker",
   entry_price: "Entry Price",
   exit_price: "Exit Price",
   pnl: "PnL",
@@ -39,6 +42,7 @@ const ALL_COLUMNS = [
   "symbol",
   "direction",
   "asset_class",
+  "broker",
   "entry_price",
   "exit_price",
   "pnl",
@@ -47,6 +51,8 @@ const ALL_COLUMNS = [
   "tags",
   "notes",
 ] as const;
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 function SortIcon({ column, sort }: { column: string; sort?: TradeSortConfig }) {
   if (sort?.sort_by !== column) {
@@ -75,13 +81,35 @@ export function TradeTable({
   onSortChange,
   selectedIds,
   onSelectionChange,
+  limit = 20,
+  onLimitChange,
 }: Props) {
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const currentCursor = cursorStack[cursorStack.length - 1];
 
+  // Reset cursor stack when filters, sort, or limit change
+  const prevFiltersRef = useRef<TradeFilters | undefined>(undefined);
+  const prevSortRef = useRef<TradeSortConfig | undefined>(undefined);
+  const prevLimitRef = useRef<number>(limit);
+
+  useEffect(() => {
+    const filtersChanged =
+      JSON.stringify(filters) !== JSON.stringify(prevFiltersRef.current);
+    const sortChanged =
+      JSON.stringify(sort) !== JSON.stringify(prevSortRef.current);
+    const limitChanged = limit !== prevLimitRef.current;
+
+    if (filtersChanged || sortChanged || limitChanged) {
+      setCursorStack([null]);
+      prevFiltersRef.current = filters;
+      prevSortRef.current = sort;
+      prevLimitRef.current = limit;
+    }
+  }, [filters, sort, limit]);
+
   const { data, isLoading, isError, error, refetch } = useTrades({
     cursor: currentCursor ?? undefined,
-    limit: 20,
+    limit,
     filters,
     sort,
   });
@@ -108,6 +136,10 @@ export function TradeTable({
     } else {
       onSortChange({ sort_by: column, sort_dir: "desc" });
     }
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    if (onLimitChange) onLimitChange(newLimit);
   };
 
   const trades = data?.items ?? [];
@@ -159,11 +191,11 @@ export function TradeTable({
   const totalCols = ALL_COLUMNS.length + 1;
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-slate-700 bg-slate-900/50">
+            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
               {/* Select-all checkbox */}
               <th className="px-3 py-3 w-10">
                 <input
@@ -173,7 +205,7 @@ export function TradeTable({
                     if (el) el.indeterminate = someSelected;
                   }}
                   onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-600 accent-blue-500 cursor-pointer"
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 accent-blue-500 cursor-pointer"
                   aria-label="Select all trades on this page"
                 />
               </th>
@@ -182,8 +214,8 @@ export function TradeTable({
                 return (
                   <th
                     key={col}
-                    className={`px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap ${
-                      isSortable ? "cursor-pointer hover:text-slate-200 select-none" : ""
+                    className={`px-4 py-3 text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${
+                      isSortable ? "cursor-pointer hover:text-slate-800 dark:text-slate-200 select-none" : ""
                     }`}
                     onClick={
                       isSortable
@@ -223,25 +255,45 @@ export function TradeTable({
       </div>
 
       {/* Pagination controls */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700">
-        <p className="text-xs text-slate-500">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 gap-4">
+        <p className="text-xs text-slate-500 shrink-0">
           {data?.total != null ? `${data.total} total trades` : ""}
         </p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrev}
-            disabled={cursorStack.length <= 1}
-            className="px-3 py-1.5 text-sm text-slate-300 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
-          >
-            Previous
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={!data?.next_cursor}
-            className="px-3 py-1.5 text-sm text-slate-300 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
-          >
-            Next
-          </button>
+
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 whitespace-nowrap">Rows per page</span>
+            <select
+              value={limit}
+              onChange={(e) => handleLimitChange(Number(e.target.value))}
+              className="px-2 py-1 text-sm bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Previous / Next */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrev}
+              disabled={cursorStack.length <= 1}
+              className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={!data?.next_cursor}
+              className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>

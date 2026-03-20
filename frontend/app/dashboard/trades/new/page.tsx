@@ -14,7 +14,7 @@ export default function NewTradePage() {
       <div>
         <Link
           href="/dashboard/trades"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-100 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 transition-colors"
         >
           <svg
             viewBox="0 0 24 24"

@@ -128,6 +128,11 @@ export interface TradeNoteCreate {
   emotion?: string;
 }
 
+export interface TradeNoteUpdate {
+  content?: string;
+  emotion?: string | null;
+}
+
 // ─── Trade ────────────────────────────────────────────────────────────────────
 
 export interface Trade {
@@ -147,12 +152,17 @@ export interface Trade {
   currency: string | null;
   pnl_eur: string | null;
   notes: string | null;
+  account_id: string | null;
+  account_name: string | null;
+  account_type: AccountType | null;
   playbook_id: string | null;
   playbook_name: string | null;
   tags: Tag[];
   trade_notes: TradeNote[];
   created_at: string;
   updated_at: string;
+  tradingview_link?: string | null;
+  screenshots?: string[];
 }
 
 export interface TradeCreate {
@@ -348,4 +358,54 @@ export interface UserSettings {
 export interface UserSettingsUpdate {
   theme?: Theme;
   default_date_range?: DefaultDateRange;
+}
+
+// ─── Cash Transactions ────────────────────────────────────────────────────────
+
+export type CashTransactionType =
+  | "DIVIDEND"
+  | "WITHHOLDING_TAX"
+  | "DEPOSIT"
+  | "WITHDRAWAL"
+  | "INTEREST"
+  | "FEE"
+  | "OTHER";
+
+export interface CashTransaction {
+  id: string;
+  account_id: string;
+  date: string;
+  type: CashTransactionType;
+  symbol: string | null;
+  amount: string;
+  currency: string;
+  amount_eur: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashTransactionCreate {
+  date: string;
+  type: CashTransactionType;
+  symbol?: string | null;
+  amount: string;
+  currency: string;
+  amount_eur?: string | null;
+  description?: string | null;
+}
+
+export interface CashTransactionUpdate {
+  date?: string;
+  type?: CashTransactionType;
+  symbol?: string | null;
+  amount?: string;
+  currency?: string;
+  amount_eur?: string | null;
+  description?: string | null;
+}
+
+export interface AccountMetrics {
+  total_dividends: string;
+  total_withholding_tax: string;
 }

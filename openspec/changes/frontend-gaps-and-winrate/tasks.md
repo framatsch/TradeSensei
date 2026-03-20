@@ -64,8 +64,8 @@
 
 ## 8. Frontend: Winrate development charts
 
-- [ ] 8.1 Add `useRollingWinrate(windowTrades)` data hook calling `GET /timeseries/rolling-winrate`
-- [ ] 8.2 Create `RollingWinrateChart.tsx` — Recharts `LineChart` with a dashed 50% reference line and window size selector (10/20/50)
-- [ ] 8.3 Add `useMonthlyWinrate` derived hook (reuse `useMonthlyPnl` data, extract `win_rate` per month)
-- [ ] 8.4 Create `MonthlyWinrateChart.tsx` — Recharts `BarChart` with 50% reference line and month/winrate/count tooltip
+- [x]  8.1 Add `useRollingWinrate(windowTrades)` data hook calling `GET /timeseries/rolling-winrate`
+- [x]  8.2 Create `RollingWinrateChart.tsx` — Recharts `LineChart` with a dashed 50% reference line and window size selector (10/20/50)
+- [x]  8.3 Add `useMonthlyWinrate` derived hook (reuse `useMonthlyPnl` data, extract `win_rate` per month)
+- [x]  8.4 Create `MonthlyWinrateChart.tsx` — Recharts `BarChart` with 50% reference line and month/winrate/count tooltip
 - [x] 8.5 Add "Win Rate Development" section to `app/dashboard/page.tsx` below the Analytics section, mounting both winrate charts side-by-side

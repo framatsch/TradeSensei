@@ -49,8 +49,8 @@ export function ReturnDistributionChart({ data }: Props) {
   const chartData = toChartData(data);
 
   return (
-    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
-      <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+      <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-4">
         Return Distribution
       </h3>
       {chartData.length === 0 ? (

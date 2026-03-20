@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTags } from "@/hooks/useTags";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
+import { useAccounts } from "@/hooks/useAccounts";
 import { TagBadge } from "@/components/tags/TagBadge";
 import type { TradeFilters } from "@/hooks/useTrades";
 
@@ -30,6 +31,8 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.tag_ids?.length) count++;
   if (filters.playbook_id) count++;
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) count++;
+  if (filters.status) count++;
+  if (filters.account_id) count++;
   return count;
 }
 
@@ -42,11 +45,13 @@ const EMPTY_FILTERS: TradeFilters = {
   tag_ids: [],
   playbook_id: "",
   pnl_positive: null,
+  status: null,
+  account_id: "",
 };
 
 const INPUT_CLASS =
-  "w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-const LABEL_CLASS = "block text-xs font-medium text-slate-400 mb-1";
+  "w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+const LABEL_CLASS = "block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1";
 
 export function TradeFilterBar({ filters, onChange }: Props) {
   const [open, setOpen] = useState(false);
@@ -58,6 +63,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
 
   const { data: tags } = useTags();
   const { data: playbooks } = usePlaybooks();
+  const { data: accounts } = useAccounts();
 
   // Sync external filter changes back into local symbol input
   useEffect(() => {
@@ -111,6 +117,15 @@ export function TradeFilterBar({ filters, onChange }: Props) {
     onChange({ ...filters, pnl_positive });
   };
 
+  const handleStatusChange = (value: string) => {
+    const status = value === "open" || value === "closed" ? value : null;
+    onChange({ ...filters, status });
+  };
+
+  const handleAccountChange = (value: string) => {
+    onChange({ ...filters, account_id: value || undefined });
+  };
+
   const handleClearAll = () => {
     setSymbolInput("");
     onChange(EMPTY_FILTERS);
@@ -124,13 +139,13 @@ export function TradeFilterBar({ filters, onChange }: Props) {
       : "";
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
       {/* Toggle row */}
       <div className="flex items-center justify-between px-4 py-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors"
+          className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-slate-100 transition-colors"
         >
           <svg
             viewBox="0 0 24 24"
@@ -164,7 +179,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
           <button
             type="button"
             onClick={handleClearAll}
-            className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-colors"
           >
             Clear All
           </button>
@@ -173,7 +188,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
 
       {/* Collapsible panel */}
       {open && (
-        <div className="px-4 pb-4 border-t border-slate-700 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-700 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {/* Symbol */}
           <div>
             <label className={LABEL_CLASS}>Symbol</label>
@@ -197,6 +212,20 @@ export function TradeFilterBar({ filters, onChange }: Props) {
               <option value="">All</option>
               <option value="LONG">LONG</option>
               <option value="SHORT">SHORT</option>
+            </select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className={LABEL_CLASS}>Status</label>
+            <select
+              value={filters.status ?? ""}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={INPUT_CLASS}
+            >
+              <option value="">All</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
             </select>
           </div>
 
@@ -237,6 +266,25 @@ export function TradeFilterBar({ filters, onChange }: Props) {
             </select>
           </div>
 
+          {/* Account / Broker */}
+          {accounts && accounts.length > 1 && (
+            <div>
+              <label className={LABEL_CLASS}>Account</label>
+              <select
+                value={filters.account_id ?? ""}
+                onChange={(e) => handleAccountChange(e.target.value)}
+                className={INPUT_CLASS}
+              >
+                <option value="">All</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* PnL positive */}
           <div>
             <label className={LABEL_CLASS}>Result</label>
@@ -255,7 +303,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
                     onChange={(e) => handlePnlPositiveChange(e.target.value)}
                     className="accent-blue-500"
                   />
-                  <span className="text-xs text-slate-300">{opt.label}</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-300">{opt.label}</span>
                 </label>
               ))}
             </div>
@@ -275,7 +323,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
                     className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
                       selected
                         ? "bg-blue-600 border-blue-500 text-white"
-                        : "bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500"
+                        : "bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:border-slate-400 dark:border-slate-500"
                     }`}
                   >
                     {ac}

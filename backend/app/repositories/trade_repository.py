@@ -158,16 +158,18 @@ def _build_sort_column(
 
 
 def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
-    """Return a base SELECT for Trade with tags, notes, and playbook eager-loaded.
+    """Return a base SELECT for Trade with tags, notes, account and playbook eager-loaded.
 
     Returns:
         A :func:`select` statement with ``selectinload`` options applied
-        for the ``tags``, ``trade_notes``, and ``playbook`` relationships.
+        for the ``tags``, ``trade_notes``, ``playbook``, and ``account``
+        relationships.
     """
     return select(Trade).options(
         selectinload(Trade.tags),
         selectinload(Trade.trade_notes),
         selectinload(Trade.playbook),
+        selectinload(Trade.account),
     )
 
 
@@ -229,6 +231,14 @@ def _apply_filters(
         stmt = stmt.where(Trade.pnl > Decimal("0"))
     elif filters.pnl_positive is False:
         stmt = stmt.where((Trade.pnl <= Decimal("0")) | (Trade.pnl.is_(None)))
+
+    if filters.status == "open":
+        stmt = stmt.where(Trade.closed_at.is_(None))
+    elif filters.status == "closed":
+        stmt = stmt.where(Trade.closed_at.is_not(None))
+
+    if filters.account_id is not None:
+        stmt = stmt.where(Trade.account_id == filters.account_id)
 
     return stmt
 
@@ -296,7 +306,7 @@ class TradeRepository:
             await self._set_tags(trade, data.tag_ids)
 
         await self._session.refresh(
-            trade, attribute_names=["tags", "trade_notes", "playbook"]
+            trade, attribute_names=["tags", "trade_notes", "playbook", "account"]
         )
         return trade
 
@@ -504,7 +514,7 @@ class TradeRepository:
         # model_validate accesses expired attributes outside the async context.
         await self._session.refresh(trade)
         await self._session.refresh(
-            trade, attribute_names=["tags", "trade_notes", "playbook"]
+            trade, attribute_names=["tags", "trade_notes", "playbook", "account"]
         )
         return trade
 
@@ -690,5 +700,13 @@ def _apply_filters_to_count(
         count_stmt = count_stmt.where(
             (Trade.pnl <= Decimal("0")) | (Trade.pnl.is_(None))
         )
+
+    if filters.status == "open":
+        count_stmt = count_stmt.where(Trade.closed_at.is_(None))
+    elif filters.status == "closed":
+        count_stmt = count_stmt.where(Trade.closed_at.is_not(None))
+
+    if filters.account_id is not None:
+        count_stmt = count_stmt.where(Trade.account_id == filters.account_id)
 
     return count_stmt

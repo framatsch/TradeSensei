@@ -25,7 +25,7 @@ import { Spinner } from "@/components/ui/Spinner";
 
 function ChartSkeleton() {
   return (
-    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 flex items-center justify-center h-48">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 flex items-center justify-center h-48">
       <Spinner />
     </div>
   );

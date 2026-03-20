@@ -34,8 +34,8 @@ function formatCurrency(value: number): string {
 
 export function PnlBySymbolChart({ data }: Props) {
   return (
-    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
-      <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+      <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-4">
         PnL by Symbol
       </h3>
       {data.length === 0 ? (

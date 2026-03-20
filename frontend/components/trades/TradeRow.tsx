@@ -68,18 +68,18 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
 
   return (
     <>
-    <tr className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors cursor-pointer">
+    <tr className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:bg-slate-700/30 transition-colors cursor-pointer">
       <td className="px-3 py-3">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelect?.(trade.id, e.target.checked)}
           onClick={(e) => e.stopPropagation()}
-          className="w-4 h-4 rounded border-slate-600 accent-blue-500 cursor-pointer"
+          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 accent-blue-500 cursor-pointer"
           aria-label={`Select trade ${trade.symbol}`}
         />
       </td>
-      <td className="px-4 py-3 text-sm font-medium text-slate-100">
+      <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">
         <Link
           href={`/dashboard/trades/${trade.id}`}
           className="hover:text-blue-400 transition-colors"
@@ -90,20 +90,23 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       <td className="px-4 py-3">
         <DirectionBadge direction={trade.direction} />
       </td>
-      <td className="px-4 py-3 text-sm text-slate-400">
+      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
         {trade.asset_class}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-300">
+      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+        {trade.account_name ?? <span className="text-slate-500">—</span>}
+      </td>
+      <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
         {formatPrice(trade.entry_price)}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-300">
+      <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
         {formatPrice(trade.exit_price)}
       </td>
       <td className="px-4 py-3 text-sm">{formatPnl(trade.pnl)}</td>
-      <td className="px-4 py-3 text-sm text-slate-400">
+      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
         {formatDate(trade.opened_at)}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-400">
+      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
         {formatDate(trade.closed_at)}
       </td>
       <td className="px-4 py-3">
@@ -142,8 +145,8 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       </td>
     </tr>
     {showQuickNote && (
-      <tr className="border-b border-slate-700/30 bg-slate-800/30">
-        <td colSpan={11} className="px-4 py-2">
+      <tr className="border-b border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/30">
+        <td colSpan={12} className="px-4 py-2">
           <QuickNoteInput
             tradeId={trade.id}
             onClose={() => setShowQuickNote(false)}

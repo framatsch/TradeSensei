@@ -16,7 +16,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.constants import (
@@ -164,6 +164,15 @@ class Trade(Base):
     notes: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+    tradingview_link: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+    )
+    screenshots: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        server_default="[]",
     )
     broker_order_id: Mapped[str | None] = mapped_column(
         String(100),

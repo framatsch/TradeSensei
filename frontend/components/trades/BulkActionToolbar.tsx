@@ -24,15 +24,15 @@ export function BulkActionToolbar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl shadow-lg">
-      <span className="text-sm font-medium text-slate-200 mr-auto">
+    <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl shadow-lg">
+      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 mr-auto">
         {selectedCount} {selectedCount === 1 ? "trade" : "trades"} selected
       </span>
 
       <button
         type="button"
         onClick={onAssignPlaybook}
-        className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-slate-200 rounded-md text-sm transition-colors"
+        className="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 hover:bg-slate-500 text-slate-800 dark:text-slate-200 rounded-md text-sm transition-colors"
       >
         Assign Playbook
       </button>
@@ -40,7 +40,7 @@ export function BulkActionToolbar({
       <button
         type="button"
         onClick={onAssignTag}
-        className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-slate-200 rounded-md text-sm transition-colors"
+        className="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 hover:bg-slate-500 text-slate-800 dark:text-slate-200 rounded-md text-sm transition-colors"
       >
         Assign Tag
       </button>

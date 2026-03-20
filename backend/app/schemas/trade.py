@@ -54,7 +54,7 @@ class TradeCreate(BaseModel):
         max_length=SYMBOL_MAX_LENGTH,
         description=(
             "Ticker symbol of the traded instrument. "
-            "Maximum 20 characters (e.g. 'AAPL', 'EURUSD', 'BTCUSDT')."
+            "Maximum 30 characters (e.g. 'AAPL', 'EURUSD', 'CHTR  251003P00240000')."
         ),
         examples=["AAPL", "EURUSD", "BTCUSDT", "ES"],
     )
@@ -158,6 +158,16 @@ class TradeCreate(BaseModel):
         ),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
     )
+    tradingview_link: str | None = Field(
+        default=None,
+        description="Optional link to a TradingView chart for this trade.",
+        examples=["https://www.tradingview.com/chart/...", None],
+    )
+    screenshots: list[str] | None = Field(
+        default_factory=list,
+        description="List of screenshot URLs for this trade.",
+        examples=[["https://example.com/screenshot1.png"], []],
+    )
     currency: str | None = Field(
         default=None,
         min_length=3,
@@ -208,6 +218,12 @@ class TradeCreate(BaseModel):
             "live broker syncs. Set automatically by broker importers."
         ),
         examples=["1234567890", None],
+    )
+    broker_conid: str | None = Field(
+        default=None,
+        max_length=50,
+        description="External broker contract identifier (e.g. IBKR conid).",
+        examples=["357194941", None],
     )
 
     @field_validator("opened_at", "closed_at", mode="after")
@@ -283,7 +299,7 @@ class TradeCreateRequest(BaseModel):
         max_length=SYMBOL_MAX_LENGTH,
         description=(
             "Ticker symbol of the traded instrument. "
-            "Maximum 20 characters (e.g. 'AAPL', 'EURUSD', 'BTCUSDT')."
+            "Maximum 30 characters (e.g. 'AAPL', 'EURUSD', 'CHTR  251003P00240000')."
         ),
         examples=["AAPL", "EURUSD", "BTCUSDT", "ES"],
     )
@@ -386,6 +402,16 @@ class TradeCreateRequest(BaseModel):
             "emotional state, or post-trade review."
         ),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
+    )
+    tradingview_link: str | None = Field(
+        default=None,
+        description="Optional link to a TradingView chart for this trade.",
+        examples=["https://www.tradingview.com/chart/...", None],
+    )
+    screenshots: list[str] | None = Field(
+        default_factory=list,
+        description="List of screenshot URLs for this trade.",
+        examples=[["https://example.com/screenshot1.png"], []],
     )
     currency: str | None = Field(
         default=None,
@@ -513,7 +539,7 @@ class TradeUpdate(BaseModel):
         min_length=SYMBOL_MIN_LENGTH,
         max_length=SYMBOL_MAX_LENGTH,
         description=(
-            "Updated ticker symbol. Maximum 20 characters. Omit to leave unchanged."
+            "Updated ticker symbol. Maximum 30 characters. Omit to leave unchanged."
         ),
         examples=["AAPL", "EURUSD", None],
     )
@@ -624,6 +650,21 @@ class TradeUpdate(BaseModel):
             "Omit to leave unchanged."
         ),
         examples=["Revised entry — slippage on open.", None],
+    )
+    tradingview_link: str | None = Field(
+        default=None,
+        description=(
+            "Updated TradingView link. Set to null to clear. Omit to leave unchanged."
+        ),
+        examples=["https://www.tradingview.com/chart/...", None],
+    )
+    screenshots: list[str] | None = Field(
+        default=None,
+        description=(
+            "Updated list of screenshot URLs. Set to null to clear. "
+            "Omit to leave unchanged."
+        ),
+        examples=[["https://example.com/screenshot1.png"], None],
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,
@@ -774,6 +815,16 @@ class TradeRead(BaseModel):
         ),
         examples=["Breakout above 50-day MA.", None],
     )
+    tradingview_link: str | None = Field(
+        default=None,
+        description="Optional link to a TradingView chart.",
+        examples=["https://www.tradingview.com/chart/...", None],
+    )
+    screenshots: list[str] = Field(
+        default_factory=list,
+        description="List of screenshot URLs for this trade.",
+        examples=[["https://example.com/screenshot1.png"]],
+    )
     currency: str | None = Field(
         default=None,
         description=(
@@ -806,6 +857,30 @@ class TradeRead(BaseModel):
         ),
         examples=["Breakout long", None],
     )
+    account_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the broker account this trade belongs to. "
+            "Null if no account is assigned."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
+    account_name: str | None = Field(
+        default=None,
+        description=(
+            "Human-readable name of the broker account, resolved from the "
+            "joined account relationship. Null if no account is assigned."
+        ),
+        examples=["Interactive Brokers Main", None],
+    )
+    account_type: str | None = Field(
+        default=None,
+        description=(
+            "Type of the broker account (e.g. 'ibkr', 'schwab', 'manual'), "
+            "resolved from the joined account relationship."
+        ),
+        examples=["ibkr", "schwab", "manual", None],
+    )
     tags: list[TagRead] = Field(
         default_factory=list,
         description="Tags attached to this trade.",
@@ -835,6 +910,9 @@ class TradeRead(BaseModel):
         :class:`~app.models.playbook.Playbook` object.  This validator extracts
         its ``name`` so callers do not need to issue a separate query.
 
+        Also populates ``account_name`` and ``account_type`` from the ORM
+        ``account`` relationship when present.
+
         Args:
             data: Raw input data — either a dict or an ORM instance.
 
@@ -842,14 +920,27 @@ class TradeRead(BaseModel):
             The (possibly augmented) input data.
         """
         if not isinstance(data, dict):
-            # Running from an ORM instance — try to resolve the relationship.
+            # Resolve playbook name.
             playbook = getattr(data, "playbook", None)
             if playbook is not None and getattr(data, "playbook_name", None) is None:
-                # Attach the resolved name directly on the ORM object so Pydantic
-                # can read it via from_attributes.  We write to __dict__ to avoid
-                # triggering any SQLAlchemy descriptor.
                 with contextlib.suppress(Exception):
                     data.__dict__["playbook_name"] = playbook.name
+
+            # Resolve account name + type.
+            account = getattr(data, "account", None)
+            if account is not None:
+                if getattr(data, "account_name", None) is None:
+                    with contextlib.suppress(Exception):
+                        data.__dict__["account_name"] = account.name
+                if getattr(data, "account_type", None) is None:
+                    with contextlib.suppress(Exception):
+                        raw_type = account.type
+                        # AccountType is a StrEnum — .value gives the string
+                        data.__dict__["account_type"] = (
+                            raw_type.value
+                            if hasattr(raw_type, "value")
+                            else str(raw_type)
+                        )
         return data
 
 
@@ -872,6 +963,8 @@ class TradeFilterParams(BaseModel):
         opened_at_from: Filter trades opened at or after this datetime.
         opened_at_to: Filter trades opened at or before this datetime.
         pnl_positive: ``True`` for winners (pnl > 0), ``False`` for losers.
+        status: ``'open'`` for trades without a close date, ``'closed'`` for
+            trades that have been closed.
     """
 
     symbol: str | None = Field(
@@ -911,6 +1004,17 @@ class TradeFilterParams(BaseModel):
     pnl_positive: bool | None = Field(
         default=None,
         description="True = winners (pnl > 0), False = losers (pnl <= 0)",
+    )
+    status: Literal["open", "closed"] | None = Field(
+        default=None,
+        description=(
+            "'open' = trades without a close date (closed_at IS NULL), "
+            "'closed' = trades that have been closed (closed_at IS NOT NULL)."
+        ),
+    )
+    account_id: uuid.UUID | None = Field(
+        default=None,
+        description="Filter trades by broker account UUID.",
     )
 
     @field_validator("opened_at_from", "opened_at_to", mode="before")

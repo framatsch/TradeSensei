@@ -39,8 +39,8 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs">
-      <p className="text-slate-400 mb-1">
+    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+      <p className="text-slate-600 dark:text-slate-400 mb-1">
         Trade #{d.trade_index} &middot;{" "}
         {new Date(d.closed_at).toLocaleDateString("en-US", {
           month: "short",
@@ -61,9 +61,9 @@ export function RollingWinrateChart() {
   const { data, isLoading } = useRollingWinrate(window);
 
   return (
-    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider">
+        <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider">
           Rolling Win Rate
         </h3>
         <div className="flex items-center gap-1">
@@ -75,7 +75,7 @@ export function RollingWinrateChart() {
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 window === w
                   ? "bg-blue-600 text-white"
-                  : "bg-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-600"
+                  : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:bg-slate-600"
               }`}
             >
               {w}

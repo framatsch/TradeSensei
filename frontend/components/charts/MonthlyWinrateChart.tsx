@@ -36,8 +36,8 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs">
-      <p className="text-slate-400 mb-1">{label}</p>
+    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
+      <p className="text-slate-600 dark:text-slate-400 mb-1">{label}</p>
       <p className="text-blue-400 font-semibold">
         Win Rate: {(parseFloat(d.win_rate) * 100).toFixed(1)}%
       </p>
@@ -52,8 +52,8 @@ export function MonthlyWinrateChart() {
   const { data, isLoading } = useMonthlyWinrate();
 
   return (
-    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
-      <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+      <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-4">
         Monthly Win Rate
       </h3>
 

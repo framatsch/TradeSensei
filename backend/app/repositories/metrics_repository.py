@@ -10,6 +10,7 @@ from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.trade import Trade
 
@@ -56,11 +57,15 @@ class MetricsRepository:
             An ordered list of :class:`~app.models.trade.Trade` ORM
             instances with ``pnl`` set, sorted by ``closed_at`` ascending.
         """
-        stmt = select(Trade).where(
-            Trade.account_id == account_id,
-            Trade.user_id == user_id,
-            Trade.pnl.is_not(None),
-            Trade.closed_at.is_not(None),
+        stmt = (
+            select(Trade)
+            .options(selectinload(Trade.account))
+            .where(
+                Trade.account_id == account_id,
+                Trade.user_id == user_id,
+                Trade.pnl.is_not(None),
+                Trade.closed_at.is_not(None),
+            )
         )
 
         if from_dt is not None:
@@ -95,10 +100,14 @@ class MetricsRepository:
             An ordered list of :class:`~app.models.trade.Trade` ORM
             instances with ``pnl`` set, sorted by ``closed_at`` ascending.
         """
-        stmt = select(Trade).where(
-            Trade.user_id == user_id,
-            Trade.pnl.is_not(None),
-            Trade.closed_at.is_not(None),
+        stmt = (
+            select(Trade)
+            .options(selectinload(Trade.account))
+            .where(
+                Trade.user_id == user_id,
+                Trade.pnl.is_not(None),
+                Trade.closed_at.is_not(None),
+            )
         )
 
         if account_id is not None:

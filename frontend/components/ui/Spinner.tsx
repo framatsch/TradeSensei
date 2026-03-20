@@ -18,7 +18,7 @@ export function Spinner({ size = "md", className = "" }: Props) {
     <div
       role="status"
       aria-label="Loading"
-      className={`animate-spin rounded-full border-slate-600 border-t-blue-500 ${sizeClasses[size]} ${className}`}
+      className={`animate-spin rounded-full border-slate-300 dark:border-slate-600 border-t-blue-500 ${sizeClasses[size]} ${className}`}
     />
   );
 }

@@ -19,6 +19,8 @@ export interface TradeFilters {
   tag_ids?: string[];
   playbook_id?: string;
   pnl_positive?: boolean | null;
+  status?: "open" | "closed" | null;
+  account_id?: string;
 }
 
 export interface TradeSortConfig {
@@ -84,6 +86,8 @@ export function useTrades({
         if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) {
           params.set("pnl_positive", String(filters.pnl_positive));
         }
+        if (filters.status) params.set("status", filters.status);
+        if (filters.account_id) params.set("account_id", filters.account_id);
       }
 
       if (sort) {

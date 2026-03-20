@@ -20,6 +20,23 @@ import type { TradeFilters, TradeSortConfig } from "@/hooks/useTrades";
 import { useTags } from "@/hooks/useTags";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { TagBadge } from "@/components/tags/TagBadge";
+import { useSettings } from "@/hooks/useSettings";
+import type { DefaultDateRange } from "@/lib/types";
+
+// ─── Date range helpers ───────────────────────────────────────────────────────
+
+function dateRangeToFrom(range: DefaultDateRange): string | undefined {
+  const now = new Date();
+  if (range === "last30") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  }
+  if (range === "ytd") {
+    return `${now.getFullYear()}-01-01`;
+  }
+  return undefined; // "all" — no filter
+}
 
 // ─── URL helpers ─────────────────────────────────────────────────────────────
 
@@ -32,6 +49,10 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const assetClassRaw = params.get("asset_class");
   const tagIdsRaw = params.get("tag_ids");
 
+  const statusRaw = params.get("status");
+  const status: "open" | "closed" | null =
+    statusRaw === "open" || statusRaw === "closed" ? statusRaw : null;
+
   return {
     symbol: params.get("symbol") ?? undefined,
     direction: params.get("direction") ?? undefined,
@@ -41,6 +62,8 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     tag_ids: tagIdsRaw ? tagIdsRaw.split(",").filter(Boolean) : undefined,
     playbook_id: params.get("playbook_id") ?? undefined,
     pnl_positive,
+    status,
+    account_id: params.get("account_id") ?? undefined,
   };
 }
 
@@ -53,7 +76,8 @@ function readSortFromParams(params: URLSearchParams): TradeSortConfig {
 
 function filtersToParams(
   filters: TradeFilters,
-  sort: TradeSortConfig
+  sort: TradeSortConfig,
+  limit: number
 ): URLSearchParams {
   const p = new URLSearchParams();
   if (filters.symbol) p.set("symbol", filters.symbol);
@@ -66,8 +90,11 @@ function filtersToParams(
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) {
     p.set("pnl_positive", String(filters.pnl_positive));
   }
+  if (filters.status) p.set("status", filters.status);
+  if (filters.account_id) p.set("account_id", filters.account_id);
   if (sort.sort_by) p.set("sort_by", sort.sort_by);
   if (sort.sort_dir) p.set("sort_dir", sort.sort_dir);
+  if (limit !== 20) p.set("limit", String(limit));
   return p;
 }
 
@@ -94,8 +121,8 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h2 className="text-base font-semibold text-slate-100 mb-4">Assign Tags</h2>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">Assign Tags</h2>
         <div className="flex flex-wrap gap-2 mb-6 min-h-12">
           {(tags ?? []).length === 0 && (
             <p className="text-slate-500 text-sm">No tags available.</p>
@@ -119,7 +146,7 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md text-sm"
+            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-sm"
           >
             Cancel
           </button>
@@ -151,8 +178,8 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h2 className="text-base font-semibold text-slate-100 mb-4">Assign Playbook</h2>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">Assign Playbook</h2>
         <div className="space-y-2 mb-6">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -163,7 +190,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
               onChange={() => setSelected(null)}
               className="accent-blue-500"
             />
-            <span className="text-sm text-slate-300">None</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300">None</span>
           </label>
           {(playbooks ?? []).map((pb) => (
             <label key={pb.id} className="flex items-center gap-3 cursor-pointer">
@@ -175,7 +202,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
                 onChange={() => setSelected(pb.id)}
                 className="accent-blue-500"
               />
-              <span className="text-sm text-slate-300">{pb.name}</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300">{pb.name}</span>
             </label>
           ))}
         </div>
@@ -183,7 +210,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md text-sm"
+            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-sm"
           >
             Cancel
           </button>
@@ -206,13 +233,27 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
 export function TradesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { data: settings } = useSettings();
 
-  const [filters, setFilters] = useState<TradeFilters>(() =>
-    readFiltersFromParams(searchParams)
-  );
+  // If no URL date params are present, apply the user's default_date_range setting.
+  const hasUrlDateParams =
+    searchParams.has("opened_at_from") || searchParams.has("opened_at_to");
+
+  const [filters, setFilters] = useState<TradeFilters>(() => {
+    const fromParams = readFiltersFromParams(searchParams);
+    if (!hasUrlDateParams && settings?.default_date_range && settings.default_date_range !== "all") {
+      fromParams.opened_at_from = dateRangeToFrom(settings.default_date_range);
+    }
+    return fromParams;
+  });
   const [sort, setSort] = useState<TradeSortConfig>(() =>
     readSortFromParams(searchParams)
   );
+  const [limit, setLimit] = useState<number>(() => {
+    const raw = searchParams.get("limit");
+    const parsed = raw ? parseInt(raw, 10) : NaN;
+    return [10, 20, 50, 100].includes(parsed) ? parsed : 20;
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showPlaybookPicker, setShowPlaybookPicker] = useState(false);
@@ -223,8 +264,8 @@ export function TradesPageClient() {
     useBulkAssignPlaybook();
 
   const pushToUrl = useCallback(
-    (nextFilters: TradeFilters, nextSort: TradeSortConfig) => {
-      const qs = filtersToParams(nextFilters, nextSort).toString();
+    (nextFilters: TradeFilters, nextSort: TradeSortConfig, nextLimit: number) => {
+      const qs = filtersToParams(nextFilters, nextSort, nextLimit).toString();
       router.push(`/dashboard/trades${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [router]
@@ -232,12 +273,17 @@ export function TradesPageClient() {
 
   const handleFiltersChange = (nextFilters: TradeFilters) => {
     setFilters(nextFilters);
-    pushToUrl(nextFilters, sort);
+    pushToUrl(nextFilters, sort, limit);
   };
 
   const handleSortChange = (nextSort: TradeSortConfig) => {
     setSort(nextSort);
-    pushToUrl(filters, nextSort);
+    pushToUrl(filters, nextSort, limit);
+  };
+
+  const handleLimitChange = (nextLimit: number) => {
+    setLimit(nextLimit);
+    pushToUrl(filters, sort, nextLimit);
   };
 
   const handleDelete = () => {
@@ -304,6 +350,8 @@ export function TradesPageClient() {
         onSortChange={handleSortChange}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        limit={limit}
+        onLimitChange={handleLimitChange}
       />
 
       {showTagPicker && (
