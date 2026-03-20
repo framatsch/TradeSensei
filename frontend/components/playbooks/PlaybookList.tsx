@@ -96,8 +96,8 @@ export function PlaybookList() {
 
       {/* Inline create form */}
       {showCreateForm && (
-        <div className="bg-slate-800 rounded-xl border border-blue-600/40 p-5">
-          <h3 className="text-sm font-semibold text-slate-300 mb-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-blue-600/40 p-5">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
             New Playbook
           </h3>
           <PlaybookForm
@@ -109,7 +109,7 @@ export function PlaybookList() {
       )}
 
       {/* Table */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         {items.length === 0 && !showCreateForm ? (
           <div className="px-4 py-16 text-center text-slate-500">
             <p className="text-base font-medium mb-1">No playbooks yet</p>
@@ -120,11 +120,11 @@ export function PlaybookList() {
         ) : (
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-slate-700 bg-slate-900/50">
+              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                 {["Name", "Description", "Status", "Created", ""].map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap"
+                    className="px-4 py-3 text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap"
                   >
                     {col}
                   </th>
@@ -135,7 +135,7 @@ export function PlaybookList() {
               {items.map((pb) => (
                 <tr
                   key={pb.id}
-                  className="border-b border-slate-700/50 last:border-0"
+                  className="border-b border-slate-200 dark:border-slate-700/50 last:border-0"
                 >
                   {editingId === pb.id ? (
                     <td colSpan={5} className="px-4 py-4">
@@ -148,10 +148,10 @@ export function PlaybookList() {
                     </td>
                   ) : (
                     <>
-                      <td className="px-4 py-3 text-sm font-medium text-slate-100">
+                      <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">
                         {pb.name}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-400 max-w-xs truncate">
+                      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400 max-w-xs truncate">
                         {pb.description ?? (
                           <span className="italic text-slate-600">—</span>
                         )}
@@ -161,13 +161,13 @@ export function PlaybookList() {
                           className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                             pb.is_active
                               ? "bg-emerald-900/50 text-emerald-400 border border-emerald-800"
-                              : "bg-slate-700 text-slate-400 border border-slate-600"
+                              : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600"
                           }`}
                         >
                           {pb.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">
                         {new Date(pb.created_at).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -178,7 +178,7 @@ export function PlaybookList() {
                         <div className="flex items-center gap-2 justify-end">
                           <button
                             onClick={() => setEditingId(pb.id)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition-colors"
+                            className="p-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-700 transition-colors"
                             title="Edit playbook"
                             aria-label={`Edit ${pb.name}`}
                           >
@@ -196,7 +196,7 @@ export function PlaybookList() {
                           <button
                             onClick={() => handleDelete(pb.id)}
                             disabled={deletingId === pb.id}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="p-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Delete playbook"
                             aria-label={`Delete ${pb.name}`}
                           >

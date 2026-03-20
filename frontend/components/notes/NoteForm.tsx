@@ -72,14 +72,14 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-slate-700">
+      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
         <button
           type="button"
           onClick={() => setActiveTab("edit")}
           className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
             activeTab === "edit"
-              ? "bg-slate-700 text-slate-100 border border-b-0 border-slate-600"
-              : "text-slate-400 hover:text-slate-200"
+              ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border border-b-0 border-slate-300 dark:border-slate-600"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
           }`}
         >
           Edit
@@ -89,8 +89,8 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
           onClick={() => setActiveTab("preview")}
           className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
             activeTab === "preview"
-              ? "bg-slate-700 text-slate-100 border border-b-0 border-slate-600"
-              : "text-slate-400 hover:text-slate-200"
+              ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border border-b-0 border-slate-300 dark:border-slate-600"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
           }`}
         >
           Preview
@@ -109,7 +109,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
               }}
               placeholder="What happened in this trade? Execution, mistakes, observations… (Markdown supported)"
               rows={4}
-              className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
             />
             {/* Character counter */}
             <div className="mt-1 flex items-center justify-between">
@@ -124,7 +124,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
             </div>
           </>
         ) : (
-          <div className="min-h-[96px] px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600">
+          <div className="min-h-[96px] px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600">
             {content.trim() ? (
               <MarkdownRenderer content={content} />
             ) : (
@@ -138,7 +138,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
         <div className="flex-1">
           <label
             htmlFor="note-emotion"
-            className="block text-xs font-medium text-slate-400 mb-1"
+            className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
           >
             Emotion (optional)
           </label>
@@ -150,7 +150,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
               value={emotion}
               onChange={(e) => setEmotion(e.target.value)}
               placeholder="e.g. Confident, Fearful…"
-              className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
             <datalist id="emotion-options">
               {EMOTION_OPTIONS.map((opt) => (

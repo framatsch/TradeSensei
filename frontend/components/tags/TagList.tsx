@@ -82,15 +82,15 @@ export function TagList() {
   return (
     <div className="space-y-6">
       {/* Create form */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
           Create New Tag
         </h3>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-4">
           <div className="flex-1 min-w-48">
             <label
               htmlFor="tag-name"
-              className="block text-xs font-medium text-slate-400 mb-1"
+              className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
             >
               Name <span className="text-red-400">*</span>
             </label>
@@ -103,7 +103,7 @@ export function TagList() {
                 if (nameError) setNameError("");
               }}
               placeholder="e.g. Earnings Play"
-              className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
             {nameError && (
               <p className="mt-1 text-xs text-red-400">{nameError}</p>
@@ -111,7 +111,7 @@ export function TagList() {
           </div>
 
           <div>
-            <p className="text-xs font-medium text-slate-400 mb-1">Color</p>
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Color</p>
             <div className="flex items-center gap-2">
               {/* Preset swatches */}
               <div className="flex items-center gap-1">
@@ -132,7 +132,7 @@ export function TagList() {
               </div>
               {/* Custom color picker */}
               <label
-                className="w-6 h-6 rounded-full border-2 border-slate-600 cursor-pointer overflow-hidden flex items-center justify-center hover:border-slate-400 transition-colors"
+                className="w-6 h-6 rounded-full border-2 border-slate-300 dark:border-slate-600 cursor-pointer overflow-hidden flex items-center justify-center hover:border-slate-400 transition-colors"
                 title="Custom color"
               >
                 <span className="sr-only">Custom color</span>
@@ -147,7 +147,7 @@ export function TagList() {
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  className="w-3 h-3 text-slate-400"
+                  className="w-3 h-3 text-slate-600 dark:text-slate-400"
                 >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="16" />
@@ -156,7 +156,7 @@ export function TagList() {
               </label>
               {/* Preview */}
               <div
-                className="w-6 h-6 rounded-full border border-slate-600"
+                className="w-6 h-6 rounded-full border border-slate-300 dark:border-slate-600"
                 style={{ backgroundColor: color }}
                 aria-hidden="true"
               />
@@ -174,8 +174,8 @@ export function TagList() {
       </div>
 
       {/* Tags grid */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
           All Tags
           <span className="ml-2 text-xs font-normal text-slate-500">
             ({items.length})
