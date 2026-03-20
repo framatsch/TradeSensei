@@ -217,7 +217,7 @@ export function ImportForm() {
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Upload Trade File
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Supported: CSV, XLSX, XLS</p>
+                <p className="text-xs text-slate-500 mt-0.5">Supported: CSV, XLSX, XML</p>
               </div>
             )}
 

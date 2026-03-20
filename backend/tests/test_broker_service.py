@@ -146,6 +146,7 @@ class TestSyncAccountRouting:
     ) -> None:
         """sync_account() calls FlexImportService for IBKR accounts."""
         from datetime import UTC, datetime, timedelta
+
         from app.schemas.imports import ImportResult
 
         fixed_now = datetime(2026, 3, 21, tzinfo=UTC)

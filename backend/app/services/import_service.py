@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import AccountNotFoundError
 from app.repositories.account_repository import AccountRepository
 from app.repositories.trade_repository import TradeRepository
+from app.services.cash_transaction_service import CashTransactionService
 from app.schemas.imports import ImportResult
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.base import BrokerParser
@@ -90,7 +91,7 @@ class ImportService:
                 )
 
         parser: BrokerParser = get_parser(broker)
-        parsed_trades: list[TradeCreate] = parser.parse(content, filename)
+        parsed_trades, parsed_cash_txs = parser.parse(content, filename)
 
         # Enrich pnl_eur — base class provides a no-op default so this is always safe.
         await parser.enrich_pnl_eur(parsed_trades, self._session)
@@ -99,6 +100,7 @@ class ImportService:
         parser_warnings: list[str] = getattr(parser, "warnings", [])
 
         trades_created = 0
+        cash_txs_created = 0
         create_warnings: list[str] = []
 
         for trade_data in parsed_trades:
@@ -117,8 +119,24 @@ class ImportService:
                 logger.warning(msg)
                 create_warnings.append(msg)
 
+        if account_id is not None:
+            for cash_tx_data in parsed_cash_txs:
+                try:
+                    await CashTransactionService.create(
+                        self._session, user_id, account_id, cash_tx_data
+                    )
+                    cash_txs_created += 1
+                except Exception as exc:  # noqa: BLE001
+                    msg = (
+                        f"Failed to persist cash transaction "
+                        f"at {cash_tx_data.date}: {exc}"
+                    )
+                    logger.warning(msg)
+                    create_warnings.append(msg)
+
         all_warnings = parser_warnings + create_warnings
         trades_skipped = len(parsed_trades) - trades_created
+        cash_txs_skipped = len(parsed_cash_txs) - cash_txs_created
 
         return ImportResult(
             broker=str(broker),
@@ -126,5 +144,8 @@ class ImportService:
             trades_parsed=len(parsed_trades),
             trades_created=trades_created,
             trades_skipped=trades_skipped,
+            cash_transactions_parsed=len(parsed_cash_txs),
+            cash_transactions_created=cash_txs_created,
+            cash_transactions_skipped=cash_txs_skipped,
             warnings=all_warnings,
         )

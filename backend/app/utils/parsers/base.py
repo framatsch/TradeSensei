@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.trade import TradeCreate
 
 
@@ -12,8 +13,9 @@ class BrokerParser(ABC):
 
     Concrete subclasses implement :meth:`parse` for a specific broker's
     export format.  All parsers operate on raw bytes and return validated
-    :class:`~app.schemas.trade.TradeCreate` instances; they have no
-    side effects and no dependencies on the database or HTTP layer.
+    :class:`~app.schemas.trade.TradeCreate` and
+    :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest` instances.
+    They have no side effects and no dependencies on the database or HTTP layer.
 
     Optionally, subclasses may override :meth:`enrich_pnl_eur` to perform
     asynchronous post-parse enrichment (e.g. fetching FX rates) before
@@ -21,16 +23,19 @@ class BrokerParser(ABC):
     """
 
     @abstractmethod
-    def parse(self, content: bytes, filename: str) -> list[TradeCreate]:
-        """Parse broker export file content into a list of TradeCreate schemas.
+    def parse(
+        self, content: bytes, filename: str
+    ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
+        """Parse broker export file content into TradeCreate and CashTransactionCreateRequest schemas.
 
         Args:
             content: Raw file bytes.
             filename: Original filename (used to detect CSV vs XLSX).
 
         Returns:
-            List of :class:`~app.schemas.trade.TradeCreate` instances
-            ready for import.
+            A tuple containing:
+                - List of :class:`~app.schemas.trade.TradeCreate` instances
+                - List of :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest` instances
 
         Raises:
             ImportParseError: If the file cannot be parsed or has an

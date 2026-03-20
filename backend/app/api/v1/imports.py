@@ -83,9 +83,10 @@ def _get_flex_service(
     status_code=status.HTTP_200_OK,
     summary="Upload a broker export file and import trades",
     description=(
-        "Parse a broker export file (CSV or XLSX) and bulk-create the "
+        "Parse a broker export file (CSV, XLSX, or XML) and bulk-create the "
         "contained trades for the specified account. "
-        "Supported brokers: `ibkr` (Interactive Brokers Activity Statement CSV), "
+        "Supported brokers: `ibkr` (Interactive Brokers Activity Statement CSV "
+        "or Flex Query XML), "
         "`schwab` (Charles Schwab trade history CSV). "
         f"Maximum file size: {IMPORT_MAX_FILE_SIZE_MB} MB. "
         f"Accepted formats: {', '.join(IMPORT_SUPPORTED_FORMATS)}."
@@ -126,7 +127,7 @@ async def upload_import(
             validated inside the service).
         broker: The broker type that determines which parser to use.
         account_id: UUID of the target broker account.
-        file: The uploaded file (CSV or XLSX).
+        file: The uploaded file (CSV, XLSX, or XML).
 
     Returns:
         A :class:`~app.schemas.common.ResponseEnvelope` wrapping an
@@ -152,6 +153,14 @@ async def upload_import(
             ),
         )
 
+    # --- Route XML uploads for IBKR to the Flex/XML parser -----------------
+    # IBKR Activity Flex Query exports are XML files.  The user selects
+    # broker="ibkr" in the UI; we transparently switch to ibkr_flex so the
+    # IBKRXMLParser handles the file instead of the CSV parser.
+    effective_broker = broker
+    if extension == "xml" and broker == BrokerType.IBKR:
+        effective_broker = BrokerType.IBKR_FLEX
+
     # --- Read file content with size guard ---------------------------------
     max_bytes = IMPORT_MAX_FILE_SIZE_MB * _BYTES_PER_MB
     content = await file.read(max_bytes + 1)
@@ -169,7 +178,7 @@ async def upload_import(
         result = await service.import_file(
             content=content,
             filename=filename,
-            broker=broker,
+            broker=effective_broker,
             account_id=account_id,
             user_id=current_user.id,
         )

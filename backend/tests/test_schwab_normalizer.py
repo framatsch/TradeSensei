@@ -6,11 +6,8 @@ a different branch of the normalizer's filtering and field-mapping logic.
 
 from __future__ import annotations
 
-from datetime import UTC
 from decimal import Decimal
 from typing import Any
-
-import pytest
 
 from app.models.trade import AssetClass, Direction
 from app.utils.schwab_normalizer import SchwabOrderNormalizer
