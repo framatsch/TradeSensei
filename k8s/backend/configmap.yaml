@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/name: tradejournal-backend
     app.kubernetes.io/component: backend
 data:
+  DB_HOST: "db-service"
+  DB_PORT: "5432"
+  DB_NAME: "tradejournal"
   ENVIRONMENT: "production"
   LOG_LEVEL: "INFO"
   CORS_ORIGINS: "https://tradejournal.example.com"

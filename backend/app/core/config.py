@@ -36,7 +36,42 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str
+    database_url: str | None = None
+    db_user: str | None = None
+    db_password: str | None = None
+    db_host: str = "db"
+    db_port: int = 5432
+    db_name: str = "tradejournal"
+
+    @property
+    def async_database_url(self) -> str:
+        """Return the async database URL, either from ``database_url`` or parts.
+
+        If ``database_url`` is explicitly set, it is returned. Otherwise,
+        the URL is constructed from ``db_user``, ``db_password``, etc.
+        using the ``postgresql+asyncpg`` driver.
+
+        Returns:
+            A full SQLAlchemy async connection string.
+
+        Raises:
+            ValueError: If neither ``database_url`` nor all required
+                DB parts (user, password) are provided.
+        """
+        if self.database_url:
+            return self.database_url
+
+        if not self.db_user or not self.db_password:
+            raise ValueError(
+                "Either DATABASE_URL or both DB_USER and DB_PASSWORD "
+                "must be configured."
+            )
+
+        return (
+            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+        )
+
     secret_key: str
     environment: str = "development"
 

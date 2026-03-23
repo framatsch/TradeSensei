@@ -59,22 +59,18 @@ cp .env.example .env
 The complete set of variables:
 
 ```dotenv
+# Database connection (either DATABASE_URL OR the DB_* variables)
+DATABASE_URL=                      # optional, e.g. postgresql+asyncpg://user:pass@db:5432/db
+DB_USER=tradejournal               # required if DATABASE_URL is empty
+DB_PASSWORD=tradejournal           # required if DATABASE_URL is empty
+DB_HOST=db                         # defaults to 'db'
+DB_PORT=5432                       # defaults to 5432
+DB_NAME=tradejournal               # defaults to 'tradejournal'
+
 # Required
-DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@db:5432/tradejournal
 SECRET_KEY=                        # generate: python -c "import secrets; print(secrets.token_hex(32))"
-ENVIRONMENT=development
-LOG_LEVEL=INFO
-CORS_ORIGINS=http://localhost:3000
-
-# Optional — Google OAuth 2.0 (leave blank to use password login only)
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
-
-# Frontend (NextAuth)
-NEXTAUTH_SECRET=                   # generate: openssl rand -base64 32
-NEXTAUTH_URL=http://localhost:3000
 ```
+
 
 Without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, the Google login button is visible in the UI but non-functional; password-based login works as normal.
 
@@ -118,8 +114,20 @@ uv sync
 Set the required environment variables (export them or place them in a `.env` file read by your shell):
 
 ```
+DB_USER=user
+DB_PASSWORD=pass
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=tradejournal
+SECRET_KEY=<your-secret-key>
+ENVIRONMENT=development
+LOG_LEVEL=INFO
+CORS_ORIGINS=http://localhost:3000
+```
+
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tradejournal
 SECRET_KEY=<your-secret-key>
+BROKER_ENCRYPTION_KEY=<your-encryption-key>
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 CORS_ORIGINS=http://localhost:3000

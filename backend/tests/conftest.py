@@ -57,7 +57,7 @@ async def engine() -> AsyncGenerator[object, None]:
     Yields:
         An :class:`AsyncEngine` connected to the test database.
     """
-    test_engine = create_async_engine(settings.database_url, echo=False)
+    test_engine = create_async_engine(settings.async_database_url, echo=False)
     yield test_engine
     await test_engine.dispose()
 
