@@ -56,7 +56,9 @@ class ImportResult(BaseModel):
     cash_transactions_parsed: int = Field(
         default=0,
         ge=0,
-        description="Total number of cash transactions successfully parsed from the file.",
+        description=(
+            "Total number of cash transactions successfully parsed from the file."
+        ),
         examples=[10, 0],
     )
     cash_transactions_created: int = Field(
@@ -68,7 +70,10 @@ class ImportResult(BaseModel):
     cash_transactions_skipped: int = Field(
         default=0,
         ge=0,
-        description="Number of cash transactions that were skipped due to non-fatal parse errors.",
+        description=(
+            "Number of cash transactions that were skipped due to "
+            "non-fatal parse errors."
+        ),
         examples=[0],
     )
     warnings: list[str] = Field(

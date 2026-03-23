@@ -607,9 +607,10 @@ class TradeUpdate(BaseModel):
             "Updated stop-loss price level. Set to null to remove the stop-loss. "
             "Omit to leave unchanged. "
             "Pydantic v2 tracks whether this field was explicitly set via "
-            "``model_fields_set``; the repository uses ``model_dump(exclude_unset=True)`` "
-            "so that an explicit ``null`` clears the field while omitting it leaves it "
-            "unchanged."
+            "``model_fields_set``; the repository uses "
+            "``model_dump(exclude_unset=True)`` "
+            "so that an explicit ``null`` clears the field while omitting it "
+            "leaves it unchanged."
         ),
         examples=["149.00", None],
     )
@@ -620,9 +621,10 @@ class TradeUpdate(BaseModel):
             "Updated take-profit price level. Set to null to remove the take-profit. "
             "Omit to leave unchanged. "
             "Pydantic v2 tracks whether this field was explicitly set via "
-            "``model_fields_set``; the repository uses ``model_dump(exclude_unset=True)`` "
-            "so that an explicit ``null`` clears the field while omitting it leaves it "
-            "unchanged."
+            "``model_fields_set``; the repository uses "
+            "``model_dump(exclude_unset=True)`` "
+            "so that an explicit ``null`` clears the field while omitting it "
+            "leaves it unchanged."
         ),
         examples=["160.00", None],
     )
@@ -990,6 +992,10 @@ class TradeFilterParams(BaseModel):
         pnl_positive: ``True`` for winners (pnl > 0), ``False`` for losers.
         status: ``'open'`` for trades without a close date, ``'closed'`` for
             trades that have been closed.
+        account_id: Filter trades by broker account UUID.
+        hour_of_day: Filter by UTC hour of ``opened_at`` (0–23).
+        day_of_week: Filter by ISO day of week of ``opened_at``
+            (0 = Monday, …, 6 = Sunday).
     """
 
     symbol: str | None = Field(
@@ -1040,6 +1046,21 @@ class TradeFilterParams(BaseModel):
     account_id: uuid.UUID | None = Field(
         default=None,
         description="Filter trades by broker account UUID.",
+    )
+    hour_of_day: int | None = Field(
+        default=None,
+        ge=0,
+        le=23,
+        description="Filter trades by UTC hour of opened_at (0–23).",
+    )
+    day_of_week: int | None = Field(
+        default=None,
+        ge=0,
+        le=6,
+        description=(
+            "Filter trades by ISO day of week of opened_at: "
+            "0 = Monday, 1 = Tuesday, …, 6 = Sunday."
+        ),
     )
 
     @field_validator("opened_at_from", "opened_at_to", mode="before")

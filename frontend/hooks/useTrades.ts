@@ -21,6 +21,10 @@ export interface TradeFilters {
   pnl_positive?: boolean | null;
   status?: "open" | "closed" | null;
   account_id?: string;
+  /** Filter by hour of day (0–23) the trade was opened. */
+  hour_of_day?: number;
+  /** Filter by day of week the trade was opened (0=Monday, …, 6=Sunday). */
+  day_of_week?: number;
 }
 
 export interface TradeSortConfig {
@@ -51,6 +55,23 @@ interface BulkAssignPlaybookPayload {
   playbook_id: string | null;
 }
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Ensure a date string is timezone-aware for the backend.
+ * If it's a plain date like "2026-03-03" expand it to a full UTC timestamp.
+ * If it already contains a timezone offset leave it unchanged.
+ */
+function toUtcFrom(dateStr: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return `${dateStr}T00:00:00Z`;
+  return dateStr;
+}
+
+function toUtcTo(dateStr: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return `${dateStr}T23:59:59Z`;
+  return dateStr;
+}
+
 // ─── useTrades ────────────────────────────────────────────────────────────────
 
 export function useTrades({
@@ -75,8 +96,8 @@ export function useTrades({
             params.append("asset_class", ac);
           }
         }
-        if (filters.opened_at_from) params.set("opened_at_from", filters.opened_at_from);
-        if (filters.opened_at_to) params.set("opened_at_to", filters.opened_at_to);
+        if (filters.opened_at_from) params.set("opened_at_from", toUtcFrom(filters.opened_at_from));
+        if (filters.opened_at_to) params.set("opened_at_to", toUtcTo(filters.opened_at_to));
         if (filters.tag_ids?.length) {
           for (const tid of filters.tag_ids) {
             params.append("tag_ids", tid);
@@ -88,6 +109,12 @@ export function useTrades({
         }
         if (filters.status) params.set("status", filters.status);
         if (filters.account_id) params.set("account_id", filters.account_id);
+        if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) {
+          params.set("hour_of_day", String(filters.hour_of_day));
+        }
+        if (filters.day_of_week !== undefined && filters.day_of_week !== null) {
+          params.set("day_of_week", String(filters.day_of_week));
+        }
       }
 
       if (sort) {

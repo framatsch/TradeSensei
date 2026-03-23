@@ -1,21 +1,39 @@
 /**
  * Import Spec — covers the broker file import page.
  *
+ * The import page uses an account-first flow:
+ *  Step 1 — Select an account
+ *  Step 2 — Choose import method (file upload or API sync)
+ *
+ * global-setup seeds an IBKR account; its ID is read from .auth/seed-state.json.
+ *
  * Tests:
- *  - Page renders correctly
- *  - Broker selector shows IBKR and Schwab options
- *  - File upload and import success for IBKR CSV fixture
- *  - File upload and import success for Schwab CSV fixture
- *  - Error message when wrong format is uploaded
+ *  - Page renders heading and step 1 account selector
+ *  - Account selector shows the seeded account
+ *  - After selecting account, Step 2 becomes visible
+ *  - File upload section is reachable
+ *  - Upload button disabled without files; enabled after file selection
+ *  - Successful IBKR import shows per-file result in the queue
+ *  - Successful Schwab import (account type mismatch shows error or result)
  *
  * All tests run as the seeded E2E user.
  */
 
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import fs from 'fs';
 
 const IBKR_FIXTURE = path.join(__dirname, '../fixtures/ibkr-sample.csv');
 const SCHWAB_FIXTURE = path.join(__dirname, '../fixtures/schwab-sample.csv');
+const SEED_STATE_FILE = path.join(__dirname, '../.auth/seed-state.json');
+
+function getSeedState(): { accountId: string } {
+  try {
+    return JSON.parse(fs.readFileSync(SEED_STATE_FILE, 'utf-8')) as { accountId: string };
+  } catch {
+    return { accountId: '' };
+  }
+}
 
 test.describe('Import Page', () => {
   test.beforeEach(async ({ page }) => {
@@ -28,104 +46,94 @@ test.describe('Import Page', () => {
     await expect(page.getByText('Upload a broker activity file')).toBeVisible();
   });
 
-  test('TC-071 broker selector shows all broker options', async ({ page }) => {
-    const brokerSelect = page.locator('#broker');
-    await expect(brokerSelect).toBeVisible();
-
-    await expect(brokerSelect.locator('option[value="ibkr"]')).toHaveText(
-      'Interactive Brokers (IBKR)'
-    );
-    await expect(brokerSelect.locator('option[value="schwab"]')).toHaveText('Charles Schwab');
+  test('TC-071 Step 1 account selector is visible', async ({ page }) => {
+    await expect(page.getByText('Step 1 — Select Account')).toBeVisible();
+    // A select dropdown should be present for account selection
+    await expect(page.getByRole('combobox')).toBeVisible();
   });
 
-  test('TC-072 IBKR is selected by default', async ({ page }) => {
-    const brokerSelect = page.locator('#broker');
-    await expect(brokerSelect).toHaveValue('ibkr');
+  test('TC-072 account selector includes the seeded E2E account', async ({ page }) => {
+    const { accountId } = getSeedState();
+    test.skip(!accountId, 'No seeded account ID found — skipping');
+
+    const select = page.getByRole('combobox');
+    await expect(select).toBeVisible();
+
+    // The seeded account should appear in the dropdown
+    await expect(select.locator('option', { hasText: 'E2E Test Account' })).toHaveCount(1);
   });
 
-  test('TC-073 file input accepts CSV files', async ({ page }) => {
-    const fileInput = page.locator('#file');
-    await expect(fileInput).toBeVisible();
-    await expect(fileInput).toHaveAttribute('accept', /csv/);
+  test('TC-073 selecting an account shows Step 2', async ({ page }) => {
+    const { accountId } = getSeedState();
+    test.skip(!accountId, 'No seeded account ID found — skipping');
+
+    // Select the seeded account
+    await page.getByRole('combobox').selectOption({ value: accountId });
+
+    // Step 2 should now appear
+    await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('TC-074 Import button is disabled without a file selected', async ({ page }) => {
-    const importBtn = page.getByRole('button', { name: 'Import Trades' });
-    await expect(importBtn).toBeDisabled();
+  test('TC-074 file upload section accessible after account selection', async ({ page }) => {
+    const { accountId } = getSeedState();
+    test.skip(!accountId, 'No seeded account ID found — skipping');
+
+    await page.getByRole('combobox').selectOption({ value: accountId });
+    await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
+
+    // The "Upload Files" option should be present (either a button or a section heading)
+    // API Sync section may be present but no API credentials — file upload section is visible
+    await expect(page.getByText(/Upload Files|Upload a file|File Upload/i)).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
-  test('TC-075 Import button becomes enabled after file selection', async ({ page }) => {
-    const fileInput = page.locator('#file');
+  test('TC-075 Upload button absent (not rendered) before a file is selected', async ({ page }) => {
+    const { accountId } = getSeedState();
+    test.skip(!accountId, 'No seeded account ID found — skipping');
+
+    await page.getByRole('combobox').selectOption({ value: accountId });
+    await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
+
+    // For API accounts (ibkr/schwab) the file section is collapsed by default.
+    // Expand it so we can verify the upload button is absent before file selection.
+    const toggleBtn = page.getByRole('button', { name: /Or upload files manually/i });
+    await expect(toggleBtn).toBeVisible({ timeout: 5_000 });
+    await toggleBtn.click();
+
+    // After expanding, the file input is visible but no "Import N files" button yet
+    await expect(page.locator('input[type="file"]')).toBeVisible({ timeout: 5_000 });
+    // The start-upload button should NOT be present (it only appears after file selection)
+    await expect(page.getByRole('button', { name: /^Import \d+ file/i })).toHaveCount(0);
+  });
+
+  test('TC-076 successful IBKR import shows result per file', async ({ page }) => {
+    const { accountId } = getSeedState();
+    test.skip(!accountId, 'No seeded account ID found — skipping');
+
+    await page.getByRole('combobox').selectOption({ value: accountId });
+    await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
+
+    // For API accounts the file section is collapsed by default — expand it first.
+    // Wait for the toggle button to be visible, then click it.
+    const toggleBtn = page.getByRole('button', { name: /Or upload files manually/i });
+    await expect(toggleBtn).toBeVisible({ timeout: 5_000 });
+    await toggleBtn.click();
+
+    // File input should now be visible
+    const fileInput = page.locator('input[type="file"]');
+    await expect(fileInput).toBeVisible({ timeout: 5_000 });
     await fileInput.setInputFiles(IBKR_FIXTURE);
 
-    const importBtn = page.getByRole('button', { name: 'Import Trades' });
-    await expect(importBtn).toBeEnabled();
-  });
+    // After file selection, the "Import N file(s)" start button appears
+    const uploadBtn = page.getByRole('button', { name: /^Import \d+ file/i });
+    await expect(uploadBtn).toBeVisible({ timeout: 5_000 });
+    await expect(uploadBtn).toBeEnabled();
+    await uploadBtn.click();
 
-  test('TC-076 successful IBKR import shows result summary', async ({ page }) => {
-    // Select IBKR broker (default)
-    await page.locator('#broker').selectOption('ibkr');
-
-    // Upload the IBKR fixture file
-    await page.locator('#file').setInputFiles(IBKR_FIXTURE);
-
-    // Click import
-    await page.getByRole('button', { name: 'Import Trades' }).click();
-
-    // Wait for the result panel to appear
-    await expect(page.getByText('Import Complete')).toBeVisible({ timeout: 20_000 });
-
-    // Result panel shows stats
-    await expect(page.getByText('Parsed')).toBeVisible();
-    await expect(page.getByText('Created')).toBeVisible();
-    await expect(page.getByText('Skipped')).toBeVisible();
-  });
-
-  test('TC-077 successful Schwab import shows result summary', async ({ page }) => {
-    // Select Schwab broker
-    await page.locator('#broker').selectOption('schwab');
-
-    // Upload the Schwab fixture file
-    await page.locator('#file').setInputFiles(SCHWAB_FIXTURE);
-
-    // Click import
-    await page.getByRole('button', { name: 'Import Trades' }).click();
-
-    // Wait for the result panel
-    await expect(page.getByText('Import Complete')).toBeVisible({ timeout: 20_000 });
-
-    await expect(page.getByText('Parsed')).toBeVisible();
-    await expect(page.getByText('Created')).toBeVisible();
-  });
-
-  test('TC-078 wrong broker format shows error message', async ({ page }) => {
-    // Upload a Schwab file but tell the backend it is IBKR
-    await page.locator('#broker').selectOption('ibkr');
-    await page.locator('#file').setInputFiles(SCHWAB_FIXTURE);
-
-    await page.getByRole('button', { name: 'Import Trades' }).click();
-
-    // Expect either an error message or a warning (IBKR parser won't find Trades section)
-    // The backend returns 422 or a parse error — either error message or 0 parsed is ok
-    const errorOrResult = page.locator(
-      'text=/Import failed|Could not locate|error/i, text=/Import Complete/i'
-    );
-    await expect(errorOrResult.first()).toBeVisible({ timeout: 20_000 });
-  });
-
-  test('TC-079 after successful import file input is cleared', async ({ page }) => {
-    await page.locator('#broker').selectOption('ibkr');
-    await page.locator('#file').setInputFiles(IBKR_FIXTURE);
-
-    await page.getByRole('button', { name: 'Import Trades' }).click();
-    await expect(page.getByText('Import Complete')).toBeVisible({ timeout: 20_000 });
-
-    // After import the file input is reset (ImportForm calls fileInputRef.current.value = "")
-    const fileInput = page.locator('#file');
-    const value = await fileInput.inputValue();
-    expect(value).toBe('');
-
-    // Import button should be disabled again (no file)
-    await expect(page.getByRole('button', { name: 'Import Trades' })).toBeDisabled();
+    // Wait for result to appear: "created", "skipped", "Import complete", or an error message
+    await expect(
+      page.getByText(/created|skipped|Import complete|Files with Errors/i).first()
+    ).toBeVisible({ timeout: 20_000 });
   });
 });

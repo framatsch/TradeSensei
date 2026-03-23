@@ -33,6 +33,8 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) count++;
   if (filters.status) count++;
   if (filters.account_id) count++;
+  if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) count++;
+  if (filters.day_of_week !== undefined && filters.day_of_week !== null) count++;
   return count;
 }
 
@@ -47,7 +49,15 @@ const EMPTY_FILTERS: TradeFilters = {
   pnl_positive: null,
   status: null,
   account_id: "",
+  hour_of_day: undefined,
+  day_of_week: undefined,
 };
+
+const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function formatHour(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
 
 const INPUT_CLASS =
   "w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -185,6 +195,39 @@ export function TradeFilterBar({ filters, onChange }: Props) {
           </button>
         )}
       </div>
+
+      {/* Active report-context chips (hour / weekday) — always visible */}
+      {(filters.hour_of_day !== undefined && filters.hour_of_day !== null) ||
+       (filters.day_of_week !== undefined && filters.day_of_week !== null) ? (
+        <div className="px-4 pb-3 flex flex-wrap gap-2">
+          {filters.hour_of_day !== undefined && filters.hour_of_day !== null && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+              Hour: {formatHour(filters.hour_of_day)}
+              <button
+                type="button"
+                aria-label="Remove hour filter"
+                onClick={() => onChange({ ...filters, hour_of_day: undefined })}
+                className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100"
+              >
+                ×
+              </button>
+            </span>
+          )}
+          {filters.day_of_week !== undefined && filters.day_of_week !== null && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+              Day: {WEEKDAY_NAMES[filters.day_of_week] ?? filters.day_of_week}
+              <button
+                type="button"
+                aria-label="Remove day filter"
+                onClick={() => onChange({ ...filters, day_of_week: undefined })}
+                className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100"
+              >
+                ×
+              </button>
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {/* Collapsible panel */}
       {open && (

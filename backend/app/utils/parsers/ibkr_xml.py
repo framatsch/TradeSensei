@@ -284,17 +284,21 @@ class IBKRXMLParser(BrokerParser):
         # block is not sufficient evidence to force-close anything.
         if open_positions_conids:
             for trade in aggregated_trades:
-                if trade.closed_at is None and trade.broker_conid:
-                    if trade.broker_conid not in acceptable_open_conids:
-                        # Force close it
-                        trade.closed_at = trade.opened_at + _CLOSED_AT_OFFSET
-                        trade.exit_price = trade.entry_price  # Placeholder if unknown
-                        trade.notes = (
-                            trade.notes or ""
-                        ) + " [Force-closed: not in IBKR open positions]"
+                if (
+                    trade.closed_at is None
+                    and trade.broker_conid
+                    and trade.broker_conid not in acceptable_open_conids
+                ):
+                    # Force close it
+                    trade.closed_at = trade.opened_at + _CLOSED_AT_OFFSET
+                    trade.exit_price = trade.entry_price  # Placeholder if unknown
+                    trade.notes = (
+                        trade.notes or ""
+                    ) + " [Force-closed: not in IBKR open positions]"
 
         logger.info(
-            "Parsed %d executions, aggregated into %d trades and parsed %d cash transactions from IBKR Flex XML.",
+            "Parsed %d executions, aggregated into %d trades and parsed %d "
+            "cash transactions from IBKR Flex XML.",
             len(trades),
             len(aggregated_trades),
             len(cash_transactions),
@@ -311,9 +315,9 @@ class IBKRXMLParser(BrokerParser):
             idx: 1-based element index for warning messages.
 
         Returns:
-            A :class:`~app.schemas.trade.TradeCreate`, a
-            :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest` (for FX conversions),
-            or ``None`` if the element was skipped.
+            A :class:`~app.schemas.trade.TradeCreate`, a cash transaction
+            creation request (for FX conversions), or ``None`` if the element
+            was skipped.
         """
         try:
             asset_category = elem.get("assetCategory", "").upper()
@@ -337,7 +341,7 @@ class IBKRXMLParser(BrokerParser):
 
             opened_at = _parse_ibkr_datetime(trade_date_str, datetime_str)
 
-            # Task 4.1: filter out <Trade assetCategory="CASH">, extract commission as FEE
+            # Task 4.1: filter out <Trade assetCategory="CASH">
             if asset_category == "CASH":
                 commission = abs(_safe_decimal(elem.get("commission")))
                 if commission > Decimal("0"):
@@ -493,7 +497,7 @@ class IBKRXMLParser(BrokerParser):
             idx: 1-based element index for warning messages.
 
         Returns:
-            A :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest` or ``None``.
+            A cash transaction creation request or ``None``.
         """
         try:
             report_date = elem.get("reportDate", "")
@@ -505,7 +509,8 @@ class IBKRXMLParser(BrokerParser):
 
             if not report_date:
                 self.warnings.append(
-                    f"<CashTransaction> element {idx}: skipped — missing reportDate or dateTime."
+                    f"<CashTransaction> element {idx}: "
+                    "skipped — missing reportDate or dateTime."
                 )
                 return None
 
@@ -522,7 +527,8 @@ class IBKRXMLParser(BrokerParser):
                 amount = Decimal(amount_str.strip())
             except InvalidOperation:
                 self.warnings.append(
-                    f"<CashTransaction> element {idx}: skipped — invalid amount '{amount_str}'."
+                    f"<CashTransaction> element {idx}: "
+                    f"skipped — invalid amount '{amount_str}'."
                 )
                 return None
 
@@ -574,7 +580,8 @@ class IBKRXMLParser(BrokerParser):
 
             if not report_date:
                 self.warnings.append(
-                    f"<TransactionTax> element {idx}: skipped — missing reportDate or date."
+                    f"<TransactionTax> element {idx}: "
+                    "skipped — missing reportDate or date."
                 )
                 return None
 

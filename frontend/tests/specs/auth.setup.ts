@@ -19,8 +19,8 @@ setup('authenticate', async ({ page }) => {
   // the access_token into localStorage, so the auth guard should pass.
   await page.goto('/dashboard');
 
-  // Wait for the dashboard to be visible (sidebar nav link "Overview" is shown)
-  await expect(page.getByRole('link', { name: 'Overview' })).toBeVisible({ timeout: 15_000 });
+  // Wait for the dashboard to be visible (main sidebar nav link "Overview" with exact href)
+  await expect(page.getByRole('link', { name: 'Overview' }).first()).toBeVisible({ timeout: 15_000 });
 
   // Persist the storage state for all dependent test projects
   await page.context().storageState({ path: AUTH_FILE });

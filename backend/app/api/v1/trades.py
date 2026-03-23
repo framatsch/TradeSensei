@@ -315,6 +315,8 @@ async def create_trade(
 async def list_trades(
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
+    filters: Annotated[TradeFilterParams, Depends()],
+    sort: Annotated[TradeSortParams, Depends()],
     cursor: Annotated[
         str | None,
         Query(description="Opaque pagination cursor from a previous response"),
@@ -340,8 +342,6 @@ async def list_trades(
         uuid.UUID | None,
         Query(description="Filter trades by account UUID"),
     ] = None,
-    filters: TradeFilterParams = Depends(),
-    sort: TradeSortParams = Depends(),
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 

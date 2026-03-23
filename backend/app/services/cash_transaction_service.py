@@ -171,7 +171,8 @@ class CashTransactionService:
             session, user_id, account_id, transaction_id
         )
 
-        # Re-compute EUR amount if amount or currency changed and no explicit EUR amount provided
+        # Re-compute EUR amount if amount or currency changed and no explicit
+        # EUR amount provided
         if update_schema.amount_eur is None and (
             update_schema.amount is not None or update_schema.currency is not None
         ):
