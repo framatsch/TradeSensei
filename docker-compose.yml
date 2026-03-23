@@ -38,7 +38,11 @@ services:
       target: development
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://tradejournal:tradejournal@db:5432/tradejournal
+      DB_USER: tradejournal
+      DB_PASSWORD: tradejournal
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: tradejournal
       ENVIRONMENT: development
       LOG_LEVEL: DEBUG
       SECRET_KEY: dev-secret-key-change-in-production

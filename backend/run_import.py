@@ -5,21 +5,21 @@ Pass filenames as args, or it imports all four files in order.
 """
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
-import os
-
 os.environ.setdefault("UPLOAD_DIR", "/app/uploads")
 
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+import uuid as _uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import settings
+from app.models.user import User
 from app.repositories.trade_repository import TradeRepository
 from app.services.import_service import ImportService
-from app.models.user import User
-from sqlalchemy import select
-import uuid as _uuid
 
 USERNAME = "fscheffold"
 IBKR_ACCOUNT_ID_STR = "47a7305b-061b-43e9-8aea-848c4fadd62d"
@@ -37,7 +37,7 @@ FILES = (
 
 
 async def main() -> None:
-    engine = create_async_engine(settings.database_url, echo=False)
+    engine = create_async_engine(settings.async_database_url, echo=False)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with session_factory() as session:
@@ -73,7 +73,9 @@ async def main() -> None:
 
             open_lots_after = await trade_repo.list_open_lots_by_user(user.id)
             print(
-                f"  created={import_result.trades_created}  skipped={import_result.trades_skipped}  open_after={len(open_lots_after)}"
+                f"  created={import_result.trades_created} "
+                f"skipped={import_result.trades_skipped} "
+                f"open_after={len(open_lots_after)}"
             )
             if import_result.warnings:
                 for w in import_result.warnings:
