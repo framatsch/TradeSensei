@@ -291,17 +291,22 @@ class TestLogout:
         ``refresh_token`` cookie to an empty string (or include
         ``Max-Age=0`` / ``expires`` in the past), indicating deletion.
         """
-        # Log in first to get the cookie set
+        # Log in first to get the cookie set and an access token
         await client.post(_REGISTER_URL, json=_DEFAULT_USER)
-        await client.post(
+        login_resp = await client.post(
             _TOKEN_URL,
             data={
                 "username": _DEFAULT_USER["username"],
                 "password": _DEFAULT_USER["password"],
             },
         )
+        assert login_resp.status_code == 200
+        access_token = str(login_resp.json()["access_token"])
 
-        resp = await client.post(_LOGOUT_URL)
+        resp = await client.post(
+            _LOGOUT_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
         assert resp.status_code == 204
 
         cookie_header = resp.headers.get("set-cookie", "")
