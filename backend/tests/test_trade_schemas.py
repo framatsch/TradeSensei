@@ -42,10 +42,10 @@ class TestTradeCreate:
 
     @pytest.mark.unit
     def test_symbol_max_length_enforced(self) -> None:
-        """Symbol longer than 20 chars should raise a ValidationError."""
+        """Symbol longer than 30 chars should raise a ValidationError."""
         with pytest.raises(ValidationError):
             TradeCreate(
-                symbol="A" * 21,
+                symbol="A" * 31,
                 direction=Direction.LONG,
                 asset_class=AssetClass.EQUITY,
                 quantity=Decimal("1"),
@@ -133,6 +133,10 @@ class TestTradeRead:
         trade.notes = "Good trade"
         trade.created_at = datetime(2025, 6, 1, tzinfo=UTC)
         trade.updated_at = datetime(2025, 6, 2, tzinfo=UTC)
+        trade.screenshots = []
+        trade.is_manually_edited = False
+        trade.tags = []
+        trade.trade_notes = []
 
         read = TradeRead.model_validate(trade)
         assert read.symbol == "ES"

@@ -148,10 +148,7 @@ def _build_sort_column(
     }
     col = column_map[sort_by]
 
-    if sort_dir == "asc":
-        expr = col.asc()
-    else:
-        expr = col.desc()
+    expr = col.asc() if sort_dir == "asc" else col.desc()
 
     if sort_by in nullable_fields:
         return nullslast(expr)
@@ -645,3 +642,95 @@ class TradeRepository:
         updated = list(result.scalars().all())
         await self._session.flush()
         return len(updated)
+
+    async def list_open_lots_by_user(
+        self,
+        user_id: uuid.UUID,
+    ) -> list[Trade]:
+        """Return all open (unclosed) trades owned by *user_id*.
+
+        "Open" means ``closed_at IS NULL``.  The result is ordered by
+        ``opened_at ASC`` so that the FIFO aggregator receives lots in
+        chronological order.
+
+        Args:
+            user_id: UUID of the owning user.
+
+        Returns:
+            A list of :class:`Trade` ORM instances (no eager loads — only
+            the scalar columns needed by the aggregator are used).
+        """
+        stmt = (
+            select(Trade)
+            .where(Trade.user_id == user_id, Trade.closed_at.is_(None))
+            .order_by(Trade.opened_at.asc())
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def close_open_lot(
+        self,
+        trade_id: uuid.UUID,
+        exit_price: Decimal,
+        closed_at: datetime,
+        pnl: Decimal | None,
+        pnl_eur: Decimal | None,
+        commission_add: Decimal,
+        quantity: Decimal,
+    ) -> None:
+        """Close an existing open trade lot in-place by setting exit fields.
+
+        Updates ``exit_price``, ``closed_at``, ``pnl``, ``pnl_eur``,
+        ``commission`` (incremented by *commission_add*), and ``quantity``
+        on the row identified by *trade_id*.  The session is flushed but
+        not committed.
+
+        Args:
+            trade_id: UUID of the open trade to close.
+            exit_price: The execution price at which the position was closed.
+            closed_at: Timezone-aware UTC timestamp of the close.
+            pnl: Realised P&L in account currency, or ``None`` if unknown.
+            pnl_eur: Realised P&L in EUR, or ``None`` if unknown.
+            commission_add: Additional commission to add to the existing value.
+            quantity: Final quantity of the closed lot (may differ from the
+                original when a partial fill was matched).
+        """
+        stmt = (
+            sa_update(Trade)
+            .where(Trade.id == trade_id)
+            .values(
+                exit_price=exit_price,
+                closed_at=closed_at,
+                pnl=pnl,
+                pnl_eur=pnl_eur,
+                commission=Trade.commission + commission_add,
+                quantity=quantity,
+            )
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def list_manually_edited_keys(
+        self,
+        user_id: uuid.UUID,
+    ) -> set[tuple[str | None, datetime]]:
+        """Return a set of ``(broker_conid, opened_at)`` tuples for all manually
+        edited trades owned by *user_id*.
+
+        This set is used by :class:`~app.services.import_service.ImportService`
+        to skip re-importing trades that the user has manually corrected.
+
+        Args:
+            user_id: UUID of the owning user.
+
+        Returns:
+            A :class:`set` of ``(broker_conid, opened_at)`` tuples where
+            ``broker_conid`` may be ``None`` for trades without a broker
+            contract identifier.
+        """
+        stmt = select(Trade.broker_conid, Trade.opened_at).where(
+            Trade.user_id == user_id,
+            Trade.is_manually_edited.is_(True),
+        )
+        result = await self._session.execute(stmt)
+        return {(row.broker_conid, row.opened_at) for row in result}

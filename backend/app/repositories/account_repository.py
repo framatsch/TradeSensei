@@ -7,15 +7,22 @@ logic lives here.
 
 import uuid
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
 from app.models.cash_transaction import CashTransaction, CashTransactionType
-from app.schemas.account import AccountCreate, AccountMetrics, AccountUpdate
+from app.schemas.account import (
+    AccountCreate,
+    AccountMetrics,
+    AccountSettings,
+    AccountUpdate,
+)
 
 
 class AccountRepository:
@@ -141,6 +148,31 @@ class AccountRepository:
         await self._session.refresh(account)
         return account
 
+    async def update_settings(
+        self,
+        account_id: uuid.UUID,
+        settings: AccountSettings,
+    ) -> None:
+        """Persist import/sync settings for an account as a JSONB blob.
+
+        Merges the provided settings with any existing settings stored on
+        the row (right-hand value wins on conflict).  The session is
+        flushed but not committed — the caller is responsible for the
+        transaction boundary.
+
+        Args:
+            account_id: UUID of the account to update.
+            settings: Validated :class:`AccountSettings` to persist.
+        """
+        settings_dict: dict[str, Any] = settings.model_dump()
+        stmt = (
+            sa_update(Account)
+            .where(Account.id == account_id)
+            .values(settings=settings_dict)
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
     async def upsert_property(
         self,
         account_id: uuid.UUID,
@@ -202,7 +234,9 @@ class AccountRepository:
         stmt = (
             select(
                 CashTransaction.type,
-                func.sum(func.coalesce(CashTransaction.amount_eur, 0)).label("total"),
+                func.sum(
+                    func.coalesce(CashTransaction.amount_eur, CashTransaction.amount)
+                ).label("total"),
             )
             .join(Account)
             .where(

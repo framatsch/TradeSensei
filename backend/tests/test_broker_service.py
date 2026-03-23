@@ -187,6 +187,7 @@ class TestSyncAccountRouting:
             user_id=account.user_id,
             account_id=account.id,
             from_date=expected_from_date,
+            overwrite_manually_edited=False,
         )
         assert result.imported_count == 2
 

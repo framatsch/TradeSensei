@@ -11,23 +11,27 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
+import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
 
-type Tab = "general" | "integrations";
+type Tab = "general" | "integrations" | "corporate-actions";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "integrations", label: "Accounts & Integrations" },
+  { id: "corporate-actions", label: "Corporate Actions" },
 ];
 
 export function SettingsPageClient() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>("general");
 
-  // Allow linking to a specific tab via ?tab=integrations
+  // Allow linking to a specific tab via ?tab=integrations or ?tab=corporate-actions
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam === "integrations") {
       setActiveTab("integrations");
+    } else if (tabParam === "corporate-actions") {
+      setActiveTab("corporate-actions");
     }
   }, [searchParams]);
 
@@ -63,6 +67,7 @@ export function SettingsPageClient() {
       <div className="pt-2">
         {activeTab === "general" && <GeneralSettings />}
         {activeTab === "integrations" && <AccountSettings />}
+        {activeTab === "corporate-actions" && <CorporateActionsSettings />}
       </div>
     </div>
   );

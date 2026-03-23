@@ -14,10 +14,35 @@ from app.schemas.account import (
     AccountCreate,
     AccountMetrics,
     AccountRead,
+    AccountSettings,
     AccountUpdate,
 )
 from app.schemas.common import CursorPage
 from app.utils.encryption import encrypt_token
+
+
+def _build_account_read(account: object, has_props: bool) -> AccountRead:
+    """Build an :class:`AccountRead` DTO from an ORM instance.
+
+    Converts the raw JSONB ``settings`` dict to an :class:`AccountSettings`
+    object and sets the computed ``has_api_keys`` flag.
+
+    Args:
+        account: The ORM :class:`~app.models.account.Account` instance.
+        has_props: Whether the account has stored broker credentials.
+
+    Returns:
+        A fully populated :class:`AccountRead` DTO.
+    """
+    item = AccountRead.model_validate(account)
+    # Deserialise the JSONB settings blob — fall back to defaults if absent.
+    raw_settings = getattr(account, "settings", None)
+    if raw_settings:
+        item.settings = AccountSettings.model_validate(raw_settings)
+    else:
+        item.settings = AccountSettings()
+    item.has_api_keys = has_props
+    return item
 
 
 class AccountService:
@@ -58,11 +83,9 @@ class AccountService:
         # TODO: Implement true cursor-based pagination — currently all accounts
         # are returned in a single page without any cursor filtering.
         accounts = await self._repo.list_by_user(user_id)
-        items: list[AccountRead] = []
-        for a in accounts:
-            item = AccountRead.model_validate(a)
-            item.has_api_keys = len(a.properties) > 0
-            items.append(item)
+        items: list[AccountRead] = [
+            _build_account_read(a, len(a.properties) > 0) for a in accounts
+        ]
         return CursorPage[AccountRead](
             items=items,
             next_cursor=None,
@@ -93,9 +116,7 @@ class AccountService:
         account = await self._repo.get_by_id(account_id, user_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
-        item = AccountRead.model_validate(account)
-        item.has_api_keys = len(account.properties) > 0
-        return item
+        return _build_account_read(account, len(account.properties) > 0)
 
     async def create_account(
         self,
@@ -120,14 +141,15 @@ class AccountService:
         if data.properties:
             for key, value in data.properties.items():
                 await self._repo.upsert_property(account.id, key, encrypt_token(value))
+        # Persist settings if provided
+        if data.settings is not None:
+            await self._repo.update_settings(account.id, data.settings)
         await self._session.commit()
         # Re-fetch with selectinload so that account.properties is eagerly
         # loaded in the async context — bare refresh() does not load relations.
         refreshed = await self._repo.get_by_id(account.id, user_id)
         assert refreshed is not None
-        item = AccountRead.model_validate(refreshed)
-        item.has_api_keys = len(refreshed.properties) > 0
-        return item
+        return _build_account_read(refreshed, len(refreshed.properties) > 0)
 
     async def update_account(
         self,
@@ -162,14 +184,15 @@ class AccountService:
         if data.properties:
             for key, value in data.properties.items():
                 await self._repo.upsert_property(updated.id, key, encrypt_token(value))
+        # Persist settings if provided (merge with existing via repo)
+        if data.settings is not None:
+            await self._repo.update_settings(updated.id, data.settings)
         await self._session.commit()
         # Re-fetch with selectinload so that updated.properties is eagerly
         # loaded in the async context — bare refresh() does not load relations.
         refreshed = await self._repo.get_by_id(updated.id, user_id)
         assert refreshed is not None
-        item = AccountRead.model_validate(refreshed)
-        item.has_api_keys = len(refreshed.properties) > 0
-        return item
+        return _build_account_read(refreshed, len(refreshed.properties) > 0)
 
     async def delete_account(
         self,

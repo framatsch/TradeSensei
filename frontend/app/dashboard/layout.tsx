@@ -10,6 +10,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/useAuth";
+import { Logo } from "@/components/ui/Logo";
 
 const NAV_ITEMS = [
   {
@@ -157,18 +158,7 @@ export default function DashboardLayout({ children }: Props) {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 flex-shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="w-4 h-4 text-white"
-            >
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-              <polyline points="16 7 22 7 22 13" />
-            </svg>
-          </div>
+          <Logo size={32} />
           <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
             Trade Journal
           </span>

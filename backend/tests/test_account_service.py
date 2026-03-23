@@ -186,6 +186,7 @@ class TestCreateAccount:
         )
         service._repo.create = AsyncMock(return_value=created)  # type: ignore[method-assign]
         service._repo.upsert_property = AsyncMock()  # type: ignore[method-assign]
+        service._repo.get_by_id = AsyncMock(return_value=created)  # type: ignore[method-assign]
 
         result = await service.create_account(payload, user_id)
 
@@ -207,6 +208,7 @@ class TestCreateAccount:
         payload = AccountCreate(name="USD Account")
         created = _make_account(user_id=user_id, name="USD Account", currency="USD")
         service._repo.create = AsyncMock(return_value=created)  # type: ignore[method-assign]
+        service._repo.get_by_id = AsyncMock(return_value=created)  # type: ignore[method-assign]
 
         result = await service.create_account(payload, user_id)
 
@@ -235,7 +237,9 @@ class TestUpdateAccount:
             user_id=user_id,
             name="New Name",
         )
-        service._repo.get_by_id = AsyncMock(return_value=original)  # type: ignore[method-assign]
+        service._repo.get_by_id = AsyncMock(  # type: ignore[method-assign]
+            side_effect=[original, updated]
+        )
         service._repo.update = AsyncMock(return_value=updated)  # type: ignore[method-assign]
 
         result = await service.update_account(

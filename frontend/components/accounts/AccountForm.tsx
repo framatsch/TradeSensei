@@ -1,5 +1,5 @@
 /**
- * AccountForm — create or edit a broker account with typed credentials.
+ * AccountForm — create or edit a broker account with typed credentials and sync settings.
  */
 
 "use client";
@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { Spinner } from "@/components/ui/Spinner";
-import type { Account, AccountType } from "@/lib/types";
+import type { Account, AccountType, FlexFromDatePreset } from "@/lib/types";
 import type { AxiosError } from "axios";
 
 interface Props {
@@ -46,6 +46,12 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
   const [currency, setCurrency] = useState(account?.currency ?? "USD");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
 
+  // Sync settings
+  const [syncDays, setSyncDays] = useState<number>(account?.settings?.sync_days ?? 30);
+  const [flexPreset, setFlexPreset] = useState<FlexFromDatePreset>(
+    account?.settings?.flex_from_date_preset ?? "ytd"
+  );
+
   const createMutation = useCreateAccount();
   const updateMutation = useUpdateAccount(account?.id ?? "");
 
@@ -64,7 +70,6 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Build properties dict — only non-empty values
     const filledCredentials = Object.fromEntries(
       Object.entries(credentials).filter(([, v]) => v.trim() !== "")
     );
@@ -76,6 +81,11 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
       type,
       currency: currency.trim() || "USD",
       properties,
+      settings: {
+        sync_days: syncDays,
+        flex_from_date_preset: flexPreset,
+        flex_custom_from_date: null,
+      },
     };
 
     if (isEditing) {
@@ -203,6 +213,61 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
         </div>
       )}
 
+      {/* Sync Settings — only for API-connected accounts */}
+      {type !== "manual" && (
+        <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Default Sync Settings
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              These defaults are pre-filled on the Import page for this account.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Sync days — used for Schwab and as IBKR fallback */}
+            <div>
+              <label htmlFor="sync-days" className={LABEL_CLASS}>
+                Default look-back
+              </label>
+              <select
+                id="sync-days"
+                value={syncDays}
+                onChange={(e) => setSyncDays(Number(e.target.value))}
+                className={INPUT_CLASS}
+              >
+                <option value={7}>Last 7 days</option>
+                <option value={30}>Last 30 days</option>
+                <option value={90}>Last 90 days</option>
+                <option value={180}>Last 180 days</option>
+                <option value={365}>Last 1 year</option>
+              </select>
+            </div>
+
+            {/* Flex date preset — only relevant for IBKR */}
+            {type === "ibkr" && (
+              <div>
+                <label htmlFor="flex-preset" className={LABEL_CLASS}>
+                  Flex date range preset
+                </label>
+                <select
+                  id="flex-preset"
+                  value={flexPreset}
+                  onChange={(e) => setFlexPreset(e.target.value as FlexFromDatePreset)}
+                  className={INPUT_CLASS}
+                >
+                  <option value="ytd">Year to date (Jan 1 – Today)</option>
+                  <option value="custom">Custom start date</option>
+                </select>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                  IBKR Flex maximum: 1 year. Custom start date can be set per-import.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {errorMessage && (
         <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
           {errorMessage}
@@ -229,3 +294,4 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
     </form>
   );
 }
+

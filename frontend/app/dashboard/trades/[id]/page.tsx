@@ -85,17 +85,20 @@ export default function TradeDetailPage() {
 
   function handleSave(payload: TradeUpdate) {
     setSaveError(null);
-    updateTrade(payload, {
-      onSuccess: () => {
-        setIsEditing(false);
-      },
-      onError: (err) => {
-        const axiosErr = err as AxiosError<{ detail?: string }>;
-        setSaveError(
-          axiosErr.response?.data?.detail ?? "Failed to save trade."
-        );
-      },
-    });
+    updateTrade(
+      { ...payload, is_manually_edited: true },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+        },
+        onError: (err) => {
+          const axiosErr = err as AxiosError<{ detail?: string }>;
+          setSaveError(
+            axiosErr.response?.data?.detail ?? "Failed to save trade."
+          );
+        },
+      }
+    );
   }
 
   // ── Performance calculations (all from trade data, no mocks) ──
@@ -204,27 +207,34 @@ export default function TradeDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
-              <div className="flex flex-col items-end">
-                <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Final P&L</span>
-                <PnlDisplay value={trade.pnl} size="large" />
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide ${
-                  isOpen 
-                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                    : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600"
-                }`}>
-                  {isOpen ? "Open" : "Closed"}
-                </span>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                >
-                  Edit Trade
-                </button>
-              </div>
-            </div>
+              <div className="flex items-center gap-6">
+               <div className="flex flex-col items-end">
+                 <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Final P&L</span>
+                 <PnlDisplay value={trade.pnl} size="large" />
+               </div>
+               <div className="flex flex-col items-end gap-2">
+                 <div className="flex items-center gap-1.5">
+                   {trade.is_manually_edited && (
+                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
+                       Manually Edited
+                     </span>
+                   )}
+                   <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide ${
+                     isOpen 
+                       ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                       : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600"
+                   }`}>
+                     {isOpen ? "Open" : "Closed"}
+                   </span>
+                 </div>
+                 <button
+                   onClick={() => setIsEditing(true)}
+                   className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                 >
+                   Edit Trade
+                 </button>
+               </div>
+             </div>
           </div>
 
           {/* Grid Layout */}

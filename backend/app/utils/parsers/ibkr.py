@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.schemas.cash_transaction import CashTransactionCreateRequest
 
 """Interactive Brokers (IBKR) Activity Statement CSV parser.
@@ -26,6 +28,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from datetime import date as date_type
 from decimal import Decimal, InvalidOperation
+from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +36,11 @@ from app.core.exceptions import ImportParseError
 from app.models.trade import AssetClass, Direction
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.base import BrokerParser
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from app.utils.parsers.aggregator import CorporateActionLike
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +173,13 @@ class IBKRParser(BrokerParser):
         self._earliest_trade_date: date_type | None = None
         self._unique_trade_dates: set[date_type] = set()
 
-    def parse(self, content: bytes, filename: str) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
+    def parse(
+        self,
+        content: bytes,
+        filename: str,
+        corporate_actions: Sequence[CorporateActionLike] | None = None,  # noqa: ARG002
+        seed_open_lots: Sequence[object] | None = None,  # noqa: ARG002
+    ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse an IBKR Activity Statement CSV into :class:`TradeCreate` objects.
 
         Also extracts the ``EUR.USD`` rate from the ``Forex Balances`` section
@@ -176,6 +190,9 @@ class IBKRParser(BrokerParser):
             content: Raw CSV file bytes.
             filename: Original filename (present for interface compatibility;
                 IBKR exports are always CSV).
+            corporate_actions: Accepted for interface compatibility; not used
+                by this parser as the CSV format does not include execution-level
+                data that requires FIFO aggregation.
 
         Returns:
             A list of :class:`~app.schemas.trade.TradeCreate` instances.

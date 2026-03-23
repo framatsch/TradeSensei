@@ -79,6 +79,10 @@ def _make_trade(
     trade.notes = notes  # type: ignore[assignment]
     trade.created_at = created_at if created_at is not None else now  # type: ignore[assignment]
     trade.updated_at = updated_at if updated_at is not None else now  # type: ignore[assignment]
+    trade.screenshots = []  # type: ignore[assignment]
+    trade.is_manually_edited = False  # type: ignore[assignment]
+    trade.tags = []  # type: ignore[assignment]
+    trade.trade_notes = []  # type: ignore[assignment]
     return trade
 
 

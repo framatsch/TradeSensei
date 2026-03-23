@@ -334,9 +334,11 @@ function TransactionModal({ accountId, editing, onClose }: TransactionModalProps
 export function CashPageClient() {
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
 
+  const PAGE_SIZE = 20;
+
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<CashTransactionType | "">("");
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [offset, setOffset] = useState<number>(0);
   const [allItems, setAllItems] = useState<CashTransaction[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingTx, setEditingTx] = useState<CashTransaction | null>(null);
@@ -350,7 +352,7 @@ export function CashPageClient() {
 
   // Reset pagination + items when account or filter changes
   useEffect(() => {
-    setCursor(null);
+    setOffset(0);
     setAllItems([]);
   }, [selectedAccountId, typeFilter]);
 
@@ -360,15 +362,15 @@ export function CashPageClient() {
     isFetching,
   } = useCashTransactions({
     account_id: selectedAccountId,
-    cursor,
-    limit: 20,
+    offset,
+    limit: PAGE_SIZE,
     type: typeFilter || null,
   });
 
   // Accumulate items for "load more" pagination
   useEffect(() => {
     if (page) {
-      if (cursor === null) {
+      if (offset === 0) {
         // First page or filter/account changed — replace items
         setAllItems(page.items);
       } else {
@@ -397,8 +399,8 @@ export function CashPageClient() {
   }
 
   function handleLoadMore() {
-    if (page?.next_cursor) {
-      setCursor(page.next_cursor);
+    if (page && allItems.length < page.total) {
+      setOffset((prev) => prev + PAGE_SIZE);
     }
   }
 
@@ -548,7 +550,7 @@ export function CashPageClient() {
 
           {/* Data table */}
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
-            {txLoading && cursor === null ? (
+            {txLoading && offset === 0 ? (
               <div className="flex items-center justify-center h-48">
                 <Spinner size="md" />
               </div>
@@ -686,7 +688,7 @@ export function CashPageClient() {
                       : ""}{" "}
                     transactions
                   </span>
-                  {page?.next_cursor && (
+                  {page && allItems.length < page.total && (
                     <button
                       type="button"
                       onClick={handleLoadMore}

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.models.account import Account
+from app.models.cash_transaction import CashTransaction, CashTransactionType
 from app.models.trade import (  # noqa: F401 (AssetClass used in case expr)
     AssetClass,
     Trade,
@@ -177,6 +178,149 @@ class TaxRepository:
                 )
             )
             .order_by(Trade.closed_at)
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_cash_flow_rows(
+        self,
+        session: AsyncSession,
+        year: int,
+        user_id: uuid.UUID,
+    ) -> list[tuple[uuid.UUID | None, Decimal, Decimal, Decimal]]:
+        """Aggregate cash transactions for dividends, withholding tax and interest.
+
+        Returns one row per account containing the EUR totals for the three
+        tax-relevant cash-flow categories for the given year.
+
+        Only cash transactions with a non-NULL ``amount_eur`` are included in
+        the monetary totals.  Rows are grouped by ``account_id``.
+
+        Args:
+            session: Active async SQLAlchemy session.
+            year: Calendar year to filter on (based on ``date``).
+            user_id: UUID of the authenticated user (via account join).
+
+        Returns:
+            A list of 4-tuples ``(account_id, dividends_eur, withholding_tax_eur,
+            interest_eur)`` — one tuple per account that has at least one
+            matching cash transaction in the given year.
+        """
+        # Use amount_eur when available, fall back to amount (raw currency)
+        # This handles the case where Bundesbank FX lookup fails during import.
+        eur_amount = func.coalesce(CashTransaction.amount_eur, CashTransaction.amount)
+
+        dividends_expr = func.coalesce(
+            func.sum(
+                case(
+                    (
+                        CashTransaction.type == CashTransactionType.DIVIDEND,
+                        eur_amount,
+                    ),
+                    else_=None,
+                )
+            ),
+            Decimal("0"),
+        )
+        withholding_expr = func.coalesce(
+            func.sum(
+                case(
+                    (
+                        CashTransaction.type == CashTransactionType.WITHHOLDING_TAX,
+                        eur_amount,
+                    ),
+                    else_=None,
+                )
+            ),
+            Decimal("0"),
+        )
+        interest_expr = func.coalesce(
+            func.sum(
+                case(
+                    (
+                        CashTransaction.type == CashTransactionType.INTEREST,
+                        eur_amount,
+                    ),
+                    else_=None,
+                )
+            ),
+            Decimal("0"),
+        )
+
+        stmt = (
+            select(
+                CashTransaction.account_id.label("account_id"),
+                dividends_expr.label("dividends_eur"),
+                withholding_expr.label("withholding_tax_eur"),
+                interest_expr.label("interest_eur"),
+            )
+            .join(Account, CashTransaction.account_id == Account.id)
+            .where(
+                and_(
+                    Account.user_id == user_id,
+                    extract("year", CashTransaction.date) == year,
+                    CashTransaction.type.in_(
+                        [
+                            CashTransactionType.DIVIDEND,
+                            CashTransactionType.WITHHOLDING_TAX,
+                            CashTransactionType.INTEREST,
+                        ]
+                    ),
+                )
+            )
+            .group_by(CashTransaction.account_id)
+        )
+
+        result = await session.execute(stmt)
+        rows = result.all()
+        return [
+            (
+                row.account_id,
+                Decimal(str(row.dividends_eur)),
+                Decimal(str(row.withholding_tax_eur)),
+                Decimal(str(row.interest_eur)),
+            )
+            for row in rows
+        ]
+
+    async def get_annual_cash_transactions(
+        self,
+        session: AsyncSession,
+        year: int,
+        user_id: uuid.UUID,
+    ) -> list[CashTransaction]:
+        """Fetch individual cash transactions for the CSV export.
+
+        Returns DIVIDEND, WITHHOLDING_TAX and INTEREST cash transactions for
+        the given year and user, ordered by ``date`` ascending.
+
+        Args:
+            session: Active async SQLAlchemy session.
+            year: Calendar year to filter on (based on ``date``).
+            user_id: UUID of the authenticated user.
+
+        Returns:
+            A list of :class:`~app.models.cash_transaction.CashTransaction`
+            ORM instances.
+        """
+        stmt = (
+            select(CashTransaction)
+            .options(joinedload(CashTransaction.account))
+            .join(Account, CashTransaction.account_id == Account.id)
+            .where(
+                and_(
+                    Account.user_id == user_id,
+                    extract("year", CashTransaction.date) == year,
+                    CashTransaction.type.in_(
+                        [
+                            CashTransactionType.DIVIDEND,
+                            CashTransactionType.WITHHOLDING_TAX,
+                            CashTransactionType.INTEREST,
+                        ]
+                    ),
+                )
+            )
+            .order_by(CashTransaction.date)
         )
         result = await session.execute(stmt)
         return list(result.scalars().all())

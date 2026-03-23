@@ -12,6 +12,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account import Account
+    from app.models.corporate_action import CorporateAction
     from app.models.trade import Trade
     from app.models.user_setting import UserSetting
 
@@ -40,6 +41,8 @@ class User(Base):
             owned by this user.
         trades: All :class:`~app.models.trade.Trade` objects owned directly
             by this user (independent of account association).
+        corporate_actions: All :class:`~app.models.corporate_action.CorporateAction`
+            records owned by this user.
     """
 
     __tablename__ = "users"
@@ -109,6 +112,11 @@ class User(Base):
     )
     settings: Mapped[list["UserSetting"]] = relationship(
         "UserSetting",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    corporate_actions: Mapped[list["CorporateAction"]] = relationship(
+        "CorporateAction",
         back_populates="user",
         cascade="all, delete-orphan",
     )

@@ -225,6 +225,23 @@ class TradeCreate(BaseModel):
         description="External broker contract identifier (e.g. IBKR conid).",
         examples=["357194941", None],
     )
+    is_manually_edited: bool = Field(
+        default=False,
+        description=(
+            "When True, this trade was manually corrected and will be "
+            "skipped on subsequent broker re-imports."
+        ),
+        examples=[False, True],
+    )
+    db_trade_id: uuid.UUID | None = Field(
+        default=None,
+        exclude=True,
+        description=(
+            "Internal field — set by the import service when this TradeCreate "
+            "originated from an existing open DB row that should be *updated* "
+            "rather than inserted.  Never persisted to the database."
+        ),
+    )
 
     @field_validator("opened_at", "closed_at", mode="after")
     @classmethod
@@ -888,6 +905,14 @@ class TradeRead(BaseModel):
     trade_notes: list[TradeNoteRead] = Field(
         default_factory=list,
         description="Psychological and review notes attached to this trade.",
+    )
+    is_manually_edited: bool = Field(
+        default=False,
+        description=(
+            "When True, this trade was manually corrected and will be "
+            "skipped on subsequent broker re-imports."
+        ),
+        examples=[False, True],
     )
     created_at: datetime = Field(
         ...,

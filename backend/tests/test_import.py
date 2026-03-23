@@ -524,6 +524,21 @@ class TestImportService:
                 return_value=fake_account,
             ),
             patch(
+                "app.services.import_service.CorporateActionRepository.list_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_manually_edited_keys",
+                new_callable=AsyncMock,
+                return_value=set(),
+            ),
+            patch(
                 "app.services.import_service.get_parser",
                 return_value=mock_parser,
             ),
@@ -581,6 +596,21 @@ class TestImportService:
                 return_value=fake_account,
             ),
             patch(
+                "app.services.import_service.CorporateActionRepository.list_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_manually_edited_keys",
+                new_callable=AsyncMock,
+                return_value=set(),
+            ),
+            patch(
                 "app.services.import_service.get_parser",
                 return_value=mock_parser,
             ),
@@ -619,6 +649,21 @@ class TestImportService:
                 "app.services.import_service.AccountRepository.get_by_id",
                 new_callable=AsyncMock,
                 return_value=fake_account,
+            ),
+            patch(
+                "app.services.import_service.CorporateActionRepository.list_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_manually_edited_keys",
+                new_callable=AsyncMock,
+                return_value=set(),
             ),
             patch(
                 "app.services.import_service.get_parser",
@@ -664,6 +709,21 @@ class TestImportService:
                 "app.services.import_service.AccountRepository.get_by_id",
                 new_callable=AsyncMock,
                 return_value=fake_account,
+            ),
+            patch(
+                "app.services.import_service.CorporateActionRepository.list_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_manually_edited_keys",
+                new_callable=AsyncMock,
+                return_value=set(),
             ),
             patch(
                 "app.services.import_service.get_parser",
@@ -1209,3 +1269,337 @@ class TestIBKRXMLParserCashTransactions:
         assert len(cash_txs) == 0
         assert len(parser.warnings) == 1
         assert "missing amount" in parser.warnings[0]
+
+
+# ─── Corporate action stub ─────────────────────────────────────────────────────
+
+
+from dataclasses import dataclass  # noqa: E402
+from datetime import date  # noqa: E402
+
+
+@dataclass
+class _CaSplitStub:
+    """Minimal stub that satisfies the :class:`CorporateActionLike` protocol.
+
+    Used in unit tests so that we do not need a real DB-backed
+    :class:`~app.models.corporate_action.CorporateAction` instance.
+
+    Attributes:
+        symbol: Ticker symbol the corporate action applies to.
+        date: Calendar date on which the split took effect.
+        ratio: Split ratio (after / before shares).
+        old_conid: Broker contract ID before the split.
+        new_conid: Broker contract ID after the split.
+    """
+
+    symbol: str
+    date: date
+    ratio: Decimal
+    old_conid: str | None
+    new_conid: str | None
+
+
+# ─── TestImportWithSplit ───────────────────────────────────────────────────────
+
+
+class TestImportWithSplit:
+    """Unit tests for split-adjusted FIFO aggregation and ImportService skip logic."""
+
+    # ── aggregate_executions_fifo: 1:20 reverse split scenario ────────────────
+
+    @pytest.mark.unit
+    def test_reverse_split_adjusts_open_lot_and_produces_one_completed_trade(
+        self,
+    ) -> None:
+        """A 1:20 reverse split should adjust the open lot and close correctly.
+
+        Scenario (OTLK):
+        1. Buy 1 000 shares  →  open lot
+        2. 1:20 reverse split (ratio = 0.05) on 2023-05-01
+           → lot becomes 50 shares at 20× the original entry price
+        3. Sell 50 shares (with realised pnl) → 1 completed round-trip trade
+        """
+        from app.utils.parsers.aggregator import aggregate_executions_fifo
+
+        buy_time = datetime(2023, 4, 1, 9, 30, tzinfo=UTC)
+        sell_time = datetime(2023, 6, 1, 9, 30, tzinfo=UTC)
+
+        buy_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.LONG,
+            quantity=Decimal("1000"),
+            entry_price=Decimal("1.00"),
+            opened_at=buy_time,
+            broker_conid="357194941",
+        )
+        sell_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.SHORT,
+            quantity=Decimal("50"),
+            entry_price=Decimal("20.00"),
+            opened_at=sell_time,
+            pnl=Decimal("500.00"),
+            broker_conid="690184975",
+        )
+
+        split = _CaSplitStub(
+            symbol="OTLK",
+            date=date(2023, 5, 1),
+            ratio=Decimal("0.05"),
+            old_conid="357194941",
+            new_conid="690184975",
+        )
+
+        result = aggregate_executions_fifo(
+            [buy_exec, sell_exec],
+            corporate_actions=[split],
+        )
+
+        # Exactly one completed trade (the reversed-split lot closed by the sell)
+        completed = [t for t in result if t.closed_at is not None]
+        assert len(completed) == 1, (
+            f"Expected exactly 1 completed trade, got {len(completed)}: "
+            f"{[str(t) for t in result]}"
+        )
+        trade = completed[0]
+        # After 1:20 split the 1 000-share lot becomes 50 shares
+        assert trade.quantity == Decimal("50")
+        assert trade.symbol == "OTLK"
+
+    @pytest.mark.unit
+    def test_reverse_split_adjusts_entry_price_by_inverse_ratio(self) -> None:
+        """After a 1:20 reverse split the entry price must be divided by the ratio.
+
+        Original entry price: $1.00.
+        Ratio = 0.05  → adjusted entry price = $1.00 / 0.05 = $20.00.
+        """
+        from app.utils.parsers.aggregator import aggregate_executions_fifo
+
+        buy_time = datetime(2023, 4, 1, 9, 30, tzinfo=UTC)
+        sell_time = datetime(2023, 6, 1, 9, 30, tzinfo=UTC)
+
+        buy_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.LONG,
+            quantity=Decimal("1000"),
+            entry_price=Decimal("1.00"),
+            opened_at=buy_time,
+            broker_conid="357194941",
+        )
+        sell_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.SHORT,
+            quantity=Decimal("50"),
+            entry_price=Decimal("20.00"),
+            opened_at=sell_time,
+            pnl=Decimal("0"),
+            broker_conid="690184975",
+        )
+
+        split = _CaSplitStub(
+            symbol="OTLK",
+            date=date(2023, 5, 1),
+            ratio=Decimal("0.05"),
+            old_conid="357194941",
+            new_conid="690184975",
+        )
+
+        result = aggregate_executions_fifo(
+            [buy_exec, sell_exec],
+            corporate_actions=[split],
+        )
+
+        completed = [t for t in result if t.closed_at is not None]
+        assert len(completed) == 1
+        # entry_price of the stored lot: $1.00 / 0.05 = $20.00
+        assert completed[0].entry_price == pytest.approx(Decimal("20.00"))
+
+    @pytest.mark.unit
+    def test_without_corporate_action_split_leaves_residual_open_lot(self) -> None:
+        """Without a corporate action, only 50 of the 1 000-share lot are closed.
+
+        When a 50-share closing execution arrives against a 1 000-share open lot
+        (and no split has been registered), the FIFO aggregator matches what it
+        can (50 shares → 1 completed trade) and leaves the residual 950 shares as
+        an open lot.  The split test above demonstrates that registering the
+        corporate action is what makes the lot sizes align exactly.
+        """
+        from app.utils.parsers.aggregator import aggregate_executions_fifo
+
+        buy_time = datetime(2023, 4, 1, 9, 30, tzinfo=UTC)
+        sell_time = datetime(2023, 6, 1, 9, 30, tzinfo=UTC)
+
+        buy_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.LONG,
+            quantity=Decimal("1000"),
+            entry_price=Decimal("1.00"),
+            opened_at=buy_time,
+        )
+        # pnl is set → treated as a closing leg by the aggregator
+        sell_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.SHORT,
+            quantity=Decimal("50"),
+            entry_price=Decimal("20.00"),
+            opened_at=sell_time,
+            pnl=Decimal("500.00"),
+        )
+
+        result = aggregate_executions_fifo([buy_exec, sell_exec])
+
+        completed = [t for t in result if t.closed_at is not None]
+        open_lots = [t for t in result if t.closed_at is None]
+        # 50 shares closed, 950 shares still open (sizes did not match)
+        assert len(completed) == 1
+        assert len(open_lots) == 1
+        assert open_lots[0].quantity == Decimal("950")
+
+    # ── ImportService: skip_manually_edited ───────────────────────────────────
+
+    @pytest.mark.unit
+    async def test_import_service_skips_manually_edited_trade(
+        self,
+        import_service: ImportService,
+    ) -> None:
+        """import_file must skip trades whose (broker_conid, opened_at) key is in
+        the manually-edited set, and count them in trades_skipped (not created).
+
+        Scenario:
+        - Parser produces two trades.
+        - One trade's key is in the manually-edited set.
+        - Only the other trade should be persisted (trades_created = 1).
+        - The skipped trade should NOT appear in trades_created or trades_skipped
+          (error-skipped); the result's trades_skipped counter reflects the
+          difference between parsed and created + manually-edited.
+        """
+        fake_account = MagicMock()
+        now = datetime.now(tz=UTC)
+
+        # Two trades; the second will be in the manually-edited set.
+        trade_a = _make_trade_create(
+            symbol="AAPL",
+            opened_at=now,
+            broker_conid="111111111",
+        )
+        trade_b = _make_trade_create(
+            symbol="OTLK",
+            opened_at=now,
+            broker_conid="357194941",
+        )
+
+        # The key for trade_b is in the manually-edited set.
+        manually_edited: set[tuple[str | None, datetime]] = {
+            ("357194941", now),
+        }
+
+        mock_parser = MagicMock()
+        mock_parser.parse.return_value = ([trade_a, trade_b], [])
+        mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "app.services.import_service.AccountRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=fake_account,
+            ),
+            patch(
+                "app.services.import_service.CorporateActionRepository.list_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_manually_edited_keys",
+                new_callable=AsyncMock,
+                return_value=manually_edited,
+            ),
+            patch(
+                "app.services.import_service.get_parser",
+                return_value=mock_parser,
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.create",
+                new_callable=AsyncMock,
+                return_value=MagicMock(),
+            ),
+        ):
+            result = await import_service.import_file(
+                content=b"csv content",
+                filename="activity.csv",
+                broker=BrokerType.IBKR,
+                account_id=uuid.uuid4(),
+                user_id=uuid.uuid4(),
+            )
+
+        # trade_a is persisted; trade_b is silently skipped (manually edited)
+        assert result.trades_parsed == 2
+        assert result.trades_created == 1
+        # trades_skipped = parsed - created - manually_edited_skipped = 2 - 1 - 1 = 0
+        assert result.trades_skipped == 0
+
+    @pytest.mark.unit
+    async def test_import_service_creates_all_when_no_manually_edited(
+        self,
+        import_service: ImportService,
+    ) -> None:
+        """All parsed trades should be created when the manually-edited set is empty."""
+        fake_account = MagicMock()
+        parsed_trades = [
+            _make_trade_create(symbol="AAPL", broker_conid="111111111"),
+            _make_trade_create(symbol="MSFT", broker_conid="222222222"),
+        ]
+
+        mock_parser = MagicMock()
+        mock_parser.parse.return_value = (parsed_trades, [])
+        mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "app.services.import_service.AccountRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=fake_account,
+            ),
+            patch(
+                "app.services.import_service.CorporateActionRepository.list_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_manually_edited_keys",
+                new_callable=AsyncMock,
+                return_value=set(),
+            ),
+            patch(
+                "app.services.import_service.get_parser",
+                return_value=mock_parser,
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.create",
+                new_callable=AsyncMock,
+                return_value=MagicMock(),
+            ),
+        ):
+            result = await import_service.import_file(
+                content=b"csv content",
+                filename="activity.csv",
+                broker=BrokerType.IBKR,
+                account_id=uuid.uuid4(),
+                user_id=uuid.uuid4(),
+            )
+
+        assert result.trades_parsed == 2
+        assert result.trades_created == 2
+        assert result.trades_skipped == 0

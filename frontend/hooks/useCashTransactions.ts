@@ -12,14 +12,15 @@ import type {
   CashTransactionCreate,
   CashTransactionType,
   CashTransactionUpdate,
-  CursorPage,
+  OffsetPage,
+  ResponseEnvelope,
 } from "@/lib/types";
 
 // ─── Options type ─────────────────────────────────────────────────────────────
 
 export interface UseCashTransactionsOptions {
   account_id: string;
-  cursor?: string | null;
+  offset?: number;
   limit?: number;
   type?: CashTransactionType | null;
   symbol?: string | null;
@@ -31,29 +32,28 @@ export interface UseCashTransactionsOptions {
 
 export function useCashTransactions({
   account_id,
-  cursor,
-  limit = 20,
+  offset = 0,
+  limit = 50,
   type,
   symbol,
   from_date,
   to_date,
 }: UseCashTransactionsOptions) {
-  return useQuery<CursorPage<CashTransaction>, Error>({
-    queryKey: ["cash-transactions", account_id, cursor, limit, type, symbol, from_date, to_date],
+  return useQuery<OffsetPage<CashTransaction>, Error>({
+    queryKey: ["cash-transactions", account_id, offset, limit, type, symbol, from_date, to_date],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("limit", String(limit));
-      if (cursor) params.set("cursor", cursor);
+      params.set("offset", String(offset));
       if (type) params.set("type", type);
       if (symbol) params.set("symbol", symbol);
       if (from_date) params.set("from_date", from_date);
       if (to_date) params.set("to_date", to_date);
 
-      // Direct response — no ResponseEnvelope wrapper
-      const res = await apiClient.get<CursorPage<CashTransaction>>(
+      const res = await apiClient.get<ResponseEnvelope<OffsetPage<CashTransaction>>>(
         `/api/v1/accounts/${account_id}/cash-transactions?${params.toString()}`
       );
-      return res.data;
+      return res.data.data;
     },
     enabled: Boolean(account_id),
     staleTime: 30 * 1000,
@@ -66,11 +66,10 @@ export function useAccountMetrics(account_id: string) {
   return useQuery<AccountMetrics, Error>({
     queryKey: ["account-metrics", account_id],
     queryFn: async () => {
-      // Direct response — no ResponseEnvelope wrapper
-      const res = await apiClient.get<AccountMetrics>(
+      const res = await apiClient.get<ResponseEnvelope<AccountMetrics>>(
         `/api/v1/accounts/${account_id}/metrics`
       );
-      return res.data;
+      return res.data.data;
     },
     enabled: Boolean(account_id),
     staleTime: 30 * 1000,
@@ -96,11 +95,11 @@ export function useCreateCashTransaction() {
   const qc = useQueryClient();
   return useMutation<CashTransaction, Error, { account_id: string; data: CashTransactionCreate }>({
     mutationFn: async ({ account_id, data }) => {
-      const res = await apiClient.post<CashTransaction>(
+      const res = await apiClient.post<ResponseEnvelope<CashTransaction>>(
         `/api/v1/accounts/${account_id}/cash-transactions`,
         data
       );
-      return res.data;
+      return res.data.data;
     },
     onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: ["cash-transactions", variables.account_id] });
@@ -115,11 +114,11 @@ export function useUpdateCashTransaction() {
   const qc = useQueryClient();
   return useMutation<CashTransaction, Error, UpdateCashTransactionPayload>({
     mutationFn: async ({ id, account_id, data }) => {
-      const res = await apiClient.patch<CashTransaction>(
+      const res = await apiClient.patch<ResponseEnvelope<CashTransaction>>(
         `/api/v1/accounts/${account_id}/cash-transactions/${id}`,
         data
       );
-      return res.data;
+      return res.data.data;
     },
     onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: ["cash-transactions", variables.account_id] });

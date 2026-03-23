@@ -83,6 +83,7 @@ class FlexImportService:
         user_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_date: str | None = None,
+        overwrite_manually_edited: bool = False,
     ) -> ImportResult:
         """Fetch a Flex Query report and import all contained trades.
 
@@ -93,6 +94,8 @@ class FlexImportService:
                 the account must belong to ``user_id``.
             from_date: Optional start date in ``YYYYMMDD`` format passed to
                 the Flex API to restrict the report period.
+            overwrite_manually_edited: When ``True``, trades that have been
+                manually edited are overwritten instead of skipped.
 
         Returns:
             An :class:`~app.schemas.imports.ImportResult` summarising the
@@ -119,6 +122,14 @@ class FlexImportService:
         )
         parser_warnings: list[str] = list(self._parser.warnings)
 
+        # Load manually-edited keys once for the whole batch (skip when
+        # overwrite_manually_edited is requested).
+        manually_edited_keys = (
+            await self._trade_repo.list_manually_edited_keys(user_id)
+            if not overwrite_manually_edited
+            else set()
+        )
+
         trades_created = 0
         trades_skipped = 0
         cash_txs_created = 0
@@ -129,6 +140,18 @@ class FlexImportService:
             trade_with_owner = trade_data.model_copy(
                 update={"account_id": account_id, "user_id": user_id}
             )
+
+            # Skip trades the user has manually corrected (unless overwriting).
+            match_key = (trade_with_owner.broker_conid, trade_with_owner.opened_at)
+            if match_key in manually_edited_keys:
+                trades_skipped += 1
+                logger.debug(
+                    "Skipping re-import of manually-edited trade: "
+                    "symbol=%s opened_at=%s",
+                    trade_with_owner.symbol,
+                    trade_with_owner.opened_at,
+                )
+                continue
 
             # Duplicate check: same user + symbol + opened_at already exists.
             if await self._is_duplicate(trade_with_owner):
@@ -154,10 +177,31 @@ class FlexImportService:
 
         if account_id is not None:
             # Import here to avoid circular dependencies if needed, or at the top
+            from app.repositories.cash_transaction_repository import (
+                CashTransactionRepository,
+            )
             from app.services.cash_transaction_service import CashTransactionService
 
             for cash_tx_data in parsed_cash_txs:
-                # TODO: add duplicate check for cash transactions if required
+                # Duplicate check: same account + date + type + amount + symbol
+                is_dup = await CashTransactionRepository.find_duplicate(
+                    self._session,
+                    account_id=account_id,
+                    date=cash_tx_data.date,
+                    tx_type=cash_tx_data.type,
+                    amount=cash_tx_data.amount,
+                    symbol=cash_tx_data.symbol,
+                )
+                if is_dup:
+                    logger.debug(
+                        "Skipping duplicate cash transaction: %s %s @ %s",
+                        cash_tx_data.type,
+                        cash_tx_data.symbol,
+                        cash_tx_data.date,
+                    )
+                    cash_txs_skipped += 1
+                    continue
+
                 try:
                     await CashTransactionService.create(
                         self._session, user_id, account_id, cash_tx_data

@@ -77,6 +77,7 @@ class CashTransaction(Base):
     )
     date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        primary_key=True,
         nullable=False,
     )
     type: Mapped[CashTransactionType] = mapped_column(

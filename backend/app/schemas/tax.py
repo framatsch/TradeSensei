@@ -9,6 +9,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
+_ZERO = Decimal("0")
+
 
 class TaxCategoryBlock(BaseModel):
     """P&L summary for one §20 EStG tax category (equities or derivatives).
@@ -88,6 +90,24 @@ class AccountTaxSummary(BaseModel):
         ),
         examples=[0, 3],
     )
+    dividends_eur: Decimal = Field(
+        default=_ZERO,
+        description="Total dividends received in EUR for this account/year (§20 Abs. 1 Nr. 1 EStG).",
+        examples=["120.50"],
+    )
+    withholding_tax_eur: Decimal = Field(
+        default=_ZERO,
+        description=(
+            "Total withholding tax (Quellensteuer) paid in EUR for this account/year. "
+            "Always <= 0."
+        ),
+        examples=["-18.08"],
+    )
+    interest_eur: Decimal = Field(
+        default=_ZERO,
+        description="Total interest income in EUR for this account/year (§20 Abs. 1 Nr. 7 EStG).",
+        examples=["3.20"],
+    )
 
 
 class TaxAnnualSummary(BaseModel):
@@ -106,6 +126,9 @@ class TaxAnnualSummary(BaseModel):
         total_net_eur: Combined net P&L across both categories.
         trades_missing_eur: Number of closed trades in this year where
             ``pnl_eur`` is NULL (could not be converted to EUR).
+        dividends_eur: Total dividends in EUR across all accounts.
+        withholding_tax_eur: Total withholding tax in EUR across all accounts.
+        interest_eur: Total interest income in EUR across all accounts.
     """
 
     year: int = Field(
@@ -138,6 +161,24 @@ class TaxAnnualSummary(BaseModel):
             "determined (exchange rate was unavailable at import time)."
         ),
         examples=[0, 3],
+    )
+    dividends_eur: Decimal = Field(
+        default=_ZERO,
+        description="Total dividends received in EUR across all accounts for this year.",
+        examples=["120.50"],
+    )
+    withholding_tax_eur: Decimal = Field(
+        default=_ZERO,
+        description=(
+            "Total withholding tax (Quellensteuer) paid in EUR across all accounts "
+            "for this year. Always <= 0."
+        ),
+        examples=["-18.08"],
+    )
+    interest_eur: Decimal = Field(
+        default=_ZERO,
+        description="Total interest income in EUR across all accounts for this year.",
+        examples=["3.20"],
     )
     accounts: list[AccountTaxSummary] = Field(
         default_factory=list,

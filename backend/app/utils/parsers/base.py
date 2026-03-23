@@ -1,11 +1,15 @@
 """Abstract base class for broker file parsers."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.trade import TradeCreate
+from app.utils.parsers.aggregator import CorporateActionLike, SeedLotLike
 
 
 class BrokerParser(ABC):
@@ -24,13 +28,28 @@ class BrokerParser(ABC):
 
     @abstractmethod
     def parse(
-        self, content: bytes, filename: str
+        self,
+        content: bytes,
+        filename: str,
+        corporate_actions: Sequence[CorporateActionLike] | None = None,
+        seed_open_lots: Sequence[SeedLotLike] | None = None,
     ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse broker export file content into TradeCreate and CashTransactionCreateRequest schemas.
 
         Args:
             content: Raw file bytes.
             filename: Original filename (used to detect CSV vs XLSX).
+            corporate_actions: Optional sequence of corporate actions to pass to
+                the aggregator so that split adjustments are applied during
+                execution matching.  When ``None`` the behaviour is unchanged
+                from before.
+            seed_open_lots: Optional sequence of existing open DB trades to
+                pre-populate the FIFO aggregator queue.  When provided,
+                incoming closing executions are matched against these seed lots
+                first, allowing cross-period imports to correctly close
+                positions opened in a prior import.  Closed results originating
+                from a seed lot carry ``db_trade_id`` so the caller can issue an
+                UPDATE rather than an INSERT.
 
         Returns:
             A tuple containing:

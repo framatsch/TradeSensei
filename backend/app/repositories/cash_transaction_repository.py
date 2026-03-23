@@ -6,6 +6,8 @@ return SQLAlchemy ORM instances.
 
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import delete, func, select
@@ -13,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import Select
 
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
-from app.models.cash_transaction import CashTransaction
+from app.models.cash_transaction import CashTransaction, CashTransactionType
 from app.schemas.cash_transaction import (
     CashTransactionCreate,
     CashTransactionFilterParams,
@@ -175,6 +177,41 @@ class CashTransactionRepository:
         session.add(transaction)
         await session.flush()
         return transaction
+
+    @staticmethod
+    async def find_duplicate(
+        session: AsyncSession,
+        account_id: uuid.UUID,
+        date: datetime,
+        tx_type: CashTransactionType,
+        amount: Decimal,
+        symbol: str | None,
+    ) -> bool:
+        """Check whether an identical cash transaction already exists for this account.
+
+        Two cash transactions are considered duplicates when they share the same
+        ``account_id``, ``date``, ``type``, ``amount`` and ``symbol``.
+
+        Args:
+            session: The database session.
+            account_id: The account UUID to scope the check.
+            date: Timestamp of the transaction.
+            tx_type: The transaction type.
+            amount: The transaction amount.
+            symbol: The optional symbol (e.g. ``"AAPL"``).
+
+        Returns:
+            ``True`` if a matching row already exists in the database.
+        """
+        stmt = select(CashTransaction.id).where(
+            CashTransaction.account_id == account_id,
+            CashTransaction.date == date,
+            CashTransaction.type == tx_type,
+            CashTransaction.amount == amount,
+            CashTransaction.symbol == symbol,
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none() is not None
 
     @staticmethod
     async def delete(session: AsyncSession, transaction_id: uuid.UUID) -> None:

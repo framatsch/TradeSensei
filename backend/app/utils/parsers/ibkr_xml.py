@@ -16,6 +16,7 @@ skipped with a warning rather than aborting the whole import.
 
 import logging
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -24,7 +25,11 @@ from app.models.cash_transaction import CashTransactionType
 from app.models.trade import AssetClass, Direction
 from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.trade import TradeCreate
-from app.utils.parsers.aggregator import aggregate_executions_fifo
+from app.utils.parsers.aggregator import (
+    CorporateActionLike,
+    SeedLotLike,
+    aggregate_executions_fifo,
+)
 from app.utils.parsers.base import BrokerParser
 
 logger = logging.getLogger(__name__)
@@ -167,13 +172,23 @@ class IBKRXMLParser(BrokerParser):
         self.warnings: list[str] = []
 
     def parse(
-        self, content: bytes, filename: str
+        self,
+        content: bytes,
+        filename: str,
+        corporate_actions: Sequence[CorporateActionLike] | None = None,
+        seed_open_lots: Sequence[SeedLotLike] | None = None,
     ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse an IBKR Flex Query XML response.
 
         Args:
             content: Raw XML bytes from the Flex API or a file upload.
             filename: Original filename (present for interface compatibility).
+            corporate_actions: Optional list of corporate actions to pass to
+                the aggregator so that split adjustments are applied during
+                execution matching.
+            seed_open_lots: Optional sequence of existing open DB trades to
+                pre-populate the FIFO aggregator queue so that cross-period
+                imports correctly close positions opened in a prior import.
 
         Returns:
             A tuple of parsed trades and cash transactions.
@@ -218,6 +233,12 @@ class IBKRXMLParser(BrokerParser):
             if ct_result is not None:
                 cash_transactions.append(ct_result)
 
+        # Transaction Taxes: <TransactionTax> elements (FTT, stamp duty, etc.)
+        for idx, elem in enumerate(root.findall(".//TransactionTax"), start=1):
+            tt_result = self._parse_transaction_tax_element(elem, idx)
+            if tt_result is not None:
+                cash_transactions.append(tt_result)
+
         # Extract Open Positions for final validation
         open_positions_conids = set()
         for elem in root.findall(".//OpenPosition"):
@@ -225,20 +246,46 @@ class IBKRXMLParser(BrokerParser):
             if conid:
                 open_positions_conids.add(conid)
 
-        # Group executions into round-trip trades
-        # OTLK split: 357194941 -> 690184975
-        conid_map = {"357194941": "690184975"}
-        aggregated_trades = aggregate_executions_fifo(trades, conid_map=conid_map)
+        # Build a set of conids that are "acceptable as open" — includes both the
+        # conids directly listed in <OpenPositions> AND any new conids that are the
+        # result of a corporate-action remap of an old conid that was listed.  This
+        # prevents false force-closes when a reverse split changes the conid: the
+        # 2023 XML lists the pre-split conid in <OpenPositions>, but after applying
+        # the corporate action the aggregated lot carries the post-split conid.
+        acceptable_open_conids = set(open_positions_conids)
+        if corporate_actions:
+            for ca in corporate_actions:
+                if (
+                    ca.old_conid is not None
+                    and ca.new_conid is not None
+                    and ca.old_conid in open_positions_conids
+                ):
+                    acceptable_open_conids.add(ca.new_conid)
 
-        # Final validation: If a trade is marked as OPEN but its conid is NOT in open_positions_conids,
-        # it means it was closed but the close wasn't matched (e.g. corporate action).
-        # We only do this if OpenPosition block was actually present in the XML.
-        if open_positions_conids or root.find(".//OpenPositions") is not None:
+        # Group executions into round-trip trades.
+        # Corporate actions (if provided) are applied chronologically during
+        # aggregation so that splits / reverse-splits are handled correctly.
+        # The previously hardcoded OTLK conid_map workaround (357194941 →
+        # 690184975) is superseded by the DB-driven corporate-action mechanism.
+        # Seed lots (existing open DB trades) are pre-populated into the queue
+        # so that cross-period closing executions correctly close them.
+        aggregated_trades = aggregate_executions_fifo(
+            trades,
+            corporate_actions=corporate_actions if corporate_actions else None,
+            seed_open_lots=seed_open_lots if seed_open_lots else None,
+        )
+
+        # Final validation: If a trade is marked as OPEN but its conid is NOT in
+        # acceptable_open_conids, it may mean the position was silently closed (e.g.
+        # an exercise, expiry, or an unregistered corporate action that consumed the
+        # lot without generating a matching SELL execution).
+        # We only apply this check when the XML actually contained open position
+        # records (open_positions_conids is non-empty); an empty <OpenPositions/>
+        # block is not sufficient evidence to force-close anything.
+        if open_positions_conids:
             for trade in aggregated_trades:
                 if trade.closed_at is None and trade.broker_conid:
-                    # Normalized conid for lookup
-                    lookup_conid = conid_map.get(trade.broker_conid, trade.broker_conid)
-                    if lookup_conid not in open_positions_conids:
+                    if trade.broker_conid not in acceptable_open_conids:
                         # Force close it
                         trade.closed_at = trade.opened_at + _CLOSED_AT_OFFSET
                         trade.exit_price = trade.entry_price  # Placeholder if unknown
@@ -496,6 +543,77 @@ class IBKRXMLParser(BrokerParser):
             )
         except (ValueError, OverflowError) as exc:
             msg = f"<CashTransaction> element {idx}: skipped — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
+
+    def _parse_transaction_tax_element(
+        self, elem: ET.Element, idx: int
+    ) -> CashTransactionCreateRequest | None:
+        """Parse a single ``<TransactionTax>`` element (FTT, stamp duty, etc.).
+
+        These are financial-transaction taxes charged at the time of a trade
+        (e.g. French FTT, Italian stamp duty).  They are recorded as a
+        ``FEE``-type cash transaction so they appear in the cash ledger and
+        are included in tax exports.
+
+        Args:
+            elem: The ``<TransactionTax>`` XML element.
+            idx: 1-based element index for warning messages.
+
+        Returns:
+            A :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`
+            or ``None`` if the element was skipped.
+        """
+        try:
+            report_date = elem.get("reportDate", "")
+            datetime_str = elem.get("date", "")
+
+            if not report_date and datetime_str:
+                report_date = datetime_str.split(";")[0]
+
+            if not report_date:
+                self.warnings.append(
+                    f"<TransactionTax> element {idx}: skipped — missing reportDate or date."
+                )
+                return None
+
+            date = _parse_ibkr_datetime(report_date, datetime_str)
+
+            tax_amount_str = elem.get("taxAmount")
+            if tax_amount_str is None:
+                self.warnings.append(
+                    f"<TransactionTax> element {idx}: skipped — missing taxAmount."
+                )
+                return None
+
+            try:
+                amount = Decimal(tax_amount_str.strip())
+            except InvalidOperation:
+                self.warnings.append(
+                    f"<TransactionTax> element {idx}: skipped — "
+                    f"invalid taxAmount '{tax_amount_str}'."
+                )
+                return None
+
+            if amount == Decimal("0"):
+                return None  # skip zero-amount entries silently
+
+            currency = (elem.get("currency") or "").upper().strip() or "USD"
+            symbol = elem.get("symbol", "").strip() or None
+            tax_description = (elem.get("taxDescription") or "").strip()
+            description = tax_description or f"Transaction Tax ({symbol or 'unknown'})"
+
+            return CashTransactionCreateRequest(
+                date=date,
+                type=CashTransactionType.FEE,
+                symbol=symbol,
+                amount=amount,
+                currency=currency,
+                description=description,
+            )
+        except (ValueError, OverflowError) as exc:
+            msg = f"<TransactionTax> element {idx}: skipped — {exc}"
             logger.warning(msg)
             self.warnings.append(msg)
             return None
