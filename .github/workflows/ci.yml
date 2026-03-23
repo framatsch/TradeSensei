@@ -86,7 +86,7 @@ jobs:
         run: uv run pytest tests/ -v --cov=app --cov-report=term-missing
         env:
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_tradejournal
-          SECRET_KEY: test-secret-key-ci
+          SECRET_KEY: test-secret-key-ci-minimum-32-characters
           ENVIRONMENT: development
 
   # ── Migration check ─────────────────────────────────────────────────────────
@@ -122,5 +122,5 @@ jobs:
         run: uv run alembic upgrade head
         env:
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_tradejournal
-          SECRET_KEY: test-secret-key-ci
+          SECRET_KEY: test-secret-key-ci-minimum-32-characters
           ENVIRONMENT: development
