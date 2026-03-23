@@ -196,6 +196,7 @@ Skills are invokable workflows stored in `.opencode/skills/<name>/SKILL.md`.
 | Skill | Directory | Description |
 |-------|-----------|-------------|
 | `commit-helper` | `.opencode/skills/commit-helper/` | Conventional commit message generation via `tools/commit_helper.py` |
+| `safe-commit` | `.opencode/skills/safe-commit/` | Orchestrates backend checks (lint, typecheck, tests, migrations) before using commit-helper |
 | `lint-check` | `.opencode/skills/lint-check/` | Run ruff check, ruff format, and mypy --strict via `tools/lint_check.py` |
 | `unit-test` | `.opencode/skills/unit-test/` | Run pytest with coverage via `tools/unit_test.py` |
 | `db-migration` | `.opencode/skills/db-migration/` | Full Alembic migration workflow including TimescaleDB hypertable steps |
