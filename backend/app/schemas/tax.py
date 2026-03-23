@@ -57,7 +57,9 @@ class AccountTaxSummary(BaseModel):
 
     account_id: uuid.UUID | None = Field(
         ...,
-        description="The account ID. Can be null if trades are not linked to an account.",
+        description=(
+            "The account ID. Can be null if trades are not linked to an account."
+        ),
     )
     account_name: str | None = Field(
         ...,
@@ -67,7 +69,8 @@ class AccountTaxSummary(BaseModel):
     equities: TaxCategoryBlock = Field(
         ...,
         description=(
-            "§20 Abs. 2 Nr. 1 EStG — realised gains and losses from equity trades for this account."
+            "§20 Abs. 2 Nr. 1 EStG — realised gains and losses from "
+            "equity trades for this account."
         ),
     )
     derivatives: TaxCategoryBlock = Field(
@@ -92,7 +95,10 @@ class AccountTaxSummary(BaseModel):
     )
     dividends_eur: Decimal = Field(
         default=_ZERO,
-        description="Total dividends received in EUR for this account/year (§20 Abs. 1 Nr. 1 EStG).",
+        description=(
+            "Total dividends received in EUR for this account/year "
+            "(§20 Abs. 1 Nr. 1 EStG)."
+        ),
         examples=["120.50"],
     )
     withholding_tax_eur: Decimal = Field(
@@ -105,7 +111,10 @@ class AccountTaxSummary(BaseModel):
     )
     interest_eur: Decimal = Field(
         default=_ZERO,
-        description="Total interest income in EUR for this account/year (§20 Abs. 1 Nr. 7 EStG).",
+        description=(
+            "Total interest income in EUR for this account/year "
+            "(§20 Abs. 1 Nr. 7 EStG)."
+        ),
         examples=["3.20"],
     )
 
@@ -164,7 +173,9 @@ class TaxAnnualSummary(BaseModel):
     )
     dividends_eur: Decimal = Field(
         default=_ZERO,
-        description="Total dividends received in EUR across all accounts for this year.",
+        description=(
+            "Total dividends received in EUR across all accounts for this year."
+        ),
         examples=["120.50"],
     )
     withholding_tax_eur: Decimal = Field(

@@ -45,14 +45,18 @@ In the **Activity Flex Query** section, click the **plus icon (+)**.
 
 ✅ **Trades** - Trade executions
 ✅ **Positions** (or "Open Positions") - Current holdings
+✅ **Cash Report** - Summary of cash flows, interest, and total balances
 ✅ **Cash Transactions** - Deposits, withdrawals, dividends
+✅ **Corporate Actions** - Stock splits, mergers, and spin-offs
+✅ **Open Positions** - Current holdings, cost basis, and unrealized P&L
+✅ **Trades** - Detailed buy/sell executions and realized P&L
 ✅ **Transaction Fees** - Commission and fees
 ✅ **Cash Report** - Cash balance summary
 
 #### Data Sections Explained
 
 | Section | Purpose | For EOD Dashboard |
-|---------|---------|------------------|
+| ------- | ------- | ----------------- |
 | **Trades** | Individual trade executions during the period | ✅ Required |
 | **Positions** | Current open positions (holdings) | ✅ Required - shows active portfolio |
 | **Cash Transactions** | Deposits, withdrawals, dividends, transfers | ✅ Optional - for cash tracking |
@@ -72,7 +76,7 @@ In the **Activity Flex Query** section, click the **plus icon (+)**.
 Apply these default settings:
 
 | Setting | Value |
-|---------|-------|
+| ------- | ----- |
 | Date Format | `yyyyMMdd` |
 | Time Format | `HHmmss` |
 | Date/Time Separator | `;` (semi-colon) |
@@ -102,8 +106,8 @@ Apply these default settings:
 
 **Example:**
 
-```
-Query Name: bracket.io-Daily_EOD
+```text
+Query Name: TradeJournal
 Query ID: 12341ds
 ```
 
@@ -114,7 +118,7 @@ Query ID: 12341ds
 ### Verify in IBKR
 
 1. In **IBKR Client Portal**, navigate to **Reports** → **Flex Queries**
-2. Click on your `Daily_EOD` query
+2. Click on your `TradeJournal` query
 3. You should see trades fetched
 
 ---
@@ -159,20 +163,7 @@ Data is typically available daily after **22:00 UTC** (IBKR processes EOD data).
 
 ---
 
-## ⚠️ Important: Next Step - Deployment Configuration
+## ⚠️ Limitations
 
-Once you have your **Query ID** and **Flex Token**, you need to configure them for deployment.
-
-See: **[doc/ibkr-integration-deployment.md](ibkr-integration-deployment.md)** for:
-
-- Environment variables (.env / K8s Secrets)
-- Testing the query
-- Configuring ingestion CronJobs
-- Troubleshooting
-- Verifying data in TimescaleDB
-
----
-
-**Created:** 2026-01-18
-**Last Updated:** 2026-01-20
-**Status:** ✅ Current - IBKR Setup Only
+- Exporting csv file from broker only allows 365 days at a time. If you are looking to export more than one year you must run one export per year.
+- Interactive Broker creates DUST trades sometimes when trading currencies different from your base currencies. These trades are entered as open trades on TraderSync. You must close them manually creating an opposite order with the same price so they show as breakeven

@@ -156,7 +156,7 @@ def _build_sort_column(
 
 
 def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
-    """Return a base SELECT for Trade with tags, notes, account and playbook eager-loaded.
+    """Return a base SELECT for Trade with eager-loaded relationships.
 
     Returns:
         A :func:`select` statement with ``selectinload`` options applied
@@ -240,6 +240,17 @@ def _apply_filters(
 
     if filters.account_id is not None:
         stmt = stmt.where(Trade.account_id == filters.account_id)
+
+    if filters.hour_of_day is not None:
+        stmt = stmt.where(func.extract("hour", Trade.opened_at) == filters.hour_of_day)
+
+    if filters.day_of_week is not None:
+        # PostgreSQL EXTRACT(DOW) returns 0=Sunday, 1=Monday, …, 6=Saturday.
+        # Our API convention is 0=Monday, …, 6=Sunday (ISO).
+        # Convert: postgres_dow = (api_day_of_week + 1) % 7
+        stmt = stmt.where(
+            func.extract("dow", Trade.opened_at) == (filters.day_of_week + 1) % 7
+        )
 
     return stmt
 

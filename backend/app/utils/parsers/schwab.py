@@ -1,22 +1,5 @@
 from __future__ import annotations
 
-from app.models.cash_transaction import CashTransactionType
-from app.schemas.cash_transaction import CashTransactionCreateRequest
-
-"""Charles Schwab trade history CSV parser.
-
-Schwab's trade history export is a plain CSV with the following header::
-
-    Date,Action,Symbol,Description,Quantity,Price,Fees & Comm,Amount
-
-This parser processes ``Buy`` and ``Sell`` action rows only and maps
-them to :class:`~app.schemas.trade.TradeCreate` objects.
-
-After calling :meth:`parse`, the caller should invoke
-:meth:`enrich_pnl_eur` to populate ``pnl_eur`` using the Bundesbank API
-via :class:`~app.services.fx_rate_service.FxRateService`.
-"""
-
 import csv
 import io
 import logging
@@ -27,10 +10,14 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ImportParseError
+from app.models.cash_transaction import CashTransactionType
 from app.models.trade import AssetClass, Direction
+from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import CorporateActionLike
 from app.utils.parsers.base import BrokerParser
+
+"""Charles Schwab trade history CSV parser."""
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +270,7 @@ class SchwabParser(BrokerParser):
     def _parse_row(
         self, row: dict[str, str]
     ) -> TradeCreate | CashTransactionCreateRequest | None:
-        """Convert a single Schwab CSV row dict into a :class:`TradeCreate` or :class:`CashTransactionCreateRequest`.
+        """Convert a single Schwab CSV row dict into a Pydantic schema.
 
         Sets ``currency="USD"`` on every trade and cash transaction.
 
@@ -292,7 +279,7 @@ class SchwabParser(BrokerParser):
 
         Returns:
             A validated :class:`~app.schemas.trade.TradeCreate`,
-            :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`, or None.
+            cash transaction request, or None.
 
         Raises:
             ValueError: If a required field is empty or invalid.

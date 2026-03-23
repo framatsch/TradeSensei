@@ -53,6 +53,9 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const status: "open" | "closed" | null =
     statusRaw === "open" || statusRaw === "closed" ? statusRaw : null;
 
+  const hourRaw = params.get("hour_of_day");
+  const dowRaw = params.get("day_of_week");
+
   return {
     symbol: params.get("symbol") ?? undefined,
     direction: params.get("direction") ?? undefined,
@@ -64,6 +67,8 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     pnl_positive,
     status,
     account_id: params.get("account_id") ?? undefined,
+    hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
+    day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
   };
 }
 
@@ -92,6 +97,12 @@ function filtersToParams(
   }
   if (filters.status) p.set("status", filters.status);
   if (filters.account_id) p.set("account_id", filters.account_id);
+  if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) {
+    p.set("hour_of_day", String(filters.hour_of_day));
+  }
+  if (filters.day_of_week !== undefined && filters.day_of_week !== null) {
+    p.set("day_of_week", String(filters.day_of_week));
+  }
   if (sort.sort_by) p.set("sort_by", sort.sort_by);
   if (sort.sort_dir) p.set("sort_dir", sort.sort_dir);
   if (limit !== 20) p.set("limit", String(limit));

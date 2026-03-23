@@ -34,7 +34,7 @@ class BrokerParser(ABC):
         corporate_actions: Sequence[CorporateActionLike] | None = None,
         seed_open_lots: Sequence[SeedLotLike] | None = None,
     ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
-        """Parse broker export file content into TradeCreate and CashTransactionCreateRequest schemas.
+        """Parse broker export file content into Pydantic schemas.
 
         Args:
             content: Raw file bytes.
@@ -54,13 +54,14 @@ class BrokerParser(ABC):
         Returns:
             A tuple containing:
                 - List of :class:`~app.schemas.trade.TradeCreate` instances
-                - List of :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest` instances
+                - List of cash transaction creation requests
 
         Raises:
             ImportParseError: If the file cannot be parsed or has an
                 unrecognised format.
         """
 
+    @abstractmethod
     async def enrich_pnl_eur(
         self,
         trades: list[TradeCreate],

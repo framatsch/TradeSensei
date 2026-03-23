@@ -6,20 +6,12 @@
 
 import { useMetrics } from "@/hooks/useMetrics";
 import { useDailyPnl } from "@/hooks/useDailyPnl";
-import { useMonthlyPnl } from "@/hooks/useMonthlyPnl";
-import { usePnlByAssetClass } from "@/hooks/usePnlByAssetClass";
-import { usePnlBySymbol } from "@/hooks/usePnlBySymbol";
 import { useReturnDistribution } from "@/hooks/useReturnDistribution";
 import { MetricsCards } from "@/components/metrics/MetricsCards";
 import { EquityCurveChart } from "@/components/charts/EquityCurveChart";
 import { DrawdownChart } from "@/components/charts/DrawdownChart";
 import { DailyPnlBarChart } from "@/components/charts/DailyPnlBarChart";
-import { MonthlyPnlChart } from "@/components/charts/MonthlyPnlChart";
-import { PnlByAssetClassChart } from "@/components/charts/PnlByAssetClassChart";
-import { PnlBySymbolChart } from "@/components/charts/PnlBySymbolChart";
 import { ReturnDistributionChart } from "@/components/charts/ReturnDistributionChart";
-import { RollingWinrateChart } from "@/components/charts/RollingWinrateChart";
-import { MonthlyWinrateChart } from "@/components/charts/MonthlyWinrateChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -34,9 +26,6 @@ function ChartSkeleton() {
 export default function DashboardPage() {
   const { data: summary, isLoading, isError, error, refetch } = useMetrics();
   const { data: dailyPnl, isLoading: loadingDaily } = useDailyPnl();
-  const { data: monthlyPnl, isLoading: loadingMonthly } = useMonthlyPnl();
-  const { data: pnlByAssetClass, isLoading: loadingAssetClass } = usePnlByAssetClass();
-  const { data: pnlBySymbol, isLoading: loadingBySymbol } = usePnlBySymbol();
   const { data: returnDist, isLoading: loadingReturnDist } = useReturnDistribution();
 
   if (isLoading) {
@@ -83,55 +72,21 @@ export default function DashboardPage() {
             <DrawdownChart data={summary.drawdown_curve} />
           </div>
 
-          {/* Daily PnL */}
-          <div className="mt-2">
+          {/* Daily PnL and Return Distribution */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {loadingDaily ? (
               <ChartSkeleton />
             ) : (
               <DailyPnlBarChart data={dailyPnl ?? []} />
             )}
-          </div>
-
-          {/* Monthly PnL — full width row */}
-          <div>
-            {loadingMonthly ? (
-              <ChartSkeleton />
-            ) : (
-              <MonthlyPnlChart data={monthlyPnl ?? []} />
-            )}
-          </div>
-
-          {/* Three-column row: PnL by Asset Class, Return Distribution, PnL by Symbol */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            {loadingAssetClass ? (
-              <ChartSkeleton />
-            ) : (
-              <PnlByAssetClassChart data={pnlByAssetClass ?? []} />
-            )}
-
+            
             {loadingReturnDist ? (
               <ChartSkeleton />
             ) : (
               <ReturnDistributionChart data={returnDist ?? []} />
             )}
-
-            {loadingBySymbol ? (
-              <ChartSkeleton />
-            ) : (
-              <PnlBySymbolChart
-                data={(pnlBySymbol ?? []).map((d) => ({
-                  symbol: d.symbol,
-                  pnl: parseFloat(d.total_pnl),
-                }))}
-              />
-            )}
           </div>
 
-          {/* Win Rate Development */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <RollingWinrateChart />
-            <MonthlyWinrateChart />
-          </div>
         </>
       ) : (
         <div className="text-center py-20 text-slate-500">

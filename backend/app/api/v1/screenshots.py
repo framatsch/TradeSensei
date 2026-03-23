@@ -70,7 +70,10 @@ async def upload_screenshot(
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type: {file.content_type}. Allowed: jpeg, png, gif, webp.",
+            detail=(
+                f"Unsupported file type: {file.content_type}. "
+                "Allowed: jpeg, png, gif, webp."
+            ),
         )
 
     content = await file.read()

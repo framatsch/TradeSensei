@@ -1,27 +1,5 @@
 from __future__ import annotations
 
-from app.schemas.cash_transaction import CashTransactionCreateRequest
-
-"""Interactive Brokers (IBKR) Activity Statement CSV parser.
-
-IBKR exports a multi-section CSV.  This parser extracts the ``Trades``
-section and maps each data row to a :class:`~app.schemas.trade.TradeCreate`.
-
-Expected header row within the Trades section::
-
-    Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,
-    Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,
-    Realized P&L,MTM P&L,Code
-
-Data rows have the prefix ``Trades,Data,Order,...``.
-
-Additionally, the parser reads the ``Forex Balances`` section to extract
-the ``EUR.USD`` rate, which is used to populate ``pnl_eur`` for all closed
-trades.  If no CSV rate is found, a fallback is performed via
-:class:`~app.services.fx_rate_service.FxRateService` for the earliest
-trade date.
-"""
-
 import csv
 import io
 import logging
@@ -34,8 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ImportParseError
 from app.models.trade import AssetClass, Direction
+from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.base import BrokerParser
+
+"""Interactive Brokers (IBKR) Activity Statement CSV parser."""
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

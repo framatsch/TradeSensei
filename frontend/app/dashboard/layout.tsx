@@ -12,8 +12,27 @@ import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/useAuth";
 import { Logo } from "@/components/ui/Logo";
 
-const NAV_ITEMS = [
+// ─── Nav structure ────────────────────────────────────────────────────────────
+
+interface NavLeaf {
+  kind: "leaf";
+  href: string;
+  label: string;
+  icon?: React.ReactNode;
+}
+
+interface NavGroup {
+  kind: "group";
+  label: string;
+  defaultOpen?: boolean;
+  children: NavLeaf[];
+}
+
+type NavItem = NavLeaf | NavGroup;
+
+const NAV_ITEMS: NavItem[] = [
   {
+    kind: "leaf",
     href: "/dashboard",
     label: "Overview",
     icon: (
@@ -26,6 +45,27 @@ const NAV_ITEMS = [
     ),
   },
   {
+    kind: "group",
+    label: "PERFORMANCE",
+    defaultOpen: true,
+    children: [
+      { kind: "leaf", href: "/dashboard/reports/overview", label: "Overview" },
+      { kind: "leaf", href: "/dashboard/reports/calendar", label: "Calendar" },
+    ],
+  },
+  {
+    kind: "group",
+    label: "TRADE",
+    defaultOpen: true,
+    children: [
+      { kind: "leaf", href: "/dashboard/reports/hourly", label: "Hourly" },
+      { kind: "leaf", href: "/dashboard/reports/weekday", label: "Weekday" },
+      { kind: "leaf", href: "/dashboard/reports/monthly", label: "Month" },
+      { kind: "leaf", href: "/dashboard/reports/yearly", label: "Year" },
+    ],
+  },
+  {
+    kind: "leaf",
     href: "/dashboard/trades",
     label: "Trades",
     icon: (
@@ -36,6 +76,7 @@ const NAV_ITEMS = [
     ),
   },
   {
+    kind: "leaf",
     href: "/dashboard/cash",
     label: "Cash & Dividends",
     icon: (
@@ -46,6 +87,7 @@ const NAV_ITEMS = [
     ),
   },
   {
+    kind: "leaf",
     href: "/dashboard/playbooks",
     label: "Playbooks",
     icon: (
@@ -56,6 +98,7 @@ const NAV_ITEMS = [
     ),
   },
   {
+    kind: "leaf",
     href: "/dashboard/tags",
     label: "Tags",
     icon: (
@@ -66,6 +109,7 @@ const NAV_ITEMS = [
     ),
   },
   {
+    kind: "leaf",
     href: "/dashboard/import",
     label: "Import",
     icon: (
@@ -77,6 +121,7 @@ const NAV_ITEMS = [
     ),
   },
   {
+    kind: "leaf",
     href: "/dashboard/tax",
     label: "Steuerbericht",
     icon: (
@@ -90,6 +135,7 @@ const NAV_ITEMS = [
     ),
   },
   {
+    kind: "leaf",
     href: "/dashboard/settings",
     label: "Settings",
     icon: (
@@ -100,6 +146,91 @@ const NAV_ITEMS = [
     ),
   },
 ];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function NavLeafItem({
+  item,
+  pathname,
+  indent = false,
+  onClick,
+}: {
+  item: NavLeaf;
+  pathname: string;
+  indent?: boolean;
+  onClick: () => void;
+}) {
+  const isActive =
+    item.href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(item.href);
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      className={`flex items-center gap-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+        indent ? "pl-6 pr-3" : "px-3"
+      } ${
+        isActive
+          ? "bg-blue-600/20 text-blue-400 border border-blue-600/30"
+          : "text-slate-400 hover:bg-slate-700/50 hover:text-slate-100"
+      }`}
+    >
+      {item.icon && <span className="shrink-0">{item.icon}</span>}
+      {item.label}
+    </Link>
+  );
+}
+
+function NavGroupItem({
+  item,
+  pathname,
+  onClick,
+}: {
+  item: NavGroup;
+  pathname: string;
+  onClick: () => void;
+}) {
+  const anyChildActive = item.children.some((c) => pathname.startsWith(c.href));
+  const [open, setOpen] = useState(item.defaultOpen ?? anyChildActive);
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-bold tracking-widest text-slate-500 hover:text-slate-300 transition-colors"
+      >
+        <span>{item.label}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="mt-0.5 space-y-0.5">
+          {item.children.map((child) => (
+            <NavLeafItem
+              key={child.href}
+              item={child}
+              pathname={pathname}
+              indent
+              onClick={onClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 interface Props {
   children: React.ReactNode;
@@ -114,87 +245,84 @@ export default function DashboardLayout({ children }: Props) {
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s.hydrated);
 
-  // Hydrate token from localStorage on mount
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  // Auth guard — only redirect after hydration to avoid false positives
   useEffect(() => {
     if (hydrated && !token) {
       router.push("/login");
     }
   }, [hydrated, token, router]);
 
-  const isActive = (href: string) =>
-    href === "/dashboard"
-      ? pathname === "/dashboard"
-      : pathname.startsWith(href);
+  const closeSidebar = () => setSidebarOpen(false);
 
-  // Show nothing while we're checking auth to avoid flashing the dashboard
   if (!hydrated) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="flex items-center justify-center h-screen bg-slate-900">
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div className="flex h-screen bg-slate-900 overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/60 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col w-56 bg-slate-800 border-r border-slate-700 transform transition-transform duration-200 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-200 dark:border-slate-700">
-          <Logo size={32} />
-          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
-            Trade Journal
-          </span>
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-700">
+          <Logo size={28} />
+          <span className="font-semibold text-slate-100 text-sm truncate">Trade Journal</span>
         </div>
 
-        {/* Nav items */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive(item.href)
-                  ? "bg-blue-100 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-600/30"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-900 dark:text-slate-100"
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
+        {/* Nav */}
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+          {NAV_ITEMS.map((item, i) => {
+            if (item.kind === "group") {
+              return (
+                <NavGroupItem
+                  key={i}
+                  item={item}
+                  pathname={pathname}
+                  onClick={closeSidebar}
+                />
+              );
+            }
+            return (
+              <NavLeafItem
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                onClick={closeSidebar}
+              />
+            );
+          })}
         </nav>
 
-        {/* Bottom actions */}
-        <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+        {/* Sign out */}
+        <div className="px-2 py-3 border-t border-slate-700">
           <button
             onClick={() => logout()}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-700/50 hover:text-slate-100 transition-colors"
           >
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="w-5 h-5"
+              className="w-5 h-5 shrink-0"
             >
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
@@ -205,13 +333,13 @@ export default function DashboardLayout({ children }: Props) {
         </div>
       </aside>
 
-      {/* Main content area */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top bar (mobile) */}
-        <header className="flex items-center gap-4 px-4 py-3 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 lg:hidden">
+        {/* Mobile top bar */}
+        <header className="flex items-center gap-4 px-4 py-3 bg-slate-800 border-b border-slate-700 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-700"
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700"
             aria-label="Open navigation"
           >
             <svg
@@ -226,10 +354,9 @@ export default function DashboardLayout({ children }: Props) {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <span className="font-semibold text-slate-900 dark:text-slate-100">Trade Journal</span>
+          <span className="font-semibold text-slate-100">Trade Journal</span>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

@@ -9,12 +9,12 @@ import { test, expect } from '@playwright/test';
 test.describe('Sidebar Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/dashboard');
-    // Wait for sidebar to be rendered
-    await expect(page.getByRole('link', { name: 'Overview' })).toBeVisible({ timeout: 10_000 });
+    // Wait for sidebar to be rendered — use exact href to distinguish from /dashboard/reports/overview
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 10_000 });
   });
 
   test('TC-040 sidebar shows all navigation items', async ({ page }) => {
-    await expect(page.getByRole('link', { name: 'Overview' })).toBeVisible();
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Trades' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Playbooks' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Tags' })).toBeVisible();
@@ -48,7 +48,7 @@ test.describe('Sidebar Navigation', () => {
 
   test('TC-045 Overview link is active on /dashboard', async ({ page }) => {
     // The active link has the blue-600/20 background class applied
-    const overviewLink = page.getByRole('link', { name: 'Overview' });
+    const overviewLink = page.locator('a[href="/dashboard"]');
     await expect(overviewLink).toHaveClass(/text-blue-400/);
   });
 
@@ -60,7 +60,7 @@ test.describe('Sidebar Navigation', () => {
     await expect(tradesLink).toHaveClass(/text-blue-400/);
 
     // Overview link should no longer be active
-    const overviewLink = page.getByRole('link', { name: 'Overview' });
+    const overviewLink = page.locator('a[href="/dashboard"]');
     await expect(overviewLink).not.toHaveClass(/text-blue-400/);
   });
 

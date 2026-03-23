@@ -78,7 +78,7 @@ test.describe('Trades List', () => {
     // Because import tests run in parallel and may add trades to the same user,
     // we just verify that the button exists and has a consistent state.
     // When rows visible < 20 (page size), Next must be disabled.
-    const nextBtn = page.getByRole('button', { name: 'Next' });
+    const nextBtn = page.getByRole('button', { name: 'Next', exact: true });
     await expect(nextBtn).toBeVisible({ timeout: 10_000 });
 
     const rows = page.locator('tbody tr');
@@ -146,14 +146,20 @@ test.describe('Trades List — Empty State', () => {
       throw new Error(`Failed to register empty user: ${regRes.status}`);
     }
 
+    // Brief pause so the backend's async session commit is visible to the next
+    // DB connection before we immediately attempt to log in (race condition fix).
+    if (regRes.status === 201) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
     // Log in to get a token
+    const loginForm = new URLSearchParams({
+      username: EMPTY_USER.username,
+      password: EMPTY_USER.password,
+    });
     const loginRes = await fetch(`${API_URL}/api/v1/auth/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        username: EMPTY_USER.username,
-        password: EMPTY_USER.password,
-      }).toString(),
+      body: loginForm,
     });
     if (!loginRes.ok) throw new Error(`Empty user login failed: ${loginRes.status}`);
     const loginData = (await loginRes.json()) as { access_token: string };
@@ -195,7 +201,7 @@ test.describe('Trades List — Empty State', () => {
 
   test('TC-059 pagination buttons are both disabled in empty state', async () => {
     const prevBtn = sharedPage.getByRole('button', { name: 'Previous' });
-    const nextBtn = sharedPage.getByRole('button', { name: 'Next' });
+    const nextBtn = sharedPage.getByRole('button', { name: 'Next', exact: true });
 
     await expect(prevBtn).toBeVisible({ timeout: 10_000 });
     await expect(nextBtn).toBeVisible({ timeout: 10_000 });

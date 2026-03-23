@@ -1,0 +1,150 @@
+/**
+ * useReportData — centralized hook for reports pages.
+ *
+ * Fetches all trades (up to 5000) and provides:
+ *  - raw trades list
+ *  - aggregatedData(dimension) — PerformanceDataPoint[] for the analysis table
+ *  - calendarData — DailyTradeData[] for the calendar component
+ *  - loading / error states
+ */
+"use client";
+
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/lib/api";
+import type { Trade, CursorPage, ResponseEnvelope } from "@/lib/types";
+import type { PerformanceDataPoint } from "@/components/trades/PerformanceAnalysisDashboard";
+import type { DailyTradeData } from "@/components/calendar/types";
+
+export type ReportDimension = "Hourly" | "Weekday" | "Monthly" | "Yearly";
+
+function buildKey(date: Date, dimension: ReportDimension): string {
+  switch (dimension) {
+    case "Hourly":
+      return date.getHours().toString().padStart(2, "0") + ":00";
+    case "Weekday": {
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      return days[date.getDay()];
+    }
+    case "Monthly": {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return months[date.getMonth()];
+    }
+    case "Yearly":
+      return date.getFullYear().toString();
+  }
+}
+
+function sortResult(result: PerformanceDataPoint[], dimension: ReportDimension): PerformanceDataPoint[] {
+  if (dimension === "Hourly") {
+    return result.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  if (dimension === "Weekday") {
+    const order = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return result.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+  }
+  if (dimension === "Monthly") {
+    const order = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return result.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Fetch all trades by walking the cursor-pagination (API hard-limit is 100
+ * per page). Accumulates every page and returns the full list.
+ */
+async function fetchAllTrades(): Promise<Trade[]> {
+  const PAGE_SIZE = 100;
+  const allItems: Trade[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const url = cursor
+      ? `/api/v1/trades?limit=${PAGE_SIZE}&cursor=${encodeURIComponent(cursor)}`
+      : `/api/v1/trades?limit=${PAGE_SIZE}`;
+
+    const res = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(url);
+    const page = res.data.data;
+    allItems.push(...page.items);
+    cursor = page.next_cursor ?? null;
+  } while (cursor !== null);
+
+  return allItems;
+}
+
+export function useReportData(accountId?: string | null) {
+  const { data: allTrades, isLoading, isError } = useQuery<Trade[], Error>({
+    queryKey: ["trades-all-for-reports"],
+    queryFn: fetchAllTrades,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Apply account filter client-side (trades are already cached)
+  const trades = useMemo(() => {
+    if (!allTrades) return undefined;
+    if (!accountId) return allTrades;
+    return allTrades.filter(t => t.account_id === accountId);
+  }, [allTrades, accountId]);
+
+  const calendarData = useMemo((): DailyTradeData[] => {
+    if (!trades) return [];
+    const groups = new Map<string, { pnl: number; tradeCount: number }>();
+    trades.forEach(trade => {
+      if (!trade.closed_at) return;
+      const dateKey = trade.closed_at.slice(0, 10);
+      const tradePnl = parseFloat(trade.pnl || "0");
+      const existing = groups.get(dateKey);
+      if (existing) {
+        existing.pnl += tradePnl;
+        existing.tradeCount += 1;
+      } else {
+        groups.set(dateKey, { pnl: tradePnl, tradeCount: 1 });
+      }
+    });
+    return Array.from(groups.entries()).map(([date, { pnl, tradeCount }]) => ({ date, pnl, tradeCount }));
+  }, [trades]);
+
+  function getAggregated(dimension: ReportDimension): PerformanceDataPoint[] {
+    if (!trades) return [];
+    const groups = new Map<string, Trade[]>();
+    trades.forEach(trade => {
+      if (!trade.closed_at) return;
+      const key = buildKey(new Date(trade.closed_at), dimension);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(trade);
+    });
+
+    const result: PerformanceDataPoint[] = [];
+    groups.forEach((groupTrades, key) => {
+      let pnl = 0, grossProfit = 0, grossLoss = 0;
+      let returnWin = 0, returnLoss = 0, returnOthers = 0;
+      let shares = 0, mistakes = 0, commissions = 0;
+      let wins = 0, losses = 0;
+
+      groupTrades.forEach(t => {
+        const tradePnl = parseFloat(t.pnl || "0");
+        pnl += tradePnl;
+        shares += parseFloat(t.quantity || "0");
+        commissions += parseFloat(t.commission || "0");
+        mistakes += t.tags ? t.tags.filter((tag: any) => tag.name.toLowerCase().includes("mistake")).length : 0;
+        if (tradePnl > 0) { grossProfit += tradePnl; returnWin += tradePnl; wins++; }
+        else if (tradePnl < 0) { grossLoss += Math.abs(tradePnl); returnLoss += tradePnl; losses++; }
+        else { returnOthers += tradePnl; }
+      });
+
+      const tradesCount = groupTrades.length;
+      const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99 : 0);
+      const winPercent = tradesCount > 0 ? (wins / tradesCount) * 100 : 0;
+      const avgReturn = tradesCount > 0 ? pnl / tradesCount : 0;
+      const avgProfit = wins > 0 ? returnWin / wins : 0;
+      const avgLoser = losses > 0 ? returnLoss / losses : 0;
+
+      result.push({ name: key, pnl, profitFactor, returnWin, winPercent, returnLoss, returnOthers, trades: tradesCount, shares, mistakes, avgReturn, avgProfit, avgLoser, commissions });
+    });
+
+    return sortResult(result, dimension);
+  }
+
+  return { trades: trades ?? [], calendarData, getAggregated, isLoading, isError };
+}

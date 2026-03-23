@@ -39,13 +39,16 @@ async function apiPost(
   const isForm = body instanceof URLSearchParams;
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': isForm
-        ? 'application/x-www-form-urlencoded'
-        : 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: isForm ? body.toString() : JSON.stringify(body),
+    // For URLSearchParams: pass the object directly so that Node's fetch sets
+    // Content-Type and Content-Length correctly. Passing .toString() causes
+    // chunked transfer-encoding which FastAPI may not parse fully.
+    headers: isForm
+      ? { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      : {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    body: isForm ? body : JSON.stringify(body),
   });
   return res;
 }
@@ -219,6 +222,20 @@ const SEED_TAGS = [
   { name: 'planned', color: '#3b82f6' },
 ];
 
+const SEED_ACCOUNT = {
+  name: 'E2E Test Account',
+  type: 'ibkr',
+  currency: 'USD',
+};
+
+// ─── Exported seed state (for use in tests) ──────────────────────────────────
+// Stored in a temp file so tests can read the seeded account ID.
+export const SEED_STATE_FILE = path.join(__dirname, '.auth', 'seed-state.json');
+
+export interface SeedState {
+  accountId: string;
+}
+
 // ─── Main setup function ─────────────────────────────────────────────────────
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
@@ -226,11 +243,19 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   // 1. Register test user (ignore 409 if already exists from a failed prev run)
   const registerRes = await apiPost('/api/v1/auth/register', E2E_USER);
-  if (!registerRes.ok && registerRes.status !== 409) {
+  const registerStatus = registerRes.status;
+  if (!registerRes.ok && registerStatus !== 409) {
     const body = await registerRes.text();
-    throw new Error(`[global-setup] Register failed (${registerRes.status}): ${body}`);
+    throw new Error(`[global-setup] Register failed (${registerStatus}): ${body}`);
   }
-  console.log('[global-setup] User registered (or already exists).');
+  console.log(`[global-setup] User registered (status ${registerStatus}).`);
+
+  // Brief pause to allow the backend's async session commit to complete.
+  // Without this, the immediate login request may arrive before the new user
+  // row is visible to a different DB connection in the pool (async commit race).
+  if (registerStatus === 201) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
 
   // 2. Login to get access token
   const formData = new URLSearchParams();
@@ -262,7 +287,22 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   }
   console.log('[global-setup] Tags seeded.');
 
-  // 5. Seed trades
+  // 5. Seed account (IBKR type — needed for import tests)
+  let accountId = '';
+  const accRes = await apiPost('/api/v1/accounts', SEED_ACCOUNT as unknown as Record<string, unknown>, token);
+  if (accRes.ok) {
+    const accBody = (await accRes.json()) as { data: { id: string } };
+    accountId = accBody.data.id;
+    console.log(`[global-setup] Account seeded: ${accountId}`);
+  } else {
+    console.warn(`[global-setup] Account seed warning (${accRes.status})`);
+  }
+
+  // Write seed state for use by tests
+  fs.mkdirSync(path.dirname(SEED_STATE_FILE), { recursive: true });
+  fs.writeFileSync(SEED_STATE_FILE, JSON.stringify({ accountId }));
+
+  // 6. Seed trades
   let tradeCount = 0;
   for (const trade of SEED_TRADES) {
     const res = await apiPost('/api/v1/trades', trade as unknown as Record<string, unknown>, token);
@@ -275,7 +315,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   }
   console.log(`[global-setup] ${tradeCount}/${SEED_TRADES.length} trades seeded.`);
 
-  // 6. Produce storageState: log in via browser and save localStorage
+  // 7. Produce storageState: log in via browser and save localStorage
   const browser = await chromium.launch();
   const context = await browser.newContext({ baseURL: BASE_URL });
   const page = await context.newPage();
