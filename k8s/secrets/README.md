@@ -13,8 +13,29 @@ Contains sensitive backend configuration:
 ```bash
 kubectl create secret generic backend-secrets \
   --namespace tradejournal \
+  --from-literal=DB_USER='tradejournal' \
+  --from-literal=DB_PASSWORD='<strong-password>' \
+  --from-literal=SECRET_KEY='<random-256-bit-key>'
+```
+
+Optional alternative:
+
+```bash
+kubectl create secret generic backend-secrets \
+  --namespace tradejournal \
   --from-literal=DATABASE_URL='postgresql+asyncpg://user:pass@timescaledb:5432/tradejournal' \
   --from-literal=SECRET_KEY='<random-256-bit-key>'
+```
+
+### `frontend-secrets`
+
+Contains sensitive frontend runtime configuration:
+
+```bash
+kubectl create secret generic frontend-secrets \
+  --namespace tradejournal \
+  --from-literal=NEXTAUTH_SECRET='<random-32-byte-secret>' \
+  --from-literal=NEXT_PUBLIC_GOOGLE_CLIENT_ID=''
 ```
 
 ### `db-credentials`
@@ -48,6 +69,17 @@ Managed by cert-manager if installed, or created manually:
 
 ```bash
 kubectl create secret tls tls-backend \
+  --namespace tradejournal \
+  --cert=path/to/tls.crt \
+  --key=path/to/tls.key
+```
+
+### `tls-frontend`
+
+TLS certificate for the frontend Ingress (`tradejournal.example.com`):
+
+```bash
+kubectl create secret tls tls-frontend \
   --namespace tradejournal \
   --cert=path/to/tls.crt \
   --key=path/to/tls.key

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: tradejournal
+  labels:
+    app.kubernetes.io/name: tradejournal-frontend
+    app.kubernetes.io/component: frontend
+data:
+  NEXTAUTH_URL: "https://tradejournal.example.com"
+  NEXT_PUBLIC_API_URL: "https://api.tradejournal.example.com"
