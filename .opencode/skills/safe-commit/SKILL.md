@@ -6,22 +6,19 @@ This skill orchestrates all backend pre-commit checks to ensure the CI build pas
 
 When invoked, follow these steps sequentially:
 
-1. **Formatting & Linting**:
-   - Run `uv run ruff check app/ --fix` and `uv run ruff format app/`.
-   - If there are remaining linting errors, use the `edit` tool to fix them manually.
+1. **Formatting & Linting / Type Checking**:
+   - Use the `skill` tool to load the `link-check` skill.
+   - Follow the `link-check` instructions
+   - If there are remaining linting or type errors, use the `edit` tool to fix them manually.
 
-2. **Type Checking**:
-   - Run `uv run mypy --strict app/`.
-   - If there are type errors, fix the code manually using the `edit` tool and re-run until it passes.
-
-3. **Database Migrations**:
+2. **Database Migrations**:
    - Run `uv run alembic upgrade head`.
    - Ensure the database schema is up-to-date and no errors occur.
 
-4. **Unit Tests**:
+3. **Unit Tests**:
    - Run `uv run pytest tests/ -v --cov=app --cov-report=term-missing`.
    - If any tests fail, fix the implementation or the tests using the `edit` tool and re-run until all tests pass.
 
-5. **Commit**:
+4. **Commit**:
    - Once ALL checks pass successfully, use the `skill` tool to load the `commit-helper` skill.
    - Follow the `commit-helper` instructions to generate a conventional commit message and commit the changes safely.
