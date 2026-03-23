@@ -35,11 +35,14 @@ class TaxRepository:
 
         Groups by ``Account.id``, ``Account.name``, and ``is_equity`` (True for
         :attr:`~app.models.trade.AssetClass.EQUITY`, False for all others) and returns
-        aggregated gains, losses, trade count, and count of trades with a NULL ``pnl_eur``.
+        aggregated gains, losses, trade count, and count of trades with a NULL
+        ``pnl_eur``.
 
         Only trades where ``pnl IS NOT NULL`` (closed trades) are included.
-        The ``pnl_eur IS NOT NULL`` filter is applied separately when computing
-        financial totals; ``trades_missing_eur`` counts those that slipped through.
+        ``pnl_eur`` is used when available; if NULL (Bundesbank FX lookup failed
+        at import time), ``pnl`` (original-currency amount) is used as a fallback
+        so that trade P&L is never silently omitted.  ``trades_missing_eur``
+        counts trades that fell back to the original-currency amount.
 
         Args:
             session: Active async SQLAlchemy session.
@@ -47,35 +50,33 @@ class TaxRepository:
             user_id: UUID of the authenticated user.
 
         Returns:
-            A list of 7-tuples ``(account_id, account_name, is_equity, gains_eur,
-            losses_eur, trade_count, missing_count)`` with one row per category and account
-            that has at least one trade.
+            A list of 7-tuples ``(account_id, account_name, is_equity,
+            gains_eur, losses_eur, trade_count, missing_count)`` with one row
+            per category and account that has at least one trade.
 
             Each tuple contains:
             - ``account_id`` (UUID | None): The account ID.
             - ``account_name`` (str | None): The account name.
             - ``is_equity`` (bool): ``True`` for equity, ``False`` for derivatives.
-            - ``gains_eur`` (Decimal): Sum of positive ``pnl_eur`` values.
-            - ``losses_eur`` (Decimal): Sum of negative ``pnl_eur`` values
+            - ``gains_eur`` (Decimal): Sum of positive ``COALESCE(pnl_eur, pnl)``.
+            - ``losses_eur`` (Decimal): Sum of negative ``COALESCE(pnl_eur, pnl)``
               (always <= 0).
-            - ``trade_count`` (int): Trades with non-NULL ``pnl_eur``.
-            - ``missing_count`` (int): Trades with NULL ``pnl_eur``.
+            - ``trade_count`` (int): Total count of closed trades.
+            - ``missing_count`` (int): Trades where ``pnl_eur`` is NULL.
         """
         is_equity_expr = case(
             (Trade.asset_class == AssetClass.EQUITY, True),
             else_=False,
         )
 
+        # Use pnl_eur when available; fall back to pnl (original currency) when the
+        # Bundesbank EUR conversion was not available at import time.
+        effective_pnl = func.coalesce(Trade.pnl_eur, Trade.pnl)
+
         gains_expr = func.coalesce(
             func.sum(
                 case(
-                    (
-                        and_(
-                            Trade.pnl_eur.is_not(None),
-                            Trade.pnl_eur > 0,
-                        ),
-                        Trade.pnl_eur,
-                    ),
+                    (effective_pnl > 0, effective_pnl),
                     else_=None,
                 )
             ),
@@ -85,20 +86,16 @@ class TaxRepository:
         losses_expr = func.coalesce(
             func.sum(
                 case(
-                    (
-                        and_(
-                            Trade.pnl_eur.is_not(None),
-                            Trade.pnl_eur < 0,
-                        ),
-                        Trade.pnl_eur,
-                    ),
+                    (effective_pnl < 0, effective_pnl),
                     else_=None,
                 )
             ),
             Decimal("0"),
         )
 
-        trade_count_expr = func.count(Trade.pnl_eur)  # COUNT ignores NULLs.
+        trade_count_expr = func.count(
+            Trade.pnl
+        )  # COUNT ignores NULLs; pnl is always set for closed trades.
 
         missing_count_expr = func.count(
             case(
