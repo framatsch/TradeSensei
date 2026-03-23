@@ -11,6 +11,8 @@ import type { FullConfig } from '@playwright/test';
 import { E2E_USER } from './global-setup';
 
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000';
+const NETWORK_RETRIES = 6;
+const RETRY_DELAY_MS = 2000;
 
 export default async function globalTeardown(_config: FullConfig): Promise<void> {
   console.log('\n[global-teardown] Cleaning up E2E test data...');
@@ -21,10 +23,9 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
     formData.append('username', E2E_USER.username);
     formData.append('password', E2E_USER.password);
 
-    const tokenRes = await fetch(`${API_URL}/api/v1/auth/token`, {
+    const tokenRes = await fetchWithRetry(`${API_URL}/api/v1/auth/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      body: formData,
     });
 
     if (!tokenRes.ok) {
@@ -36,7 +37,7 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
     const { access_token: token } = (await tokenRes.json()) as { access_token: string };
 
     // DELETE /api/v1/users/me — cascades to all owned data
-    const deleteRes = await fetch(`${API_URL}/api/v1/users/me`, {
+    const deleteRes = await fetchWithRetry(`${API_URL}/api/v1/users/me`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -54,4 +55,22 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
   }
 
   console.log('[global-teardown] Done.\n');
+}
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= NETWORK_RETRIES; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      lastError = error;
+      if (attempt === NETWORK_RETRIES) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Network request failed');
 }

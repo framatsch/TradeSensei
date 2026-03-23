@@ -21,6 +21,9 @@ import path from 'path';
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000';
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 
+const NETWORK_RETRIES = 12;
+const RETRY_DELAY_MS = 2500;
+
 export const E2E_USER = {
   username: 'e2e_testuser',
   email: 'e2e_testuser@example.com',
@@ -37,7 +40,7 @@ async function apiPost(
   token?: string
 ): Promise<Response> {
   const isForm = body instanceof URLSearchParams;
-  const res = await fetch(`${API_URL}${path}`, {
+  return fetchWithRetry(`${API_URL}${path}`, {
     method: 'POST',
     // For URLSearchParams: pass the object directly so that Node's fetch sets
     // Content-Type and Content-Length correctly. Passing .toString() causes
@@ -50,14 +53,31 @@ async function apiPost(
         },
     body: isForm ? body : JSON.stringify(body),
   });
-  return res;
 }
 
 async function apiDelete(path: string, token: string): Promise<void> {
-  await fetch(`${API_URL}${path}`, {
+  await fetchWithRetry(`${API_URL}${path}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
+}
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= NETWORK_RETRIES; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      lastError = error;
+      if (attempt === NETWORK_RETRIES) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Network request failed');
 }
 
 // ─── Seed helpers ────────────────────────────────────────────────────────────

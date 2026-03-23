@@ -59,12 +59,18 @@ function formatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
+/** Strip ISO timestamp suffix so <input type="date"> gets YYYY-MM-DD */
+function toDateInputValue(value: string | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10); // "2024-01-01T00:00:00Z" → "2024-01-01"
+}
+
 const INPUT_CLASS =
   "w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 const LABEL_CLASS = "block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1";
 
 export function TradeFilterBar({ filters, onChange }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => countActiveFilters(filters) > 0);
   const activeCount = countActiveFilters(filters);
 
   // Debounced symbol input
@@ -196,39 +202,6 @@ export function TradeFilterBar({ filters, onChange }: Props) {
         )}
       </div>
 
-      {/* Active report-context chips (hour / weekday) — always visible */}
-      {(filters.hour_of_day !== undefined && filters.hour_of_day !== null) ||
-       (filters.day_of_week !== undefined && filters.day_of_week !== null) ? (
-        <div className="px-4 pb-3 flex flex-wrap gap-2">
-          {filters.hour_of_day !== undefined && filters.hour_of_day !== null && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
-              Hour: {formatHour(filters.hour_of_day)}
-              <button
-                type="button"
-                aria-label="Remove hour filter"
-                onClick={() => onChange({ ...filters, hour_of_day: undefined })}
-                className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100"
-              >
-                ×
-              </button>
-            </span>
-          )}
-          {filters.day_of_week !== undefined && filters.day_of_week !== null && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
-              Day: {WEEKDAY_NAMES[filters.day_of_week] ?? filters.day_of_week}
-              <button
-                type="button"
-                aria-label="Remove day filter"
-                onClick={() => onChange({ ...filters, day_of_week: undefined })}
-                className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100"
-              >
-                ×
-              </button>
-            </span>
-          )}
-        </div>
-      ) : null}
-
       {/* Collapsible panel */}
       {open && (
         <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-700 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -277,7 +250,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
             <label className={LABEL_CLASS}>Opened From</label>
             <input
               type="date"
-              value={filters.opened_at_from ?? ""}
+              value={toDateInputValue(filters.opened_at_from)}
               onChange={(e) => handleDateFrom(e.target.value)}
               className={INPUT_CLASS}
             />
@@ -286,10 +259,40 @@ export function TradeFilterBar({ filters, onChange }: Props) {
             <label className={LABEL_CLASS}>Opened To</label>
             <input
               type="date"
-              value={filters.opened_at_to ?? ""}
+              value={toDateInputValue(filters.opened_at_to)}
               onChange={(e) => handleDateTo(e.target.value)}
               className={INPUT_CLASS}
             />
+          </div>
+
+          {/* Hour of Day */}
+          <div>
+            <label className={LABEL_CLASS}>Hour of Day</label>
+            <select
+              value={filters.hour_of_day !== undefined && filters.hour_of_day !== null ? String(filters.hour_of_day) : ""}
+              onChange={(e) => onChange({ ...filters, hour_of_day: e.target.value !== "" ? parseInt(e.target.value, 10) : undefined })}
+              className={INPUT_CLASS}
+            >
+              <option value="">All hours</option>
+              {Array.from({ length: 24 }, (_, i) => (
+                <option key={i} value={i}>{formatHour(i)}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Day of Week */}
+          <div>
+            <label className={LABEL_CLASS}>Day of Week</label>
+            <select
+              value={filters.day_of_week !== undefined && filters.day_of_week !== null ? String(filters.day_of_week) : ""}
+              onChange={(e) => onChange({ ...filters, day_of_week: e.target.value !== "" ? parseInt(e.target.value, 10) : undefined })}
+              className={INPUT_CLASS}
+            >
+              <option value="">All days</option>
+              {WEEKDAY_NAMES.map((name, i) => (
+                <option key={i} value={i}>{name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Playbook */}

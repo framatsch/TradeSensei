@@ -13,12 +13,48 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
+        cache: npm
     - name: Install dependencies
       run: npm ci
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      run: npx playwright install chromium --with-deps
+    - name: Start Docker stack (db + backend + frontend)
+      run: docker compose up -d --wait
+      env:
+        COMPOSE_HTTP_TIMEOUT: 120
+    - name: Wait for backend to be healthy
+      run: |
+        echo "Waiting for backend at http://localhost:8000/health..."
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+            echo "Backend is up."
+            break
+          fi
+          echo "  Attempt $i/30 - waiting 5s..."
+          sleep 5
+        done
+        curl -sf http://localhost:8000/health || (echo "Backend health check failed." && exit 1)
+    - name: Wait for frontend to be healthy
+      run: |
+        echo "Waiting for frontend at http://localhost:3000..."
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+            echo "Frontend is up."
+            break
+          fi
+          echo "  Attempt $i/30 - waiting 5s..."
+          sleep 5
+        done
+        curl -sf http://localhost:3000 || (echo "Frontend health check failed." && exit 1)
     - name: Run Playwright tests
-      run: npx playwright test
+      run: npx playwright test --project=chromium
+      env:
+        E2E_BASE_URL: http://localhost:3000
+        E2E_API_URL: http://localhost:8000
+        CI: true
+    - name: Stop Docker stack
+      if: always()
+      run: docker compose down -v
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
