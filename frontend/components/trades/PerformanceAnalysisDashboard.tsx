@@ -128,7 +128,11 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
               <Bar
                 dataKey={dataKey}
                 radius={[4, 4, 0, 0]}
-                onClick={onBarClick ? (data) => onBarClick(data as PerformanceDataPoint) : undefined}
+                onClick={onBarClick ? (data) => {
+                  if (data && data.payload) {
+                    onBarClick(data.payload as PerformanceDataPoint);
+                  }
+                } : undefined}
                 cursor={onBarClick ? "pointer" : undefined}
               >
                 {data.map((entry, index) => {

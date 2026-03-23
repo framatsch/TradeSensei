@@ -60,14 +60,14 @@ async function fetchAllTrades(): Promise<Trade[]> {
   let cursor: string | null = null;
 
   do {
-    const url = cursor
+    const requestUrl: string = cursor
       ? `/api/v1/trades?limit=${PAGE_SIZE}&cursor=${encodeURIComponent(cursor)}`
       : `/api/v1/trades?limit=${PAGE_SIZE}`;
 
-    const res = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(url);
-    const page = res.data.data;
-    allItems.push(...page.items);
-    cursor = page.next_cursor ?? null;
+    const response = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(requestUrl);
+    const pageData = response.data.data;
+    allItems.push(...pageData.items);
+    cursor = pageData.next_cursor ?? null;
   } while (cursor !== null);
 
   return allItems;
