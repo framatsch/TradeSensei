@@ -61,7 +61,6 @@ class BrokerParser(ABC):
                 unrecognised format.
         """
 
-    @abstractmethod
     async def enrich_pnl_eur(
         self,
         trades: list[TradeCreate],
