@@ -11,14 +11,14 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import apiClient from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { Spinner } from "@/components/ui/Spinner";
 import type { TokenResponse, ResponseEnvelope, User } from "@/lib/types";
 
-export default function OAuthCallbackPage() {
+function OAuthCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const setToken = useAuthStore((s) => s.setToken);
@@ -64,11 +64,24 @@ export default function OAuthCallbackPage() {
   }, [searchParams, router, setToken, setUser]);
 
   return (
+    <div className="flex flex-col items-center gap-4 text-slate-600 dark:text-slate-400">
+      <Spinner size="lg" />
+      <p className="text-sm">Completing sign-in…</p>
+    </div>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-      <div className="flex flex-col items-center gap-4 text-slate-600 dark:text-slate-400">
-        <Spinner size="lg" />
-        <p className="text-sm">Completing sign-in…</p>
-      </div>
+      <Suspense fallback={
+        <div className="flex flex-col items-center gap-4 text-slate-600 dark:text-slate-400">
+          <Spinner size="lg" />
+          <p className="text-sm">Loading…</p>
+        </div>
+      }>
+        <OAuthCallbackContent />
+      </Suspense>
     </main>
   );
 }
