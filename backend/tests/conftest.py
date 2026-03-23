@@ -18,6 +18,7 @@ os.environ.setdefault(
     "postgresql+asyncpg://test:test@localhost:5432/test_tradejournal",
 )
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32chars")
+os.environ.setdefault("UPLOAD_DIR", "./uploads")
 
 from collections.abc import AsyncGenerator  # noqa: E402
 from unittest.mock import AsyncMock  # noqa: E402
