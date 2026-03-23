@@ -321,7 +321,7 @@ class TestTaxCsvDownload:
         assert 'filename="steuer_2025.csv"' in response.headers["content-disposition"]
 
     async def test_csv_contains_header_row(self, client: AsyncClient) -> None:
-        """CSV body starts with the expected header row."""
+        """CSV body contains the expected column header row."""
         token = await _register_and_token(client, suffix="csv2")
         headers = _auth_headers(token)
 
@@ -333,9 +333,18 @@ class TestTaxCsvDownload:
         assert response.status_code == 200
         # Strip BOM if present.
         content = response.text.lstrip("\ufeff")
-        first_line = content.splitlines()[0]
-        assert "Symbol" in first_line
-        assert "P&L (EUR)" in first_line
+        # The CSV now has section headers (lines starting with ##).
+        # Find the first data-header line (not a comment line).
+        header_line = next(
+            (
+                line
+                for line in content.splitlines()
+                if not line.startswith("##") and line.strip()
+            ),
+            "",
+        )
+        assert "Symbol" in header_line
+        assert "P&L (EUR)" in header_line
 
     async def test_csv_contains_trade_row(self, client: AsyncClient) -> None:
         """A trade created for the year appears as a data row in the CSV."""

@@ -118,6 +118,16 @@ async def upload_import(
             description="UUID of the account to import trades into (optional)."
         ),
     ] = None,
+    overwrite_manually_edited: Annotated[
+        bool,
+        FastAPIForm(
+            description=(
+                "When true, trades that have been manually edited are no longer "
+                "protected and will be overwritten by the incoming import data. "
+                "Defaults to false."
+            )
+        ),
+    ] = False,
 ) -> ResponseEnvelope[ImportResult]:
     """Upload a broker export file and import the trades it contains.
 
@@ -128,6 +138,8 @@ async def upload_import(
         broker: The broker type that determines which parser to use.
         account_id: UUID of the target broker account.
         file: The uploaded file (CSV, XLSX, or XML).
+        overwrite_manually_edited: When ``True``, manually-edited trades
+            are overwritten instead of skipped.
 
     Returns:
         A :class:`~app.schemas.common.ResponseEnvelope` wrapping an
@@ -181,6 +193,7 @@ async def upload_import(
             broker=effective_broker,
             account_id=account_id,
             user_id=current_user.id,
+            overwrite_manually_edited=overwrite_manually_edited,
         )
     except AccountNotFoundError as exc:
         raise HTTPException(
@@ -251,6 +264,7 @@ async def flex_import(
             user_id=current_user.id,
             account_id=body.account_id,
             from_date=body.from_date,
+            overwrite_manually_edited=body.overwrite_manually_edited,
         )
     except AccountNotFoundError as exc:
         raise HTTPException(

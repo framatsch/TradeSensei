@@ -52,6 +52,10 @@ def _make_trade_orm(
     trade.notes = None  # type: ignore[assignment]
     trade.created_at = opened_at  # type: ignore[assignment]
     trade.updated_at = opened_at  # type: ignore[assignment]
+    trade.screenshots = []  # type: ignore[assignment]
+    trade.is_manually_edited = False  # type: ignore[assignment]
+    trade.tags = []  # type: ignore[assignment]
+    trade.trade_notes = []  # type: ignore[assignment]
     return trade
 
 

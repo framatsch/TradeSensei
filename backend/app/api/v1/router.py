@@ -11,6 +11,7 @@ from app.api.v1 import (
     auth,
     broker,
     cash_transactions,
+    corporate_actions,
     imports,
     metrics,
     notes,
@@ -39,3 +40,4 @@ router.include_router(screenshots.router)
 router.include_router(tax.router)
 router.include_router(broker.router)
 router.include_router(cash_transactions.router)
+router.include_router(corporate_actions.router)

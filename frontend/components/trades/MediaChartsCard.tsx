@@ -22,7 +22,6 @@ function resolveUrl(url: string): string {
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
-  // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
@@ -31,27 +30,32 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div
-        className="relative max-w-5xl max-h-[90vh] w-full mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
+      {/* Top bar */}
+      <div className="shrink-0 flex justify-end px-4 py-3" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onClose}
-          className="absolute -top-9 right-0 text-white/70 hover:text-white text-sm flex items-center gap-1"
+          className="text-white/60 hover:text-white text-sm flex items-center gap-1.5 transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
-          Close
+          Close (Esc)
         </button>
+      </div>
+      {/* Image — fills remaining space */}
+      <div
+        className="flex-1 flex items-center justify-center overflow-hidden px-4 pb-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={resolveUrl(src)}
           alt="Screenshot"
-          className="rounded-lg w-full object-contain max-h-[90vh]"
+          className="rounded-lg object-contain w-full h-full"
+          style={{ maxHeight: "100%", maxWidth: "100%" }}
         />
       </div>
     </div>
@@ -100,7 +104,6 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     <div
       ref={containerRef}
       className="tradingview-widget-container w-full h-full"
-      style={{ minHeight: "320px" }}
     />
   );
 }
@@ -121,8 +124,8 @@ function TradingViewTab({ trade }: { trade: Trade }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Chart — always shown based on trade symbol */}
-      <div className="flex-1 min-h-0">
+      {/* Chart — grows to fill available height */}
+      <div className="flex-1 min-h-0 overflow-hidden">
         <TradingViewWidget symbol={trade.symbol} />
       </div>
 
@@ -316,35 +319,43 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
 
         {/* Gallery */}
         {screenshots.length > 0 ? (
-          <div className="grid grid-cols-3 gap-2 overflow-y-auto flex-1">
+          <div className="grid grid-cols-2 gap-3 overflow-y-auto flex-1">
             {screenshots.map((url) => (
               <div
                 key={url}
-                className="group relative aspect-video bg-slate-100 dark:bg-slate-700 rounded-lg overflow-hidden"
+                className="group relative aspect-[4/3] bg-slate-100 dark:bg-slate-700 rounded-xl overflow-hidden"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={resolveUrl(url)}
                   alt="screenshot"
-                  className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                  className="w-full h-full object-cover cursor-pointer transition-transform duration-200 group-hover:scale-105"
                   onClick={() => setLightboxSrc(url)}
                 />
                 <button
                   onClick={() => deleteShot(url)}
                   disabled={deleting}
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 rounded-md bg-black/60 text-white hover:bg-red-600/80 transition-all"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md bg-black/60 text-white hover:bg-red-600/80 transition-all"
                   title="Delete screenshot"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
+                {/* Expand hint */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="bg-black/40 rounded-full p-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-5 h-5">
+                      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-center text-sm text-slate-400 py-2">No screenshots yet.</p>
+          <p className="text-center text-sm text-slate-400 py-4">No screenshots yet.</p>
         )}
       </div>
     </>
@@ -362,7 +373,7 @@ export function MediaChartsCard({ trade }: { trade: Trade }) {
   return (
     <div
       className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col"
-      style={{ minHeight: "22rem" }}
+      style={{ height: "520px" }}
     >
       {/* Tab bar */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 shrink-0">

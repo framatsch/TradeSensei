@@ -122,3 +122,10 @@ class FlexImportRequest(BaseModel):
         ),
         examples=["20240101", None],
     )
+    overwrite_manually_edited: bool = Field(
+        default=False,
+        description=(
+            "When true, trades that have been manually edited are no longer "
+            "protected and will be overwritten by the incoming import data."
+        ),
+    )

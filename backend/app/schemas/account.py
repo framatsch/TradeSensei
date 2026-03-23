@@ -2,8 +2,9 @@
 
 import uuid
 from decimal import Decimal
+from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 from app.core.constants import (
     ACCOUNT_NAME_MAX_LENGTH,
@@ -12,6 +13,64 @@ from app.core.constants import (
     CURRENCY_LENGTH,
 )
 from app.models.account import AccountType
+
+# ── Import/sync settings per account ─────────────────────────────────────────
+
+FlexFromDatePreset = Literal["ytd", "custom"]
+
+
+class AccountSettings(BaseModel):
+    """Per-account import and sync preferences.
+
+    These settings are stored as a JSONB blob on the ``accounts`` row and
+    are loaded alongside the account on every read.
+
+    Attributes:
+        sync_days: Number of past days to fetch when using the broker API
+            sync endpoint.  Defaults to ``30``.
+        flex_from_date_preset: Controls the Flex import date-range mode.
+            ``"ytd"`` always starts from January 1st of the current year;
+            ``"custom"`` uses the explicit ``flex_custom_from_date`` value.
+        flex_custom_from_date: Explicit start date (``YYYYMMDD``) used when
+            ``flex_from_date_preset`` is ``"custom"``.  ``None`` otherwise.
+    """
+
+    sync_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description=(
+            "Number of past days to pull via broker API sync. Must be between 1–365."
+        ),
+        examples=[7, 30, 90, 180, 365],
+    )
+    flex_from_date_preset: FlexFromDatePreset = Field(
+        default="ytd",
+        description=(
+            "Controls the Flex import date-range mode: "
+            "'ytd' = January 1st of the current year, "
+            "'custom' = the explicit flex_custom_from_date value."
+        ),
+        examples=["ytd", "custom"],
+    )
+    flex_custom_from_date: str | None = Field(
+        default=None,
+        description=(
+            "Explicit Flex import start date in YYYYMMDD format. "
+            "Only used when flex_from_date_preset is 'custom'."
+        ),
+        examples=["20250101", None],
+    )
+
+    @field_validator("flex_custom_from_date")
+    @classmethod
+    def validate_date_format(cls, v: str | None) -> str | None:
+        """Validate that the date string matches YYYYMMDD format."""
+        if v is None:
+            return v
+        if len(v) != 8 or not v.isdigit():
+            raise ValueError("flex_custom_from_date must be in YYYYMMDD format.")
+        return v
 
 
 class AccountCreate(BaseModel):
@@ -25,6 +84,8 @@ class AccountCreate(BaseModel):
         properties: Optional mapping of broker credential keys to plaintext
             values.  The service layer encrypts each value before storage.
             Pass ``null`` or omit to create an account without credentials.
+        settings: Optional per-account import/sync settings. Defaults apply
+            when omitted.
     """
 
     name: str = Field(
@@ -67,6 +128,10 @@ class AccountCreate(BaseModel):
             None,
         ],
     )
+    settings: AccountSettings | None = Field(
+        default=None,
+        description="Optional per-account import/sync settings.",
+    )
 
 
 class AccountUpdate(BaseModel):
@@ -83,6 +148,8 @@ class AccountUpdate(BaseModel):
         properties: Optional map of broker credential keys to updated
             plaintext values.  Existing properties not included here are
             left unchanged (merge semantics).
+        settings: Optional updated import/sync settings. Merges with existing
+            settings (partial update semantics).
     """
 
     name: str | None = Field(
@@ -126,6 +193,10 @@ class AccountUpdate(BaseModel):
             None,
         ],
     )
+    settings: AccountSettings | None = Field(
+        default=None,
+        description="Optional updated import/sync settings. Omit to leave unchanged.",
+    )
 
 
 class AccountRead(BaseModel):
@@ -139,6 +210,8 @@ class AccountRead(BaseModel):
         type: Account/broker type.
         currency: ISO-4217 currency code.
         is_active: Whether the account is active.
+        settings: Per-account import/sync preferences. Returns defaults if
+            no settings have been saved yet.
         created_at: UTC timestamp of account creation.
         has_api_keys: ``True`` if the account has any stored broker
             credentials (computed by the service layer, never read directly
@@ -182,6 +255,22 @@ class AccountRead(BaseModel):
         description="Whether this account is currently active.",
         examples=[True],
     )
+    settings: AccountSettings = Field(
+        default_factory=AccountSettings,
+        description=(
+            "Per-account import/sync settings. Returns defaults if not yet configured."
+        ),
+        validate_default=True,
+    )
+
+    @field_validator("settings", mode="before")
+    @classmethod
+    def validate_settings(cls, v: Any) -> Any:
+        """Ensure settings is never None; return default AccountSettings instead."""
+        if v is None:
+            return {}
+        return v
+
     created_at: AwareDatetime = Field(
         ...,
         description="UTC timestamp of account creation.",

@@ -53,6 +53,10 @@ class CashTransactionNotFoundError(Exception):
     """Raised when a cash transaction cannot be found."""
 
 
+class CorporateActionNotFoundError(Exception):
+    """Raised when a corporate action cannot be found for the requesting user."""
+
+
 class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
 

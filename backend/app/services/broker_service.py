@@ -56,6 +56,8 @@ class BrokerService:
         account_id: uuid.UUID,
         user_id: uuid.UUID,
         days: int = 30,
+        from_date: str | None = None,
+        overwrite_manually_edited: bool = False,
     ) -> BrokerSyncResult:
         """Dispatch a sync for the given account based on its broker type.
 
@@ -66,6 +68,13 @@ class BrokerService:
             account_id: UUID of the account to sync.
             user_id: UUID of the authenticated user (ownership check).
             days: Number of past days to fetch orders for (default 30).
+                Used for Schwab and as a fallback for IBKR when
+                ``from_date`` is not provided.
+            from_date: Optional explicit start date in ``YYYYMMDD`` format.
+                When supplied for IBKR Flex sync, this overrides the
+                ``days`` calculation.
+            overwrite_manually_edited: When ``True``, trades that have been
+                manually edited are overwritten instead of skipped.
 
         Returns:
             A :class:`~app.schemas.broker.BrokerSyncResult` summarising the
@@ -89,7 +98,12 @@ class BrokerService:
         if account.type == AccountType.SCHWAB:
             return await self._sync_schwab(account, days)
         elif account.type == AccountType.IBKR:
-            return await self._sync_ibkr(account, days)
+            return await self._sync_ibkr(
+                account,
+                days,
+                from_date=from_date,
+                overwrite_manually_edited=overwrite_manually_edited,
+            )
         else:
             raise ConfigurationError("Account type MANUAL does not support API sync.")
 
@@ -148,7 +162,13 @@ class BrokerService:
         )
         return await self._import_orders(orders, account.user_id)
 
-    async def _sync_ibkr(self, account: Account, days: int) -> BrokerSyncResult:
+    async def _sync_ibkr(
+        self,
+        account: Account,
+        days: int,
+        from_date: str | None = None,
+        overwrite_manually_edited: bool = False,
+    ) -> BrokerSyncResult:
         """Fetch orders via IBKR Flex Query and import new trades for the account.
 
         Reads ``IBKR_FLEX_TOKEN`` and ``IBKR_FLEX_QUERY_ID`` from the account's
@@ -156,7 +176,12 @@ class BrokerService:
 
         Args:
             account: The :class:`~app.models.account.Account` to sync.
-            days: Number of past days to fetch orders for.
+            days: Number of past days to fetch orders for. Used as fallback
+                when ``from_date`` is not provided.
+            from_date: Optional explicit start date in ``YYYYMMDD`` format.
+                When provided, this overrides the ``days``-based calculation.
+            overwrite_manually_edited: When ``True``, trades that have been
+                manually edited are overwritten instead of skipped.
 
         Returns:
             A :class:`~app.schemas.broker.BrokerSyncResult` with import counts.
@@ -168,8 +193,9 @@ class BrokerService:
         flex_token = self._get_property(account, "IBKR_FLEX_TOKEN")
         query_id = self._get_property(account, "IBKR_FLEX_QUERY_ID")
 
-        now = datetime.now(UTC)
-        from_date = (now - timedelta(days=days)).strftime("%Y%m%d")
+        if from_date is None:
+            now = datetime.now(UTC)
+            from_date = (now - timedelta(days=days)).strftime("%Y%m%d")
 
         from app.core.exceptions import FlexAPIError, RateLimitError
         from app.services.flex_import_service import FlexImportService
@@ -182,6 +208,7 @@ class BrokerService:
                 user_id=account.user_id,
                 account_id=account.id,
                 from_date=from_date,
+                overwrite_manually_edited=overwrite_manually_edited,
             )
             return BrokerSyncResult(
                 imported_count=result.trades_created,

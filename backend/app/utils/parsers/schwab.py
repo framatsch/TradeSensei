@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.models.cash_transaction import CashTransactionType
 from app.schemas.cash_transaction import CashTransactionCreateRequest
 
@@ -18,6 +20,7 @@ via :class:`~app.services.fx_rate_service.FxRateService`.
 import csv
 import io
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -26,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ImportParseError
 from app.models.trade import AssetClass, Direction
 from app.schemas.trade import TradeCreate
+from app.utils.parsers.aggregator import CorporateActionLike
 from app.utils.parsers.base import BrokerParser
 
 logger = logging.getLogger(__name__)
@@ -163,7 +167,11 @@ class SchwabParser(BrokerParser):
         self.warnings: list[str] = []
 
     def parse(
-        self, content: bytes, filename: str
+        self,
+        content: bytes,
+        filename: str,
+        corporate_actions: Sequence[CorporateActionLike] | None = None,  # noqa: ARG002
+        seed_open_lots: Sequence[object] | None = None,  # noqa: ARG002
     ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse a Schwab trade history CSV into :class:`TradeCreate` objects.
 
@@ -174,6 +182,8 @@ class SchwabParser(BrokerParser):
             content: Raw CSV file bytes.
             filename: Original filename (present for interface compatibility;
                 Schwab exports are always CSV).
+            corporate_actions: Accepted for interface compatibility; not used
+                by this parser.
 
         Returns:
             A list of :class:`~app.schemas.trade.TradeCreate` instances.

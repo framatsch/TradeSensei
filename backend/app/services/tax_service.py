@@ -25,7 +25,7 @@ _ZERO = Decimal("0")
 _EQUITY_CATEGORY = "Aktie (§20 Abs. 2 Nr. 1 EStG)"
 _DERIVATIVE_CATEGORY = "Derivat (§20 Abs. 2 Nr. 3 EStG)"
 
-_CSV_HEADERS = [
+_TRADE_CSV_HEADERS = [
     "Konto",
     "Symbol",
     "Asset-Klasse",
@@ -35,6 +35,17 @@ _CSV_HEADERS = [
     "P&L (USD)",
     "EUR/USD-Kurs",
     "P&L (EUR)",
+]
+
+_CASH_CSV_HEADERS = [
+    "Konto",
+    "Datum",
+    "Typ",
+    "Symbol",
+    "Betrag (Originalwährung)",
+    "Währung",
+    "Betrag (EUR)",
+    "Beschreibung",
 ]
 
 
@@ -68,6 +79,8 @@ class TaxService:
         Fetches closed trades with ``pnl_eur IS NOT NULL`` (plus trades where
         ``pnl_eur`` is NULL for the ``trades_missing_eur`` counter), then
         groups them into the §20 EStG categories and computes totals.
+        Also fetches dividend, withholding-tax and interest cash transactions
+        and populates the corresponding totals.
 
         Args:
             year: Calendar year to summarise.
@@ -82,6 +95,16 @@ class TaxService:
             user_id=user_id,
         )
 
+        cash_rows = await self._repo.get_cash_flow_rows(
+            self._session,
+            year=year,
+            user_id=user_id,
+        )
+        # Build lookup: account_id -> (dividends, withholding, interest)
+        cash_by_account: dict[uuid.UUID | None, tuple[Decimal, Decimal, Decimal]] = {
+            row[0]: (row[1], row[2], row[3]) for row in cash_rows
+        }
+
         overall_equities_gains = _ZERO
         overall_equities_losses = _ZERO
         overall_equities_count = 0
@@ -89,19 +112,31 @@ class TaxService:
         overall_derivatives_losses = _ZERO
         overall_derivatives_count = 0
         overall_total_missing = 0
+        overall_dividends = _ZERO
+        overall_withholding = _ZERO
+        overall_interest = _ZERO
 
         # Group rows by account
-        account_groups: dict[uuid.UUID | None, list] = {}
+        account_groups: dict[
+            uuid.UUID | None,
+            list[tuple[uuid.UUID | None, str | None, bool, Decimal, Decimal, int, int]],
+        ] = {}
         for row in rows:
             acc_id = row[0]
             if acc_id not in account_groups:
                 account_groups[acc_id] = []
             account_groups[acc_id].append(row)
 
+        # Also include accounts that have cash transactions but no trades
+        for acc_id in cash_by_account:
+            if acc_id not in account_groups:
+                account_groups[acc_id] = []
+
         account_summaries: list[AccountTaxSummary] = []
 
         for acc_id, acc_rows in account_groups.items():
-            acc_name = acc_rows[0][1]
+            # Determine account name from trade rows (or leave None)
+            acc_name: str | None = acc_rows[0][1] if acc_rows else None
 
             acc_equities_gains = _ZERO
             acc_equities_losses = _ZERO
@@ -140,6 +175,14 @@ class TaxService:
                     overall_derivatives_losses += acc_derivatives_losses
                     overall_derivatives_count += acc_derivatives_count
 
+            # Cash flow totals for this account
+            dividends, withholding, interest = cash_by_account.get(
+                acc_id, (_ZERO, _ZERO, _ZERO)
+            )
+            overall_dividends += dividends
+            overall_withholding += withholding
+            overall_interest += interest
+
             acc_equities_net = acc_equities_gains + acc_equities_losses
             acc_derivatives_net = acc_derivatives_gains + acc_derivatives_losses
 
@@ -161,6 +204,9 @@ class TaxService:
                     ),
                     total_net_eur=acc_equities_net + acc_derivatives_net,
                     trades_missing_eur=acc_total_missing,
+                    dividends_eur=dividends,
+                    withholding_tax_eur=withholding,
+                    interest_eur=interest,
                 )
             )
 
@@ -183,6 +229,9 @@ class TaxService:
             ),
             total_net_eur=overall_equities_net + overall_derivatives_net,
             trades_missing_eur=overall_total_missing,
+            dividends_eur=overall_dividends,
+            withholding_tax_eur=overall_withholding,
+            interest_eur=overall_interest,
             accounts=account_summaries,
         )
 
@@ -193,9 +242,10 @@ class TaxService:
     ) -> str:
         """Build the Anlage KAP CSV for a given year and user.
 
-        Fetches individual closed trades with ``pnl_eur`` set (or NULL),
-        computes an implied EUR/USD rate where possible, and writes one
-        CSV row per trade sorted by ``closed_at`` ascending.
+        The CSV contains two sections:
+        1. **Trades** — closed trades with P&L in EUR (one row per trade).
+        2. **Kapitalerträge** — dividend, withholding-tax and interest cash
+           transactions for the year (one row per cash transaction).
 
         Args:
             year: Calendar year to export.
@@ -210,10 +260,18 @@ class TaxService:
             year=year,
             user_id=user_id,
         )
+        cash_txs = await self._repo.get_annual_cash_transactions(
+            self._session,
+            year=year,
+            user_id=user_id,
+        )
 
         output = io.StringIO()
         writer = csv.writer(output, dialect="excel")
-        writer.writerow(_CSV_HEADERS)
+
+        # ── Section 1: Trades ──────────────────────────────────────────────────
+        writer.writerow(["## Trades (§20 Abs. 2 EStG)"])
+        writer.writerow(_TRADE_CSV_HEADERS)
 
         for trade in trades:
             is_equity = trade.asset_class == AssetClass.EQUITY
@@ -244,6 +302,26 @@ class TaxService:
                     str(trade.pnl) if trade.pnl is not None else "",
                     fx_rate,
                     str(trade.pnl_eur) if trade.pnl_eur is not None else "",
+                ]
+            )
+
+        # ── Section 2: Kapitalerträge (Dividenden, Quellensteuer, Zinsen) ──────
+        writer.writerow([])
+        writer.writerow(["## Kapitalerträge (§20 Abs. 1 EStG)"])
+        writer.writerow(_CASH_CSV_HEADERS)
+
+        for ct in cash_txs:
+            account_name = ct.account.name if ct.account else ""
+            writer.writerow(
+                [
+                    account_name,
+                    ct.date.strftime("%Y-%m-%d"),
+                    str(ct.type),
+                    ct.symbol or "",
+                    str(ct.amount),
+                    ct.currency,
+                    str(ct.amount_eur) if ct.amount_eur is not None else "",
+                    ct.description or "",
                 ]
             )
 

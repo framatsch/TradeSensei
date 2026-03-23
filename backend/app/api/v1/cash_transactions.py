@@ -58,7 +58,7 @@ async def create_cash_transaction(
 )
 async def list_cash_transactions(
     account_id: uuid.UUID,
-    filters: Annotated[CashTransactionFilterParams, Query()],
+    filters: Annotated[CashTransactionFilterParams, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
     limit: Annotated[

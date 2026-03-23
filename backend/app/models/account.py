@@ -3,11 +3,11 @@
 import uuid
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.constants import (
@@ -52,6 +52,9 @@ class Account(Base):
         type: Account/broker type (MANUAL, SCHWAB, or IBKR).
         currency: ISO-4217 currency code for the account (e.g. "USD").
         is_active: Soft-disable flag.
+        settings: Optional JSONB blob storing per-account import/sync preferences
+            such as ``sync_days``, ``flex_from_date_preset``, and
+            ``flex_custom_from_date``.
         created_at: Row-creation timestamp set by the database.
         updated_at: Row-update timestamp maintained by a DB trigger.
         user: Parent :class:`~app.models.user.User` relationship.
@@ -103,6 +106,16 @@ class Account(Base):
         nullable=False,
         default=True,
         server_default="true",
+    )
+    settings: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=None,
+        comment=(
+            "Per-account import/sync settings stored as JSON. "
+            "Keys: sync_days (int), flex_from_date_preset (str), "
+            "flex_custom_from_date (str YYYYMMDD or null)."
+        ),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

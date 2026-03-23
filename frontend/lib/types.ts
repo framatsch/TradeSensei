@@ -26,6 +26,13 @@ export interface CursorPage<T> {
   total: number | null;
 }
 
+export interface OffsetPage<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export interface TokenResponse {
@@ -53,6 +60,14 @@ export interface UserCreate {
 
 export type AccountType = "manual" | "schwab" | "ibkr";
 
+export type FlexFromDatePreset = "ytd" | "custom";
+
+export interface AccountSettings {
+  sync_days: number;
+  flex_from_date_preset: FlexFromDatePreset;
+  flex_custom_from_date: string | null;
+}
+
 export interface Account {
   id: string;
   user_id: string;
@@ -62,6 +77,7 @@ export interface Account {
   currency: string;
   is_active: boolean;
   has_api_keys: boolean;
+  settings: AccountSettings;
   created_at: string;
 }
 
@@ -71,6 +87,7 @@ export interface AccountCreate {
   type?: AccountType;
   currency?: string;
   properties?: Record<string, string> | null;
+  settings?: Partial<AccountSettings> | null;
 }
 
 // ─── Playbook ─────────────────────────────────────────────────────────────────
@@ -163,6 +180,7 @@ export interface Trade {
   updated_at: string;
   tradingview_link?: string | null;
   screenshots?: string[];
+  is_manually_edited: boolean;
 }
 
 export interface TradeCreate {
@@ -199,9 +217,11 @@ export interface TradeUpdate {
   pnl?: string | null;
   commission?: string | null;
   notes?: string | null;
+  tradingview_link?: string | null;
   playbook_id?: string | null;
   tag_ids?: string[] | null;
   currency?: string | null;
+  is_manually_edited?: boolean | null;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -254,6 +274,9 @@ export interface ImportResult {
   trades_parsed: number;
   trades_created: number;
   trades_skipped: number;
+  cash_transactions_parsed: number;
+  cash_transactions_created: number;
+  cash_transactions_skipped: number;
   warnings: string[];
 }
 
@@ -304,6 +327,7 @@ export interface AccountUpdate {
   currency?: string;
   is_active?: boolean;
   properties?: Record<string, string> | null;
+  settings?: Partial<AccountSettings> | null;
 }
 
 // ─── Tax ──────────────────────────────────────────────────────────────────────
@@ -322,6 +346,9 @@ export interface AccountTaxSummary {
   derivatives: TaxCategoryBlock;
   total_net_eur: string;
   trades_missing_eur: number;
+  dividends_eur: string;
+  withholding_tax_eur: string;
+  interest_eur: string;
 }
 
 export interface TaxAnnualSummary {
@@ -330,6 +357,9 @@ export interface TaxAnnualSummary {
   derivatives: TaxCategoryBlock;
   total_net_eur: string;
   trades_missing_eur: number;
+  dividends_eur: string;
+  withholding_tax_eur: string;
+  interest_eur: string;
   accounts: AccountTaxSummary[];
 }
 
@@ -418,4 +448,36 @@ export interface CashTransactionUpdate {
 export interface AccountMetrics {
   total_dividends: string;
   total_withholding_tax: string;
+}
+
+// ─── Corporate Actions ────────────────────────────────────────────────────────
+
+export interface CorporateAction {
+  id: string;
+  user_id: string;
+  symbol: string;
+  /** ISO 8601 date string (e.g. "2023-05-01") */
+  date: string;
+  /** Split ratio: after / before (e.g. "0.05" for 1:20 reverse split) */
+  ratio: string;
+  old_conid: string | null;
+  new_conid: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CorporateActionCreate {
+  symbol: string;
+  date: string;
+  ratio: string;
+  old_conid?: string | null;
+  new_conid?: string | null;
+}
+
+export interface CorporateActionUpdate {
+  symbol?: string;
+  date?: string;
+  ratio?: string;
+  old_conid?: string | null;
+  new_conid?: string | null;
 }

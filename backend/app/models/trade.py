@@ -7,6 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -95,6 +96,8 @@ class Trade(Base):
             attached to this trade via the ``trade_tags`` association table.
         trade_notes: One-to-many collection of
             :class:`~app.models.trade_note.TradeNote` objects.
+        is_manually_edited: When ``True``, this trade was manually corrected
+            and will not be overwritten on subsequent broker re-imports.
         created_at: Row-creation timestamp set by the database.
         updated_at: Row-update timestamp maintained by the database.
     """
@@ -180,6 +183,21 @@ class Trade(Base):
         index=True,
         comment="External broker order identifier for deduplication.",
     )
+    broker_conid: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        index=True,
+        comment="External broker contract identifier (e.g. IBKR conid).",
+    )
+    is_manually_edited: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+        comment=(
+            "When True, this trade was manually corrected and will be "
+            "skipped on subsequent broker re-imports."
+        ),
+    )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
         nullable=True,
@@ -225,6 +243,7 @@ class Trade(Base):
         Index("ix_trades_account_id", "account_id"),
         Index("ix_trades_playbook_id", "playbook_id"),
         Index("ix_trades_broker_order_id", "broker_order_id"),
+        Index("ix_trades_broker_conid", "broker_conid"),
     )
 
     # Relationships

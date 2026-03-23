@@ -63,6 +63,8 @@ async def sync_account(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[BrokerService, Depends(_get_service)],
     days: int = 30,
+    from_date: str | None = None,
+    overwrite_manually_edited: bool = False,
 ) -> ResponseEnvelope[BrokerSyncResult]:
     """Trigger an incremental broker trade sync for the given account.
 
@@ -75,6 +77,13 @@ async def sync_account(
         current_user: The authenticated user.
         service: The :class:`BrokerService` instance.
         days: Number of past days to fetch orders for (default: 30).
+            For IBKR accounts this is overridden by ``from_date`` when
+            that parameter is provided.
+        from_date: Optional explicit start date in ``YYYYMMDD`` format.
+            When supplied for IBKR Flex sync, this takes precedence over
+            ``days``.
+        overwrite_manually_edited: When ``True``, trades that have been
+            manually edited are overwritten instead of skipped.
 
     Returns:
         A :class:`~app.schemas.common.ResponseEnvelope` wrapping a
@@ -89,6 +98,8 @@ async def sync_account(
             account_id=account_id,
             user_id=current_user.id,
             days=days,
+            from_date=from_date,
+            overwrite_manually_edited=overwrite_manually_edited,
         )
     except AccountNotFoundError as exc:
         raise HTTPException(
