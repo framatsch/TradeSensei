@@ -24,6 +24,10 @@ RUN npm run build
 
 FROM node:20-alpine AS production
 
+ARG GITHUB_REPOSITORY
+ENV GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
+LABEL org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}
+
 WORKDIR /app
 
 ENV NODE_ENV=production \
