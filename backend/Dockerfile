@@ -42,6 +42,9 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload
 # ─────────────────────────────────────────────────────────────────────────────
 FROM python:3.12-alpine AS production
 
+ARG GITHUB_REPOSITORY
+ENV GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
+
 # Copy only the installed virtual environment and application code
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/app /app/app
@@ -55,6 +58,7 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
 # Run as non-root user for security
+LABEL org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
