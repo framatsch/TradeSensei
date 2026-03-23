@@ -18,6 +18,8 @@ RUN uv sync --frozen --no-install-project
 
 # Copy application source code
 COPY app/ ./app/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
 
 # Install the project itself (editable-equivalent for a src layout)
 RUN uv sync --frozen
