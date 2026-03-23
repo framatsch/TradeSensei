@@ -77,3 +77,4 @@ class BrokerParser(ABC):
                 ``model_copy``.
             session: Active async DB session for FX-rate lookups.
         """
+        return
