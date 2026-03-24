@@ -37,7 +37,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/tradejournal-backend
+          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -55,8 +55,8 @@ jobs:
           target: production
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
           build-args: |
             GITHUB_REPOSITORY=${{ github.repository }}
 
@@ -67,8 +67,8 @@ jobs:
           generate_release_notes: true
           body: |
             ## Docker Images
-            - `ghcr.io/${{ github.repository_owner }}/tradejournal-backend:${{ steps.meta.outputs.version }}`
-            - `ghcr.io/${{ github.repository_owner }}/tradejournal-frontend:${{ steps.meta.outputs.version }}`
+            - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend:${{ steps.meta.outputs.version }}`
+            - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend:${{ steps.meta.outputs.version }}`
           files: |
             backend/pyproject.toml
             frontend/package.json
@@ -103,7 +103,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/tradejournal-frontend
+          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -121,7 +121,7 @@ jobs:
           target: production
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
           build-args: |
             GITHUB_REPOSITORY=${{ github.repository }}
