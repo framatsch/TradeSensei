@@ -36,12 +36,43 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+
 # ---------------------------------------------------------------------------
 # Inject DATABASE_URL from environment so alembic.ini stays credential-free.
 # ---------------------------------------------------------------------------
-_db_url = os.environ.get("DATABASE_URL")
-if _db_url:
-    config.set_main_option("sqlalchemy.url", _db_url)
+def _resolve_database_url() -> str:
+    """Resolve database URL from environment.
+
+    Resolution order:
+    1) ``DATABASE_URL`` if explicitly provided.
+    2) Build from ``DB_*`` parts (user/password/host/port/name).
+
+    Returns:
+        A SQLAlchemy async URL using the ``postgresql+asyncpg`` dialect.
+
+    Raises:
+        RuntimeError: If neither ``DATABASE_URL`` nor required DB parts are set.
+    """
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        return db_url
+
+    db_user = os.environ.get("DB_USER")
+    db_password = os.environ.get("DB_PASSWORD")
+    db_host = os.environ.get("DB_HOST", "db")
+    db_port = os.environ.get("DB_PORT", "5432")
+    db_name = os.environ.get("DB_NAME", "tradejournal")
+
+    if not db_user or not db_password:
+        raise RuntimeError(
+            "Alembic database configuration missing. Set DATABASE_URL or both "
+            "DB_USER and DB_PASSWORD (optionally DB_HOST/DB_PORT/DB_NAME)."
+        )
+
+    return f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+
+config.set_main_option("sqlalchemy.url", _resolve_database_url())
 
 
 def run_migrations_offline() -> None:

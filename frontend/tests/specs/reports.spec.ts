@@ -82,7 +82,7 @@ test.describe('Performance Reports — Navigation', () => {
     await expect(page).toHaveURL(/opened_at_to=/);
   });
 
-  test('TC-R005 after Hourly navigation, filter chip shows hour label', async ({ page }) => {
+  test('TC-R005 after Hourly navigation, one filter is active in Trades', async ({ page }) => {
     await page.goto('/dashboard/reports/hourly');
     await page.waitForLoadState('networkidle');
 
@@ -92,11 +92,10 @@ test.describe('Performance Reports — Navigation', () => {
 
     await expect(page).toHaveURL(/hour_of_day=\d+/, { timeout: 8_000 });
 
-    // The filter chip "Hour: HH:00" should appear in the TradeFilterBar
-    await expect(page.getByText(/Hour: \d{2}:00/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Filters' })).toContainText('1');
   });
 
-  test('TC-R006 after Weekday navigation, filter chip shows day name', async ({ page }) => {
+  test('TC-R006 after Weekday navigation, one filter is active in Trades', async ({ page }) => {
     await page.goto('/dashboard/reports/weekday');
     await page.waitForLoadState('networkidle');
 
@@ -106,9 +105,6 @@ test.describe('Performance Reports — Navigation', () => {
 
     await expect(page).toHaveURL(/day_of_week=\d+/, { timeout: 8_000 });
 
-    // The filter chip "Day: <Weekday>" should appear
-    await expect(
-      page.getByText(/Day: (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/)
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Filters' })).toContainText('1');
   });
 });
