@@ -13,7 +13,7 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -43,7 +43,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
-            type=raw,value=latest,enable={{github.ref == 'refs/heads/main'}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push backend image
         uses: docker/build-push-action@v6
@@ -59,6 +59,19 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             GITHUB_REPOSITORY=${{ github.repository }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## Docker Images
+            - `ghcr.io/${{ github.repository_owner }}/tradejournal-backend:${{ steps.meta.outputs.version }}`
+            - `ghcr.io/${{ github.repository_owner }}/tradejournal-frontend:${{ steps.meta.outputs.version }}`
+          files: |
+            backend/pyproject.toml
+            frontend/package.json
 
   build-push-frontend:
     name: Build & push frontend image
@@ -96,7 +109,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
-            type=raw,value=latest,enable={{github.ref == 'refs/heads/main'}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
