@@ -51,7 +51,7 @@ services:
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/v1/auth/google/callback}"
-      BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-}"
+      BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-daJEwBPiYPyToA8tPYgcN9IZqaZpJFUCOjIgA6FbWl4=}"
     ports:
       - "8000:8000"
     volumes:
