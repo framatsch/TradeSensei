@@ -203,6 +203,7 @@ Skills are invokable workflows stored in `.opencode/skills/<name>/SKILL.md`.
 | `openapi-sync` | `.opencode/skills/openapi-sync/` | Regenerate the frontend OpenAPI client from the live FastAPI spec |
 | `deploy-local` | `.opencode/skills/deploy-local/` | Docker Compose start/stop/reset/debug workflow for local development |
 | `docker-build` | `.opencode/skills/docker-build/` | Local and multi-arch Docker image build workflow |
+| `ci-green-loop` | `.opencode/skills/ci-green-loop/` | Iterative GitHub Actions triage and fix loop until CI is fully green |
 | `ui-visual-check` | `.opencode/skills/ui-visual-check/` | Screenshot-based visual review using the `ui-reviewer` subagent |
 
 ### Standard Task Flow
