@@ -38,7 +38,6 @@ services:
       target: development
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://tradejournal:tradejournal@db:5432/tradejournal
       DB_USER: tradejournal
       DB_PASSWORD: tradejournal
       DB_HOST: db
