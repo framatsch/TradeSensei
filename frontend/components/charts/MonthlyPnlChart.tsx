@@ -50,10 +50,11 @@ export function MonthlyPnlChart({ data }: Props) {
   const chartData = toChartData(data);
 
   return (
-    <ChartShell
+     <ChartShell
       title="Monthly PnL"
       emptyMessage="No monthly data available."
       isEmpty={chartData.length === 0}
+      helpAnchor="monthly-pnl"
     >
       <ResponsiveContainer width="100%" height={240}>
         <BarChart

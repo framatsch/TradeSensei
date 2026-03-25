@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { useRollingWinrate } from "@/hooks/useRollingWinrate";
 import { Spinner } from "@/components/ui/Spinner";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 const WINDOW_OPTIONS = [10, 20, 50] as const;
 type WindowOption = (typeof WINDOW_OPTIONS)[number];
@@ -63,8 +64,9 @@ export function RollingWinrateChart() {
   return (
     <div className="bg-card rounded-xl p-5 border border-border">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
           Rolling Win Rate
+          <MetricHelpLink anchor="rolling-win-rate" />
         </h3>
         <div className="flex items-center gap-1">
           {WINDOW_OPTIONS.map((w) => (

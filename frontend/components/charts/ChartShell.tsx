@@ -8,6 +8,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 interface Props {
   /** Card heading shown above the chart. */
@@ -20,6 +21,8 @@ interface Props {
   children: ReactNode;
   /** Additional Tailwind classes applied to the outer card div. */
   className?: string;
+  /** When provided, renders a (?) link next to the title opening the help page. */
+  helpAnchor?: string;
 }
 
 export function ChartShell({
@@ -28,13 +31,15 @@ export function ChartShell({
   isEmpty,
   children,
   className = "",
+  helpAnchor,
 }: Props) {
   return (
     <div
       className={`bg-card text-card-foreground rounded-xl p-5 border border-border ${className}`}
     >
-      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
+      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
         {title}
+        {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </h3>
       {isEmpty ? (
         <p className="text-muted-foreground text-sm text-center py-12">

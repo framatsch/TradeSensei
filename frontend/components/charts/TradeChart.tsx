@@ -34,10 +34,16 @@ import {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const HUB_BASE =
-  typeof process !== "undefined"
-    ? process.env.NEXT_PUBLIC_MARKET_DATA_HUB_URL ?? ""
-    : "";
+// Use the same base URL logic as apiClient in lib/api.ts:
+//   - production  → /api/proxy  (Next.js → backend via INTERNAL_API_URL)
+//   - development → NEXT_PUBLIC_API_URL (browser → backend directly)
+// This avoids the broken-in-Docker undici/fetch stack in Next.js Route Handlers.
+const API_BASE =
+  process.env.NODE_ENV === "production"
+    ? "/api/proxy"
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
+
+const MARKET_DATA_PROXY = `${API_BASE}/api/v1/market-data`;
 
 type Interval = "1h" | "4h" | "1d";
 
@@ -61,7 +67,15 @@ function isIndexSymbol(symbol: string, assetClass: AssetClass): boolean {
 }
 
 function smartDefaultInterval(entryDate: Date, exitDate: Date | null): Interval {
-  const end = exitDate ?? new Date();
+  const now = Date.now();
+  // If the trade is very old (entry is > 60 days ago), intraday data is likely unavailable.
+  // The LSEG hub only keeps ~1000 bars of 1h data (approx 2.5 months).
+  const daysSinceEntry = (now - entryDate.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSinceEntry > 60) {
+    return "1d";
+  }
+
+  const end = exitDate ?? new Date(now);
   const diffMs = end.getTime() - entryDate.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
   return diffDays < 7 ? "1h" : "1d";
@@ -75,25 +89,27 @@ function buildApiUrl(
   assetClass: AssetClass,
 ): string {
   const secs = INTERVAL_SECONDS[interval];
+  // Buffer start by 30 candles
   const start = new Date(
     entryDate.getTime() - 30 * secs * 1000,
   ).toISOString();
-  const end = new Date(
-    (exitDate ?? new Date()).getTime() + 10 * secs * 1000,
-  ).toISOString();
 
+  // We deliberately do NOT send `end` to the Market Data Hub.
+  // The LSEG provider has a bug where if `end` is too far in the past,
+  // it returns 0 bars. Omitting `end` safely fetches from `start` up to today.
+  // Lightweight-charts will just render the extra bars, but our `setVisibleRange`
+  // will keep the view focused correctly around the trade.
   const params = new URLSearchParams({
     provider: "lseg",
     interval,
     start,
-    end,
   });
 
   if (isIndexSymbol(symbol, assetClass)) {
     params.set("sec_type", "index");
   }
 
-  return `${HUB_BASE}/prices/${encodeURIComponent(symbol)}/history?${params.toString()}`;
+  return `${MARKET_DATA_PROXY}/prices/${encodeURIComponent(symbol)}/history?${params.toString()}`;
 }
 
 function tvSymbol(symbol: string): string {
@@ -104,13 +120,18 @@ function tvSymbol(symbol: string): string {
 // ── Types for API response ────────────────────────────────────────────────────
 
 interface OhlcBar {
+  // Hub uses "start" as the candle open time (ISO string).
+  // Accept all common field names for forward compatibility.
+  start?: string;
+  end?: string;
   time?: number | string;
   date?: string;
   timestamp?: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
+  // OHLC values may come as strings from the Hub ("123.45") or numbers.
+  open: number | string;
+  high: number | string;
+  low: number | string;
+  close: number | string;
 }
 
 interface ChartCandle {
@@ -124,24 +145,33 @@ interface ChartCandle {
 function mapBars(raw: OhlcBar[]): ChartCandle[] {
   return raw
     .map((bar): ChartCandle | null => {
-      // Accept various timestamp field names from the hub
+      // Resolve timestamp — Hub uses "start" (ISO string) as primary field.
       let ts: number | null = null;
-      if (typeof bar.time === "number") ts = bar.time;
-      else if (typeof bar.timestamp === "number") ts = bar.timestamp;
-      else if (typeof bar.time === "string") ts = Math.floor(new Date(bar.time).getTime() / 1000);
-      else if (typeof bar.date === "string") ts = Math.floor(new Date(bar.date).getTime() / 1000);
+      if (typeof bar.start === "string") {
+        ts = Math.floor(new Date(bar.start).getTime() / 1000);
+      } else if (typeof bar.time === "number") {
+        ts = bar.time;
+      } else if (typeof bar.timestamp === "number") {
+        ts = bar.timestamp;
+      } else if (typeof bar.time === "string") {
+        ts = Math.floor(new Date(bar.time).getTime() / 1000);
+      } else if (typeof bar.date === "string") {
+        ts = Math.floor(new Date(bar.date).getTime() / 1000);
+      }
 
       if (ts === null || isNaN(ts)) return null;
-      // If timestamp is in milliseconds (> year 3000 in seconds), convert
+      // Convert milliseconds → seconds if accidentally in ms (> year 3000 in sec)
       if (ts > 32503680000) ts = Math.floor(ts / 1000);
 
-      return {
-        time: ts as Time,
-        open: bar.open,
-        high: bar.high,
-        low: bar.low,
-        close: bar.close,
-      };
+      // OHLC values may be strings — coerce to number.
+      const open = Number(bar.open);
+      const high = Number(bar.high);
+      const low = Number(bar.low);
+      const close = Number(bar.close);
+
+      if ([open, high, low, close].some(isNaN)) return null;
+
+      return { time: ts as Time, open, high, low, close };
     })
     .filter((b): b is ChartCandle => b !== null)
     .sort((a, b) => (a.time as number) - (b.time as number));
@@ -266,8 +296,9 @@ export function TradeChart({ trade }: TradeChartProps) {
   const [interval, setInterval] = useState<Interval>(() =>
     smartDefaultInterval(entryDate, exitDate)
   );
+  // If no Hub URL is configured we go straight to fallback — no loading needed
   const [loading, setLoading] = useState(true);
-  const [useFallback, setUseFallback] = useState(() => !HUB_BASE);
+  const [useFallback, setUseFallback] = useState(false);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -277,12 +308,6 @@ export function TradeChart({ trade }: TradeChartProps) {
   // ── Fetch chart data ───────────────────────────────────────────────────────
   const fetchAndRender = useCallback(
     async (iv: Interval) => {
-      if (!HUB_BASE) {
-        setUseFallback(true);
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
       try {
         const url = buildApiUrl(chartSymbol, iv, entryDate, exitDate, assetClass);
@@ -325,9 +350,10 @@ export function TradeChart({ trade }: TradeChartProps) {
             {
               time: snap(entryTs),
               position: "belowBar",
-              color: "#26a69a",
+              color: "#00d2ff", // Electric Cyan (High contrast vs Green)
               shape: "arrowUp",
-              text: "Entry",
+              text: "ENTRY",
+              size: 2, // Larger for better visibility
             },
           ];
 
@@ -335,11 +361,19 @@ export function TradeChart({ trade }: TradeChartProps) {
             markers.push({
               time: snap(exitTs),
               position: "aboveBar",
-              color: "#ef5350",
+              color: "#f0abfc", // Bright Fuchsia/Lavender (High contrast vs Red)
               shape: "arrowDown",
-              text: "Exit",
+              text: "EXIT",
+              size: 2,
             });
           }
+
+          // Spacing and overall marker styling
+          seriesRef.current.applyOptions({
+            markers: {
+              offset: 20, // Even more space to clear the wicks
+            }
+          } as any);
 
           // createSeriesMarkers is the v5 API (replaces series.setMarkers)
           if (markersRef.current) {
@@ -387,6 +421,10 @@ export function TradeChart({ trade }: TradeChartProps) {
       rightPriceScale: {
         borderColor: "rgba(255,255,255,0.08)",
         textColor: "rgba(180,180,200,0.6)",
+        scaleMargins: {
+          top: 0.2,
+          bottom: 0.2,
+        },
       },
       timeScale: {
         borderColor: "rgba(255,255,255,0.08)",
@@ -431,7 +469,8 @@ export function TradeChart({ trade }: TradeChartProps) {
 
   // ── Fetch on mount + interval change ──────────────────────────────────────
   useEffect(() => {
-    if (!useFallback || HUB_BASE) {
+    // Don't retry after a fallback-triggering error (e.g. 503 = hub not configured)
+    if (!useFallback) {
       fetchAndRender(interval);
     }
   }, [interval, fetchAndRender, useFallback]);
@@ -441,8 +480,8 @@ export function TradeChart({ trade }: TradeChartProps) {
     setInterval(iv);
   }
 
-  // ── TradingView fallback (no Hub URL or API error) ─────────────────────────
-  if (useFallback && !loading) {
+  // ── TradingView fallback (no Hub URL configured, or API error) ────────────
+  if (useFallback) {
     return (
       <div className="w-full h-full relative">
         {occ.isOption && <OptionOverlay occ={occ} />}
@@ -460,20 +499,25 @@ export function TradeChart({ trade }: TradeChartProps) {
       {occ.isOption && <OptionOverlay occ={occ} />}
 
       {/* Interval toolbar */}
-      <div className="shrink-0 flex items-center gap-1 px-3 pt-2 pb-1">
-        {(["1h", "4h", "1d"] as Interval[]).map((iv) => (
-          <button
-            key={iv}
-            onClick={() => handleIntervalChange(iv)}
-            className={`px-2.5 py-0.5 rounded text-xs font-mono font-medium transition-colors ${
-              interval === iv
-                ? "bg-primary/20 text-primary border border-primary/40"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50"
-            }`}
-          >
-            {iv}
-          </button>
-        ))}
+      <div className="shrink-0 flex items-center gap-1.5 px-3 pt-3 pb-2">
+        <div className="flex p-0.5 rounded-full bg-zinc-900/60 border border-white/5 backdrop-blur-md shadow-inner">
+          {(["1h", "4h", "1d"] as Interval[]).map((iv) => (
+            <button
+              key={iv}
+              onClick={() => handleIntervalChange(iv)}
+              className={`relative px-3.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 ${
+                interval === iv
+                  ? "bg-gradient-to-b from-primary/40 to-primary/10 text-primary shadow-[0_0_12px_rgba(0,210,255,0.2)] border border-primary/30"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent"
+              }`}
+            >
+              {iv}
+              {interval === iv && (
+                <span className="absolute inset-0 rounded-full bg-primary/10 blur-[2px] animate-pulse" />
+              )}
+            </button>
+          ))}
+        </div>
         <div className="flex-1" />
         {/* Open in TradingView */}
         <a
@@ -481,9 +525,9 @@ export function TradeChart({ trade }: TradeChartProps) {
           target="_blank"
           rel="noopener noreferrer"
           title="Open in TradingView"
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-zinc-400 hover:text-primary border border-transparent hover:border-border transition-colors"
+          className="group inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold text-zinc-500 hover:text-primary bg-zinc-900/40 border border-white/5 hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-[0_0_10px_rgba(0,210,255,0.1)]"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
             <polyline points="15 3 21 3 21 9" />
             <line x1="10" y1="14" x2="21" y2="3" />

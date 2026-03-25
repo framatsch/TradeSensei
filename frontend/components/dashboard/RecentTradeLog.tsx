@@ -73,19 +73,19 @@ function TradeRow({ trade }: { trade: Trade }) {
         </span>
       </td>
 
+      {/* Net Profit */}
+      <td className="py-3 pr-4">
+        <span className={`text-sm font-semibold font-mono tabular-nums ${pnl.cls}`}>
+          {pnl.text}
+        </span>
+      </td>
+
       {/* Setup / Playbook */}
-      <td className="py-3 pr-4 hidden sm:table-cell">
+      <td className="py-3 text-right hidden sm:table-cell">
         <span className="text-xs font-mono text-muted-foreground">
           {trade.playbook_name ?? (
             <span className="opacity-40">—</span>
           )}
-        </span>
-      </td>
-
-      {/* Net Profit */}
-      <td className="py-3 text-right">
-        <span className={`text-sm font-semibold font-mono tabular-nums ${pnl.cls}`}>
-          {pnl.text}
         </span>
       </td>
     </tr>
@@ -141,32 +141,34 @@ export function RecentTradeLog() {
             </Link>
           </div>
         ) : (
-          <table className="radiant-table w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="pb-2 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Date
-                </th>
-                <th className="pb-2 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Symbol
-                </th>
-                <th className="pb-2 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Side
-                </th>
-                <th className="pb-2 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden sm:table-cell">
-                  Setup
-                </th>
-                <th className="pb-2 text-right text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Net P&amp;L
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {trades.map((trade) => (
-                <TradeRow key={trade.id} trade={trade} />
-              ))}
-            </tbody>
-          </table>
+          <div className="px-6 py-2">
+            <table className="radiant-table w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="py-3 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Date
+                  </th>
+                  <th className="py-3 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Symbol
+                  </th>
+                  <th className="py-3 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Side
+                  </th>
+                  <th className="py-3 pr-4 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Net P&amp;L
+                  </th>
+                  <th className="py-3 text-right text-[10px] font-bold uppercase tracking-widest text-muted-foreground hidden sm:table-cell">
+                    Setup
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.map((trade) => (
+                  <TradeRow key={trade.id} trade={trade} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

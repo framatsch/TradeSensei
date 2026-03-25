@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import type { Trade } from "@/lib/types";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { QuickNoteInput } from "@/components/notes/QuickNoteInput";
@@ -23,6 +24,14 @@ function formatPrice(value: string | null): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
   })}`;
+}
+
+function formatQuantity(value: string | number | null): string {
+  if (value === null) return "—";
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  return num.toLocaleString("en-US", {
+    maximumFractionDigits: 3,
+  });
 }
 
 function formatPnl(value: string | null): React.ReactElement {
@@ -50,12 +59,13 @@ function DirectionBadge({ direction }: { direction: string }) {
   const isLong = direction === "LONG";
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
         isLong
-          ? "bg-emerald-900/50 text-emerald-400 border border-emerald-800"
-          : "bg-red-900/50 text-red-400 border border-red-800"
+          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+          : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800"
       }`}
     >
+      {isLong ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />}
       {direction}
     </span>
   );
@@ -92,6 +102,9 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">
         {trade.asset_class}
+      </td>
+      <td className="px-4 py-3 text-sm text-muted-foreground">
+        {formatQuantity(trade.quantity)}
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">
         {trade.account_name ?? <span className="text-muted-foreground">—</span>}
