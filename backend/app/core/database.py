@@ -44,7 +44,7 @@ async_session_factory = async_sessionmaker(
 # ---------------------------------------------------------------------------
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     """Yield an :class:`AsyncSession` for use in FastAPI dependencies.
 
     The session is committed on clean exit and rolled back on any
