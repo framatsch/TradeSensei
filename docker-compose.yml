@@ -71,8 +71,8 @@ services:
   # ─────────────────────────────────────────────
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       target: development
     restart: unless-stopped
     environment:
