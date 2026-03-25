@@ -228,6 +228,12 @@ def _apply_filters(
     if filters.opened_at_to is not None:
         stmt = stmt.where(Trade.opened_at <= filters.opened_at_to)
 
+    if filters.closed_at_from is not None:
+        stmt = stmt.where(Trade.closed_at >= filters.closed_at_from)
+
+    if filters.closed_at_to is not None:
+        stmt = stmt.where(Trade.closed_at <= filters.closed_at_to)
+
     if filters.pnl_positive is True:
         stmt = stmt.where(Trade.pnl > Decimal("0"))
     elif filters.pnl_positive is False:

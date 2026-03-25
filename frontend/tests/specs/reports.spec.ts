@@ -107,4 +107,23 @@ test.describe('Performance Reports — Navigation', () => {
 
     await expect(page.getByRole('button', { name: 'Filters' })).toContainText('1');
   });
+
+  test('TC-R007 Calendar report day click navigates to trades with closed_at filters', async ({ page }) => {
+    await page.goto('/dashboard/reports/calendar');
+    await page.waitForLoadState('networkidle');
+
+    // Wait for the calendar to render and find a day cell with trades
+    // Looking for the specific text "trades" which is only rendered on days with activity
+    const dayWithTrades = page.locator('div.cursor-pointer', { hasText: /trades/i }).first();
+    await expect(dayWithTrades).toBeVisible({ timeout: 15_000 });
+
+    await dayWithTrades.click();
+
+    await expect(page).toHaveURL(/\/dashboard\/trades/, { timeout: 8_000 });
+    await expect(page).toHaveURL(/closed_at_from=/);
+    await expect(page).toHaveURL(/closed_at_to=/);
+
+    // Verify filter chip is visible
+    await expect(page.getByRole('button', { name: 'Filters' })).toContainText('2');
+  });
 });
