@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import type { MetricsSummary } from "@/lib/types";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,13 +69,15 @@ interface StatPillProps {
   label: string;
   value: string;
   color?: string;
+  helpAnchor?: string;
 }
 
-function StatPill({ label, value, color = "text-foreground" }: StatPillProps) {
+function StatPill({ label, value, color = "text-foreground", helpAnchor }: StatPillProps) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
         {label}
+        {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </span>
       <span className={`text-sm font-semibold tabular-nums ${color}`}>
         {value}
@@ -154,6 +157,7 @@ export function DashboardHeader({ summary }: Props) {
                   ? "text-success"
                   : "text-danger"
               }
+              helpAnchor="win-rate"
             />
             <StatPill
               label="Profit Factor"
@@ -168,6 +172,7 @@ export function DashboardHeader({ summary }: Props) {
                   ? "text-success"
                   : "text-danger"
               }
+              helpAnchor="profit-factor"
             />
             <StatPill
               label="Max DD"
@@ -177,6 +182,7 @@ export function DashboardHeader({ summary }: Props) {
                   : "—"
               }
               color="text-danger"
+              helpAnchor="max-drawdown"
             />
           </div>
         </div>

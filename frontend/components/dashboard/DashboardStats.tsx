@@ -14,6 +14,7 @@ import {
   Minus,
 } from "lucide-react";
 import type { MetricsSummary } from "@/lib/types";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ interface StatTileProps {
   sub?: string;
   icon: React.ReactNode;
   accentClass?: string;
+  helpAnchor?: string;
 }
 
 function StatTile({
@@ -48,13 +50,15 @@ function StatTile({
   sub,
   icon,
   accentClass = "text-muted-foreground",
+  helpAnchor,
 }: StatTileProps) {
   return (
     <div className="radiant-card light-edge noise-overlay p-5 flex flex-col gap-3">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
           {label}
+          {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
         </span>
         <span className={`${accentClass} opacity-70`}>{icon}</span>
       </div>
@@ -99,6 +103,7 @@ export function DashboardStats({ summary }: Props) {
         sub={rrr !== null ? `Win $${avgWin.toFixed(2)} · Loss $${avgLoss.toFixed(2)}` : undefined}
         icon={<Activity size={16} />}
         accentClass={rrr !== null && rrr >= 1 ? "text-success" : "text-foreground"}
+        helpAnchor="avg-rrr"
       />
 
       {/* Gross Profit */}
@@ -108,6 +113,7 @@ export function DashboardStats({ summary }: Props) {
         sub={`${m.winning_trades} winning trades`}
         icon={<TrendingUp size={16} />}
         accentClass="text-success"
+        helpAnchor="gross-profit"
       />
 
       {/* Gross Loss */}
@@ -117,6 +123,7 @@ export function DashboardStats({ summary }: Props) {
         sub={`${m.losing_trades} losing trades`}
         icon={<TrendingDown size={16} />}
         accentClass="text-danger"
+        helpAnchor="gross-loss"
       />
 
       {/* Sharpe Ratio */}
@@ -144,6 +151,7 @@ export function DashboardStats({ summary }: Props) {
               : "text-danger"
             : "text-muted-foreground"
         }
+        helpAnchor="sharpe-ratio"
       />
     </div>
   );

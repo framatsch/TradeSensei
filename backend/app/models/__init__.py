@@ -9,6 +9,7 @@ from app.models.account_property import AccountProperty as AccountProperty
 from app.models.cash_transaction import CashTransaction as CashTransaction
 from app.models.corporate_action import CorporateAction as CorporateAction
 from app.models.fx_rate import FxRate as FxRate
+from app.models.ohlc_price import OhlcPrice as OhlcPrice
 from app.models.playbook import Playbook as Playbook
 from app.models.tag import Tag as Tag
 from app.models.trade import Trade as Trade

@@ -51,6 +51,7 @@ export function PnlByAssetClassChart({ data }: Props) {
       title="PnL by Asset Class"
       emptyMessage="No asset class data available yet."
       isEmpty={chartData.length === 0}
+      helpAnchor="pnl-by-asset-class"
     >
       <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 44)}>
         <BarChart

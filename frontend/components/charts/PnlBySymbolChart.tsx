@@ -35,7 +35,7 @@ function formatCurrency(value: number): string {
 
 export function PnlBySymbolChart({ data }: Props) {
   return (
-    <ChartShell title="PnL by Symbol" isEmpty={data.length === 0}>
+    <ChartShell title="PnL by Symbol" isEmpty={data.length === 0} helpAnchor="pnl-by-symbol">
       <ResponsiveContainer width="100%" height={Math.max(200, data.length * 36)}>
         <BarChart
           data={data}

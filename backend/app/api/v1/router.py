@@ -13,6 +13,7 @@ from app.api.v1 import (
     cash_transactions,
     corporate_actions,
     imports,
+    market_data,
     metrics,
     notes,
     playbooks,
@@ -41,3 +42,4 @@ router.include_router(tax.router)
 router.include_router(broker.router)
 router.include_router(cash_transactions.router)
 router.include_router(corporate_actions.router)
+router.include_router(market_data.router)

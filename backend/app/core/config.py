@@ -117,6 +117,10 @@ class Settings(BaseSettings):
     schwab_redirect_uri: str = "http://localhost:8000/api/v1/broker/schwab/callback"
     """Absolute URL registered with Schwab for the OAuth redirect."""
 
+    # Market Data Hub
+    market_data_hub_url: str | None = None
+    """Base URL of the Market Data Hub (LSEG provider), e.g. https://market-data-hub.example.com"""
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> Any:

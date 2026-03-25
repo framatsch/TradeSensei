@@ -9,6 +9,7 @@ import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { TradeEditForm } from "@/components/trades/TradeEditForm";
 import { MediaChartsCard } from "@/components/trades/MediaChartsCard";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import type { TradeUpdate } from "@/lib/types";
 import type { AxiosError } from "axios";
 
@@ -18,6 +19,14 @@ function formatPrice(value: string | null): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
   })}`;
+}
+
+function formatQuantity(value: string | number | null): string {
+  if (value === null) return "—";
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  return num.toLocaleString("en-US", {
+    maximumFractionDigits: 3,
+  });
 }
 
 function formatDate(value: string | null): string {
@@ -248,30 +257,32 @@ export default function TradeDetailPage() {
 
               {/* Execution Details */}
               <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
-                <h2 className="text-base font-semibold text-foreground mb-4">Execution Details</h2>
+                <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
+                  Execution Details
+                </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
                   <div>
-                    <dt className="text-xs text-muted-foreground mb-1">Entry Price</dt>
+                    <dt className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">Entry Price <MetricHelpLink anchor="entry-price" /></dt>
                     <dd className="font-medium text-foreground">{formatPrice(trade.entry_price)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground mb-1">Exit Price</dt>
+                    <dt className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">Exit Price <MetricHelpLink anchor="exit-price" /></dt>
                     <dd className="font-medium text-foreground">{formatPrice(trade.exit_price)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground mb-1">Quantity</dt>
-                    <dd className="font-medium text-foreground">{trade.quantity}</dd>
+                    <dt className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">Quantity <MetricHelpLink anchor="quantity" /></dt>
+                    <dd className="font-medium text-foreground">{formatQuantity(trade.quantity)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground mb-1">Fees / Commissions</dt>
+                    <dt className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">Fees / Commissions <MetricHelpLink anchor="fees-commissions" /></dt>
                     <dd className="font-medium text-foreground">{formatPrice(trade.commission)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground mb-1">Stop Loss</dt>
+                    <dt className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">Stop Loss <MetricHelpLink anchor="stop-loss" /></dt>
                     <dd className="font-medium text-foreground">{formatPrice(trade.stop_loss)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground mb-1">Take Profit</dt>
+                    <dt className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">Take Profit <MetricHelpLink anchor="take-profit" /></dt>
                     <dd className="font-medium text-foreground">{formatPrice(trade.take_profit)}</dd>
                   </div>
                 </div>
@@ -306,50 +317,50 @@ export default function TradeDetailPage() {
                 <h2 className="text-base font-semibold text-foreground mb-4">Performance</h2>
                 <div className="space-y-3">
 
-                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
-                    <span className="text-sm text-muted-foreground">Realized R</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">Realized R <MetricHelpLink anchor="realized-r" /></span>
                     <span className={`font-semibold ${realizedR === null ? "text-zinc-400" : realizedR >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {realizedR !== null ? `${realizedR >= 0 ? "+" : ""}${realizedR.toFixed(2)}R` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
-                    <span className="text-sm text-muted-foreground">Planned RRR</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">Planned RRR <MetricHelpLink anchor="planned-rrr" /></span>
                     <span className="font-medium text-foreground">
                       {plannedRrr !== null ? `1 : ${plannedRrr.toFixed(2)}` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
-                    <span className="text-sm text-muted-foreground">Initial Risk</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">Initial Risk <MetricHelpLink anchor="initial-risk" /></span>
                     <span className="font-medium text-foreground">
                       {initialRisk !== null ? `$${initialRisk.toFixed(2)}` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
-                    <span className="text-sm text-muted-foreground">Return %</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">Return % <MetricHelpLink anchor="return-pct" /></span>
                     <span className={`font-medium ${returnPct === null ? "text-zinc-400" : returnPct >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {returnPct !== null ? `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}%` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
-                    <span className="text-sm text-muted-foreground">Gross P&L</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">Gross P&L <MetricHelpLink anchor="gross-pnl-trade" /></span>
                     <span className={`font-medium ${grossPnl === null ? "text-zinc-400" : grossPnl >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {grossPnl !== null ? `${grossPnl >= 0 ? "+" : ""}$${Math.abs(grossPnl).toFixed(2)}` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
-                    <span className="text-sm text-muted-foreground">Net P&L (after fees)</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">Net P&L (after fees) <MetricHelpLink anchor="net-pnl-trade" /></span>
                     <span className={`font-medium ${netPnl === null ? "text-zinc-400" : netPnl >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {netPnl !== null ? `${netPnl >= 0 ? "+" : ""}$${Math.abs(netPnl).toFixed(2)}` : "—"}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Holding Period</span>
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">Holding Period <MetricHelpLink anchor="holding-period" /></span>
                     <span className="font-medium text-foreground">
                       {formatHoldingPeriod(trade.opened_at, trade.closed_at)}
                     </span>

@@ -52,7 +52,7 @@
 
 /* ─── Dark Mode ─────────────────────────────────────────────────────────────── */
 .dark {
-  --background:          #18181b;   /* zinc-900 */
+  --background:          #121214;   /* near-black */
   --sidebar:             #0d0d12;   /* deeper than background */
   --foreground:          #fafafa;
   --card:                #0d0d12;

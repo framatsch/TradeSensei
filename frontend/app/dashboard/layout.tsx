@@ -315,8 +315,32 @@ export default function DashboardLayout({ children }: Props) {
           })}
         </nav>
 
-        {/* Sign out */}
-        <div className="px-2 py-3 border-t border-border">
+        {/* Help + Sign out */}
+        <div className="px-2 py-3 border-t border-border flex flex-col gap-0.5">
+          <button
+            type="button"
+            onClick={() =>
+              window.open(
+                "/help",
+                "tradejournal-help",
+                "width=1120,height=760,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no"
+              )
+            }
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="w-5 h-5 shrink-0"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Help
+          </button>
           <button
             onClick={() => logout()}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"

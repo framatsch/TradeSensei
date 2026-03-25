@@ -19,6 +19,7 @@ import { useMonthlyWinrate } from "@/hooks/useMonthlyWinrate";
 import type { MonthlyWinratePoint } from "@/hooks/useMonthlyWinrate";
 import { Spinner } from "@/components/ui/Spinner";
 import { ChartShell } from "./ChartShell";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 interface TooltipPayload {
   payload: MonthlyWinratePoint;
@@ -55,8 +56,9 @@ export function MonthlyWinrateChart() {
   if (isLoading) {
     return (
       <div className="bg-card rounded-xl p-5 border border-border">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
           Monthly Win Rate
+          <MetricHelpLink anchor="monthly-win-rate" />
         </h3>
         <div className="flex items-center justify-center h-48">
           <Spinner />
@@ -70,6 +72,7 @@ export function MonthlyWinrateChart() {
       title="Monthly Win Rate"
       emptyMessage="No monthly win rate data available."
       isEmpty={!data || data.length === 0}
+      helpAnchor="monthly-win-rate"
     >
       <ResponsiveContainer width="100%" height={240}>
         <BarChart
