@@ -169,15 +169,19 @@ function NavLeafItem({
     <Link
       href={item.href}
       onClick={onClick}
-      className={`flex items-center gap-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+      className={`flex items-center gap-3 py-2 text-sm font-medium transition-all duration-200 ${
         indent ? "pl-6 pr-3" : "px-3"
       } ${
         isActive
-          ? "glossy-active"
-          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          ? "nav-active"
+          : "rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
       }`}
     >
-      {item.icon && <span className="shrink-0">{item.icon}</span>}
+      {item.icon && (
+        <span className={`shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+          {item.icon}
+        </span>
+      )}
       {item.label}
     </Link>
   );
@@ -277,7 +281,7 @@ export default function DashboardLayout({ children }: Props) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col w-56 bg-card border-r border-border transform transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col w-56 bg-sidebar border-r border-border transform transition-transform duration-200 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -315,7 +319,7 @@ export default function DashboardLayout({ children }: Props) {
         <div className="px-2 py-3 border-t border-border">
           <button
             onClick={() => logout()}
-            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
           >
             <svg
               viewBox="0 0 24 24"
@@ -336,10 +340,10 @@ export default function DashboardLayout({ children }: Props) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile top bar */}
-        <header className="flex items-center gap-4 px-4 py-3 bg-card border-b border-border lg:hidden">
+        <header className="flex items-center gap-4 px-4 py-3 bg-sidebar border-b border-border lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
             aria-label="Open navigation"
           >
             <svg

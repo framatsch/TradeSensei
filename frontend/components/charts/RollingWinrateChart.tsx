@@ -75,7 +75,7 @@ export function RollingWinrateChart() {
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 window === w
                   ? "bg-primary text-white"
-                  : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:bg-slate-600"
+                  : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:bg-zinc-600"
               }`}
             >
               {w}

@@ -53,7 +53,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
         onKeyDown={handleKeyDown}
         placeholder="Quick note… (Ctrl+Enter to save, Esc to cancel)"
         rows={2}
-        className="w-full px-2 py-1.5 rounded bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary text-xs resize-none"
+        className="w-full px-2 py-1.5 rounded bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary text-xs resize-none"
       />
       <div className="mt-2 flex justify-end gap-2">
         <button

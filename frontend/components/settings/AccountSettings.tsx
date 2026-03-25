@@ -21,7 +21,7 @@ export function AccountSettings() {
           <h3 className="text-sm font-semibold text-foreground">
             Trading Accounts
           </h3>
-          <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
             Manage your trading accounts. Set the account type and optionally store API credentials for automatic sync.
           </p>
         </div>

@@ -157,7 +157,7 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-secondary hover:bg-slate-200 dark:bg-slate-600 text-muted-foreground rounded-md text-sm"
+            className="px-4 py-2 bg-secondary hover:bg-zinc-200 dark:bg-zinc-600 text-muted-foreground rounded-md text-sm"
           >
             Cancel
           </button>
@@ -221,7 +221,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-secondary hover:bg-slate-200 dark:bg-slate-600 text-muted-foreground rounded-md text-sm"
+            className="px-4 py-2 bg-secondary hover:bg-zinc-200 dark:bg-zinc-600 text-muted-foreground rounded-md text-sm"
           >
             Cancel
           </button>

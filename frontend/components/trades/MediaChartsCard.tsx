@@ -1,7 +1,11 @@
 /**
- * MediaChartsCard — TradingView chart widget + screenshot gallery.
- * Chart always shows based on trade.symbol.
- * TradingView link is stored as meta-info and shown as an external link.
+ * MediaChartsCard — Smart trade chart (Market Data Hub / TradingView fallback)
+ * + screenshot gallery.
+ *
+ * The "Chart" tab now uses TradeChart which fetches OHLC data from the Market
+ * Data Hub (LSEG provider) when NEXT_PUBLIC_MARKET_DATA_HUB_URL is configured,
+ * and falls back silently to the TradingView embed widget otherwise.
+ *
  * Screenshots support drag-and-drop, file picker, and clipboard paste.
  */
 
@@ -11,12 +15,23 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { useUploadScreenshot, useDeleteScreenshot } from "@/hooks/useScreenshots";
 import { useUpdateTrade } from "@/hooks/useTrade";
 import type { Trade } from "@/lib/types";
+import { TradeChart } from "@/components/charts/TradeChart";
 
 const BACKEND_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function resolveUrl(url: string): string {
   if (url.startsWith("http")) return url;
   return `${BACKEND_BASE}${url}`;
+}
+
+// ── Chart tab (Market Data Hub → TradingView fallback) ────────────────────────
+
+function ChartTab({ trade }: { trade: Trade }) {
+  return (
+    <div className="w-full h-full">
+      <TradeChart trade={trade} />
+    </div>
+  );
 }
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
@@ -62,52 +77,6 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   );
 }
 
-// ── TradingView Widget ────────────────────────────────────────────────────────
-
-function TradingViewWidget({ symbol }: { symbol: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    container.innerHTML = "";
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "tradingview-widget-container__widget";
-    wrapper.style.height = "100%";
-    wrapper.style.width = "100%";
-    container.appendChild(wrapper);
-
-    const script = document.createElement("script");
-    script.src =
-      "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-    script.type = "text/javascript";
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol,
-      interval: "D",
-      timezone: "Etc/UTC",
-      theme: "dark",
-      style: "1",
-      locale: "en",
-      hide_top_toolbar: false,
-      hide_legend: false,
-      save_image: false,
-      calendar: false,
-      support_host: "https://www.tradingview.com",
-    });
-    container.appendChild(script);
-  }, [symbol]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="tradingview-widget-container w-full h-full"
-    />
-  );
-}
-
 // ── TradingView tab ───────────────────────────────────────────────────────────
 
 function TradingViewTab({ trade }: { trade: Trade }) {
@@ -126,7 +95,7 @@ function TradingViewTab({ trade }: { trade: Trade }) {
     <div className="flex flex-col h-full">
       {/* Chart — grows to fill available height */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <TradingViewWidget symbol={trade.symbol} />
+        <ChartTab trade={trade} />
       </div>
 
       {/* TradingView link meta row */}
@@ -139,7 +108,7 @@ function TradingViewTab({ trade }: { trade: Trade }) {
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") saveLink(); if (e.key === "Escape") setEditingLink(false); }}
               placeholder="https://www.tradingview.com/chart/..."
-              className="flex-1 rounded-md border border-border dark:border-border bg-card text-xs text-slate-800 dark:text-foreground px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="flex-1 rounded-md border border-border dark:border-border bg-card text-xs text-zinc-800 dark:text-foreground px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
               autoFocus
             />
             <button
@@ -151,14 +120,14 @@ function TradingViewTab({ trade }: { trade: Trade }) {
             </button>
             <button
               onClick={() => { setEditingLink(false); setDraft(trade.tradingview_link ?? ""); }}
-              className="px-2.5 py-1 text-xs text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300 rounded-md transition-colors"
+              className="px-2.5 py-1 text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 rounded-md transition-colors"
             >
               Cancel
             </button>
           </>
         ) : trade.tradingview_link ? (
           <>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-slate-400 shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-zinc-400 shrink-0">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
@@ -175,7 +144,7 @@ function TradingViewTab({ trade }: { trade: Trade }) {
               href={trade.tradingview_link}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 px-2 py-1 text-xs text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors flex items-center gap-1"
+              className="shrink-0 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-300 hover:text-primary dark:hover:text-primary transition-colors flex items-center gap-1"
               title="Open in TradingView"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
@@ -187,7 +156,7 @@ function TradingViewTab({ trade }: { trade: Trade }) {
             </a>
             <button
               onClick={() => setEditingLink(true)}
-              className="shrink-0 p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              className="shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
               title="Edit link"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
@@ -199,7 +168,7 @@ function TradingViewTab({ trade }: { trade: Trade }) {
         ) : (
           <button
             onClick={() => setEditingLink(true)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-primary transition-colors"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -285,7 +254,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
               ? "border-primary bg-blue-50 dark:bg-blue-900/20"
               : pasteHint
               ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
-              : "border-border dark:border-border hover:border-blue-400 hover:bg-slate-50 dark:hover:bg-slate-700/40"
+              : "border-border dark:border-border hover:border-blue-400 hover:bg-zinc-50 dark:hover:bg-zinc-700/40"
           }`}
         >
           <input
@@ -302,17 +271,17 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
             <span className="text-sm text-emerald-500 font-medium">Pasted!</span>
           ) : (
             <>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-slate-400">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-zinc-400">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
               <span className="text-xs text-muted-foreground">
                 <span className="text-primary font-medium">Click</span> or drag & drop
-                <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
+                <span className="mx-1 text-zinc-300 dark:text-zinc-600">·</span>
                 <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border dark:border-border rounded">⌘V</kbd> to paste
               </span>
-              <span className="text-xs text-slate-400">PNG, JPG, GIF, WebP · max 20 MB</span>
+              <span className="text-xs text-zinc-400">PNG, JPG, GIF, WebP · max 20 MB</span>
             </>
           )}
         </div>
@@ -355,7 +324,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
             ))}
           </div>
         ) : (
-          <p className="text-center text-sm text-slate-400 py-4">No screenshots yet.</p>
+          <p className="text-center text-sm text-zinc-400 py-4">No screenshots yet.</p>
         )}
       </div>
     </>
@@ -384,7 +353,7 @@ export function MediaChartsCard({ trade }: { trade: Trade }) {
             className={`relative px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === tab
                 ? "border-b-2 border-primary text-primary dark:text-primary"
-                : "text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300"
+                : "text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}
           >
             {tab === "tradingview" && "Chart"}

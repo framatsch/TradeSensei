@@ -53,7 +53,7 @@ export function PlaybookForm({ playbook, onSubmit, onCancel, isSubmitting = fals
             if (nameError) setNameError("");
           }}
           placeholder="e.g. Breakout Momentum"
-          className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+          className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           autoFocus
         />
         {nameError && (
@@ -74,7 +74,7 @@ export function PlaybookForm({ playbook, onSubmit, onCancel, isSubmitting = fals
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Optional — describe this setup or strategy…"
           rows={3}
-          className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none"
+          className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none"
         />
       </div>
 

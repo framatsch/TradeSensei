@@ -54,8 +54,8 @@ export function SettingsPageClient() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all duration-300 ${
               activeTab === tab.id
-                ? "glossy-active shadow-md"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/40 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
             }`}
           >
             {tab.label}

@@ -202,7 +202,7 @@ export default function TradeDetailPage() {
                   {trade.asset_class}
                 </span>
               </div>
-              <div className="text-sm text-muted-foreground dark:text-slate-400">
+              <div className="text-sm text-muted-foreground dark:text-zinc-400">
                 Opened: {formatDate(trade.opened_at)} {trade.closed_at && `• Closed: ${formatDate(trade.closed_at)}`}
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function TradeDetailPage() {
                    <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide ${
                      isOpen 
                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                       : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border border-border dark:border-border"
+                       : "bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 border border-border dark:border-border"
                    }`}>
                      {isOpen ? "Open" : "Closed"}
                    </span>
@@ -282,13 +282,13 @@ export default function TradeDetailPage() {
                 <h2 className="text-base font-semibold text-foreground mb-4 flex justify-between items-center">
                   Journal & Notes
                   {trade.trade_notes.length > 0 && (
-                    <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-300">
+                    <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-zinc-600 dark:text-zinc-300">
                       {trade.trade_notes.length}
                     </span>
                   )}
                 </h2>
                 {trade.notes && (
-                  <div className="mb-4 pb-4 border-b border-slate-100 dark:border-border/50">
+                  <div className="mb-4 pb-4 border-b border-zinc-100 dark:border-border/50">
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">General Note</div>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">{trade.notes}</p>
                   </div>
@@ -306,44 +306,44 @@ export default function TradeDetailPage() {
                 <h2 className="text-base font-semibold text-foreground mb-4">Performance</h2>
                 <div className="space-y-3">
 
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-border/50">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
                     <span className="text-sm text-muted-foreground">Realized R</span>
-                    <span className={`font-semibold ${realizedR === null ? "text-slate-400" : realizedR >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                    <span className={`font-semibold ${realizedR === null ? "text-zinc-400" : realizedR >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {realizedR !== null ? `${realizedR >= 0 ? "+" : ""}${realizedR.toFixed(2)}R` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-border/50">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
                     <span className="text-sm text-muted-foreground">Planned RRR</span>
                     <span className="font-medium text-foreground">
                       {plannedRrr !== null ? `1 : ${plannedRrr.toFixed(2)}` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-border/50">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
                     <span className="text-sm text-muted-foreground">Initial Risk</span>
                     <span className="font-medium text-foreground">
                       {initialRisk !== null ? `$${initialRisk.toFixed(2)}` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-border/50">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
                     <span className="text-sm text-muted-foreground">Return %</span>
-                    <span className={`font-medium ${returnPct === null ? "text-slate-400" : returnPct >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                    <span className={`font-medium ${returnPct === null ? "text-zinc-400" : returnPct >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {returnPct !== null ? `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}%` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-border/50">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
                     <span className="text-sm text-muted-foreground">Gross P&L</span>
-                    <span className={`font-medium ${grossPnl === null ? "text-slate-400" : grossPnl >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                    <span className={`font-medium ${grossPnl === null ? "text-zinc-400" : grossPnl >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {grossPnl !== null ? `${grossPnl >= 0 ? "+" : ""}$${Math.abs(grossPnl).toFixed(2)}` : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-border/50">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-border/50">
                     <span className="text-sm text-muted-foreground">Net P&L (after fees)</span>
-                    <span className={`font-medium ${netPnl === null ? "text-slate-400" : netPnl >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                    <span className={`font-medium ${netPnl === null ? "text-zinc-400" : netPnl >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                       {netPnl !== null ? `${netPnl >= 0 ? "+" : ""}$${Math.abs(netPnl).toFixed(2)}` : "—"}
                     </span>
                   </div>
@@ -369,7 +369,7 @@ export default function TradeDetailPage() {
                         {trade.playbook_name}
                       </span>
                     ) : (
-                      <span className="text-sm text-slate-400 italic">No playbook assigned</span>
+                      <span className="text-sm text-zinc-400 italic">No playbook assigned</span>
                     )}
                   </div>
                   <div>
@@ -381,7 +381,7 @@ export default function TradeDetailPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-400 italic">No tags</span>
+                      <span className="text-sm text-zinc-400 italic">No tags</span>
                     )}
                   </div>
                 </div>

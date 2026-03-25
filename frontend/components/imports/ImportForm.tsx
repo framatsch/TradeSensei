@@ -233,7 +233,7 @@ export function ImportForm() {
           <h2 className="text-sm font-semibold text-foreground">
             Step 1 — Select Account
           </h2>
-          <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
             Choose the trading account you want to import trades into.
           </p>
         </div>
@@ -274,7 +274,7 @@ export function ImportForm() {
                 <h3 className="text-sm font-semibold text-foreground">
                   Sync via API
                 </h3>
-                <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
                   Fetch recent trades directly from {TYPE_LABEL[accountType]}.
                   {!selectedAccount.has_api_keys && (
                     <span className="text-amber-400 ml-1">
@@ -310,7 +310,7 @@ export function ImportForm() {
                         value={syncDays}
                         onChange={(e) => setSyncDays(Number(e.target.value))}
                         disabled={isSyncing}
-                        className="px-2 py-1.5 bg-slate-50 dark:bg-slate-700 border border-border dark:border-border rounded text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary"
+                        className="px-2 py-1.5 bg-zinc-50 dark:bg-zinc-700 border border-border dark:border-border rounded text-sm text-zinc-700 dark:text-zinc-200 focus:outline-none focus:border-primary"
                       >
                         <option value={7}>Last 7 days</option>
                         <option value={30}>Last 30 days</option>
@@ -342,9 +342,9 @@ export function ImportForm() {
                       checked={overwriteManuallyEdited}
                       onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
                       disabled={isSyncing}
-                      className="w-4 h-4 rounded border-slate-400 accent-amber-500"
+                      className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
                     />
-                    <span className="text-xs text-muted-foreground dark:text-slate-400">
+                    <span className="text-xs text-muted-foreground dark:text-zinc-400">
                       Overwrite manually-edited trades
                     </span>
                   </label>
@@ -381,7 +381,7 @@ export function ImportForm() {
                 type="button"
                 onClick={() => setShowFileUpload((v) => !v)}
                 disabled={isQueueRunning}
-                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-50"
               >
                 <span className="text-sm font-medium text-muted-foreground">
                   Or upload files manually
@@ -413,10 +413,10 @@ export function ImportForm() {
                       multiple
                       accept=".csv,.xlsx,.xls,.xml"
                       onChange={handleFileChange}
-                      className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-slate-600 file:text-white file:cursor-pointer hover:file:bg-slate-500"
+                      className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-zinc-600 file:text-white file:cursor-pointer hover:file:bg-zinc-500"
                     />
                     {hasFiles && (
-                      <p className="text-xs text-muted-foreground dark:text-slate-400">
+                      <p className="text-xs text-muted-foreground dark:text-zinc-400">
                         {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""} selected
                       </p>
                     )}
@@ -447,7 +447,7 @@ export function ImportForm() {
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="text-xs text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300 underline"
+                      className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
                     >
                       Import more files
                     </button>
@@ -462,16 +462,16 @@ export function ImportForm() {
                         type="checkbox"
                         checked={overwriteManuallyEdited}
                         onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-400 accent-amber-500"
+                        className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
                       />
-                      <span className="text-xs text-muted-foreground dark:text-slate-400">
+                      <span className="text-xs text-muted-foreground dark:text-zinc-400">
                         Overwrite manually-edited trades
                       </span>
                     </label>
                     <button
                       type="button"
                       onClick={handleStartUpload}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
                     >
                       Import {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""}
                     </button>
@@ -514,7 +514,7 @@ function SyncResultPanel({
       <button
         type="button"
         onClick={onReset}
-        className="text-xs text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300 underline"
+        className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
       >
         Sync again
       </button>

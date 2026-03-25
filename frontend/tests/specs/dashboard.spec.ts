@@ -17,20 +17,19 @@ test.describe('Dashboard Overview', () => {
   });
 
   test('TC-030 renders page title and subtitle', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-    await expect(page.getByText('All-time performance metrics')).toBeVisible();
+    // Dashboard now uses DashboardHeader (no PageHeader h1), so we check for the
+    // Net P&L label that is always present in the hero section.
+    await expect(page.getByText('Net P&L · All Time')).toBeVisible({ timeout: 10_000 });
   });
 
   test('TC-031 displays MetricsCards with at least one non-zero value', async ({ page }) => {
-    // Wait for metrics to load (spinner disappears, cards appear)
+    // Wait for metrics to load (spinner disappears, stats appear)
     await expect(page.locator('.space-y-6')).toBeVisible();
 
-    // Look for known metric labels rendered by MetricsCards
-    // The component renders cards — check for at least one key metric label
-    const metricLabels = ['Win Rate', 'Profit Factor', 'Total Trades', 'Total PnL'];
-    for (const label of metricLabels) {
-      await expect(page.getByText(label)).toBeVisible({ timeout: 15_000 });
-    }
+    // DashboardHeader shows Win Rate as a StatPill in the hero section.
+    await expect(page.getByText('Win Rate').first()).toBeVisible({ timeout: 15_000 });
+    // DashboardStats now shows Avg RRR, Gross Profit, Gross Loss, Sharpe Ratio (4 tiles)
+    await expect(page.getByText('Avg RRR').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-032 equity curve chart is visible', async ({ page }) => {
@@ -64,8 +63,8 @@ test.describe('Dashboard Overview', () => {
       await page.getByRole('link', { name: 'Import' }).click();
       await expect(page).toHaveURL(/\/dashboard\/import/);
     } else {
-      // With seeded data the metrics cards should be visible instead
-      await expect(page.getByText('Win Rate')).toBeVisible({ timeout: 15_000 });
+      // With seeded data the metrics stats should be visible instead
+      await expect(page.getByText('Win Rate').first()).toBeVisible({ timeout: 15_000 });
     }
   });
 });

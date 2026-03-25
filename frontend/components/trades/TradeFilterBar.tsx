@@ -66,7 +66,7 @@ function toDateInputValue(value: string | undefined): string {
 }
 
 const INPUT_CLASS =
-  "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
+  "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
 
 export function TradeFilterBar({ filters, onChange }: Props) {
@@ -204,8 +204,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
 
       {/* Collapsible panel */}
       {open && (
-        <div className="px-4 pb-4 border-t border-border pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {/* Symbol */}
+        <div className="px-4 pb-4 border-t border-border pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">          {/* Symbol */}
           <div>
             <label className={LABEL_CLASS}>Symbol</label>
             <input
@@ -366,10 +365,10 @@ export function TradeFilterBar({ filters, onChange }: Props) {
                     key={ac}
                     type="button"
                     onClick={() => handleAssetClassToggle(ac)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
+                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
                       selected
-                        ? "bg-primary border-primary text-white"
-                        : "bg-secondary border-border dark:border-border text-muted-foreground hover:text-foreground hover:border-slate-400 dark:border-slate-500"
+                        ? "bg-primary/15 border-primary/40 text-primary"
+                        : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
                     }`}
                   >
                     {ac}

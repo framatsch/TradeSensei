@@ -2,104 +2,301 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Dual-Theme Design System (Obsidian / Radiant) ────────────────────────── */
+/*
+ * Semantic tokens that flip automatically between light and dark.
+ * All components MUST reference these tokens — never hardcode colors.
+ *
+ * Theme tokens:
+ *   --background        Page / main content area
+ *   --sidebar           Sidebar surface (slightly distinct from background)
+ *   --foreground        Primary text
+ *   --card              Card / panel surface
+ *   --card-foreground   Text inside cards
+ *   --popover           Floating elements (tooltips, dropdowns)
+ *   --primary           Indigo accent (#6366f1)
+ *   --secondary         Subtle fills for inputs, secondary surfaces
+ *   --muted             Muted backgrounds
+ *   --muted-foreground  Muted / secondary text
+ *   --border            Border + divider color
+ *   --success           Emerald-400
+ *   --danger            Rose-400
+ */
+
+/* ─── Light Mode ────────────────────────────────────────────────────────────── */
 :root {
-  --background: #f5f5f5;
-  --foreground: #171717;
-  --card: #ffffff;
-  --card-foreground: #171717;
-  --popover: #ffffff;
-  --popover-foreground: #171717;
-  --primary: #7c3aed;
-  --primary-foreground: #ffffff;
-  --secondary: #e5e5e5;
-  --secondary-foreground: #171717;
-  --muted: #f5f5f5;
-  --muted-foreground: #737373;
-  --accent: #f5f5f5;
-  --accent-foreground: #171717;
-  --destructive: #dc2626;
+  --background:          #f4f4f5;   /* zinc-100 */
+  --sidebar:             #fafafa;   /* near-white */
+  --foreground:          #18181b;   /* zinc-900 */
+  --card:                #ffffff;
+  --card-foreground:     #18181b;
+  --popover:             #ffffff;
+  --popover-foreground:  #18181b;
+  --primary:             #6366f1;
+  --primary-foreground:  #ffffff;
+  --secondary:           #f1f5f9;
+  --secondary-foreground:#0f172a;
+  --muted:               #f1f5f9;
+  --muted-foreground:    #52525b;   /* zinc-600 */
+  --accent:              #6366f1;
+  --accent-foreground:   #ffffff;
+  --destructive:         #fb7185;
   --destructive-foreground: #ffffff;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: #7c3aed;
-  --radius: 0.75rem;
+  --success:             #10b981;   /* emerald-500 — more readable on light bg */
+  --danger:              #f43f5e;   /* rose-500 */
+  --border:              #e4e4e7;   /* zinc-200 */
+  --input:               #e4e4e7;
+  --ring:                #6366f1;
+  --radius:              0.75rem;
 }
 
+/* ─── Dark Mode ─────────────────────────────────────────────────────────────── */
 .dark {
-  --background: #111111;
-  --foreground: #ededed;
-  --card: #181818;
-  --card-foreground: #ededed;
-  --popover: #181818;
-  --popover-foreground: #ededed;
-  --primary: #8b5cf6;
-  --primary-foreground: #ffffff;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #f43f5e;
+  --background:          #18181b;   /* zinc-900 */
+  --sidebar:             #0d0d12;   /* deeper than background */
+  --foreground:          #fafafa;
+  --card:                #0d0d12;
+  --card-foreground:     #fafafa;
+  --popover:             #111113;
+  --popover-foreground:  #fafafa;
+  --primary:             #6366f1;
+  --primary-foreground:  #ffffff;
+  --secondary:           #18181b;
+  --secondary-foreground:#a1a1aa;
+  --muted:               #18181b;
+  --muted-foreground:    #71717a;   /* zinc-500 */
+  --accent:              #6366f1;
+  --accent-foreground:   #ffffff;
+  --destructive:         #fb7185;
   --destructive-foreground: #ffffff;
-  --border: #2a2a2a;
-  --input: #2a2a2a;
-  --ring: #8b5cf6;
+  --success:             #34d399;   /* emerald-400 */
+  --danger:              #fb7185;   /* rose-400 */
+  --border:              #27272a;   /* zinc-800/50 feel */
+  --input:               #27272a;
+  --ring:                #6366f1;
 }
+
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  background-color: var(--background);
+  background-image: radial-gradient(
+    circle at 20% 20%,
+    rgba(99, 102, 241, 0.06) 0%,
+    transparent 50%
+  );
+  background-attachment: fixed;
+  font-family: var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-feature-settings: "rlig" 1, "calt" 1;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ─── Component Utilities ───────────────────────────────────────────────────── */
+
+@layer components {
+
+  /*
+   * .radiant-card — Signature glass-morphism card.
+   * Dark:  bg-card/60 + backdrop-blur-xl + white/5 border + white/15 top edge
+   * Light: bg-white/80 + backdrop-blur-xl + zinc-200 border + white/30 top edge
+   */
+  .radiant-card {
+    @apply relative backdrop-blur-xl rounded-xl overflow-hidden;
+    background-color: color-mix(in srgb, var(--card) 65%, transparent);
+    border: 1px solid var(--border);
+    border-top-color: rgba(255, 255, 255, 0.15);
+    box-shadow:
+      0 8px 30px rgba(0, 0, 0, 0.10),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* Light-mode override: stronger top edge, softer shadow */
+  :root .radiant-card {
+    border-top-color: rgba(255, 255, 255, 0.35);
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  }
+
+  /*
+   * .card-glossy — utility alias used by the prompt spec.
+   * Same as .radiant-card, applied on top of bg-card.
+   */
+  .card-glossy {
+    @apply relative rounded-xl overflow-hidden;
+    border: 1px solid var(--border);
+    border-top-color: rgba(255, 255, 255, 0.15);
+    box-shadow:
+      0 8px 30px rgba(0, 0, 0, 0.10),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+  :root .card-glossy {
+    border-top-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Solid card — no translucency */
+  .solid-card {
+    @apply relative bg-card rounded-xl border border-border overflow-hidden;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border bg-transparent text-foreground text-sm font-medium transition-all duration-200;
+  }
+  .btn-ghost:hover {
+    background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+    border-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+  }
+
+  /* Solid button */
+  .btn-solid {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium transition-all duration-200;
+  }
+  .btn-solid:hover {
+    background-color: color-mix(in srgb, var(--foreground) 88%, transparent);
+  }
+
+  /* Primary accent button (indigo) */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-all duration-200;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+      0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+  .btn-primary:hover {
+    background-color: color-mix(in srgb, var(--primary) 88%, transparent);
+  }
+
+  /*
+   * .nav-active — active sidebar nav item.
+   * Dark:  bg-white/5 + border-white/5 + text-white
+   * Light: bg-zinc-100 + border-zinc-200 + text-zinc-900
+   * Both:  2px left indigo accent line with glow
+   */
+  .nav-active {
+    @apply relative rounded-lg;
+    color: var(--foreground);
+    background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  }
+  .nav-active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 60%;
+    background-color: #6366f1;
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
+  }
+
+  /*
+   * .metric-toggle-bar — glass segment control for P&L / Trades / etc.
+   * The "glass strip" container:
+   *   Dark:  bg-zinc-900/40
+   *   Light: bg-zinc-100
+   */
+  .metric-toggle-bar {
+    @apply inline-flex items-center gap-1 p-1 rounded-lg;
+    background-color: color-mix(in srgb, var(--foreground) 5%, transparent);
+    border: 1px solid var(--border);
+  }
+
+  /* Active segment inside .metric-toggle-bar */
+  .metric-toggle-active {
+    @apply relative rounded-md text-sm font-medium px-3 py-1.5 transition-all duration-200;
+    color: var(--foreground);
+    background-color: color-mix(in srgb, var(--card) 80%, transparent);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  /* Inactive segment inside .metric-toggle-bar */
+  .metric-toggle-inactive {
+    @apply relative rounded-md text-sm font-medium px-3 py-1.5 transition-all duration-200;
+    color: var(--muted-foreground);
+  }
+  .metric-toggle-inactive:hover {
+    color: var(--foreground);
+    background-color: color-mix(in srgb, var(--foreground) 4%, transparent);
+  }
+}
+
+/* ─── Utility Overrides ─────────────────────────────────────────────────────── */
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-balance { text-wrap: balance; }
+
+  .glow-primary  { box-shadow: 0 0 40px rgba(99, 102, 241, 0.15); }
+  .glow-success  { box-shadow: 0 0 20px rgba(52, 211, 153, 0.20); }
+  .glow-danger   { box-shadow: 0 0 20px rgba(251, 113, 133, 0.20); }
+
+  /* Subtle noise texture overlay */
+  .noise-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+    mix-blend-mode: overlay;
   }
-  
+
+  /* Glass morphism variant */
   .glass-card {
-    @apply bg-white/70 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-xl;
+    @apply backdrop-blur-md border border-border;
+    background-color: color-mix(in srgb, var(--card) 50%, transparent);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   }
 
-  .glossy-active {
-    @apply relative overflow-hidden;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 100%), var(--primary);
-    box-shadow: 
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-      0 4px 15px -1px rgba(139, 92, 246, 0.25);
-    @apply text-white border-transparent transition-all duration-300;
-  }
-  
-  .dark .glossy-active {
-    box-shadow: 
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
-      0 8px 20px -5px rgba(139, 92, 246, 0.4);
-  }
-
-  .glass-button {
-    @apply bg-white/5 dark:bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-200;
+  /* Hair-thin top-lit border */
+  .light-edge::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.14) 50%, transparent 100%);
+    pointer-events: none;
   }
 }
 
-/* Custom Scrollbar for Obsidian feel */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* ─── Custom Scrollbar ──────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background-color: var(--border); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--muted-foreground); }
+
+/* ─── Radiant Table ─────────────────────────────────────────────────────────── */
+
+.radiant-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.12s ease;
+}
+.radiant-table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+.radiant-table tbody tr:last-child { border-bottom: none; }
+
+/* ─── Recharts ──────────────────────────────────────────────────────────────── */
+
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border);
+  stroke-opacity: 0.4;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--muted);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--border);
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--popover) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
 }

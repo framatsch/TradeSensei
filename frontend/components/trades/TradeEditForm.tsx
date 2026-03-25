@@ -136,7 +136,7 @@ export function TradeEditForm({
   }
 
   const inputCls =
-    "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-slate-500";
+    "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-zinc-500";
   const labelCls = "block text-xs font-medium text-muted-foreground mb-1";
   const errorCls = "text-xs text-red-400 mt-0.5";
 
@@ -432,7 +432,7 @@ export function TradeEditForm({
           type="button"
           onClick={onCancel}
           disabled={isSaving}
-          className="px-4 py-2 text-sm text-muted-foreground bg-secondary hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-50 rounded-md transition-colors"
+          className="px-4 py-2 text-sm text-muted-foreground bg-secondary hover:bg-zinc-200 dark:bg-zinc-600 disabled:opacity-50 rounded-md transition-colors"
         >
           Cancel
         </button>

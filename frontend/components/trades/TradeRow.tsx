@@ -68,7 +68,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
 
   return (
     <>
-    <tr className="border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer">
+    <tr className="border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer">
       <td className="px-3 py-3">
         <input
           type="checkbox"
@@ -145,7 +145,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       </td>
     </tr>
     {showQuickNote && (
-      <tr className="border-b border-border/30 bg-card/30">
+      <tr className="border-b border-border bg-card/30">
         <td colSpan={12} className="px-4 py-2">
           <QuickNoteInput
             tradeId={trade.id}
