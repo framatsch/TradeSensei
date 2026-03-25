@@ -15,12 +15,12 @@ const TYPE_BADGE: Record<AccountType, { label: string; className: string }> = {
   manual: {
     label: "Manual",
     className:
-      "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600",
+      "bg-secondary text-muted-foreground border border-border dark:border-border",
   },
   schwab: {
     label: "Schwab",
     className:
-      "bg-blue-900/30 text-blue-400 border border-blue-800",
+      "bg-blue-900/30 text-primary border border-blue-800",
   },
   ibkr: {
     label: "IBKR",
@@ -68,7 +68,7 @@ export function AccountList({ accounts }: Props) {
     <div className="space-y-4">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-muted-foreground">
           {accounts.length === 0
             ? "No accounts found."
             : `${accounts.length} account${accounts.length === 1 ? "" : "s"}`}
@@ -79,7 +79,7 @@ export function AccountList({ accounts }: Props) {
             setShowNewForm(true);
             setEditingId(null);
           }}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
         >
           + New Account
         </button>
@@ -95,8 +95,8 @@ export function AccountList({ accounts }: Props) {
 
       {/* Empty state */}
       {accounts.length === 0 && !showNewForm && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
-          <p className="text-slate-500 text-sm">
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <p className="text-muted-foreground text-sm">
             No accounts found. Add your first account.
           </p>
         </div>
@@ -104,14 +104,14 @@ export function AccountList({ accounts }: Props) {
 
       {/* Accounts table */}
       {accounts.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+              <tr className="border-b border-border bg-background/50">
                 {["Name", "Account No.", "Type", "Currency", "Active", "Actions"].map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-3 text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider"
+                    className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider"
                   >
                     {col}
                   </th>
@@ -122,18 +122,18 @@ export function AccountList({ accounts }: Props) {
               {accounts.map((account) => (
                 <React.Fragment key={account.id}>
                   <tr
-                    className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:bg-slate-700/30 transition-colors"
+                    className="border-b border-border/50 hover:bg-secondary/30 transition-colors"
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <td className="px-4 py-3 text-sm font-medium text-foreground">
                       {account.name}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 font-mono">
+                    <td className="px-4 py-3 text-sm text-muted-foreground dark:text-slate-400 font-mono">
                       {account.account_number ?? <span className="text-slate-400 dark:text-slate-600">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       <TypeBadge type={account.type} hasApiKeys={account.has_api_keys} />
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {account.currency}
                     </td>
                     <td className="px-4 py-3">
@@ -141,7 +141,7 @@ export function AccountList({ accounts }: Props) {
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           account.is_active
                             ? "bg-emerald-900/50 text-emerald-400 border border-emerald-800"
-                            : "bg-slate-100 dark:bg-slate-700 text-slate-500 border border-slate-300 dark:border-slate-600"
+                            : "bg-secondary text-muted-foreground border border-border dark:border-border"
                         }`}
                       >
                         {account.is_active ? "Active" : "Inactive"}
@@ -156,7 +156,7 @@ export function AccountList({ accounts }: Props) {
                               prev === account.id ? null : account.id
                             )
                           }
-                          className="px-3 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-xs transition-colors"
+                          className="px-3 py-1 bg-secondary hover:bg-slate-200 dark:bg-slate-600 text-muted-foreground rounded-md text-xs transition-colors"
                         >
                           Edit
                         </button>
@@ -174,7 +174,7 @@ export function AccountList({ accounts }: Props) {
                   {/* Inline edit form */}
                   {editingId === account.id && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-3 bg-slate-50 dark:bg-slate-900/30">
+                      <td colSpan={6} className="px-4 py-3 bg-background/30">
                         <AccountForm
                           account={account}
                           onSave={() => setEditingId(null)}

@@ -89,8 +89,8 @@ export function GeneralSettings() {
       {/* ── Theme ─────────────────────────────────────────────────────── */}
       <div>
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Theme</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <h3 className="text-sm font-semibold text-foreground">Theme</h3>
+          <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
             Choose how Trade Journal looks. "System" follows your OS preference.
           </p>
         </div>
@@ -103,8 +103,8 @@ export function GeneralSettings() {
               onClick={() => handleThemeChange(opt.value)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                 currentTheme === opt.value
-                  ? "bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-500"
-                  : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  ? "bg-blue-50 dark:bg-primary/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-primary"
+                  : "bg-card text-muted-foreground border-border dark:border-border hover:bg-slate-50 dark:hover:bg-slate-700"
               }`}
             >
               {opt.icon}
@@ -117,8 +117,8 @@ export function GeneralSettings() {
       {/* ── Default Date Range ────────────────────────────────────────── */}
       <div>
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Default Date Range</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <h3 className="text-sm font-semibold text-foreground">Default Date Range</h3>
+          <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
             The date range applied when you open the Trades page or Dashboard without URL filters.
           </p>
         </div>
@@ -129,8 +129,8 @@ export function GeneralSettings() {
               key={opt.value}
               className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                 currentDateRange === opt.value
-                  ? "bg-blue-50 dark:bg-blue-600/20 border-blue-300 dark:border-blue-500"
-                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  ? "bg-blue-50 dark:bg-primary/20 border-blue-300 dark:border-primary"
+                  : "bg-card border-border dark:border-border hover:bg-slate-50 dark:hover:bg-slate-700"
               }`}
             >
               <input
@@ -145,11 +145,11 @@ export function GeneralSettings() {
                 <p className={`text-sm font-medium ${
                   currentDateRange === opt.value
                     ? "text-blue-700 dark:text-blue-300"
-                    : "text-slate-700 dark:text-slate-300"
+                    : "text-muted-foreground"
                 }`}>
                   {opt.label}
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
                   {opt.description}
                 </p>
               </div>

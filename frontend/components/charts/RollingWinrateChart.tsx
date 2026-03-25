@@ -39,8 +39,8 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
-      <p className="text-slate-600 dark:text-slate-400 mb-1">
+    <div className="bg-background border border-border rounded-lg px-3 py-2 text-xs">
+      <p className="text-muted-foreground mb-1">
         Trade #{d.trade_index} &middot;{" "}
         {new Date(d.closed_at).toLocaleDateString("en-US", {
           month: "short",
@@ -48,10 +48,10 @@ function CustomTooltip({
           year: "numeric",
         })}
       </p>
-      <p className="text-blue-400 font-semibold">
+      <p className="text-primary font-semibold">
         Win Rate: {(d.rolling_winrate * 100).toFixed(1)}%
       </p>
-      <p className="text-slate-500">Window: {d.window} trades</p>
+      <p className="text-muted-foreground">Window: {d.window} trades</p>
     </div>
   );
 }
@@ -61,9 +61,9 @@ export function RollingWinrateChart() {
   const { data, isLoading } = useRollingWinrate(window);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+    <div className="bg-card rounded-xl p-5 border border-border">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
           Rolling Win Rate
         </h3>
         <div className="flex items-center gap-1">
@@ -74,8 +74,8 @@ export function RollingWinrateChart() {
               onClick={() => setWindow(w)}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 window === w
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:bg-slate-600"
+                  ? "bg-primary text-white"
+                  : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:bg-slate-600"
               }`}
             >
               {w}
@@ -89,7 +89,7 @@ export function RollingWinrateChart() {
           <Spinner />
         </div>
       ) : !data || data.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-12">
+        <p className="text-muted-foreground text-sm text-center py-12">
           Not enough trades to compute rolling win rate.
         </p>
       ) : (

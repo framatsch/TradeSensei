@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import type { DrawdownPoint } from "@/lib/types";
 import { ChartShell } from "./ChartShell";
+import { CHART_COLORS } from "@/lib/constants";
 
 interface ChartData {
   date: string;
@@ -51,43 +52,44 @@ export function DrawdownChart({ data }: Props) {
         >
           <defs>
             <linearGradient id="drawdownGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+              <stop offset="5%" stopColor={CHART_COLORS.danger} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={CHART_COLORS.danger} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
           <XAxis
             dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             tickFormatter={formatPercent}
             width={52}
             domain={["dataMin", 0]}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#0f172a",
-              border: "1px solid #334155",
+              backgroundColor: CHART_COLORS.tooltip.bg,
+              border: `1px solid ${CHART_COLORS.tooltip.border}`,
               borderRadius: "8px",
-              color: "#f1f5f9",
+              color: CHART_COLORS.tooltip.text,
             }}
+            itemStyle={{ color: CHART_COLORS.tooltip.text }}
             formatter={(value) => {
               const num = typeof value === "number" ? value : parseFloat(String(value));
               return [formatPercent(num), "Drawdown"];
             }}
-            labelStyle={{ color: "#94a3b8" }}
+            labelStyle={{ color: CHART_COLORS.tooltip.label }}
           />
           <Area
             type="monotone"
             dataKey="drawdown"
-            stroke="#ef4444"
+            stroke={CHART_COLORS.danger}
             strokeWidth={2}
             fill="url(#drawdownGradient)"
           />

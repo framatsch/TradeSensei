@@ -228,25 +228,25 @@ export function ImportForm() {
   return (
     <div className="space-y-6">
       {/* Step 1: Account selection */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-3">
+      <div className="bg-card rounded-xl border border-border p-6 space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="text-sm font-semibold text-foreground">
             Step 1 — Select Account
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
             Choose the trading account you want to import trades into.
           </p>
         </div>
 
         {loadingAccounts ? (
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Spinner size="sm" /> Loading accounts…
           </div>
         ) : (
           <select
             value={accountId}
             onChange={(e) => handleAccountChange(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">— Select an account —</option>
             {(accounts ?? [])
@@ -263,18 +263,18 @@ export function ImportForm() {
       {/* Step 2: Import options */}
       {selectedAccount && (
         <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="text-sm font-semibold text-foreground">
             Step 2 — Import Trades
           </h2>
 
           {/* API Sync — only for ibkr/schwab */}
           {(accountType === "schwab" || accountType === "ibkr") && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="text-sm font-semibold text-foreground">
                   Sync via API
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
                   Fetch recent trades directly from {TYPE_LABEL[accountType]}.
                   {!selectedAccount.has_api_keys && (
                     <span className="text-amber-400 ml-1">
@@ -289,7 +289,7 @@ export function ImportForm() {
                   {/* IBKR Flex: DateRangeVisualizer */}
                   {accountType === "ibkr" ? (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                      <p className="text-xs font-medium text-muted-foreground">
                         Import date range
                       </p>
                       <DateRangeVisualizer
@@ -303,14 +303,14 @@ export function ImportForm() {
                   ) : (
                     // Schwab: simple days picker
                     <div className="flex items-center gap-3">
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                      <label className="text-xs font-medium text-muted-foreground">
                         Look back
                       </label>
                       <select
                         value={syncDays}
                         onChange={(e) => setSyncDays(Number(e.target.value))}
                         disabled={isSyncing}
-                        className="px-2 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                        className="px-2 py-1.5 bg-slate-50 dark:bg-slate-700 border border-border dark:border-border rounded text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary"
                       >
                         <option value={7}>Last 7 days</option>
                         <option value={30}>Last 30 days</option>
@@ -326,7 +326,7 @@ export function ImportForm() {
                     type="button"
                     onClick={handleSaveSettings}
                     disabled={isSyncing || saveSettingsLabel === "saving"}
-                    className="text-xs text-blue-500 hover:text-blue-400 disabled:opacity-50 underline underline-offset-2"
+                    className="text-xs text-primary hover:text-primary disabled:opacity-50 underline underline-offset-2"
                   >
                     {saveSettingsLabel === "saving"
                       ? "Saving…"
@@ -344,7 +344,7 @@ export function ImportForm() {
                       disabled={isSyncing}
                       className="w-4 h-4 rounded border-slate-400 accent-amber-500"
                     />
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-xs text-muted-foreground dark:text-slate-400">
                       Overwrite manually-edited trades
                     </span>
                   </label>
@@ -364,7 +364,7 @@ export function ImportForm() {
                   type="button"
                   disabled={isSyncing || !selectedAccount.has_api_keys}
                   onClick={() => syncAccount()}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
                 >
                   {isSyncing && <Spinner size="sm" />}
                   {isSyncing ? "Syncing…" : `Sync ${TYPE_LABEL[accountType]} Trades`}
@@ -374,7 +374,7 @@ export function ImportForm() {
           )}
 
           {/* File Upload */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
             {/* Collapsible header for API accounts */}
             {accountType !== "manual" ? (
               <button
@@ -383,19 +383,19 @@ export function ImportForm() {
                 disabled={isQueueRunning}
                 className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
               >
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <span className="text-sm font-medium text-muted-foreground">
                   Or upload files manually
                 </span>
-                <span className="text-slate-500 text-xs">
+                <span className="text-muted-foreground text-xs">
                   {showFileUpload ? "▲ Hide" : "▼ Show"}
                 </span>
               </button>
             ) : (
               <div className="px-6 pt-5 pb-0">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="text-sm font-semibold text-foreground">
                   Upload Trade Files
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Select one or more files. Supported: CSV, XLSX, XML
                 </p>
               </div>
@@ -413,10 +413,10 @@ export function ImportForm() {
                       multiple
                       accept=".csv,.xlsx,.xls,.xml"
                       onChange={handleFileChange}
-                      className="w-full text-slate-700 dark:text-slate-300 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-slate-600 file:text-white file:cursor-pointer hover:file:bg-slate-500"
+                      className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-slate-600 file:text-white file:cursor-pointer hover:file:bg-slate-500"
                     />
                     {hasFiles && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-muted-foreground dark:text-slate-400">
                         {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""} selected
                       </p>
                     )}
@@ -447,7 +447,7 @@ export function ImportForm() {
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+                      className="text-xs text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300 underline"
                     >
                       Import more files
                     </button>
@@ -464,7 +464,7 @@ export function ImportForm() {
                         onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
                         className="w-4 h-4 rounded border-slate-400 accent-amber-500"
                       />
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                      <span className="text-xs text-muted-foreground dark:text-slate-400">
                         Overwrite manually-edited trades
                       </span>
                     </label>
@@ -514,7 +514,7 @@ function SyncResultPanel({
       <button
         type="button"
         onClick={onReset}
-        className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+        className="text-xs text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300 underline"
       >
         Sync again
       </button>
@@ -526,7 +526,7 @@ function StatBox({ label, value, color }: { label: string; value: number; color:
   return (
     <div className="text-center">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-slate-500 mt-1">{label}</p>
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
     </div>
   );
 }

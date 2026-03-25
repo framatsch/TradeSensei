@@ -69,9 +69,9 @@ function SortIcon({ column, sort }: { column: string; sort?: TradeSortConfig }) 
     );
   }
   return sort.sort_dir === "asc" ? (
-    <span className="ml-1 text-blue-400">▲</span>
+    <span className="ml-1 text-primary">▲</span>
   ) : (
-    <span className="ml-1 text-blue-400">▼</span>
+    <span className="ml-1 text-primary">▼</span>
   );
 }
 
@@ -176,10 +176,10 @@ export function TradeTable({
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-red-400 font-medium mb-2">Failed to load trades.</p>
-        <p className="text-slate-500 text-sm mb-4">{error.message}</p>
+        <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
         >
           Retry
         </button>
@@ -191,11 +191,11 @@ export function TradeTable({
   const totalCols = ALL_COLUMNS.length + 1;
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+            <tr className="border-b border-border bg-background/50">
               {/* Select-all checkbox */}
               <th className="px-3 py-3 w-10">
                 <input
@@ -205,7 +205,7 @@ export function TradeTable({
                     if (el) el.indeterminate = someSelected;
                   }}
                   onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 accent-blue-500 cursor-pointer"
+                  className="w-4 h-4 rounded border-border dark:border-border accent-primary cursor-pointer"
                   aria-label="Select all trades on this page"
                 />
               </th>
@@ -214,8 +214,8 @@ export function TradeTable({
                 return (
                   <th
                     key={col}
-                    className={`px-4 py-3 text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${
-                      isSortable ? "cursor-pointer hover:text-slate-800 dark:text-slate-200 select-none" : ""
+                    className={`px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap ${
+                      isSortable ? "cursor-pointer hover:text-foreground select-none" : ""
                     }`}
                     onClick={
                       isSortable
@@ -235,7 +235,7 @@ export function TradeTable({
               <tr>
                 <td
                   colSpan={totalCols}
-                  className="px-4 py-12 text-center text-slate-500"
+                  className="px-4 py-12 text-center text-muted-foreground"
                 >
                   No trades found. Import trades to get started.
                 </td>
@@ -255,19 +255,19 @@ export function TradeTable({
       </div>
 
       {/* Pagination controls */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 gap-4">
-        <p className="text-xs text-slate-500 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-border gap-4">
+        <p className="text-xs text-muted-foreground shrink-0">
           {data?.total != null ? `${data.total} total trades` : ""}
         </p>
 
         <div className="flex items-center gap-4">
           {/* Page size selector */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 whitespace-nowrap">Rows per page</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Rows per page</span>
             <select
               value={limit}
               onChange={(e) => handleLimitChange(Number(e.target.value))}
-              className="px-2 py-1 text-sm bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-2 py-1 text-sm bg-secondary border border-border dark:border-border text-muted-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
                 <option key={n} value={n}>
@@ -282,14 +282,14 @@ export function TradeTable({
             <button
               onClick={handlePrev}
               disabled={cursorStack.length <= 1}
-              className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
             >
               Previous
             </button>
             <button
               onClick={handleNext}
               disabled={!data?.next_cursor}
-              className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
             >
               Next
             </button>

@@ -66,8 +66,8 @@ function toDateInputValue(value: string | undefined): string {
 }
 
 const INPUT_CLASS =
-  "w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-const LABEL_CLASS = "block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1";
+  "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
+const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
 
 export function TradeFilterBar({ filters, onChange }: Props) {
   const [open, setOpen] = useState(() => countActiveFilters(filters) > 0);
@@ -155,13 +155,13 @@ export function TradeFilterBar({ filters, onChange }: Props) {
       : "";
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+    <div className="bg-card rounded-xl border border-border">
       {/* Toggle row */}
       <div className="flex items-center justify-between px-4 py-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-slate-100 transition-colors"
+          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <svg
             viewBox="0 0 24 24"
@@ -176,7 +176,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
           </svg>
           Filters
           {activeCount > 0 && (
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs font-bold">
               {activeCount}
             </span>
           )}
@@ -195,7 +195,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
           <button
             type="button"
             onClick={handleClearAll}
-            className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Clear All
           </button>
@@ -204,7 +204,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
 
       {/* Collapsible panel */}
       {open && (
-        <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-700 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="px-4 pb-4 border-t border-border pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {/* Symbol */}
           <div>
             <label className={LABEL_CLASS}>Symbol</label>
@@ -347,9 +347,9 @@ export function TradeFilterBar({ filters, onChange }: Props) {
                     value={opt.value}
                     checked={pnlPositiveValue === opt.value}
                     onChange={(e) => handlePnlPositiveChange(e.target.value)}
-                    className="accent-blue-500"
+                    className="accent-primary"
                   />
-                  <span className="text-xs text-slate-700 dark:text-slate-300">{opt.label}</span>
+                  <span className="text-xs text-muted-foreground">{opt.label}</span>
                 </label>
               ))}
             </div>
@@ -368,8 +368,8 @@ export function TradeFilterBar({ filters, onChange }: Props) {
                     onClick={() => handleAssetClassToggle(ac)}
                     className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
                       selected
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:border-slate-400 dark:border-slate-500"
+                        ? "bg-primary border-primary text-white"
+                        : "bg-secondary border-border dark:border-border text-muted-foreground hover:text-foreground hover:border-slate-400 dark:border-slate-500"
                     }`}
                   >
                     {ac}
@@ -391,7 +391,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
                       key={tag.id}
                       type="button"
                       onClick={() => handleTagToggle(tag.id)}
-                      className={`transition-opacity ${selected ? "opacity-100 ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-800 rounded-full" : "opacity-60 hover:opacity-90"}`}
+                      className={`transition-opacity ${selected ? "opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background rounded-full" : "opacity-60 hover:opacity-90"}`}
                     >
                       <TagBadge tag={tag} />
                     </button>

@@ -13,7 +13,7 @@ interface Props {
 
 /** Derive a legible text color (black or white) from a hex background. */
 function contrastTextColor(hex: string | null): string {
-  if (!hex) return "text-slate-800 dark:text-slate-200";
+  if (!hex) return "text-foreground";
   const raw = hex.replace("#", "");
   const r = parseInt(raw.substring(0, 2), 16);
   const g = parseInt(raw.substring(2, 4), 16);

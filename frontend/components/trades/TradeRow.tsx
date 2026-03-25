@@ -26,7 +26,7 @@ function formatPrice(value: string | null): string {
 }
 
 function formatPnl(value: string | null): React.ReactElement {
-  if (value === null) return <span className="text-slate-500">—</span>;
+  if (value === null) return <span className="text-muted-foreground">—</span>;
   const num = parseFloat(value);
   const color = num >= 0 ? "text-emerald-400" : "text-red-400";
   const prefix = num >= 0 ? "+" : "";
@@ -68,21 +68,21 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
 
   return (
     <>
-    <tr className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:bg-slate-700/30 transition-colors cursor-pointer">
+    <tr className="border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer">
       <td className="px-3 py-3">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelect?.(trade.id, e.target.checked)}
           onClick={(e) => e.stopPropagation()}
-          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 accent-blue-500 cursor-pointer"
+          className="w-4 h-4 rounded border-border dark:border-border accent-primary cursor-pointer"
           aria-label={`Select trade ${trade.symbol}`}
         />
       </td>
-      <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+      <td className="px-4 py-3 text-sm font-medium text-foreground">
         <Link
           href={`/dashboard/trades/${trade.id}`}
-          className="hover:text-blue-400 transition-colors"
+          className="hover:text-primary transition-colors"
         >
           {trade.symbol}
         </Link>
@@ -90,23 +90,23 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       <td className="px-4 py-3">
         <DirectionBadge direction={trade.direction} />
       </td>
-      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+      <td className="px-4 py-3 text-sm text-muted-foreground">
         {trade.asset_class}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-        {trade.account_name ?? <span className="text-slate-500">—</span>}
+      <td className="px-4 py-3 text-sm text-muted-foreground">
+        {trade.account_name ?? <span className="text-muted-foreground">—</span>}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+      <td className="px-4 py-3 text-sm text-muted-foreground">
         {formatPrice(trade.entry_price)}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+      <td className="px-4 py-3 text-sm text-muted-foreground">
         {formatPrice(trade.exit_price)}
       </td>
       <td className="px-4 py-3 text-sm">{formatPnl(trade.pnl)}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+      <td className="px-4 py-3 text-sm text-muted-foreground">
         {formatDate(trade.opened_at)}
       </td>
-      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+      <td className="px-4 py-3 text-sm text-muted-foreground">
         {formatDate(trade.closed_at)}
       </td>
       <td className="px-4 py-3">
@@ -125,7 +125,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
           }}
           title={hasNotes ? `${notesCount} note${notesCount !== 1 ? "s" : ""} — click to add` : "Add note"}
           aria-label={hasNotes ? `${notesCount} notes` : "Add note"}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border hover:border-blue-500 hover:text-blue-400 hover:bg-blue-900/20"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border hover:border-primary hover:text-primary hover:bg-blue-900/20"
           style={hasNotes
             ? { background: "rgba(30,41,59,0.5)", color: "#94a3b8", borderColor: "#475569" }
             : { background: "transparent", color: "#475569", borderColor: "#334155" }
@@ -145,7 +145,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       </td>
     </tr>
     {showQuickNote && (
-      <tr className="border-b border-slate-200 dark:border-slate-700/30 bg-white dark:bg-slate-800/30">
+      <tr className="border-b border-border/30 bg-card/30">
         <td colSpan={12} className="px-4 py-2">
           <QuickNoteInput
             tradeId={trade.id}

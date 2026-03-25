@@ -64,9 +64,9 @@ function CategoryCard({ title, paragraph, block, colorClass }: CategoryCardProps
   const netPositive = net >= 0;
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 space-y-4">
+    <div className="bg-card border border-border rounded-xl p-6 space-y-4">
       <div>
-        <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
+        <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
           {paragraph}
         </p>
         <h3 className={`text-lg font-semibold mt-0.5 ${colorClass}`}>{title}</h3>
@@ -74,22 +74,22 @@ function CategoryCard({ title, paragraph, block, colorClass }: CategoryCardProps
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-xs text-slate-500 mb-1">Gewinne</p>
+          <p className="text-xs text-muted-foreground mb-1">Gewinne</p>
           <p className="text-xl font-bold text-green-400">
             {formatEur(block.gains_eur)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-1">Verluste</p>
+          <p className="text-xs text-muted-foreground mb-1">Verluste</p>
           <p className="text-xl font-bold text-red-400">
             {formatEur(block.losses_eur)}
           </p>
         </div>
       </div>
 
-      <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+      <div className="pt-3 border-t border-border flex items-center justify-between">
         <div>
-          <p className="text-xs text-slate-500 mb-1">Netto</p>
+          <p className="text-xs text-muted-foreground mb-1">Netto</p>
           <p
             className={`text-2xl font-bold ${
               netPositive ? "text-green-400" : "text-red-400"
@@ -99,8 +99,8 @@ function CategoryCard({ title, paragraph, block, colorClass }: CategoryCardProps
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-500 mb-1">Trades</p>
-          <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">
+          <p className="text-xs text-muted-foreground mb-1">Trades</p>
+          <p className="text-lg font-semibold text-foreground">
             {block.trade_count}
           </p>
         </div>
@@ -116,14 +116,14 @@ interface CashFlowCardProps {
   subLabel?: string;
 }
 
-function CashFlowCard({ label, value, colorClass = "text-slate-900 dark:text-slate-100", subLabel }: CashFlowCardProps) {
+function CashFlowCard({ label, value, colorClass = "text-foreground", subLabel }: CashFlowCardProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 flex flex-col gap-1">
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+    <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-1">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         {label}
       </p>
       {subLabel && (
-        <p className="text-xs text-slate-400 dark:text-slate-500 -mt-0.5">{subLabel}</p>
+        <p className="text-xs text-muted-foreground -mt-0.5">{subLabel}</p>
       )}
       <p className={`text-xl font-bold mt-1 ${colorClass}`}>{value}</p>
     </div>
@@ -139,13 +139,13 @@ function AccountBreakdown({ acc }: { acc: AccountTaxSummary }) {
   const hasCashData = dividends !== 0 || withholding !== 0 || interest !== 0;
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
-        <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">
+    <div className="bg-card border border-border rounded-xl p-6">
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
+        <h3 className="text-lg font-medium text-foreground">
           {acc.account_name || "Unbekanntes Konto"}
         </h3>
         <div className="text-right">
-          <p className="text-sm text-slate-500">Konto-Netto (Trades)</p>
+          <p className="text-sm text-muted-foreground">Konto-Netto (Trades)</p>
           <p className={`text-xl font-bold ${
             parseFloat(acc.total_net_eur) >= 0 ? "text-green-400" : "text-red-400"
           }`}>
@@ -156,74 +156,74 @@ function AccountBreakdown({ acc }: { acc: AccountTaxSummary }) {
 
       {/* Trade P&L breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-blue-400 mb-3">Aktien (§20 Abs. 2 Nr. 1 EStG)</h4>
+        <div className="bg-secondary/50 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-primary mb-3">Aktien (§20 Abs. 2 Nr. 1 EStG)</h4>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <p className="text-xs text-slate-500">Gewinne</p>
+              <p className="text-xs text-muted-foreground">Gewinne</p>
               <p className="text-sm font-semibold text-green-400">{formatEur(acc.equities.gains_eur)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Verluste</p>
+              <p className="text-xs text-muted-foreground">Verluste</p>
               <p className="text-sm font-semibold text-red-400">{formatEur(acc.equities.losses_eur)}</p>
             </div>
           </div>
-          <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex justify-between items-end mt-2 pt-2 border-t border-border">
             <div>
-              <p className="text-xs text-slate-500">Netto</p>
+              <p className="text-xs text-muted-foreground">Netto</p>
               <p className={`text-sm font-bold ${parseFloat(acc.equities.net_eur) >= 0 ? "text-green-400" : "text-red-400"}`}>
                 {formatEur(acc.equities.net_eur)}
               </p>
             </div>
-            <p className="text-xs text-slate-500">{acc.equities.trade_count} Trades</p>
+            <p className="text-xs text-muted-foreground">{acc.equities.trade_count} Trades</p>
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
+        <div className="bg-secondary/50 rounded-lg p-4">
           <h4 className="text-sm font-medium text-purple-400 mb-3">Derivate (§20 Abs. 2 Nr. 3 EStG)</h4>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <p className="text-xs text-slate-500">Gewinne</p>
+              <p className="text-xs text-muted-foreground">Gewinne</p>
               <p className="text-sm font-semibold text-green-400">{formatEur(acc.derivatives.gains_eur)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Verluste</p>
+              <p className="text-xs text-muted-foreground">Verluste</p>
               <p className="text-sm font-semibold text-red-400">{formatEur(acc.derivatives.losses_eur)}</p>
             </div>
           </div>
-          <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex justify-between items-end mt-2 pt-2 border-t border-border">
             <div>
-              <p className="text-xs text-slate-500">Netto</p>
+              <p className="text-xs text-muted-foreground">Netto</p>
               <p className={`text-sm font-bold ${parseFloat(acc.derivatives.net_eur) >= 0 ? "text-green-400" : "text-red-400"}`}>
                 {formatEur(acc.derivatives.net_eur)}
               </p>
             </div>
-            <p className="text-xs text-slate-500">{acc.derivatives.trade_count} Trades</p>
+            <p className="text-xs text-muted-foreground">{acc.derivatives.trade_count} Trades</p>
           </div>
         </div>
       </div>
 
       {/* Cash flow breakdown */}
       {hasCashData && (
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-          <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">
+        <div className="mt-4 pt-4 border-t border-border">
+          <h4 className="text-sm font-medium text-muted-foreground mb-3">
             Kapitalerträge (§20 Abs. 1 EStG)
           </h4>
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-1">Dividenden</p>
+          <p className="text-xs text-muted-foreground mb-1">Dividenden</p>
               <p className={`text-sm font-bold ${dividends >= 0 ? "text-green-500" : "text-red-400"}`}>
                 {formatEur(acc.dividends_eur)}
               </p>
             </div>
             <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-1">Quellensteuer</p>
+          <p className="text-xs text-muted-foreground mb-1">Quellensteuer</p>
               <p className={`text-sm font-bold ${withholding >= 0 ? "text-green-500" : "text-red-400"}`}>
                 {formatEur(acc.withholding_tax_eur)}
               </p>
             </div>
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-              <p className="text-xs text-slate-500 mb-1">Zinsen</p>
+          <p className="text-xs text-muted-foreground mb-1">Zinsen</p>
               <p className={`text-sm font-bold ${interest >= 0 ? "text-green-500" : "text-red-400"}`}>
                 {formatEur(acc.interest_eur)}
               </p>
@@ -288,7 +288,7 @@ export default function TaxPage() {
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
-          className="px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 bg-secondary border border-border text-foreground rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           aria-label="Steuerjahr auswählen"
         >
           {YEAR_OPTIONS.map((y) => (
@@ -302,7 +302,7 @@ export default function TaxPage() {
         <button
           onClick={handleCsvDownload}
           title={`Anlage KAP CSV für ${year} herunterladen`}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
         >
           <svg
             viewBox="0 0 24 24"
@@ -332,10 +332,10 @@ export default function TaxPage() {
           <p className="text-red-400 font-medium mb-2">
             Steuerdaten konnten nicht geladen werden.
           </p>
-          <p className="text-slate-500 text-sm mb-4">{error.message}</p>
+          <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
           <button
             onClick={() => refetch()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
           >
             Nochmals versuchen
           </button>
@@ -344,21 +344,21 @@ export default function TaxPage() {
 
       {/* Empty state */}
       {summary && isEmpty(summary) && (
-        <div className="flex flex-col items-center justify-center h-64 text-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-8 py-12">
+        <div className="flex flex-col items-center justify-center h-64 text-center bg-card border border-border rounded-xl px-8 py-12">
           <svg
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.5"
-            className="w-12 h-12 text-slate-600 mb-4"
+            className="w-12 h-12 text-muted-foreground mb-4"
           >
             <path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01" strokeLinecap="round" />
             <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
           </svg>
-          <p className="text-slate-600 dark:text-slate-400 font-medium text-lg mb-1">
+          <p className="text-foreground font-medium text-lg mb-1">
             Keine EUR-Daten für {year}
           </p>
-          <p className="text-slate-500 text-sm max-w-sm">
+          <p className="text-muted-foreground text-sm max-w-sm">
             Es wurden keine abgeschlossenen Trades oder Kapitalerträge mit bekanntem
             EUR-Kurs für {year} gefunden. Trades werden beim Import mit dem offiziellen
             Bundesbank-Wechselkurs umgerechnet.
@@ -373,7 +373,7 @@ export default function TaxPage() {
           {(summary.equities.trade_count > 0 || summary.derivatives.trade_count > 0) && (
             <>
               <div>
-                <h2 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wide text-xs">
+                <h2 className="text-base font-semibold text-muted-foreground mb-3 uppercase tracking-wide text-xs">
                   §20 Abs. 2 EStG — Veräußerungsgewinne
                 </h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -381,7 +381,7 @@ export default function TaxPage() {
                     title="Aktien"
                     paragraph="§20 Abs. 2 Nr. 1 EStG"
                     block={summary.equities}
-                    colorClass="text-blue-400"
+                    colorClass="text-primary"
                   />
                   <CategoryCard
                     title="Derivate"
@@ -393,9 +393,9 @@ export default function TaxPage() {
               </div>
 
               {/* Total net trading P&L */}
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 flex items-center justify-between">
+              <div className="bg-card border border-border rounded-xl p-6 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <p className="text-sm text-muted-foreground">
                     Gesamt-Netto Trades {year} (§20 Abs. 2 EStG)
                   </p>
                   <p
@@ -427,7 +427,7 @@ export default function TaxPage() {
           {/* ── Section 2: Kapitalerträge (§20 Abs. 1) ───────────────────────── */}
           {hasCashData && (
             <div>
-              <h2 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wide text-xs">
+              <h2 className="text-base font-semibold text-muted-foreground mb-3 uppercase tracking-wide text-xs">
                 §20 Abs. 1 EStG — Kapitalerträge
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -451,9 +451,9 @@ export default function TaxPage() {
                 />
               </div>
               {/* Net dividends after withholding */}
-              <div className="mt-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 flex items-center justify-between">
+              <div className="mt-3 bg-card border border-border rounded-xl p-5 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <p className="text-sm text-muted-foreground">
                     Netto-Dividenden nach Quellensteuer {year}
                   </p>
                   <p
@@ -464,7 +464,7 @@ export default function TaxPage() {
                     {formatEur(String(dividends + withholding))}
                   </p>
                 </div>
-                <p className="text-xs text-slate-500 max-w-xs text-right">
+                <p className="text-xs text-muted-foreground max-w-xs text-right">
                   Quellensteuer auf US-Dividenden ist bis zu 15% auf die deutsche
                   Abgeltungsteuer anrechenbar (DBA USA).
                 </p>
@@ -475,7 +475,7 @@ export default function TaxPage() {
           {/* ── Breakdown by Account ──────────────────────────────────────────── */}
           {summary.accounts && summary.accounts.length > 0 && (
             <div className="mt-4">
-              <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-4">
+              <h2 className="text-xl font-semibold text-foreground mb-4">
                 Aufschlüsselung nach Konto
               </h2>
               <div className="space-y-6">

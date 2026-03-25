@@ -64,7 +64,7 @@ function OAuthCallbackContent() {
   }, [searchParams, router, setToken, setUser]);
 
   return (
-    <div className="flex flex-col items-center gap-4 text-slate-600 dark:text-slate-400">
+    <div className="flex flex-col items-center gap-4 text-muted-foreground">
       <Spinner size="lg" />
       <p className="text-sm">Completing sign-in…</p>
     </div>
@@ -73,9 +73,9 @@ function OAuthCallbackContent() {
 
 export default function OAuthCallbackPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+    <main className="min-h-screen flex items-center justify-center bg-background">
       <Suspense fallback={
-        <div className="flex flex-col items-center gap-4 text-slate-600 dark:text-slate-400">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
           <Spinner size="lg" />
           <p className="text-sm">Loading…</p>
         </div>

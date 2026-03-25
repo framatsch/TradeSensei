@@ -132,11 +132,11 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">Assign Tags</h2>
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        <h2 className="text-base font-semibold text-foreground mb-4">Assign Tags</h2>
         <div className="flex flex-wrap gap-2 mb-6 min-h-12">
           {(tags ?? []).length === 0 && (
-            <p className="text-slate-500 text-sm">No tags available.</p>
+            <p className="text-muted-foreground text-sm">No tags available.</p>
           )}
           {(tags ?? []).map((tag) => (
             <button
@@ -145,7 +145,7 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
               onClick={() => toggle(tag.id)}
               className={`transition-opacity ${
                 selected.has(tag.id)
-                  ? "opacity-100 ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-800 rounded-full"
+                  ? "opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background rounded-full"
                   : "opacity-50 hover:opacity-90"
               }`}
             >
@@ -157,7 +157,7 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-sm"
+            className="px-4 py-2 bg-secondary hover:bg-slate-200 dark:bg-slate-600 text-muted-foreground rounded-md text-sm"
           >
             Cancel
           </button>
@@ -165,7 +165,7 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
             type="button"
             disabled={selected.size === 0 || isPending}
             onClick={() => onConfirm(Array.from(selected))}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-md text-sm"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white rounded-md text-sm"
           >
             {isPending ? "Saving…" : "Apply"}
           </button>
@@ -189,8 +189,8 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">Assign Playbook</h2>
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        <h2 className="text-base font-semibold text-foreground mb-4">Assign Playbook</h2>
         <div className="space-y-2 mb-6">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -199,9 +199,9 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
               value=""
               checked={selected === null}
               onChange={() => setSelected(null)}
-              className="accent-blue-500"
+              className="accent-primary"
             />
-            <span className="text-sm text-slate-700 dark:text-slate-300">None</span>
+            <span className="text-sm text-muted-foreground">None</span>
           </label>
           {(playbooks ?? []).map((pb) => (
             <label key={pb.id} className="flex items-center gap-3 cursor-pointer">
@@ -211,9 +211,9 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
                 value={pb.id}
                 checked={selected === pb.id}
                 onChange={() => setSelected(pb.id)}
-                className="accent-blue-500"
+                className="accent-primary"
               />
-              <span className="text-sm text-slate-700 dark:text-slate-300">{pb.name}</span>
+              <span className="text-sm text-muted-foreground">{pb.name}</span>
             </label>
           ))}
         </div>
@@ -221,7 +221,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-sm"
+            className="px-4 py-2 bg-secondary hover:bg-slate-200 dark:bg-slate-600 text-muted-foreground rounded-md text-sm"
           >
             Cancel
           </button>
@@ -229,7 +229,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
             type="button"
             disabled={isPending}
             onClick={() => onConfirm(selected)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-md text-sm"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white rounded-md text-sm"
           >
             {isPending ? "Saving…" : "Apply"}
           </button>
@@ -339,7 +339,7 @@ export function TradesPageClient() {
         <PageHeader title="Trades" subtitle="All recorded trading positions" />
         <Link
           href="/dashboard/trades/new"
-          className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+          className="flex-shrink-0 px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-md transition-colors"
         >
           + New Trade
         </Link>

@@ -107,10 +107,10 @@ export function DateRangeVisualizer({
     <div className="space-y-3">
       {/* Preset toggle */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-400 shrink-0">
+        <span className="text-xs font-medium text-muted-foreground shrink-0">
           From:
         </span>
-        <div className="flex rounded-md overflow-hidden border border-slate-300 dark:border-slate-600 text-xs">
+        <div className="flex rounded-md overflow-hidden border border-border dark:border-border text-xs">
           <button
             type="button"
             disabled={disabled}
@@ -118,7 +118,7 @@ export function DateRangeVisualizer({
             className={[
               "px-3 py-1.5 font-medium transition-colors",
               preset === "ytd"
-                ? "bg-blue-600 text-white"
+                ? "bg-primary text-white"
                 : "bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
@@ -136,9 +136,9 @@ export function DateRangeVisualizer({
               }
             }}
             className={[
-              "px-3 py-1.5 font-medium transition-colors border-l border-slate-300 dark:border-slate-600",
+              "px-3 py-1.5 font-medium transition-colors border-l border-border dark:border-border",
               preset === "custom"
-                ? "bg-blue-600 text-white"
+                ? "bg-primary text-white"
                 : "bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
@@ -156,14 +156,14 @@ export function DateRangeVisualizer({
             max={maxInputDate}
             disabled={disabled}
             onChange={(e) => onCustomFromDateChange(fromInputDate(e.target.value))}
-            className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="px-2 py-1 text-xs bg-secondary border border-border dark:border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           />
         )}
       </div>
 
       {/* Visual timeline bar */}
       <div className="space-y-1">
-        <div className="relative h-6 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div className="relative h-6 bg-secondary rounded-full overflow-hidden">
           <div
             className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300"
             style={{ width: `${fillPct}%` }}
@@ -173,9 +173,9 @@ export function DateRangeVisualizer({
         </div>
 
         {/* Labels */}
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-slate-400">
           <span>{formatDisplay(effectiveStart)}</span>
-          <span className="text-slate-400 dark:text-slate-500 text-center">
+          <span className="text-slate-400 dark:text-muted-foreground text-center">
             {daysCovered} day{daysCovered !== 1 ? "s" : ""}
           </span>
           <span>Today ({formatDisplay(today)})</span>
@@ -183,7 +183,7 @@ export function DateRangeVisualizer({
       </div>
 
       {/* Limit badge */}
-      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground dark:text-slate-400">
         <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
           <span>⚠</span>
           IBKR Flex: max. 1 year

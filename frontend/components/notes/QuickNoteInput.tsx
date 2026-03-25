@@ -45,7 +45,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
   };
 
   return (
-    <div className="mt-1 p-3 bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-600 rounded-lg">
+    <div className="mt-1 p-3 bg-card/80 border border-border dark:border-border rounded-lg">
       <textarea
         autoFocus
         value={content}
@@ -53,13 +53,13 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
         onKeyDown={handleKeyDown}
         placeholder="Quick note… (Ctrl+Enter to save, Esc to cancel)"
         rows={2}
-        className="w-full px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs resize-none"
+        className="w-full px-2 py-1.5 rounded bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary text-xs resize-none"
       />
       <div className="mt-2 flex justify-end gap-2">
         <button
           type="button"
           onClick={onClose}
-          className="px-3 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-colors"
+          className="px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           Cancel
         </button>
@@ -67,7 +67,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
           type="button"
           onClick={handleSave}
           disabled={!content.trim() || isPending}
-          className="px-3 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1 text-xs font-medium bg-primary hover:bg-primary/90 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPending ? "Saving…" : "Save"}
         </button>

@@ -68,7 +68,7 @@ const TYPE_BADGE_CLASSES: Record<CashTransactionType, string> = {
   INTEREST:        "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   WITHHOLDING_TAX: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   FEE:             "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  WITHDRAWAL:      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  WITHDRAWAL:      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-primary",
   OTHER:           "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
 };
 
@@ -90,10 +90,10 @@ interface SummaryCardProps {
   colorClass?: string;
 }
 
-function SummaryCard({ label, value, colorClass = "text-slate-900 dark:text-slate-100" }: SummaryCardProps) {
+function SummaryCard({ label, value, colorClass = "text-foreground" }: SummaryCardProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col gap-1">
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+    <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-1">
+      <p className="text-xs font-medium text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
         {label}
       </p>
       <p className={`text-xl font-bold ${colorClass}`}>{value}</p>
@@ -183,16 +183,16 @@ function TransactionModal({ accountId, editing, onClose }: TransactionModalProps
   }
 
   const inputClass =
-    "w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 " +
-    "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm " +
-    "focus:outline-none focus:ring-2 focus:ring-blue-500";
+    "w-full px-3 py-2 rounded-md border border-border dark:border-border " +
+    "bg-white dark:bg-background text-foreground text-sm " +
+    "focus:outline-none focus:ring-2 focus:ring-primary";
 
-  const labelClass = "block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1";
+  const labelClass = "block text-xs font-medium text-muted-foreground mb-1";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 w-full max-w-lg shadow-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-5">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg shadow-2xl mx-4 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-base font-semibold text-foreground mb-5">
           {editing ? "Edit Transaction" : "Add Transaction"}
         </h2>
 
@@ -311,14 +311,14 @@ function TransactionModal({ accountId, editing, onClose }: TransactionModalProps
               type="button"
               onClick={onClose}
               disabled={isPending}
-              className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-sm font-medium transition-colors"
+              className="px-4 py-2 bg-secondary hover:bg-slate-200 dark:hover:bg-slate-600 text-muted-foreground rounded-md text-sm font-medium transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-md text-sm font-medium transition-colors"
+              className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white rounded-md text-sm font-medium transition-colors"
             >
               {isPending ? "Saving…" : "Save"}
             </button>
@@ -440,7 +440,7 @@ export function CashPageClient() {
       <div className="flex items-center gap-3">
         <label
           htmlFor="account-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300 shrink-0"
+          className="text-sm font-medium text-muted-foreground shrink-0"
         >
           Account
         </label>
@@ -451,7 +451,7 @@ export function CashPageClient() {
             id="account-select"
             value={selectedAccountId}
             onChange={handleAccountChange}
-            className="px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 rounded-md border border-border dark:border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">— Select an account —</option>
             {(accounts ?? []).map((account) => (
@@ -463,7 +463,7 @@ export function CashPageClient() {
           </select>
         )}
         {selectedAccount && (
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="text-xs text-muted-foreground dark:text-slate-400">
             {selectedAccount.currency} · {selectedAccount.type.toUpperCase()}
           </span>
         )}
@@ -471,8 +471,8 @@ export function CashPageClient() {
 
       {/* No account selected placeholder */}
       {!selectedAccountId && (
-        <div className="flex items-center justify-center h-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-center h-48 bg-card border border-border rounded-xl">
+          <p className="text-sm text-muted-foreground dark:text-slate-400">
             Select an account to view transactions.
           </p>
         </div>
@@ -509,7 +509,7 @@ export function CashPageClient() {
                 />
               </>
             ) : (
-              <div className="sm:col-span-3 text-sm text-slate-500 dark:text-slate-400">
+              <div className="sm:col-span-3 text-sm text-muted-foreground dark:text-slate-400">
                 Unable to load metrics.
               </div>
             )}
@@ -520,7 +520,7 @@ export function CashPageClient() {
             <div className="flex items-center gap-2">
               <label
                 htmlFor="type-filter"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="text-sm font-medium text-muted-foreground"
               >
                 Type
               </label>
@@ -528,7 +528,7 @@ export function CashPageClient() {
                 id="type-filter"
                 value={typeFilter}
                 onChange={handleTypeFilterChange}
-                className="px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 rounded-md border border-border dark:border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">All Types</option>
                 {TRANSACTION_TYPES.map((t) => (
@@ -542,27 +542,27 @@ export function CashPageClient() {
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+              className="ml-auto px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-md transition-colors"
             >
               + Add Transaction
             </button>
           </div>
 
           {/* Data table */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             {txLoading && offset === 0 ? (
               <div className="flex items-center justify-center h-48">
                 <Spinner size="md" />
               </div>
             ) : allItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 gap-2">
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-muted-foreground dark:text-slate-400">
                   No cash transactions found.
                 </p>
                 <button
                   type="button"
                   onClick={handleOpenAddModal}
-                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                  className="text-sm text-primary hover:text-blue-700 dark:text-primary dark:hover:text-blue-300 underline"
                 >
                   Add your first transaction
                 </button>
@@ -572,29 +572,29 @@ export function CashPageClient() {
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 dark:border-slate-700">
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                      <tr className="border-b border-border">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Date
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Type
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Symbol
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Amount
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Currency
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Amount (EUR)
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Description
                         </th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wide">
                           Actions
                         </th>
                       </tr>
@@ -603,28 +603,28 @@ export function CashPageClient() {
                       {allItems.map((tx) => (
                         <tr
                           key={tx.id}
-                          className="border-b border-slate-100 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+                          className="border-b border-slate-100 dark:border-border/60 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
                         >
-                          <td className="px-4 py-3 text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                          <td className="px-4 py-3 text-foreground whitespace-nowrap">
                             {formatDate(tx.date)}
                           </td>
                           <td className="px-4 py-3">
                             <TypeBadge type={tx.type} />
                           </td>
-                          <td className="px-4 py-3 text-slate-700 dark:text-slate-300 font-mono text-xs">
+                          <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
                             {tx.symbol ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                          <td className="px-4 py-3 text-right tabular-nums text-foreground whitespace-nowrap">
                             {formatAmount(tx.amount, tx.currency)}
                           </td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                          <td className="px-4 py-3 text-muted-foreground">
                             {tx.currency}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                          <td className="px-4 py-3 text-right tabular-nums text-muted-foreground whitespace-nowrap">
                             {tx.amount_eur !== null ? formatEur(tx.amount_eur) : "—"}
                           </td>
                           <td
-                            className="px-4 py-3 text-slate-600 dark:text-slate-400 max-w-xs truncate"
+                            className="px-4 py-3 text-muted-foreground max-w-xs truncate"
                             title={tx.description ?? undefined}
                           >
                             {tx.description ?? "—"}
@@ -636,7 +636,7 @@ export function CashPageClient() {
                                 type="button"
                                 onClick={() => handleEdit(tx)}
                                 aria-label="Edit transaction"
-                                className="p-1.5 rounded-md text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/30 dark:hover:text-primary transition-colors"
                               >
                                 <svg
                                   viewBox="0 0 24 24"
@@ -655,7 +655,7 @@ export function CashPageClient() {
                                 type="button"
                                 onClick={() => handleDelete(tx)}
                                 aria-label="Delete transaction"
-                                className="p-1.5 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
                               >
                                 <svg
                                   viewBox="0 0 24 24"
@@ -680,7 +680,7 @@ export function CashPageClient() {
                 </div>
 
                 {/* Pagination footer */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400">
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm text-muted-foreground dark:text-slate-400">
                   <span>
                     Showing {allItems.length}
                     {page?.total !== null && page?.total !== undefined
@@ -693,7 +693,7 @@ export function CashPageClient() {
                       type="button"
                       onClick={handleLoadMore}
                       disabled={isFetching}
-                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-xs font-medium transition-colors disabled:opacity-60"
+                      className="px-3 py-1.5 bg-secondary hover:bg-slate-200 dark:hover:bg-slate-600 text-muted-foreground rounded-md text-xs font-medium transition-colors disabled:opacity-60"
                     >
                       {isFetching ? "Loading…" : "Load more"}
                     </button>

@@ -35,7 +35,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor="username"
-          className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+          className="block text-sm font-medium text-muted-foreground mb-1"
         >
           Username or Email
         </label>
@@ -46,14 +46,14 @@ export function LoginForm() {
           required
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
 
       <div>
         <label
           htmlFor="password"
-          className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+          className="block text-sm font-medium text-muted-foreground mb-1"
         >
           Password
         </label>
@@ -64,7 +64,7 @@ export function LoginForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
 
@@ -77,7 +77,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
       >
         {isPending && <Spinner size="sm" />}
         {isPending ? "Signing in…" : "Sign In"}
@@ -86,9 +86,9 @@ export function LoginForm() {
 
       {/* Divider */}
       <div className="relative flex items-center gap-3">
-        <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
-        <span className="text-xs text-slate-500 select-none">or</span>
-        <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
+        <div className="flex-1 border-t border-border" />
+        <span className="text-xs text-muted-foreground select-none">or</span>
+        <div className="flex-1 border-t border-border" />
       </div>
 
       {/* Google sign-in */}
