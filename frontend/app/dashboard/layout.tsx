@@ -11,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/useAuth";
 import { Logo } from "@/components/ui/Logo";
+import { AboutModal } from "@/components/ui/AboutModal";
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
@@ -242,6 +243,7 @@ interface Props {
 
 export default function DashboardLayout({ children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { mutate: logout } = useLogout();
@@ -286,8 +288,11 @@ export default function DashboardLayout({ children }: Props) {
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
-          <Logo size={28} />
+        <div 
+          className="flex items-center gap-3 px-4 py-4 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors group"
+          onClick={() => setAboutOpen(true)}
+        >
+          <Logo size={28} className="group-hover:scale-105 transition-transform duration-200" />
           <span className="font-semibold text-foreground text-sm truncate">Trade Journal</span>
         </div>
 
@@ -382,10 +387,22 @@ export default function DashboardLayout({ children }: Props) {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <span className="font-semibold text-foreground">Trade Journal</span>
+          <div 
+            className="flex items-center gap-2 cursor-pointer hover:bg-muted/30 px-2 py-1 rounded-lg transition-colors"
+            onClick={() => setAboutOpen(true)}
+          >
+            <Logo size={24} />
+            <span className="font-semibold text-foreground">Trade Journal</span>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 bg-background text-foreground">{children}</main>
+        
+        {/* About Modal */}
+        <AboutModal 
+          isOpen={aboutOpen} 
+          onClose={() => setAboutOpen(false)} 
+        />
       </div>
     </div>
   );
