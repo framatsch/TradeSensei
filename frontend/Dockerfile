@@ -2,7 +2,8 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+# Build context is the repo root — copy only frontend deps first for layer caching
+COPY frontend/package.json frontend/package-lock.json ./
 
 RUN npm ci --legacy-peer-deps
 
@@ -18,7 +19,10 @@ FROM base AS builder
 
 ENV NODE_ENV=production
 
-COPY . .
+# Copy frontend source
+COPY frontend/ .
+# Copy root logo.svg into public/ so it is the single source of truth
+COPY logo.svg ./public/logo.svg
 
 RUN npm run build
 
