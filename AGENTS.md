@@ -188,6 +188,7 @@ invokes them via the Task tool. Subagents can also be called manually with `@<na
 | `docs-writer` | `.opencode/agents/docs-writer.md` | AGENTS.md, user guide, API usage examples, dev setup guide |
 | `changelog-writer` | `.opencode/agents/changelog-writer.md` | CHANGELOG.md maintenance (Keep a Changelog format) |
 | `ui-reviewer` | `.opencode/agents/ui-reviewer.md` | Visual review of frontend screenshots — layout, a11y, design system |
+| `deployment-diagnoser` | `.opencode/agents/deployment-diagnoser.md` | Kubernetes + Playwright diagnostics and deployment fixes |
 
 ### Available Skills
 
