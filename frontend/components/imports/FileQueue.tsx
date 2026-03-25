@@ -26,7 +26,7 @@ interface FileQueueProps {
 
 const STATUS_ICON: Record<FileStatus, React.ReactNode> = {
   pending: (
-    <span className="w-5 h-5 rounded-full border-2 border-slate-400 dark:border-border flex-shrink-0" />
+    <span className="w-5 h-5 rounded-full border-2 border-zinc-400 dark:border-border flex-shrink-0" />
   ),
   uploading: (
     <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -60,7 +60,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
     <div className="space-y-3">
       {/* Overall progress bar */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-slate-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-zinc-400">
           <span>
             {done < total
               ? `Processing file ${Math.min(currentIndex + 1, total)} of ${total}…`
@@ -68,7 +68,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
           </span>
           <span>{progressPct}%</span>
         </div>
-        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-blue-500 rounded-full transition-all duration-300"
             style={{ width: `${progressPct}%` }}
@@ -89,7 +89,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
                 ? "bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900"
                 : qf.status === "error"
                 ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900"
-                : "bg-slate-50 dark:bg-card/50 border border-border",
+                : "bg-zinc-50 dark:bg-card/50 border border-border",
             ].join(" ")}
           >
             <div className="mt-0.5">{STATUS_ICON[qf.status]}</div>
@@ -98,7 +98,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
               <p className="font-medium text-foreground truncate">
                 {qf.file.name}
               </p>
-              <p className="text-xs text-muted-foreground dark:text-slate-400">
+              <p className="text-xs text-muted-foreground dark:text-zinc-400">
                 {formatBytes(qf.file.size)}
               </p>
 
@@ -162,7 +162,7 @@ export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
         <SummaryBox
           label="Files with Errors"
           value={errorCount}
-          color={errorCount > 0 ? "text-red-500" : "text-slate-400"}
+          color={errorCount > 0 ? "text-red-500" : "text-zinc-400"}
         />
       </div>
       {warnCount > 0 && (
@@ -184,9 +184,9 @@ function SummaryBox({
   color: string;
 }) {
   return (
-    <div className="text-center bg-slate-50 dark:bg-slate-700/50 rounded-lg py-2 px-1">
+    <div className="text-center bg-zinc-50 dark:bg-zinc-700/50 rounded-lg py-2 px-1">
       <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">{label}</p>
+      <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">{label}</p>
     </div>
   );
 }

@@ -127,8 +127,8 @@ export function AccountList({ accounts }: Props) {
                     <td className="px-4 py-3 text-sm font-medium text-foreground">
                       {account.name}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground dark:text-slate-400 font-mono">
-                      {account.account_number ?? <span className="text-slate-400 dark:text-slate-600">—</span>}
+                    <td className="px-4 py-3 text-sm text-muted-foreground dark:text-zinc-400 font-mono">
+                      {account.account_number ?? <span className="text-zinc-400 dark:text-zinc-600">—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       <TypeBadge type={account.type} hasApiKeys={account.has_api_keys} />
@@ -156,7 +156,7 @@ export function AccountList({ accounts }: Props) {
                               prev === account.id ? null : account.id
                             )
                           }
-                          className="px-3 py-1 bg-secondary hover:bg-slate-200 dark:bg-slate-600 text-muted-foreground rounded-md text-xs transition-colors"
+                          className="px-3 py-1 bg-secondary hover:bg-zinc-200 dark:bg-zinc-600 text-muted-foreground rounded-md text-xs transition-colors"
                         >
                           Edit
                         </button>

@@ -95,7 +95,7 @@ export function RegisterForm() {
           minLength={3}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           placeholder="alice"
         />
       </div>
@@ -114,7 +114,7 @@ export function RegisterForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           placeholder="alice@example.com"
         />
       </div>
@@ -134,7 +134,7 @@ export function RegisterForm() {
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           placeholder="••••••••"
         />
         <p className="text-xs text-muted-foreground mt-1">Minimum 8 characters.</p>

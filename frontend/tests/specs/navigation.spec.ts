@@ -47,9 +47,9 @@ test.describe('Sidebar Navigation', () => {
   });
 
   test('TC-045 Overview link is active on /dashboard', async ({ page }) => {
-    // The active link has the blue-600/20 background class applied
+    // The active link uses the .nav-active class (Obsidian design system)
     const overviewLink = page.locator('a[href="/dashboard"]');
-    await expect(overviewLink).toHaveClass(/text-primary/);
+    await expect(overviewLink).toHaveClass(/nav-active/);
   });
 
   test('TC-046 active link updates when navigating to Trades', async ({ page }) => {
@@ -57,11 +57,11 @@ test.describe('Sidebar Navigation', () => {
     await expect(page).toHaveURL(/\/dashboard\/trades/);
 
     const tradesLink = page.getByRole('link', { name: 'Trades' });
-    await expect(tradesLink).toHaveClass(/text-primary/);
+    await expect(tradesLink).toHaveClass(/nav-active/);
 
     // Overview link should no longer be active
     const overviewLink = page.locator('a[href="/dashboard"]');
-    await expect(overviewLink).not.toHaveClass(/text-primary/);
+    await expect(overviewLink).not.toHaveClass(/nav-active/);
   });
 
   test('TC-047 Sign Out button logs out and redirects to /login', async ({ page }) => {

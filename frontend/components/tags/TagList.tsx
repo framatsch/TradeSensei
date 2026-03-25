@@ -19,7 +19,7 @@ const PRESET_COLORS = [
   "#3b82f6", // blue
   "#8b5cf6", // violet
   "#ec4899", // pink
-  "#64748b", // slate
+  "#71717a", // zinc
 ];
 
 export function TagList() {
@@ -103,7 +103,7 @@ export function TagList() {
                 if (nameError) setNameError("");
               }}
               placeholder="e.g. Earnings Play"
-              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             />
             {nameError && (
               <p className="mt-1 text-xs text-red-400">{nameError}</p>
@@ -132,7 +132,7 @@ export function TagList() {
               </div>
               {/* Custom color picker */}
               <label
-                className="w-6 h-6 rounded-full border-2 border-border dark:border-border cursor-pointer overflow-hidden flex items-center justify-center hover:border-slate-400 transition-colors"
+                className="w-6 h-6 rounded-full border-2 border-border dark:border-border cursor-pointer overflow-hidden flex items-center justify-center hover:border-zinc-400 transition-colors"
                 title="Custom color"
               >
                 <span className="sr-only">Custom color</span>

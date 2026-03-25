@@ -119,7 +119,7 @@ export function DateRangeVisualizer({
               "px-3 py-1.5 font-medium transition-colors",
               preset === "ytd"
                 ? "bg-primary text-white"
-                : "bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600",
+                : "bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >
@@ -139,7 +139,7 @@ export function DateRangeVisualizer({
               "px-3 py-1.5 font-medium transition-colors border-l border-border dark:border-border",
               preset === "custom"
                 ? "bg-primary text-white"
-                : "bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600",
+                : "bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >
@@ -169,13 +169,13 @@ export function DateRangeVisualizer({
             style={{ width: `${fillPct}%` }}
           />
           {/* Today marker */}
-          <div className="absolute right-0 top-0 h-full w-0.5 bg-slate-400 dark:bg-slate-500" />
+          <div className="absolute right-0 top-0 h-full w-0.5 bg-zinc-400 dark:bg-zinc-500" />
         </div>
 
         {/* Labels */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-slate-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-zinc-400">
           <span>{formatDisplay(effectiveStart)}</span>
-          <span className="text-slate-400 dark:text-muted-foreground text-center">
+          <span className="text-zinc-400 dark:text-muted-foreground text-center">
             {daysCovered} day{daysCovered !== 1 ? "s" : ""}
           </span>
           <span>Today ({formatDisplay(today)})</span>
@@ -183,7 +183,7 @@ export function DateRangeVisualizer({
       </div>
 
       {/* Limit badge */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground dark:text-slate-400">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground dark:text-zinc-400">
         <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
           <span>⚠</span>
           IBKR Flex: max. 1 year

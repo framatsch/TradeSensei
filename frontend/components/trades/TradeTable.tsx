@@ -62,7 +62,7 @@ function SortIcon({ column, sort }: { column: string; sort?: TradeSortConfig }) 
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
-        className="w-3 h-3 text-slate-600 ml-1 inline"
+        className="w-3 h-3 text-zinc-600 ml-1 inline"
       >
         <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
       </svg>
@@ -195,7 +195,7 @@ export function TradeTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-border bg-background/50">
+            <tr className="border-b border-border bg-muted/30">
               {/* Select-all checkbox */}
               <th className="px-3 py-3 w-10">
                 <input
@@ -205,7 +205,7 @@ export function TradeTable({
                     if (el) el.indeterminate = someSelected;
                   }}
                   onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="w-4 h-4 rounded border-border dark:border-border accent-primary cursor-pointer"
+                  className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
                   aria-label="Select all trades on this page"
                 />
               </th>
@@ -214,7 +214,7 @@ export function TradeTable({
                 return (
                   <th
                     key={col}
-                    className={`px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap ${
+                    className={`px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap ${
                       isSortable ? "cursor-pointer hover:text-foreground select-none" : ""
                     }`}
                     onClick={
@@ -267,7 +267,7 @@ export function TradeTable({
             <select
               value={limit}
               onChange={(e) => handleLimitChange(Number(e.target.value))}
-              className="px-2 py-1 text-sm bg-secondary border border-border dark:border-border text-muted-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              className="px-2 py-1 text-sm bg-secondary border border-border text-muted-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
                 <option key={n} value={n}>
@@ -282,14 +282,14 @@ export function TradeTable({
             <button
               onClick={handlePrev}
               disabled={cursorStack.length <= 1}
-              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors border border-border"
             >
               Previous
             </button>
             <button
               onClick={handleNext}
               disabled={!data?.next_cursor}
-              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors border border-border"
             >
               Next
             </button>

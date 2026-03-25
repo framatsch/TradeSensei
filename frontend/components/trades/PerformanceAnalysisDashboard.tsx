@@ -84,8 +84,8 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
   return (
     <div className="flex flex-col gap-6 w-full">
       {/* Top: Filter Bar */}
-      <div className="flex flex-wrap items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-        <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Metric:</span>
+      <div className="radiant-card flex flex-wrap items-center gap-4 p-4">
+        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Metric:</span>
         <div className="flex flex-wrap items-center gap-4">
           {metrics.map((m) => (
             <label key={m} className="flex items-center space-x-2 cursor-pointer group">
@@ -95,9 +95,9 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
                 value={m} 
                 checked={selectedMetric === m} 
                 onChange={() => setSelectedMetric(m)} 
-                className="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                className="w-4 h-4 accent-indigo-500"
               />
-              <span className={`text-sm ${selectedMetric === m ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200'}`}>
+              <span className={`text-sm ${selectedMetric === m ? 'text-foreground font-medium' : 'text-muted-foreground group-hover:text-foreground'}`}>
                 {m}
               </span>
             </label>
@@ -108,16 +108,18 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
       {/* Middle: Chart & Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Chart Area */}
-        <div className="col-span-1 lg:col-span-3 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 h-[400px]">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">{selectedMetric} by {dimensionLabel || 'Dimension'}</h3>
+        <div className="radiant-card col-span-1 lg:col-span-3 p-4 h-[400px]">
+          <h3 className="text-sm font-semibold mb-4 text-foreground">{selectedMetric} by {dimensionLabel || 'Dimension'}</h3>
           <ResponsiveContainer width="100%" height="85%">
             <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} tickMargin={10} axisLine={{ stroke: '#E5E7EB' }} tickLine={false} />
-              <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} tickFormatter={(val) => selectedMetric === 'P&L' ? `$${val}` : val} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} tickMargin={10} axisLine={{ stroke: 'rgba(255,255,255,0.05)' }} tickLine={false} />
+              <YAxis tick={{ fill: '#71717a', fontSize: 12 }} tickFormatter={(val) => selectedMetric === 'P&L' ? `$${val}` : val} axisLine={false} tickLine={false} />
               <Tooltip 
-                cursor={{ fill: 'rgba(0,0,0,0.05)' }} 
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                cursor={{ fill: 'rgba(255,255,255,0.03)' }} 
+                contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
+                labelStyle={{ color: 'var(--foreground)' }}
+                itemStyle={{ color: 'var(--foreground)' }}
                 formatter={(value: any) => {
                   if (typeof value !== 'number') return [value, selectedMetric];
                   if (selectedMetric === 'P&L') return [formatCurrency(value), selectedMetric];
@@ -141,9 +143,9 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
                   
                   let fill = '#6366F1'; // Default Indigo
                   if (selectedMetric === 'P&L' || selectedMetric === 'Profit Factor') {
-                    fill = isPositive ? '#10B981' : '#EF4444'; // Emerald/Red
+                    fill = isPositive ? '#34d399' : '#fb7185'; // Emerald/Rose
                   } else if (selectedMetric === 'Mistakes') {
-                    fill = val > 0 ? '#F59E0B' : '#10B981'; // Amber/Emerald
+                    fill = val > 0 ? '#F59E0B' : '#34d399'; // Amber/Emerald
                   }
                   
                   return <Cell key={`cell-${index}`} fill={fill} />;
@@ -154,33 +156,33 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
         </div>
 
         {/* Insights Sidebar */}
-        <div className="col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col gap-6">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 border-b pb-2 dark:border-gray-700">Insights</h3>
+        <div className="radiant-card col-span-1 p-6 flex flex-col gap-6">
+          <h3 className="text-sm font-semibold text-foreground border-b border-border/50 pb-2">Insights</h3>
           
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Total P&L</span>
-            <span className={`text-2xl font-bold ${insights.totalPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total P&L</span>
+            <span className={`text-2xl font-bold font-mono ${insights.totalPnl >= 0 ? 'text-success' : 'text-danger'}`}>
               {formatCurrency(insights.totalPnl)}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Avg Return</span>
-            <span className={`text-xl font-semibold ${insights.avgReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Avg Return</span>
+            <span className={`text-xl font-semibold font-mono ${insights.avgReturn >= 0 ? 'text-success' : 'text-danger'}`}>
               {formatCurrency(insights.avgReturn)}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Win Rate</span>
-            <span className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Win Rate</span>
+            <span className="text-xl font-semibold font-mono text-foreground">
               {formatPercent(insights.winRate)}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Total Trades</span>
-            <span className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Trades</span>
+            <span className="text-xl font-semibold font-mono text-foreground">
               {insights.totalTrades}
             </span>
           </div>
@@ -188,50 +190,50 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
       </div>
 
       {/* Bottom: Data Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-900/50">
+      <div className="radiant-card overflow-x-auto">
+        <table className="min-w-full divide-y divide-zinc-900">
+          <thead>
             <tr>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Name</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Return $</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Profit Factor</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Return Win</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Win %</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Return Loss</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Return Others</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Trades</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Shares</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Avg Return</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Avg Profit</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Avg Loser</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Commissions/Fees</th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap"></th>
+              <th scope="col" className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Name</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Return $</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Profit Factor</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Return Win</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Win %</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Return Loss</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Return Others</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Trades</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Shares</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Return</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Profit</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Loser</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Commissions/Fees</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap"></th>
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+          <tbody className="divide-y divide-zinc-900 text-sm">
             {data.map((row, idx) => (
-              <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{row.name}</td>
-                <td className={`px-4 py-3 text-right whitespace-nowrap font-medium ${row.pnl >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+              <tr key={idx} className="hover:bg-white/[0.03] transition-colors">
+                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{row.name}</td>
+                <td className={`px-4 py-3 text-right whitespace-nowrap font-medium font-mono ${row.pnl >= 0 ? 'text-success' : 'text-danger'}`}>
                   {formatCurrency(row.pnl)}
                 </td>
-                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">{row.profitFactor.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right text-green-600 dark:text-green-500 whitespace-nowrap">{formatCurrency(row.returnWin)}</td>
-                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatPercent(row.winPercent)}</td>
-                <td className="px-4 py-3 text-right text-red-600 dark:text-red-500 whitespace-nowrap">{formatCurrency(row.returnLoss)}</td>
-                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatCurrency(row.returnOthers)}</td>
-                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">{row.trades}</td>
-                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">{row.shares}</td>
-                <td className={`px-4 py-3 text-right whitespace-nowrap ${row.avgReturn >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.profitFactor.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right text-success font-mono whitespace-nowrap">{formatCurrency(row.returnWin)}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{formatPercent(row.winPercent)}</td>
+                <td className="px-4 py-3 text-right text-danger font-mono whitespace-nowrap">{formatCurrency(row.returnLoss)}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{formatCurrency(row.returnOthers)}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.trades}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.shares}</td>
+                <td className={`px-4 py-3 text-right whitespace-nowrap font-mono ${row.avgReturn >= 0 ? 'text-success' : 'text-danger'}`}>
                   {formatCurrency(row.avgReturn)}
                 </td>
-                <td className="px-4 py-3 text-right text-green-600 dark:text-green-500 whitespace-nowrap">{formatCurrency(row.avgProfit)}</td>
-                <td className="px-4 py-3 text-right text-red-600 dark:text-red-500 whitespace-nowrap">{formatCurrency(row.avgLoser)}</td>
-                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatCurrency(row.commissions)}</td>
+                <td className="px-4 py-3 text-right text-success font-mono whitespace-nowrap">{formatCurrency(row.avgProfit)}</td>
+                <td className="px-4 py-3 text-right text-danger font-mono whitespace-nowrap">{formatCurrency(row.avgLoser)}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{formatCurrency(row.commissions)}</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   <button 
                     onClick={() => onViewReport?.(row)}
-                    className="inline-flex items-center text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium transition-colors"
+                    className="inline-flex items-center text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
                   >
                     View Report <ChevronRight className="w-4 h-4 ml-1" />
                   </button>
@@ -240,7 +242,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan={14} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={14} className="px-4 py-8 text-center text-muted-foreground">
                   No performance data available for the selected view.
                 </td>
               </tr>

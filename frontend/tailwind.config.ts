@@ -16,6 +16,7 @@ const config: Config = {
       },
       colors: {
         background: "var(--background)",
+        sidebar: "var(--sidebar)",
         foreground: "var(--foreground)",
         card: {
           DEFAULT: "var(--card)",
@@ -48,11 +49,32 @@ const config: Config = {
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
+        // Radiant / Obsidian semantic tokens
+        success: "var(--success)",
+        danger: "var(--danger)",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      backgroundImage: {
+        "radial-gradient": "radial-gradient(circle at center, var(--tw-gradient-stops))",
+        "radial-top": "radial-gradient(circle at top, var(--tw-gradient-stops))",
+      },
+      animation: {
+        "fade-in": "fadeIn 0.4s ease-out",
+        "slide-up": "slideUp 0.4s ease-out",
+      },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
     },
   },

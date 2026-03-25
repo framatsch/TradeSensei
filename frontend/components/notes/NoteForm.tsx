@@ -109,7 +109,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
               }}
               placeholder="What happened in this trade? Execution, mistakes, observations… (Markdown supported)"
               rows={4}
-              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none"
             />
             {/* Character counter */}
             <div className="mt-1 flex items-center justify-between">
@@ -150,7 +150,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
               value={emotion}
               onChange={(e) => setEmotion(e.target.value)}
               placeholder="e.g. Confident, Fearful…"
-              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             />
             <datalist id="emotion-options">
               {EMOTION_OPTIONS.map((opt) => (

@@ -32,7 +32,7 @@ export function BulkActionToolbar({
       <button
         type="button"
         onClick={onAssignPlaybook}
-        className="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 hover:bg-slate-500 text-foreground rounded-md text-sm transition-colors"
+        className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-500 text-foreground rounded-md text-sm transition-colors"
       >
         Assign Playbook
       </button>
@@ -40,7 +40,7 @@ export function BulkActionToolbar({
       <button
         type="button"
         onClick={onAssignTag}
-        className="px-3 py-1.5 bg-slate-200 dark:bg-slate-600 hover:bg-slate-500 text-foreground rounded-md text-sm transition-colors"
+        className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-500 text-foreground rounded-md text-sm transition-colors"
       >
         Assign Tag
       </button>

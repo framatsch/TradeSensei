@@ -87,7 +87,7 @@ export function SchwabConnectionCard() {
           }`}
         >
           <span
-            className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-slate-500"}`}
+            className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-zinc-500"}`}
           />
           {connected ? "Connected" : "Not connected"}
         </span>

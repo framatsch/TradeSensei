@@ -20,7 +20,7 @@ function contrastTextColor(hex: string | null): string {
   const b = parseInt(raw.substring(4, 6), 16);
   // Perceived luminance
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.55 ? "text-slate-900" : "text-white";
+  return luminance > 0.55 ? "text-zinc-900" : "text-white";
 }
 
 export function TagBadge({ tag, onRemove }: Props) {

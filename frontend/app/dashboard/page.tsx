@@ -1,5 +1,11 @@
 /**
- * Dashboard overview page — metrics summary cards + equity + drawdown charts.
+ * Dashboard overview page — Radiant / Obsidian deep-dark SaaS layout.
+ *
+ * Layout order:
+ *   1. DashboardHeader  — hero PnL + equity mini-chart
+ *   2. DashboardStats   — bento-grid metrics tiles
+ *   3. Charts           — equity curve, drawdown, daily PnL, return distribution
+ *   4. RecentTradeLog   — last 10 closed trades
  */
 
 "use client";
@@ -7,17 +13,18 @@
 import { useMetrics } from "@/hooks/useMetrics";
 import { useDailyPnl } from "@/hooks/useDailyPnl";
 import { useReturnDistribution } from "@/hooks/useReturnDistribution";
-import { MetricsCards } from "@/components/metrics/MetricsCards";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { RecentTradeLog } from "@/components/dashboard/RecentTradeLog";
 import { EquityCurveChart } from "@/components/charts/EquityCurveChart";
 import { DrawdownChart } from "@/components/charts/DrawdownChart";
 import { DailyPnlBarChart } from "@/components/charts/DailyPnlBarChart";
 import { ReturnDistributionChart } from "@/components/charts/ReturnDistributionChart";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 
 function ChartSkeleton() {
   return (
-    <div className="bg-card rounded-xl p-5 border border-border flex items-center justify-center h-48">
+    <div className="radiant-card flex items-center justify-center h-48">
       <Spinner />
     </div>
   );
@@ -39,13 +46,11 @@ export default function DashboardPage() {
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
-        <p className="text-red-400 font-medium mb-2">
-          Failed to load metrics.
-        </p>
+        <p className="text-danger font-medium mb-2">Failed to load metrics.</p>
         <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
+          className="btn-primary text-sm"
         >
           Retry
         </button>
@@ -53,53 +58,42 @@ export default function DashboardPage() {
     );
   }
 
+  if (!summary) {
+    return (
+      <div className="text-center py-20 text-muted-foreground">
+        <p className="text-lg font-medium mb-2">No trades yet</p>
+        <p className="text-sm">
+          Import your first trades from the{" "}
+          <a href="/dashboard/import" className="text-primary hover:underline">
+            Import
+          </a>{" "}
+          page.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Overview"
-        subtitle="All-time performance metrics"
-      />
+      {/* 1 — Hero */}
+      <DashboardHeader summary={summary} />
 
-      {summary ? (
-        <>
-          <MetricsCards
-            metrics={summary.metrics}
-            maxDrawdown={summary.max_drawdown}
-          />
+      {/* 2 — Bento stats grid */}
+      <DashboardStats summary={summary} />
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <EquityCurveChart data={summary.equity_curve} />
-            <DrawdownChart data={summary.drawdown_curve} />
-          </div>
+      {/* 3 — Charts */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <EquityCurveChart data={summary.equity_curve} />
+        <DrawdownChart data={summary.drawdown_curve} />
+      </div>
 
-          {/* Daily PnL and Return Distribution */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {loadingDaily ? (
-              <ChartSkeleton />
-            ) : (
-              <DailyPnlBarChart data={dailyPnl ?? []} />
-            )}
-            
-            {loadingReturnDist ? (
-              <ChartSkeleton />
-            ) : (
-              <ReturnDistributionChart data={returnDist ?? []} />
-            )}
-          </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {loadingDaily ? <ChartSkeleton /> : <DailyPnlBarChart data={dailyPnl ?? []} />}
+        {loadingReturnDist ? <ChartSkeleton /> : <ReturnDistributionChart data={returnDist ?? []} />}
+      </div>
 
-        </>
-      ) : (
-        <div className="text-center py-20 text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No trades yet</p>
-          <p className="text-sm">
-            Import your first trades from the{" "}
-            <a href="/dashboard/import" className="text-primary hover:underline">
-              Import
-            </a>{" "}
-            page.
-          </p>
-        </div>
-      )}
+      {/* 4 — Recent trade log */}
+      <RecentTradeLog />
     </div>
   );
 }
