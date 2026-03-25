@@ -35,8 +35,11 @@ async function handler(
 ): Promise<NextResponse> {
   const { path } = await params;
 
-  // Reconstruct the full backend URL: /api/v1/<rest of path>
-  const backendPath = `/api/v1/${path.join("/")}`;
+  // Forward the path segments as-is to the backend.
+  // apiClient baseURL is /api/proxy, client calls e.g. /api/v1/auth/register,
+  // so Next.js receives path = ["api","v1","auth","register"]
+  // → forward to backend as /api/v1/auth/register.
+  const backendPath = `/${path.join("/")}`;
   const search = req.nextUrl.search ?? "";
   const targetUrl = `${INTERNAL_API_URL}${backendPath}${search}`;
 
