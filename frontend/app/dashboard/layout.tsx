@@ -401,7 +401,8 @@ export default function DashboardLayout({ children }: Props) {
         {/* About Modal */}
         <AboutModal 
           isOpen={aboutOpen} 
-          onClose={() => setAboutOpen(false)} 
+          onClose={() => setAboutOpen(false)}
+          version={process.env.NEXT_PUBLIC_APP_VERSION}
         />
       </div>
     </div>
