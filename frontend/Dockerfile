@@ -11,6 +11,10 @@ FROM base AS development
 
 ENV NODE_ENV=development
 
+# In docker-compose the source is bind-mounted over /app, so this COPY is only
+# a fallback for bare `docker build --target development` invocations.
+COPY frontend/ .
+
 EXPOSE 3000
 
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
