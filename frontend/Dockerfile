@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:20-bullseye-slim AS base
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ COPY logo.svg ./public/logo.svg
 
 RUN npm run build
 
-FROM node:20-alpine AS production
+FROM node:20-bullseye-slim AS production
 
 ARG GITHUB_REPOSITORY
 ENV GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
