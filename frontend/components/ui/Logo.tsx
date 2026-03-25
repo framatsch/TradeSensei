@@ -16,7 +16,7 @@ interface LogoProps {
 export function Logo({ size = 32, className = "" }: LogoProps) {
   return (
     <div
-      className={`flex-shrink-0 rounded-lg overflow-hidden ${className}`}
+      className={`flex-shrink-0 rounded-lg overflow-hidden border border-border ${className}`}
       style={{ width: size, height: size }}
     >
       <Image

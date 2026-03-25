@@ -19,18 +19,18 @@ interface StatCardProps {
 function StatCard({ label, value, sub, positive }: StatCardProps) {
   const valueColor =
     positive === null || positive === undefined
-      ? "text-slate-900 dark:text-slate-100"
+      ? "text-foreground"
       : positive
-        ? "text-emerald-400"
-        : "text-red-400";
+        ? "text-emerald-500 dark:text-emerald-400"
+        : "text-rose-500 dark:text-rose-400";
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
-      <p className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+    <div className="bg-card rounded-xl p-5 border border-border shadow-sm hover:shadow-md transition-shadow">
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em] mb-1">
         {label}
       </p>
-      <p className={`text-2xl font-bold ${valueColor}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+      <p className={`text-2xl font-semibold tracking-tight ${valueColor}`}>{value}</p>
+      {sub && <p className="text-[11px] text-muted-foreground mt-1.5 font-medium">{sub}</p>}
     </div>
   );
 }

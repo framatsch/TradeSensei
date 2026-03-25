@@ -93,9 +93,9 @@ describe("RollingWinrateChart", () => {
     mockUseRollingWinrate.mockReturnValue({ data: sampleData, isLoading: false });
     render(<RollingWinrateChart />);
     const btn20 = screen.getByRole("button", { name: "20" });
-    expect(btn20.className).toContain("bg-blue-600");
+    expect(btn20.className).toContain("bg-primary");
     const btn10 = screen.getByRole("button", { name: "10" });
-    expect(btn10.className).not.toContain("bg-blue-600");
+    expect(btn10.className).not.toContain("bg-primary");
   });
 
   it("calls useRollingWinrate with default window 20", () => {
@@ -111,7 +111,7 @@ describe("RollingWinrateChart", () => {
     await user.click(screen.getByRole("button", { name: "10" }));
     expect(mockUseRollingWinrate).toHaveBeenCalledWith(10);
     const btn10 = screen.getByRole("button", { name: "10" });
-    expect(btn10.className).toContain("bg-blue-600");
+    expect(btn10.className).toContain("bg-primary");
   });
 
   it("switches to window 50 when that button is clicked", async () => {

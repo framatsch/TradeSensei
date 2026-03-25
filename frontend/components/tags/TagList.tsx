@@ -66,10 +66,10 @@ export function TagList() {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-red-400 font-medium mb-2">Failed to load tags.</p>
-        <p className="text-slate-500 text-sm mb-4">{error.message}</p>
+        <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
         >
           Retry
         </button>
@@ -82,15 +82,15 @@ export function TagList() {
   return (
     <div className="space-y-6">
       {/* Create form */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">
           Create New Tag
         </h3>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-4">
           <div className="flex-1 min-w-48">
             <label
               htmlFor="tag-name"
-              className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1"
+              className="block text-xs font-medium text-muted-foreground mb-1"
             >
               Name <span className="text-red-400">*</span>
             </label>
@@ -103,7 +103,7 @@ export function TagList() {
                 if (nameError) setNameError("");
               }}
               placeholder="e.g. Earnings Play"
-              className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             />
             {nameError && (
               <p className="mt-1 text-xs text-red-400">{nameError}</p>
@@ -111,7 +111,7 @@ export function TagList() {
           </div>
 
           <div>
-            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Color</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Color</p>
             <div className="flex items-center gap-2">
               {/* Preset swatches */}
               <div className="flex items-center gap-1">
@@ -132,7 +132,7 @@ export function TagList() {
               </div>
               {/* Custom color picker */}
               <label
-                className="w-6 h-6 rounded-full border-2 border-slate-300 dark:border-slate-600 cursor-pointer overflow-hidden flex items-center justify-center hover:border-slate-400 transition-colors"
+                className="w-6 h-6 rounded-full border-2 border-border dark:border-border cursor-pointer overflow-hidden flex items-center justify-center hover:border-slate-400 transition-colors"
                 title="Custom color"
               >
                 <span className="sr-only">Custom color</span>
@@ -147,7 +147,7 @@ export function TagList() {
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  className="w-3 h-3 text-slate-600 dark:text-slate-400"
+                  className="w-3 h-3 text-muted-foreground"
                 >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="16" />
@@ -156,7 +156,7 @@ export function TagList() {
               </label>
               {/* Preview */}
               <div
-                className="w-6 h-6 rounded-full border border-slate-300 dark:border-slate-600"
+                className="w-6 h-6 rounded-full border border-border dark:border-border"
                 style={{ backgroundColor: color }}
                 aria-hidden="true"
               />
@@ -166,7 +166,7 @@ export function TagList() {
           <button
             type="submit"
             disabled={creating}
-            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {creating ? "Adding…" : "Add Tag"}
           </button>
@@ -174,16 +174,16 @@ export function TagList() {
       </div>
 
       {/* Tags grid */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">
           All Tags
-          <span className="ml-2 text-xs font-normal text-slate-500">
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
             ({items.length})
           </span>
         </h3>
 
         {items.length === 0 ? (
-          <p className="text-sm text-slate-500 text-center py-8">
+          <p className="text-sm text-muted-foreground text-center py-8">
             No tags yet. Create your first tag above.
           </p>
         ) : (
@@ -194,7 +194,7 @@ export function TagList() {
                 <button
                   onClick={() => handleDelete(tag.id)}
                   disabled={deletingId === tag.id}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full text-slate-500 hover:text-red-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full text-muted-foreground hover:text-red-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   title={`Delete tag "${tag.name}"`}
                   aria-label={`Delete tag ${tag.name}`}
                 >

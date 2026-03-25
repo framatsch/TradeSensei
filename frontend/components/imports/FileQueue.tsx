@@ -26,7 +26,7 @@ interface FileQueueProps {
 
 const STATUS_ICON: Record<FileStatus, React.ReactNode> = {
   pending: (
-    <span className="w-5 h-5 rounded-full border-2 border-slate-400 dark:border-slate-600 flex-shrink-0" />
+    <span className="w-5 h-5 rounded-full border-2 border-slate-400 dark:border-border flex-shrink-0" />
   ),
   uploading: (
     <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -60,7 +60,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
     <div className="space-y-3">
       {/* Overall progress bar */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-slate-400">
           <span>
             {done < total
               ? `Processing file ${Math.min(currentIndex + 1, total)} of ${total}…`
@@ -89,16 +89,16 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
                 ? "bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900"
                 : qf.status === "error"
                 ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900"
-                : "bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700",
+                : "bg-slate-50 dark:bg-card/50 border border-border",
             ].join(" ")}
           >
             <div className="mt-0.5">{STATUS_ICON[qf.status]}</div>
 
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-slate-800 dark:text-slate-200 truncate">
+              <p className="font-medium text-foreground truncate">
                 {qf.file.name}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-muted-foreground dark:text-slate-400">
                 {formatBytes(qf.file.size)}
               </p>
 
@@ -114,7 +114,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
                     </span>
                   )}
                   {qf.result.cash_transactions_created > 0 && (
-                    <span className="text-blue-600 dark:text-blue-400">
+                    <span className="text-primary dark:text-primary">
                       +{qf.result.cash_transactions_created} cash txns
                     </span>
                   )}
@@ -151,14 +151,14 @@ export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
   const warnCount = files.reduce((s, f) => s + (f.result?.warnings.length ?? 0), 0);
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
-      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <p className="text-sm font-semibold text-foreground">
         Import complete — {files.length} file{files.length !== 1 ? "s" : ""} processed
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <SummaryBox label="Trades Created" value={totalCreated} color="text-emerald-500" />
         <SummaryBox label="Trades Skipped" value={totalSkipped} color="text-amber-500" />
-        <SummaryBox label="Cash Txns" value={totalCash} color="text-blue-500" />
+        <SummaryBox label="Cash Txns" value={totalCash} color="text-primary" />
         <SummaryBox
           label="Files with Errors"
           value={errorCount}
@@ -186,7 +186,7 @@ function SummaryBox({
   return (
     <div className="text-center bg-slate-50 dark:bg-slate-700/50 rounded-lg py-2 px-1">
       <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{label}</p>
+      <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">{label}</p>
     </div>
   );
 }

@@ -171,8 +171,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   }
 
   const inputCls =
-    "w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500";
-  const labelCls = "block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1";
+    "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-slate-500";
+  const labelCls = "block text-xs font-medium text-muted-foreground mb-1";
   const errorCls = "text-xs text-red-400 mt-0.5";
 
   return (
@@ -184,8 +184,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       )}
 
       {/* ── Section 1: Instrument ─────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Instrument</h3>
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Instrument</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls}>Symbol *</label>
@@ -258,8 +258,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       </div>
 
       {/* ── Section 2: Entry / Exit ───────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Entry / Exit</h3>
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Entry / Exit</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls}>Quantity *</label>
@@ -316,7 +316,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
           <div>
             <label className={labelCls}>
               Stop Loss{" "}
-              <span className="text-slate-500 font-normal">(leave blank to clear)</span>
+              <span className="text-muted-foreground font-normal">(leave blank to clear)</span>
             </label>
             <input
               type="number"
@@ -333,7 +333,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
           <div>
             <label className={labelCls}>
               Take Profit{" "}
-              <span className="text-slate-500 font-normal">(leave blank to clear)</span>
+              <span className="text-muted-foreground font-normal">(leave blank to clear)</span>
             </label>
             <input
               type="number"
@@ -362,8 +362,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       </div>
 
       {/* ── Section 3: Timestamps ─────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Timestamps (UTC)</h3>
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Timestamps (UTC)</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls}>Opened At *</label>
@@ -389,8 +389,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       </div>
 
       {/* ── Section 4: Tags & Playbook ────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Tags &amp; Playbook</h3>
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Tags &amp; Playbook</h3>
 
         <div className="mb-4">
           <label className={labelCls}>Playbook</label>
@@ -409,11 +409,11 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         <div>
           <label className={labelCls}>Tags</label>
           {!allTags ? (
-            <div className="flex items-center gap-2 text-slate-500 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Spinner size="sm" /> Loading tags…
             </div>
           ) : allTags.length === 0 ? (
-            <p className="text-xs text-slate-500">No tags created yet.</p>
+            <p className="text-xs text-muted-foreground">No tags created yet.</p>
           ) : (
             <div className="flex flex-wrap gap-2 mt-1">
               {allTags.map((tag) => {
@@ -438,8 +438,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       </div>
 
       {/* ── Section 5: Notes ──────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Notes</h3>
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Notes</h3>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -457,7 +457,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-50 rounded-md transition-colors"
+            className="px-4 py-2 text-sm text-muted-foreground bg-secondary hover:bg-slate-200 dark:bg-slate-600 disabled:opacity-50 rounded-md transition-colors"
           >
             Cancel
           </button>
@@ -465,7 +465,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         <button
           type="submit"
           disabled={isPending}
-          className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-md transition-colors font-medium"
+          className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-md transition-colors font-medium"
         >
           {isPending && <Spinner size="sm" />}
           {isPending

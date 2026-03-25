@@ -24,17 +24,17 @@ export function MarkdownRenderer({ content, className = "" }: Props) {
       className={[
         "prose prose-invert prose-sm max-w-none",
         // Override some prose defaults to fit the dark card style
-        "prose-p:my-1 prose-p:text-slate-800 dark:text-slate-200 prose-p:leading-relaxed",
-        "prose-headings:text-slate-900 dark:text-slate-100 prose-headings:font-semibold",
-        "prose-strong:text-slate-900 dark:text-slate-100",
-        "prose-em:text-slate-700 dark:text-slate-300",
-        "prose-code:text-amber-300 prose-code:bg-slate-100 dark:bg-slate-700/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs",
-        "prose-pre:bg-slate-50 dark:bg-slate-900 prose-pre:border prose-pre:border-slate-200 dark:border-slate-700 prose-pre:rounded-lg",
-        "prose-blockquote:border-l-slate-500 prose-blockquote:text-slate-600 dark:text-slate-400",
-        "prose-ul:text-slate-800 dark:text-slate-200 prose-ol:text-slate-800 dark:text-slate-200",
+        "prose-p:my-1 prose-p:text-foreground prose-p:leading-relaxed",
+        "prose-headings:text-foreground prose-headings:font-semibold",
+        "prose-strong:text-foreground",
+        "prose-em:text-muted-foreground",
+        "prose-code:text-amber-300 prose-code:bg-secondary/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs",
+        "prose-pre:bg-background prose-pre:border prose-pre:border-border prose-pre:rounded-lg",
+        "prose-blockquote:border-l-slate-500 prose-blockquote:text-muted-foreground",
+        "prose-ul:text-foreground prose-ol:text-foreground",
         "prose-li:my-0.5",
-        "prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline",
-        "prose-hr:border-slate-200 dark:border-slate-700",
+        "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
+        "prose-hr:border-border",
         className,
       ]
         .filter(Boolean)

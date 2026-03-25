@@ -124,9 +124,9 @@ function CorporateActionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-6 w-full max-w-md mx-4">
+      <div className="bg-card rounded-xl border border-border shadow-xl p-6 w-full max-w-md mx-4">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -142,7 +142,7 @@ function CorporateActionModal({
         <div className="space-y-4">
           {/* Symbol */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Symbol <span className="text-red-500">*</span>
             </label>
             <input
@@ -150,31 +150,31 @@ function CorporateActionModal({
               value={form.symbol}
               onChange={(e) => onChange({ symbol: e.target.value })}
               placeholder="e.g. OTLK"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-slate-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Split Date <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
               value={form.date}
               onChange={(e) => onChange({ date: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-slate-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           {/* Ratio */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Split Ratio <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-2">
               <div className="flex-1">
-                <label className="block text-xs text-slate-500 mb-1">Before</label>
+                <label className="block text-xs text-muted-foreground mb-1">Before</label>
                 <input
                   type="number"
                   min="1"
@@ -182,7 +182,7 @@ function CorporateActionModal({
                   value={form.ratioBefore}
                   onChange={(e) => onChange({ ratioBefore: e.target.value })}
                   placeholder="e.g. 20"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-slate-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
               <div className="flex items-end pb-2">
@@ -192,7 +192,7 @@ function CorporateActionModal({
                 </svg>
               </div>
               <div className="flex-1">
-                <label className="block text-xs text-slate-500 mb-1">After</label>
+                <label className="block text-xs text-muted-foreground mb-1">After</label>
                 <input
                   type="number"
                   min="1"
@@ -200,13 +200,13 @@ function CorporateActionModal({
                   value={form.ratioAfter}
                   onChange={(e) => onChange({ ratioAfter: e.target.value })}
                   placeholder="e.g. 1"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-slate-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
             {previewRatio !== null && (
-              <p className="text-xs text-slate-500 mt-1.5">
-                Computed ratio: <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{previewRatio}</span>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Computed ratio: <span className="font-mono font-medium text-muted-foreground">{previewRatio}</span>
                 {" "}({parseFloat(previewRatio) < 1 ? "reverse split" : "forward split"})
               </p>
             )}
@@ -214,7 +214,7 @@ function CorporateActionModal({
 
           {/* Old Conid */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Old Conid <span className="text-slate-400 font-normal">(optional — IBKR)</span>
             </label>
             <input
@@ -222,13 +222,13 @@ function CorporateActionModal({
               value={form.old_conid}
               onChange={(e) => onChange({ old_conid: e.target.value })}
               placeholder="e.g. 357194941"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-slate-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           {/* New Conid */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               New Conid <span className="text-slate-400 font-normal">(optional — IBKR)</span>
             </label>
             <input
@@ -236,7 +236,7 @@ function CorporateActionModal({
               value={form.new_conid}
               onChange={(e) => onChange({ new_conid: e.target.value })}
               placeholder="e.g. 690184975"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-slate-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
@@ -249,7 +249,7 @@ function CorporateActionModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
           >
             Cancel
           </button>
@@ -257,7 +257,7 @@ function CorporateActionModal({
             type="button"
             onClick={onSubmit}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white transition-colors"
           >
             {isSubmitting ? "Saving..." : submitLabel}
           </button>
@@ -279,19 +279,19 @@ interface DeleteDialogProps {
 function DeleteConfirmDialog({ ca, onConfirm, onCancel, isDeleting }: DeleteDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-6 w-full max-w-sm mx-4">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Delete Corporate Action</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
+      <div className="bg-card rounded-xl border border-border shadow-xl p-6 w-full max-w-sm mx-4">
+        <h2 className="text-base font-semibold text-foreground mb-2">Delete Corporate Action</h2>
+        <p className="text-sm text-muted-foreground mb-5">
           Are you sure you want to delete the{" "}
-          <span className="font-medium text-slate-800 dark:text-slate-200">{ratioToDisplay(ca.ratio)}</span>{" "}
-          split for <span className="font-medium text-slate-800 dark:text-slate-200">{ca.symbol}</span>{" "}
+          <span className="font-medium text-foreground">{ratioToDisplay(ca.ratio)}</span>{" "}
+          split for <span className="font-medium text-foreground">{ca.symbol}</span>{" "}
           on {ca.date}? This cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
           >
             Cancel
           </button>
@@ -409,8 +409,8 @@ export function CorporateActionsSettings() {
     <div className="space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Corporate Actions</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <h2 className="text-base font-semibold text-foreground">Corporate Actions</h2>
+          <p className="text-sm text-muted-foreground dark:text-slate-400 mt-0.5">
             Define stock splits and reverse splits. These are applied during import to adjust
             trade quantities and prices for positions that spanned a split event.
           </p>
@@ -418,7 +418,7 @@ export function CorporateActionsSettings() {
         <button
           type="button"
           onClick={openAddModal}
-          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-white transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -430,25 +430,25 @@ export function CorporateActionsSettings() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="py-10 text-center text-sm text-slate-500">Loading...</div>
+        <div className="py-10 text-center text-sm text-muted-foreground">Loading...</div>
       ) : isError ? (
         <div className="py-10 text-center text-sm text-red-500">Failed to load corporate actions.</div>
       ) : !corporateActions || corporateActions.length === 0 ? (
-        <div className="py-10 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 text-sm">
+        <div className="py-10 text-center rounded-xl border border-dashed border-border dark:border-border text-muted-foreground text-sm">
           No corporate actions defined yet.{" "}
           <button
             type="button"
             onClick={openAddModal}
-            className="text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-primary dark:text-primary hover:underline"
           >
             Add your first split.
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+        <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+              <tr className="bg-slate-50 dark:bg-card/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
                 <th className="px-4 py-3 text-left">Symbol</th>
                 <th className="px-4 py-3 text-left">Date</th>
                 <th className="px-4 py-3 text-left">Ratio</th>
@@ -459,18 +459,18 @@ export function CorporateActionsSettings() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
               {corporateActions.map((ca) => (
-                <tr key={ca.id} className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{ca.symbol}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{ca.date}</td>
+                <tr key={ca.id} className="bg-card hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                  <td className="px-4 py-3 font-medium text-foreground">{ca.symbol}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{ca.date}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
                       {ratioToDisplay(ca.ratio)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs">
+                  <td className="px-4 py-3 text-muted-foreground dark:text-slate-400 font-mono text-xs">
                     {ca.old_conid ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs">
+                  <td className="px-4 py-3 text-muted-foreground dark:text-slate-400 font-mono text-xs">
                     {ca.new_conid ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -478,7 +478,7 @@ export function CorporateActionsSettings() {
                       <button
                         type="button"
                         onClick={() => openEditModal(ca)}
-                        className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                        className="text-xs font-medium text-primary dark:text-primary hover:underline"
                       >
                         Edit
                       </button>

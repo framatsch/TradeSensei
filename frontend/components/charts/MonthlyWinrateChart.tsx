@@ -37,14 +37,14 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs">
-      <p className="text-slate-600 dark:text-slate-400 mb-1">{label}</p>
-      <p className="text-blue-400 font-semibold">
+    <div className="bg-background border border-border rounded-lg px-3 py-2 text-xs">
+      <p className="text-muted-foreground mb-1">{label}</p>
+      <p className="text-primary font-semibold">
         Win Rate: {(parseFloat(d.win_rate) * 100).toFixed(1)}%
       </p>
       <p className="text-emerald-400">{d.win_count} wins</p>
       <p className="text-red-400">{d.loss_count} losses</p>
-      <p className="text-slate-500">{d.trade_count} total</p>
+      <p className="text-muted-foreground">{d.trade_count} total</p>
     </div>
   );
 }
@@ -54,8 +54,8 @@ export function MonthlyWinrateChart() {
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
-        <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-4">
+      <div className="bg-card rounded-xl p-5 border border-border">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
           Monthly Win Rate
         </h3>
         <div className="flex items-center justify-center h-48">

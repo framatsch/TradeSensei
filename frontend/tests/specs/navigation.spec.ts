@@ -49,7 +49,7 @@ test.describe('Sidebar Navigation', () => {
   test('TC-045 Overview link is active on /dashboard', async ({ page }) => {
     // The active link has the blue-600/20 background class applied
     const overviewLink = page.locator('a[href="/dashboard"]');
-    await expect(overviewLink).toHaveClass(/text-blue-400/);
+    await expect(overviewLink).toHaveClass(/text-primary/);
   });
 
   test('TC-046 active link updates when navigating to Trades', async ({ page }) => {
@@ -57,11 +57,11 @@ test.describe('Sidebar Navigation', () => {
     await expect(page).toHaveURL(/\/dashboard\/trades/);
 
     const tradesLink = page.getByRole('link', { name: 'Trades' });
-    await expect(tradesLink).toHaveClass(/text-blue-400/);
+    await expect(tradesLink).toHaveClass(/text-primary/);
 
     // Overview link should no longer be active
     const overviewLink = page.locator('a[href="/dashboard"]');
-    await expect(overviewLink).not.toHaveClass(/text-blue-400/);
+    await expect(overviewLink).not.toHaveClass(/text-primary/);
   });
 
   test('TC-047 Sign Out button logs out and redirects to /login', async ({ page }) => {

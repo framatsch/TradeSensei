@@ -48,10 +48,10 @@ export function SchwabConnectionCard() {
     return (
       <div
         data-testid="schwab-card-loading"
-        className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 animate-pulse"
+        className="bg-card rounded-xl border border-border p-6 animate-pulse"
       >
-        <div className="h-5 w-32 bg-slate-100 dark:bg-slate-700 rounded mb-4" />
-        <div className="h-4 w-48 bg-slate-100 dark:bg-slate-700 rounded" />
+        <div className="h-5 w-32 bg-secondary rounded mb-4" />
+        <div className="h-4 w-48 bg-secondary rounded" />
       </div>
     );
   }
@@ -62,18 +62,18 @@ export function SchwabConnectionCard() {
   return (
     <div
       data-testid="schwab-connection-card"
-      className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-4"
+      className="bg-card rounded-xl border border-border p-6 space-y-4"
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Schwab brand mark */}
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 text-white font-bold text-lg">
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-secondary text-white font-bold text-lg">
             S
           </div>
           <div>
-            <h3 className="text-slate-900 dark:text-slate-100 font-semibold text-base">Schwab</h3>
-            <p className="text-slate-600 dark:text-slate-400 text-xs">Charles Schwab brokerage</p>
+            <h3 className="text-foreground font-semibold text-base">Schwab</h3>
+            <p className="text-muted-foreground text-xs">Charles Schwab brokerage</p>
           </div>
         </div>
 
@@ -83,7 +83,7 @@ export function SchwabConnectionCard() {
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
             connected
               ? "bg-green-900/40 text-green-400 border border-green-700/40"
-              : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600"
+              : "bg-secondary text-muted-foreground border border-border dark:border-border"
           }`}
         >
           <span
@@ -97,11 +97,11 @@ export function SchwabConnectionCard() {
       {connected && (
         <>
           {/* Last sync info */}
-          <div className="text-sm text-slate-600 dark:text-slate-400">
+          <div className="text-sm text-muted-foreground">
             {lastSyncAt ? (
               <span data-testid="last-sync-time">
                 Last synced{" "}
-                <span className="text-slate-700 dark:text-slate-300">
+                <span className="text-muted-foreground">
                   {formatDistanceToNow(new Date(lastSyncAt), { addSuffix: true })}
                 </span>
               </span>
@@ -114,14 +114,14 @@ export function SchwabConnectionCard() {
           {lastSyncResult && (
             <div
               data-testid="sync-result"
-              className="bg-slate-100 dark:bg-slate-700/50 rounded-lg px-4 py-3 text-sm space-y-1"
+              className="bg-secondary/50 rounded-lg px-4 py-3 text-sm space-y-1"
             >
               <p className="text-green-400 font-medium">
                 {lastSyncResult.imported_count} trade
                 {lastSyncResult.imported_count !== 1 ? "s" : ""} imported
               </p>
               {lastSyncResult.skipped_count > 0 && (
-                <p className="text-slate-600 dark:text-slate-400">{lastSyncResult.skipped_count} skipped (duplicates)</p>
+                <p className="text-muted-foreground">{lastSyncResult.skipped_count} skipped (duplicates)</p>
               )}
               {lastSyncResult.errors.length > 0 && (
                 <ul className="text-red-400 mt-1 space-y-0.5">
@@ -146,7 +146,7 @@ export function SchwabConnectionCard() {
               onClick={handleSync}
               disabled={isSyncing}
               data-testid="sync-button"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
             >
               {isSyncing ? (
                 <>
@@ -193,7 +193,7 @@ export function SchwabConnectionCard() {
       {/* Disconnected state */}
       {!connected && (
         <div className="space-y-3">
-          <p className="text-slate-600 dark:text-slate-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Connect your Schwab account to automatically import trades via OAuth.
           </p>
           <ConnectSchwabButton />

@@ -34,11 +34,11 @@ export default function EditTradePage() {
           {isError ? "Failed to load trade." : "Trade not found."}
         </p>
         {isError && (
-          <p className="text-slate-500 text-sm mb-4">{error.message}</p>
+          <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
         )}
         <Link
           href="/dashboard/trades"
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
         >
           Back to Trades
         </Link>
@@ -55,7 +55,7 @@ export default function EditTradePage() {
       <div>
         <Link
           href={`/dashboard/trades/${tradeId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <svg
             viewBox="0 0 24 24"

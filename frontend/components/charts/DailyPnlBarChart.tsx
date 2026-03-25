@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ChartShell } from "./ChartShell";
+import { CHART_COLORS } from "@/lib/constants";
 
 interface DailyPnlBar {
   date: string;
@@ -41,40 +42,43 @@ export function DailyPnlBarChart({ data }: Props) {
           data={data}
           margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             tickFormatter={formatCurrency}
             width={72}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#0f172a",
-              border: "1px solid #334155",
+              backgroundColor: CHART_COLORS.tooltip.bg,
+              border: `1px solid ${CHART_COLORS.tooltip.border}`,
               borderRadius: "8px",
-              color: "#f1f5f9",
+              color: CHART_COLORS.tooltip.text,
             }}
+            itemStyle={{ color: CHART_COLORS.tooltip.text }}
             formatter={(value) => {
               const num = typeof value === "number" ? value : parseFloat(String(value));
               return [formatCurrency(num), "PnL"];
             }}
-            labelStyle={{ color: "#94a3b8" }}
+            labelStyle={{ color: CHART_COLORS.tooltip.label }}
           />
-          <Bar dataKey="pnl" radius={[3, 3, 0, 0]}>
+          <Bar dataKey="pnl" radius={[2, 2, 0, 0]} barSize={20}>
             {data.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={entry.pnl >= 0 ? "#22c55e" : "#ef4444"}
-                fillOpacity={0.85}
+                fill={entry.pnl >= 0 ? CHART_COLORS.success : CHART_COLORS.danger}
+                fillOpacity={0.4}
+                stroke={entry.pnl >= 0 ? CHART_COLORS.success : CHART_COLORS.danger}
+                strokeWidth={1}
               />
             ))}
           </Bar>

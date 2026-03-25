@@ -18,7 +18,7 @@ interface Props {
 
 const EMOTION_COLORS: Record<string, string> = {
   confident: "bg-emerald-900/50 text-emerald-400 border-emerald-800",
-  disciplined: "bg-blue-900/50 text-blue-400 border-blue-800",
+  disciplined: "bg-blue-900/50 text-primary border-blue-800",
   calm: "bg-sky-900/50 text-sky-400 border-sky-800",
   anxious: "bg-yellow-900/50 text-yellow-400 border-yellow-800",
   fearful: "bg-orange-900/50 text-orange-400 border-orange-800",
@@ -31,7 +31,7 @@ const EMOTION_COLORS: Record<string, string> = {
 function getEmotionClass(emotion: string): string {
   return (
     EMOTION_COLORS[emotion.toLowerCase()] ??
-    "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+    "bg-secondary text-muted-foreground border-border dark:border-border"
   );
 }
 
@@ -115,18 +115,18 @@ export function NoteList({ tradeId }: Props) {
               /* ── Inline edit mode ── */
               <div
                 key={note.id}
-                className="bg-white dark:bg-slate-800/60 border border-blue-400 dark:border-blue-600 rounded-xl p-4 space-y-3"
+                className="bg-card/60 border border-blue-400 dark:border-blue-600 rounded-xl p-4 space-y-3"
               >
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={4}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full rounded-lg border border-border dark:border-border bg-white dark:bg-background text-sm text-slate-800 dark:text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 />
                 <select
                   value={editEmotion}
                   onChange={(e) => setEditEmotion(e.target.value)}
-                  className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-lg border border-border dark:border-border bg-white dark:bg-background text-sm text-slate-800 dark:text-foreground px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">No emotion</option>
                   {EMOTIONS.map((e) => (
@@ -139,13 +139,13 @@ export function NoteList({ tradeId }: Props) {
                   <button
                     onClick={() => saveEdit(note.id)}
                     disabled={!editContent.trim()}
-                    className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-md transition-colors"
                   >
                     Save
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-secondary hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition-colors"
                   >
                     Cancel
                   </button>
@@ -155,13 +155,13 @@ export function NoteList({ tradeId }: Props) {
               /* ── Read mode ── */
               <div
                 key={note.id}
-                className="group relative bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4"
+                className="group relative bg-card/60 border border-border rounded-xl p-4"
               >
                 {/* Action buttons */}
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => startEdit(note.id, note.content, note.emotion)}
-                    className="p-1 rounded-md text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition-colors"
+                    className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-blue-900/20 transition-colors"
                     title="Edit note"
                     aria-label="Edit note"
                   >
@@ -172,7 +172,7 @@ export function NoteList({ tradeId }: Props) {
                   </button>
                   <button
                     onClick={() => handleDelete(note.id)}
-                    className="p-1 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                    className="p-1 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-900/20 transition-colors"
                     title="Delete note"
                     aria-label="Delete note"
                   >
@@ -199,7 +199,7 @@ export function NoteList({ tradeId }: Props) {
                       {note.emotion}
                     </span>
                   )}
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-muted-foreground">
                     {formatDateTime(note.created_at)}
                   </span>
                 </div>
@@ -208,13 +208,13 @@ export function NoteList({ tradeId }: Props) {
           )}
         </div>
       ) : (
-        <div className="py-6 text-center text-slate-500">
+        <div className="py-6 text-center text-muted-foreground">
           <p className="text-sm">No notes yet. Add your first note below.</p>
         </div>
       )}
 
       {/* Add note form */}
-      <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+      <div className="border-t border-border pt-4">
         <NoteForm onSubmit={handleAdd} isSubmitting={adding} />
       </div>
     </div>

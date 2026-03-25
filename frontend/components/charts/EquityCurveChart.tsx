@@ -5,8 +5,8 @@
 "use client";
 
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import type { EquityCurvePoint } from "@/lib/types";
 import { ChartShell } from "./ChartShell";
+import { CHART_COLORS } from "@/lib/constants";
 
 interface ChartData {
   date: string;
@@ -48,47 +49,54 @@ export function EquityCurveChart({ data }: Props) {
   return (
     <ChartShell title="Equity Curve" isEmpty={chartData.length === 0}>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart
+        <AreaChart
           data={chartData}
           margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+          <defs>
+            <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.2} />
+              <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             tickFormatter={formatCurrency}
             width={72}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#0f172a",
-              border: "1px solid #334155",
+              backgroundColor: CHART_COLORS.tooltip.bg,
+              border: `1px solid ${CHART_COLORS.tooltip.border}`,
               borderRadius: "8px",
-              color: "#f1f5f9",
+              color: CHART_COLORS.tooltip.text,
             }}
+            itemStyle={{ color: CHART_COLORS.tooltip.text }}
             formatter={(value) => {
               const num = typeof value === "number" ? value : parseFloat(String(value));
               return [formatCurrency(num), "Equity"];
             }}
-            labelStyle={{ color: "#94a3b8" }}
+            labelStyle={{ color: CHART_COLORS.tooltip.label }}
           />
-          <Line
+          <Area
             type="monotone"
             dataKey="equity"
-            stroke="#3b82f6"
+            stroke={CHART_COLORS.primary}
             strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#3b82f6" }}
+            fill="url(#equityGradient)"
+            activeDot={{ r: 4, fill: CHART_COLORS.primary }}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </ChartShell>
   );

@@ -31,13 +31,13 @@ export function ChartShell({
 }: Props) {
   return (
     <div
-      className={`bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 ${className}`}
+      className={`bg-card text-card-foreground rounded-xl p-5 border border-border ${className}`}
     >
-      <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-4">
+      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
         {title}
       </h3>
       {isEmpty ? (
-        <p className="text-slate-500 text-sm text-center py-12">
+        <p className="text-muted-foreground text-sm text-center py-12">
           {emptyMessage}
         </p>
       ) : (

@@ -49,7 +49,7 @@ describe("NoteForm", () => {
   it("counter is neutral colour below the warning threshold", async () => {
     render(<NoteForm onSubmit={mockSubmit} />);
     const counter = screen.getByText(`0/${NOTE_MAX_LENGTH}`);
-    expect(counter.className).toContain("text-slate-500");
+    expect(counter.className).toContain("text-muted-foreground");
   });
 
   it("counter turns amber when content length is >= 4500", async () => {

@@ -17,8 +17,8 @@ interface Props {
 }
 
 const INPUT_CLASS =
-  "w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-const LABEL_CLASS = "block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1";
+  "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
+const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
 
 const ACCOUNT_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
   { value: "manual", label: "Manual" },
@@ -100,9 +100,9 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4"
+      className="bg-card rounded-xl border border-border p-5 space-y-4"
     >
-      <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+      <h3 className="text-sm font-semibold text-foreground">
         {isEditing ? "Edit Account" : "New Account"}
       </h3>
 
@@ -181,12 +181,12 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
 
       {/* Broker Credentials — only for non-manual accounts */}
       {credentialFields && (
-        <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
+        <div className="border border-border rounded-lg p-4 space-y-3">
           <div>
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <p className="text-xs font-semibold text-muted-foreground">
               API Credentials
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
               {isEditing && account?.has_api_keys
                 ? "Credentials are already stored. Enter new values to replace them."
                 : "Credentials are encrypted before storage and never returned in plain text."}
@@ -215,12 +215,12 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
 
       {/* Sync Settings — only for API-connected accounts */}
       {type !== "manual" && (
-        <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
+        <div className="border border-border rounded-lg p-4 space-y-3">
           <div>
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <p className="text-xs font-semibold text-muted-foreground">
               Default Sync Settings
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-muted-foreground dark:text-slate-400 mt-0.5">
               These defaults are pre-filled on the Import page for this account.
             </p>
           </div>
@@ -259,7 +259,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
                   <option value="ytd">Year to date (Jan 1 – Today)</option>
                   <option value="custom">Custom start date</option>
                 </select>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                <p className="text-xs text-slate-400 dark:text-muted-foreground mt-1">
                   IBKR Flex maximum: 1 year. Custom start date can be set per-import.
                 </p>
               </div>
@@ -278,7 +278,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
         <button
           type="submit"
           disabled={isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-md text-sm transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white rounded-md text-sm transition-colors"
         >
           {isPending && <Spinner size="sm" />}
           {isPending ? "Saving…" : isEditing ? "Save Changes" : "Create Account"}
@@ -286,7 +286,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-secondary hover:bg-slate-200 dark:hover:bg-slate-600 text-muted-foreground rounded-md text-sm transition-colors"
         >
           Cancel
         </button>

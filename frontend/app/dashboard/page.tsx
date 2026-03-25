@@ -17,7 +17,7 @@ import { Spinner } from "@/components/ui/Spinner";
 
 function ChartSkeleton() {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 flex items-center justify-center h-48">
+    <div className="bg-card rounded-xl p-5 border border-border flex items-center justify-center h-48">
       <Spinner />
     </div>
   );
@@ -42,10 +42,10 @@ export default function DashboardPage() {
         <p className="text-red-400 font-medium mb-2">
           Failed to load metrics.
         </p>
-        <p className="text-slate-500 text-sm mb-4">{error.message}</p>
+        <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
         >
           Retry
         </button>
@@ -89,11 +89,11 @@ export default function DashboardPage() {
 
         </>
       ) : (
-        <div className="text-center py-20 text-slate-500">
+        <div className="text-center py-20 text-muted-foreground">
           <p className="text-lg font-medium mb-2">No trades yet</p>
           <p className="text-sm">
             Import your first trades from the{" "}
-            <a href="/dashboard/import" className="text-blue-400 hover:underline">
+            <a href="/dashboard/import" className="text-primary hover:underline">
               Import
             </a>{" "}
             page.
