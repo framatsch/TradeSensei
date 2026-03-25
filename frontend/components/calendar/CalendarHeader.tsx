@@ -141,7 +141,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </span>
           <div className="flex items-baseline gap-2">
             <span className={`font-bold ${
-              totalPnL > 0 ? 'text-teal-400' : totalPnL < 0 ? 'text-red-400' : 'text-muted-foreground'
+              totalPnL > 0 ? 'text-teal-600 dark:text-teal-400' : totalPnL < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
             }`}>
               {totalPnL > 0 ? '+' : ''}{currencySymbol}{Math.abs(totalPnL).toFixed(2)}
             </span>
