@@ -1,28 +1,28 @@
 /**
- * Axios instance with JWT auth interceptor and base URL configuration.
+ * Axios instance with JWT auth interceptor.
  *
- * The base URL is resolved at runtime from `window.__ENV__.API_URL` (injected
- * by docker-entrypoint.sh via public/env.js) so that a single Docker image can
- * be configured without rebuilding.  Falls back to the build-time env var and
- * then to localhost for local development.
+ * All browser-side API calls go through the Next.js reverse proxy at
+ * `/api/proxy/v1/...` — the backend is never contacted directly from the
+ * browser.  This keeps the backend off the public internet.
+ *
+ * The proxy handler (`app/api/proxy/[...path]/route.ts`) forwards requests to
+ * `INTERNAL_API_URL` (set via environment variable at container start).
+ *
+ * For local development without the proxy (e.g. running `next dev` standalone)
+ * set NEXT_PUBLIC_API_URL=http://localhost:8000 and the client will call the
+ * backend directly.
  */
 
 import axios from "axios";
 
-declare global {
-  interface Window {
-    __ENV__?: { API_URL?: string };
-  }
-}
-
-function getApiBaseUrl(): string {
-  if (typeof window !== "undefined" && window.__ENV__?.API_URL) {
-    return window.__ENV__.API_URL;
-  }
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-}
-
-const API_BASE_URL = getApiBaseUrl();
+/**
+ * In production the browser calls the Next.js proxy (relative URL).
+ * In local dev without Docker, fall back to the backend URL directly.
+ */
+const API_BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? "/api/proxy"
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

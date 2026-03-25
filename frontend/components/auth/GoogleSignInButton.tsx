@@ -3,15 +3,12 @@
  * browser to the backend's authorization endpoint.
  *
  * The backend owns the full Authorization Code Flow; this button simply
- * navigates to `GET /api/v1/auth/google` which redirects to Google.
- * After the flow completes, the backend redirects back to `/auth/callback`
- * with a one-time token that the callback page exchanges for a full JWT.
+ * navigates to `GET /api/proxy/v1/auth/google` which the Next.js proxy
+ * forwards to the internal backend service.  The backend then redirects
+ * to Google and ultimately back to `/auth/callback`.
  */
 
 "use client";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /** Google "G" logo SVG (official brand colours). */
 function GoogleLogo() {
@@ -45,7 +42,8 @@ function GoogleLogo() {
 
 export function GoogleSignInButton() {
   const handleClick = () => {
-    window.location.href = `${API_BASE_URL}/api/v1/auth/google`;
+    // Route through the Next.js proxy — backend is not publicly exposed.
+    window.location.href = "/api/proxy/v1/auth/google";
   };
 
   return (

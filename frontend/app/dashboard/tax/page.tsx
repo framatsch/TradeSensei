@@ -17,10 +17,12 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import type { TaxCategoryBlock, TaxAnnualSummary, AccountTaxSummary } from "@/lib/types";
 
+// CSV download goes through the Next.js proxy in production; in dev it hits
+// the backend directly via NEXT_PUBLIC_API_URL.
 const API_BASE_URL =
-  typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")
-    : "http://localhost:8000";
+  process.env.NODE_ENV === "production"
+    ? "/api/proxy"
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
@@ -246,7 +248,7 @@ export default function TaxPage() {
 
   const { data: summary, isLoading, isError, error, refetch } = useTaxSummary(year);
 
-  const csvUrl = `${API_BASE_URL}/api/v1/tax/annual-summary/csv?year=${year}`;
+  const csvUrl = `${API_BASE_URL}/v1/tax/annual-summary/csv?year=${year}`;
 
   const handleCsvDownload = () => {
     const token =
