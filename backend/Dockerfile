@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1: builder — install uv and all dependencies into /app/.venv
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-alpine AS builder
+FROM python:3.13-alpine AS builder
 
 # Install uv via the official installer script
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
@@ -40,7 +40,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3: production — minimal runtime image, no build tooling
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-alpine AS production
+FROM python:3.13-alpine AS production
 
 ARG GITHUB_REPOSITORY
 ENV GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
