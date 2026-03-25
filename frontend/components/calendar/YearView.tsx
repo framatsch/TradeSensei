@@ -82,9 +82,9 @@ export const YearView: React.FC<YearViewProps> = ({
                 } else if (!dayData || dayData.tradeCount === 0) {
                   cellClass += "bg-muted/30 text-muted-foreground";
                 } else if (dayData.pnl > 0) {
-                  cellClass += "bg-teal-500/40 text-teal-100";
+                  cellClass += "bg-teal-500/20 text-teal-700 dark:bg-teal-500/40 dark:text-teal-100";
                 } else if (dayData.pnl < 0) {
-                  cellClass += "bg-red-500/40 text-red-100";
+                  cellClass += "bg-red-500/20 text-red-700 dark:bg-red-500/40 dark:text-red-100";
                 }
 
                 const isClickable = isCurrentMonth && !!dayData && dayData.tradeCount > 0 && !!onDayClick;
@@ -104,7 +104,7 @@ export const YearView: React.FC<YearViewProps> = ({
         
         <div className="mt-3 pt-2 border-t border-border flex justify-between items-center text-xs">
           <span className="text-muted-foreground">{monthTrades} trades</span>
-          <span className={`font-medium ${monthPnL > 0 ? 'text-teal-400' : monthPnL < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+          <span className={`font-medium ${monthPnL > 0 ? 'text-teal-600 dark:text-teal-400' : monthPnL < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
             {monthPnL > 0 ? '+' : ''}{currencySymbol}{Math.abs(monthPnL).toFixed(2)}
           </span>
         </div>

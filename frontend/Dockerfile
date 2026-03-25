@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:24-bullseye-slim AS base
 
 WORKDIR /app
 
@@ -28,9 +28,9 @@ COPY frontend/ .
 # Copy root logo.svg into public/ so it is the single source of truth
 COPY logo.svg ./public/logo.svg
 
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
-FROM node:20-alpine AS production
+FROM node:24-bullseye-slim AS production
 
 ARG GITHUB_REPOSITORY
 ENV GITHUB_REPOSITORY=${GITHUB_REPOSITORY}

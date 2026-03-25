@@ -62,11 +62,11 @@ export const MonthView: React.FC<MonthViewProps> = ({
     }
     
     if (pnl > 0) {
-      return 'bg-teal-500/20 text-teal-400 border border-teal-500/30'; // Positive P&L
+      return 'bg-teal-500/10 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 border border-teal-500/30'; // Positive P&L
     }
     
     if (pnl < 0) {
-      return 'bg-red-500/20 text-red-400 border border-red-500/30'; // Negative P&L
+      return 'bg-red-500/10 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'; // Negative P&L
     }
 
     return 'bg-card text-foreground'; // Break-even or other
@@ -142,7 +142,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
               
               {/* Week Summary Column */}
               <div className={`min-h-[100px] p-2 flex flex-col justify-center items-end border-l-2 border-border/50
-                ${weekTrades === 0 ? 'bg-muted/10' : weekPnL > 0 ? 'bg-teal-500/10 text-teal-400' : 'bg-red-500/10 text-red-400'}`
+                ${weekTrades === 0 ? 'bg-muted/10' : weekPnL > 0 ? 'bg-teal-500/10 text-teal-700 dark:text-teal-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`
               }>
                 {weekTrades > 0 ? (
                   <>
