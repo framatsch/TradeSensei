@@ -28,7 +28,7 @@ COPY frontend/ .
 # Copy root logo.svg into public/ so it is the single source of truth
 COPY logo.svg ./public/logo.svg
 
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 FROM node:24-bullseye-slim AS production
 
