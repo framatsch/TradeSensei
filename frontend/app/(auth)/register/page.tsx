@@ -1,6 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
-import { Logo } from "@/components/ui/Logo";
 
 export const metadata = {
   title: "Create Account — Trade Journal",
@@ -11,12 +11,18 @@ export default function RegisterPage() {
     <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
       <div className="w-full max-w-md">
         {/* Logo / title */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
-            <Logo size={64} className="rounded-xl" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Trade Journal</h1>
-          <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
+        <div className="flex flex-col items-center mb-8">
+          <Image
+            src="/logo.svg"
+            alt="Trade Journal logo"
+            width={512}
+            height={512}
+            priority
+            className="rounded-xl mb-3"
+            style={{ width: "auto", maxWidth: "100%", height: "auto", maxHeight: "10rem" }}
+          />
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">Trade Journal</h1>
+          <p className="text-slate-600 dark:text-slate-400 text-sm">
             Create your account
           </p>
         </div>
