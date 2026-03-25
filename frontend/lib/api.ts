@@ -1,11 +1,28 @@
 /**
  * Axios instance with JWT auth interceptor and base URL configuration.
+ *
+ * The base URL is resolved at runtime from `window.__ENV__.API_URL` (injected
+ * by docker-entrypoint.sh via public/env.js) so that a single Docker image can
+ * be configured without rebuilding.  Falls back to the build-time env var and
+ * then to localhost for local development.
  */
 
 import axios from "axios";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+declare global {
+  interface Window {
+    __ENV__?: { API_URL?: string };
+  }
+}
+
+function getApiBaseUrl(): string {
+  if (typeof window !== "undefined" && window.__ENV__?.API_URL) {
+    return window.__ENV__.API_URL;
+  }
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
