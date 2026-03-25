@@ -62,6 +62,8 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     asset_classes: assetClassRaw ? assetClassRaw.split(",").filter(Boolean) : undefined,
     opened_at_from: params.get("opened_at_from") ?? undefined,
     opened_at_to: params.get("opened_at_to") ?? undefined,
+    closed_at_from: params.get("closed_at_from") ?? undefined,
+    closed_at_to: params.get("closed_at_to") ?? undefined,
     tag_ids: tagIdsRaw ? tagIdsRaw.split(",").filter(Boolean) : undefined,
     playbook_id: params.get("playbook_id") ?? undefined,
     pnl_positive,
@@ -90,6 +92,8 @@ function filtersToParams(
   if (filters.asset_classes?.length) p.set("asset_class", filters.asset_classes.join(","));
   if (filters.opened_at_from) p.set("opened_at_from", filters.opened_at_from);
   if (filters.opened_at_to) p.set("opened_at_to", filters.opened_at_to);
+  if (filters.closed_at_from) p.set("closed_at_from", filters.closed_at_from);
+  if (filters.closed_at_to) p.set("closed_at_to", filters.closed_at_to);
   if (filters.tag_ids?.length) p.set("tag_ids", filters.tag_ids.join(","));
   if (filters.playbook_id) p.set("playbook_id", filters.playbook_id);
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) {
@@ -248,7 +252,10 @@ export function TradesPageClient() {
 
   // If no URL date params are present, apply the user's default_date_range setting.
   const hasUrlDateParams =
-    searchParams.has("opened_at_from") || searchParams.has("opened_at_to");
+    searchParams.has("opened_at_from") || 
+    searchParams.has("opened_at_to") ||
+    searchParams.has("closed_at_from") || 
+    searchParams.has("closed_at_to");
 
   const [filters, setFilters] = useState<TradeFilters>(() => {
     const fromParams = readFiltersFromParams(searchParams);

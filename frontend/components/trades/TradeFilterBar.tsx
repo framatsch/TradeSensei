@@ -28,6 +28,8 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.asset_classes?.length) count++;
   if (filters.opened_at_from) count++;
   if (filters.opened_at_to) count++;
+  if (filters.closed_at_from) count++;
+  if (filters.closed_at_to) count++;
   if (filters.tag_ids?.length) count++;
   if (filters.playbook_id) count++;
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) count++;
@@ -44,6 +46,8 @@ const EMPTY_FILTERS: TradeFilters = {
   asset_classes: [],
   opened_at_from: "",
   opened_at_to: "",
+  closed_at_from: "",
+  closed_at_to: "",
   tag_ids: [],
   playbook_id: "",
   pnl_positive: null,
@@ -112,6 +116,14 @@ export function TradeFilterBar({ filters, onChange }: Props) {
 
   const handleDateTo = (value: string) => {
     onChange({ ...filters, opened_at_to: value || undefined });
+  };
+
+  const handleClosedDateFrom = (value: string) => {
+    onChange({ ...filters, closed_at_from: value || undefined });
+  };
+
+  const handleClosedDateTo = (value: string) => {
+    onChange({ ...filters, closed_at_to: value || undefined });
   };
 
   const handleTagToggle = (tagId: string) => {
@@ -244,7 +256,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
             </select>
           </div>
 
-          {/* Date range */}
+          {/* Date range (Opened) */}
           <div>
             <label className={LABEL_CLASS}>Opened From</label>
             <input
@@ -260,6 +272,26 @@ export function TradeFilterBar({ filters, onChange }: Props) {
               type="date"
               value={toDateInputValue(filters.opened_at_to)}
               onChange={(e) => handleDateTo(e.target.value)}
+              className={INPUT_CLASS}
+            />
+          </div>
+
+          {/* Date range (Closed) */}
+          <div>
+            <label className={LABEL_CLASS}>Closed From</label>
+            <input
+              type="date"
+              value={toDateInputValue(filters.closed_at_from)}
+              onChange={(e) => handleClosedDateFrom(e.target.value)}
+              className={INPUT_CLASS}
+            />
+          </div>
+          <div>
+            <label className={LABEL_CLASS}>Closed To</label>
+            <input
+              type="date"
+              value={toDateInputValue(filters.closed_at_to)}
+              onChange={(e) => handleClosedDateTo(e.target.value)}
               className={INPUT_CLASS}
             />
           </div>

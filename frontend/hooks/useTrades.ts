@@ -16,6 +16,8 @@ export interface TradeFilters {
   asset_classes?: string[];
   opened_at_from?: string;
   opened_at_to?: string;
+  closed_at_from?: string;
+  closed_at_to?: string;
   tag_ids?: string[];
   playbook_id?: string;
   pnl_positive?: boolean | null;
@@ -98,6 +100,8 @@ export function useTrades({
         }
         if (filters.opened_at_from) params.set("opened_at_from", toUtcFrom(filters.opened_at_from));
         if (filters.opened_at_to) params.set("opened_at_to", toUtcTo(filters.opened_at_to));
+        if (filters.closed_at_from) params.set("closed_at_from", toUtcFrom(filters.closed_at_from));
+        if (filters.closed_at_to) params.set("closed_at_to", toUtcTo(filters.closed_at_to));
         if (filters.tag_ids?.length) {
           for (const tid of filters.tag_ids) {
             params.append("tag_ids", tid);

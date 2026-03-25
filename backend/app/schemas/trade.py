@@ -1032,6 +1032,16 @@ class TradeFilterParams(BaseModel):
             "Filter trades opened at or before this datetime (timezone-aware)"
         ),
     )
+    closed_at_from: datetime | None = Field(
+        default=None,
+        description=("Filter trades closed at or after this datetime (timezone-aware)"),
+    )
+    closed_at_to: datetime | None = Field(
+        default=None,
+        description=(
+            "Filter trades closed at or before this datetime (timezone-aware)"
+        ),
+    )
     pnl_positive: bool | None = Field(
         default=None,
         description="True = winners (pnl > 0), False = losers (pnl <= 0)",
@@ -1063,7 +1073,13 @@ class TradeFilterParams(BaseModel):
         ),
     )
 
-    @field_validator("opened_at_from", "opened_at_to", mode="before")
+    @field_validator(
+        "opened_at_from",
+        "opened_at_to",
+        "closed_at_from",
+        "closed_at_to",
+        mode="before",
+    )
     @classmethod
     def require_timezone(cls, value: object) -> object:
         """Reject naive datetimes — all timestamps must carry timezone info.

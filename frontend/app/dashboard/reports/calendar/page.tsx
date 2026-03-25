@@ -15,8 +15,8 @@ export default function CalendarPage() {
 
   const handleDayClick = useCallback((date: string) => {
     const params = new URLSearchParams({
-      opened_at_from: date,
-      opened_at_to: date,
+      closed_at_from: date,
+      closed_at_to: date,
       ...(accountId ? { account_id: accountId } : {}),
     });
     router.push(`/dashboard/trades?${params.toString()}`);
