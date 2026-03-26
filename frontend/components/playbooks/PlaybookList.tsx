@@ -120,11 +120,11 @@ export function PlaybookList() {
         ) : (
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-border bg-background/50">
+              <tr className="border-b border-border bg-muted/30">
                 {["Name", "Description", "Status", "Created", ""].map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap"
+                    className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap"
                   >
                     {col}
                   </th>
@@ -135,7 +135,7 @@ export function PlaybookList() {
               {items.map((pb) => (
                 <tr
                   key={pb.id}
-                  className="border-b border-border/50 last:border-0"
+                  className="border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
                 >
                   {editingId === pb.id ? (
                     <td colSpan={5} className="px-4 py-4">
