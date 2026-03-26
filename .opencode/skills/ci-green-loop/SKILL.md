@@ -35,8 +35,13 @@ Default recommendation: `ci-fix/<date>` and open a PR.
 
 ## Workflow
 
-1. **Identify latest failed run**
+1. **Identify failed run or job**
 
+If a job URL is provided (e.g., `https://github.com/.../actions/runs/<run-id>/job/<job-id>`):
+- Extract the job ID.
+- Use `gh job view <job-id> --log` to fetch logs directly.
+
+Otherwise:
 ```bash
 gh run list --limit 20
 ```
@@ -45,6 +50,12 @@ Pick the newest failed run for the current branch/repo context.
 
 2. **Inspect logs and classify**
 
+If job-id was extracted:
+```bash
+gh job view <job-id> --log
+```
+
+Otherwise:
 ```bash
 gh run view <run-id> --log
 ```
