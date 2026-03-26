@@ -206,14 +206,14 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Profit</th>
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Loser</th>
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Commissions/Fees</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900 text-sm">
             {data.map((row, idx) => (
               <tr 
                 key={idx} 
-                className={`hover:bg-white/[0.03] transition-colors ${onViewReport ? 'cursor-pointer' : ''}`}
-                onClick={() => onViewReport?.(row)}
+                className={`hover:bg-white/[0.03] transition-colors`}
               >
                 <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{row.name}</td>
                 <td className={`px-4 py-3 text-right whitespace-nowrap font-medium font-mono ${row.pnl >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -231,6 +231,15 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
                 <td className="px-4 py-3 text-right text-success font-mono whitespace-nowrap">{formatCurrency(row.avgProfit)}</td>
                 <td className="px-4 py-3 text-right text-danger font-mono whitespace-nowrap">{formatCurrency(row.avgLoser)}</td>
                 <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{formatCurrency(row.commissions)}</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <button
+                    onClick={() => onViewReport?.(row)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-xs font-semibold"
+                  >
+                    View Report
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </td>
               </tr>
             ))}
             {data.length === 0 && (
