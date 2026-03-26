@@ -50,6 +50,30 @@ frontend/
 - All user-visible text is in English.
 - Loading and error states are always handled — no components that render `null` silently on error.
 
+## UI & Design System (Dual-Theme)
+
+We use a strict **Dual-Theme (Light & Dark) Design System** driven by CSS variables in `globals.css`.
+
+- **Semantic Tokens Only:** NEVER use hardcoded colors like `bg-zinc-900`, `text-gray-500`, `border-slate-800`, or `bg-white/10`. You must ALWAYS use semantic variables:
+  - `bg-background`, `bg-sidebar`, `bg-card`, `bg-popover`
+  - `text-foreground`, `text-muted-foreground`
+  - `border-border`
+  - `bg-primary`, `bg-secondary`, `bg-muted`
+  - `text-success`, `text-danger`
+- **No `dark:` modifiers:** Do NOT use Tailwind's `dark:` modifier on individual classes (e.g. `dark:bg-zinc-800`). The theme switches automatically based on CSS variables mapped in `tailwind.config.ts`.
+- **Opacity with CSS Variables:** Standard Tailwind opacity modifiers don't work natively with our CSS hex variables. To add opacity, use `color-mix`:
+  - `bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)]`
+  - or use our utility classes.
+- **Utility Classes (from globals.css):** Use these predefined classes for complex, radiant surfaces:
+  - `.radiant-card` or `.card-glossy`: For cards and panels. Provides the correct translucent background, blur, and border for both modes.
+  - `.nav-active`: For active states in navigation or list items.
+  - `.metric-toggle-bar`, `.metric-toggle-active`, `.metric-toggle-inactive`: For segmented controls.
+  - `.radiant-table`: For tables.
+- **Tables & Typography:**
+  - Table separators: `border-b border-border` (no zebra striping).
+  - Table headers: `text-[10px] font-bold uppercase tracking-widest text-muted-foreground`.
+  - Numerics: Add `font-mono` for numbers (P&L, metrics).
+
 ## Data Fetching
 
 - Server Components fetch data directly via the API client (no React Query).
