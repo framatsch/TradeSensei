@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-26
+
+### Added
+- [infra] Implemented the `bump-version` skill and automated versioning tool for cross-component version synchronization.
+
+### Changed
+- [infra] Updated `package.json` files and component versions to follow the `0.5.x` semantic versioning scheme.
+
 ## [0.5.0] - 2026-03-26
 
 ### Added
@@ -54,9 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[0.5.1]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...HEAD
