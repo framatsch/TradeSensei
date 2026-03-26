@@ -1,6 +1,6 @@
 {
   "name": "tradejournal",
-  "version": "0.5.0",
+  "version": "0.5.1-SNAPSHOT+b9b4617",
   "description": "A self-hosted platform for statistical analysis and visualization of your trading activity.",
   "main": "index.js",
   "directories": {
