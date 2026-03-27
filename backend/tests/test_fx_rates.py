@@ -122,7 +122,7 @@ class TestFetchBundesbankRate:
     async def test_fallback_on_weekend(self) -> None:
         """Returns rate from the previous Friday when Saturday returns 404."""
         saturday = dt.date(2024, 3, 16)  # Saturday
-        friday = dt.date(2024, 3, 15)
+        dt.date(2024, 3, 15)
 
         def _make_response(date: dt.date) -> MagicMock:
             resp = MagicMock()

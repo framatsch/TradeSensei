@@ -52,7 +52,7 @@ def mock_session() -> AsyncMock:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def engine() -> AsyncGenerator[object, None]:
+async def engine() -> AsyncGenerator[object]:
     """Create a test async engine scoped to the entire test session.
 
     Yields:
@@ -64,7 +64,7 @@ async def engine() -> AsyncGenerator[object, None]:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def setup_database(engine: object) -> AsyncGenerator[None, None]:
+async def setup_database(engine: object) -> AsyncGenerator[None]:
     """Run Alembic migrations once before the test session starts.
 
     Applies ``alembic upgrade head`` at session startup so the schema is
@@ -101,7 +101,7 @@ async def setup_database(engine: object) -> AsyncGenerator[None, None]:
 @pytest_asyncio.fixture()
 async def db_connection(
     engine: object, setup_database: None
-) -> AsyncGenerator[AsyncConnection, None]:
+) -> AsyncGenerator[AsyncConnection]:
     """Yield an :class:`AsyncConnection` with an open transaction.
 
     The transaction is rolled back on teardown so every test starts with
@@ -130,7 +130,7 @@ async def db_connection(
 @pytest_asyncio.fixture()
 async def db_session(
     db_connection: AsyncConnection,
-) -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[AsyncSession]:
     """Yield an :class:`AsyncSession` bound to the test connection.
 
     The session uses ``join_transaction_mode="create_savepoint"`` so that
@@ -155,7 +155,7 @@ async def db_session(
 
 
 @pytest_asyncio.fixture()
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Yield an HTTPX ``AsyncClient`` wired to the FastAPI test app.
 
     Overrides the ``get_session`` dependency so every request uses the
@@ -168,7 +168,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         An :class:`AsyncClient` targeting the test application.
     """
 
-    async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
+    async def override_get_session() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_session] = override_get_session
