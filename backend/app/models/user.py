@@ -13,6 +13,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.account import Account
     from app.models.corporate_action import CorporateAction
+    from app.models.saved_trade_filter import SavedTradeFilter
     from app.models.trade import Trade
     from app.models.user_setting import UserSetting
 
@@ -109,6 +110,11 @@ class User(Base):
     trades: Mapped[list["Trade"]] = relationship(
         "Trade",
         back_populates="user",
+    )
+    saved_trade_filters: Mapped[list["SavedTradeFilter"]] = relationship(
+        "SavedTradeFilter",
+        back_populates="owner",
+        cascade="all, delete-orphan",
     )
     settings: Mapped[list["UserSetting"]] = relationship(
         "UserSetting",

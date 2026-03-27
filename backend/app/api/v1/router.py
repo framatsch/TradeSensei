@@ -14,6 +14,7 @@ from app.api.v1 import (
     corporate_actions,
     imports,
     market_data,
+    saved_trade_filters,
     metrics,
     notes,
     playbooks,
@@ -43,3 +44,4 @@ router.include_router(broker.router)
 router.include_router(cash_transactions.router)
 router.include_router(corporate_actions.router)
 router.include_router(market_data.router)
+router.include_router(saved_trade_filters.router, prefix="/saved-trade-filters", tags=["saved-trade-filters"])

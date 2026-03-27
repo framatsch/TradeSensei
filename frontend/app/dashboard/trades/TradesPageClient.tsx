@@ -8,6 +8,8 @@ import { useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SaveFilterModal } from "@/components/trades/SaveFilterModal";
+import { SavedFiltersList } from "@/components/trades/SavedFiltersList";
 import { TradeTable } from "@/components/trades/TradeTable";
 import { TradeFilterBar } from "@/components/trades/TradeFilterBar";
 import { BulkActionToolbar } from "@/components/trades/BulkActionToolbar";
@@ -22,6 +24,24 @@ import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { useSettings } from "@/hooks/useSettings";
 import type { DefaultDateRange } from "@/lib/types";
+
+
+const EMPTY_FILTERS: TradeFilters = {
+  symbol: "",
+  direction: "",
+  asset_classes: [],
+  opened_at_from: "",
+  opened_at_to: "",
+  closed_at_from: "",
+  closed_at_to: "",
+  tag_ids: [],
+  playbook_id: "",
+  pnl_positive: null,
+  status: null,
+  account_id: "",
+  hour_of_day: undefined,
+  day_of_week: undefined,
+};
 
 // ─── Date range helpers ───────────────────────────────────────────────────────
 
@@ -175,6 +195,11 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
           </button>
         </div>
       </div>
+      <SaveFilterModal 
+        isOpen={showSaveFilter}
+        onClose={() => setShowSaveFilter(false)}
+        currentFilters={filters}
+      />
     </div>
   );
 }
@@ -239,6 +264,11 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
           </button>
         </div>
       </div>
+      <SaveFilterModal 
+        isOpen={showSaveFilter}
+        onClose={() => setShowSaveFilter(false)}
+        currentFilters={filters}
+      />
     </div>
   );
 }
@@ -275,6 +305,7 @@ export function TradesPageClient() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showPlaybookPicker, setShowPlaybookPicker] = useState(false);
+  const [showSaveFilter, setShowSaveFilter] = useState(false);
 
   const { mutate: bulkDelete, isPending: isDeleting } = useBulkDeleteTrades();
   const { mutate: bulkAssignTag, isPending: isAssigningTag } = useBulkAssignTag();
@@ -352,25 +383,44 @@ export function TradesPageClient() {
         </Link>
       </div>
 
-      <BulkActionToolbar
-        selectedCount={selectedIds.size}
-        onDelete={handleDelete}
-        onAssignTag={() => setShowTagPicker(true)}
-        onAssignPlaybook={() => setShowPlaybookPicker(true)}
-        isDeleting={isDeleting}
-      />
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="w-full md:w-64 flex-shrink-0 space-y-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+              <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Views</h3>
+              <button 
+                onClick={() => setShowSaveFilter(true)}
+                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium"
+              >
+                Save
+              </button>
+            </div>
+            <SavedFiltersList currentFilters={filters} onApply={(def) => handleFiltersChange({...EMPTY_FILTERS, ...def})} />
+          </div>
+        </div>
 
-      <TradeFilterBar filters={filters} onChange={handleFiltersChange} />
+        <div className="flex-1 min-w-0 space-y-4">
+          <BulkActionToolbar
+            selectedCount={selectedIds.size}
+            onDelete={handleDelete}
+            onAssignTag={() => setShowTagPicker(true)}
+            onAssignPlaybook={() => setShowPlaybookPicker(true)}
+            isDeleting={isDeleting}
+          />
 
-      <TradeTable
-        filters={filters}
-        sort={sort}
-        onSortChange={handleSortChange}
-        selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
-        limit={limit}
-        onLimitChange={handleLimitChange}
-      />
+          <TradeFilterBar filters={filters} onChange={handleFiltersChange} />
+
+          <TradeTable
+            filters={filters}
+            sort={sort}
+            onSortChange={handleSortChange}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            limit={limit}
+            onLimitChange={handleLimitChange}
+          />
+        </div>
+      </div>
 
       {showTagPicker && (
         <TagPickerModal
@@ -387,6 +437,11 @@ export function TradesPageClient() {
           isPending={isAssigningPlaybook}
         />
       )}
+      <SaveFilterModal 
+        isOpen={showSaveFilter}
+        onClose={() => setShowSaveFilter(false)}
+        currentFilters={filters}
+      />
     </div>
   );
 }
