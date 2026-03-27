@@ -105,7 +105,7 @@ body {
    */
   .radiant-card {
     @apply relative backdrop-blur-xl rounded-xl overflow-hidden;
-    background-color: color-mix(in srgb, var(--card) 65%, transparent);
+    background-color: #131317;
     border: 1px solid var(--border);
     border-top-color: rgba(255, 255, 255, 0.15);
     box-shadow:

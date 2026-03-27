@@ -35,18 +35,20 @@ export function ChartShell({
 }: Props) {
   return (
     <div
-      className={`bg-card text-card-foreground rounded-xl p-5 border border-border ${className}`}
+      className={`bg-card rounded-xl border border-border overflow-hidden p-5 flex flex-col ${className}`}
     >
-      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
         {title}
         {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </h3>
       {isEmpty ? (
-        <p className="text-muted-foreground text-sm text-center py-12">
+        <p className="text-muted-foreground text-sm text-center py-12 flex-1">
           {emptyMessage}
         </p>
       ) : (
-        children
+        <div className="flex-1">
+          {children}
+        </div>
       )}
     </div>
   );

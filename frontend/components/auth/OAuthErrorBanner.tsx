@@ -10,11 +10,10 @@
 import { useSearchParams } from "next/navigation";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  oauth_cancelled: "Google sign-in was cancelled. Please try again.",
-  oauth_failed:
-    "Google sign-in failed. Please try again or use your password.",
+  oauth_cancelled: "Sign-in was cancelled. Please try again.",
+  oauth_failed: "Sign-in failed. Please try again or use your password.",
   email_not_verified:
-    "Your Google account email is not verified. Please verify it and try again.",
+    "Your account email is not verified. Please verify it and try again.",
 };
 
 export function OAuthErrorBanner() {

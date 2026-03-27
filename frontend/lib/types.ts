@@ -40,6 +40,16 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface OIDCConfig {
+  enabled: boolean;
+  provider_name: string;
+}
+
+export interface AuthConfigResponse {
+  google_enabled: boolean;
+  oidc: OIDCConfig;
+}
+
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 export interface User {

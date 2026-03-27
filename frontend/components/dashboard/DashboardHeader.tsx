@@ -75,7 +75,7 @@ interface StatPillProps {
 function StatPill({ label, value, color = "text-foreground", helpAnchor }: StatPillProps) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
         {label}
         {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </span>
@@ -110,7 +110,7 @@ export function DashboardHeader({ summary }: Props) {
     : "rgba(251, 113, 133, 0.12)";
 
   return (
-    <div className="radiant-card light-edge noise-overlay overflow-hidden">
+    <div className="bg-card rounded-xl border border-border overflow-hidden relative">
       {/* Ambient radial glow in the top-right corner */}
       <div
         aria-hidden
@@ -124,7 +124,7 @@ export function DashboardHeader({ summary }: Props) {
         {/* Left — numbers */}
         <div className="flex flex-col gap-5 lg:min-w-[260px]">
           {/* Label */}
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Net P&amp;L · All Time
           </p>
 

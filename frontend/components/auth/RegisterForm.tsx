@@ -15,6 +15,8 @@ import apiClient from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { Spinner } from "@/components/ui/Spinner";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { OIDCSignInButton } from "@/components/auth/OIDCSignInButton";
+import { useAuthConfig } from "@/hooks/useAuth";
 import type { ResponseEnvelope, TokenResponse, User, UserCreate } from "@/lib/types";
 import type { AxiosError } from "axios";
 
@@ -67,17 +69,25 @@ export function RegisterForm() {
     register({ username, email, password });
   };
 
+  const { data: authConfig } = useAuthConfig();
+  const showDivider = authConfig?.google_enabled || authConfig?.oidc?.enabled;
+
   return (
     <div className="space-y-4">
-      {/* Google sign-in */}
-      <GoogleSignInButton />
+      {/* External sign-in buttons */}
+      <div className="space-y-3">
+        <GoogleSignInButton />
+        <OIDCSignInButton />
+      </div>
 
       {/* Divider */}
-      <div className="relative flex items-center gap-3">
-        <div className="flex-1 border-t border-border" />
-        <span className="text-xs text-muted-foreground select-none">or</span>
-        <div className="flex-1 border-t border-border" />
-      </div>
+      {showDivider && (
+        <div className="relative flex items-center gap-3">
+          <div className="flex-1 border-t border-border" />
+          <span className="text-xs text-muted-foreground select-none">or</span>
+          <div className="flex-1 border-t border-border" />
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
       <div>

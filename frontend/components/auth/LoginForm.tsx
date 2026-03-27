@@ -8,6 +8,8 @@ import { useState } from "react";
 import { useLogin } from "@/hooks/useAuth";
 import { Spinner } from "@/components/ui/Spinner";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { OIDCSignInButton } from "@/components/auth/OIDCSignInButton";
+import { useAuthConfig } from "@/hooks/useAuth";
 import type { AxiosError } from "axios";
 
 export function LoginForm() {
@@ -28,6 +30,9 @@ export function LoginForm() {
     e.preventDefault();
     login({ username, password });
   };
+
+  const { data: authConfig } = useAuthConfig();
+  const showDivider = authConfig?.google_enabled || authConfig?.oidc?.enabled;
 
   return (
     <div className="space-y-4">
@@ -85,14 +90,19 @@ export function LoginForm() {
     </form>
 
       {/* Divider */}
-      <div className="relative flex items-center gap-3">
-        <div className="flex-1 border-t border-border" />
-        <span className="text-xs text-muted-foreground select-none">or</span>
-        <div className="flex-1 border-t border-border" />
-      </div>
+      {showDivider && (
+        <div className="relative flex items-center gap-3">
+          <div className="flex-1 border-t border-border" />
+          <span className="text-xs text-muted-foreground select-none">or</span>
+          <div className="flex-1 border-t border-border" />
+        </div>
+      )}
 
-      {/* Google sign-in */}
-      <GoogleSignInButton />
+      {/* External sign-in buttons */}
+      <div className="space-y-3">
+        <GoogleSignInButton />
+        <OIDCSignInButton />
+      </div>
     </div>
   );
 }

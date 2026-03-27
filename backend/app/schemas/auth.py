@@ -68,3 +68,27 @@ class OAuthExchangeRequest(BaseModel):
             "redirect URL query parameter ``?token=``."
         ),
     )
+
+
+class OIDCConfig(BaseModel):
+    """Configuration for generic OIDC provider.
+
+    Attributes:
+        enabled: Whether the OIDC provider is enabled.
+        provider_name: Display name for the provider (e.g. "Authentik").
+    """
+
+    enabled: bool = Field(description="Whether the OIDC provider is enabled.")
+    provider_name: str = Field(description="Display name for the provider.")
+
+
+class AuthConfigResponse(BaseModel):
+    """Response schema for available authentication methods.
+
+    Attributes:
+        google_enabled: Whether Google OAuth is configured and enabled.
+        oidc: Configuration for generic OIDC.
+    """
+
+    google_enabled: bool = Field(description="Whether Google OAuth is enabled.")
+    oidc: OIDCConfig = Field(description="OIDC configuration details.")

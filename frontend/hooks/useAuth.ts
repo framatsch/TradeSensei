@@ -10,11 +10,25 @@ import { useRouter } from "next/navigation";
 import apiClient from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import type {
+  AuthConfigResponse,
   ResponseEnvelope,
   TokenResponse,
   User,
   UserCreate,
 } from "@/lib/types";
+
+// ─── Auth Config ──────────────────────────────────────────────────────────────
+
+export function useAuthConfig() {
+  return useQuery<AuthConfigResponse, Error>({
+    queryKey: ["authConfig"],
+    queryFn: async () => {
+      const res = await apiClient.get<AuthConfigResponse>("/api/v1/auth/config");
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+}
 
 // ─── Current user ─────────────────────────────────────────────────────────────
 

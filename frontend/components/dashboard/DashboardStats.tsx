@@ -53,7 +53,7 @@ function StatTile({
   helpAnchor,
 }: StatTileProps) {
   return (
-    <div className="radiant-card light-edge noise-overlay p-5 flex flex-col gap-3">
+    <div className="bg-card rounded-xl border border-border overflow-hidden p-5 flex flex-col gap-3">
       {/* Header row */}
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">

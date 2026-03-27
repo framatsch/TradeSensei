@@ -4,6 +4,7 @@ Covers registration, OAuth2 password-flow token issuance,
 token refresh via httpOnly cookie, logout, and Google OAuth.
 """
 
+import contextlib
 from typing import Annotated
 
 from authlib.integrations.starlette_client import (  # type: ignore[import-untyped]
@@ -21,7 +22,12 @@ from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
 from app.models.user import User
-from app.schemas.auth import OAuthExchangeRequest, TokenResponse
+from app.schemas.auth import (
+    AuthConfigResponse,
+    OAuthExchangeRequest,
+    OIDCConfig,
+    TokenResponse,
+)
 from app.schemas.common import ResponseEnvelope
 from app.schemas.user import UserCreate, UserLogin, UserRead
 from app.services.auth_service import AuthService
@@ -32,7 +38,7 @@ _REFRESH_COOKIE = "refresh_token"
 _REFRESH_MAX_AGE = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60  # seconds
 
 # ---------------------------------------------------------------------------
-# Google OAuth client (authlib)
+# External Auth Clients (authlib)
 # ---------------------------------------------------------------------------
 
 _oauth = OAuth()
@@ -43,6 +49,15 @@ _oauth.register(
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
 )
+
+if settings.oidc_enabled and settings.oidc_configuration_url:
+    _oauth.register(
+        name="oidc",
+        client_id=settings.oidc_client_id,
+        client_secret=settings.oidc_client_secret,
+        server_metadata_url=settings.oidc_configuration_url,
+        client_kwargs={"scope": "openid email profile"},
+    )
 
 
 def _get_service(
@@ -57,6 +72,31 @@ def _get_service(
         An :class:`AuthService` bound to the current session.
     """
     return AuthService(session)
+
+
+@router.get(
+    "/config",
+    response_model=AuthConfigResponse,
+    summary="Get Authentication Configuration",
+    description="Returns the available authentication methods enabled on the backend.",
+    responses={
+        200: {"description": "Configuration returned successfully."},
+    },
+)
+async def get_config() -> AuthConfigResponse:
+    """Return enabled authentication methods.
+
+    Returns:
+        An :class:`AuthConfigResponse` indicating which providers are active.
+    """
+    google_enabled = bool(settings.google_client_id and settings.google_client_secret)
+    return AuthConfigResponse(
+        google_enabled=google_enabled,
+        oidc=OIDCConfig(
+            enabled=settings.oidc_enabled,
+            provider_name=settings.oidc_provider_name,
+        ),
+    )
 
 
 @router.post(
@@ -390,8 +430,13 @@ async def google_callback(
         return redirect
 
     try:
-        access_token, refresh_token, one_time_token = await service.google_oauth_login(
-            google_sub=str(user_info["sub"]),
+        (
+            access_token,
+            refresh_token,
+            one_time_token,
+        ) = await service.external_oauth_login(
+            provider="google",
+            provider_sub=str(user_info["sub"]),
             email=str(user_info["email"]),
             display_name=str(user_info.get("name", user_info.get("email", "user"))),
             email_verified=bool(user_info.get("email_verified", False)),
@@ -455,6 +500,153 @@ async def google_exchange(
     Raises:
         HTTPException: 401 if the one-time token is invalid or already used.
     """
+    try:
+        access_token, _ = await service.exchange_one_time_token(payload.one_time_token)
+    except InvalidCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired one-time token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    return TokenResponse(access_token=access_token)
+
+
+# ---------------------------------------------------------------------------
+# Generic OIDC routes
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/oidc",
+    summary="Initiate OIDC Login",
+    description="Redirects the browser to the configured OIDC authorization page.",
+    response_description="HTTP 302 redirect to the OIDC authorization URL.",
+    status_code=status.HTTP_302_FOUND,
+    responses={
+        302: {"description": "Redirect to OIDC authorization URL."},
+        503: {"description": "OIDC is not configured or enabled."},
+    },
+    include_in_schema=True,
+)
+async def oidc_login(request: Request) -> RedirectResponse:
+    """Redirect the browser to OIDC authorization page.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`RedirectResponse` pointing to OIDC authorization URL.
+
+    Raises:
+        HTTPException: 503 if OIDC is not configured.
+    """
+    if not settings.oidc_enabled or "oidc" not in _oauth._clients:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC is not configured or enabled.",
+        )
+    redirect_uri = settings.oidc_redirect_uri
+    return await _oauth.oidc.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
+
+
+@router.get(
+    "/oidc/callback",
+    summary="OIDC Callback",
+    description="Handles the OIDC callback, issues JWTs, and redirects to frontend.",
+    response_description="HTTP 302 redirect to the frontend callback page.",
+    status_code=status.HTTP_302_FOUND,
+    responses={
+        302: {"description": "Redirect to frontend with one-time token or error."},
+    },
+    include_in_schema=True,
+)
+async def oidc_callback(
+    request: Request,
+    response: Response,
+    service: Annotated[AuthService, Depends(_get_service)],
+) -> RedirectResponse:
+    """Handle the OIDC callback and issue JWT tokens."""
+    try:
+        token = await _oauth.oidc.authorize_access_token(request)
+    except OAuthError:
+        return RedirectResponse(
+            url=f"{_FRONTEND_LOGIN_URL}?error=oauth_cancelled",
+            status_code=status.HTTP_302_FOUND,
+        )
+
+    user_info = token.get("userinfo")
+    if not user_info:
+        # Try to fetch userinfo explicitly if not in token
+        with contextlib.suppress(Exception):
+            user_info = await _oauth.oidc.userinfo(token=token)
+
+    if not user_info:
+        return RedirectResponse(
+            url=f"{_FRONTEND_LOGIN_URL}?error=oauth_failed",
+            status_code=status.HTTP_302_FOUND,
+        )
+
+    # Some providers use "preferred_username" or "name", some don't have email_verified
+    sub = str(user_info["sub"])
+    email = str(user_info.get("email", f"{sub}@oidc.local"))
+    display_name = str(
+        user_info.get("preferred_username")
+        or user_info.get("name")
+        or user_info.get("email")
+        or "user"
+    )
+
+    # For internal OIDC (like Authentik), we often want to trust the email
+    # even if the provider hasn't explicitly flagged it as "verified" in the UI.
+    email_verified = True
+
+    try:
+        (
+            access_token,
+            refresh_token,
+            one_time_token,
+        ) = await service.external_oauth_login(
+            provider="oidc",
+            provider_sub=sub,
+            email=email,
+            display_name=display_name,
+            email_verified=email_verified,
+        )
+    except InvalidCredentialsError:
+        return RedirectResponse(
+            url=f"{_FRONTEND_LOGIN_URL}?error=oauth_failed",
+            status_code=status.HTTP_302_FOUND,
+        )
+
+    await request.state.session.commit() if hasattr(request.state, "session") else None
+
+    redirect = RedirectResponse(
+        url=f"{_FRONTEND_CALLBACK_URL}?token={one_time_token}",
+        status_code=status.HTTP_302_FOUND,
+    )
+    redirect.set_cookie(
+        key=_REFRESH_COOKIE,
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=_REFRESH_MAX_AGE,
+        path="/api/v1/auth",
+    )
+    return redirect
+
+
+@router.post(
+    "/oidc/exchange",
+    response_model=TokenResponse,
+    summary="Exchange One-Time OIDC Token",
+    description="Exchange short-lived token for access token (like Google exchange).",
+)
+async def oidc_exchange(
+    payload: OAuthExchangeRequest,
+    service: Annotated[AuthService, Depends(_get_service)],
+) -> TokenResponse:
+    """Exchange a one-time OIDC token for an access token."""
     try:
         access_token, _ = await service.exchange_one_time_token(payload.one_time_token)
     except InvalidCredentialsError as exc:

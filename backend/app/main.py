@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
@@ -54,6 +55,15 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+
+    # ── Sessions (Required for OAuth state) ────────────────────────────────────
+    application.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.secret_key,
+        session_cookie="tradejournal_session",
+        max_age=3600,  # 1 hour is plenty for OAuth flows
+        same_site="lax",
     )
 
     # ── Health endpoint ───────────────────────────────────────────────────────
