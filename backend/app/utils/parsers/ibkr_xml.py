@@ -348,7 +348,9 @@ class IBKRXMLParser(BrokerParser):
 
             # Task 4.1: filter out <Trade assetCategory="CASH">
             if asset_category == "CASH":
-                commission = abs(_safe_decimal(elem.get("commission")))
+                commission = abs(
+                    _safe_decimal(elem.get("ibCommission") or elem.get("commission"))
+                )
                 if commission > Decimal("0"):
                     currency = (elem.get("currency") or "").upper().strip() or "USD"
                     return CashTransactionCreateRequest(
@@ -395,7 +397,9 @@ class IBKRXMLParser(BrokerParser):
                 )
                 return None
 
-            commission = abs(_safe_decimal(elem.get("commission")))
+            commission = abs(
+                _safe_decimal(elem.get("ibCommission") or elem.get("commission"))
+            )
             pnl_raw = _safe_decimal(elem.get("fifoPnlRealized"))
             pnl: Decimal | None = pnl_raw if pnl_raw != Decimal("0") else None
 
@@ -474,7 +478,9 @@ class IBKRXMLParser(BrokerParser):
                 )
                 return None
 
-            commission = abs(_safe_decimal(elem.get("commission")))
+            commission = abs(
+                _safe_decimal(elem.get("ibCommission") or elem.get("commission"))
+            )
 
             return TradeCreate(
                 symbol=symbol,
