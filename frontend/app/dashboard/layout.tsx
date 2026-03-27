@@ -17,6 +17,7 @@ import { useLogout } from "@/hooks/useAuth";
 import { Logo } from "@/components/ui/Logo";
 import { AboutModal } from "@/components/ui/AboutModal";
 import { AppConfig } from "@/lib/appConfig";
+import dynamic from "next/dynamic";
 import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
 import type { SavedTradeFilterRead } from "@/lib/types";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
@@ -189,17 +190,10 @@ function buildNavItems(): NavItem[] {
   ];
 
   // ── Conditionally-enabled modules (hidden unless flag is true) ──────────────
-  if (AppConfig.enableDividendModule) {
-    (items.find((i) => i.kind === "group" && (i as NavGroup).label === "SYSTEM") as NavGroup | undefined)?.children.unshift(
-      { kind: "leaf", href: "/dashboard/cash", label: "Cash & Dividends", icon: Icons.cash }
-    );
-  }
-
-  if (AppConfig.enableTaxModule) {
-    (items.find((i) => i.kind === "group" && (i as NavGroup).label === "SYSTEM") as NavGroup | undefined)?.children.unshift(
-      { kind: "leaf", href: "/dashboard/tax", label: "Steuerbericht", icon: Icons.tax }
-    );
-  }
+  // Cash & Dividends and Steuerbericht were previously controlled via
+  // environment variables. They are now per-user feature flags and will
+  // be injected by a client-side component that reads the feature flags
+  // from the settings cache. Keep layout.tsx deterministic on the server.
 
   return items;
 }
@@ -225,6 +219,32 @@ const L2_INACTIVE =
 
 // ─── Trades sidebar views ─────────────────────────────────────────────────────
 
+/** Query params that are not part of the filter definition (ignored when diffing). */
+const META_PARAMS = new Set(["view_id", "sort_by", "sort_dir", "limit", "cursor"]);
+
+/**
+ * Returns true when the current URL filter params differ from the saved view definition.
+ * Used to show a "modified" indicator on the active view in the sidebar.
+ */
+function isViewModified(
+  view: SavedTradeFilterRead,
+  searchParams: URLSearchParams
+): boolean {
+  const savedParams = definitionToSearchParams(view.definition);
+  const currentParams = new URLSearchParams();
+  for (const [k, v] of searchParams.entries()) {
+    if (!META_PARAMS.has(k)) currentParams.set(k, v);
+  }
+  const sortEntries = (p: URLSearchParams) =>
+    [...p.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const FeatureGatedNavItems = dynamic(() => import("@/components/dashboard/FeatureGatedNavItems"), { ssr: false });
+
+  return (
+    JSON.stringify(sortEntries(savedParams)) !==
+    JSON.stringify(sortEntries(currentParams))
+  );
+}
+
 /**
  * L2 view entry under the Trades accordion.
  * Lock icon = SYSTEM view, User icon = USER view.
@@ -232,10 +252,12 @@ const L2_INACTIVE =
 function ViewItem({
   view,
   activeViewId,
+  isModified,
   onClick,
 }: {
   view: SavedTradeFilterRead;
   activeViewId: string | null;
+  isModified?: boolean;
   onClick: () => void;
 }) {
   const isActive = activeViewId === view.id;
@@ -270,6 +292,14 @@ function ViewItem({
           <line x1="12" y1="9" x2="12" y2="13" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
+      )}
+
+      {/* Unsaved-changes indicator — shown when active view filters have been modified */}
+      {isActive && isModified && (
+        <span
+          title="Unsaved changes"
+          className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"
+        />
       )}
     </button>
   );
@@ -359,6 +389,10 @@ function TradesNavItem({
               key={view.id}
               view={view}
               activeViewId={activeViewId}
+              isModified={
+                view.id === activeViewId &&
+                isViewModified(view, searchParams)
+              }
               onClick={() => handleViewClick(view)}
             />
           ))}
@@ -600,6 +634,8 @@ export default function DashboardLayout({ children }: Props) {
             }
             return null;
           })}
+          {/* Client-side injected per-user feature nav items (Cash / Tax) */}
+          <FeatureGatedNavItems onInject={() => {}} />
         </nav>
 
         {/* Help + Sign out */}

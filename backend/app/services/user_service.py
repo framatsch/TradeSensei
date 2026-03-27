@@ -16,9 +16,10 @@ from app.repositories.user_setting_repository import UserSettingRepository
 from app.schemas.user import UserRead, UserSettingsRead, UserSettingsUpdate, UserUpdate
 
 # Keys supported by the settings system with their defaults.
-_SETTINGS_DEFAULTS: dict[str, str] = {
+_SETTINGS_DEFAULTS: dict[str, object] = {
     "theme": "system",
     "default_date_range": "all",
+    "features": "{}",
 }
 
 
@@ -127,7 +128,18 @@ class UserService:
         """
         rows = await self._settings_repo.get_all_for_user(user_id)
         stored: dict[str, str] = {row.key: row.value for row in rows}
+        # Ensure features is present as JSON string if absent
+        if "features" not in stored:
+            stored["features"] = _SETTINGS_DEFAULTS["features"]
         merged = {**_SETTINGS_DEFAULTS, **stored}
+        # Deserialize features JSON into dict
+        import json
+
+        try:
+            merged_features = json.loads(merged.get("features", "{}"))
+        except Exception:
+            merged_features = {}
+        merged["features"] = merged_features
         return UserSettingsRead(**merged)  # type: ignore[arg-type]
 
     async def update_settings(
@@ -149,8 +161,30 @@ class UserService:
             current settings after the update.
         """
         update_dict = data.model_dump(exclude_unset=True)
+        import json
+
+        # Handle features merge specially
+        features_update = update_dict.pop("features", None)
+        if features_update is not None:
+            # Read current features value
+            rows = await self._settings_repo.get_all_for_user(user_id)
+            stored: dict[str, str] = {row.key: row.value for row in rows}
+            current_features = {}
+            if "features" in stored:
+                try:
+                    current_features = json.loads(stored["features"])  # type: ignore[arg-type]
+                except Exception:
+                    current_features = {}
+            # Merge (incoming keys overwrite)
+            merged_features = {**current_features, **(features_update or {})}
+            await self._settings_repo.upsert(
+                user_id=user_id,
+                key="features",
+                value=json.dumps(merged_features),
+            )
+
         for key, value in update_dict.items():
-            if value is not None:
+            if value is not None and key != "features":
                 await self._settings_repo.upsert(
                     user_id=user_id,
                     key=key,

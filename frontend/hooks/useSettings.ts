@@ -20,6 +20,7 @@ export const SETTINGS_KEY = ["users", "me", "settings"] as const;
 export const DEFAULT_SETTINGS: UserSettings = {
   theme: "system",
   default_date_range: "all",
+  features: {},
 };
 
 // ─── useSettings ─────────────────────────────────────────────────────────────

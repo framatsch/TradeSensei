@@ -8,6 +8,7 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import type { DefaultDateRange, Theme } from "@/lib/types";
+import FeaturesSettings from "@/components/settings/FeaturesSettings";
 
 // ─── Theme selector ────────────────────────────────────────────────────────
 
@@ -113,6 +114,9 @@ export function GeneralSettings() {
           ))}
         </div>
       </div>
+
+      {/* Features toggles */}
+      <FeaturesSettings />
 
       {/* ── Default Date Range ────────────────────────────────────────── */}
       <div>
