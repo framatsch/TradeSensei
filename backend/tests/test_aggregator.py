@@ -11,12 +11,10 @@ Covers:
 - Corporate action for a symbol with no open lots (graceful no-op)
 """
 
-import warnings
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-import pytest
 
 from app.models.trade import AssetClass, Direction
 from app.schemas.trade import TradeCreate

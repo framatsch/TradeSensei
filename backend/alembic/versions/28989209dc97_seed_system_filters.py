@@ -10,7 +10,6 @@ import json
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '28989209dc97'
@@ -21,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    
+
     system_filters = [
         {
             "name": "All Winners",
@@ -66,7 +65,7 @@ def upgrade() -> None:
             "needs_review": False
         }
     ]
-    
+
     for f in system_filters:
         bind.execute(
             sa.text(

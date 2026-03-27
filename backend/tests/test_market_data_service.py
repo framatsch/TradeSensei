@@ -5,7 +5,6 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from sqlalchemy.dialects.postgresql import insert
 
 from app.models.ohlc_price import OhlcPrice
 from app.services.market_data_service import MarketDataService
