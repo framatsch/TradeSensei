@@ -1,5 +1,3 @@
-
-
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -14,13 +12,15 @@ class TestIBKRXMLCashTransactionParsing:
 
     @pytest.mark.unit
     def test_filter_cash_trade_extracts_fee(self) -> None:
-        """<Trade assetCategory="CASH"> should be filtered out, but commission extracted as FEE."""
+        """<Trade assetCategory="CASH"> extracts commission as FEE."""
         xml = """<FlexQueryResponse>
             <FlexStatements>
                 <FlexStatement>
                     <Trades>
-                        <Trade assetCategory="CASH" symbol="EUR.USD" tradeDate="20240315" dateTime="20240315;093000" 
-                               quantity="-1000" tradePrice="1.08" commission="-2.50" currency="USD" />
+                        <Trade assetCategory="CASH" symbol="EUR.USD" 
+                               tradeDate="20240315" dateTime="20240315;093000" 
+                               quantity="-1000" tradePrice="1.08" 
+                               commission="-2.50" currency="USD" />
                     </Trades>
                 </FlexStatement>
             </FlexStatements>
@@ -40,14 +40,62 @@ class TestIBKRXMLCashTransactionParsing:
         assert "FX Conversion" in (cash_txs[0].description or "")
 
     @pytest.mark.unit
+    def test_filter_cash_trade_extracts_ibkr_commission(self) -> None:
+        """<Trade assetCategory="CASH"> supports ibCommission attribute."""
+        xml = """<FlexQueryResponse>
+            <FlexStatements>
+                <FlexStatement>
+                    <Trades>
+                        <Trade assetCategory="CASH" symbol="EUR.USD" 
+                               tradeDate="20240315" dateTime="20240315;093000" 
+                               quantity="-1000" tradePrice="1.08" 
+                               ibCommission="-2.50" currency="USD" />
+                    </Trades>
+                </FlexStatement>
+            </FlexStatements>
+        </FlexQueryResponse>"""
+
+        parser = IBKRXMLParser()
+        trades, cash_txs = parser.parse(xml.encode("utf-8"), "activity.xml")
+
+        assert len(trades) == 0
+        assert len(cash_txs) == 1
+        assert cash_txs[0].amount == Decimal("-2.50")
+
+    @pytest.mark.unit
+    def test_parse_trade_extracts_ibkr_commission(self) -> None:
+        """Regular <Trade> supports ibCommission attribute."""
+        xml = """<FlexQueryResponse>
+            <FlexStatements>
+                <FlexStatement>
+                    <Trades>
+                        <Trade assetCategory="STK" symbol="AAPL" 
+                               tradeDate="20240315" dateTime="20240315;093000" 
+                               quantity="10" tradePrice="150.00" 
+                               ibCommission="-1.00" currency="USD" />
+                    </Trades>
+                </FlexStatement>
+            </FlexStatements>
+        </FlexQueryResponse>"""
+
+        parser = IBKRXMLParser()
+        trades, _ = parser.parse(xml.encode("utf-8"), "activity.xml")
+
+        assert len(trades) == 1
+        assert trades[0].commission == Decimal("1.00")
+
+    @pytest.mark.unit
     def test_parse_cash_transaction_dividend(self) -> None:
         """<CashTransaction type="Dividends"> should be parsed correctly."""
         xml = """<FlexQueryResponse>
             <FlexStatements>
                 <FlexStatement>
                     <CashTransactions>
-                        <CashTransaction type="Dividends" symbol="AAPL" reportDate="20240315" dateTime="20240315;093000" 
-                                         amount="15.50" currency="USD" description="Dividend Payment" />
+                        <CashTransaction type="Dividends" symbol="AAPL" 
+                                         reportDate="20240315" 
+                                         dateTime="20240315;093000" 
+                                         amount="15.50" currency="USD" 
+                                         description="Dividend Payment" />
                     </CashTransactions>
                 </FlexStatement>
             </FlexStatements>
@@ -69,7 +117,9 @@ class TestIBKRXMLCashTransactionParsing:
             <FlexStatements>
                 <FlexStatement>
                     <CashTransactions>
-                        <CashTransaction type="Withholding Tax" symbol="AAPL" reportDate="20240315" dateTime="20240315;093000" 
+                        <CashTransaction type="Withholding Tax" symbol="AAPL" 
+                                         reportDate="20240315" 
+                                         dateTime="20240315;093000" 
                                          amount="-2.30" currency="USD" />
                     </CashTransactions>
                 </FlexStatement>
@@ -85,12 +135,14 @@ class TestIBKRXMLCashTransactionParsing:
 
     @pytest.mark.unit
     def test_parse_cash_transaction_deposit(self) -> None:
-        """<CashTransaction type="Deposits/Withdrawals"> with positive amount is DEPOSIT."""
+        """<CashTransaction type="Deposits/Withdrawals"> is DEPOSIT."""
         xml = """<FlexQueryResponse>
             <FlexStatements>
                 <FlexStatement>
                     <CashTransactions>
-                        <CashTransaction type="Deposits/Withdrawals" reportDate="20240315" dateTime="20240315;093000" 
+                        <CashTransaction type="Deposits/Withdrawals" 
+                                         reportDate="20240315" 
+                                         dateTime="20240315;093000" 
                                          amount="1000.00" currency="USD" />
                     </CashTransactions>
                 </FlexStatement>
@@ -106,12 +158,14 @@ class TestIBKRXMLCashTransactionParsing:
 
     @pytest.mark.unit
     def test_parse_cash_transaction_withdrawal(self) -> None:
-        """<CashTransaction type="Deposits/Withdrawals"> with negative amount is WITHDRAWAL."""
+        """<CashTransaction type="Deposits/Withdrawals"> is WITHDRAWAL."""
         xml = """<FlexQueryResponse>
             <FlexStatements>
                 <FlexStatement>
                     <CashTransactions>
-                        <CashTransaction type="Deposits/Withdrawals" reportDate="20240315" dateTime="20240315;093000" 
+                        <CashTransaction type="Deposits/Withdrawals" 
+                                         reportDate="20240315" 
+                                         dateTime="20240315;093000" 
                                          amount="-500.00" currency="USD" />
                     </CashTransactions>
                 </FlexStatement>
