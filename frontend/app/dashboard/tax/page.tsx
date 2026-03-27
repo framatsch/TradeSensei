@@ -19,12 +19,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import type { TaxCategoryBlock, TaxAnnualSummary, AccountTaxSummary } from "@/lib/types";
 
-// CSV download goes through the Next.js proxy in production; in dev it hits
-// the backend directly via NEXT_PUBLIC_API_URL.
-const API_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? "/api/proxy"
-    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
+// CSV download goes through the Next.js proxy.
+const API_BASE_URL = "/api/proxy";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);

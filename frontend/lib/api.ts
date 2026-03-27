@@ -16,13 +16,10 @@
 import axios from "axios";
 
 /**
- * In production the browser calls the Next.js proxy (relative URL).
- * In local dev without Docker, fall back to the backend URL directly.
+ * In production and development, the browser calls the Next.js proxy (relative URL).
+ * This ensures the backend remains off the public internet.
  */
-const API_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? "/api/proxy"
-    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
+const API_BASE_URL = "/api/proxy";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

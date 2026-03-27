@@ -2,11 +2,10 @@
  * MediaChartsCard — Smart trade chart (Market Data Hub / TradingView fallback)
  * + screenshot gallery.
  *
- * The "Chart" tab now uses TradeChart which fetches OHLC data from the Market
- * Data Hub (LSEG provider) when NEXT_PUBLIC_MARKET_DATA_HUB_URL is configured,
- * and falls back silently to the TradingView embed widget otherwise.
- *
  * Screenshots support drag-and-drop, file picker, and clipboard paste.
+ *
+ * All browser-side API calls go through the Next.js reverse proxy at
+ * `/api/proxy/v1/...` — absolute URLs are not needed here.
  */
 
 "use client";
@@ -17,11 +16,9 @@ import { useUpdateTrade } from "@/hooks/useTrade";
 import type { Trade } from "@/lib/types";
 import { TradeChart } from "@/components/charts/TradeChart";
 
-const BACKEND_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
 function resolveUrl(url: string): string {
   if (url.startsWith("http")) return url;
-  return `${BACKEND_BASE}${url}`;
+  return `/api/proxy${url}`;
 }
 
 // ── Chart tab (Market Data Hub → TradingView fallback) ────────────────────────
