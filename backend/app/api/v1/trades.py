@@ -345,7 +345,10 @@ async def list_trades(
     tag_ids: Annotated[
         list[uuid.UUID] | None,
         Query(
-            description="Filter trades by tag UUIDs (OR logic: returns trades with any of the given tags)"
+            description=(
+                "Filter trades by tag UUIDs "
+                "(OR logic: returns trades with any of the given tags)"
+            )
         ),
     ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
