@@ -1,20 +1,25 @@
 "use client";
 
 import React from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import { SETTINGS_KEY } from "@/hooks/useSettings";
 import Link from "next/link";
 
-export default function FeatureGatedNavItems({ onInject }: { onInject?: () => void }) {
-  const qc = useQueryClient();
-  const settings = qc.getQueryData(SETTINGS_KEY) as any | undefined;
-  const features: Record<string, boolean> = settings?.features ?? {};
+export interface FeatureGatedNavItemsProps {
+  showCash: boolean;
+  showTax: boolean;
+}
 
+const SECTION_HEADER_CLASS =
+  "px-4 pt-1 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-slate-500 select-none mt-8 first:mt-0";
+
+export default function FeatureGatedNavItems({ showCash, showTax }: FeatureGatedNavItemsProps) {
   const pathname = usePathname();
 
+  if (!showCash && !showTax) return null;
+
   const items: { href: string; label: string; icon: React.ReactNode }[] = [];
-  if (features["cash_and_dividends"]) {
+
+  if (showCash) {
     items.push({
       href: "/dashboard/cash",
       label: "Cash & Dividends",
@@ -26,10 +31,11 @@ export default function FeatureGatedNavItems({ onInject }: { onInject?: () => vo
       ),
     });
   }
-  if (features["tax_report"]) {
+
+  if (showTax) {
     items.push({
       href: "/dashboard/tax",
-      label: "Steuerbericht",
+      label: "Cash Report",
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-[18px] h-[18px]">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -42,28 +48,26 @@ export default function FeatureGatedNavItems({ onInject }: { onInject?: () => vo
     });
   }
 
-  if (!items.length) return null;
-
-  // Inform parent that items were injected (optional)
-  if (onInject) onInject();
-
   return (
-    <div className="space-y-0.5">
-      {items.map((it) => {
-        const isActive = pathname === it.href || pathname?.startsWith(it.href);
-        return (
-          <Link
-            key={it.href}
-            href={it.href}
-            className={`flex items-center gap-3 px-4 py-2 text-sm font-normal transition-all duration-150 ${
-              isActive ? "nav-active" : "rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            }`}
-          >
-            <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>{it.icon}</span>
-            {it.label}
-          </Link>
-        );
-      })}
+    <div>
+      <div className={SECTION_HEADER_CLASS}>Financials</div>
+      <div className="space-y-0.5">
+        {items.map((it) => {
+          const isActive = pathname === it.href || pathname?.startsWith(it.href);
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              className={`flex items-center gap-3 px-4 py-2 text-sm font-normal transition-all duration-150 ${
+                isActive ? "nav-active" : "rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>{it.icon}</span>
+              {it.label}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

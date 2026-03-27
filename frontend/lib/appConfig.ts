@@ -11,7 +11,7 @@
 
 export const AppConfig = {
   /**
-   * Show the German §20 EStG tax report (Steuerbericht) in the navigation.
+   * Show the Cash Report (tax summary) in the navigation.
    * @default false
    */
   enableTaxModule: process.env.NEXT_PUBLIC_ENABLE_TAX_MODULE === "true",

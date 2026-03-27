@@ -8,8 +8,6 @@ import { usePnlBySymbol } from "@/hooks/usePnlBySymbol";
 import { MonthlyPnlChart } from "@/components/charts/MonthlyPnlChart";
 import { PnlByAssetClassChart } from "@/components/charts/PnlByAssetClassChart";
 import { PnlBySymbolChart } from "@/components/charts/PnlBySymbolChart";
-import { RollingWinrateChart } from "@/components/charts/RollingWinrateChart";
-import useFeatureFlag from "@/hooks/useFeatureFlag";
 import { MonthlyWinrateChart } from "@/components/charts/MonthlyWinrateChart";
 
 function ChartSkeleton() {
@@ -46,7 +44,6 @@ export default function OverviewPage() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {useFeatureFlag("rolling_winrate_chart") ? <RollingWinrateChart /> : null}
           <MonthlyWinrateChart />
         </div>
       </div>

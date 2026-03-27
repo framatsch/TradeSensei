@@ -1,5 +1,5 @@
 /**
- * Steuerbericht — annual tax summary page for German Anlage KAP reporting.
+ * Cash Report — annual tax summary page for German Anlage KAP reporting.
  *
  * Displays realised P&L in EUR grouped by §20 EStG categories:
  * - §20 Abs. 2 Nr. 1 EStG: Equity (stock) trades
@@ -281,7 +281,7 @@ export default function TaxPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Steuerbericht"
+        title="Cash Report"
         subtitle="Jahresübersicht für die Anlage KAP (§20 EStG)"
       >
         {/* Year selector */}
