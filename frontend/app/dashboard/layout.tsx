@@ -23,6 +23,8 @@ import type { SavedTradeFilterRead } from "@/lib/types";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
 import FeatureGatedNavItems from "@/components/dashboard/FeatureGatedNavItems";
 
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
 interface NavLeaf {
@@ -539,6 +541,13 @@ interface Props {
 
 export default function DashboardLayout({ children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("desktopSidebarOpen");
+      if (stored !== null) return stored === "true";
+    }
+    return true;
+  });
   const [aboutOpen, setAboutOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -546,6 +555,30 @@ export default function DashboardLayout({ children }: Props) {
   const hydrate = useAuthStore((s) => s.hydrate);
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s.hydrated);
+
+  const toggleDesktopSidebar = () => {
+    setDesktopSidebarOpen((prev) => {
+      const next = !prev;
+      window.localStorage.setItem("desktopSidebarOpen", String(next));
+      return next;
+    });
+  };
+
+  // Keyboard shortcut (Cmd/Ctrl + B)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea" || activeTag === "select") {
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleDesktopSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Per-user feature flags — subscription lives here so FeatureGatedNavItems
   // re-renders immediately when the cache updates (no dynamic/lazy timing issues).
@@ -587,21 +620,37 @@ export default function DashboardLayout({ children }: Props) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col w-56 bg-sidebar border-r border-border transform transition-transform duration-200 ease-in-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col bg-sidebar border-border transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
+          sidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
+        } ${
+          desktopSidebarOpen
+            ? "lg:w-56 lg:border-r lg:opacity-100 lg:visible"
+            : "lg:w-0 lg:border-r-0 lg:opacity-0 lg:invisible"
         }`}
       >
-        {/* Logo */}
-        <div
-          className="flex items-center gap-3 px-4 py-4 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors group"
-          onClick={() => setAboutOpen(true)}
-        >
-          <Logo size={28} className="group-hover:scale-105 transition-transform duration-200" />
-          <span className="font-semibold text-foreground text-sm truncate">Trade Journal</span>
-        </div>
+        <div className="w-56 h-full flex flex-col">
+          {/* Logo */}
+          <div
+            className="flex items-center justify-between px-4 py-4 border-b border-border"
+          >
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors group"
+              onClick={() => setAboutOpen(true)}
+            >
+              <Logo size={28} className="group-hover:scale-105 transition-transform duration-200" />
+              <span className="font-semibold text-foreground text-sm truncate">Trade Journal</span>
+            </div>
+            <button
+              onClick={toggleDesktopSidebar}
+              className="hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              title="Close sidebar (Cmd/Ctrl+B)"
+            >
+              <PanelLeftClose size={18} />
+            </button>
+          </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-3 overflow-y-auto">
+          {/* Nav */}
+          <nav className="flex-1 py-3 overflow-y-auto">
           {NAV_ITEMS.map((item, i) => {
             if (item.kind === "group") {
               return (
@@ -690,10 +739,22 @@ export default function DashboardLayout({ children }: Props) {
             Sign Out
           </button>
         </div>
+        </div>
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Floating open button for desktop when sidebar is closed */}
+        {!desktopSidebarOpen && (
+          <button
+            onClick={toggleDesktopSidebar}
+            className="hidden lg:flex absolute top-4 left-4 z-40 p-2 bg-background/50 backdrop-blur-md border border-border shadow-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all group"
+            title="Open sidebar (Cmd/Ctrl+B)"
+          >
+            <PanelLeftOpen size={18} className="group-hover:scale-110 transition-transform" />
+          </button>
+        )}
+
         {/* Mobile top bar */}
         <header className="flex items-center gap-4 px-4 py-3 bg-sidebar border-b border-border lg:hidden">
           <button
