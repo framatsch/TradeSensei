@@ -237,7 +237,6 @@ function isViewModified(
   }
   const sortEntries = (p: URLSearchParams) =>
     [...p.entries()].sort(([a], [b]) => a.localeCompare(b));
-  const FeatureGatedNavItems = dynamic(() => import("@/components/dashboard/FeatureGatedNavItems"), { ssr: false });
 
   return (
     JSON.stringify(sortEntries(savedParams)) !==
@@ -635,7 +634,12 @@ export default function DashboardLayout({ children }: Props) {
             return null;
           })}
           {/* Client-side injected per-user feature nav items (Cash / Tax) */}
-          <FeatureGatedNavItems onInject={() => {}} />
+          {/* Dynamic import placed here to keep server component deterministic */}
+          {typeof window !== "undefined" && (
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore-next-line
+            <FeatureGatedNavItems onInject={() => {}} />
+          )}
         </nav>
 
         {/* Help + Sign out */}

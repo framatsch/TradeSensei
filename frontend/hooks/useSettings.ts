@@ -63,10 +63,14 @@ export function useUpdateSettings() {
     onMutate: async (update) => {
       await qc.cancelQueries({ queryKey: SETTINGS_KEY });
       const previous = qc.getQueryData<UserSettings>(SETTINGS_KEY);
-      qc.setQueryData<UserSettings>(SETTINGS_KEY, (old) => ({
-        ...(old ?? DEFAULT_SETTINGS),
-        ...update,
-      }));
+      qc.setQueryData<UserSettings>(SETTINGS_KEY, (old) => {
+        const base = (old ?? DEFAULT_SETTINGS) as UserSettings;
+        return {
+          ...base,
+          ...(update as Partial<UserSettings>),
+          features: (update as any)?.features ?? base.features,
+        } as UserSettings;
+      });
       return { previous };
     },
     onError: (_err, _update, context) => {
