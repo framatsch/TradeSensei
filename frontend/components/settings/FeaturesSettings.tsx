@@ -18,7 +18,7 @@ export default function FeaturesSettings() {
       <h3 className="text-sm font-semibold text-slate-600">Features</h3>
       <div className="space-y-2">
         {FEATURE_FLAGS.map((f) => {
-          const enabled = settings?.features?.[f.key] ?? false;
+          const enabled = (settings as any)?.features?.[f.key] ?? false;
           return (
             <div key={f.key} className="flex items-center justify-between p-2 border rounded">
               <div>

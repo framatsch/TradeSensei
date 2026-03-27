@@ -393,6 +393,7 @@ export type DefaultDateRange = "all" | "ytd" | "last30";
 export interface UserSettings {
   theme: Theme;
   default_date_range: DefaultDateRange;
+  features: Record<string, boolean>;
 }
 
 export interface UserSettingsUpdate {
