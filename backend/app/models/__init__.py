@@ -11,12 +11,11 @@ from app.models.corporate_action import CorporateAction as CorporateAction
 from app.models.fx_rate import FxRate as FxRate
 from app.models.ohlc_price import OhlcPrice as OhlcPrice
 from app.models.playbook import Playbook as Playbook
+from app.models.saved_trade_filter import FilterScope as FilterScope
+from app.models.saved_trade_filter import SavedTradeFilter as SavedTradeFilter
 from app.models.tag import Tag as Tag
 from app.models.trade import Trade as Trade
 from app.models.trade_note import TradeNote as TradeNote
 from app.models.trade_tag import TradeTag as TradeTag
 from app.models.user import User as User
 from app.models.user_setting import UserSetting as UserSetting
-
-from app.models.saved_trade_filter import FilterScope as FilterScope
-from app.models.saved_trade_filter import SavedTradeFilter as SavedTradeFilter
