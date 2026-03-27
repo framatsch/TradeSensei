@@ -158,7 +158,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       </td>
     </tr>
     {showQuickNote && (
-      <tr className="border-b border-border bg-card/30">
+      <tr className="border-b border-border bg-zinc-50/30 dark:bg-zinc-900/30">
         <td colSpan={12} className="px-4 py-2">
           <QuickNoteInput
             tradeId={trade.id}

@@ -107,7 +107,7 @@ export function AccountList({ accounts }: Props) {
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-border bg-background/50">
+              <tr className="border-b border-border bg-zinc-100/50 dark:bg-zinc-900/50">
                 {["Name", "Account No.", "Type", "Currency", "Active", "Actions"].map((col) => (
                   <th
                     key={col}
@@ -174,7 +174,7 @@ export function AccountList({ accounts }: Props) {
                   {/* Inline edit form */}
                   {editingId === account.id && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-3 bg-background/30">
+                      <td colSpan={6} className="px-4 py-3 bg-zinc-100/30 dark:bg-zinc-900/30">
                         <AccountForm
                           account={account}
                           onSave={() => setEditingId(null)}

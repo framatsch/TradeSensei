@@ -45,7 +45,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
   };
 
   return (
-    <div className="mt-1 p-3 bg-card/80 border border-border dark:border-border rounded-lg">
+    <div className="mt-1 p-3 bg-zinc-50/80 dark:bg-zinc-900/80 border border-border dark:border-border rounded-lg">
       <textarea
         autoFocus
         value={content}

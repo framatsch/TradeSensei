@@ -89,7 +89,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
                 ? "bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900"
                 : qf.status === "error"
                 ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900"
-                : "bg-zinc-50 dark:bg-card/50 border border-border",
+                : "bg-zinc-50 dark:bg-zinc-800/50 border border-border",
             ].join(" ")}
           >
             <div className="mt-0.5">{STATUS_ICON[qf.status]}</div>

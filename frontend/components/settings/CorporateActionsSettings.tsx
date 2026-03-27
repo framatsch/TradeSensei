@@ -448,7 +448,7 @@ export function CorporateActionsSettings() {
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-zinc-50 dark:bg-card/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
+              <tr className="bg-zinc-50 dark:bg-zinc-800/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
                 <th className="px-4 py-3 text-left">Symbol</th>
                 <th className="px-4 py-3 text-left">Date</th>
                 <th className="px-4 py-3 text-left">Ratio</th>
