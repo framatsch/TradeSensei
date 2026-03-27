@@ -19,6 +19,8 @@ test.describe('Performance Reports — Navigation', () => {
     page,
   }) => {
     await page.goto('/dashboard/reports/hourly');
+    // Ensure the page has loaded and the layout is ready
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     // Wait for the performance table to render (at least one "View Report" button)
@@ -37,6 +39,7 @@ test.describe('Performance Reports — Navigation', () => {
     page,
   }) => {
     await page.goto('/dashboard/reports/weekday');
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
@@ -52,6 +55,7 @@ test.describe('Performance Reports — Navigation', () => {
     page,
   }) => {
     await page.goto('/dashboard/reports/monthly');
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
@@ -69,6 +73,7 @@ test.describe('Performance Reports — Navigation', () => {
     page,
   }) => {
     await page.goto('/dashboard/reports/yearly');
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
@@ -84,6 +89,7 @@ test.describe('Performance Reports — Navigation', () => {
 
   test('TC-R005 after Hourly navigation, one filter is active in Trades', async ({ page }) => {
     await page.goto('/dashboard/reports/hourly');
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
@@ -97,6 +103,7 @@ test.describe('Performance Reports — Navigation', () => {
 
   test('TC-R006 after Weekday navigation, one filter is active in Trades', async ({ page }) => {
     await page.goto('/dashboard/reports/weekday');
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
@@ -110,6 +117,7 @@ test.describe('Performance Reports — Navigation', () => {
 
   test('TC-R007 Calendar report day click navigates to trades with closed_at filters', async ({ page }) => {
     await page.goto('/dashboard/reports/calendar');
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     // Wait for the calendar to render and find a day cell with trades
