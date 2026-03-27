@@ -413,7 +413,7 @@ export function ImportForm() {
                       multiple
                       accept=".csv,.xlsx,.xls,.xml"
                       onChange={handleFileChange}
-                      className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-zinc-600 file:text-white file:cursor-pointer hover:file:bg-zinc-500"
+                      className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-secondary file:text-foreground file:cursor-pointer hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700 file:font-medium"
                     />
                     {hasFiles && (
                       <p className="text-xs text-muted-foreground dark:text-zinc-400">

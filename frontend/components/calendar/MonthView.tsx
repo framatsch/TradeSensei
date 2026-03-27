@@ -123,7 +123,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                         {format(day, dateFormat)}
                       </span>
                       {dayData.tradeCount > 0 && isSameMonth(day, monthStart) && (
-                        <span className="text-[10px] bg-background/50 px-1 rounded text-muted-foreground">
+                        <span className="text-[10px] bg-zinc-100/50 dark:bg-zinc-900/50 px-1 rounded text-muted-foreground">
                           {dayData.tradeCount} trades
                         </span>
                       )}

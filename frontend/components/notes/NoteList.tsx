@@ -115,7 +115,7 @@ export function NoteList({ tradeId }: Props) {
               /* ── Inline edit mode ── */
               <div
                 key={note.id}
-                className="bg-card/60 border border-blue-400 dark:border-blue-600 rounded-xl p-4 space-y-3"
+                className="bg-zinc-50 dark:bg-zinc-900/60 border border-blue-400 dark:border-blue-600 rounded-xl p-4 space-y-3"
               >
                 <textarea
                   value={editContent}
@@ -155,7 +155,7 @@ export function NoteList({ tradeId }: Props) {
               /* ── Read mode ── */
               <div
                 key={note.id}
-                className="group relative bg-card/60 border border-border rounded-xl p-4"
+                className="group relative bg-zinc-50 dark:bg-zinc-900/60 border border-border rounded-xl p-4"
               >
                 {/* Action buttons */}
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

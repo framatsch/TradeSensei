@@ -748,7 +748,7 @@ export default function DashboardLayout({ children }: Props) {
         {!desktopSidebarOpen && (
           <button
             onClick={toggleDesktopSidebar}
-            className="hidden lg:flex absolute top-4 left-4 z-40 p-2 bg-background/50 backdrop-blur-md border border-border shadow-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all group"
+            className="hidden lg:flex absolute top-4 left-4 z-40 p-2 bg-zinc-100/50 dark:bg-zinc-900/50 backdrop-blur-md border border-border shadow-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all group"
             title="Open sidebar (Cmd/Ctrl+B)"
           >
             <PanelLeftOpen size={18} className="group-hover:scale-110 transition-transform" />

@@ -96,7 +96,7 @@ function TradingViewTab({ trade }: { trade: Trade }) {
       </div>
 
       {/* TradingView link meta row */}
-      <div className="shrink-0 border-t border-border px-4 py-2 flex items-center gap-2 bg-background/40 rounded-b-xl">
+      <div className="shrink-0 border-t border-border px-4 py-2 flex items-center gap-2 bg-zinc-100/40 dark:bg-zinc-900/40 rounded-b-xl">
         {editingLink ? (
           <>
             <input
