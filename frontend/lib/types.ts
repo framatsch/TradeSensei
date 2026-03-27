@@ -481,3 +481,20 @@ export interface CorporateActionUpdate {
   old_conid?: string | null;
   new_conid?: string | null;
 }
+
+// ─── Bulk Operations ─────────────────────────────────────────────────────────
+
+export interface BulkDeletePayload {
+  trade_ids: string[];
+}
+
+export interface BulkAssignTagPayload {
+  trade_ids: string[];
+  tag_ids: string[];
+  mode: "add" | "remove";
+}
+
+export interface BulkAssignPlaybookPayload {
+  trade_ids: string[];
+  playbook_id: string | null;
+}
