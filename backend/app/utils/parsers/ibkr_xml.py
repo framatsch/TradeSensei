@@ -177,18 +177,22 @@ class IBKRXMLParser(BrokerParser):
         filename: str,
         corporate_actions: Sequence[CorporateActionLike] | None = None,
         seed_open_lots: Sequence[SeedLotLike] | None = None,
+        seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
     ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse an IBKR Flex Query XML response.
 
-        Args:
-            content: Raw XML bytes from the Flex API or a file upload.
-            filename: Original filename (present for interface compatibility).
-            corporate_actions: Optional list of corporate actions to pass to
-                the aggregator so that split adjustments are applied during
-                execution matching.
-            seed_open_lots: Optional sequence of existing open DB trades to
-                pre-populate the FIFO aggregator queue so that cross-period
-                imports correctly close positions opened in a prior import.
+         Args:
+             content: Raw XML bytes from the Flex API or a file upload.
+             filename: Original filename (present for interface compatibility).
+             corporate_actions: Optional list of corporate actions to pass to
+                 the aggregator so that split adjustments are applied during
+                 execution matching.
+             seed_open_lots: Optional sequence of existing open DB trades to
+                 pre-populate the FIFO aggregator queue so that cross-period
+                 imports correctly close positions opened in a prior import.
+             seed_orphaned_lots: Optional sequence of existing orphaned DB trades
+                 (closed trades with unknown entry, entry_price=0.001) so that
+                 opening executions in this file can be matched against them.
 
         Returns:
             A tuple of parsed trades and cash transactions.
@@ -273,6 +277,7 @@ class IBKRXMLParser(BrokerParser):
             trades,
             corporate_actions=corporate_actions if corporate_actions else None,
             seed_open_lots=seed_open_lots if seed_open_lots else None,
+            seed_orphaned_lots=seed_orphaned_lots if seed_orphaned_lots else None,
         )
 
         # Final validation: If a trade is marked as OPEN but its conid is NOT in

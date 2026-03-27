@@ -685,6 +685,35 @@ class TradeRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+
+    async def list_orphaned_lots_by_user(
+        self,
+        user_id: uuid.UUID,
+    ) -> list[Trade]:
+        """Return all orphaned trades owned by *user_id*.
+
+        "Orphaned" means ``entry_price == 0.001`` and ``closed_at IS NOT NULL``.
+        The result is ordered by ``opened_at ASC`` so that the FIFO aggregator
+        receives lots in chronological order.
+
+        Args:
+            user_id: UUID of the owning user.
+
+        Returns:
+            A list of :class:`Trade` ORM instances.
+        """
+        stmt = (
+            select(Trade)
+            .where(
+                Trade.user_id == user_id,
+                Trade.entry_price == Decimal("0.001"),
+                Trade.closed_at.is_not(None),
+            )
+            .order_by(Trade.opened_at.asc())
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def close_open_lot(
         self,
         trade_id: uuid.UUID,
@@ -718,6 +747,39 @@ class TradeRepository:
             .values(
                 exit_price=exit_price,
                 closed_at=closed_at,
+                pnl=pnl,
+                pnl_eur=pnl_eur,
+                commission=Trade.commission + commission_add,
+                quantity=quantity,
+            )
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+
+    async def fill_orphaned_lot(
+        self,
+        trade_id: uuid.UUID,
+        entry_price: Decimal,
+        opened_at: datetime,
+        pnl: Decimal | None,
+        pnl_eur: Decimal | None,
+        commission_add: Decimal,
+        quantity: Decimal,
+    ) -> None:
+        """Fill an existing orphaned lot in-place by setting entry fields.
+
+        Updates ``entry_price``, ``opened_at``, ``pnl``, ``pnl_eur``,
+        ``commission`` (incremented by *commission_add*), and ``quantity``
+        on the row identified by *trade_id*. The session is flushed but
+        not committed.
+        """
+        stmt = (
+            sa_update(Trade)
+            .where(Trade.id == trade_id)
+            .values(
+                entry_price=entry_price,
+                opened_at=opened_at,
                 pnl=pnl,
                 pnl_eur=pnl_eur,
                 commission=Trade.commission + commission_add,

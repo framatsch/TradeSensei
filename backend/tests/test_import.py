@@ -534,6 +534,11 @@ class TestImportService:
                 return_value=[],
             ),
             patch(
+                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
                 "app.services.import_service.TradeRepository.list_manually_edited_keys",
                 new_callable=AsyncMock,
                 return_value=set(),
@@ -606,6 +611,11 @@ class TestImportService:
                 return_value=[],
             ),
             patch(
+                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
                 "app.services.import_service.TradeRepository.list_manually_edited_keys",
                 new_callable=AsyncMock,
                 return_value=set(),
@@ -657,6 +667,11 @@ class TestImportService:
             ),
             patch(
                 "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
@@ -717,6 +732,11 @@ class TestImportService:
             ),
             patch(
                 "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
@@ -1516,6 +1536,11 @@ class TestImportWithSplit:
                 return_value=[],
             ),
             patch(
+                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
                 "app.services.import_service.TradeRepository.list_manually_edited_keys",
                 new_callable=AsyncMock,
                 return_value=manually_edited,
@@ -1574,6 +1599,11 @@ class TestImportWithSplit:
             ),
             patch(
                 "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
                 new_callable=AsyncMock,
                 return_value=[],
             ),

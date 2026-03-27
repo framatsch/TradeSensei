@@ -33,6 +33,7 @@ class BrokerParser(ABC):
         filename: str,
         corporate_actions: Sequence[CorporateActionLike] | None = None,
         seed_open_lots: Sequence[SeedLotLike] | None = None,
+        seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
     ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse broker export file content into Pydantic schemas.
 
