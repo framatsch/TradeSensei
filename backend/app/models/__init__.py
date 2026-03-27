@@ -17,3 +17,6 @@ from app.models.trade_note import TradeNote as TradeNote
 from app.models.trade_tag import TradeTag as TradeTag
 from app.models.user import User as User
 from app.models.user_setting import UserSetting as UserSetting
+
+from app.models.saved_trade_filter import FilterScope as FilterScope
+from app.models.saved_trade_filter import SavedTradeFilter as SavedTradeFilter

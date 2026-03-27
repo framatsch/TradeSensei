@@ -498,3 +498,28 @@ export interface BulkAssignPlaybookPayload {
   trade_ids: string[];
   playbook_id: string | null;
 }
+
+// ─── Saved Trade Filters ─────────────────────────────────────────────────────
+
+export type FilterScope = "SYSTEM" | "USER";
+
+export interface SavedTradeFilterBase {
+  name: string;
+  definition: Record<string, any>;
+}
+
+export interface SavedTradeFilterCreate extends SavedTradeFilterBase {}
+
+export interface SavedTradeFilterUpdate {
+  name?: string;
+  definition?: Record<string, any>;
+}
+
+export interface SavedTradeFilterRead extends SavedTradeFilterBase {
+  id: string;
+  scope: FilterScope;
+  owner_id: string | null;
+  needs_review: boolean;
+  created_at: string;
+  updated_at: string;
+}
