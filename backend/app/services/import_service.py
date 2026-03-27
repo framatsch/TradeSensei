@@ -7,6 +7,7 @@ account.  No HTTP concepts appear in this layer.
 import logging
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 from decimal import Decimal
 from typing import cast
 
@@ -136,7 +137,16 @@ class ImportService:
             else set()
         )
 
+        # Load existing execution keys for deduplication to ensure idempotency.
+        existing_entry_keys = await self._trade_repo.list_existing_entry_keys(
+            user_id, account_id
+        )
+        existing_close_keys = await self._trade_repo.list_existing_close_keys(
+            user_id, account_id
+        )
+
         parser: BrokerParser = get_parser(broker)
+
         ca_for_parser: Sequence[CorporateActionLike] | None = (
             cast(Sequence[CorporateActionLike], corporate_actions)
             if corporate_actions
@@ -249,10 +259,13 @@ class ImportService:
                             logger.warning(msg)
                             create_warnings.append(msg)
                 else:
-                    # If still open (or still orphaned), check if the original seed lot was already updated.
+                    # If still open (or still orphaned), check if the original
+                    # seed lot was already updated.
                     if db_trade_id in already_updated_ids:
-                        # The original seed row was partially matched and updated to represent the matched portion.
-                        # This remaining unmatched portion must be inserted as a new row to avoid losing it.
+                        # The original seed row was partially matched and updated
+                        # to represent the matched portion.
+                        # This remaining unmatched portion must be inserted as a
+                        # new row to avoid losing it.
                         trade_with_owner = trade_data.model_copy(
                             update={
                                 "account_id": account_id,
@@ -270,7 +283,8 @@ class ImportService:
                             )
                             logger.warning(msg)
                             create_warnings.append(msg)
-                    # If not in already_updated_ids, it means the seed lot wasn't touched. Skip (already in DB).
+                    # If not in already_updated_ids, it means the seed lot wasn't
+                    # touched. Skip (already in DB).
                 continue
 
             # --- Case 2: Seed lot that is still open — skip (already in DB) ---
@@ -304,6 +318,48 @@ class ImportService:
                     trade_data.opened_at,
                 )
                 trades_skipped_manually_edited += 1
+                continue
+
+            # Deduplication: check against existing execution keys.
+            is_orphan = trade_data.entry_price == Decimal("0.001")
+
+            # 1. Match entry leg for regular (non-orphaned) trades.
+            if not is_orphan:
+                entry_key = (
+                    trade_data.symbol,
+                    trade_data.opened_at,
+                    trade_data.entry_price,
+                )
+                if entry_key in existing_entry_keys:
+                    logger.debug(
+                        "Skipping duplicate entry trade: symbol=%s opened_at=%s",
+                        trade_data.symbol,
+                        trade_data.opened_at,
+                    )
+                    continue
+
+            # 2. Match closing leg (either it's an orphaned close,
+            # or a full open/close trade).
+            close_key: tuple[str, datetime] | None = None
+            if is_orphan:
+                # For orphaned trades, the 'opened_at' is actually the
+                # execution time of the close leg.
+                close_key = (trade_data.symbol, trade_data.opened_at)
+            else:
+                # For regular trades that are closed, closed_at is the
+                # execution time of the close leg.
+                close_key = (
+                    (trade_data.symbol, trade_data.closed_at)
+                    if trade_data.closed_at
+                    else None
+                )
+
+            if close_key is not None and close_key in existing_close_keys:
+                logger.debug(
+                    "Skipping duplicate close execution: symbol=%s close_time=%s",
+                    trade_data.symbol,
+                    close_key[1],
+                )
                 continue
 
             # Stamp both account_id and user_id onto each trade before persisting.

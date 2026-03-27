@@ -660,6 +660,43 @@ class TradeRepository:
         await self._session.flush()
         return len(updated)
 
+    async def list_existing_entry_keys(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+    ) -> set[tuple[str, datetime, Decimal]]:
+        """Return a set of (symbol, opened_at, entry_price) for all regular trades.
+
+        Used by the import service to deduplicate entire executions from prior imports.
+        Orphaned trades (entry_price == 0.001) are excluded.
+        """
+        stmt = select(Trade.symbol, Trade.opened_at, Trade.entry_price).where(
+            Trade.user_id == user_id,
+            Trade.account_id == account_id,
+            Trade.entry_price != Decimal("0.001"),
+        )
+        result = await self._session.execute(stmt)
+        return {(row.symbol, row.opened_at, row.entry_price) for row in result}
+
+    async def list_existing_close_keys(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+    ) -> set[tuple[str, datetime]]:
+        """Return a set of (symbol, closed_at) for all closed trades.
+
+        Used by the import service to deduplicate orphaned trades from prior imports.
+        """
+        stmt = select(Trade.symbol, Trade.closed_at).where(
+            Trade.user_id == user_id,
+            Trade.account_id == account_id,
+            Trade.closed_at.is_not(None),
+        )
+        result = await self._session.execute(stmt)
+        return {
+            (row.symbol, row.closed_at) for row in result if row.closed_at is not None
+        }
+
     async def list_open_lots_by_user(
         self,
         user_id: uuid.UUID,
@@ -684,7 +721,6 @@ class TradeRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-
 
     async def list_orphaned_lots_by_user(
         self,
@@ -755,7 +791,6 @@ class TradeRepository:
         )
         await self._session.execute(stmt)
         await self._session.flush()
-
 
     async def fill_orphaned_lot(
         self,
