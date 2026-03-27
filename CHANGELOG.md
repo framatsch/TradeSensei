@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-28
+
+### Added
+- [backend] Added generic OIDC client support via Authlib with configuration through environment variables.
+- [backend] Implemented OIDC login, callback, and token exchange endpoints.
+- [backend] Added session middleware to FastAPI for OAuth state management.
+- [frontend] Added OIDC sign-in button and dynamic auth configuration.
+- [frontend] Switched all API calls to relative paths (`/api/proxy`) for better Docker and Kubernetes compatibility.
+
+### Fixed
+- [frontend] Updated `OAuthErrorBanner` to be provider-agnostic.
+- [frontend] Fixed Next.js proxy to handle OAuth redirects manually by setting `redirect: "manual"`.
+- [backend] Forced `email_verified = True` for OIDC to support internal providers like Authentik.
+
+### Changed
+- [infra] Renamed `INTERNAL_API_URL` to `API_URL` and removed obsolete `NEXT_PUBLIC_API_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL` from frontend service.
+
 ### Added
 - [frontend] Added a collapsible desktop sidebar with drawer mode, persistent state in localStorage, and a floating toggle button for a cleaner workspace. Keyboard shortcut `Cmd/Ctrl + B` toggles the sidebar.
 
@@ -81,4 +98,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...HEAD
+[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
