@@ -1,7 +1,7 @@
 """Pydantic DTOs for User request and response shapes."""
 
 import uuid
-from typing import Literal, Dict
+from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
 
@@ -131,7 +131,7 @@ class UserSettingsRead(BaseModel):
         ),
         examples=["all", "ytd", "last30"],
     )
-    features: Dict[str, bool] = Field(
+    features: dict[str, bool] = Field(
         default_factory=dict,
         description="Per-user feature flags (map of flag key to boolean).",
         examples=[{"rolling_winrate_chart": True}],
@@ -158,7 +158,7 @@ class UserSettingsUpdate(BaseModel):
         description="Updated default date range. Omit to leave unchanged.",
         examples=["ytd", None],
     )
-    features: Dict[str, bool] | None = Field(
+    features: dict[str, bool] | None = Field(
         default=None,
         description=("Partial update for per-user feature flags."),
         examples=[{"rolling_winrate_chart": True}, None],

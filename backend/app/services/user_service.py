@@ -6,6 +6,7 @@ the route layer.
 """
 
 import uuid
+from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -130,13 +131,23 @@ class UserService:
         stored: dict[str, str] = {row.key: row.value for row in rows}
         # Ensure features is present as JSON string if absent
         if "features" not in stored:
-            stored["features"] = _SETTINGS_DEFAULTS["features"]
-        merged = {**_SETTINGS_DEFAULTS, **stored}
+            stored["features"] = str(_SETTINGS_DEFAULTS["features"])
+        # Merge defaults and stored settings
+        merged: dict[str, str | dict[str, bool]] = {}
+        for k, v in _SETTINGS_DEFAULTS.items():
+            merged[k] = cast(str | dict[str, bool], v)
+        for k, v in stored.items():
+            merged[k] = cast(str | dict[str, bool], v)
         # Deserialize features JSON into dict
         import json
 
         try:
-            merged_features = json.loads(merged.get("features", "{}"))
+            features_val = merged.get("features", "{}")
+            if isinstance(features_val, str):
+                merged_features = json.loads(features_val)
+            else:
+                # Type safe: _SETTINGS_DEFAULTS["features"] is a dict
+                merged_features = features_val
         except Exception:
             merged_features = {}
         merged["features"] = merged_features
@@ -172,7 +183,7 @@ class UserService:
             current_features = {}
             if "features" in stored:
                 try:
-                    current_features = json.loads(stored["features"])  # type: ignore[arg-type]
+                    current_features = json.loads(stored["features"])
                 except Exception:
                     current_features = {}
             # Merge (incoming keys overwrite)
