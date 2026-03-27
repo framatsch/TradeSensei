@@ -16,6 +16,7 @@ class SavedTradeFilterBase(BaseModel):
 
 class SavedTradeFilterCreate(SavedTradeFilterBase):
     """Schema for creating a new user-owned saved trade filter."""
+
     pass
 
 
