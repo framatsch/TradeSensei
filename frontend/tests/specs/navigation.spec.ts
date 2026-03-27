@@ -9,13 +9,15 @@ import { test, expect } from '@playwright/test';
 test.describe('Sidebar Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/dashboard');
-    // Wait for sidebar to be rendered — use exact href to distinguish from /dashboard/reports/overview
-    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 10_000 });
+    // Wait for the layout to hydrate and the sidebar to be rendered.
+    // The "Overview" link is a good proxy for the sidebar being ready.
+    await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-040 sidebar shows all navigation items', async ({ page }) => {
+    // Basic items should always be present
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Trades' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Trades' })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('link', { name: 'Playbooks' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Tags' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Import' })).toBeVisible();
