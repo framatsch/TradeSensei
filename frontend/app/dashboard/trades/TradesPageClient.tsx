@@ -195,11 +195,6 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
           </button>
         </div>
       </div>
-      <SaveFilterModal 
-        isOpen={showSaveFilter}
-        onClose={() => setShowSaveFilter(false)}
-        currentFilters={filters}
-      />
     </div>
   );
 }
@@ -264,11 +259,6 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
           </button>
         </div>
       </div>
-      <SaveFilterModal 
-        isOpen={showSaveFilter}
-        onClose={() => setShowSaveFilter(false)}
-        currentFilters={filters}
-      />
     </div>
   );
 }

@@ -61,11 +61,15 @@ export function SavedFiltersList({ onApply, currentFilters }: Props) {
               <span className="truncate">{filter.name}</span>
               
               {filter.scope === "SYSTEM" && (
-                <Lock className="h-3 w-3 shrink-0 text-gray-400" title="System View" />
+                <span title="System View">
+                  <Lock className="h-3 w-3 shrink-0 text-gray-400" aria-hidden="true" />
+                </span>
               )}
-              
+
               {filter.needs_review && (
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" title="Needs Review" />
+                <span title="Needs Review">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden="true" />
+                </span>
               )}
             </button>
             
