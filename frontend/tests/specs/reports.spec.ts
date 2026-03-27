@@ -15,53 +15,51 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Performance Reports — Navigation', () => {
-  test('TC-R001 Hourly report "View Report" navigates to trades with hour_of_day filter', async ({
+  test('TC-R001 Hourly report row click navigates to trades with hour_of_day filter', async ({
     page,
   }) => {
-    await page.goto('/dashboard/reports/hourly');
+    await page.goto('/dashboard/analytics?tab=time');
     // Ensure the page has loaded and the layout is ready
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
     // Wait for the performance table to render (at least one "View Report" button)
-    const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
-    await expect(firstViewReport).toBeVisible({ timeout: 15_000 });
-
-    // Click the first "View Report" button
-    await firstViewReport.click();
+    const firstRow = page.locator('tbody tr').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    await firstRow.click();
 
     // Should navigate to trades page with hour_of_day param
     await expect(page).toHaveURL(/\/dashboard\/trades/, { timeout: 8_000 });
     await expect(page).toHaveURL(/hour_of_day=\d+/);
   });
 
-  test('TC-R002 Weekday report "View Report" navigates to trades with day_of_week filter', async ({
+  test('TC-R002 Weekday report row click navigates to trades with day_of_week filter', async ({
     page,
   }) => {
-    await page.goto('/dashboard/reports/weekday');
+    await page.goto('/dashboard/analytics?tab=time');
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Weekday' }).click();
     await page.waitForLoadState('networkidle');
 
-    const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
-    await expect(firstViewReport).toBeVisible({ timeout: 15_000 });
-
-    await firstViewReport.click();
+    const firstRow = page.locator('tbody tr').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    await firstRow.click();
 
     await expect(page).toHaveURL(/\/dashboard\/trades/, { timeout: 8_000 });
     await expect(page).toHaveURL(/day_of_week=\d+/);
   });
 
-  test('TC-R003 Monthly report "View Report" navigates to trades with date range', async ({
+  test('TC-R003 Monthly report row click navigates to trades with date range', async ({
     page,
   }) => {
-    await page.goto('/dashboard/reports/monthly');
+    await page.goto('/dashboard/analytics?tab=time');
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Monthly' }).click();
     await page.waitForLoadState('networkidle');
 
-    const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
-    await expect(firstViewReport).toBeVisible({ timeout: 15_000 });
-
-    await firstViewReport.click();
+    const firstRow = page.locator('tbody tr').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    await firstRow.click();
 
     await expect(page).toHaveURL(/\/dashboard\/trades/, { timeout: 8_000 });
     // Monthly navigation sets a date range
@@ -69,17 +67,17 @@ test.describe('Performance Reports — Navigation', () => {
     await expect(page).toHaveURL(/opened_at_to=/);
   });
 
-  test('TC-R004 Yearly report "View Report" navigates to trades with full-year date range', async ({
+  test('TC-R004 Yearly report row click navigates to trades with full-year date range', async ({
     page,
   }) => {
-    await page.goto('/dashboard/reports/yearly');
+    await page.goto('/dashboard/analytics?tab=time');
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Yearly' }).click();
     await page.waitForLoadState('networkidle');
 
-    const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
-    await expect(firstViewReport).toBeVisible({ timeout: 15_000 });
-
-    await firstViewReport.click();
+    const firstRow = page.locator('tbody tr').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    await firstRow.click();
 
     await expect(page).toHaveURL(/\/dashboard\/trades/, { timeout: 8_000 });
     // Yearly navigation sets full-year date range
@@ -88,13 +86,13 @@ test.describe('Performance Reports — Navigation', () => {
   });
 
   test('TC-R005 after Hourly navigation, one filter is active in Trades', async ({ page }) => {
-    await page.goto('/dashboard/reports/hourly');
+    await page.goto('/dashboard/analytics?tab=time');
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
-    const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
-    await expect(firstViewReport).toBeVisible({ timeout: 15_000 });
-    await firstViewReport.click();
+    const firstRow = page.locator('tbody tr').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    await firstRow.click();
 
     await expect(page).toHaveURL(/hour_of_day=\d+/, { timeout: 8_000 });
 
@@ -102,13 +100,14 @@ test.describe('Performance Reports — Navigation', () => {
   });
 
   test('TC-R006 after Weekday navigation, one filter is active in Trades', async ({ page }) => {
-    await page.goto('/dashboard/reports/weekday');
+    await page.goto('/dashboard/analytics?tab=time');
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Weekday' }).click();
     await page.waitForLoadState('networkidle');
 
-    const firstViewReport = page.getByRole('button', { name: 'View Report' }).first();
-    await expect(firstViewReport).toBeVisible({ timeout: 15_000 });
-    await firstViewReport.click();
+    const firstRow = page.locator('tbody tr').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    await firstRow.click();
 
     await expect(page).toHaveURL(/day_of_week=\d+/, { timeout: 8_000 });
 
