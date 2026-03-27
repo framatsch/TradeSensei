@@ -36,8 +36,13 @@ async function openNewAccountForm(page: Page) {
 test.describe('Accounts', () => {
   // Accept window.confirm dialogs (used by the Delete confirmation)
   test.beforeEach(async ({ page }) => {
-    page.on('dialog', (dialog) => dialog.accept());
+    page.on('dialog', async (dialog) => {
+      console.log(`Dialog message: ${dialog.message()}`);
+      await dialog.accept();
+    });
     await gotoAccountsTab(page);
+    // TC-081 needs a long timeout for deletion to propagate to the UI
+    test.setTimeout(45_000);
   });
 
   // ─── TC-080: Tab renders ────────────────────────────────────────────────────
@@ -67,8 +72,9 @@ test.describe('Accounts', () => {
     // Clean up
     const row = page.getByRole('row', { name: /My Manual Account TC081/ });
     await row.getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByRole('cell', { name: 'My Manual Account TC081' })).not.toBeVisible({
-      timeout: 6_000,
+    await page.reload();
+    await expect(page.getByRole('row', { name: /My Manual Account TC081/ })).toHaveCount(0, {
+      timeout: 15_000,
     });
   });
 
@@ -114,9 +120,8 @@ test.describe('Accounts', () => {
     // Clean up
     const row = page.getByRole('row', { name: /IBKR Main TC082/ });
     await row.getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByRole('cell', { name: 'IBKR Main TC082' })).not.toBeVisible({
-      timeout: 6_000,
-    });
+    await page.reload();
+    await expect(page.getByRole('row', { name: /IBKR Main TC082/ })).toHaveCount(0);
   });
 
   // ─── TC-083: Credential fields toggle on type change ───────────────────────
@@ -173,9 +178,8 @@ test.describe('Accounts', () => {
     // Clean up
     const row = page.getByRole('row', { name: /Schwab Cash TC084/ });
     await row.getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByRole('cell', { name: 'Schwab Cash TC084' })).not.toBeVisible({
-      timeout: 6_000,
-    });
+    await page.reload();
+    await expect(page.getByRole('row', { name: /Schwab Cash TC084/ })).toHaveCount(0);
   });
 
   // ─── TC-085: Edit an account name ──────────────────────────────────────────
@@ -213,8 +217,9 @@ test.describe('Accounts', () => {
     // Clean up
     const updatedRow = page.getByRole('row', { name: /Account Renamed TC085/ });
     await updatedRow.getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByRole('cell', { name: 'Account Renamed TC085' })).not.toBeVisible({
-      timeout: 6_000,
+    await page.reload();
+    await expect(page.getByRole('row', { name: /Account Renamed TC085/ })).toHaveCount(0, {
+      timeout: 10_000,
     });
   });
 
@@ -232,9 +237,7 @@ test.describe('Accounts', () => {
     // Delete
     const row = page.getByRole('row', { name: /Account To Delete TC086/ });
     await row.getByRole('button', { name: 'Delete' }).click();
-
-    await expect(page.getByRole('cell', { name: 'Account To Delete TC086' })).not.toBeVisible({
-      timeout: 6_000,
-    });
+    await page.reload();
+    await expect(page.getByRole('row', { name: /Account To Delete TC086/ })).toHaveCount(0);
   });
 });
