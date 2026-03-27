@@ -197,16 +197,17 @@ Existing local accounts with a matching verified email are automatically linked 
 
 ### Custom OpenID Providers (e.g., Authentik)
 
-To add Authentik or another OIDC provider, there are two approaches depending on your preference:
+To add Authentik or another OIDC provider, configure the following environment variables in your `.env` for the **backend**:
 
-**1. Backend integration (Recommended - matches Google flow)**
-Register the new provider using `authlib` in `backend/app/api/v1/auth.py`. You'll need to define the endpoints (e.g. `/api/v1/auth/authentik` and the callback), mimicking the Google implementation, so the backend handles the OAuth flow and issues your standard JWTs.
+```dotenv
+OIDC_ENABLED=true
+OIDC_PROVIDER_NAME=Authentik
+OIDC_CONFIGURATION_URL=https://auth.example.com/application/o/tradejournal/.well-known/openid-configuration
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+```
 
-**2. NextAuth.js Integration**
-A stub NextAuth handler is included in `frontend/app/api/auth/[...nextauth]/route.ts`.
-- Set `NEXTAUTH_URL` (e.g. `http://localhost:3000`) in your `.env`.
-- Add the NextAuth provider for Authentik and configure your `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET`, and `AUTHENTIK_ISSUER`.
-- *Note:* Since the platform uses backend-issued JWTs, you will need to build an exchange mechanism to turn the NextAuth session into a backend FastAPI JWT so API requests remain authenticated.
+The backend handles the full Authorization Code Flow via `authlib`, automatically provisions new users, and links existing accounts by email. No frontend configuration is required; the "Sign in with Authentik" button appears automatically if enabled.
 
 ---
 
