@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { ChevronRight } from 'lucide-react';
+
 
 export interface PerformanceDataPoint {
   name: string;
@@ -248,14 +248,14 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Profit</th>
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Loser</th>
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Commissions/Fees</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900 text-sm">
             {data.map((row, idx) => (
               <tr
                 key={idx}
-                className="hover:bg-white/[0.03] transition-colors"
+                onClick={() => onViewReport?.(row)}
+                className={`transition-colors ${onViewReport ? "cursor-pointer hover:bg-white/[0.05]" : "hover:bg-white/[0.03]"}`}
               >
                 <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{row.name}</td>
                 <td className={`px-4 py-3 text-right whitespace-nowrap font-medium font-mono ${row.pnl >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -273,22 +273,11 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
                 <td className="px-4 py-3 text-right text-success font-mono whitespace-nowrap">{formatCurrency(row.avgProfit)}</td>
                 <td className="px-4 py-3 text-right text-danger font-mono whitespace-nowrap">{formatCurrency(row.avgLoser)}</td>
                 <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{formatCurrency(row.commissions)}</td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">
-                  {onViewReport && (
-                    <button
-                      onClick={() => onViewReport(row)}
-                      title="View Report"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  )}
-                </td>
               </tr>
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground">
                   No performance data available for the selected view.
                 </td>
               </tr>
