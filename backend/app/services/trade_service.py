@@ -16,6 +16,7 @@ from app.schemas.trade import (
     BulkTagMode,
     TradeCreate,
     TradeFilterParams,
+    TradePartialCloseRequest,
     TradeRead,
     TradeSortParams,
     TradeUpdate,
@@ -235,3 +236,120 @@ class TradeService:
         if playbook_id is not None and playbook_user_id != user_id:
             raise PermissionError("Playbook does not belong to this user.")
         return await self._repo.bulk_assign_playbook(trade_ids, playbook_id, user_id)
+
+
+    async def partial_close_trade(
+        self,
+        trade_id: uuid.UUID,
+        request: TradePartialCloseRequest,
+        user_id: uuid.UUID,
+    ) -> TradeRead:
+        """Partially close an open trade by splitting it into two records.
+
+        If the closed quantity equals the total trade quantity, a standard
+        full close is performed. Otherwise, the original trade is reduced
+        and a new closed trade is created with a deep copy of all metadata.
+
+        Args:
+            trade_id: UUID of the open trade to split.
+            request: Partial close details (quantity, price, timestamp).
+            user_id: The authenticated user's UUID (for ownership verification).
+
+        Returns:
+            A :class:`TradeRead` DTO of the newly created closed trade.
+
+        Raises:
+            TradeNotFoundError: If the trade is not found or owned by another user.
+            ValueError: If the trade is already closed or quantity is invalid.
+        """
+        trade = await self._repo.get_by_id(trade_id)
+        if trade is None or trade.user_id != user_id:
+            raise TradeNotFoundError(f"Trade {trade_id} not found.")
+
+        if trade.closed_at is not None:
+            raise ValueError("Cannot partially close a trade that is already closed.")
+
+        if request.quantity > trade.quantity:
+            raise ValueError(
+                f"Close quantity ({request.quantity}) exceeds "
+                f"available quantity ({trade.quantity})."
+            )
+
+        # 1. Handle Full Close edge case.
+        if request.quantity == trade.quantity:
+            updated = await self._repo.update(
+                trade,
+                TradeUpdate(
+                    exit_price=request.exit_price,
+                    closed_at=request.closed_at,
+                    commission=trade.commission + request.exit_commission,
+                ),
+            )
+            return TradeRead.model_validate(updated)
+
+        # 2. Perform Split (Partial Close).
+        # Refresh trade from DB to ensure all associations are correctly loaded
+        # and current in the session before copying.
+        await self._repo._session.refresh(
+            trade, attribute_names=["tags", "trade_notes"]
+        )
+        tag_ids = [t.id for t in trade.tags]
+
+        # Calculate proportional entry commission for the portion being closed.
+        prop_entry_comm = (trade.commission * request.quantity) / trade.quantity
+
+        # Update original trade: reduce quantity and subtract proportional commission.
+        # We use setattr + flush directly since we have the ORM object.
+        trade.quantity -= request.quantity
+        trade.commission -= prop_entry_comm
+        # Mark as manually edited to prevent broker re-import overrides if applicable.
+        trade.is_manually_edited = True
+
+        # Create new closed trade.
+        new_trade_data = TradeCreate(
+            user_id=user_id,
+            symbol=trade.symbol,
+            direction=trade.direction,
+            asset_class=trade.asset_class,
+            quantity=request.quantity,
+            entry_price=trade.entry_price,
+            exit_price=request.exit_price,
+            opened_at=trade.opened_at,
+            closed_at=request.closed_at,
+            commission=prop_entry_comm + request.exit_commission,
+            account_id=trade.account_id,
+            playbook_id=trade.playbook_id,
+            tag_ids=tag_ids,
+            notes=trade.notes,
+            currency=trade.currency,
+            broker_conid=trade.broker_conid,
+            is_manually_edited=True,
+        )
+        new_trade = await self._repo.create(new_trade_data)
+
+        # Explicitly reload new_trade using the repository get_by_id method
+        # which uses eager loading for everything.
+        new_trade_orm = await self._repo.get_by_id(new_trade.id)
+        if new_trade_orm is None:
+            raise ValueError("Failed to retrieve created trade.")
+
+        # Deep copy TradeNotes (psychological/review notes).
+        # These are separate from the 'notes' column on the trade table.
+        for note in trade.trade_notes:
+            from app.models.trade_note import TradeNote
+            self._repo._session.add(
+                TradeNote(
+                    trade_id=new_trade_orm.id,
+                    user_id=user_id,
+                    content=note.content,
+                    emotion=note.emotion,
+                )
+            )
+
+        await self._repo._session.flush()
+        await self._repo._session.refresh(
+            new_trade_orm, attribute_names=["trade_notes"]
+        )
+
+        return TradeRead.model_validate(new_trade_orm)
+

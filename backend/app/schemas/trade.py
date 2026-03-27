@@ -2,7 +2,7 @@
 
 import contextlib
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Literal
@@ -18,6 +18,35 @@ from app.schemas.tag import TagRead
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
 _UNSET: object = object()
+
+
+
+class TradePartialCloseRequest(BaseModel):
+    """Payload for splitting an open trade by closing a portion of it.
+
+    This request is used to 'trim' a position (e.g., selling 5 out of 20 shares).
+    The original trade's quantity is reduced, and a new closed trade is
+    created with the specified exit details and a deep copy of all metadata.
+
+    Attributes:
+        quantity: Amount to close (must be > 0 and <= original trade quantity).
+        exit_price: Execution price for this partial close.
+        closed_at: Timezone-aware UTC timestamp of the close.
+        exit_commission: Additional commission paid for this exit.
+    """
+
+    quantity: Decimal = Field(..., gt=Decimal("0"))
+    exit_price: Decimal = Field(..., gt=Decimal("0"))
+    closed_at: datetime = Field(...)
+    exit_commission: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+
+    @field_validator("closed_at")
+    @classmethod
+    def check_utc(cls, v: datetime) -> datetime:
+        """Ensure the timestamp is timezone-aware and set to UTC."""
+        if v.tzinfo is None:
+            raise ValueError("closed_at must be timezone-aware (UTC).")
+        return v.astimezone(UTC) if v.tzinfo != UTC else v
 
 
 class TradeCreate(BaseModel):

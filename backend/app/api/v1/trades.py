@@ -27,6 +27,7 @@ from app.schemas.trade import (
     BulkUpdateResponse,
     TradeCreateRequest,
     TradeFilterParams,
+    TradePartialCloseRequest,
     TradeRead,
     TradeSortParams,
     TradeUpdate,
@@ -517,3 +518,59 @@ async def delete_trade(
         await service.delete_trade(trade_id)
     except TradeNotFoundError:
         _raise_not_found()
+
+
+@router.post(
+    "/{trade_id}/partial-close",
+    response_model=ResponseEnvelope[TradeRead],
+    summary="Partially close an open trade",
+    description=(
+        "Split an open trade into two records: the original trade with reduced quantity "
+        "and a new closed trade with the specified exit details. All metadata (tags, "
+        "notes, playbook) is duplicated to the new trade. Entry commissions are split "
+        "proportionally."
+    ),
+    response_description="The newly created closed trade wrapped in a response envelope.",
+    responses={
+        200: {"description": "Trade partially closed successfully."},
+        400: {"description": "Invalid partial close request (e.g. quantity too high)."},
+        404: {"description": "Trade not found."},
+        422: {"description": "Request payload failed validation."},
+    },
+)
+async def partial_close_trade(
+    trade_id: uuid.UUID,
+    payload: TradePartialCloseRequest,
+    service: Annotated[TradeService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ResponseEnvelope[TradeRead]:
+    """Partially close an open trade by splitting it.
+
+    Args:
+        trade_id: UUID of the open trade to split.
+        payload: Partial close details (quantity, price, timestamp).
+        service: Injected trade service.
+        current_user: Injected authenticated user.
+
+    Returns:
+        A :class:`ResponseEnvelope` containing the new closed trade.
+
+    Raises:
+        HTTPException: 404 if the trade is not found.
+        HTTPException: 400 if the trade is already closed or quantity is invalid.
+    """
+    try:
+        new_trade = await service.partial_close_trade(
+            trade_id=trade_id,
+            request=payload,
+            user_id=current_user.id,
+        )
+        return ResponseEnvelope[TradeRead](data=new_trade)
+    except TradeNotFoundError:
+        _raise_not_found()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
