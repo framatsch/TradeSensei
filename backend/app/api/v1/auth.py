@@ -333,8 +333,8 @@ async def logout(
 # Google OAuth routes
 # ---------------------------------------------------------------------------
 
-_FRONTEND_CALLBACK_URL = "http://localhost:3000/auth/callback"
-_FRONTEND_LOGIN_URL = "http://localhost:3000/login"
+_FRONTEND_CALLBACK_URL = f"{settings.frontend_url.rstrip('/')}/auth/callback"
+_FRONTEND_LOGIN_URL = f"{settings.frontend_url.rstrip('/')}/login"
 
 
 @router.get(

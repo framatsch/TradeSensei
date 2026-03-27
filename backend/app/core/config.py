@@ -100,6 +100,9 @@ class Settings(BaseSettings):
 
     ibkr_flex_token: str | None = None
 
+    # Frontend
+    frontend_url: str = "http://localhost:3000"
+
     # Google OAuth
     google_client_id: str | None = None
     google_client_secret: str | None = None
