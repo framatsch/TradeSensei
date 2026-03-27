@@ -4,15 +4,15 @@
  * TimeAnalysisTab — sub-tabbed time-based performance analysis.
  *
  * Provides Hourly / Weekday / Monthly / Yearly breakdowns using the shared
- * PerformanceAnalysisDashboard. "View Report" navigates to the trades list
- * pre-filtered to the selected time bucket.
+ * PerformanceAnalysisDashboard. The resolution segmented control is rendered
+ * inside PerformanceAnalysisDashboard's consolidated toolbar. "View Report"
+ * navigates to the trades list pre-filtered to the selected time bucket.
  */
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PerformanceAnalysisDashboard } from "@/components/trades/PerformanceAnalysisDashboard";
 import type { PerformanceDataPoint } from "@/components/trades/PerformanceAnalysisDashboard";
-import { AccountFilter } from "@/components/ui/AccountFilter";
 import { Spinner } from "@/components/ui/Spinner";
 import type { Trade } from "@/lib/types";
 import type { ReportDimension } from "@/hooks/useReportData";
@@ -26,17 +26,6 @@ const WEEKDAY_NAME_TO_INDEX: Record<string, number> = {
   Friday: 4,
   Saturday: 5,
   Sunday: 6,
-};
-
-// Sunday=0 in JS Date, but the spec wants Monday=0
-const JS_DAY_TO_SPEC_INDEX: Record<number, number> = {
-  0: 6, // Sunday → 6
-  1: 0, // Monday → 0
-  2: 1,
-  3: 2,
-  4: 3,
-  5: 4,
-  6: 5, // Saturday → 5
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -119,8 +108,6 @@ interface TimeAnalysisTabProps {
   trades: Trade[];
   isLoading: boolean;
   getAggregated: (dim: ReportDimension) => PerformanceDataPoint[];
-  accountId: string | null;
-  onAccountChange: (id: string | null) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -129,8 +116,6 @@ export function TimeAnalysisTab({
   trades,
   isLoading,
   getAggregated,
-  accountId,
-  onAccountChange,
 }: TimeAnalysisTabProps) {
   const router = useRouter();
   const [activeDim, setActiveDim] = useState<ReportDimension>("Hourly");
@@ -151,45 +136,23 @@ export function TimeAnalysisTab({
     [router, activeDim, trades]
   );
 
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Controls row: account filter + sub-tab bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        {/* Sub-tab pill bar */}
-        <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
-          {SUB_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveDim(tab.value)}
-              className={[
-                "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-                activeDim === tab.value
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-              ].join(" ")}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Account filter */}
-        <AccountFilter value={accountId} onChange={onAccountChange} />
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Spinner size="lg" />
       </div>
+    );
+  }
 
-      {/* Content */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-24">
-          <Spinner size="lg" />
-        </div>
-      ) : (
-        <PerformanceAnalysisDashboard
-          data={data}
-          dimensionLabel={activeDim}
-          onViewReport={handleViewReport}
-          onBarClick={handleBarClick}
-        />
-      )}
-    </div>
+  return (
+    <PerformanceAnalysisDashboard
+      data={data}
+      dimensionLabel={activeDim}
+      resolutions={SUB_TABS}
+      activeResolution={activeDim}
+      onResolutionChange={(val) => setActiveDim(val as ReportDimension)}
+      onViewReport={handleViewReport}
+      onBarClick={handleBarClick}
+    />
   );
 }
