@@ -119,6 +119,21 @@ app/
 - End-to-end tests for critical API paths via httpx AsyncClient.
 - Coverage target: >= 80% for services and schemas.
 
+### Frontend Design System — Light Mode Color Conventions
+The UI uses a dual-theme design system driven by CSS variables. For components that cannot use semantic tokens (e.g. chart canvas overlays), use these explicit light mode values with `dark:` overrides:
+
+| Role | Light Mode Value | Usage |
+|------|-----------------|-------|
+| Selected / active button background | `#6063dd` | `bg-[#6063dd] text-white` |
+| Selected / active button border | `#6063dd` at 80% | `border-[#6063dd]/80` |
+| **Primary filled button (CTA)** | `#6063dd` bg + white text | `bg-[#6063dd] text-white hover:opacity-90` |
+| Inactive / unselected button text | `#717174` | `text-[#717174]` |
+| Toolbar / pill container background | `#e9e9e9` | `bg-[#e9e9e9]` |
+| Toolbar container border | black at 5% | `border-black/5` |
+| Primary accent (text, border, tint) | `#6063dd` | `text-[#6063dd]`, `bg-[#6063dd]/10`, `border-[#6063dd]/20` |
+
+These explicit values are **only** used when semantic CSS variables are unavailable. For all other UI prefer semantic tokens (`bg-primary`, `text-foreground`, etc.).
+
 ---
 
 ## 6. CI/CD Pipelines

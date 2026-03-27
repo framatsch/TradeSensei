@@ -11,8 +11,10 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTaxSummary } from "@/hooks/useTaxSummary";
+import { useSettings } from "@/hooks/useSettings";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import type { TaxCategoryBlock, TaxAnnualSummary, AccountTaxSummary } from "@/lib/types";
@@ -244,7 +246,19 @@ function AccountBreakdown({ acc }: { acc: AccountTaxSummary }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TaxPage() {
+  const router = useRouter();
   const [year, setYear] = useState(CURRENT_YEAR);
+
+  const { data: settings } = useSettings();
+  const features = (settings?.features ?? {}) as Record<string, boolean>;
+  const taxEnabled = features["tax_report"] ?? false;
+
+  // Redirect to dashboard when settings are loaded and flag is disabled
+  useEffect(() => {
+    if (settings !== undefined && !taxEnabled) {
+      router.replace("/dashboard");
+    }
+  }, [settings, taxEnabled, router]);
 
   const { data: summary, isLoading, isError, error, refetch } = useTaxSummary(year);
 
@@ -277,6 +291,8 @@ export default function TaxPage() {
   const withholding = summary ? parseFloat(summary.withholding_tax_eur ?? "0") : 0;
   const interest = summary ? parseFloat(summary.interest_eur ?? "0") : 0;
   const hasCashData = dividends !== 0 || withholding !== 0 || interest !== 0;
+
+  if (settings !== undefined && !taxEnabled) return null;
 
   return (
     <div className="space-y-6">

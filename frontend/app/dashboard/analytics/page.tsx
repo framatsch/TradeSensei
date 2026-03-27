@@ -13,6 +13,7 @@ import { useSearchParams } from "next/navigation";
 import { BarChart2 } from "lucide-react";
 
 import { useReportData } from "@/hooks/useReportData";
+import { useSettings } from "@/hooks/useSettings";
 import { AccountFilter } from "@/components/ui/AccountFilter";
 import { Spinner } from "@/components/ui/Spinner";
 import { TimeAnalysisTab } from "./TimeAnalysisTab";
@@ -29,11 +30,20 @@ type TabId = "time" | "strategy" | "risk" | "behavior";
 export default function AnalyticsHubPage() {
   const searchParams = useSearchParams();
 
-  // Resolve active tab from URL, default to "time"
+  // Feature flags
+  const { data: settings } = useSettings();
+  const features = (settings?.features ?? {}) as Record<string, boolean>;
+  const riskEnabled = features["risk_analytics"] ?? false;
+
+  // Resolve active tab from URL, default to "time".
+  // "risk" is only a valid tab when the flag is enabled — otherwise falls back
+  // to "time", consistent with how unknown tab values are handled.
   const rawTab = searchParams.get("tab");
   const activeTab: TabId =
-    rawTab === "strategy" || rawTab === "risk" || rawTab === "behavior"
+    rawTab === "strategy" || rawTab === "behavior"
       ? rawTab
+      : rawTab === "risk" && riskEnabled
+      ? "risk"
       : "time";
 
   // Single global account filter

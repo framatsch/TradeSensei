@@ -69,6 +69,15 @@ We use a strict **Dual-Theme (Light & Dark) Design System** driven by CSS variab
   - `.nav-active`: For active states in navigation or list items.
   - `.metric-toggle-bar`, `.metric-toggle-active`, `.metric-toggle-inactive`: For segmented controls.
   - `.radiant-table`: For tables.
+- **Light Mode Explicit Colors (use with `dark:` override):** Some components (e.g. chart overlays) are built with hardcoded dark backgrounds and require explicit light mode overrides using Tailwind's `dark:` modifier. In these cases, use the following fixed values:
+  - **Selected / active button background:** `bg-[#6063dd]` with `text-white`
+  - **Selected / active button border:** `border-[#6063dd]/80`
+  - **Primary filled button (CTA):** `bg-[#6063dd] text-white hover:opacity-90`
+  - **Unselected button / inactive text:** `text-[#717174]`
+  - **Toolbar / pill container background:** `bg-[#e9e9e9]`
+  - **Toolbar border:** `border-black/5`
+  - **Primary link/button accent (text, border, tint):** `#6063dd` — e.g. `text-[#6063dd]`, `border-[#6063dd]/20`, `bg-[#6063dd]/10`
+  - These values are only used when semantic CSS variables are unavailable (chart canvas overlays, third-party embeds). For all other UI, prefer semantic tokens.
 - **Tables & Typography:**
   - Table separators: `border-b border-border` (no zebra striping).
   - Table headers: `text-[10px] font-bold uppercase tracking-widest text-muted-foreground`.
