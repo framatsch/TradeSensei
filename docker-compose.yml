@@ -82,8 +82,7 @@ services:
       target: development
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      INTERNAL_API_URL: http://backend:8000
+      API_URL: http://backend:8000
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
     ports:
       - "3000:3000"
