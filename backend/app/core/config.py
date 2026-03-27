@@ -105,6 +105,14 @@ class Settings(BaseSettings):
     google_client_secret: str | None = None
     google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
 
+    # Generic OIDC
+    oidc_enabled: bool = False
+    oidc_provider_name: str = "OpenID Connect"
+    oidc_configuration_url: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    oidc_redirect_uri: str = "http://localhost:8000/api/v1/auth/oidc/callback"
+
     # Broker (general)
     broker_encryption_key: str | None = None
     """URL-safe base64 Fernet key used to encrypt stored OAuth tokens."""

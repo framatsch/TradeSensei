@@ -64,6 +64,8 @@ async function handler(
       body,
       // Disable Next.js fetch cache — proxy responses must always be fresh
       cache: "no-store",
+      // Proxy MUST NOT follow redirects, let the browser handle them
+      redirect: "manual",
     });
   } catch (err) {
     console.error("[proxy] upstream fetch failed", targetUrl, err);

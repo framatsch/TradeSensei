@@ -195,6 +195,19 @@ Clicking "Continue with Google" on the login or registration page redirects the 
 
 Existing local accounts with a matching verified email are automatically linked to Google on the first Google login; no manual merging is required. Google-only accounts (created through OAuth, no password set) cannot log in with a password.
 
+### Custom OpenID Providers (e.g., Authentik)
+
+To add Authentik or another OIDC provider, there are two approaches depending on your preference:
+
+**1. Backend integration (Recommended - matches Google flow)**
+Register the new provider using `authlib` in `backend/app/api/v1/auth.py`. You'll need to define the endpoints (e.g. `/api/v1/auth/authentik` and the callback), mimicking the Google implementation, so the backend handles the OAuth flow and issues your standard JWTs.
+
+**2. NextAuth.js Integration**
+A stub NextAuth handler is included in `frontend/app/api/auth/[...nextauth]/route.ts`.
+- Set `NEXTAUTH_URL` (e.g. `http://localhost:3000`) in your `.env`.
+- Add the NextAuth provider for Authentik and configure your `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET`, and `AUTHENTIK_ISSUER`.
+- *Note:* Since the platform uses backend-issued JWTs, you will need to build an exchange mechanism to turn the NextAuth session into a backend FastAPI JWT so API requests remain authenticated.
+
 ---
 
 ## Using playbooks

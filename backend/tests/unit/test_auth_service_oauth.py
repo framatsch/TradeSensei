@@ -1,4 +1,4 @@
-"""Unit tests for AuthService.google_oauth_login — no database access.
+"""Unit tests for AuthService.external_oauth_login — no database access.
 
 All :class:`~app.repositories.user_repository.UserRepository` method calls
 are replaced with :class:`~unittest.mock.AsyncMock` instances injected
@@ -145,7 +145,7 @@ class TestGoogleOAuthLoginExistingGoogleUser:
 
     @pytest.mark.unit
     async def test_returns_three_token_strings(self, service: AuthService) -> None:
-        """google_oauth_login() returns a (access, refresh, ott) three-tuple.
+        """external_oauth_login() returns a (access, refresh, ott) three-tuple.
 
         All three elements must be non-empty strings that can be used as
         JWT tokens or embedded in redirect URLs.
@@ -161,8 +161,8 @@ class TestGoogleOAuthLoginExistingGoogleUser:
                 access_token,
                 refresh_token,
                 one_time_token,
-            ) = await service.google_oauth_login(
-                google_sub="google-sub-123",
+            ) = await service.external_oauth_login(
+                provider="google", provider_sub="google-sub-123",
                 email="google@example.com",
                 display_name="Google User",
                 email_verified=True,
@@ -193,8 +193,8 @@ class TestGoogleOAuthLoginExistingGoogleUser:
             ),
             patch.object(service._repo, "get_by_email", new=mock_get_by_email),
         ):
-            await service.google_oauth_login(
-                google_sub="google-sub-123",
+            await service.external_oauth_login(
+                provider="google", provider_sub="google-sub-123",
                 email="google@example.com",
                 display_name="Google User",
                 email_verified=True,
@@ -223,8 +223,8 @@ class TestGoogleOAuthLoginExistingGoogleUser:
             patch.object(service._repo, "link_oauth_account", new=mock_link),
             patch.object(service._repo, "create_oauth_user", new=mock_create),
         ):
-            await service.google_oauth_login(
-                google_sub="google-sub-123",
+            await service.external_oauth_login(
+                provider="google", provider_sub="google-sub-123",
                 email="google@example.com",
                 display_name="Google User",
                 email_verified=True,
@@ -250,8 +250,8 @@ class TestGoogleOAuthLoginExistingGoogleUser:
             "get_by_provider_id",
             new=mock_get_by_provider_id,
         ):
-            await service.google_oauth_login(
-                google_sub="abc-sub-987",
+            await service.external_oauth_login(
+                provider="google", provider_sub="abc-sub-987",
                 email="google@example.com",
                 display_name="Google User",
                 email_verified=True,
@@ -278,8 +278,8 @@ class TestGoogleOAuthLoginExistingGoogleUser:
             ),
             pytest.raises(InvalidCredentialsError),
         ):
-            await service.google_oauth_login(
-                google_sub="google-sub-123",
+            await service.external_oauth_login(
+                provider="google", provider_sub="google-sub-123",
                 email="google@example.com",
                 display_name="Google User",
                 email_verified=True,
@@ -337,8 +337,8 @@ class TestGoogleOAuthLoginEmailLink:
                 access_token,
                 refresh_token,
                 one_time_token,
-            ) = await service.google_oauth_login(
-                google_sub="new-google-sub-456",
+            ) = await service.external_oauth_login(
+                provider="google", provider_sub="new-google-sub-456",
                 email="shared@example.com",
                 display_name="Shared User",
                 email_verified=True,
@@ -378,8 +378,8 @@ class TestGoogleOAuthLoginEmailLink:
             ),
             patch.object(service._repo, "link_oauth_account", new=mock_link),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-link-test",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-link-test",
                 email="link@example.com",
                 display_name="Link Test",
                 email_verified=True,
@@ -418,8 +418,8 @@ class TestGoogleOAuthLoginEmailLink:
             ),
             patch.object(service._repo, "create_oauth_user", new=mock_create),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-abc",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-abc",
                 email="local@example.com",
                 display_name="Local User",
                 email_verified=True,
@@ -461,8 +461,8 @@ class TestGoogleOAuthLoginEmailLink:
             ),
             pytest.raises(InvalidCredentialsError),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-inactive",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-inactive",
                 email="local@example.com",
                 display_name="Inactive User",
                 email_verified=True,
@@ -516,8 +516,8 @@ class TestGoogleOAuthLoginNewUser:
                 access_token,
                 refresh_token,
                 one_time_token,
-            ) = await service.google_oauth_login(
-                google_sub="new-sub-789",
+            ) = await service.external_oauth_login(
+                provider="google", provider_sub="new-sub-789",
                 email="newuser@example.com",
                 display_name="John Doe",
                 email_verified=True,
@@ -558,8 +558,8 @@ class TestGoogleOAuthLoginNewUser:
             ),
             patch.object(service._repo, "create_oauth_user", new=mock_create),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-jd-001",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-jd-001",
                 email="jd@example.com",
                 display_name="John Doe",
                 email_verified=True,
@@ -607,8 +607,8 @@ class TestGoogleOAuthLoginNewUser:
             ),
             patch.object(service._repo, "link_oauth_account", new=mock_link),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-xyz",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-xyz",
                 email="brand@new.com",
                 display_name="Brand New",
                 email_verified=True,
@@ -647,8 +647,8 @@ class TestGoogleOAuthLoginNewUser:
             ),
             patch.object(service._repo, "create_oauth_user", new=mock_create),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-jane",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-jane",
                 email="jane@example.com",
                 display_name="Jane O'Sullivan",
                 email_verified=True,
@@ -693,8 +693,8 @@ class TestGoogleOAuthLoginNewUser:
             ),
             patch.object(service._repo, "create_oauth_user", new=mock_create),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-collision",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-collision",
                 email="collision@example.com",
                 display_name="John Doe",
                 email_verified=True,
@@ -733,8 +733,8 @@ class TestGoogleOAuthLoginNewUser:
             ),
             patch.object(service._repo, "create_oauth_user", new=mock_create),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-special",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-special",
                 email="special@example.com",
                 display_name="@!#$",
                 email_verified=True,
@@ -752,7 +752,7 @@ class TestGoogleOAuthLoginNewUser:
 class TestGoogleOAuthLoginUnverifiedEmail:
     """Tests for the email-verification guard.
 
-    ``google_oauth_login`` must refuse to proceed if Google has not
+    ``external_oauth_login`` must refuse to proceed if Google has not
     verified the user's email address, regardless of the lookup results.
     """
 
@@ -772,8 +772,8 @@ class TestGoogleOAuthLoginUnverifiedEmail:
             patch.object(service._repo, "get_by_provider_id", new=mock_lookup),
             pytest.raises(InvalidCredentialsError, match="not verified"),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-unverified",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-unverified",
                 email="unverified@example.com",
                 display_name="Unverified User",
                 email_verified=False,
@@ -804,8 +804,8 @@ class TestGoogleOAuthLoginUnverifiedEmail:
             patch.object(service._repo, "link_oauth_account", new=mock_link),
             pytest.raises(InvalidCredentialsError),
         ):
-            await service.google_oauth_login(
-                google_sub="sub-x",
+            await service.external_oauth_login(
+                provider="google", provider_sub="sub-x",
                 email="x@example.com",
                 display_name="X",
                 email_verified=False,

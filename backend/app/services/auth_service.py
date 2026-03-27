@@ -157,25 +157,27 @@ class AuthService:
         """
         await self._repo.increment_token_version(user)
 
-    async def google_oauth_login(
+    async def external_oauth_login(
         self,
-        google_sub: str,
+        provider: str,
+        provider_sub: str,
         email: str,
         display_name: str,
         email_verified: bool,
     ) -> tuple[str, str, str]:
-        """Authenticate or provision a user via Google OAuth.
+        """Authenticate or provision a user via an external OAuth provider.
 
         Lookup order:
-        1. Existing user with matching ``provider_id`` (returning Google user).
+        1. Existing user with matching ``provider_id`` (returning existing user).
         2. Existing local user with the same email (auto-link their account).
         3. No match → create a new OAuth-only user.
 
         Args:
-            google_sub: The Google ``sub`` claim (stable user identifier).
-            email: The user's verified email from Google.
-            display_name: Google display name, used to derive a username.
-            email_verified: Whether Google has verified the email address.
+            provider: Name of the OAuth provider (e.g., 'google', 'oidc').
+            provider_sub: The provider's ``sub`` claim (stable user identifier).
+            email: The user's verified email from the provider.
+            display_name: Display name, used to derive a username.
+            email_verified: Whether the provider has verified the email address.
 
         Returns:
             A three-tuple of
@@ -183,20 +185,20 @@ class AuthService:
 
         Raises:
             :class:`~app.core.exceptions.InvalidCredentialsError`: If the
-                Google email is not verified or the user account is inactive.
+                email is not verified or the user account is inactive.
         """
         if not email_verified:
-            raise InvalidCredentialsError("Google account email is not verified.")
+            raise InvalidCredentialsError(f"{provider} account email is not verified.")
 
-        # 1. Existing Google user
-        user = await self._repo.get_by_provider_id("google", google_sub)
+        # 1. Existing OAuth user
+        user = await self._repo.get_by_provider_id(provider, provider_sub)
 
         if user is None:
             # 2. Existing local user with same email → auto-link
             existing = await self._repo.get_by_email(email)
             if existing is not None:
                 user = await self._repo.link_oauth_account(
-                    existing, "google", google_sub
+                    existing, provider, provider_sub
                 )
             else:
                 # 3. Create new OAuth user
@@ -204,8 +206,8 @@ class AuthService:
                 user = await self._repo.create_oauth_user(
                     email=email,
                     username=username,
-                    provider="google",
-                    provider_id=google_sub,
+                    provider=provider,
+                    provider_id=provider_sub,
                 )
 
         if not user.is_active:

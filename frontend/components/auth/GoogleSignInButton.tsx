@@ -10,6 +10,8 @@
 
 "use client";
 
+import { useAuthConfig } from "@/hooks/useAuth";
+
 /** Google "G" logo SVG (official brand colours). */
 function GoogleLogo() {
   return (
@@ -41,9 +43,13 @@ function GoogleLogo() {
 }
 
 export function GoogleSignInButton() {
+  const { data: config } = useAuthConfig();
+
+  if (!config?.google_enabled) return null;
+
   const handleClick = () => {
     // Route through the Next.js proxy — backend is not publicly exposed.
-    window.location.href = "/api/proxy/v1/auth/google";
+    window.location.href = "/api/proxy/api/v1/auth/google";
   };
 
   return (

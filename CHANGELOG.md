@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Added a collapsible desktop sidebar with drawer mode, persistent state in localStorage, and a floating toggle button for a cleaner workspace. Keyboard shortcut `Cmd/Ctrl + B` toggles the sidebar.
+
 ### Fixed
 - [frontend] Playbook creation now shows immediately in the list without requiring a second item to be created (optimistic update via `setQueryData`).
 - [frontend] Tag creation now shows immediately in the list without requiring a second item to be created (optimistic update via `setQueryData`).
