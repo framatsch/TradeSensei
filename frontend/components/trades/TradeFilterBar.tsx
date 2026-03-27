@@ -10,12 +10,25 @@ import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useAccounts } from "@/hooks/useAccounts";
 import { TagBadge } from "@/components/tags/TagBadge";
 import type { TradeFilters } from "@/hooks/useTrades";
+import type { SavedTradeFilterRead } from "@/lib/types";
 
 export type { TradeFilters };
 
 interface Props {
   filters: TradeFilters;
   onChange: (filters: TradeFilters) => void;
+  /** The currently active saved view (if any). */
+  activeView?: SavedTradeFilterRead;
+  /** Opens the "Save as View" naming modal. */
+  onSaveView?: () => void;
+  /** Opens the "Rename View" modal. */
+  onRenameView?: () => void;
+  /** Overwrites the active User view with current filters. */
+  onUpdateView?: () => void;
+  /** Deletes the active User view after confirmation. */
+  onDeleteView?: () => void;
+  /** True while the update mutation is in flight. */
+  isUpdating?: boolean;
 }
 
 const ASSET_CLASSES = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"] as const;
@@ -73,7 +86,7 @@ const INPUT_CLASS =
   "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
 
-export function TradeFilterBar({ filters, onChange }: Props) {
+export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRenameView, onUpdateView, onDeleteView, isUpdating }: Props) {
   const [open, setOpen] = useState(() => countActiveFilters(filters) > 0);
   const activeCount = countActiveFilters(filters);
 
@@ -216,7 +229,8 @@ export function TradeFilterBar({ filters, onChange }: Props) {
 
       {/* Collapsible panel */}
       {open && (
-        <div className="px-4 pb-4 border-t border-border pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">          {/* Symbol */}
+        <div className="px-4 pb-4 border-t border-border pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">          {/* Symbol */}
           <div>
             <label className={LABEL_CLASS}>Symbol</label>
             <input
@@ -429,6 +443,77 @@ export function TradeFilterBar({ filters, onChange }: Props) {
                   );
                 })}
               </div>
+            </div>
+          )}
+          </div>
+
+          {/* ── View actions footer ──────────────────────────────────────────── */}
+          {/* Only rendered when at least one action is available */}
+          {onSaveView && (
+            <div className="flex flex-wrap items-center gap-2 pt-4 mt-4 border-t border-border">
+              {/* Save as View — always shown */}
+              <button
+                type="button"
+                onClick={onSaveView}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
+              >
+                {/* Floppy-disk icon */}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Save as View
+              </button>
+
+              {/* Update View — only for active User views */}
+              {activeView?.scope === "USER" && onUpdateView && (
+                <button
+                  type="button"
+                  onClick={onUpdateView}
+                  disabled={isUpdating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-md transition-colors disabled:opacity-50"
+                >
+                  {/* Refresh/update icon */}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
+                  </svg>
+                  {isUpdating ? "Updating…" : "Update View"}
+                </button>
+              )}
+
+              {/* Rename View — only for active User views */}
+              {activeView?.scope === "USER" && onRenameView && (
+                <button
+                  type="button"
+                  onClick={onRenameView}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-md transition-colors"
+                >
+                  {/* Pencil icon */}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Rename View
+                </button>
+              )}
+
+              {/* Delete View — only for active User views */}
+              {activeView?.scope === "USER" && onDeleteView && (
+                <button
+                  type="button"
+                  onClick={onDeleteView}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                >
+                  {/* Trash icon */}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                  Delete View
+                </button>
+              )}
             </div>
           )}
         </div>
