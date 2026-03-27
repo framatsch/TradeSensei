@@ -25,13 +25,13 @@ class TestIBKRXMLCashTransactionParsing:
                 </FlexStatement>
             </FlexStatements>
         </FlexQueryResponse>"""
-        
+
         parser = IBKRXMLParser()
         trades, cash_txs = parser.parse(xml.encode("utf-8"), "activity.xml")
-        
+
         # Should not be in trades list
         assert len(trades) == 0
-        
+
         # Commission should be in cash_transactions as FEE
         assert len(cash_txs) == 1
         assert cash_txs[0].type == CashTransactionType.FEE
@@ -52,10 +52,10 @@ class TestIBKRXMLCashTransactionParsing:
                 </FlexStatement>
             </FlexStatements>
         </FlexQueryResponse>"""
-        
+
         parser = IBKRXMLParser()
         trades, cash_txs = parser.parse(xml.encode("utf-8"), "activity.xml")
-        
+
         assert len(cash_txs) == 1
         assert cash_txs[0].type == CashTransactionType.DIVIDEND
         assert cash_txs[0].amount == Decimal("15.50")
@@ -75,10 +75,10 @@ class TestIBKRXMLCashTransactionParsing:
                 </FlexStatement>
             </FlexStatements>
         </FlexQueryResponse>"""
-        
+
         parser = IBKRXMLParser()
         trades, cash_txs = parser.parse(xml.encode("utf-8"), "activity.xml")
-        
+
         assert len(cash_txs) == 1
         assert cash_txs[0].type == CashTransactionType.WITHHOLDING_TAX
         assert cash_txs[0].amount == Decimal("-2.30")
@@ -96,10 +96,10 @@ class TestIBKRXMLCashTransactionParsing:
                 </FlexStatement>
             </FlexStatements>
         </FlexQueryResponse>"""
-        
+
         parser = IBKRXMLParser()
         trades, cash_txs = parser.parse(xml.encode("utf-8"), "activity.xml")
-        
+
         assert len(cash_txs) == 1
         assert cash_txs[0].type == CashTransactionType.DEPOSIT
         assert cash_txs[0].amount == Decimal("1000.00")
@@ -117,10 +117,10 @@ class TestIBKRXMLCashTransactionParsing:
                 </FlexStatement>
             </FlexStatements>
         </FlexQueryResponse>"""
-        
+
         parser = IBKRXMLParser()
         trades, cash_txs = parser.parse(xml.encode("utf-8"), "activity.xml")
-        
+
         assert len(cash_txs) == 1
         assert cash_txs[0].type == CashTransactionType.WITHDRAWAL
         assert cash_txs[0].amount == Decimal("-500.00")
