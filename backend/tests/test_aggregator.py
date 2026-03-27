@@ -15,11 +15,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-
 from app.models.trade import AssetClass, Direction
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import aggregate_executions_fifo
-
 
 # ---------------------------------------------------------------------------
 # Helpers
