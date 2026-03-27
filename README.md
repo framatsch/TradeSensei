@@ -149,20 +149,13 @@ cd frontend
 npm install
 ```
 
-Create `frontend/.env.local` (see `frontend/.env.example` for the full list):
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=      # same value as GOOGLE_CLIENT_ID above
-```
-
 Start the development server:
 
 ```bash
 npm run dev
 ```
 
-The frontend is available at `http://localhost:3000`.
+The frontend is available at `http://localhost:3000`. By default, it proxies API requests to `http://localhost:8000`. You can override the backend location by setting the `API_URL` environment variable.
 
 ---
 

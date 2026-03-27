@@ -2,8 +2,8 @@
  * Reverse proxy for all backend API calls.
  *
  * Browser clients call `/api/proxy/v1/...` — this handler forwards the request
- * to the internal backend service (`INTERNAL_API_URL`) which is never exposed
- * publicly.  This keeps the backend off the public internet and eliminates the
+ * to the internal backend service (`API_URL`) which is never exposed
+ * publicly. This keeps the backend off the public internet and eliminates the
  * need for CORS configuration.
  *
  * Path mapping:
@@ -13,8 +13,8 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 
-const INTERNAL_API_URL =
-  process.env.INTERNAL_API_URL ?? "http://localhost:8000";
+const API_URL =
+  process.env.API_URL ?? "http://localhost:8000";
 
 /** Headers that must not be forwarded to the upstream backend. */
 const HOP_BY_HOP_HEADERS = new Set([
@@ -41,7 +41,7 @@ async function handler(
   // → forward to backend as /api/v1/auth/register.
   const backendPath = `/${path.join("/")}`;
   const search = req.nextUrl.search ?? "";
-  const targetUrl = `${INTERNAL_API_URL}${backendPath}${search}`;
+  const targetUrl = `${API_URL}${backendPath}${search}`;
 
   // Forward only safe headers
   const forwardHeaders = new Headers();

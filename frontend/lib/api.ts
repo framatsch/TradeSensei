@@ -3,14 +3,10 @@
  *
  * All browser-side API calls go through the Next.js reverse proxy at
  * `/api/proxy/v1/...` — the backend is never contacted directly from the
- * browser.  This keeps the backend off the public internet.
+ * browser. This keeps the backend off the public internet.
  *
  * The proxy handler (`app/api/proxy/[...path]/route.ts`) forwards requests to
- * `INTERNAL_API_URL` (set via environment variable at container start).
- *
- * For local development without the proxy (e.g. running `next dev` standalone)
- * set NEXT_PUBLIC_API_URL=http://localhost:8000 and the client will call the
- * backend directly.
+ * `API_URL` (set via environment variable at container start).
  */
 
 import axios from "axios";
