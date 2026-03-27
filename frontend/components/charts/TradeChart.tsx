@@ -34,14 +34,11 @@ import {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-// Use the same base URL logic as apiClient in lib/api.ts:
-//   - production  → /api/proxy  (Next.js → backend via INTERNAL_API_URL)
-//   - development → NEXT_PUBLIC_API_URL (browser → backend directly)
-// This avoids the broken-in-Docker undici/fetch stack in Next.js Route Handlers.
-const API_BASE =
-  process.env.NODE_ENV === "production"
-    ? "/api/proxy"
-    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
+// All browser-side API calls go through the Next.js reverse proxy at
+// `/api/proxy/v1/...` — the backend is never contacted directly from the
+// browser. This keeps the backend off the public internet and eliminates the
+// need for absolute NEXT_PUBLIC_API_URL in the client.
+const API_BASE = "/api/proxy";
 
 const MARKET_DATA_PROXY = `${API_BASE}/api/v1/market-data`;
 
