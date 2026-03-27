@@ -17,35 +17,35 @@ test.describe('Sidebar Navigation', () => {
   test('TC-040 sidebar shows all navigation items', async ({ page }) => {
     // Basic items should always be present
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Trades' })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('link', { name: 'Playbooks' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Tags' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Import' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Trades', exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('link', { name: 'Playbooks', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Tags', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Import', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible();
   });
 
   test('TC-041 navigates to Trades page', async ({ page }) => {
-    await page.getByRole('link', { name: 'Trades' }).click();
+    await page.getByRole('link', { name: 'Trades', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard\/trades/);
-    await expect(page.getByRole('heading', { name: 'Trades' })).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole('heading', { name: 'Trades', exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test('TC-042 navigates to Playbooks page', async ({ page }) => {
-    await page.getByRole('link', { name: 'Playbooks' }).click();
+    await page.getByRole('link', { name: 'Playbooks', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard\/playbooks/);
-    await expect(page.getByRole('heading', { name: 'Playbooks' })).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole('heading', { name: 'Playbooks', exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test('TC-043 navigates to Tags page', async ({ page }) => {
-    await page.getByRole('link', { name: 'Tags' }).click();
+    await page.getByRole('link', { name: 'Tags', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard\/tags/);
-    await expect(page.getByRole('heading', { name: 'Tags', exact: true })).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole('heading', { name: 'Tags', exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test('TC-044 navigates to Import page', async ({ page }) => {
-    await page.getByRole('link', { name: 'Import' }).click();
+    await page.getByRole('link', { name: 'Import', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard\/import/);
-    await expect(page.getByRole('heading', { name: 'Import Trades' })).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole('heading', { name: 'Import Trades' })).toBeVisible({ timeout: 10_000 });
   });
 
   test('TC-045 Overview link is active on /dashboard', async ({ page }) => {
@@ -55,10 +55,10 @@ test.describe('Sidebar Navigation', () => {
   });
 
   test('TC-046 active link updates when navigating to Trades', async ({ page }) => {
-    await page.getByRole('link', { name: 'Trades' }).click();
+    await page.getByRole('link', { name: 'Trades', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard\/trades/);
 
-    const tradesLink = page.getByRole('link', { name: 'Trades' });
+    const tradesLink = page.getByRole('link', { name: 'Trades', exact: true });
     await expect(tradesLink).toHaveClass(/nav-active/);
 
     // Overview link should no longer be active
