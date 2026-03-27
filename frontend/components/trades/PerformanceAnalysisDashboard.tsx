@@ -103,9 +103,9 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
   const metrics: MetricType[] = ['P&L', 'Trades', 'Shares', 'Mistakes', 'Profit Factor', 'W vs L'];
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-4 w-full">
       {/* Consolidated toolbar: resolution segmented control (left) + metric radios (right) */}
-      <div className="radiant-card flex flex-wrap items-center justify-between gap-4 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/60">
         {/* Left: resolution segmented control — only rendered when resolutions are provided */}
         {resolutions && resolutions.length > 0 && onResolutionChange && (
           <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-1">
@@ -127,10 +127,10 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
         )}
 
         {/* Right: metric selector radio buttons */}
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-0.5">
           <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mr-2">Metric:</span>
           {metrics.map((m) => (
-            <label key={m} className="flex items-center space-x-1.5 cursor-pointer group px-2 py-1">
+            <label key={m} className="flex items-center space-x-1.5 cursor-pointer group px-1.5 py-1">
               <input
                 type="radio"
                 name="metric"
@@ -139,7 +139,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
                 onChange={() => setSelectedMetric(m)}
                 className="w-3.5 h-3.5 accent-indigo-500"
               />
-              <span className={`text-sm ${selectedMetric === m ? 'text-foreground font-medium' : 'text-muted-foreground group-hover:text-foreground'}`}>
+              <span className={`text-xs ${selectedMetric === m ? 'text-foreground font-medium' : 'text-muted-foreground group-hover:text-foreground'}`}>
                 {m}
               </span>
             </label>
