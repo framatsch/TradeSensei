@@ -106,6 +106,8 @@ export function useTrades({
           for (const tid of filters.tag_ids) {
             params.append("tag_ids", tid);
           }
+          // Use OR logic so selecting multiple tags returns trades with ANY of them
+          params.set("tag_filter_mode", "or");
         }
         if (filters.playbook_id) params.set("playbook_id", filters.playbook_id);
         if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) {

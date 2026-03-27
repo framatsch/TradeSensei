@@ -32,9 +32,13 @@ python tools/bump_version.py 0.5.1 --snapshot
     `python tools/bump_version.py <new-version> [--snapshot]`
 3.  **Review changes**
     `git diff package.json frontend/package.json`
-4.  **Commit using `commit-helper`**
+4.  **Automatic Snapshot Progression (Post-Release)**
+    After a formal release (e.g., `0.5.1`), the skill automatically prepares the next development cycle:
+    `python tools/bump_version.py <next-patch-version> --snapshot`
+    Example: `0.5.1` -> `0.5.2-SNAPSHOT`
+5.  **Commit using `commit-helper`**
     Category: `config` (Emoji: ⚙️)
     Message: `config: bump version to <version>`
-5.  **Tag and push (Releases only)**
+6.  **Tag and push (Releases only)**
     `git tag -a v<version> -m "Release <version>"`
     `git push origin main --tags`

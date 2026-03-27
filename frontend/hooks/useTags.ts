@@ -35,7 +35,12 @@ export function useCreateTag() {
       );
       return res.data.data;
     },
-    onSuccess: () => {
+    onSuccess: (newTag) => {
+      // Optimistic update: immediately add the new tag to the cache
+      qc.setQueryData<Tag[]>(["tags"], (old) => [...(old ?? []), newTag]);
+    },
+    onError: () => {
+      // On error, invalidate to re-fetch the real server state
       void qc.invalidateQueries({ queryKey: ["tags"] });
     },
   });
@@ -47,7 +52,14 @@ export function useDeleteTag() {
     mutationFn: async (id) => {
       await apiClient.delete(`/api/v1/tags/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      // Optimistic update: immediately remove the deleted tag from the cache
+      qc.setQueryData<Tag[]>(["tags"], (old) =>
+        (old ?? []).filter((t) => t.id !== id)
+      );
+    },
+    onError: () => {
+      // On error, invalidate to re-fetch the real server state
       void qc.invalidateQueries({ queryKey: ["tags"] });
     },
   });

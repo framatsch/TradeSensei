@@ -342,6 +342,12 @@ async def list_trades(
         uuid.UUID | None,
         Query(description="Filter trades by account UUID"),
     ] = None,
+    tag_ids: Annotated[
+        list[uuid.UUID] | None,
+        Query(
+            description="Filter trades by tag UUIDs (OR logic: returns trades with any of the given tags)"
+        ),
+    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 
@@ -352,6 +358,7 @@ async def list_trades(
         limit: Number of items to return (1–100, default 20).
         include_total: When ``True``, include the total row count.
         account_id: Optional UUID to filter trades by account.
+        tag_ids: Optional list of tag UUIDs to filter by (OR logic).
         filters: Optional filter parameters injected via ``Depends()``.
         sort: Optional sort parameters injected via ``Depends()``.
 
@@ -362,6 +369,11 @@ async def list_trades(
     Raises:
         HTTPException: 400 if the cursor token is malformed.
     """
+    # Inject tag_ids from the explicit Query parameter into filters.
+    # FastAPI cannot parse list query params from Pydantic Depends() models,
+    # so tag_ids is declared separately and merged here.
+    if tag_ids is not None:
+        filters.tag_ids = tag_ids
     try:
         page = await service.list_trades(
             limit=limit,
