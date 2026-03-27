@@ -2,9 +2,9 @@
  * Dashboard layout — sidebar nav with auth guard.
  * Redirects to /login when no access_token is found in localStorage.
  *
- * Navigation is controlled by AppConfig feature flags:
- *   - enableTaxModule:      shows/hides Steuerbericht
- *   - enableDividendModule: shows/hides Cash & Dividends
+ * Navigation is controlled by per-user feature flags:
+ *   - tax_report:        shows/hides Cash Report
+ *   - cash_and_dividends: shows/hides Cash & Dividends
  */
 
 "use client";
@@ -17,16 +17,11 @@ import { useLogout } from "@/hooks/useAuth";
 import { Logo } from "@/components/ui/Logo";
 import { AboutModal } from "@/components/ui/AboutModal";
 import { AppConfig } from "@/lib/appConfig";
-import dynamic from "next/dynamic";
+import { useSettings } from "@/hooks/useSettings";
 import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
 import type { SavedTradeFilterRead } from "@/lib/types";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
-
-// Client-only injector for per-user feature nav items (Cash & Tax)
-const FeatureGatedNavItems = dynamic(
-  () => import("@/components/dashboard/FeatureGatedNavItems"),
-  { ssr: false }
-);
+import FeatureGatedNavItems from "@/components/dashboard/FeatureGatedNavItems";
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
@@ -180,26 +175,14 @@ function buildNavItems(): NavItem[] {
         { kind: "leaf", href: "/dashboard/trades", label: "Trades", icon: Icons.trades },
         { kind: "leaf", href: "/dashboard/playbooks", label: "Playbooks", icon: Icons.playbooks },
         { kind: "leaf", href: "/dashboard/tags", label: "Tags", icon: Icons.tags },
-      ],
-    },
-
-    // ── System ────────────────────────────────────────────────────────────────
-    {
-      kind: "group",
-      label: "SYSTEM",
-      defaultOpen: true,
-      children: [
         { kind: "leaf", href: "/dashboard/import", label: "Import", icon: Icons.import },
-        { kind: "leaf", href: "/dashboard/settings", label: "Settings", icon: Icons.settings },
       ],
     },
   ];
 
   // ── Conditionally-enabled modules (hidden unless flag is true) ──────────────
-  // Cash & Dividends and Steuerbericht were previously controlled via
-  // environment variables. They are now per-user feature flags and will
-  // be injected by a client-side component that reads the feature flags
-  // from the settings cache. Keep layout.tsx deterministic on the server.
+  // Cash & Dividends and Cash Report are per-user feature flags injected
+  // by FeatureGatedNavItems, driven by DashboardLayout's useSettings subscription.
 
   return items;
 }
@@ -423,9 +406,11 @@ const ANALYTICS_TABS = [
 function AnalyticsNavSection({
   pathname,
   onClick,
+  showRisk,
 }: {
   pathname: string;
   onClick: () => void;
+  showRisk: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -438,6 +423,8 @@ function AnalyticsNavSection({
     onClick();
   };
 
+  const visibleTabs = ANALYTICS_TABS.filter((t) => t.id !== "risk" || showRisk);
+
   return (
     <div>
       {/* Static section header */}
@@ -445,7 +432,7 @@ function AnalyticsNavSection({
 
       {/* Sub-tab links */}
       <div className="space-y-0.5">
-        {ANALYTICS_TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = isOnAnalyticsPage && activeTab === tab.id;
           return (
             <button
@@ -560,6 +547,14 @@ export default function DashboardLayout({ children }: Props) {
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s.hydrated);
 
+  // Per-user feature flags — subscription lives here so FeatureGatedNavItems
+  // re-renders immediately when the cache updates (no dynamic/lazy timing issues).
+  const { data: settings } = useSettings();
+  const features = (settings?.features ?? {}) as Record<string, boolean>;
+  const showCash = features["cash_and_dividends"] ?? false;
+  const showTax = features["tax_report"] ?? false;
+  const showRisk = features["risk_analytics"] ?? false;
+
   useEffect(() => {
     hydrate();
   }, [hydrate]);
@@ -624,6 +619,7 @@ export default function DashboardLayout({ children }: Props) {
                   key={item.href}
                   pathname={pathname}
                   onClick={closeSidebar}
+                  showRisk={showRisk}
                 />
               );
             }
@@ -640,12 +636,26 @@ export default function DashboardLayout({ children }: Props) {
             return null;
           })}
           {/* Client-side injected per-user feature nav items (Cash / Tax) */}
-          {/* Dynamic import placed here to keep server component deterministic */}
-          <FeatureGatedNavItems onInject={() => {}} />
+          {/* Driven by DashboardLayout's useSettings subscription — no lazy timing window */}
+          <FeatureGatedNavItems showCash={showCash} showTax={showTax} />
         </nav>
 
-        {/* Help + Sign out */}
+        {/* Settings + Help + Sign out */}
         <div className="px-2 py-3 border-t border-border flex flex-col gap-0.5">
+          <Link
+            href="/dashboard/settings"
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-normal transition-colors ${
+              pathname.startsWith("/dashboard/settings")
+                ? "nav-active"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            }`}
+          >
+            <span className={`shrink-0 ${pathname.startsWith("/dashboard/settings") ? "opacity-100" : "opacity-50"}`}>
+              {Icons.settings}
+            </span>
+            Settings
+          </Link>
           <button
             type="button"
             onClick={() =>

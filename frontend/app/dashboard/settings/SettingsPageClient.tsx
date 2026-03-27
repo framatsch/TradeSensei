@@ -1,8 +1,9 @@
 /**
  * SettingsPageClient — client component for the Settings page.
  *
- * Renders the tab bar and switches between General and Accounts & Integrations tabs.
- * Supports linking to a specific tab via ?tab=integrations.
+ * Renders the tab bar and switches between General, Accounts & Integrations,
+ * Corporate Actions, and Features tabs.
+ * Supports linking to a specific tab via ?tab=<id>.
  */
 
 "use client";
@@ -12,26 +13,30 @@ import { useSearchParams } from "next/navigation";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
 import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
+import FeaturesSettings from "@/components/settings/FeaturesSettings";
 
-type Tab = "general" | "integrations" | "corporate-actions";
+type Tab = "general" | "integrations" | "corporate-actions" | "features";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "integrations", label: "Accounts & Integrations" },
   { id: "corporate-actions", label: "Corporate Actions" },
+  { id: "features", label: "Features" },
 ];
 
 export function SettingsPageClient() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>("general");
 
-  // Allow linking to a specific tab via ?tab=integrations or ?tab=corporate-actions
+  // Allow linking to a specific tab via ?tab=integrations, ?tab=features, etc.
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam === "integrations") {
       setActiveTab("integrations");
     } else if (tabParam === "corporate-actions") {
       setActiveTab("corporate-actions");
+    } else if (tabParam === "features") {
+      setActiveTab("features");
     }
   }, [searchParams]);
 
@@ -46,16 +51,16 @@ export function SettingsPageClient() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex p-1 bg-secondary/50 rounded-xl w-fit border border-border/50">
+      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-1">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all duration-300 ${
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/40 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >
             {tab.label}
@@ -68,6 +73,7 @@ export function SettingsPageClient() {
         {activeTab === "general" && <GeneralSettings />}
         {activeTab === "integrations" && <AccountSettings />}
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
+        {activeTab === "features" && <FeaturesSettings />}
       </div>
     </div>
   );

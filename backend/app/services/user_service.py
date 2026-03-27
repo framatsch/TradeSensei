@@ -191,4 +191,8 @@ class UserService:
                     value=str(value),
                 )
         await self._session.commit()
+        # expire_all() is required here: upsert() uses
+        # pg_insert().on_conflict_do_update() which bypasses the SQLAlchemy
+        # ORM identity map. Without this, get_settings() returns stale values.
+        self._session.expire_all()
         return await self.get_settings(user_id)

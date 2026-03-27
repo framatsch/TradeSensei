@@ -1,20 +1,13 @@
 export type FeatureFlagKey =
-  | "rolling_winrate_chart"
-  | "mae_mfe"
+  | "risk_analytics"
   | "cash_and_dividends"
   | "tax_report";
 
 export const FEATURE_FLAGS: { key: FeatureFlagKey; label: string; description: string; comingSoon?: boolean }[] = [
   {
-    key: "rolling_winrate_chart",
-    label: "Rolling Win-Rate Chart",
-    description: "Show rolling window win-rate chart on the Overview dashboard.",
-  },
-  {
-    key: "mae_mfe",
-    label: "MAE / MFE Metrics",
-    description: "Mean adverse / favorable excursion metrics (coming soon).",
-    comingSoon: true,
+    key: "risk_analytics",
+    label: "Risk Analytics",
+    description: "Unlocks the Risk Metrics tab in Analytics.",
   },
   {
     key: "cash_and_dividends",
@@ -23,9 +16,10 @@ export const FEATURE_FLAGS: { key: FeatureFlagKey; label: string; description: s
   },
   {
     key: "tax_report",
-    label: "Steuerbericht",
-    description: "Show the German tax report (Steuerbericht) page and export.",
+    label: "Cash Report",
+    description: "Show the Cash Report page and export.",
   },
 ];
 
 export const ALL_FEATURE_KEYS: FeatureFlagKey[] = FEATURE_FLAGS.map((f) => f.key);
+
