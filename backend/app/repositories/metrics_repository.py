@@ -59,7 +59,12 @@ class MetricsRepository:
         """
         stmt = (
             select(Trade)
-            .options(selectinload(Trade.account))
+            .options(
+                selectinload(Trade.account),
+                selectinload(Trade.playbook),
+                selectinload(Trade.tags),
+                selectinload(Trade.trade_notes),
+            )
             .where(
                 Trade.account_id == account_id,
                 Trade.user_id == user_id,
@@ -102,7 +107,12 @@ class MetricsRepository:
         """
         stmt = (
             select(Trade)
-            .options(selectinload(Trade.account))
+            .options(
+                selectinload(Trade.account),
+                selectinload(Trade.playbook),
+                selectinload(Trade.tags),
+                selectinload(Trade.trade_notes),
+            )
             .where(
                 Trade.user_id == user_id,
                 Trade.pnl.is_not(None),

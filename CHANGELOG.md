@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Playbook creation now shows immediately in the list without requiring a second item to be created (optimistic update via `setQueryData`).
+- [frontend] Tag creation now shows immediately in the list without requiring a second item to be created (optimistic update via `setQueryData`).
+- [frontend] Playbook update and delete now reflect immediately in the UI without requiring a page refresh (optimistic cache update via `setQueryData`).
+- [frontend] Tag delete now reflects immediately in the UI without requiring a page refresh (optimistic cache update via `setQueryData`).
+- [frontend] Tag filtering in the trades overview now works correctly — uses OR logic so trades with any of the selected tags are returned.
+- [frontend] Account filter in the trades overview is now visible for all users, not just those with multiple accounts.
+- [backend] Fixed tag filter in `GET /api/v1/trades` — FastAPI's `Depends()` does not parse `list[UUID]` query parameters from Pydantic models; `tag_ids` is now declared as an explicit `Query()` parameter on the endpoint and merged into the filter object before the service call.
+- [backend] Fixed 500 Internal Server Error on `/api/v1/metrics/summary` and `/api/v1/metrics/equity-curve` caused by `MissingGreenlet` error in async SQLAlchemy when Pydantic serialized unloaded relationships (`playbook`, `tags`, `trade_notes`). All required relationships are now eagerly loaded via `selectinload`.
+
 ## [0.5.1] - 2026-03-26
 
 ### Added

@@ -344,7 +344,7 @@ export function TradeFilterBar({ filters, onChange }: Props) {
           </div>
 
           {/* Account / Broker */}
-          {accounts && accounts.length > 1 && (
+          {accounts && accounts.length > 0 && (
             <div>
               <label className={LABEL_CLASS}>Account</label>
               <select

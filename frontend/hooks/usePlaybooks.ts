@@ -36,7 +36,15 @@ export function useCreatePlaybook() {
       );
       return res.data.data;
     },
-    onSuccess: () => {
+    onSuccess: (newPlaybook) => {
+      // Optimistic update: immediately add the new playbook to the cache
+      qc.setQueryData<Playbook[]>(["playbooks"], (old) => [
+        ...(old ?? []),
+        newPlaybook,
+      ]);
+    },
+    onError: () => {
+      // On error, invalidate to re-fetch the real server state
       void qc.invalidateQueries({ queryKey: ["playbooks"] });
     },
   });
@@ -52,7 +60,13 @@ export function useUpdatePlaybook() {
       );
       return res.data.data;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // Immediately replace the updated playbook in the cache
+      qc.setQueryData<Playbook[]>(["playbooks"], (old) =>
+        (old ?? []).map((pb) => (pb.id === updated.id ? updated : pb))
+      );
+    },
+    onError: () => {
       void qc.invalidateQueries({ queryKey: ["playbooks"] });
     },
   });
@@ -64,7 +78,13 @@ export function useDeletePlaybook() {
     mutationFn: async (id) => {
       await apiClient.delete(`/api/v1/playbooks/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
+      // Immediately remove the deleted playbook from the cache
+      qc.setQueryData<Playbook[]>(["playbooks"], (old) =>
+        (old ?? []).filter((pb) => pb.id !== deletedId)
+      );
+    },
+    onError: () => {
       void qc.invalidateQueries({ queryKey: ["playbooks"] });
     },
   });
