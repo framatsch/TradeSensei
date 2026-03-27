@@ -9,6 +9,7 @@ import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { TradeEditForm } from "@/components/trades/TradeEditForm";
 import { MediaChartsCard } from "@/components/trades/MediaChartsCard";
+import { PartialCloseModal } from "@/components/trades/PartialCloseModal";
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import type { TradeUpdate } from "@/lib/types";
 import type { AxiosError } from "axios";
@@ -60,6 +61,7 @@ export default function TradeDetailPage() {
   const { mutate: updateTrade, isPending: isSaving } = useUpdateTrade(tradeId);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isPartialCloseOpen, setIsPartialCloseOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   if (isLoading) {
@@ -236,12 +238,22 @@ export default function TradeDetailPage() {
                      {isOpen ? "Open" : "Closed"}
                    </span>
                  </div>
-                 <button
-                   onClick={() => setIsEditing(true)}
-                   className="text-xs font-medium text-primary hover:text-blue-700 dark:text-primary dark:hover:text-blue-300"
-                 >
-                   Edit Trade
-                 </button>
+                 <div className="flex items-center gap-3">
+                   {isOpen && (
+                     <button
+                       onClick={() => setIsPartialCloseOpen(true)}
+                       className="text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 dark:hover:text-emerald-400"
+                     >
+                       Partial Close
+                     </button>
+                   )}
+                   <button
+                     onClick={() => setIsEditing(true)}
+                     className="text-xs font-medium text-primary hover:text-blue-700 dark:text-primary dark:hover:text-blue-300"
+                   >
+                     Edit Trade
+                   </button>
+                 </div>
                </div>
              </div>
           </div>
@@ -400,6 +412,11 @@ export default function TradeDetailPage() {
 
             </div>
           </div>
+          <PartialCloseModal
+            trade={trade}
+            isOpen={isPartialCloseOpen}
+            onClose={() => setIsPartialCloseOpen(false)}
+          />
         </>
       )}
     </div>

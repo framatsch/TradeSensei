@@ -535,3 +535,10 @@ export interface SavedTradeFilterRead extends SavedTradeFilterBase {
   created_at: string;
   updated_at: string;
 }
+
+export interface TradePartialCloseRequest {
+  quantity: number;
+  exit_price: number;
+  closed_at: string;
+  exit_commission?: number | null;
+}

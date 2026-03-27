@@ -55,3 +55,20 @@ export function useUpdateTrade(id: string) {
     },
   });
 }
+
+export function usePartialCloseTrade(id: string) {
+  const qc = useQueryClient();
+  return useMutation<Trade, Error, import("@/lib/types").TradePartialCloseRequest>({
+    mutationFn: async (payload) => {
+      const res = await apiClient.post<ResponseEnvelope<Trade>>(
+        `/api/v1/trades/${id}/partial-close`,
+        payload
+      );
+      return res.data.data;
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData(["trade", id], updated);
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+    },
+  });
+}
