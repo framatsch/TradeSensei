@@ -507,7 +507,7 @@ export function TradeChart({ trade }: TradeChartProps) {
               onClick={() => handleIntervalChange(iv)}
               className={`relative px-3.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 ${
                 interval === iv
-                  ? "bg-[#6063dd] text-white dark:bg-gradient-to-b dark:from-primary/40 dark:to-primary/10 dark:text-primary dark:shadow-[0_0_12px_rgba(0,210,255,0.2)] border border-[#6063dd]/80 dark:border-primary/30"
+                  ? "bg-[#6063dd] text-white dark:bg-gradient-to-b dark:from-primary/40 dark:to-primary/10 dark:text-[#f3f3f3] dark:shadow-[0_0_12px_rgba(0,210,255,0.2)] border border-[#6063dd]/80 dark:border-primary/30"
                   : "text-[#717174] hover:text-foreground hover:bg-black/5 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-white/5 border border-transparent"
               }`}
             >
