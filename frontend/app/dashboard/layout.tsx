@@ -22,6 +22,12 @@ import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
 import type { SavedTradeFilterRead } from "@/lib/types";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
 
+// Client-only injector for per-user feature nav items (Cash & Tax)
+const FeatureGatedNavItems = dynamic(
+  () => import("@/components/dashboard/FeatureGatedNavItems"),
+  { ssr: false }
+);
+
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
 interface NavLeaf {
@@ -635,11 +641,7 @@ export default function DashboardLayout({ children }: Props) {
           })}
           {/* Client-side injected per-user feature nav items (Cash / Tax) */}
           {/* Dynamic import placed here to keep server component deterministic */}
-          {typeof window !== "undefined" && (
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore-next-line
-            <FeatureGatedNavItems onInject={() => {}} />
-          )}
+          <FeatureGatedNavItems onInject={() => {}} />
         </nav>
 
         {/* Help + Sign out */}
