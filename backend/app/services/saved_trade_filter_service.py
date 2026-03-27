@@ -18,10 +18,10 @@ class SavedTradeFilterService:
 
     def _validate_definition(self, definition: dict[str, Any]) -> None:
         """Validate that a definition only contains valid TradeFilterParams fields.
-        
+
         Args:
             definition: The filter definition to validate.
-            
+
         Raises:
             HTTPException: If the definition contains invalid fields or types.
         """
@@ -46,7 +46,7 @@ class SavedTradeFilterService:
     ) -> SavedTradeFilter:
         """Create a new user-owned saved filter."""
         self._validate_definition(definition)
-        
+
         return await self.repository.create(
             name=name,
             definition=definition,
@@ -66,12 +66,10 @@ class SavedTradeFilterService:
         db_filter = await self.repository.get_by_id(filter_id)
         if not db_filter:
             raise HTTPException(status_code=404, detail="Saved trade filter not found")
-            
+
         if db_filter.scope == FilterScope.SYSTEM:
-            raise HTTPException(
-                status_code=403, detail="Cannot modify system filters"
-            )
-            
+            raise HTTPException(status_code=403, detail="Cannot modify system filters")
+
         if db_filter.owner_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Not authorized to modify this filter"
@@ -99,12 +97,10 @@ class SavedTradeFilterService:
         db_filter = await self.repository.get_by_id(filter_id)
         if not db_filter:
             raise HTTPException(status_code=404, detail="Saved trade filter not found")
-            
+
         if db_filter.scope == FilterScope.SYSTEM:
-            raise HTTPException(
-                status_code=403, detail="Cannot modify system filters"
-            )
-            
+            raise HTTPException(status_code=403, detail="Cannot modify system filters")
+
         if db_filter.owner_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Not authorized to modify this filter"
