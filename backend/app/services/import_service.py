@@ -7,6 +7,7 @@ account.  No HTTP concepts appear in this layer.
 import logging
 import uuid
 from collections.abc import Sequence
+from decimal import Decimal
 from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,6 +123,10 @@ class ImportService:
         # were closed by the aggregator.
         open_lot_ids = {lot.id for lot in open_lots}
 
+        # Load all existing orphaned lots (closed, but no entry leg).
+        orphaned_lots = await self._trade_repo.list_orphaned_lots_by_user(user_id)
+        orphaned_lot_ids = {lot.id for lot in orphaned_lots}
+
         # Load the set of (broker_conid, opened_at) keys for manually-edited trades.
         # These will be skipped during import to preserve manual corrections
         # unless overwrite_manually_edited is True.
@@ -145,6 +150,9 @@ class ImportService:
             filename,
             corporate_actions=ca_for_parser,
             seed_open_lots=seed_for_parser,
+            seed_orphaned_lots=cast(Sequence[SeedLotLike], orphaned_lots)
+            if orphaned_lots
+            else None,
         )
 
         # Enrich pnl_eur — base class provides a no-op default so this is always safe.
@@ -168,7 +176,11 @@ class ImportService:
             db_trade_id = trade_data.db_trade_id
 
             # --- Case 1: This result closes an existing open DB lot (UPDATE) ---
-            if db_trade_id is not None and db_trade_id in open_lot_ids:
+
+            if db_trade_id is not None and (
+                db_trade_id in open_lot_ids or db_trade_id in orphaned_lot_ids
+            ):
+                is_orphan = db_trade_id in orphaned_lot_ids
                 # Check for manual-edit protection on the original open lot
                 match_key = (trade_data.broker_conid, trade_data.opened_at)
                 if match_key in manually_edited_keys:
@@ -185,24 +197,36 @@ class ImportService:
                 if (
                     trade_data.closed_at is not None
                     and trade_data.exit_price is not None
+                    and trade_data.entry_price != Decimal("0.001")
                 ):
                     if db_trade_id not in already_updated_ids:
                         # First close of this seed lot — UPDATE the original row.
                         try:
-                            await self._trade_repo.close_open_lot(
-                                trade_id=db_trade_id,
-                                exit_price=trade_data.exit_price,
-                                closed_at=trade_data.closed_at,
-                                pnl=trade_data.pnl,
-                                pnl_eur=trade_data.pnl_eur,
-                                commission_add=trade_data.commission,
-                                quantity=trade_data.quantity,
-                            )
+                            if is_orphan:
+                                await self._trade_repo.fill_orphaned_lot(
+                                    trade_id=db_trade_id,
+                                    entry_price=trade_data.entry_price,
+                                    opened_at=trade_data.opened_at,
+                                    pnl=trade_data.pnl,
+                                    pnl_eur=trade_data.pnl_eur,
+                                    commission_add=trade_data.commission,
+                                    quantity=trade_data.quantity,
+                                )
+                            else:
+                                await self._trade_repo.close_open_lot(
+                                    trade_id=db_trade_id,
+                                    exit_price=trade_data.exit_price,
+                                    closed_at=trade_data.closed_at,
+                                    pnl=trade_data.pnl,
+                                    pnl_eur=trade_data.pnl_eur,
+                                    commission_add=trade_data.commission,
+                                    quantity=trade_data.quantity,
+                                )
                             already_updated_ids.add(db_trade_id)
                             trades_updated += 1
                         except Exception as exc:  # noqa: BLE001
                             msg = (
-                                f"Failed to close open lot {db_trade_id} "
+                                f"Failed to close/fill open/orphaned lot {db_trade_id} "
                                 f"({trade_data.symbol}): {exc}"
                             )
                             logger.warning(msg)
@@ -224,11 +248,37 @@ class ImportService:
                             )
                             logger.warning(msg)
                             create_warnings.append(msg)
-                # If still open, it's a seed lot that stayed open — skip (already in DB)
+                else:
+                    # If still open (or still orphaned), check if the original seed lot was already updated.
+                    if db_trade_id in already_updated_ids:
+                        # The original seed row was partially matched and updated to represent the matched portion.
+                        # This remaining unmatched portion must be inserted as a new row to avoid losing it.
+                        trade_with_owner = trade_data.model_copy(
+                            update={
+                                "account_id": account_id,
+                                "user_id": user_id,
+                                "id": None,
+                            }
+                        )
+                        try:
+                            await self._trade_repo.create(trade_with_owner)
+                            trades_created += 1
+                        except Exception as exc:  # noqa: BLE001
+                            msg = (
+                                f"Failed to insert remaining open/orphaned lot for "
+                                f"{trade_data.symbol}: {exc}"
+                            )
+                            logger.warning(msg)
+                            create_warnings.append(msg)
+                    # If not in already_updated_ids, it means the seed lot wasn't touched. Skip (already in DB).
                 continue
 
             # --- Case 2: Seed lot that is still open — skip (already in DB) ---
-            if db_trade_id is not None and db_trade_id not in open_lot_ids:
+            if (
+                db_trade_id is not None
+                and db_trade_id not in open_lot_ids
+                and db_trade_id not in orphaned_lot_ids
+            ):
                 # db_trade_id set but not in open_lot_ids — shouldn't happen, skip
                 logger.debug(
                     "Skipping seed lot with unknown db_trade_id=%s", db_trade_id

@@ -160,6 +160,7 @@ class IBKRParser(BrokerParser):
         filename: str,
         corporate_actions: Sequence[CorporateActionLike] | None = None,  # noqa: ARG002
         seed_open_lots: Sequence[object] | None = None,  # noqa: ARG002
+        seed_orphaned_lots: Sequence[object] | None = None,  # noqa: ARG002
     ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
         """Parse an IBKR Activity Statement CSV into :class:`TradeCreate` objects.
 
