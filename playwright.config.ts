@@ -30,7 +30,7 @@ export default defineConfig({
 
   use: {
     /* Base URL — local dev stack */
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+    baseURL: 'http://localhost:3000',
 
     /* Reuse authenticated browser state seeded in globalSetup */
     storageState: './frontend/tests/.auth/user.json',
@@ -47,13 +47,20 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: '**/auth.setup.ts',
-      use: { storageState: undefined },
+      use: { 
+        storageState: undefined,
+        // Inherit baseURL from top-level use
+      },
     },
 
     /* Main test projects — depend on setup */
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: './frontend/tests/.auth/user.json',
+        // Inherit baseURL from top-level use
+      },
       dependencies: ['setup'],
     },
 
@@ -62,7 +69,11 @@ export default defineConfig({
       ? [
           {
             name: 'firefox',
-            use: { ...devices['Desktop Firefox'] },
+            use: { 
+              ...devices['Desktop Firefox'],
+              storageState: './frontend/tests/.auth/user.json',
+              // Inherit baseURL from top-level use
+            },
             dependencies: ['setup'],
           },
         ]

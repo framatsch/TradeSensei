@@ -37,7 +37,11 @@ export function useCreateAccount() {
       );
       return res.data.data;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["stats"] });
+    },
   });
 }
 
@@ -51,7 +55,11 @@ export function useUpdateAccount(id: string) {
       );
       return res.data.data;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["stats"] });
+    },
   });
 }
 
@@ -61,6 +69,10 @@ export function useDeleteAccount() {
     mutationFn: async (id) => {
       await apiClient.delete(`/api/v1/accounts/${id}`);
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      await qc.invalidateQueries({ queryKey: ["trades"] });
+      await qc.invalidateQueries({ queryKey: ["stats"] });
+    },
   });
 }

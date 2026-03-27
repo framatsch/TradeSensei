@@ -35,7 +35,17 @@ Default recommendation: `ci-fix/<date>` and open a PR.
 
 ## Workflow
 
-1. **Identify failed run or job**
+1. **Strategy Choice**
+
+Before starting the loop, ask two questions:
+- "Which branch should I use: `main` directly or `ci-fix/<date>` (recommended)?"
+- "Should I use `gh act` to run tests locally before pushing (faster iteration, recommended)?"
+
+If the user chooses `gh act`:
+- Use `act` commands to run relevant workflows locally.
+- Only commit and push once the local `act` run is successful.
+
+2. **Identify failed run or job**
 
 If a job URL is provided (e.g., `https://github.com/.../actions/runs/<run-id>/job/<job-id>`):
 - Extract the job ID.
@@ -48,7 +58,7 @@ gh run list --limit 20
 
 Pick the newest failed run for the current branch/repo context.
 
-2. **Inspect logs and classify**
+3. **Inspect logs and classify**
 
 If job-id was extracted:
 ```bash
@@ -65,7 +75,7 @@ Classify as one of:
 - `frontend`
 - `infra/workflow`
 
-3. **Fix by category**
+4. **Fix by category**
 
 - `backend`
   - Delegate implementation to `backend-engineer`.
@@ -85,29 +95,37 @@ npx tsc --noEmit
   - Patch CI workflow files directly under `.github/workflows/`.
   - Preserve main-only `latest` behavior and release/tag build triggers.
 
-4. **Document iteration**
+5. **Local Validation (Optional but Recommended)**
 
-Capture a short note per cycle (in PR body, issue comment, or local notes):
-- failing run id and job
+If the user enabled `gh act`:
+```bash
+# Example: Run only the failed job locally
+gh act -j <job-name>
+```
+
+6. **Document iteration**
+
+Capture a short note per cycle:
+- failing run id (or `act` run status)
 - root cause classification
 - concrete fix
-- local verification commands and results
+- local verification results
 
-5. **Safe commit**
+7. **Safe commit & Push**
 
-Load and execute `safe-commit` skill workflow.
-It includes `commit-helper` for project-compliant commit messages.
+- Load and execute `safe-commit` skill workflow.
+- Only push if `act` was successful or if the user requested a remote-only loop.
 
-6. **Push and observe**
+8. **Observe & Loop**
 
 ```bash
 git push
 gh run watch
 ```
 
-7. **Loop control**
+9. **Loop control**
 
-- If run is red: restart from step 1.
+- If run is red (or `act` fails): restart from step 2.
 - If run is green: stop and provide final report.
 
 ## Final report format
