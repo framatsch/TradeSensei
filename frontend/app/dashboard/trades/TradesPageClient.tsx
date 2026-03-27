@@ -4,12 +4,11 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveFilterModal } from "@/components/trades/SaveFilterModal";
-import { SavedFiltersList } from "@/components/trades/SavedFiltersList";
 import { TradeTable } from "@/components/trades/TradeTable";
 import { TradeFilterBar } from "@/components/trades/TradeFilterBar";
 import { BulkActionToolbar } from "@/components/trades/BulkActionToolbar";
@@ -19,11 +18,17 @@ import {
   useBulkAssignPlaybook,
 } from "@/hooks/useTrades";
 import type { TradeFilters, TradeSortConfig } from "@/hooks/useTrades";
+import {
+  useSavedTradeFilters,
+  useDeleteSavedTradeFilter,
+  useUpdateSavedTradeFilter,
+} from "@/hooks/useSavedTradeFilters";
 import { useTags } from "@/hooks/useTags";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { useSettings } from "@/hooks/useSettings";
-import type { DefaultDateRange } from "@/lib/types";
+import { buildDefinitionFromFilters } from "@/lib/tradeFilterUtils";
+import type { DefaultDateRange, SavedTradeFilterRead } from "@/lib/types";
 
 
 const EMPTY_FILTERS: TradeFilters = {
@@ -104,7 +109,8 @@ function readSortFromParams(params: URLSearchParams): TradeSortConfig {
 function filtersToParams(
   filters: TradeFilters,
   sort: TradeSortConfig,
-  limit: number
+  limit: number,
+  viewId?: string
 ): URLSearchParams {
   const p = new URLSearchParams();
   if (filters.symbol) p.set("symbol", filters.symbol);
@@ -130,6 +136,8 @@ function filtersToParams(
   if (sort.sort_by) p.set("sort_by", sort.sort_by);
   if (sort.sort_dir) p.set("sort_dir", sort.sort_dir);
   if (limit !== 20) p.set("limit", String(limit));
+  // view_id is preserved when sorting/paging, cleared when filters change manually
+  if (viewId) p.set("view_id", viewId);
   return p;
 }
 
@@ -263,6 +271,52 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
   );
 }
 
+// ─── Rename view modal ────────────────────────────────────────────────────────
+
+interface RenameViewModalProps {
+  currentName: string;
+  onSave: (name: string) => void;
+  onClose: () => void;
+  isPending: boolean;
+}
+
+function RenameViewModal({ currentName, onSave, onClose, isPending }: RenameViewModalProps) {
+  const [name, setName] = useState(currentName);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-2xl">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Rename View</h2>
+        <input
+          type="text"
+          className="w-full rounded-lg border border-border bg-secondary px-4 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && name.trim() && onSave(name.trim())}
+          autoFocus
+        />
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!name.trim() || isPending}
+            onClick={() => name.trim() && onSave(name.trim())}
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+          >
+            {isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── TradesPageClient ─────────────────────────────────────────────────────────
 
 export function TradesPageClient() {
@@ -270,11 +324,14 @@ export function TradesPageClient() {
   const router = useRouter();
   const { data: settings } = useSettings();
 
+  // Active view ID is read reactively from the URL (set by sidebar navigation).
+  const activeViewId = searchParams.get("view_id") ?? undefined;
+
   // If no URL date params are present, apply the user's default_date_range setting.
   const hasUrlDateParams =
-    searchParams.has("opened_at_from") || 
+    searchParams.has("opened_at_from") ||
     searchParams.has("opened_at_to") ||
-    searchParams.has("closed_at_from") || 
+    searchParams.has("closed_at_from") ||
     searchParams.has("closed_at_to");
 
   const [filters, setFilters] = useState<TradeFilters>(() => {
@@ -296,33 +353,81 @@ export function TradesPageClient() {
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showPlaybookPicker, setShowPlaybookPicker] = useState(false);
   const [showSaveFilter, setShowSaveFilter] = useState(false);
+  const [showRenameView, setShowRenameView] = useState(false);
+
+  // Sync filters state when URL changes externally (e.g. sidebar view navigation).
+  useEffect(() => {
+    setFilters(readFiltersFromParams(searchParams));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
+
+  // Resolve the full active view object (needed to know scope for Update/Delete).
+  const { data: savedViews } = useSavedTradeFilters();
+  const activeView: SavedTradeFilterRead | undefined = activeViewId
+    ? savedViews?.find((v) => v.id === activeViewId)
+    : undefined;
 
   const { mutate: bulkDelete, isPending: isDeleting } = useBulkDeleteTrades();
   const { mutate: bulkAssignTag, isPending: isAssigningTag } = useBulkAssignTag();
   const { mutate: bulkAssignPlaybook, isPending: isAssigningPlaybook } =
     useBulkAssignPlaybook();
+  const { mutate: deleteFilter } = useDeleteSavedTradeFilter();
+  // Hook requires id at call time; falls back to "" when no view is active (mutation never fires).
+  const { mutate: updateFilter, isPending: isUpdating } = useUpdateSavedTradeFilter(
+    activeViewId ?? ""
+  );
 
   const pushToUrl = useCallback(
-    (nextFilters: TradeFilters, nextSort: TradeSortConfig, nextLimit: number) => {
-      const qs = filtersToParams(nextFilters, nextSort, nextLimit).toString();
+    (nextFilters: TradeFilters, nextSort: TradeSortConfig, nextLimit: number, viewId?: string) => {
+      const qs = filtersToParams(nextFilters, nextSort, nextLimit, viewId).toString();
       router.push(`/dashboard/trades${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [router]
   );
 
+  // Manual filter change → drop view_id (Option 1).
   const handleFiltersChange = (nextFilters: TradeFilters) => {
     setFilters(nextFilters);
-    pushToUrl(nextFilters, sort, limit);
+    pushToUrl(nextFilters, sort, limit); // no viewId → cleared
   };
 
+  // Sort / limit changes → preserve active view_id.
   const handleSortChange = (nextSort: TradeSortConfig) => {
     setSort(nextSort);
-    pushToUrl(filters, nextSort, limit);
+    pushToUrl(filters, nextSort, limit, activeViewId);
   };
 
   const handleLimitChange = (nextLimit: number) => {
     setLimit(nextLimit);
-    pushToUrl(filters, sort, nextLimit);
+    pushToUrl(filters, sort, nextLimit, activeViewId);
+  };
+
+  // Delete the currently active user view.
+  const handleDeleteView = () => {
+    if (!activeViewId) return;
+    if (!window.confirm("Delete this saved view?")) return;
+    deleteFilter(activeViewId, {
+      onSuccess: () => {
+        // Keep filters active, just remove the view reference.
+        pushToUrl(filters, sort, limit);
+      },
+    });
+  };
+
+  // Overwrite the currently active user view with the current filters.
+  const handleUpdateView = () => {
+    if (!activeViewId) return;
+    const definition = buildDefinitionFromFilters(filters);
+    updateFilter({ definition });
+    // view_id stays in URL — no pushToUrl call needed.
+  };
+
+  // Rename the currently active user view — view_id stays selected.
+  const handleRenameView = (newName: string) => {
+    if (!activeViewId) return;
+    updateFilter({ name: newName }, {
+      onSuccess: () => setShowRenameView(false),
+    });
   };
 
   const handleDelete = () => {
@@ -373,44 +478,33 @@ export function TradesPageClient() {
         </Link>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="w-full md:w-64 flex-shrink-0 space-y-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-              <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Views</h3>
-              <button 
-                onClick={() => setShowSaveFilter(true)}
-                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium"
-              >
-                Save
-              </button>
-            </div>
-            <SavedFiltersList currentFilters={filters} onApply={(def) => handleFiltersChange({...EMPTY_FILTERS, ...def})} />
-          </div>
-        </div>
+      <BulkActionToolbar
+        selectedCount={selectedIds.size}
+        onDelete={handleDelete}
+        onAssignTag={() => setShowTagPicker(true)}
+        onAssignPlaybook={() => setShowPlaybookPicker(true)}
+        isDeleting={isDeleting}
+      />
 
-        <div className="flex-1 min-w-0 space-y-4">
-          <BulkActionToolbar
-            selectedCount={selectedIds.size}
-            onDelete={handleDelete}
-            onAssignTag={() => setShowTagPicker(true)}
-            onAssignPlaybook={() => setShowPlaybookPicker(true)}
-            isDeleting={isDeleting}
-          />
+      <TradeFilterBar
+        filters={filters}
+        onChange={handleFiltersChange}
+        activeView={activeView}
+        onSaveView={() => setShowSaveFilter(true)}
+        onUpdateView={handleUpdateView}
+        onDeleteView={handleDeleteView}
+        isUpdating={isUpdating}
+      />
 
-          <TradeFilterBar filters={filters} onChange={handleFiltersChange} />
-
-          <TradeTable
-            filters={filters}
-            sort={sort}
-            onSortChange={handleSortChange}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            limit={limit}
-            onLimitChange={handleLimitChange}
-          />
-        </div>
-      </div>
+      <TradeTable
+        filters={filters}
+        sort={sort}
+        onSortChange={handleSortChange}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        limit={limit}
+        onLimitChange={handleLimitChange}
+      />
 
       {showTagPicker && (
         <TagPickerModal
@@ -427,7 +521,8 @@ export function TradesPageClient() {
           isPending={isAssigningPlaybook}
         />
       )}
-      <SaveFilterModal 
+
+      <SaveFilterModal
         isOpen={showSaveFilter}
         onClose={() => setShowSaveFilter(false)}
         currentFilters={filters}
