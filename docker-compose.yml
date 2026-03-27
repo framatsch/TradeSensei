@@ -73,7 +73,7 @@ services:
       retries: 10
 
   # ─────────────────────────────────────────────
-  # Next.js Frontend (placeholder — added in Iteration 5)
+  # Next.js Frontend
   # ─────────────────────────────────────────────
   frontend:
     build:
@@ -84,10 +84,6 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       INTERNAL_API_URL: http://backend:8000
-      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:-dev-nextauth-secret-change-in-production}"
-      NEXTAUTH_URL: "${NEXTAUTH_URL:-http://localhost:3000}"
-      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
-      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
     ports:
       - "3000:3000"
