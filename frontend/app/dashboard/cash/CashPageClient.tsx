@@ -7,8 +7,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
+import { useSettings } from "@/hooks/useSettings";
 import { useAccounts } from "@/hooks/useAccounts";
 import {
   useCashTransactions,
@@ -332,6 +334,18 @@ function TransactionModal({ accountId, editing, onClose }: TransactionModalProps
 // ─── CashPageClient ───────────────────────────────────────────────────────────
 
 export function CashPageClient() {
+  const router = useRouter();
+  const { data: settings } = useSettings();
+  const features = (settings?.features ?? {}) as Record<string, boolean>;
+  const cashEnabled = features["cash_and_dividends"] ?? false;
+
+  // Redirect to dashboard when settings are loaded and flag is disabled
+  useEffect(() => {
+    if (settings !== undefined && !cashEnabled) {
+      router.replace("/dashboard");
+    }
+  }, [settings, cashEnabled, router]);
+
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
 
   const PAGE_SIZE = 20;
@@ -427,6 +441,9 @@ export function CashPageClient() {
   }
 
   const selectedAccount = accounts?.find((a) => a.id === selectedAccountId);
+
+  // Render nothing while redirecting (settings loaded but flag off)
+  if (settings !== undefined && !cashEnabled) return null;
 
   return (
     <div className="space-y-6">
