@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-28
+
+### Fixed
+- [frontend] Fixed Account E2E tests by adding `page.reload()` and count-based assertions for reliable deletion verification.
+- [frontend] Stabilized `playwright.config.ts` by fixing `baseURL` and ensuring correct `storageState` inheritance across test projects.
+- [frontend] Improved account deletion hook to correctly invalidate `trades` and `stats` caches, ensuring UI consistency.
+- [auth] Made frontend redirect URLs configurable for OIDC/OAuth to support diverse deployment environments.
+
+### Changed
+- [infra] Updated `ci-green-loop` skill to support local verification via `gh act` before pushing.
+
 ## [0.6.0] - 2026-03-28
 
 ### Added
@@ -99,4 +110,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
 [unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...HEAD
+[0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
