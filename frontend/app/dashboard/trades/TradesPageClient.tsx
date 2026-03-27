@@ -385,10 +385,10 @@ export function TradesPageClient() {
     [router]
   );
 
-  // Manual filter change → drop view_id (Option 1).
+  // Manual filter change — keep view_id so the user can still Update/Rename the view.
   const handleFiltersChange = (nextFilters: TradeFilters) => {
     setFilters(nextFilters);
-    pushToUrl(nextFilters, sort, limit); // no viewId → cleared
+    pushToUrl(nextFilters, sort, limit, activeViewId);
   };
 
   // Sort / limit changes → preserve active view_id.
@@ -491,6 +491,7 @@ export function TradesPageClient() {
         onChange={handleFiltersChange}
         activeView={activeView}
         onSaveView={() => setShowSaveFilter(true)}
+        onRenameView={() => setShowRenameView(true)}
         onUpdateView={handleUpdateView}
         onDeleteView={handleDeleteView}
         isUpdating={isUpdating}
@@ -527,6 +528,15 @@ export function TradesPageClient() {
         onClose={() => setShowSaveFilter(false)}
         currentFilters={filters}
       />
+
+      {showRenameView && activeView && (
+        <RenameViewModal
+          currentName={activeView.name}
+          onSave={handleRenameView}
+          onClose={() => setShowRenameView(false)}
+          isPending={isUpdating}
+        />
+      )}
     </div>
   );
 }

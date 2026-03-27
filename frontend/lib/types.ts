@@ -398,6 +398,7 @@ export interface UserSettings {
 export interface UserSettingsUpdate {
   theme?: Theme;
   default_date_range?: DefaultDateRange;
+  features?: Record<string, boolean> | null;
 }
 
 // ─── Cash Transactions ────────────────────────────────────────────────────────
