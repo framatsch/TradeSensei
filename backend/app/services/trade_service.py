@@ -237,7 +237,6 @@ class TradeService:
             raise PermissionError("Playbook does not belong to this user.")
         return await self._repo.bulk_assign_playbook(trade_ids, playbook_id, user_id)
 
-
     async def partial_close_trade(
         self,
         trade_id: uuid.UUID,
@@ -337,6 +336,7 @@ class TradeService:
         # These are separate from the 'notes' column on the trade table.
         for note in trade.trade_notes:
             from app.models.trade_note import TradeNote
+
             self._repo._session.add(
                 TradeNote(
                     trade_id=new_trade_orm.id,
@@ -352,4 +352,3 @@ class TradeService:
         )
 
         return TradeRead.model_validate(new_trade_orm)
-

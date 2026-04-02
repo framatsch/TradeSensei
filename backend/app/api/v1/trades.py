@@ -525,12 +525,17 @@ async def delete_trade(
     response_model=ResponseEnvelope[TradeRead],
     summary="Partially close an open trade",
     description=(
-        "Split an open trade into two records: the original trade with reduced quantity "
-        "and a new closed trade with the specified exit details. All metadata (tags, "
-        "notes, playbook) is duplicated to the new trade. Entry commissions are split "
+        "Split an open trade into two records: "
+        "the original trade with reduced quantity "
+        "and a new closed trade with the specified "
+        "exit details. All metadata (tags, "
+        "notes, playbook) is duplicated to the "
+        "new trade. Entry commissions are split "
         "proportionally."
     ),
-    response_description="The newly created closed trade wrapped in a response envelope.",
+    response_description=(
+        "The newly created closed trade wrapped in a response envelope."
+    ),
     responses={
         200: {"description": "Trade partially closed successfully."},
         400: {"description": "Invalid partial close request (e.g. quantity too high)."},
@@ -573,4 +578,3 @@ async def partial_close_trade(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
-

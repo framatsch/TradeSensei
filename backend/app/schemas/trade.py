@@ -20,7 +20,6 @@ from app.schemas.tag import TagRead
 _UNSET: object = object()
 
 
-
 class TradePartialCloseRequest(BaseModel):
     """Payload for splitting an open trade by closing a portion of it.
 
