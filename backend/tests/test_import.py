@@ -219,7 +219,7 @@ class TestIBKRParserParse:
         assert trades[0].closed_at is not None
         assert trades[0].pnl == Decimal("500.00")
         # closed_at must be strictly after opened_at.
-        assert trades[0].closed_at > trades[0].opened_at  # type: ignore[operator]
+        assert trades[0].closed_at > trades[0].opened_at
 
     @pytest.mark.unit
     def test_missing_header_raises_import_parse_error(self) -> None:
@@ -1633,3 +1633,43 @@ class TestImportWithSplit:
         assert result.trades_parsed == 2
         assert result.trades_created == 2
         assert result.trades_skipped == 0
+
+
+class TestIBKRXMLParserCommission:
+    """Unit tests for IBKRXMLParser commission parsing."""
+
+    @pytest.mark.unit
+    def test_commission_max_of_ib_and_gen(self) -> None:
+        """When both commission fields are present, max absolute value is used."""
+        from app.utils.parsers.ibkr_xml import IBKRXMLParser
+
+        trade_xml = (
+            '<Trade assetCategory="STK" symbol="AAPL" tradeDate="20240315" '
+            'dateTime="20240315;093000" quantity="10" tradePrice="150.00" '
+            'ibCommission="-1.00" commission="-1.50" currency="USD" '
+            'fifoPnlRealized="0" />'
+        )
+        xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
+        parser = IBKRXMLParser()
+        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
+
+        assert len(trades) == 1
+        assert trades[0].commission == Decimal("1.50")
+
+    @pytest.mark.unit
+    def test_commission_zero_ib_and_nonzero_gen(self) -> None:
+        """When ibCommission is 0, the non-zero commission value is used."""
+        from app.utils.parsers.ibkr_xml import IBKRXMLParser
+
+        trade_xml = (
+            '<Trade assetCategory="STK" symbol="AAPL" tradeDate="20240315" '
+            'dateTime="20240315;093000" quantity="10" tradePrice="150.00" '
+            'ibCommission="0" commission="-2.50" currency="USD" '
+            'fifoPnlRealized="0" />'
+        )
+        xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
+        parser = IBKRXMLParser()
+        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
+
+        assert len(trades) == 1
+        assert trades[0].commission == Decimal("2.50")
