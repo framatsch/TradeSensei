@@ -5,7 +5,7 @@ license: MIT
 compatibility: opencode
 metadata:
   toolchain: git
-  runner: python tools/commit_helper.py
+  runner: tools/commit_helper
 ---
 
 ## What I do
