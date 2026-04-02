@@ -74,3 +74,34 @@ A commit message passes when:
 
 After committing, the `changelog-writer` agent maps these categories to the
 correct CHANGELOG.md sections. Consistent commit messages make that automatic.
+
+## Release Notes & GitHub Release
+
+When creating a GitHub release, the release notes body **MUST** be a single line
+without literal newlines. The shell (zsh) will break on multi-line strings passed
+directly to `gh release create`.
+
+**Preferred approach — write to a temp file first:**
+
+```bash
+# 1. Write the notes body to a file
+cat > /tmp/release_notes.md << 'HEREDOC'
+## v0.8.0 - Title
+
+### Fixed
+- **🔧 Fix**: Description of the fix
+
+### Added
+- Description of new feature
+HEREDOC
+
+# 2. Create the release using the file
+gh release create v0.8.0 --title "v0.8.0" --notes-file /tmp/release_notes.md
+
+# 3. Clean up
+rm /tmp/release_notes.md
+```
+
+**Why**: `--notes "..."` with literal newlines inside double quotes causes the
+shell to split the argument at each line break, interpreting subsequent lines as
+commands (`command not found`). Using `--notes-file` or a heredoc avoids this entirely.
