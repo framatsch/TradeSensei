@@ -19,7 +19,9 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account_property import AccountProperty
+    from app.models.broker_raw_transaction import BrokerRawTransaction
     from app.models.cash_transaction import CashTransaction
+    from app.models.logical_execution import LogicalExecution
     from app.models.trade import Trade
     from app.models.user import User
 
@@ -61,6 +63,9 @@ class Account(Base):
         trades: Related :class:`~app.models.trade.Trade` objects for this account.
         properties: Related :class:`~app.models.account_property.AccountProperty`
             key-value pairs storing encrypted broker credentials.
+        broker_raw_transactions: Raw broker executions imported for this account.
+        logical_executions: Logical execution records derived from raw data for
+            this account.
     """
 
     __tablename__ = "accounts"
@@ -137,13 +142,25 @@ class Account(Base):
     trades: Mapped[list["Trade"]] = relationship(
         "Trade",
         back_populates="account",
+        cascade="all, delete-orphan",
     )
     cash_transactions: Mapped[list["CashTransaction"]] = relationship(
         "CashTransaction",
         back_populates="account",
+        cascade="all, delete-orphan",
     )
     properties: Mapped[list["AccountProperty"]] = relationship(
         "AccountProperty",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+    broker_raw_transactions: Mapped[list["BrokerRawTransaction"]] = relationship(
+        "BrokerRawTransaction",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+    logical_executions: Mapped[list["LogicalExecution"]] = relationship(
+        "LogicalExecution",
         back_populates="account",
         cascade="all, delete-orphan",
     )

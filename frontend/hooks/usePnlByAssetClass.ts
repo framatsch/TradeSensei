@@ -10,7 +10,7 @@ import type { PnlByAssetClass, ResponseEnvelope } from "@/lib/types";
 
 export function usePnlByAssetClass() {
   return useQuery<PnlByAssetClass[], Error>({
-    queryKey: ["pnl-by-asset-class"],
+    queryKey: ["metrics", "pnl-by-asset-class"],
     queryFn: async () => {
       const res = await apiClient.get<ResponseEnvelope<PnlByAssetClass[]>>(
         "/api/v1/timeseries/pnl-by-asset-class"

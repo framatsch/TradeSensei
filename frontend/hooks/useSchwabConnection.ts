@@ -52,6 +52,7 @@ export function useSchwabSync() {
       void qc.invalidateQueries({ queryKey: SCHWAB_STATUS_KEY });
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
     },
   });
 }

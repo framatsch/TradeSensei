@@ -1,17 +1,24 @@
-"""Interactive Brokers Flex Query XML parser.
+""" "Interactive Brokers Flex Query XML parser.
 
 Parses IBKR Flex Query XML responses (Activity Flex Query and Trade
 Confirmation format) and maps each element to a
-:class:`~app.schemas.trade.TradeCreate`.
+:class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`.
 
 Two element types are supported:
 
 - ``<Trade>`` — from Activity Flex Queries
 - ``<Execution>`` — from Trade Confirmation queries
 
-Both share the same output type (:class:`~app.schemas.trade.TradeCreate`)
+Both share the same output type
+(:class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`)
 and the same error-handling strategy: elements that fail to parse are
 skipped with a warning rather than aborting the whole import.
+
+The :meth:`IBKRXMLParser.parse_raw` method returns raw per-execution records
+with no FIFO aggregation.  The legacy :meth:`IBKRXMLParser.parse` method
+converts those raw records into :class:`~app.schemas.trade.TradeCreate` objects
+and runs the FIFO aggregator for backward-compatibility with the existing import
+pipeline; it will be removed once the import service is fully migrated.
 """
 
 import logging
@@ -20,10 +27,13 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
+from app.core.constants import NUMERIC_SCALE
 from app.core.exceptions import ImportParseError
 from app.models.cash_transaction import CashTransactionType
 from app.models.trade import AssetClass, Direction
+from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.cash_transaction import CashTransactionCreateRequest
+from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import (
     CorporateActionLike,
@@ -33,6 +43,10 @@ from app.utils.parsers.aggregator import (
 from app.utils.parsers.base import BrokerParser
 
 logger = logging.getLogger(__name__)
+
+# ─── Constants ─────────────────────────────────────────────────────────────────
+
+_BROKER_TYPE: str = "ibkr"
 
 # ─── Asset class mapping ──────────────────────────────────────────────────────
 
@@ -145,12 +159,12 @@ def _safe_decimal(value: str | None, default: Decimal = Decimal("0")) -> Decimal
         default: Value to return when ``value`` is ``None`` or unparseable.
 
     Returns:
-        Parsed :class:`~decimal.Decimal` or ``default``.
+        Parsed :class:`~decimal.Decimal` or ``default``, rounded to NUMERIC_SCALE.
     """
     if value is None:
         return default
     try:
-        return Decimal(value.strip())
+        return Decimal(value.strip()).quantize(Decimal(f"1e-{NUMERIC_SCALE}"))
     except InvalidOperation:
         return default
 
@@ -162,14 +176,145 @@ class IBKRXMLParser(BrokerParser):
     Trade Confirmation (``<Execution>`` elements).  Elements that fail
     to parse are skipped; the warning is stored in :attr:`warnings`.
 
+    The primary entry point for the new raw-data pipeline is
+    :meth:`parse_raw`, which returns one
+    :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
+    per execution with **no** FIFO aggregation.  The legacy :meth:`parse`
+    method (which returns aggregated :class:`~app.schemas.trade.TradeCreate`
+    objects) remains for backward compatibility.
+
     Attributes:
         warnings: Non-fatal warning messages from the most recent
-            :meth:`parse` call.
+            :meth:`parse` or :meth:`parse_raw` call.
     """
 
     def __init__(self) -> None:
         """Initialise the parser with an empty warnings list."""
         self.warnings: list[str] = []
+
+    # ─── Raw parsing ─────────────────────────────────────────────────────────
+
+    def parse_raw(
+        self,
+        content: bytes,
+        filename: str,
+    ) -> tuple[
+        list[BrokerRawTransactionCreate],
+        list[CashTransactionCreateRequest],
+        list[CorporateActionCreateRequest],
+    ]:
+        """Parse an IBKR Flex Query XML and return one raw record per execution.
+
+        No FIFO aggregation is performed.  Each ``<Trade>`` or ``<Execution>``
+        element that represents a tradeable instrument (non-CASH asset category)
+        is converted to a
+        :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
+        record.  FX conversions and tax elements are returned as
+        :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`.
+
+        The ``id`` field of each record is set to
+        ``"ibkr:{transactionID}"`` when the attribute is present, or falls back
+        to a deterministic composite key (``"ibkr:{symbol}:{datetime}:{qty}"``)
+        for elements that lack a ``transactionID``.
+
+        Args:
+            content: Raw XML bytes from the Flex API or a file upload.
+            filename: Original filename (present for interface compatibility).
+
+        Returns:
+            A tuple of raw transaction records and cash transactions.
+
+        Raises:
+            ImportParseError: If the bytes cannot be decoded or the XML
+                cannot be parsed at the document level.
+        """
+        self.warnings = []
+        root = self._parse_xml(content)
+
+        raw_transactions: list[BrokerRawTransactionCreate] = []
+        cash_transactions: list[CashTransactionCreateRequest] = []
+        corporate_actions: list[CorporateActionCreateRequest] = []
+
+        # Extract corporate actions (type="RS" or "FS")
+        ca_elements = root.findall(".//CorporateAction")
+        grouped_ca = {}
+        for elem in ca_elements:
+            action_id = elem.get("actionID")
+            action_type = elem.get("type")
+            if not action_id or action_type not in ("RS", "FS"):
+                continue
+            grouped_ca.setdefault(action_id, []).append(elem)
+
+        for _action_id, elems in grouped_ca.items():
+            if len(elems) != 2:
+                continue
+            try:
+                qty1 = Decimal(elems[0].get("quantity", "0"))
+                qty2 = Decimal(elems[1].get("quantity", "0"))
+            except InvalidOperation:
+                continue
+
+            if qty1 < 0 and qty2 > 0:
+                old_elem, new_elem = elems[0], elems[1]
+            elif qty2 < 0 and qty1 > 0:
+                old_elem, new_elem = elems[1], elems[0]
+            else:
+                continue
+
+            try:
+                ratio = Decimal(new_elem.get("quantity", "0")) / abs(
+                    Decimal(old_elem.get("quantity", "0"))
+                )
+                dt_str = new_elem.get("dateTime", "")
+                if ";" in dt_str:
+                    dt_str = dt_str.split(";")[0]
+                ca_date = datetime.strptime(dt_str, "%Y%m%d").date()
+                ca = CorporateActionCreateRequest(
+                    symbol=new_elem.get("symbol", ""),
+                    date=ca_date,
+                    ratio=ratio,
+                    old_conid=old_elem.get("conid", ""),
+                    new_conid=new_elem.get("conid", ""),
+                )
+                corporate_actions.append(ca)
+            except (ValueError, InvalidOperation):
+                pass
+
+        # Activity Flex Query: <Trade> elements
+        for idx, elem in enumerate(root.findall(".//Trade"), start=1):
+            result = self._parse_trade_element_raw(elem, idx)
+            if isinstance(result, BrokerRawTransactionCreate):
+                raw_transactions.append(result)
+            elif isinstance(result, CashTransactionCreateRequest):
+                cash_transactions.append(result)
+
+        # Trade Confirmation: <Execution> elements
+        for idx, elem in enumerate(root.findall(".//Execution"), start=1):
+            result = self._parse_execution_element_raw(elem, idx)
+            if result is not None:
+                raw_transactions.append(result)
+
+        # Cash Transactions: <CashTransaction> elements
+        for idx, elem in enumerate(root.findall(".//CashTransaction"), start=1):
+            ct_result = self._parse_cash_transaction_element(elem, idx)
+            if ct_result is not None:
+                cash_transactions.append(ct_result)
+
+        # Transaction Taxes: <TransactionTax> elements (FTT, stamp duty, etc.)
+        for idx, elem in enumerate(root.findall(".//TransactionTax"), start=1):
+            tt_result = self._parse_transaction_tax_element(elem, idx)
+            if tt_result is not None:
+                cash_transactions.append(tt_result)
+
+        logger.info(
+            "parse_raw: extracted %d raw transactions and %d cash transactions "
+            "from IBKR Flex XML.",
+            len(raw_transactions),
+            len(cash_transactions),
+        )
+        return raw_transactions, cash_transactions, corporate_actions
+
+    # ─── Legacy aggregated parsing ────────────────────────────────────────────
 
     def parse(
         self,
@@ -202,15 +347,7 @@ class IBKRXMLParser(BrokerParser):
                 cannot be parsed at the document level.
         """
         self.warnings = []
-        try:
-            xml_string = content.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise ImportParseError("IBKR Flex XML file is not valid UTF-8.") from exc
-
-        try:
-            root = ET.fromstring(xml_string)
-        except ET.ParseError as exc:
-            raise ImportParseError(f"Invalid IBKR Flex XML: {exc}") from exc
+        root = self._parse_xml(content)
 
         trades: list[TradeCreate] = []
         cash_transactions: list[CashTransactionCreateRequest] = []
@@ -253,7 +390,7 @@ class IBKRXMLParser(BrokerParser):
         # Build a set of conids that are "acceptable as open" — includes both the
         # conids directly listed in <OpenPositions> AND any new conids that are the
         # result of a corporate-action remap of an old conid that was listed.  This
-        # prevents false force-closes when a reverse split changes the conid: the
+        # prevents false conflict flags when a reverse split changes the conid: the
         # 2023 XML lists the pre-split conid in <OpenPositions>, but after applying
         # the corporate action the aggregated lot carries the post-split conid.
         acceptable_open_conids = set(open_positions_conids)
@@ -267,12 +404,6 @@ class IBKRXMLParser(BrokerParser):
                     acceptable_open_conids.add(ca.new_conid)
 
         # Group executions into round-trip trades.
-        # Corporate actions (if provided) are applied chronologically during
-        # aggregation so that splits / reverse-splits are handled correctly.
-        # The previously hardcoded OTLK conid_map workaround (357194941 →
-        # 690184975) is superseded by the DB-driven corporate-action mechanism.
-        # Seed lots (existing open DB trades) are pre-populated into the queue
-        # so that cross-period closing executions correctly close them.
         aggregated_trades = aggregate_executions_fifo(
             trades,
             corporate_actions=corporate_actions if corporate_actions else None,
@@ -286,7 +417,7 @@ class IBKRXMLParser(BrokerParser):
         # lot without generating a matching SELL execution).
         # We only apply this check when the XML actually contained open position
         # records (open_positions_conids is non-empty); an empty <OpenPositions/>
-        # block is not sufficient evidence to force-close anything.
+        # block is not sufficient evidence to mark anything conflicted.
         if open_positions_conids:
             for trade in aggregated_trades:
                 if (
@@ -294,12 +425,8 @@ class IBKRXMLParser(BrokerParser):
                     and trade.broker_conid
                     and trade.broker_conid not in acceptable_open_conids
                 ):
-                    # Force close it
-                    trade.closed_at = trade.opened_at + _CLOSED_AT_OFFSET
-                    trade.exit_price = trade.entry_price  # Placeholder if unknown
-                    trade.notes = (
-                        trade.notes or ""
-                    ) + " [Force-closed: not in IBKR open positions]"
+                    # Mark as conflicted instead of force-closing.
+                    trade.has_conflict = True
 
         logger.info(
             "Parsed %d executions, aggregated into %d trades and parsed %d "
@@ -309,6 +436,261 @@ class IBKRXMLParser(BrokerParser):
             len(cash_transactions),
         )
         return aggregated_trades, cash_transactions
+
+    # ─── XML helpers ──────────────────────────────────────────────────────────
+
+    def _parse_xml(self, content: bytes) -> ET.Element:
+        """Decode and parse XML bytes into an ElementTree root.
+
+        Args:
+            content: Raw XML bytes.
+
+        Returns:
+            The root :class:`~xml.etree.ElementTree.Element`.
+
+        Raises:
+            ImportParseError: On UTF-8 decode failure or XML parse error.
+        """
+        try:
+            xml_string = content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ImportParseError("IBKR Flex XML file is not valid UTF-8.") from exc
+        try:
+            return ET.fromstring(xml_string)
+        except ET.ParseError as exc:
+            raise ImportParseError(f"Invalid IBKR Flex XML: {exc}") from exc
+
+    @staticmethod
+    def _build_raw_id(
+        elem: ET.Element,
+        symbol: str,
+        executed_at: datetime,
+        quantity: Decimal,
+    ) -> str:
+        """Build a composite broker execution ID for a raw transaction.
+
+        Prefers the ``transactionID`` attribute when present.  Falls back to a
+        deterministic composite key based on symbol, timestamp, and quantity.
+
+        Args:
+            elem: The XML element being parsed.
+            symbol: Ticker symbol (already normalised to uppercase).
+            executed_at: Parsed execution timestamp.
+            quantity: Absolute execution quantity.
+
+        Returns:
+            A string of the form ``"ibkr:{id}"`` suitable for use as the
+            ``BrokerRawTransaction.id`` primary key.
+        """
+        tx_id = (elem.get("transactionID") or "").strip()
+        if tx_id:
+            return f"{_BROKER_TYPE}:{tx_id}"
+        # Fallback: deterministic composite key
+        ts = executed_at.strftime("%Y%m%d%H%M%S")
+        return f"{_BROKER_TYPE}:{symbol}:{ts}:{quantity}"
+
+    # ─── Raw element parsers ──────────────────────────────────────────────────
+
+    def _parse_trade_element_raw(
+        self, elem: ET.Element, idx: int
+    ) -> BrokerRawTransactionCreate | CashTransactionCreateRequest | None:
+        """Parse a single ``<Trade>`` element into a raw transaction record.
+
+        Args:
+            elem: The ``<Trade>`` XML element.
+            idx: 1-based element index for warning messages.
+
+        Returns:
+            A :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`,
+            a :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`
+            (for FX conversions), or ``None`` if the element was skipped.
+        """
+        try:
+            asset_category = elem.get("assetCategory", "").upper()
+            symbol = elem.get("symbol", "").strip().upper()
+            conid = elem.get("conid", "").strip() or None
+
+            if not symbol:
+                self.warnings.append(
+                    f"<Trade> element {idx}: skipped — missing symbol attribute."
+                )
+                return None
+
+            trade_date_str = elem.get("tradeDate", "")
+            datetime_str = elem.get("dateTime", "")
+
+            if not trade_date_str:
+                self.warnings.append(
+                    f"<Trade> element {idx} ({symbol}): skipped — missing tradeDate."
+                )
+                return None
+
+            executed_at = _parse_ibkr_datetime(trade_date_str, datetime_str)
+
+            # CASH asset category → FX conversion commission (cash transaction)
+            if asset_category == "CASH":
+                ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
+                gen_comm = abs(_safe_decimal(elem.get("commission")))
+                commission = max(ib_comm, gen_comm)
+                if commission > Decimal("0"):
+                    currency = (elem.get("currency") or "").upper().strip() or "USD"
+                    return CashTransactionCreateRequest(
+                        date=executed_at,
+                        type=CashTransactionType.FEE,
+                        amount=-commission,
+                        currency=currency,
+                        description=f"FX Conversion Commission ({symbol})",
+                    )
+                return None
+
+            asset_class = _map_asset_class(asset_category)
+
+            quantity_raw = _safe_decimal(elem.get("quantity"))
+            if quantity_raw == Decimal("0"):
+                self.warnings.append(
+                    f"<Trade> element {idx} ({symbol}): skipped — quantity is zero."
+                )
+                return None
+
+            direction = Direction.LONG if quantity_raw > 0 else Direction.SHORT
+            quantity = abs(quantity_raw)
+
+            multiplier_raw = int(elem.get("multiplier", "1") or "1")
+            multiplier = multiplier_raw if multiplier_raw > 0 else 1
+
+            price = _safe_decimal(elem.get("tradePrice"))
+
+            if price == Decimal("0") and elem.get("transactionType") != "BookTrade":
+                trade_money = _safe_decimal(elem.get("tradeMoney"))
+                if trade_money != Decimal("0") and quantity != Decimal("0"):
+                    price = abs(trade_money) / quantity / Decimal(multiplier)
+
+            if price == Decimal("0") and elem.get("transactionType") != "BookTrade":
+                cost = _safe_decimal(elem.get("cost"))
+                if cost != Decimal("0") and quantity != Decimal("0"):
+                    price = abs(cost) / quantity / Decimal(multiplier)
+
+            if price < Decimal("0"):
+                self.warnings.append(
+                    f"<Trade> element {idx} ({symbol}): skipped — "
+                    "could not determine a non-negative entry price."
+                )
+                return None
+
+            ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
+            gen_comm = abs(_safe_decimal(elem.get("commission")))
+            commission = max(ib_comm, gen_comm)
+            pnl_raw = _safe_decimal(elem.get("fifoPnlRealized"))
+            pnl: Decimal | None = pnl_raw if pnl_raw != Decimal("0") else None
+            currency = (elem.get("currency") or "").upper().strip() or "USD"
+
+            raw_id = self._build_raw_id(elem, symbol, executed_at, quantity)
+
+            return BrokerRawTransactionCreate(
+                id=raw_id,
+                broker_type=_BROKER_TYPE,
+                symbol=symbol,
+                conid=conid,
+                asset_class=asset_class,
+                direction=direction,
+                quantity=quantity,
+                price=price,
+                commission=commission,
+                executed_at=executed_at,
+                pnl=pnl,
+                currency=currency,
+                multiplier=multiplier,
+                raw_data=dict(elem.attrib),
+            )
+        except (ValueError, InvalidOperation, OverflowError) as exc:
+            msg = f"<Trade> element {idx}: skipped — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
+
+    def _parse_execution_element_raw(
+        self, elem: ET.Element, idx: int
+    ) -> BrokerRawTransactionCreate | None:
+        """Parse a single ``<Execution>`` element into a raw transaction record.
+
+        Args:
+            elem: The ``<Execution>`` XML element.
+            idx: 1-based element index for warning messages.
+
+        Returns:
+            A :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
+            or ``None`` if the element was skipped due to a non-fatal error.
+        """
+        try:
+            asset_category = elem.get("assetCategory", "").upper()
+            symbol = elem.get("symbol", "").strip().upper()
+            conid = elem.get("conid", "").strip() or None
+
+            if not symbol:
+                self.warnings.append(
+                    f"<Execution> element {idx}: skipped — missing symbol attribute."
+                )
+                return None
+
+            asset_class = _map_asset_class(asset_category)
+
+            exec_date = elem.get("execDate", "")
+            exec_time = elem.get("execTime", "")
+
+            if not exec_date:
+                self.warnings.append(
+                    f"<Execution> element {idx} ({symbol}): skipped — missing execDate."
+                )
+                return None
+
+            executed_at = _parse_execution_datetime(exec_date, exec_time)
+
+            quantity_raw = _safe_decimal(elem.get("quantity"))
+            if quantity_raw == Decimal("0"):
+                self.warnings.append(
+                    f"<Execution> element {idx} ({symbol}): skipped — quantity is zero."
+                )
+                return None
+
+            direction = Direction.LONG if quantity_raw > 0 else Direction.SHORT
+            quantity = abs(quantity_raw)
+
+            price = _safe_decimal(elem.get("price"))
+            if price < Decimal("0"):
+                self.warnings.append(
+                    f"<Execution> element {idx} ({symbol}): skipped — "
+                    "entry price is negative."
+                )
+                return None
+
+            ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
+            gen_comm = abs(_safe_decimal(elem.get("commission")))
+            commission = max(ib_comm, gen_comm)
+            currency = (elem.get("currency") or "").upper().strip() or "USD"
+
+            raw_id = self._build_raw_id(elem, symbol, executed_at, quantity)
+
+            return BrokerRawTransactionCreate(
+                id=raw_id,
+                broker_type=_BROKER_TYPE,
+                symbol=symbol,
+                conid=conid,
+                asset_class=asset_class,
+                direction=direction,
+                quantity=quantity,
+                price=price,
+                commission=commission,
+                executed_at=executed_at,
+                currency=currency,
+                raw_data=dict(elem.attrib),
+            )
+        except (ValueError, InvalidOperation, OverflowError) as exc:
+            msg = f"<Execution> element {idx}: skipped — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
+
+    # ─── Legacy TradeCreate element parsers ───────────────────────────────────
 
     def _parse_trade_element(
         self, elem: ET.Element, idx: int
@@ -380,20 +762,20 @@ class IBKRXMLParser(BrokerParser):
 
             price = _safe_decimal(elem.get("tradePrice"))
 
-            if price == Decimal("0"):
+            if price == Decimal("0") and elem.get("transactionType") != "BookTrade":
                 trade_money = _safe_decimal(elem.get("tradeMoney"))
                 if trade_money != Decimal("0") and quantity != Decimal("0"):
                     price = abs(trade_money) / quantity / Decimal(multiplier)
 
-            if price == Decimal("0"):
+            if price == Decimal("0") and elem.get("transactionType") != "BookTrade":
                 cost = _safe_decimal(elem.get("cost"))
                 if cost != Decimal("0") and quantity != Decimal("0"):
                     price = abs(cost) / quantity / Decimal(multiplier)
 
-            if price <= Decimal("0"):
+            if price < Decimal("0"):
                 self.warnings.append(
                     f"<Trade> element {idx} ({symbol}): skipped — "
-                    "could not determine a positive entry price."
+                    "could not determine a non-negative entry price."
                 )
                 return None
 
@@ -402,6 +784,9 @@ class IBKRXMLParser(BrokerParser):
             commission = max(ib_comm, gen_comm)
             pnl_raw = _safe_decimal(elem.get("fifoPnlRealized"))
             pnl: Decimal | None = pnl_raw if pnl_raw != Decimal("0") else None
+
+            open_close = (elem.get("openCloseIndicator") or "").upper()
+            is_mixed_execution = "C;O" in open_close or "O;C" in open_close
 
             closed_at = opened_at + _CLOSED_AT_OFFSET if pnl is not None else None
 
@@ -416,6 +801,8 @@ class IBKRXMLParser(BrokerParser):
                 opened_at=opened_at,
                 closed_at=closed_at,
                 broker_conid=conid,
+                multiplier=multiplier,
+                is_mixed_execution=is_mixed_execution,
             )
         except (ValueError, InvalidOperation, OverflowError) as exc:
             msg = f"<Trade> element {idx}: skipped — {exc}"
@@ -471,10 +858,10 @@ class IBKRXMLParser(BrokerParser):
             quantity = abs(quantity_raw)
 
             price = _safe_decimal(elem.get("price"))
-            if price <= Decimal("0"):
+            if price < Decimal("0"):
                 self.warnings.append(
                     f"<Execution> element {idx} ({symbol}): skipped — "
-                    "entry price is zero or negative."
+                    "entry price is negative."
                 )
                 return None
 

@@ -65,6 +65,26 @@ class SeedLotLike(Protocol):
     direction: str  # Direction StrEnum or its string value
 
 
+class ExecutionLike(Protocol):
+    """Structural protocol for per-execution objects that can be aggregated.
+
+    Both :class:`~app.models.logical_execution.LogicalExecution` ORM instances
+    and lightweight test stubs satisfy this protocol.  The aggregator accepts
+    this type via :func:`logical_executions_to_trade_creates`.
+    """
+
+    symbol: str
+    conid: str | None
+    asset_class: str  # AssetClass StrEnum or its string value
+    direction: str  # Direction StrEnum or its string value
+    quantity: Decimal
+    price: Decimal
+    commission: Decimal
+    executed_at: datetime
+    pnl: Decimal | None
+    multiplier: int
+
+
 def _date_to_datetime(d: date) -> datetime:
     """Convert a :class:`date` to a timezone-aware :class:`datetime` at midnight UTC.
 
@@ -75,6 +95,55 @@ def _date_to_datetime(d: date) -> datetime:
         A UTC-aware :class:`datetime` at midnight of the given date.
     """
     return datetime(d.year, d.month, d.day, tzinfo=UTC)
+
+
+def logical_executions_to_trade_creates(
+    executions: list[ExecutionLike],
+) -> list[TradeCreate]:
+    """Convert a list of logical execution objects into :class:`TradeCreate` instances.
+
+    This bridge function allows :func:`aggregate_executions_fifo` to be driven
+    by :class:`~app.models.logical_execution.LogicalExecution` ORM rows or any
+    object satisfying :class:`ExecutionLike` rather than parser-produced
+    :class:`TradeCreate` objects directly.
+
+    The ``opened_at`` field is taken from ``executed_at``.  A ``closed_at``
+    offset of +1 second is applied for executions that have a non-``None``
+    ``pnl`` (same convention used by the IBKR XML parser).
+
+    Args:
+        executions: List of objects satisfying :class:`ExecutionLike`.
+
+    Returns:
+        List of :class:`~app.schemas.trade.TradeCreate` ready for
+        :func:`aggregate_executions_fifo`.
+    """
+    from datetime import timedelta
+
+    from app.models.trade import AssetClass
+
+    result: list[TradeCreate] = []
+    for ex in executions:
+        opened_at = ex.executed_at
+        if opened_at.tzinfo is None:
+            opened_at = opened_at.replace(tzinfo=UTC)
+        closed_at = opened_at + timedelta(seconds=1) if ex.pnl is not None else None
+        tc = TradeCreate(
+            symbol=ex.symbol,
+            direction=Direction(ex.direction),
+            asset_class=AssetClass(ex.asset_class),
+            quantity=ex.quantity,
+            entry_price=ex.price,
+            commission=ex.commission,
+            opened_at=opened_at,
+            closed_at=closed_at,
+            pnl=ex.pnl,
+            broker_conid=ex.conid,
+            multiplier=ex.multiplier,
+            is_mixed_execution=getattr(ex, "is_mixed_execution", False),
+        )
+        result.append(tc)
+    return result
 
 
 def aggregate_executions_fifo(
@@ -312,7 +381,6 @@ def aggregate_executions_fifo(
 
         # The execution is in the opposite direction. It closes open lots.
         exec_qty_remaining = exec_trade.quantity
-        exec_pnl_remaining = exec_trade.pnl or Decimal("0")
         exec_commission_remaining = exec_trade.commission
 
         # Task 4.4 — Warn when quantity discrepancy may indicate an unregistered split.
@@ -351,10 +419,27 @@ def aggregate_executions_fifo(
             matched_pnl_eur: Decimal | None = None
             matched_net_pnl: Decimal | None = None
             matched_net_pnl_eur: Decimal | None = None
-            if is_closing_leg and exec_pnl_remaining:
-                matched_pnl = (exec_pnl_remaining * match_qty) / exec_qty_remaining
+            if is_closing_leg:
+                # Exact Gross PnL calculation using entry/exit prices and multiplier.
+                # Direction is that of the open lot (the position being closed).
+                exit_price = exec_trade.entry_price
+                lot_multiplier = Decimal(open_lot.multiplier)
+                if open_lot.direction == Direction.LONG:
+                    matched_pnl = (
+                        (exit_price - open_lot.entry_price) * match_qty * lot_multiplier
+                    )
+                else:
+                    matched_pnl = (
+                        (open_lot.entry_price - exit_price) * match_qty * lot_multiplier
+                    )
                 matched_net_pnl = matched_pnl - (lot_comm + exec_comm)
-                if exec_trade.pnl_eur is not None:
+                if (
+                    exec_trade.pnl_eur is not None
+                    and exec_trade.pnl is not None
+                    and exec_trade.pnl != Decimal("0")
+                ):
+                    # Scale EUR PnL proportionally by the fraction of gross PnL
+                    # this match represents.
                     matched_pnl_eur = (
                         exec_trade.pnl_eur * match_qty
                     ) / exec_qty_remaining
@@ -390,8 +475,6 @@ def aggregate_executions_fifo(
             open_lot.quantity -= match_qty
             open_lot.commission -= lot_comm
             exec_commission_remaining -= exec_comm
-            if exec_pnl_remaining:
-                exec_pnl_remaining -= matched_pnl or Decimal("0")
 
             if open_lot.quantity <= Decimal("0"):
                 queue.popleft()
@@ -399,7 +482,7 @@ def aggregate_executions_fifo(
         # If there's still execution quantity remaining, it either flipped the position
         # or it's an orphaned closing quantity.
         if exec_qty_remaining > Decimal("0"):
-            if is_closing_leg:
+            if is_closing_leg and not getattr(exec_trade, "is_mixed_execution", False):
                 # Orphaned closing remainder
                 orig_direction = (
                     Direction.LONG
@@ -422,20 +505,11 @@ def aggregate_executions_fifo(
                         "opened_at": opened_at,
                         "closed_at": closed_at,
                         "commission": exec_commission_remaining,
-                        "pnl": exec_pnl_remaining if exec_pnl_remaining else None,
-                        "net_pnl": exec_pnl_remaining - exec_commission_remaining
-                        if exec_pnl_remaining
-                        else None,
-                        "net_pnl_eur": (exec_pnl_remaining - exec_commission_remaining)
-                        * (exec_trade.pnl_eur / exec_pnl_remaining)
-                        if exec_pnl_remaining
-                        and exec_trade.pnl_eur
-                        and exec_pnl_remaining != Decimal("0")
-                        else (
-                            exec_pnl_remaining - exec_commission_remaining
-                            if exec_pnl_remaining
-                            else None
-                        ),
+                        # PnL is unknown for orphaned lots — entry price is a sentinel.
+                        # It will be filled in when matched against a seed_orphaned_lot.
+                        "pnl": None,
+                        "net_pnl": None,
+                        "net_pnl_eur": None,
                     }
                 )
                 completed_trades.append(orphaned_trade)
@@ -487,8 +561,18 @@ def aggregate_executions_fifo(
             matched_pnl_eur = None
             matched_net_pnl = None
             matched_net_pnl_eur = None
-            if o_lot.pnl is not None and o_lot.quantity:
-                matched_pnl = (o_lot.pnl * match_qty) / o_lot.quantity
+            exit_price = o_lot.exit_price
+            if exit_price is not None and exit_price > Decimal("0.001"):
+                # Exact Gross PnL: use the open lot's true entry price.
+                lot_multiplier = Decimal(open_lot.multiplier)
+                if open_lot.direction == Direction.LONG:
+                    matched_pnl = (
+                        (exit_price - open_lot.entry_price) * match_qty * lot_multiplier
+                    )
+                else:
+                    matched_pnl = (
+                        (open_lot.entry_price - exit_price) * match_qty * lot_multiplier
+                    )
                 matched_net_pnl = matched_pnl - (lot_comm + o_lot_comm)
             if o_lot.pnl_eur is not None and o_lot.quantity:
                 matched_pnl_eur = (o_lot.pnl_eur * match_qty) / o_lot.quantity

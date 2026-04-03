@@ -72,8 +72,9 @@ def compute_trade_metrics(trades: "list[TradeRead]") -> TradeMetrics:
 
     # Use net_pnl when present so aggregate metrics reflect fees/commissions.
     pnl_series: list[Decimal] = [
-        t.net_pnl if getattr(t, "net_pnl", None) is not None else t.pnl for t in closed
-    ]  # type: ignore[misc]
+        (t.net_pnl if getattr(t, "net_pnl", None) is not None else t.pnl)  # type: ignore[misc]
+        for t in closed
+    ]
 
     wins = [p for p in pnl_series if p > _ZERO]
     losses = [p for p in pnl_series if p < _ZERO]

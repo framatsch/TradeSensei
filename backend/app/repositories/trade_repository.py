@@ -578,6 +578,36 @@ class TradeRepository:
         await self._session.flush()
         return len(deleted)
 
+    async def delete_by_user_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+        include_manually_edited: bool = False,
+    ) -> int:
+        """Delete all trades for a user/account pair.
+
+        Args:
+            user_id: UUID of the owning user.
+            account_id: UUID of the account to clear.
+            include_manually_edited: When ``False``, preserves manually edited
+                rows. When ``True``, deletes them too.
+
+        Returns:
+            Number of deleted rows.
+        """
+        stmt = delete(Trade).where(
+            Trade.user_id == user_id,
+            Trade.account_id == account_id,
+        )
+        if not include_manually_edited:
+            stmt = stmt.where(Trade.is_manually_edited.is_(False))
+
+        stmt = stmt.returning(Trade.id)
+        result = await self._session.execute(stmt)
+        deleted = list(result.scalars().all())
+        await self._session.flush()
+        return len(deleted)
+
     async def bulk_assign_tags(
         self,
         trade_ids: list[uuid.UUID],
@@ -664,37 +694,66 @@ class TradeRepository:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None,
-    ) -> set[tuple[str, datetime, Decimal]]:
-        """Return a set of (symbol, opened_at, entry_price) for all regular trades.
+    ) -> set[tuple[str, datetime, Decimal, Decimal, str]]:
+        """Return dedupe keys for regular trades.
 
         Used by the import service to deduplicate entire executions from prior imports.
         Orphaned trades (entry_price == 0.001) are excluded.
         """
-        stmt = select(Trade.symbol, Trade.opened_at, Trade.entry_price).where(
+        stmt = select(
+            Trade.symbol,
+            Trade.opened_at,
+            Trade.entry_price,
+            Trade.quantity,
+            Trade.direction,
+        ).where(
             Trade.user_id == user_id,
             Trade.account_id == account_id,
             Trade.entry_price != Decimal("0.001"),
         )
         result = await self._session.execute(stmt)
-        return {(row.symbol, row.opened_at, row.entry_price) for row in result}
+        return {
+            (
+                row.symbol,
+                row.opened_at,
+                row.entry_price,
+                row.quantity,
+                row.direction.value,
+            )
+            for row in result
+        }
 
     async def list_existing_close_keys(
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None,
-    ) -> set[tuple[str, datetime]]:
-        """Return a set of (symbol, closed_at) for all closed trades.
+    ) -> set[tuple[str, datetime, Decimal, Decimal, str]]:
+        """Return dedupe keys for closed trades.
 
         Used by the import service to deduplicate orphaned trades from prior imports.
         """
-        stmt = select(Trade.symbol, Trade.closed_at).where(
+        stmt = select(
+            Trade.symbol,
+            Trade.closed_at,
+            Trade.exit_price,
+            Trade.quantity,
+            Trade.direction,
+        ).where(
             Trade.user_id == user_id,
             Trade.account_id == account_id,
             Trade.closed_at.is_not(None),
         )
         result = await self._session.execute(stmt)
         return {
-            (row.symbol, row.closed_at) for row in result if row.closed_at is not None
+            (
+                row.symbol,
+                row.closed_at,
+                row.exit_price,
+                row.quantity,
+                row.direction.value,
+            )
+            for row in result
+            if row.closed_at is not None and row.exit_price is not None
         }
 
     async def list_open_lots_by_user(
@@ -757,6 +816,8 @@ class TradeRepository:
         closed_at: datetime,
         pnl: Decimal | None,
         pnl_eur: Decimal | None,
+        net_pnl: Decimal | None,
+        net_pnl_eur: Decimal | None,
         commission_add: Decimal,
         quantity: Decimal,
     ) -> None:
@@ -785,6 +846,8 @@ class TradeRepository:
                 closed_at=closed_at,
                 pnl=pnl,
                 pnl_eur=pnl_eur,
+                net_pnl=net_pnl,
+                net_pnl_eur=net_pnl_eur,
                 commission=Trade.commission + commission_add,
                 quantity=quantity,
             )
@@ -799,6 +862,8 @@ class TradeRepository:
         opened_at: datetime,
         pnl: Decimal | None,
         pnl_eur: Decimal | None,
+        net_pnl: Decimal | None,
+        net_pnl_eur: Decimal | None,
         commission_add: Decimal,
         quantity: Decimal,
     ) -> None:
@@ -817,6 +882,8 @@ class TradeRepository:
                 opened_at=opened_at,
                 pnl=pnl,
                 pnl_eur=pnl_eur,
+                net_pnl=net_pnl,
+                net_pnl_eur=net_pnl_eur,
                 commission=Trade.commission + commission_add,
                 quantity=quantity,
             )

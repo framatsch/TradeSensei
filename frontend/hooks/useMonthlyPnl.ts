@@ -10,7 +10,7 @@ import type { MonthlyPnl, ResponseEnvelope } from "@/lib/types";
 
 export function useMonthlyPnl() {
   return useQuery<MonthlyPnl[], Error>({
-    queryKey: ["monthly-pnl"],
+    queryKey: ["metrics", "monthly-pnl"],
     queryFn: async () => {
       const res = await apiClient.get<ResponseEnvelope<MonthlyPnl[]>>(
         "/api/v1/timeseries/monthly-pnl"

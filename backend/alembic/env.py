@@ -22,9 +22,7 @@ from alembic import context
 # ── Import all models so that autogenerate can discover them ──────────────────
 # isort: off
 from app.core.database import Base  # noqa: F401
-import app.models.trade  # noqa: F401
-import app.models.user  # noqa: F401
-import app.models.account  # noqa: F401
+import app.models  # noqa: F401 — registers all models via __init__
 # isort: on
 
 # Alembic Config object — provides access to alembic.ini values.
@@ -35,6 +33,43 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+# Schemas owned by TimescaleDB that Alembic must never touch.
+_EXCLUDED_SCHEMAS = frozenset(
+    {
+        "_timescaledb_catalog",
+        "_timescaledb_internal",
+        "_timescaledb_cache",
+        "_timescaledb_config",
+        "timescaledb_information",
+    }
+)
+
+
+def include_object(
+    object: object,  # noqa: A002
+    name: str,
+    type_: str,
+    reflected: bool,
+    compare_to: object,
+) -> bool:
+    """Exclude TimescaleDB internal tables from autogenerate diff.
+
+    Args:
+        object: The SQLAlchemy schema object being considered.
+        name: The name of the object.
+        type_: One of ``'table'``, ``'column'``, ``'index'``, etc.
+        reflected: True if the object was reflected from the DB.
+        compare_to: The model-side counterpart (may be None).
+
+    Returns:
+        True if the object should be included in the diff; False to skip.
+    """
+    if type_ == "table":
+        schema = getattr(object, "schema", None)
+        if schema in _EXCLUDED_SCHEMAS:
+            return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +125,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         include_schemas=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -107,6 +143,7 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         include_schemas=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()

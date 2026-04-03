@@ -27,6 +27,7 @@ def _make_trade(
     closed_at: datetime | None = None,
     pnl: Decimal | None = None,
     commission: Decimal = Decimal("0"),
+    multiplier: int = 1,
     notes: str | None = None,
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
@@ -76,6 +77,7 @@ def _make_trade(
     trade.closed_at = closed_at  # type: ignore[assignment]
     trade.pnl = pnl  # type: ignore[assignment]
     trade.commission = commission  # type: ignore[assignment]
+    trade.multiplier = multiplier  # type: ignore[assignment]
     trade.notes = notes  # type: ignore[assignment]
     trade.created_at = created_at if created_at is not None else now  # type: ignore[assignment]
     trade.updated_at = updated_at if updated_at is not None else now  # type: ignore[assignment]

@@ -24,7 +24,7 @@ export function useMonthlyWinrate(accountId?: string) {
   const qs = params.toString() ? `?${params.toString()}` : "";
 
   return useQuery<MonthlyWinratePoint[], Error>({
-    queryKey: ["monthly-winrate", accountId],
+    queryKey: ["metrics", "monthly-winrate", accountId],
     queryFn: async () => {
       const res = await apiClient.get<ResponseEnvelope<MonthlyWinratePoint[]>>(
         `/api/v1/timeseries/monthly-winrate${qs}`

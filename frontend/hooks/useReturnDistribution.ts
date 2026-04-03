@@ -10,7 +10,7 @@ import type { ReturnDistribution, ResponseEnvelope } from "@/lib/types";
 
 export function useReturnDistribution() {
   return useQuery<ReturnDistribution[], Error>({
-    queryKey: ["return-distribution"],
+    queryKey: ["metrics", "return-distribution"],
     queryFn: async () => {
       const res = await apiClient.get<ResponseEnvelope<ReturnDistribution[]>>(
         "/api/v1/timeseries/return-distribution"

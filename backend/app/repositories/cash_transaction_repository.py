@@ -223,3 +223,27 @@ class CashTransactionRepository:
         """
         stmt = delete(CashTransaction).where(CashTransaction.id == transaction_id)
         await session.execute(stmt)
+
+    @staticmethod
+    async def delete_by_account(
+        session: AsyncSession,
+        account_id: uuid.UUID,
+    ) -> int:
+        """Delete all cash transactions for one account.
+
+        Args:
+            session: The database session.
+            account_id: The UUID of the account.
+
+        Returns:
+            Number of deleted rows.
+        """
+        stmt = (
+            delete(CashTransaction)
+            .where(CashTransaction.account_id == account_id)
+            .returning(CashTransaction.id)
+        )
+        result = await session.execute(stmt)
+        deleted = list(result.scalars().all())
+        await session.flush()
+        return len(deleted)

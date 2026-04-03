@@ -49,6 +49,7 @@ def _make_trade_orm(
     trade.closed_at = closed_at  # type: ignore[assignment]
     trade.pnl = pnl  # type: ignore[assignment]
     trade.commission = Decimal("0")  # type: ignore[assignment]
+    trade.multiplier = 1  # type: ignore[assignment]
     trade.notes = None  # type: ignore[assignment]
     trade.created_at = opened_at  # type: ignore[assignment]
     trade.updated_at = opened_at  # type: ignore[assignment]

@@ -130,6 +130,7 @@ class TestTradeRead:
         trade.closed_at = datetime(2025, 6, 2, tzinfo=UTC)
         trade.pnl = Decimal("1000")
         trade.commission = Decimal("4.20")
+        trade.multiplier = 100
         trade.notes = "Good trade"
         trade.created_at = datetime(2025, 6, 1, tzinfo=UTC)
         trade.updated_at = datetime(2025, 6, 2, tzinfo=UTC)

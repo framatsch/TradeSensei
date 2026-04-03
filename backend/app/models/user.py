@@ -12,7 +12,9 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account import Account
+    from app.models.broker_raw_transaction import BrokerRawTransaction
     from app.models.corporate_action import CorporateAction
+    from app.models.logical_execution import LogicalExecution
     from app.models.saved_trade_filter import SavedTradeFilter
     from app.models.trade import Trade
     from app.models.user_setting import UserSetting
@@ -123,6 +125,16 @@ class User(Base):
     )
     corporate_actions: Mapped[list["CorporateAction"]] = relationship(
         "CorporateAction",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    broker_raw_transactions: Mapped[list["BrokerRawTransaction"]] = relationship(
+        "BrokerRawTransaction",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    logical_executions: Mapped[list["LogicalExecution"]] = relationship(
+        "LogicalExecution",
         back_populates="user",
         cascade="all, delete-orphan",
     )

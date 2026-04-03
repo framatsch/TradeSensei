@@ -10,7 +10,7 @@ import type { RollingWinratePoint, ResponseEnvelope } from "@/lib/types";
 
 export function useRollingWinrate(windowTrades: number = 20) {
   return useQuery<RollingWinratePoint[], Error>({
-    queryKey: ["rolling-winrate", windowTrades],
+    queryKey: ["metrics", "rolling-winrate", windowTrades],
     queryFn: async () => {
       const res = await apiClient.get<ResponseEnvelope<RollingWinratePoint[]>>(
         `/api/v1/timeseries/rolling-winrate?window_trades=${windowTrades}`

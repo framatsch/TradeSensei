@@ -30,6 +30,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account import Account
+    from app.models.logical_execution import LogicalExecution
     from app.models.playbook import Playbook
     from app.models.tag import Tag
     from app.models.trade_note import TradeNote
@@ -82,6 +83,7 @@ class Trade(Base):
         notes: Free-text notes attached to the trade.
         currency: ISO-4217 currency code of the trade (e.g. ``"USD"``).
             ``None`` for legacy trades that pre-date the EUR-reporting feature.
+        multiplier: Contract multiplier (1 for equities, >1 for futures/options).
         pnl_eur: Realised P&L converted to EUR at the official Bundesbank
             daily rate on the trade date.  ``None`` for open trades, legacy
             trades, or when the exchange rate could not be determined.
@@ -102,6 +104,10 @@ class Trade(Base):
             :class:`~app.models.trade_note.TradeNote` objects.
         is_manually_edited: When ``True``, this trade was manually corrected
             and will not be overwritten on subsequent broker re-imports.
+        has_conflict: When ``True``, the aggregated position does not
+            reconcile with the broker's ``<OpenPosition>`` block.  The trade
+            is flagged for manual review instead of being force-closed with
+            zero P&L.
         created_at: Row-creation timestamp set by the database.
         updated_at: Row-update timestamp maintained by the database.
     """
@@ -206,10 +212,25 @@ class Trade(Base):
             "skipped on subsequent broker re-imports."
         ),
     )
+    has_conflict: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+        comment=(
+            "When True, the aggregated position does not reconcile with the "
+            "broker's <OpenPosition> block.  The trade is flagged for manual "
+            "review instead of being force-closed."
+        ),
+    )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
         nullable=True,
         comment="ISO-4217 currency code of the trade (e.g. USD).",
+    )
+    multiplier: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        comment="Contract multiplier (1 for equities, >1 for futures/options).",
     )
     pnl_eur: Mapped[Decimal | None] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
@@ -286,6 +307,11 @@ class Trade(Base):
         back_populates="trade",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+    logical_executions: Mapped[list["LogicalExecution"]] = relationship(
+        "LogicalExecution",
+        back_populates="trade",
+        lazy="select",
     )
 
     def __repr__(self) -> str:

@@ -10,7 +10,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
 import { Spinner } from "@/components/ui/Spinner";
@@ -45,6 +45,7 @@ function getYTDFromDate(): string {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ImportForm() {
+  const qc = useQueryClient();
   const [accountId, setAccountId] = useState<string>("");
   const [showFileUpload, setShowFileUpload] = useState(false);
 
@@ -166,8 +167,14 @@ export function ImportForm() {
       setIsQueueRunning(false);
       setQueueDone(true);
       if (fileInputRef.current) fileInputRef.current.value = "";
+
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
+      void qc.invalidateQueries({ queryKey: ["stats"] });
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
     },
-    [accountId]
+    [accountId, qc]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,7 +218,14 @@ export function ImportForm() {
       );
       return res.data.data;
     },
-    onSuccess: (data) => setSyncResult(data),
+    onSuccess: (data) => {
+      setSyncResult(data);
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
+      void qc.invalidateQueries({ queryKey: ["stats"] });
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+    },
   });
 
   const syncErrorMsg = (() => {

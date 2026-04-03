@@ -26,7 +26,7 @@ class Base(DeclarativeBase):
 
 engine = create_async_engine(
     settings.async_database_url,
-    echo=(settings.environment == "development"),
+    echo=False,  # disabled in dev to reduce noise (use DB log level instead)
     pool_pre_ping=True,
 )
 """Async SQLAlchemy engine created from ``DATABASE_URL``."""

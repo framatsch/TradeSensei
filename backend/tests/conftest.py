@@ -15,7 +15,7 @@ import os
 # CI overrides DATABASE_URL via the workflow env block.
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://test:test@localhost:5432/test_tradejournal",
+    "postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/test_tradejournal",
 )
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32chars")
 os.environ.setdefault("UPLOAD_DIR", "./uploads")

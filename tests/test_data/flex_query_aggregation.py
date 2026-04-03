@@ -10,12 +10,16 @@ from rich.console import Console
 from rich.table import Table
 
 def _init_year_bucket():
-    return {"total": 0.0, "winners": 0.0, "losers": 0.0, "commission": 0.0}
+    return {"pnl": 0.0,
+            "commission": 0.0,
+            }
 
 
 
 def parse_flex_query(file_paths):
     results = defaultdict(_init_year_bucket)
+    # Ensure 'total' bucket exists
+    results["total"]
 
     for file_path in file_paths:
 
@@ -37,14 +41,14 @@ def parse_flex_query(file_paths):
                 except ValueError:
                     continue
 
-                print(f"Processing trade on {trade_date}: P&L={pnl}, IB Commission={ibCommission}, Commission={commission}", file=sys.stderr    )
-                results[year]["total"] += pnl
-                results[year]['commission'] += max(abs(ibCommission), abs(commission))
-                results[year]["trades"]= results[year].get("trades", 0) + 1
-                if pnl > 0:
-                    results[year]["winners"] += pnl
-                else:
-                    results[year]["losers"] += pnl
+                #print(f"Processing trade on {trade_date}: fifoPnlRealized={pnl}, IB Commission={ibCommission}, Commission={commission}", file=sys.stderr    )
+                comm= max(abs(ibCommission), abs(commission))
+                results["total"]["pnl"] += pnl
+                results["total"]["commission"] += comm
+                results[year]["pnl"] += pnl
+                results[year]['commission'] += comm
+
+            results["total"]["gross_pnl"] = results["total"]["pnl"] + results["total"]["commission"]
 
         except Exception as e:
             print(f"Error reading file {file_path}: {e}", file=sys.stderr)
@@ -59,44 +63,57 @@ def main():
 
     results = parse_flex_query(args.files)
 
-    output_data = {}
-    for year in sorted(results.keys()):
-        data = results[year]
-
-        output_data[year] = {
-
-            'winners': round(data['winners'], 2),
-            'losers': round(data['losers'], 2),
-            'total': round(data['total'], 2),
-            'commission': round(data['commission'], 2),
-
-        }
-
+    # YAML output
     if args.yaml_output:
-        print(yaml.dump(output_data, default_flow_style=False, sort_keys=True))
-    else:
-        console = Console()
-        table = Table(title="IBKR Trade P&L Aggregation", show_lines=True)
+        # Runde alle Werte für die Ausgabe
+        yaml_out = {}
+        for year in sorted(results.keys()):
+            data = results[year]
+            yaml_out[year] = {
+                'pnl': round(data['pnl'], 2),
+                'commission': round(data['commission'], 2),
+            }
+            if year == 'total' and 'gross_pnl' in data:
+                yaml_out[year]['gross_pnl'] = round(data['gross_pnl'], 2)
+        print(yaml.dump(yaml_out, default_flow_style=False, sort_keys=True))
+        return
 
-        table.add_column("Year", justify="left", style="cyan", no_wrap=True)
-        table.add_column("Gross Winners", justify="right", style="green")
-        table.add_column("Gross Losers", justify="right", style="red")
-        table.add_column("Gross Total", justify="right")
-        table.add_column("Commission Fees", justify="right")
-        table.add_column("Net Total", justify="right")
-        table.add_column("Trades", justify="right")
+    # Console output
+    console = Console()
+    # Yearly table
+    table = Table(title="IBKR Yearly Trade P&L Aggregation", show_lines=True)
+    table.add_column("Year", justify="left", style="cyan", no_wrap=True)
+    table.add_column("Commission", justify="right")
+    table.add_column("Net PnL", justify="right")
+    for year in sorted(k for k in results.keys() if k != 'total'):
+        data = results[year]
+        table.add_row(
+            year,
+            f"{data['commission']:.2f}",
+            f"{data['pnl']:.2f}"
+        )
+    console.print(table)
 
-
-        for year in sorted(output_data.keys()):
-            d = output_data[year]
+    # Total table
+    if 'total' in results:
+        total = results['total']
+        table = Table(title="IBKR Total Aggregation", show_lines=True)
+        table.add_column("Total", justify="left", style="cyan", no_wrap=True)
+        table.add_column("Commission", justify="right")
+        table.add_column("Net PnL", justify="right")
+        if 'gross_pnl' in total:
+            table.add_column("Gross PnL", justify="right")
             table.add_row(
-                year,
-                f"{d['winners']:.2f}",
-                f"{d['losers']:.2f}",
-                f"{d['total']:.2f}",
-                f"{d['commission']:.2f}",
-                f"{d['total'] + d['commission']:.2f}",
-                str(results[year].get("trades", 0))
+                "Total",
+                f"{total['commission']:.2f}",
+                f"{total['pnl']:.2f}",
+                f"{total['gross_pnl']:.2f}"
+            )
+        else:
+            table.add_row(
+                "Total",
+                f"{total['commission']:.2f}",
+                f"{total['pnl']:.2f}"
             )
         console.print(table)
 

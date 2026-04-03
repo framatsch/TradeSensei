@@ -61,7 +61,12 @@ export function AccountList({ accounts }: Props) {
 
   const handleDelete = (account: Account) => {
     if (!window.confirm(`Delete account "${account.name}"? This cannot be undone.`)) return;
-    deleteAccount(account.id);
+    deleteAccount(account.id, {
+      onError: (err) => {
+        console.error("Failed to delete account:", err);
+        alert(`Failed to delete account: ${err.message}`);
+      }
+    });
   };
 
   return (

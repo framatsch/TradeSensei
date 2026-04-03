@@ -145,7 +145,11 @@ export function useBulkDeleteTrades() {
     mutationFn: async (payload) => {
       await apiClient.post("/api/v1/trades/bulk/delete", payload);
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["trades"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
+    },
   });
 }
 

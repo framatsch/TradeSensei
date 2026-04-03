@@ -7,7 +7,9 @@ from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.cash_transaction import CashTransactionCreateRequest
+from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import CorporateActionLike, SeedLotLike
 
@@ -24,6 +26,12 @@ class BrokerParser(ABC):
     Optionally, subclasses may override :meth:`enrich_pnl_eur` to perform
     asynchronous post-parse enrichment (e.g. fetching FX rates) before
     trades are persisted.
+
+    Subclasses that support the raw-data layer should override
+    :meth:`parse_raw` to return
+    :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
+    records instead of aggregated :class:`~app.schemas.trade.TradeCreate`
+    records.
     """
 
     @abstractmethod
@@ -61,6 +69,45 @@ class BrokerParser(ABC):
             ImportParseError: If the file cannot be parsed or has an
                 unrecognised format.
         """
+
+    def parse_raw(
+        self,
+        content: bytes,
+        filename: str,
+    ) -> tuple[
+        list[BrokerRawTransactionCreate],
+        list[CashTransactionCreateRequest],
+        list[CorporateActionCreateRequest],
+    ]:
+        """Parse broker export file content into raw transaction records.
+
+        Returns one
+        :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
+        per broker execution — no FIFO aggregation is performed.  The caller
+        is responsible for translating these into
+        :class:`~app.models.logical_execution.LogicalExecution`
+        records and subsequently running aggregation.
+
+        The default implementation raises :exc:`NotImplementedError`.  Parsers
+        that support the raw-data layer override this method.
+
+        Args:
+            content: Raw file bytes.
+            filename: Original filename (used to detect CSV vs XLSX).
+
+        Returns:
+            A tuple of:
+            - List of
+              :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
+            - List of cash transaction creation requests
+
+        Raises:
+            NotImplementedError: If the parser has not implemented raw parsing.
+            ImportParseError: If the file cannot be parsed.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement parse_raw()."
+        )
 
     async def enrich_pnl_eur(
         self,

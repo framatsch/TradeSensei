@@ -34,6 +34,8 @@ export function useCreateTrade() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
     },
   });
 }
@@ -52,6 +54,8 @@ export function useUpdateTrade(id: string) {
       // Update the individual trade cache and invalidate the list
       qc.setQueryData(["trade", id], updated);
       void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
     },
   });
 }
@@ -69,6 +73,8 @@ export function usePartialCloseTrade(id: string) {
     onSuccess: (updated) => {
       qc.setQueryData(["trade", id], updated);
       void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
     },
   });
 }

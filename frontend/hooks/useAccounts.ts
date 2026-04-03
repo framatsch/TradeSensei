@@ -41,6 +41,8 @@ export function useCreateAccount() {
       void qc.invalidateQueries({ queryKey: ["accounts"] });
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["stats"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
     },
   });
 }
@@ -59,6 +61,8 @@ export function useUpdateAccount(id: string) {
       void qc.invalidateQueries({ queryKey: ["accounts"] });
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["stats"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
     },
   });
 }
@@ -73,6 +77,8 @@ export function useDeleteAccount() {
       await qc.invalidateQueries({ queryKey: ["accounts"] });
       await qc.invalidateQueries({ queryKey: ["trades"] });
       await qc.invalidateQueries({ queryKey: ["stats"] });
+      await qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
     },
   });
 }

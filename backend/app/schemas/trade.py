@@ -35,7 +35,7 @@ class TradePartialCloseRequest(BaseModel):
     """
 
     quantity: Decimal = Field(..., gt=Decimal("0"))
-    exit_price: Decimal = Field(..., gt=Decimal("0"))
+    exit_price: Decimal = Field(..., ge=Decimal("0"))
     closed_at: datetime = Field(...)
     exit_commission: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
 
@@ -76,6 +76,10 @@ class TradeCreate(BaseModel):
     """
 
     user_id: uuid.UUID | None = None
+    broker_conid: str | None = Field(
+        default=None, description="Broker contract identifier."
+    )
+    multiplier: int = Field(default=1, description="Contract multiplier.")
     symbol: str = Field(
         ...,
         min_length=SYMBOL_MIN_LENGTH,
@@ -103,7 +107,7 @@ class TradeCreate(BaseModel):
     )
     quantity: Decimal = Field(
         ...,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Number of units, shares, or contracts traded. Must be greater than zero."
         ),
@@ -111,7 +115,7 @@ class TradeCreate(BaseModel):
     )
     entry_price: Decimal = Field(
         ...,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Execution price at which the position was opened. "
             "Must be greater than zero."
@@ -120,7 +124,7 @@ class TradeCreate(BaseModel):
     )
     exit_price: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Execution price at which the position was closed. "
             "Omit or set to null for trades that are still open."
@@ -129,7 +133,7 @@ class TradeCreate(BaseModel):
     )
     stop_loss: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Stop-loss price level for the trade. "
             "Omit or set to null if no stop-loss was set."
@@ -138,7 +142,7 @@ class TradeCreate(BaseModel):
     )
     take_profit: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Take-profit price level for the trade. "
             "Omit or set to null if no take-profit was set."
@@ -286,6 +290,14 @@ class TradeCreate(BaseModel):
             "rather than inserted.  Never persisted to the database."
         ),
     )
+    is_mixed_execution: bool = Field(
+        default=False,
+        exclude=True,
+        description=(
+            "Internal flag — set when IBKR openCloseIndicator='C;O'. "
+            "Tells the aggregator this execution flips the position."
+        ),
+    )
 
     @field_validator("opened_at", "closed_at", mode="after")
     @classmethod
@@ -381,7 +393,7 @@ class TradeCreateRequest(BaseModel):
     )
     quantity: Decimal = Field(
         ...,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Number of units, shares, or contracts traded. Must be greater than zero."
         ),
@@ -389,7 +401,7 @@ class TradeCreateRequest(BaseModel):
     )
     entry_price: Decimal = Field(
         ...,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Execution price at which the position was opened. "
             "Must be greater than zero."
@@ -398,7 +410,7 @@ class TradeCreateRequest(BaseModel):
     )
     exit_price: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Execution price at which the position was closed. "
             "Omit or set to null for trades that are still open."
@@ -407,7 +419,7 @@ class TradeCreateRequest(BaseModel):
     )
     stop_loss: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Stop-loss price level for the trade. "
             "Omit or set to null if no stop-loss was set."
@@ -416,7 +428,7 @@ class TradeCreateRequest(BaseModel):
     )
     take_profit: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Take-profit price level for the trade. "
             "Omit or set to null if no take-profit was set."
@@ -634,7 +646,7 @@ class TradeUpdate(BaseModel):
     )
     quantity: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Updated number of units or contracts. Must be greater than zero. "
             "Omit to leave unchanged."
@@ -643,7 +655,7 @@ class TradeUpdate(BaseModel):
     )
     entry_price: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Updated entry execution price. Must be greater than zero. "
             "Omit to leave unchanged."
@@ -652,7 +664,7 @@ class TradeUpdate(BaseModel):
     )
     exit_price: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Updated exit execution price. Supply this field (along with "
             "`closed_at` and `pnl`) to close an open trade. "
@@ -662,7 +674,7 @@ class TradeUpdate(BaseModel):
     )
     stop_loss: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Updated stop-loss price level. Set to null to remove the stop-loss. "
             "Omit to leave unchanged. "
@@ -676,7 +688,7 @@ class TradeUpdate(BaseModel):
     )
     take_profit: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
+        ge=Decimal("0"),
         description=(
             "Updated take-profit price level. Set to null to remove the take-profit. "
             "Omit to leave unchanged. "
