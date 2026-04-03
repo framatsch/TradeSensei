@@ -349,12 +349,21 @@ def aggregate_executions_fifo(
 
             matched_pnl: Decimal | None = None
             matched_pnl_eur: Decimal | None = None
+            matched_net_pnl: Decimal | None = None
+            matched_net_pnl_eur: Decimal | None = None
             if is_closing_leg and exec_pnl_remaining:
                 matched_pnl = (exec_pnl_remaining * match_qty) / exec_qty_remaining
+                matched_net_pnl = matched_pnl - (lot_comm + exec_comm)
                 if exec_trade.pnl_eur is not None:
                     matched_pnl_eur = (
                         exec_trade.pnl_eur * match_qty
                     ) / exec_qty_remaining
+                    if matched_pnl and matched_pnl != Decimal("0"):
+                        matched_net_pnl_eur = matched_net_pnl * (
+                            matched_pnl_eur / matched_pnl
+                        )
+                    else:
+                        matched_net_pnl_eur = matched_net_pnl
 
             closed_at = exec_trade.opened_at
             if closed_at <= open_lot.opened_at:
@@ -370,6 +379,8 @@ def aggregate_executions_fifo(
                     "commission": lot_comm + exec_comm,
                     "pnl": matched_pnl,
                     "pnl_eur": matched_pnl_eur,
+                    "net_pnl": matched_net_pnl,
+                    "net_pnl_eur": matched_net_pnl_eur,
                 }
             )
             completed_trades.append(closed_trade)
@@ -412,6 +423,19 @@ def aggregate_executions_fifo(
                         "closed_at": closed_at,
                         "commission": exec_commission_remaining,
                         "pnl": exec_pnl_remaining if exec_pnl_remaining else None,
+                        "net_pnl": exec_pnl_remaining - exec_commission_remaining
+                        if exec_pnl_remaining
+                        else None,
+                        "net_pnl_eur": (exec_pnl_remaining - exec_commission_remaining)
+                        * (exec_trade.pnl_eur / exec_pnl_remaining)
+                        if exec_pnl_remaining
+                        and exec_trade.pnl_eur
+                        and exec_pnl_remaining != Decimal("0")
+                        else (
+                            exec_pnl_remaining - exec_commission_remaining
+                            if exec_pnl_remaining
+                            else None
+                        ),
                     }
                 )
                 completed_trades.append(orphaned_trade)
@@ -461,10 +485,20 @@ def aggregate_executions_fifo(
 
             matched_pnl = None
             matched_pnl_eur = None
+            matched_net_pnl = None
+            matched_net_pnl_eur = None
             if o_lot.pnl is not None and o_lot.quantity:
                 matched_pnl = (o_lot.pnl * match_qty) / o_lot.quantity
+                matched_net_pnl = matched_pnl - (lot_comm + o_lot_comm)
             if o_lot.pnl_eur is not None and o_lot.quantity:
                 matched_pnl_eur = (o_lot.pnl_eur * match_qty) / o_lot.quantity
+                if matched_net_pnl is not None:
+                    if matched_pnl and matched_pnl != Decimal("0"):
+                        matched_net_pnl_eur = matched_net_pnl * (
+                            matched_pnl_eur / matched_pnl
+                        )
+                    else:
+                        matched_net_pnl_eur = matched_net_pnl
 
             # Create the filled orphaned lot by taking the
             # exit details from the orphaned lot
@@ -477,6 +511,8 @@ def aggregate_executions_fifo(
                     "commission": lot_comm + o_lot_comm,
                     "pnl": matched_pnl,
                     "pnl_eur": matched_pnl_eur,
+                    "net_pnl": matched_net_pnl,
+                    "net_pnl_eur": matched_net_pnl_eur,
                 }
             )
             completed_trades.append(filled_orphaned_trade)
@@ -499,6 +535,9 @@ def aggregate_executions_fifo(
             lot.exit_price = None
             lot.closed_at = None
             lot.pnl = None
+            lot.net_pnl = None
+            lot.pnl_eur = None
+            lot.net_pnl_eur = None
             completed_trades.append(lot)
 
     # Sort final output by opened_at

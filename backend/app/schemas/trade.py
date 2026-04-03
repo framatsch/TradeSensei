@@ -171,6 +171,14 @@ class TradeCreate(BaseModel):
         ),
         examples=["475.00", "-120.50", None],
     )
+    net_pnl: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised net profit or loss for this trade in account currency. "
+            "Null for open trades."
+        ),
+        examples=["473.50", "-123.70", None],
+    )
     commission: Decimal = Field(
         default=Decimal("0"),
         ge=Decimal("0"),
@@ -213,6 +221,14 @@ class TradeCreate(BaseModel):
             "on the trade date. Null for open trades or when the rate is unavailable."
         ),
         examples=["432.50", "-98.20", None],
+    )
+    net_pnl_eur: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised net P&L converted to EUR at the official Bundesbank daily rate "
+            "on the trade date. Null for open trades or when the rate is unavailable."
+        ),
+        examples=["430.50", "-100.20", None],
     )
     account_id: uuid.UUID | None = Field(
         default=None,
@@ -433,6 +449,14 @@ class TradeCreateRequest(BaseModel):
         ),
         examples=["475.00", "-120.50", None],
     )
+    net_pnl: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised net profit or loss for this trade in account currency. "
+            "Null for open trades."
+        ),
+        examples=["473.50", "-123.70", None],
+    )
     commission: Decimal = Field(
         default=Decimal("0"),
         ge=Decimal("0"),
@@ -475,6 +499,14 @@ class TradeCreateRequest(BaseModel):
             "at the official Bundesbank daily rate; can also be set manually."
         ),
         examples=["432.50", "-98.20", None],
+    )
+    net_pnl_eur: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised net P&L converted to EUR. Set automatically by broker importers "
+            "at the official Bundesbank daily rate; can also be set manually."
+        ),
+        examples=["430.50", "-100.20", None],
     )
     account_id: uuid.UUID | None = Field(
         default=None,
@@ -680,6 +712,14 @@ class TradeUpdate(BaseModel):
         ),
         examples=["530.00", "-85.00", None],
     )
+    net_pnl: Decimal | None = Field(
+        default=None,
+        description=(
+            "Updated realised net profit or loss in account currency. "
+            "Omit to leave unchanged."
+        ),
+        examples=["528.00", "-87.00", None],
+    )
     commission: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
@@ -850,6 +890,14 @@ class TradeRead(BaseModel):
         ),
         examples=["475.00", "-120.50", None],
     )
+    net_pnl: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised net profit or loss in account currency. "
+            "Null if the trade is still open or PnL has not been calculated."
+        ),
+        examples=["473.50", "-123.70", None],
+    )
     commission: Decimal = Field(
         ...,
         description="Total commission paid for this trade.",
@@ -887,6 +935,14 @@ class TradeRead(BaseModel):
             "on the trade date. Null for open trades or when the rate is unavailable."
         ),
         examples=["432.50", "-98.20", None],
+    )
+    net_pnl_eur: Decimal | None = Field(
+        default=None,
+        description=(
+            "Realised net P&L converted to EUR at the official Bundesbank daily rate "
+            "on the trade date. Null for open trades or when the rate is unavailable."
+        ),
+        examples=["430.50", "-100.20", None],
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,

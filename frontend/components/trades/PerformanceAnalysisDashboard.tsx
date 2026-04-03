@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export interface PerformanceDataPoint {
   name: string;
   pnl: number;
+  netPnl: number;
   profitFactor: number;
   returnWin: number;
   winPercent: number;
@@ -14,6 +15,7 @@ export interface PerformanceDataPoint {
   shares: number;
   mistakes: number;
   avgReturn: number;
+  avgNetReturn: number;
   avgProfit: number;
   avgLoser: number;
   commissions: number;
@@ -68,7 +70,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
     let totalMistakes = 0;
 
     data.forEach(d => {
-      totalPnl += d.pnl;
+      totalPnl += d.netPnl;
       totalTrades += d.trades;
       totalMistakes += d.mistakes || 0;
       totalWins += (d.winPercent / 100) * d.trades;
@@ -89,7 +91,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
   // Determine which key to plot
   const getDataKey = (metric: MetricType) => {
     switch (metric) {
-      case 'P&L': return 'pnl';
+      case 'P&L': return 'netPnl';
       case 'Trades': return 'trades';
       case 'Shares': return 'shares';
       case 'Mistakes': return 'mistakes';
@@ -202,14 +204,14 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
           <h3 className="text-sm font-semibold text-foreground border-b border-border/50 pb-2">Insights</h3>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total P&L</span>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Net P&L</span>
             <span className={`text-2xl font-bold font-mono ${insights.totalPnl >= 0 ? 'text-success' : 'text-danger'}`}>
               {formatCurrency(insights.totalPnl)}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Avg Return</span>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Avg Net Return</span>
             <span className={`text-xl font-semibold font-mono ${insights.avgReturn >= 0 ? 'text-success' : 'text-danger'}`}>
               {formatCurrency(insights.avgReturn)}
             </span>
@@ -233,51 +235,76 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
 
       {/* Bottom: Data Table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden overflow-x-auto">
-        <table className="min-w-full divide-y divide-zinc-900">
+        <table className="min-w-full divide-y divide-[#dadbdf] dark:divide-[#29292b]">
           <thead>
+            {/* Grouping row */}
+            <tr className="bg-muted/20 border-b border-[#dadbdf] dark:border-[#29292b]">
+              <th colSpan={3} className="px-4 py-2 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-r border-[#dadbdf] dark:border-[#29292b]">Overview</th>
+              <th colSpan={3} className="px-4 py-2 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-r border-[#dadbdf] dark:border-[#29292b]">Profit &amp; Loss</th>
+              <th colSpan={4} className="px-4 py-2 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-r border-[#dadbdf] dark:border-[#29292b]">Win/Loss</th>
+              <th colSpan={3} className="px-4 py-2 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Averages</th>
+            </tr>
             <tr>
+              {/* Overview */}
               <th scope="col" className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Name</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Return $</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Profit Factor</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Return Win</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Win %</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Return Loss</th>
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Trades</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Shares</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Return</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Profit</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Loser</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Commissions/Fees</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">Shares</th>
+              
+              {/* Profit & Loss */}
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-widest whitespace-nowrap bg-primary/5">Net P&amp;L</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Gross P&amp;L</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">Commissions</th>
+              
+              {/* Win/Loss */}
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Win %</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Gross Win</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Gross Loss</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">Profit Factor</th>
+              
+              {/* Averages */}
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-widest whitespace-nowrap bg-primary/5">Avg Net Return</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Gross Win</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Gross Loss</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-900 text-sm">
+          <tbody className="divide-y divide-[#dadbdf] dark:divide-[#29292b] text-sm">
             {data.map((row, idx) => (
               <tr
                 key={idx}
                 onClick={() => onViewReport?.(row)}
                 className={`transition-colors ${onViewReport ? "cursor-pointer hover:bg-white/[0.05]" : "hover:bg-white/[0.03]"}`}
               >
+                {/* Overview */}
                 <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{row.name}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.trades}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">{row.shares}</td>
+                
+                {/* Profit & Loss */}
+                <td className={`px-4 py-3 text-right whitespace-nowrap font-medium font-mono bg-primary/5 ${row.netPnl >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {formatCurrency(row.netPnl)}
+                </td>
                 <td className={`px-4 py-3 text-right whitespace-nowrap font-medium font-mono ${row.pnl >= 0 ? 'text-success' : 'text-danger'}`}>
                   {formatCurrency(row.pnl)}
                 </td>
-                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.profitFactor.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right text-success font-mono whitespace-nowrap">{formatCurrency(row.returnWin)}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">{formatCurrency(row.commissions)}</td>
+                
+                {/* Win/Loss */}
                 <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{formatPercent(row.winPercent)}</td>
+                <td className="px-4 py-3 text-right text-success font-mono whitespace-nowrap">{formatCurrency(row.returnWin)}</td>
                 <td className="px-4 py-3 text-right text-danger font-mono whitespace-nowrap">{formatCurrency(row.returnLoss)}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.trades}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.shares}</td>
-                <td className={`px-4 py-3 text-right whitespace-nowrap font-mono ${row.avgReturn >= 0 ? 'text-success' : 'text-danger'}`}>
-                  {formatCurrency(row.avgReturn)}
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">{row.profitFactor.toFixed(2)}</td>
+                
+                {/* Averages */}
+                <td className={`px-4 py-3 text-right whitespace-nowrap font-mono bg-primary/5 ${row.avgNetReturn >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {formatCurrency(row.avgNetReturn)}
                 </td>
                 <td className="px-4 py-3 text-right text-success font-mono whitespace-nowrap">{formatCurrency(row.avgProfit)}</td>
                 <td className="px-4 py-3 text-right text-danger font-mono whitespace-nowrap">{formatCurrency(row.avgLoser)}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{formatCurrency(row.commissions)}</td>
               </tr>
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={13} className="px-4 py-8 text-center text-muted-foreground">
                   No performance data available for the selected view.
                 </td>
               </tr>

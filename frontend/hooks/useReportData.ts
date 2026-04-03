@@ -117,16 +117,20 @@ export function useReportData(accountId?: string | null) {
 
     const result: PerformanceDataPoint[] = [];
     groups.forEach((groupTrades, key) => {
-      let pnl = 0, grossProfit = 0, grossLoss = 0;
+      let pnl = 0, netPnl = 0, grossProfit = 0, grossLoss = 0;
       let returnWin = 0, returnLoss = 0, returnOthers = 0;
       let shares = 0, mistakes = 0, commissions = 0;
       let wins = 0, losses = 0;
 
       groupTrades.forEach(t => {
         const tradePnl = parseFloat(t.pnl || "0");
+        const tradeCommission = parseFloat(t.commission || "0");
+        const tradeNetPnl = t.net_pnl != null ? parseFloat(t.net_pnl.toString()) : (tradePnl - tradeCommission);
+        
         pnl += tradePnl;
+        netPnl += tradeNetPnl;
         shares += parseFloat(t.quantity || "0");
-        commissions += parseFloat(t.commission || "0");
+        commissions += tradeCommission;
         mistakes += t.tags ? t.tags.filter((tag: any) => tag.name.toLowerCase().includes("mistake")).length : 0;
         if (tradePnl > 0) { grossProfit += tradePnl; returnWin += tradePnl; wins++; }
         else if (tradePnl < 0) { grossLoss += Math.abs(tradePnl); returnLoss += tradePnl; losses++; }
@@ -137,10 +141,11 @@ export function useReportData(accountId?: string | null) {
       const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99 : 0);
       const winPercent = tradesCount > 0 ? (wins / tradesCount) * 100 : 0;
       const avgReturn = tradesCount > 0 ? pnl / tradesCount : 0;
+      const avgNetReturn = tradesCount > 0 ? netPnl / tradesCount : 0;
       const avgProfit = wins > 0 ? returnWin / wins : 0;
       const avgLoser = losses > 0 ? returnLoss / losses : 0;
 
-      result.push({ name: key, pnl, profitFactor, returnWin, winPercent, returnLoss, returnOthers, trades: tradesCount, shares, mistakes, avgReturn, avgProfit, avgLoser, commissions });
+      result.push({ name: key, pnl, netPnl, profitFactor, returnWin, winPercent, returnLoss, returnOthers, trades: tradesCount, shares, mistakes, avgReturn, avgNetReturn, avgProfit, avgLoser, commissions });
     });
 
     return sortResult(result, dimension);
