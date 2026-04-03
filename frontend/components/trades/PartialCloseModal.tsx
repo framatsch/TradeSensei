@@ -164,7 +164,7 @@ export function PartialCloseModal({ trade, isOpen, onClose }: Props) {
             <button
               type="submit"
               disabled={partialClose.isPending}
-              className="rounded-md bg-[#6063dd] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
             >
               {partialClose.isPending ? "Submitting..." : "Partial Close"}
             </button>

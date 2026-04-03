@@ -497,15 +497,15 @@ export function TradeChart({ trade }: TradeChartProps) {
 
       {/* Interval toolbar */}
       <div className="shrink-0 flex items-center gap-1.5 px-3 pt-3 pb-2">
-        <div className="flex p-0.5 rounded-full bg-[#e9e9e9] dark:bg-zinc-900/60 border border-black/5 dark:border-white/5 backdrop-blur-md shadow-inner">
+        <div className="flex p-0.5 rounded-full bg-secondary border border-border backdrop-blur-md shadow-inner">
           {(["1h", "4h", "1d"] as Interval[]).map((iv) => (
             <button
               key={iv}
               onClick={() => handleIntervalChange(iv)}
               className={`relative px-3.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 ${
                 interval === iv
-                  ? "bg-[#6063dd] text-white dark:bg-gradient-to-b dark:from-primary/40 dark:to-primary/10 dark:text-[#f3f3f3] dark:shadow-[0_0_12px_rgba(0,210,255,0.2)] border border-[#6063dd]/80 dark:border-primary/30"
-                  : "text-[#717174] hover:text-foreground hover:bg-black/5 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-white/5 border border-transparent"
+                  ? "bg-primary text-primary-foreground border border-primary/80"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/5 border border-transparent"
               }`}
             >
               {iv}
@@ -522,7 +522,7 @@ export function TradeChart({ trade }: TradeChartProps) {
           target="_blank"
           rel="noopener noreferrer"
           title="Open in TradingView"
-          className="group inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold bg-[#6063dd] text-white hover:opacity-90 dark:text-zinc-500 dark:hover:text-primary dark:bg-zinc-900/40 dark:border dark:border-white/5 dark:hover:border-primary/30 transition-all duration-300 shadow-sm dark:hover:shadow-[0_0_10px_rgba(0,210,255,0.1)]"
+          className="group inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold bg-primary text-primary-foreground hover:opacity-90 border border-primary/80 transition-all duration-300 shadow-sm"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
