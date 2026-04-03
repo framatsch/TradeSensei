@@ -40,7 +40,13 @@ def compute_trade_metrics(trades: "list[TradeRead]") -> TradeMetrics:
         A populated :class:`~app.schemas.metrics.TradeMetrics` instance.
     """
     # Filter to trades that have a realised PnL.
-    closed = [t for t in trades if t.pnl is not None]
+    # Prefer net_pnl when available (net of commissions); fall back to pnl.
+    closed = [
+        t
+        for t in trades
+        if (getattr(t, "net_pnl", None) is not None)
+        or (getattr(t, "pnl", None) is not None)
+    ]
     total = len(closed)
 
     if total == 0:
@@ -64,7 +70,10 @@ def compute_trade_metrics(trades: "list[TradeRead]") -> TradeMetrics:
             sharpe_ratio=None,
         )
 
-    pnl_series: list[Decimal] = [t.pnl for t in closed]  # type: ignore[misc]
+    # Use net_pnl when present so aggregate metrics reflect fees/commissions.
+    pnl_series: list[Decimal] = [
+        t.net_pnl if getattr(t, "net_pnl", None) is not None else t.pnl for t in closed
+    ]  # type: ignore[misc]
 
     wins = [p for p in pnl_series if p > _ZERO]
     losses = [p for p in pnl_series if p < _ZERO]
@@ -145,8 +154,14 @@ def compute_equity_curve(
     # Collect only trades that have both pnl and closed_at set.
     eligible: list[tuple[datetime, Decimal]] = []
     for t in trades:
-        if t.pnl is not None and t.closed_at is not None:
-            eligible.append((t.closed_at, t.pnl))
+        # Prefer net_pnl for equity updates when available.
+        pnl_value = (
+            getattr(t, "net_pnl", None)
+            if getattr(t, "net_pnl", None) is not None
+            else getattr(t, "pnl", None)
+        )
+        if pnl_value is not None and t.closed_at is not None:
+            eligible.append((t.closed_at, pnl_value))
 
     # Sort by closed_at ascending.
     eligible.sort(key=lambda pair: pair[0])
