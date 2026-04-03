@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-04-03
+
+### Added
+- [backend] Added `net_pnl` and `net_pnl_eur` fields to the `Trade` model and Pydantic schemas.
+- [backend] Created an Alembic migration to calculate `net_pnl` for existing closed trades.
+- [backend] Updated the trade aggregator to automatically calculate net P&L and net P&L EUR for closed trades.
+- [frontend] Added `net_pnl` and `net_pnl_eur` to the `Trade` interface and aggregation hooks.
+- [frontend] Redesigned the `PerformanceAnalysisDashboard` table with themed groupings: Overview, Profit & Loss, Win/Loss, and Averages.
+- [frontend] Updated dashboard Insights and Charting to use Net P&L metrics as the primary performance indicator.
+
+### Changed
+- [frontend] Improved table visual hierarchy with theme-responsive borders (`#dadbdf` in light, `#29292b` in dark).
+
 ## [0.7.0] - 2026-03-28
 
 ### Fixed
