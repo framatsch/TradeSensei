@@ -9,7 +9,7 @@ export function LoginHeader() {
 
   return (
     <div className="flex flex-col items-center mb-8">
-      <button 
+      <button
         type="button"
         onClick={() => setIsAboutOpen(true)}
         className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl transition-transform hover:scale-105 active:scale-95 border-none bg-transparent p-0 cursor-pointer"
@@ -29,10 +29,11 @@ export function LoginHeader() {
       <p className="text-muted-foreground text-sm">
         Sign in to your account
       </p>
-      
-      <AboutModal 
-        isOpen={isAboutOpen} 
-        onClose={() => setIsAboutOpen(false)} 
+      {/* About Modal */}
+      <AboutModal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
+        version={process.env.NEXT_PUBLIC_APP_VERSION}
       />
     </div>
   );
