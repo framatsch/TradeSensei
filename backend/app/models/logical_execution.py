@@ -239,6 +239,16 @@ class LogicalExecution(Base):
         lazy="selectin",
     )
 
+    @property
+    def is_mixed_execution(self) -> bool:
+        """Check if this logical execution was a mixed execution (position flip)."""
+        for raw in self.raw_transactions:
+            if isinstance(raw.raw_data, dict):
+                raw_ind = raw.raw_data.get("openCloseIndicator", "")
+                if isinstance(raw_ind, str) and ("C;O" in raw_ind or "O;C" in raw_ind):
+                    return True
+        return False
+
     def __repr__(self) -> str:
         """Return a debug string for this logical execution.
 
