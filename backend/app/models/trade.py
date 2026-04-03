@@ -77,11 +77,15 @@ class Trade(Base):
         closed_at: Timestamp when the position was closed
             (``None`` while still open).
         pnl: Realised profit or loss (``None`` while still open).
+        net_pnl: Realised net profit or loss (``None`` while still open).
         commission: Total commission paid; defaults to zero.
         notes: Free-text notes attached to the trade.
         currency: ISO-4217 currency code of the trade (e.g. ``"USD"``).
             ``None`` for legacy trades that pre-date the EUR-reporting feature.
         pnl_eur: Realised P&L converted to EUR at the official Bundesbank
+            daily rate on the trade date.  ``None`` for open trades, legacy
+            trades, or when the exchange rate could not be determined.
+        net_pnl_eur: Realised net P&L converted to EUR at the official Bundesbank
             daily rate on the trade date.  ``None`` for open trades, legacy
             trades, or when the exchange rate could not be determined.
         account_id: Foreign key to the :class:`~app.models.account.Account`
@@ -159,6 +163,10 @@ class Trade(Base):
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
         nullable=True,
     )
+    net_pnl: Mapped[Decimal | None] = mapped_column(
+        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
+        nullable=True,
+    )
     commission: Mapped[Decimal] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
         nullable=False,
@@ -208,6 +216,14 @@ class Trade(Base):
         nullable=True,
         comment=(
             "Realised P&L converted to EUR at the Bundesbank daily rate "
+            "on the trade date."
+        ),
+    )
+    net_pnl_eur: Mapped[Decimal | None] = mapped_column(
+        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
+        nullable=True,
+        comment=(
+            "Realised net P&L converted to EUR at the Bundesbank daily rate "
             "on the trade date."
         ),
     )

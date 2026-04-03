@@ -76,6 +76,10 @@ def test_aggregate_simple_round_trip() -> None:
         _tc("AAPL", Direction.LONG, 100, 150, t1),
         _tc("AAPL", Direction.SHORT, 100, 160, t2, pnl=1000),
     ]
+    execs[0].commission = Decimal("1.50")
+    execs[1].commission = Decimal("2.00")
+    execs[1].pnl_eur = Decimal("900")
+
     res = aggregate_executions_fifo(execs)
     assert len(res) == 1
     t = res[0]
@@ -83,6 +87,11 @@ def test_aggregate_simple_round_trip() -> None:
     assert t.entry_price == Decimal(150)
     assert t.exit_price == Decimal(160)
     assert t.pnl == Decimal(1000)
+    assert t.commission == Decimal("3.50")
+    assert t.net_pnl == Decimal("996.50")
+    assert t.pnl_eur == Decimal(900)
+    # net_pnl_eur = 996.50 * (900 / 1000) = 896.85
+    assert t.net_pnl_eur == Decimal("896.85")
     assert t.opened_at == t1
     assert t.closed_at == t2
     assert t.direction == Direction.LONG

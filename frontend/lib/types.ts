@@ -175,9 +175,11 @@ export interface Trade {
   opened_at: string;
   closed_at: string | null;
   pnl: string | null;
+  net_pnl?: number;
   commission: string;
   currency: string | null;
   pnl_eur: string | null;
+  net_pnl_eur?: number;
   notes: string | null;
   account_id: string | null;
   account_name: string | null;
