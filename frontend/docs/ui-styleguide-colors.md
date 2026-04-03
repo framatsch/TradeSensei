@@ -22,7 +22,7 @@ Note: these are canonical token values. Some rendered pixels can appear slightly
 | UI Role | CSS Variable | Hex (Light) | Hex (Dark) | Tailwind Semantic Utility | Usage |
 | --- | --- | --- | --- | --- | --- |
 | Generic page background | `--background` | `#e9e9e9` | `#171719` | `bg-background` | Main app background and page-level containers. |
-| Sidebar background | `--sidebar` | `#eeeeee` | `#131317` | `bg-sidebar` | Sidebar and side navigation surfaces. |
+| Sidebar background | `--sidebar` | `#f3f3f3` | `#131317` | `bg-sidebar` | Sidebar and side navigation surfaces. |
 | Primary text | `--foreground` | `#18181b` | `#fafafa` | `text-foreground` | Standard text on default surfaces. |
 | Card/panel background | `--card` | `#f3f3f3` | `#131317` | `bg-card` | Login, calendar, and panel/card surfaces. |
 | Card text | `--card-foreground` | `#18181b` | `#fafafa` | `text-card-foreground` | Text on cards/panels. |
