@@ -31,15 +31,15 @@ def parse_flex_query(file_paths):
                 year = trade_date[:4]
                 try:
                     pnl = float(trade.get('fifoPnlRealized', '0'))
-                    comm = float(trade.get('ibCommission', '0'))
+                    ibCommission = float(trade.get('ibCommission', '0'))
+                    commission = float(trade.get('commission', '0'))
                 #    fx_rate = float(trade.get('fxRateToBase', '1'))
                 except ValueError:
                     continue
 
-                print(f"Processing trade on {trade_date}: P&L={pnl}, Commission={comm}", file=sys.stderr    )
-
+                print(f"Processing trade on {trade_date}: P&L={pnl}, IB Commission={ibCommission}, Commission={commission}", file=sys.stderr    )
                 results[year]["total"] += pnl
-                results[year]['commission'] += comm
+                results[year]['commission'] += max(abs(ibCommission), abs(commission))
                 results[year]["trades"]= results[year].get("trades", 0) + 1
                 if pnl > 0:
                     results[year]["winners"] += pnl
