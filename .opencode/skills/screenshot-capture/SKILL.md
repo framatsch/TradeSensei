@@ -1,3 +1,12 @@
+# ---
+# name: screenshot-capture
+# description: Capture screenshots of frontend pages with Playwright (handles auth and saving)
+# license: MIT
+# compatibility: opencode
+# metadata:
+#   toolchain: playwright, python
+# ---
+
 # Skill: Screenshot Capture
 
 This skill allows you to capture screenshots of specific dashboard pages or all pages. It handles authentication and saves screenshots to a designated directory.

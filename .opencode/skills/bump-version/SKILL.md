@@ -1,3 +1,12 @@
+---
+name: bump-version
+description: Automate version bumping across project files and prepare releases or snapshot versions
+license: MIT
+compatibility: opencode
+metadata:
+  toolchain: python, git, gh
+---
+
 ## What I do
 
 Automate version bumping across all project files (`package.json`, `frontend/package.json`, `backend/pyproject.toml`) and prepare a consistent release or snapshot checkpoint. This is the skill to use when the user asks to "create release version X.Y.Z".
@@ -8,7 +17,7 @@ Automate version bumping across all project files (`package.json`, `frontend/pac
 Sets a clean version for a formal release, pushes it, creates the release, and prepares the next dev cycle.
 
 ```bash
-python tools/bump_version.py 0.10.0
+python tools/bump_version.py 0.10.0 --release
 ```
 
 ### 🌙 Snapshot Bumping (Nightly)
@@ -17,6 +26,22 @@ Adds `-SNAPSHOT+<git-hash>` for development or nightly builds.
 ```bash
 python tools/bump_version.py 0.10.1 --snapshot
 ```
+
+### 🏷️ Release + GitHub Release (non-interactive)
+
+```bash
+# Commit the bump, create and push a tag, and create a GitHub release with notes
+python tools/bump_version.py 0.10.0 --release --gh-release --yes --notes "Release 0.10.0 - fixes and improvements"
+```
+
+Flags added:
+- `--release`: commit the bump, create an annotated tag `vX.Y.Z`, push tag and HEAD to origin
+- `--gh-release`: after pushing the tag, create a GitHub release using `gh release create`
+- `--yes`: assume yes for interactive confirmations (useful for CI)
+- `--notes`: provide inline release notes text (used to create a temporary notes file for `gh`)
+
+Changelog integration:
+- If `--release` is used and `CHANGELOG.md` contains a `## [Unreleased]` section, the script will move the Unreleased content into a new `## [X.Y.Z] - YYYY-MM-DD` section, add a compare link, and use the extracted text as release notes for the GitHub release (unless `--notes` is provided).
 
 ## Guardrails
 

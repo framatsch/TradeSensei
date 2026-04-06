@@ -1,3 +1,12 @@
+# ---
+# name: refactor-pro
+# description: Identify and eliminate technical debt, dead code, and bloat across the codebase
+# license: MIT
+# compatibility: opencode
+# metadata:
+#   toolchain: python, typescript
+# ---
+
 # Skill: Technical Debt & Code Bloat Elimination
 **Description:** Specialized skill for identifying and removing redundant code, dead logic, and inconsistent implementation patterns in Python (Backend) and TypeScript (Frontend) environments.
 

@@ -1,3 +1,12 @@
+# ---
+# name: safe-commit
+# description: Orchestrate pre-commit checks (lint, typecheck, tests, migrations) and commit when safe
+# license: MIT
+# compatibility: opencode
+# metadata:
+#   toolchain: python, uv
+# ---
+
 # Safe Commit Skill
 
 This skill orchestrates both backend and frontend pre-commit checks to ensure the CI build passes on GitHub. It runs linting, type checking, tests, and database migrations for the backend, as well as TypeScript validation for the frontend, automatically fixing issues where possible and guiding you to fix the rest before finally committing the changes.
