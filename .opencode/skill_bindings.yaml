@@ -1,0 +1,23 @@
+# Maps common user phrases (or regex) to skill IDs.
+# This file does not change runtime behavior by itself. It's a simple,
+# discoverable registry that tools/agents or the assistant can consult to
+# decide which skill to invoke for a natural language request.
+
+# Each entry:
+# - pattern: a case-insensitive regex matched against the user message
+# - skill: the skill id to use if the pattern matches
+# - description: short human-friendly note
+
+bindings:
+
+  - pattern: '(?i)bump[ -]?version\\s+([0-9]+\\.[0-9]+\\.[0-9]+)'
+    skill: "bump-version"
+    description: "Direct english variant for bump-version requests."
+
+  - pattern: '(?i)(commit|make a commit|erstelle (einen )?commit)'
+    skill: "safe-commit"
+    description: "Run prechecks and create a commit using commit-helper for message. Requires confirmation."
+
+  - pattern: '(?i)(create (a )?release|erstelle (mir )?release)\\s+([0-9]+\\.[0-9]+\\.[0-9]+)'
+    skill: "bump-version"
+    description: "English variant: create a release version."
