@@ -1,11 +1,11 @@
-# ---
-# name: safe-commit
-# description: Orchestrate pre-commit checks (lint, typecheck, tests, migrations) and commit when safe
-# license: MIT
-# compatibility: opencode
-# metadata:
-#   toolchain: python, uv
-# ---
+---
+name: safe-commit
+description: Orchestrate pre-commit checks (lint, typecheck, tests, migrations) and commit when safe
+license: MIT
+compatibility: opencode
+metadata:
+  toolchain: python, uv
+---
 
 # Safe Commit Skill
 

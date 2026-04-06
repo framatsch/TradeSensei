@@ -1,11 +1,11 @@
-# ---
-# name: screenshot-capture
-# description: Capture screenshots of frontend pages with Playwright (handles auth and saving)
-# license: MIT
-# compatibility: opencode
-# metadata:
-#   toolchain: playwright, python
-# ---
+---
+name: screenshot-capture
+description: Capture screenshots of frontend pages with Playwright (handles auth and saving)
+license: MIT
+compatibility: opencode
+metadata:
+  toolchain: playwright, python
+---
 
 # Skill: Screenshot Capture
 

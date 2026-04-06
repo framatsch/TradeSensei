@@ -1,11 +1,11 @@
-# ---
-# name: ui-visual-check
-# description: Capture screenshots and run a visual + accessibility review of frontend pages
-# license: MIT
-# compatibility: opencode
-# metadata:
-#   toolchain: playwright, docker
-# ---
+---
+name: ui-visual-check
+description: Capture screenshots and run a visual + accessibility review of frontend pages
+license: MIT
+compatibility: opencode
+metadata:
+  toolchain: playwright, docker
+---
 
 # Skill: ui-visual-check
 
