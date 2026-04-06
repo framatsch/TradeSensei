@@ -96,10 +96,10 @@ function buildTradesHref(
 // ─── Sub-tab config ───────────────────────────────────────────────────────────
 
 const SUB_TABS: { label: string; value: ReportDimension }[] = [
-  { label: "Hourly", value: "Hourly" },
-  { label: "Weekday", value: "Weekday" },
-  { label: "Monthly", value: "Monthly" },
   { label: "Yearly", value: "Yearly" },
+  { label: "Monthly", value: "Monthly" },
+  { label: "Weekday", value: "Weekday" },
+  { label: "Hourly", value: "Hourly" },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ export function TimeAnalysisTab({
   getAggregated,
 }: TimeAnalysisTabProps) {
   const router = useRouter();
-  const [activeDim, setActiveDim] = useState<ReportDimension>("Hourly");
+  const [activeDim, setActiveDim] = useState<ReportDimension>("Yearly");
 
   const data = getAggregated(activeDim);
 

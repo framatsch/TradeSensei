@@ -107,7 +107,7 @@ class TradeCreate(BaseModel):
     )
     quantity: Decimal = Field(
         ...,
-        ge=Decimal("0"),
+        gt=Decimal("0"),
         description=(
             "Number of units, shares, or contracts traded. Must be greater than zero."
         ),
@@ -393,7 +393,7 @@ class TradeCreateRequest(BaseModel):
     )
     quantity: Decimal = Field(
         ...,
-        ge=Decimal("0"),
+        gt=Decimal("0"),
         description=(
             "Number of units, shares, or contracts traded. Must be greater than zero."
         ),

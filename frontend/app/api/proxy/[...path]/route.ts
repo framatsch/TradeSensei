@@ -85,7 +85,12 @@ async function handler(
 
   const responseBody = await upstreamRes.arrayBuffer();
 
-  return new NextResponse(responseBody, {
+  const bodyForNextResponse =
+    upstreamRes.status === 204 || upstreamRes.status === 304 || responseBody.byteLength === 0
+      ? null
+      : responseBody;
+
+  return new NextResponse(bodyForNextResponse, {
     status: upstreamRes.status,
     headers: resHeaders,
   });

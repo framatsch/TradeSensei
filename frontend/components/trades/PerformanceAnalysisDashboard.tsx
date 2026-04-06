@@ -277,7 +277,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
                 {/* Overview */}
                 <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{row.name}</td>
                 <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap">{row.trades}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">{row.shares}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground font-mono whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">{row.shares.toFixed(2)}</td>
                 
                 {/* Profit & Loss */}
                 <td className={`px-4 py-3 text-right whitespace-nowrap font-medium font-mono bg-primary/5 ${row.netPnl >= 0 ? 'text-success' : 'text-danger'}`}>

@@ -223,6 +223,14 @@ class ImportService:
                 if not existing.scalar_one_or_none():
                     await self._ca_repo.create(ca.to_corporate_action_create(user_id))
 
+            # Reload corporate actions after adding new ones from the file
+            corporate_actions = await self._ca_repo.list_by_user(user_id)
+            ca_for_parser = (
+                cast(Sequence[CorporateActionLike], corporate_actions)
+                if corporate_actions
+                else None
+            )
+
             # Stamp user_id / account_id onto each raw record.
             stamped_raw: list[BrokerRawTransactionCreate] = []
             for rec in raw_records:
