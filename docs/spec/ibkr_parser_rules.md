@@ -185,10 +185,11 @@ Die Executions werden chronologisch abgearbeitet:
 2. **Schließen / Gegengeschäft:**
    Besitzt die Ausführung die *entgegengesetzte* Richtung zur Warteschlange (z.B. Queue hält LONGs, aktuelle Ausführung ist SHORT), so wird die Order gegen die ältesten offenen Positionen (Lots) in der Queue "aufgefressen" (gematcht).
 
-   - **Menge matchen:** Es wird ermittelt, wie viel von der aktuellen Ausführung gegen das älteste offene Lot gematcht werden kann (`min(open_lot.qty, execution.qty)`).
+   - **Match quantity:** Es wird ermittelt, wie viel von der aktuellen Ausführung gegen das älteste offene Lot gematcht werden kann (`min(open_lot.qty, execution.qty)`).
    - **Kommissionen splitten:** Die Kommissionen des öffnenden und des schließenden Lots werden proportional zur gematchten Menge aufgeteilt.
    - **Trade-Abschluss:** Ein fertiger `TradeCreate` (Round-Trip Trade) entsteht. Dieser erhält als Startdatum (`opened_at`) und Einstiegspreis (`entry_price`) die Werte des offenen Lots, sowie als Enddatum (`closed_at`) und Ausstiegspreis (`exit_price`) die Werte der schließenden Ausführung.
    - **Restmengen:** Ist die schließende Ausführung größer als das offene Lot, wird das offene Lot komplett geschlossen aus der Queue entfernt und die restliche Menge der schließenden Ausführung wird gegen das nächste offene Lot gematcht.
+   - **Positionsdrehung (Mixed Executions):** Wenn eine Ausführung eine bestehende Position nicht nur schließt, sondern in die Gegenrichtung überdreht (z.B. LONG 5, sell 7 -> SHORT 2), markiert IBKR dies oft mit einem `openCloseIndicator` wie `C;O` oder `O;C`. Das System wertet diese Indikatoren aus (Property `is_mixed_execution`). Bleibt nach dem Schließen aller offenen Lots eine Restmenge übrig und die Ausführung ist als "mixed" markiert, wird diese Restmenge *nicht* als Orphaned Lot behandelt, sondern eröffnet sofort ein neues offenes Lot in der entgegengesetzten Richtung.
 
 3. **Verwaiste Lots (Orphaned Lots):**
    Wenn eine schließende Ausführung nicht vollständig gegen offene Lots gematcht werden kann (weil die `open_lots` Queue leer ist), wird der verbleibende Rest in die `orphaned_lots` Queue gelegt. Diese werden später behandelt, falls über Kreuz-Imports (historische Dateien) noch passende Käufe nachgereicht werden.

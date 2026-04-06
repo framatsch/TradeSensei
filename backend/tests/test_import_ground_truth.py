@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cash_transaction import CashTransaction, CashTransactionType
 from app.models.trade import Trade
-from flex_query_aggregation import aggregate_files_yearly
+from tests.integration.ground_truth_aggregator import aggregate_files_yearly
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
@@ -118,8 +118,8 @@ async def _db_yearly_totals(
         assert isinstance(closed_at, datetime)
         value = net_pnl if net_pnl is not None else pnl
         if value is not None:
-            totals[closed_at.year]['pnl'] += value
-            totals[closed_at.year]['trades'] += 1
+            totals[closed_at.year]["pnl"] += value
+            totals[closed_at.year]["trades"] += 1
 
     # Fee cash flows (TransactionTax + CASH-trade commissions are persisted as FEE).
     fee_rows = await db_session.execute(
@@ -129,7 +129,7 @@ async def _db_yearly_totals(
         )
     )
     for date_value, amount in fee_rows.all():
-        totals[date_value.year]['pnl'] += amount
+        totals[date_value.year]["pnl"] += amount
 
     return dict(sorted(totals.items(), key=lambda kv: kv[0]))
 

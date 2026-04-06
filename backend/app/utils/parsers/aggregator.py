@@ -63,6 +63,7 @@ class SeedLotLike(Protocol):
     commission: Decimal
     opened_at: datetime
     direction: str  # Direction StrEnum or its string value
+    multiplier: int
 
 
 class ExecutionLike(Protocol):
@@ -246,6 +247,7 @@ def aggregate_executions_fifo(
                 opened_at=opened_at,
                 broker_conid=seed_conid,
                 db_trade_id=seed.id,
+                multiplier=seed.multiplier,
             )
             open_lots[key].append(seed_tc)
 
@@ -300,6 +302,7 @@ def aggregate_executions_fifo(
                 pnl=getattr(seed, "pnl", None),
                 broker_conid=seed_conid,
                 db_trade_id=seed.id,
+                multiplier=seed.multiplier,
             )
             orphaned_lots[orphaned_key].append(seed_tc)
 
@@ -561,19 +564,24 @@ def aggregate_executions_fifo(
             matched_pnl_eur = None
             matched_net_pnl = None
             matched_net_pnl_eur = None
-            exit_price = o_lot.exit_price
-            if exit_price is not None and exit_price > Decimal("0.001"):
+            o_exit_price = o_lot.exit_price
+            if o_exit_price is not None and o_exit_price > Decimal("0.001"):
                 # Exact Gross PnL: use the open lot's true entry price.
                 lot_multiplier = Decimal(open_lot.multiplier)
                 if open_lot.direction == Direction.LONG:
                     matched_pnl = (
-                        (exit_price - open_lot.entry_price) * match_qty * lot_multiplier
+                        (o_exit_price - open_lot.entry_price)
+                        * match_qty
+                        * lot_multiplier
                     )
                 else:
                     matched_pnl = (
-                        (open_lot.entry_price - exit_price) * match_qty * lot_multiplier
+                        (open_lot.entry_price - o_exit_price)
+                        * match_qty
+                        * lot_multiplier
                     )
-                matched_net_pnl = matched_pnl - (lot_comm + o_lot_comm)
+                if matched_pnl is not None:
+                    matched_net_pnl = matched_pnl - (lot_comm + o_lot_comm)
             if o_lot.pnl_eur is not None and o_lot.quantity:
                 matched_pnl_eur = (o_lot.pnl_eur * match_qty) / o_lot.quantity
                 if matched_net_pnl is not None:
