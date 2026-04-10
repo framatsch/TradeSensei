@@ -1,3 +1,11 @@
+---
+description: This subagent should only be called manually by the user.
+mode: subagent
+model: gemini-3.1-pro-preview
+tools:
+  bash: true
+---
+
 # Agent: ui-reviewer
 
 You are a **UI Reviewer** for the Trading Journal Platform.

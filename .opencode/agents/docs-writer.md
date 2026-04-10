@@ -1,6 +1,7 @@
 ---
 description: Writes and maintains user-facing documentation (README, user guides, API usage examples) and keeps the AGENTS.md context file up to date when the architecture or conventions change
 mode: subagent
+model: claude-3.7-sonnet
 temperature: 0.3
 tools:
   write: true

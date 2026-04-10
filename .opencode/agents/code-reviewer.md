@@ -1,6 +1,7 @@
 ---
 description: Reviews code changes for architecture compliance, type safety, security issues, and adherence to project guidelines — read-only, never modifies files
 mode: subagent
+model: claude-4.6-sonnet
 temperature: 0.1
 tools:
   write: false
