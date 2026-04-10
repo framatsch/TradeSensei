@@ -135,6 +135,4 @@ class BrokerRawTransactionCreate(BaseModel):
     def is_mixed_execution(self) -> bool:
         """Check if this raw execution was a mixed execution (position flip)."""
         raw_ind = self.raw_data.get("openCloseIndicator", "")
-        if isinstance(raw_ind, str) and ("C;O" in raw_ind or "O;C" in raw_ind):
-            return True
-        return False
+        return isinstance(raw_ind, str) and ("C;O" in raw_ind or "O;C" in raw_ind)

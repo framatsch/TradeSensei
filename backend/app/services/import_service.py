@@ -203,9 +203,11 @@ class ImportService:
                     raw_records, parsed_cash_txs = raw_parse_result
                     parsed_corporate_actions = []
                 else:
-                    raw_records, parsed_cash_txs, parsed_corporate_actions = (
-                        raw_parse_result
-                    )
+                    (
+                        raw_records,
+                        parsed_cash_txs,
+                        parsed_corporate_actions,
+                    ) = raw_parse_result
                 use_raw_pipeline = True
             else:
                 use_raw_pipeline = False

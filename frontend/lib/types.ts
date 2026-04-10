@@ -193,6 +193,7 @@ export interface Trade {
   tradingview_link?: string | null;
   screenshots?: string[];
   is_manually_edited: boolean;
+  has_conflict?: boolean;
 }
 
 export interface TradeCreate {
@@ -543,4 +544,56 @@ export interface TradePartialCloseRequest {
   exit_price: number;
   closed_at: string;
   exit_commission?: number | null;
+}
+
+// ─── Executions ──────────────────────────────────────────────────────────────
+
+export type ExecutionStatus = 'imported' | 'manual' | 'merged' | 'split';
+
+export interface LogicalExecution {
+  id: string;
+  trade_id: string;
+  user_id: string;
+  account_id: string | null;
+  symbol: string;
+  asset_class: AssetClass;
+  direction: Direction;
+  quantity: string;
+  price: string;
+  commission: string;
+  pnl: string | null;
+  executed_at: string;
+  status: ExecutionStatus;
+  currency: string | null;
+  multiplier: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LogicalExecutionCreate {
+  direction: Direction;
+  quantity: string;
+  price: string;
+  commission?: string;
+  executed_at: string;
+  pnl?: string | null;
+}
+
+export interface LogicalExecutionUpdate {
+  direction?: Direction;
+  quantity?: string;
+  price?: string;
+  commission?: string;
+  executed_at?: string;
+  pnl?: string | null;
+}
+
+export interface ReassignExecutionRequest {
+  target_trade_id: string;
+}
+
+// ─── Merge ────────────────────────────────────────────────────────────────────
+
+export interface MergeTradesRequest {
+  trade_ids: string[];
 }

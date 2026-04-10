@@ -82,12 +82,12 @@ async def setup_database(engine: object) -> AsyncGenerator[None]:
 
     assert isinstance(engine, AsyncEngine)
 
-    # Apply migrations using the venv's alembic binary so DATABASE_URL and
-    # SECRET_KEY (inherited from the current environment) are used.
+    # Apply migrations using the current environment's alembic
+    import sys
+
     backend_dir = Path(__file__).parent.parent
-    alembic_bin = backend_dir / ".venv" / "bin" / "alembic"
     subprocess.run(
-        [str(alembic_bin), "upgrade", "head"],
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
         check=True,
         capture_output=True,
         cwd=str(backend_dir),

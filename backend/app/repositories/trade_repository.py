@@ -258,6 +258,9 @@ def _apply_filters(
             func.extract("dow", Trade.opened_at) == (filters.day_of_week + 1) % 7
         )
 
+    if filters.has_conflict is not None:
+        stmt = stmt.where(Trade.has_conflict == filters.has_conflict)
+
     return stmt
 
 
@@ -602,7 +605,7 @@ class TradeRepository:
         if not include_manually_edited:
             stmt = stmt.where(Trade.is_manually_edited.is_(False))
 
-        stmt = stmt.returning(Trade.id)
+        stmt = stmt.returning(Trade.id)  # type: ignore[assignment]
         result = await self._session.execute(stmt)
         deleted = list(result.scalars().all())
         await self._session.flush()

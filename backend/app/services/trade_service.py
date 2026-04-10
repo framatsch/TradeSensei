@@ -24,6 +24,118 @@ from app.schemas.trade import (
 
 
 class TradeService:
+    async def merge_trades(
+        self, trade_ids: list[uuid.UUID], user_id: uuid.UUID
+    ) -> TradeRead:
+        """Merge multiple trades into a single trade.
+
+        Args:
+            trade_ids: The UUIDs of the trades to merge.
+            user_id: The authenticated user's ID.
+
+        Returns:
+            The surviving TradeRead.
+
+        Raises:
+            HTTPException: If trades do not belong to the user, or mismatch in
+                symbol/account/asset_class.
+        """
+        trades = []
+        for tid in set(trade_ids):
+            t = await self._repo.get_by_id(tid)
+            if not t or t.user_id != user_id:
+                from fastapi import HTTPException
+
+                raise HTTPException(
+                    status_code=404, detail=f"Trade {tid} not found or not owned."
+                )
+            trades.append(t)
+
+        if len(trades) < 2:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide at least two unique trades to merge.",
+            )
+
+        ref_trade = trades[0]
+        for t in trades[1:]:
+            if (
+                t.symbol != ref_trade.symbol
+                or t.account_id != ref_trade.account_id
+                or t.asset_class != ref_trade.asset_class
+            ):
+                from fastapi import HTTPException
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Trades must have the same symbol, account, and "
+                        "asset class to be merged."
+                    ),
+                )
+
+        # Sort trades by opened_at
+        trades.sort(key=lambda t: t.opened_at)
+        survivor = trades[0]
+        non_survivors = trades[1:]
+
+        from app.repositories.execution import ExecutionRepository
+
+        exec_repo = ExecutionRepository(self._repo._session)
+
+        # Merge logic
+        for t in non_survivors:
+            # Reassign logical executions
+            executions = await exec_repo.list_by_trade_id(t.id)
+            for ex in executions:
+                ex.trade_id = survivor.id
+                await self._repo._session.flush()
+
+            # Append notes
+            if t.notes:
+                if survivor.notes:
+                    survivor.notes += f"\n\n[Merged from {t.id}]:\n{t.notes}"
+                else:
+                    survivor.notes = t.notes
+
+            # Move tags
+            for tag in t.tags:
+                if tag not in survivor.tags:
+                    survivor.tags.append(tag)
+
+            # Delete empty trades
+            await self._repo.delete(t)
+
+        # Re-aggregate survivor
+        await self._re_aggregate_trade(survivor.id)
+        await self._repo._session.commit()
+
+        # Reload survivor
+        survivor_reloaded = await self._repo.get_by_id(survivor.id)
+        from app.schemas.trade import TradeRead
+
+        return TradeRead.model_validate(survivor_reloaded)
+
+    async def _re_aggregate_trade(self, trade_id: uuid.UUID) -> None:
+        """Re-aggregate a trade from its logical executions.
+
+        Delegates to :class:`ExecutionService._re_aggregate_trade` using the
+        trade's owner for the permission check.
+
+        Args:
+            trade_id: UUID of the trade to re-aggregate.
+        """
+        from app.services.execution import ExecutionService
+
+        trade = await self._repo.get_by_id(trade_id)
+        if not trade or trade.user_id is None:
+            return
+
+        exec_service = ExecutionService(self._repo._session)
+        await exec_service._re_aggregate_trade(trade_id, trade.user_id)
+
     """Service layer for trade CRUD operations.
 
     Receives a session from the route handler and delegates all data
@@ -52,7 +164,34 @@ class TradeService:
             A :class:`TradeRead` DTO representing the created trade.
         """
         trade: Trade = await self._repo.create(data)
-        return TradeRead.model_validate(trade)
+
+        from app.models.logical_execution import ExecutionStatus
+        from app.repositories.execution import ExecutionRepository
+
+        exec_repo = ExecutionRepository(self._repo._session)
+        await exec_repo.create(
+            user_id=trade.user_id,
+            account_id=trade.account_id,
+            symbol=trade.symbol,
+            asset_class=trade.asset_class,
+            direction=trade.direction,
+            quantity=trade.quantity,
+            price=trade.entry_price,
+            commission=trade.commission,
+            executed_at=trade.opened_at,
+            multiplier=trade.multiplier,
+            currency=trade.currency,
+            status=ExecutionStatus.MANUAL,
+            trade_id=trade.id,
+        )
+
+        # Re-aggregate to ensure trade fields are consistent with the manual execution
+        await self._re_aggregate_trade(trade.id)
+
+        await self._repo._session.commit()
+        trade_reloaded = await self._repo.get_by_id(trade.id)
+
+        return TradeRead.model_validate(trade_reloaded)
 
     async def get_trade(self, trade_id: uuid.UUID) -> TradeRead:
         """Fetch a single trade by its UUID.
@@ -144,6 +283,11 @@ class TradeService:
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         updated = await self._repo.update(trade, data)
+
+        # Re-aggregate if price/quantity/direction/commission changed
+        # (simplified for now: always re-aggregate on update)
+        await self._re_aggregate_trade(trade_id)
+
         return TradeRead.model_validate(updated)
 
     async def delete_trade(self, trade_id: uuid.UUID) -> None:

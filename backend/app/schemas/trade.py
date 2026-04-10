@@ -267,12 +267,6 @@ class TradeCreate(BaseModel):
         ),
         examples=["1234567890", None],
     )
-    broker_conid: str | None = Field(
-        default=None,
-        max_length=50,
-        description="External broker contract identifier (e.g. IBKR conid).",
-        examples=["357194941", None],
-    )
     is_manually_edited: bool = Field(
         default=False,
         description=(
@@ -996,6 +990,10 @@ class TradeRead(BaseModel):
         ),
         examples=["ibkr", "schwab", "manual", None],
     )
+    has_conflict: bool = Field(
+        default=False,
+        description="Whether this trade has conflicting or mismatched executions.",
+    )
     tags: list[TagRead] = Field(
         default_factory=list,
         description="Tags attached to this trade.",
@@ -1152,6 +1150,10 @@ class TradeFilterParams(BaseModel):
     account_id: uuid.UUID | None = Field(
         default=None,
         description="Filter trades by broker account UUID.",
+    )
+    has_conflict: bool | None = Field(
+        default=None,
+        description="Filter trades by conflict status (True = has conflict)",
     )
     hour_of_day: int | None = Field(
         default=None,
@@ -1321,4 +1323,19 @@ class BulkUpdateResponse(BaseModel):
     updated_count: int = Field(
         ...,
         description="Number of trades actually updated",
+    )
+
+
+class MergeTradesRequest(BaseModel):
+    """Payload for merging multiple trades into a single trade.
+
+    Attributes:
+        trade_ids: List of UUIDs of the trades to merge. Must contain 2 to 10 UUIDs.
+    """
+
+    trade_ids: list[uuid.UUID] = Field(
+        ...,
+        min_length=2,
+        max_length=10,
+        description="UUIDs of trades to merge (2-10)",
     )

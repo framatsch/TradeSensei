@@ -5,12 +5,14 @@
 "use client";
 
 import { Spinner } from "@/components/ui/Spinner";
+import { GitMerge } from "lucide-react";
 
 interface Props {
   selectedCount: number;
   onDelete: () => void;
   onAssignTag: () => void;
   onAssignPlaybook: () => void;
+  onMerge?: () => void;
   isDeleting?: boolean;
 }
 
@@ -19,6 +21,7 @@ export function BulkActionToolbar({
   onDelete,
   onAssignTag,
   onAssignPlaybook,
+  onMerge,
   isDeleting = false,
 }: Props) {
   if (selectedCount === 0) return null;
@@ -28,6 +31,17 @@ export function BulkActionToolbar({
       <span className="text-sm font-medium text-foreground mr-auto">
         {selectedCount} {selectedCount === 1 ? "trade" : "trades"} selected
       </span>
+
+      {onMerge && selectedCount >= 2 && (
+        <button
+          type="button"
+          onClick={onMerge}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#6063dd] hover:opacity-90 text-white rounded-md text-sm transition-colors"
+        >
+          <GitMerge size={14} />
+          Merge
+        </button>
+      )}
 
       <button
         type="button"

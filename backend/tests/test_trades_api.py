@@ -232,3 +232,88 @@ class TestDeleteTrade:
             f"/api/v1/trades/{uuid.uuid4()}", headers=headers
         )
         assert response.status_code == 404
+
+
+@pytest.mark.integration
+class TestHasConflictFilter:
+    """Integration tests for the ``has_conflict`` filter on ``GET /api/v1/trades``."""
+
+    async def test_has_conflict_filter_returns_only_conflicted_trades(
+        self, client: AsyncClient
+    ) -> None:
+        """GET /trades?has_conflict=true should return only trades with has_conflict=true."""
+        from app.models.trade import AssetClass, Direction, Trade
+        from app.schemas.trade import TradeCreate, TradeUpdate
+        from decimal import Decimal
+
+        headers = await _get_auth_headers(client, "hasconflict")
+
+        # Create a normal trade (no conflict)
+        create_resp = await client.post(
+            "/api/v1/trades", json=_trade_payload(symbol="AAPL"), headers=headers
+        )
+        assert create_resp.status_code == 201
+        normal_trade_id = create_resp.json()["data"]["id"]
+
+        # Create a second trade and mark it as conflicted via PATCH
+        create_resp2 = await client.post(
+            "/api/v1/trades", json=_trade_payload(symbol="TSLA"), headers=headers
+        )
+        assert create_resp2.status_code == 201
+        conflict_trade_id = create_resp2.json()["data"]["id"]
+
+        # Directly mark it as conflicted via the update endpoint
+        patch_resp = await client.patch(
+            f"/api/v1/trades/{conflict_trade_id}",
+            json={"has_conflict": True},
+            headers=headers,
+        )
+        assert patch_resp.status_code == 200
+
+        # Filter for conflicted trades
+        filter_resp = await client.get(
+            "/api/v1/trades?has_conflict=true", headers=headers
+        )
+        assert filter_resp.status_code == 200
+        items = filter_resp.json()["data"]["items"]
+        returned_ids = {item["id"] for item in items}
+
+        assert conflict_trade_id in returned_ids
+        assert normal_trade_id not in returned_ids
+
+    async def test_has_conflict_false_excludes_conflicted_trades(
+        self, client: AsyncClient
+    ) -> None:
+        """GET /trades?has_conflict=false should exclude trades with has_conflict=true."""
+        headers = await _get_auth_headers(client, "hasconflictfalse")
+
+        # Create a normal trade
+        create_resp = await client.post(
+            "/api/v1/trades", json=_trade_payload(symbol="NVDA"), headers=headers
+        )
+        assert create_resp.status_code == 201
+        normal_trade_id = create_resp.json()["data"]["id"]
+
+        # Create a conflicted trade
+        create_resp2 = await client.post(
+            "/api/v1/trades", json=_trade_payload(symbol="AMD"), headers=headers
+        )
+        assert create_resp2.status_code == 201
+        conflict_trade_id = create_resp2.json()["data"]["id"]
+
+        await client.patch(
+            f"/api/v1/trades/{conflict_trade_id}",
+            json={"has_conflict": True},
+            headers=headers,
+        )
+
+        # Filter for non-conflicted trades
+        filter_resp = await client.get(
+            "/api/v1/trades?has_conflict=false", headers=headers
+        )
+        assert filter_resp.status_code == 200
+        items = filter_resp.json()["data"]["items"]
+        returned_ids = {item["id"] for item in items}
+
+        assert normal_trade_id in returned_ids
+        assert conflict_trade_id not in returned_ids

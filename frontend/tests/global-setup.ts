@@ -254,7 +254,54 @@ export const SEED_STATE_FILE = path.join(__dirname, '.auth', 'seed-state.json');
 
 export interface SeedState {
   accountId: string;
+  /** ID of the E2E execution-test trade (MSFT LONG, 2 executions) */
+  executionTradeId: string;
+  /** IDs of the two AAPL trades used in the merge-workflow test */
+  mergeTradeIds: [string, string];
 }
+
+/**
+ * Deterministic trade seeded specifically for execution-flow E2E tests.
+ *
+ * MSFT LONG, opened 60 days ago.
+ * After creation the setup adds two manual executions:
+ *   Exec-1  BUY  100 @ $400.00   commission $2.00  (entry leg)
+ *   Exec-2  SELL  50 @ $420.00   commission $1.00  (partial close leg)
+ *
+ * VWAP entry = $400.00 (single buy price)
+ * VWAP exit  = $420.00 (single sell price)
+ * Total qty  = 100 (entry qty drives trade.quantity after re-agg)
+ * Commission = $3.00
+ */
+const SEED_EXECUTION_TRADE = {
+  symbol: 'MSFT',
+  direction: 'LONG',
+  asset_class: 'EQUITY',
+  quantity: '100',
+  entry_price: '400.00',
+  opened_at: isoDate(60),
+};
+
+// Two AAPL trades with the same symbol — used for merge-workflow E2E test.
+// trade[0] is the survivor (oldest), trade[1] is merged into it.
+const SEED_MERGE_TRADES = [
+  {
+    symbol: 'AAPL',
+    direction: 'LONG',
+    asset_class: 'EQUITY',
+    quantity: '50',
+    entry_price: '180.00',
+    opened_at: isoDate(45),
+  },
+  {
+    symbol: 'AAPL',
+    direction: 'LONG',
+    asset_class: 'EQUITY',
+    quantity: '30',
+    entry_price: '182.00',
+    opened_at: isoDate(44),
+  },
+] as const;
 
 // ─── Main setup function ─────────────────────────────────────────────────────
 
@@ -318,10 +365,6 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     console.warn(`[global-setup] Account seed warning (${accRes.status})`);
   }
 
-  // Write seed state for use by tests
-  fs.mkdirSync(path.dirname(SEED_STATE_FILE), { recursive: true });
-  fs.writeFileSync(SEED_STATE_FILE, JSON.stringify({ accountId }));
-
   // 6. Seed trades
   let tradeCount = 0;
   for (const trade of SEED_TRADES) {
@@ -334,6 +377,71 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     }
   }
   console.log(`[global-setup] ${tradeCount}/${SEED_TRADES.length} trades seeded.`);
+
+  // 7. Seed execution-test trade (MSFT LONG) + two manual execution legs
+  let executionTradeId = '';
+  const execTradeRes = await apiPost(
+    '/api/v1/trades',
+    SEED_EXECUTION_TRADE as unknown as Record<string, unknown>,
+    token
+  );
+  if (execTradeRes.ok) {
+    const body = (await execTradeRes.json()) as { data: { id: string } };
+    executionTradeId = body.data.id;
+    console.log(`[global-setup] Execution-test trade seeded: ${executionTradeId}`);
+
+    // Add BUY execution leg — 100 @ $400.00
+    await apiPost(
+      `/api/v1/trades/${executionTradeId}/executions`,
+      {
+        direction: 'LONG',
+        quantity: '100',
+        price: '400.00',
+        commission: '2.00',
+        executed_at: isoDate(60, 9, 30),
+      },
+      token
+    );
+    // Add SELL execution leg — 50 @ $420.00
+    await apiPost(
+      `/api/v1/trades/${executionTradeId}/executions`,
+      {
+        direction: 'SHORT',
+        quantity: '50',
+        price: '420.00',
+        commission: '1.00',
+        executed_at: isoDate(60, 15, 0),
+      },
+      token
+    );
+    console.log(`[global-setup] Two execution legs added to trade ${executionTradeId}.`);
+  } else {
+    console.warn(`[global-setup] Execution-test trade seed warning (${execTradeRes.status})`);
+  }
+
+  // 8. Seed two AAPL trades for merge-workflow test
+  const mergeTradeIds: [string, string] = ['', ''];
+  for (let i = 0; i < SEED_MERGE_TRADES.length; i++) {
+    const res = await apiPost(
+      '/api/v1/trades',
+      SEED_MERGE_TRADES[i] as unknown as Record<string, unknown>,
+      token
+    );
+    if (res.ok) {
+      const body = (await res.json()) as { data: { id: string } };
+      mergeTradeIds[i] = body.data.id;
+    } else {
+      console.warn(`[global-setup] Merge-test trade ${i} seed warning (${res.status})`);
+    }
+  }
+  console.log(`[global-setup] Merge-test trades seeded: ${mergeTradeIds.join(', ')}`);
+
+  // Write seed state for use by tests
+  fs.mkdirSync(path.dirname(SEED_STATE_FILE), { recursive: true });
+  fs.writeFileSync(
+    SEED_STATE_FILE,
+    JSON.stringify({ accountId, executionTradeId, mergeTradeIds })
+  );
 
   // 7. Produce storageState: log in via browser and save localStorage
   const browser = await chromium.launch();

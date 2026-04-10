@@ -6,6 +6,13 @@
  *   2. If set → fetch /prices/{symbol}/history?provider=lseg from the hub.
  *   3. Any API error → silent switch to TradingView fallback.
  *
+ * Execution markers:
+ *   - When `executions` prop is provided, per-execution markers are rendered.
+ *   - Entry executions (direction === trade direction) → arrowUp belowBar (#00d2ff cyan).
+ *   - Exit executions (opposite direction) → arrowDown aboveBar (#f0abfc fuchsia).
+ *   - Multiple same-side executions on the same candle are merged into one marker.
+ *   - Fallback: if executions is empty/undefined, uses trade-level opened_at/closed_at.
+ *
  * Special cases:
  *   - Options (asset_class === "OPTION"): OCC symbol is parsed to get the
  *     underlying ticker; chart always shows the underlying price. Contract
@@ -18,7 +25,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { AssetClass, Trade } from "@/lib/types";
+import type { AssetClass, Trade, LogicalExecution } from "@/lib/types";
 import { parseOccSymbol } from "@/lib/parseOccSymbol";
 import {
   createChart,
@@ -274,13 +281,149 @@ function ChartSkeleton() {
   );
 }
 
+// ── Execution marker helpers ───────────────────────────────────────────────────
+
+interface MarkerGroup {
+  time: Time;
+  position: "belowBar" | "aboveBar";
+  color: string;
+  shape: "arrowUp" | "arrowDown";
+  label: string;
+}
+
+/**
+ * Determine whether an execution is an "entry" (opening) or "exit" (closing)
+ * relative to the trade direction.
+ * - LONG trade: BUY = entry, SELL = exit
+ * - SHORT trade: SELL = entry, BUY = exit
+ */
+function isEntryExecution(
+  exec: LogicalExecution,
+  tradeDirection: string,
+): boolean {
+  const td = tradeDirection.toUpperCase();
+  const ed = exec.direction.toUpperCase();
+  if (td === "LONG") return ed === "BUY";
+  if (td === "SHORT") return ed === "SELL";
+  // Default: first direction encountered is entry
+  return ed === "BUY";
+}
+
+/**
+ * Build SeriesMarkers from a list of LogicalExecutions.
+ * Executions on the same candle time and same side are merged into one marker.
+ */
+function buildExecutionMarkers(
+  executions: LogicalExecution[],
+  tradeDirection: string,
+  candles: ChartCandle[],
+  snap: (target: number) => Time,
+): SeriesMarker<Time>[] {
+  if (executions.length === 0) return [];
+
+  // Group by snapped candle time + side (entry/exit)
+  const groups = new Map<string, { isEntry: boolean; qtys: string[]; prices: string[]; time: Time }>();
+
+  for (const exec of executions) {
+    const ts = Math.floor(new Date(exec.executed_at).getTime() / 1000);
+    const snapped = snap(ts);
+    const isEntry = isEntryExecution(exec, tradeDirection);
+    const key = `${snapped as number}-${isEntry ? "entry" : "exit"}`;
+
+    const existing = groups.get(key);
+    if (existing) {
+      existing.qtys.push(exec.quantity);
+      existing.prices.push(exec.price);
+    } else {
+      groups.set(key, {
+        isEntry,
+        qtys: [exec.quantity],
+        prices: [exec.price],
+        time: snapped,
+      });
+    }
+  }
+
+  const markers: SeriesMarker<Time>[] = [];
+
+  for (const [, group] of groups) {
+    const label =
+      group.qtys.length === 1
+        ? `${group.isEntry ? "+" : "-"}${group.qtys[0]} @ $${Number(group.prices[0]).toFixed(2)}`
+        : group.qtys
+            .map((q, i) => `${group.isEntry ? "+" : "-"}${q} @ $${Number(group.prices[i]).toFixed(2)}`)
+            .join(", ");
+
+    markers.push({
+      time: group.time,
+      position: group.isEntry ? "belowBar" : "aboveBar",
+      color: group.isEntry ? "#00d2ff" : "#f0abfc",
+      shape: group.isEntry ? "arrowUp" : "arrowDown",
+      text: label,
+      size: 2,
+    });
+  }
+
+  // Sort markers by time (required by lightweight-charts)
+  markers.sort((a, b) => (a.time as number) - (b.time as number));
+
+  // Deduplicate markers at exact same time + same position (keep first, merge text)
+  const deduped: SeriesMarker<Time>[] = [];
+  for (const m of markers) {
+    const last = deduped[deduped.length - 1];
+    if (last && last.time === m.time && last.position === m.position) {
+      last.text = `${last.text} / ${m.text}`;
+    } else {
+      deduped.push(m);
+    }
+  }
+
+  return deduped;
+}
+
+/**
+ * Fallback markers using trade-level opened_at / closed_at timestamps.
+ */
+function buildFallbackMarkers(
+  entryTs: number,
+  exitTs: number | null,
+  snap: (target: number) => Time,
+): SeriesMarker<Time>[] {
+  const markers: SeriesMarker<Time>[] = [
+    {
+      time: snap(entryTs),
+      position: "belowBar",
+      color: "#00d2ff",
+      shape: "arrowUp",
+      text: "ENTRY",
+      size: 2,
+    },
+  ];
+
+  if (exitTs !== null) {
+    markers.push({
+      time: snap(exitTs),
+      position: "aboveBar",
+      color: "#f0abfc",
+      shape: "arrowDown",
+      text: "EXIT",
+      size: 2,
+    });
+  }
+
+  return markers;
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export interface TradeChartProps {
   trade: Trade;
+  /** Optional list of execution legs. When provided, per-execution markers are
+   *  rendered instead of the single ENTRY/EXIT fallback. */
+  executions?: LogicalExecution[];
 }
 
-export function TradeChart({ trade }: TradeChartProps) {
+export function TradeChart({ trade, executions }: TradeChartProps) {
   const occ = parseOccSymbol(trade.symbol);
 
   // Chart symbol: for options use the underlying, otherwise raw symbol
@@ -343,27 +486,11 @@ export function TradeChart({ trade }: TradeChartProps) {
             return best as Time;
           };
 
-          const markers: SeriesMarker<Time>[] = [
-            {
-              time: snap(entryTs),
-              position: "belowBar",
-              color: "#00d2ff", // Electric Cyan (High contrast vs Green)
-              shape: "arrowUp",
-              text: "ENTRY",
-              size: 2, // Larger for better visibility
-            },
-          ];
-
-          if (exitTs !== null) {
-            markers.push({
-              time: snap(exitTs),
-              position: "aboveBar",
-              color: "#f0abfc", // Bright Fuchsia/Lavender (High contrast vs Red)
-              shape: "arrowDown",
-              text: "EXIT",
-              size: 2,
-            });
-          }
+          // Use per-execution markers when available; fall back to trade-level timestamps
+          const markers: SeriesMarker<Time>[] =
+            executions && executions.length > 0
+              ? buildExecutionMarkers(executions, trade.direction, candles, snap)
+              : buildFallbackMarkers(entryTs, exitTs, snap);
 
           // Spacing and overall marker styling
           seriesRef.current.applyOptions({
@@ -394,7 +521,7 @@ export function TradeChart({ trade }: TradeChartProps) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chartSymbol, assetClass, trade.opened_at, trade.closed_at]
+    [chartSymbol, assetClass, trade.opened_at, trade.closed_at, trade.direction, executions]
   );
 
   // ── Create chart instance ──────────────────────────────────────────────────

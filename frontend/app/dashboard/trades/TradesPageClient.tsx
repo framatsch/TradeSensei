@@ -28,7 +28,8 @@ import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { useSettings } from "@/hooks/useSettings";
 import { buildDefinitionFromFilters } from "@/lib/tradeFilterUtils";
-import type { DefaultDateRange, SavedTradeFilterRead } from "@/lib/types";
+import type { DefaultDateRange, SavedTradeFilterRead, Trade } from "@/lib/types";
+import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 
 
 const EMPTY_FILTERS: TradeFilters = {
@@ -350,10 +351,12 @@ export function TradesPageClient() {
     return [10, 20, 50, 100].includes(parsed) ? parsed : 20;
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedTrades, setSelectedTrades] = useState<Trade[]>([]);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showPlaybookPicker, setShowPlaybookPicker] = useState(false);
   const [showSaveFilter, setShowSaveFilter] = useState(false);
   const [showRenameView, setShowRenameView] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
 
   // Sync filters state when URL changes externally (e.g. sidebar view navigation).
   useEffect(() => {
@@ -483,6 +486,7 @@ export function TradesPageClient() {
         onDelete={handleDelete}
         onAssignTag={() => setShowTagPicker(true)}
         onAssignPlaybook={() => setShowPlaybookPicker(true)}
+        onMerge={selectedIds.size >= 2 ? () => setShowMergeModal(true) : undefined}
         isDeleting={isDeleting}
       />
 
@@ -503,6 +507,7 @@ export function TradesPageClient() {
         onSortChange={handleSortChange}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        onSelectedTradesChange={setSelectedTrades}
         limit={limit}
         onLimitChange={handleLimitChange}
       />
@@ -520,6 +525,18 @@ export function TradesPageClient() {
           onConfirm={handlePlaybookConfirm}
           onCancel={() => setShowPlaybookPicker(false)}
           isPending={isAssigningPlaybook}
+        />
+      )}
+
+      {showMergeModal && selectedTrades.length >= 2 && (
+        <MergePreviewModal
+          trades={selectedTrades}
+          onClose={() => setShowMergeModal(false)}
+          onSuccess={() => {
+            setSelectedIds(new Set());
+            setSelectedTrades([]);
+            setShowMergeModal(false);
+          }}
         />
       )}
 

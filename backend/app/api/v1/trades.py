@@ -25,6 +25,7 @@ from app.schemas.trade import (
     BulkDeleteRequest,
     BulkDeleteResponse,
     BulkUpdateResponse,
+    MergeTradesRequest,
     TradeCreateRequest,
     TradeFilterParams,
     TradePartialCloseRequest,
@@ -578,3 +579,23 @@ async def partial_close_trade(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/merge",
+    response_model=ResponseEnvelope[TradeRead],
+    status_code=status.HTTP_200_OK,
+    summary="Merge multiple trades",
+    description=(
+        "Merge multiple trades of the same symbol and account into a single trade."
+    ),
+)
+async def merge_trades(
+    payload: MergeTradesRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResponseEnvelope[TradeRead]:
+    """Merge multiple trades into one."""
+    service = TradeService(session)
+    survivor = await service.merge_trades(payload.trade_ids, current_user.id)
+    return ResponseEnvelope[TradeRead](data=survivor)

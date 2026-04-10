@@ -12,6 +12,7 @@ from app.api.v1 import (
     broker,
     cash_transactions,
     corporate_actions,
+    executions,
     imports,
     market_data,
     metrics,
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(auth.router)
 router.include_router(users.router)
 router.include_router(accounts.router)
+router.include_router(executions.router)
 router.include_router(trades.router)
 router.include_router(metrics.router)
 router.include_router(imports.router)

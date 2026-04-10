@@ -13,7 +13,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useUploadScreenshot, useDeleteScreenshot } from "@/hooks/useScreenshots";
 import { useUpdateTrade } from "@/hooks/useTrade";
-import type { Trade } from "@/lib/types";
+import type { Trade, LogicalExecution } from "@/lib/types";
 import { TradeChart } from "@/components/charts/TradeChart";
 
 function resolveUrl(url: string): string {
@@ -23,10 +23,10 @@ function resolveUrl(url: string): string {
 
 // ── Chart tab (Market Data Hub → TradingView fallback) ────────────────────────
 
-function ChartTab({ trade }: { trade: Trade }) {
+function ChartTab({ trade, executions }: { trade: Trade; executions?: LogicalExecution[] }) {
   return (
     <div className="w-full h-full">
-      <TradeChart trade={trade} />
+      <TradeChart trade={trade} executions={executions} />
     </div>
   );
 }
@@ -76,7 +76,7 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
 
 // ── TradingView tab ───────────────────────────────────────────────────────────
 
-function TradingViewTab({ trade }: { trade: Trade }) {
+function TradingViewTab({ trade, executions }: { trade: Trade; executions?: LogicalExecution[] }) {
   const [editingLink, setEditingLink] = useState(false);
   const [draft, setDraft] = useState(trade.tradingview_link ?? "");
   const { mutate: updateTrade, isPending } = useUpdateTrade(trade.id);
@@ -92,7 +92,7 @@ function TradingViewTab({ trade }: { trade: Trade }) {
     <div className="flex flex-col h-full">
       {/* Chart — grows to fill available height */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <ChartTab trade={trade} />
+        <ChartTab trade={trade} executions={executions} />
       </div>
 
       {/* TradingView link meta row */}
@@ -332,7 +332,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
 
 type Tab = "tradingview" | "screenshots";
 
-export function MediaChartsCard({ trade }: { trade: Trade }) {
+export function MediaChartsCard({ trade, executions }: { trade: Trade; executions?: LogicalExecution[] }) {
   const [activeTab, setActiveTab] = useState<Tab>("tradingview");
   const screenshotCount = trade.screenshots?.length ?? 0;
 
@@ -370,7 +370,7 @@ export function MediaChartsCard({ trade }: { trade: Trade }) {
 
       {/* Tab content */}
       <div className="flex-1 overflow-hidden rounded-b-xl">
-        {activeTab === "tradingview" && <TradingViewTab trade={trade} />}
+        {activeTab === "tradingview" && <TradingViewTab trade={trade} executions={executions} />}
         {activeTab === "screenshots" && <ScreenshotsTab trade={trade} />}
       </div>
     </div>

@@ -125,15 +125,94 @@ class TestCreateTrade:
     ) -> None:
         """create_trade should return a TradeRead DTO."""
         trade = _make_trade()
-        with patch(
-            "app.services.trade_service.TradeRepository.create",
-            new_callable=AsyncMock,
-            return_value=trade,
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.create",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.repositories.execution.ExecutionRepository.create",
+                new_callable=AsyncMock,
+            ) as mock_exec_create,
+            patch(
+                "app.services.trade_service.TradeService._re_aggregate_trade",
+                new_callable=AsyncMock,
+            ) as mock_reaggregate,
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
         ):
             result = await service.create_trade(_make_create_payload())
 
         assert isinstance(result, TradeRead)
         assert result.symbol == "AAPL"
+        mock_exec_create.assert_awaited_once()
+        mock_reaggregate.assert_awaited_once_with(trade.id)
+
+    @pytest.mark.unit
+    async def test_create_trade_auto_creates_execution(
+        self, service: TradeService, mock_session: AsyncMock
+    ) -> None:
+        """create_trade should automatically create a LogicalExecution."""
+        from app.models.logical_execution import ExecutionStatus
+
+        trade = _make_trade(
+            id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            account_id=uuid.uuid4(),
+            symbol="MSFT",
+            direction=Direction.SHORT,
+            quantity=Decimal("50"),
+            entry_price=Decimal("300.00"),
+            commission=Decimal("1.50"),
+            opened_at=datetime.now(tz=UTC),
+            multiplier=1,
+            currency="USD",
+        )
+        # Mocking user_id manually as _make_trade doesn't take it and it's not a Mapped attribute in the helper
+        trade.user_id = uuid.uuid4()  # type: ignore
+        trade.account_id = uuid.uuid4()  # type: ignore
+
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.create",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.repositories.execution.ExecutionRepository.create",
+                new_callable=AsyncMock,
+            ) as mock_exec_create,
+            patch(
+                "app.services.trade_service.TradeService._re_aggregate_trade",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+        ):
+            await service.create_trade(_make_create_payload())
+
+        mock_exec_create.assert_awaited_once_with(
+            user_id=trade.user_id,
+            account_id=trade.account_id,
+            symbol=trade.symbol,
+            asset_class=trade.asset_class,
+            direction=trade.direction,
+            quantity=trade.quantity,
+            price=trade.entry_price,
+            commission=trade.commission,
+            executed_at=trade.opened_at,
+            multiplier=trade.multiplier,
+            currency=trade.currency,
+            status=ExecutionStatus.MANUAL,
+            trade_id=trade.id,
+        )
 
 
 class TestGetTrade:

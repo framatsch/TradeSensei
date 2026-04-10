@@ -237,7 +237,7 @@ class IBKRXMLParser(BrokerParser):
 
         # Extract corporate actions (type="RS" or "FS")
         ca_elements = root.findall(".//CorporateAction")
-        grouped_ca = {}
+        grouped_ca: dict[str, list[ET.Element]] = {}
         for elem in ca_elements:
             action_id = elem.get("actionID")
             action_type = elem.get("type")
@@ -411,22 +411,9 @@ class IBKRXMLParser(BrokerParser):
             seed_orphaned_lots=seed_orphaned_lots if seed_orphaned_lots else None,
         )
 
-        # Final validation: If a trade is marked as OPEN but its conid is NOT in
-        # acceptable_open_conids, it may mean the position was silently closed (e.g.
-        # an exercise, expiry, or an unregistered corporate action that consumed the
-        # lot without generating a matching SELL execution).
-        # We only apply this check when the XML actually contained open position
-        # records (open_positions_conids is non-empty); an empty <OpenPositions/>
-        # block is not sufficient evidence to mark anything conflicted.
-        if open_positions_conids:
-            for trade in aggregated_trades:
-                if (
-                    trade.closed_at is None
-                    and trade.broker_conid
-                    and trade.broker_conid not in acceptable_open_conids
-                ):
-                    # Mark as conflicted instead of force-closing.
-                    trade.has_conflict = True
+        # NOTE: Conflict detection (has_conflict flag) is applied post-import in the
+        # service layer when trades are persisted to the database, not during parsing.
+        # This ensures the flag can only be set on actual Trade ORM instances.
 
         logger.info(
             "Parsed %d executions, aggregated into %d trades and parsed %d "

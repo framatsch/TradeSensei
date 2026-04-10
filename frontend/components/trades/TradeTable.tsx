@@ -16,6 +16,8 @@ interface Props {
   onSortChange?: (sort: TradeSortConfig) => void;
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
+  /** Fired whenever selection changes, with full Trade objects for the selected IDs in the current page. */
+  onSelectedTradesChange?: (trades: import("@/lib/types").Trade[]) => void;
   limit?: number;
   onLimitChange?: (limit: number) => void;
 }
@@ -83,6 +85,7 @@ export function TradeTable({
   onSortChange,
   selectedIds,
   onSelectionChange,
+  onSelectedTradesChange,
   limit = 20,
   onLimitChange,
 }: Props) {
@@ -148,11 +151,9 @@ export function TradeTable({
 
   const handleSelectAll = (checked: boolean) => {
     if (!onSelectionChange) return;
-    if (checked) {
-      onSelectionChange(new Set(trades.map((t) => t.id)));
-    } else {
-      onSelectionChange(new Set());
-    }
+    const nextIds = checked ? new Set(trades.map((t) => t.id)) : new Set<string>();
+    onSelectionChange(nextIds);
+    onSelectedTradesChange?.(checked ? [...trades] : []);
   };
 
   const handleRowSelect = (id: string, checked: boolean) => {
@@ -161,6 +162,7 @@ export function TradeTable({
     if (checked) next.add(id);
     else next.delete(id);
     onSelectionChange(next);
+    onSelectedTradesChange?.(trades.filter((t) => next.has(t.id)));
   };
 
   const allSelected = trades.length > 0 && trades.every((t) => selectedIds?.has(t.id));
