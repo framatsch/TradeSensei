@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -20,14 +21,21 @@ from app.schemas.common import ResponseEnvelope
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     """Run startup tasks before serving requests.
 
     Yields:
         Control back to FastAPI after startup work completes.
     """
     await run_migrations_on_startup()
-    yield
+    application.state.market_data_http_client = httpx.AsyncClient(
+        timeout=15.0,
+        follow_redirects=True,
+    )
+    try:
+        yield
+    finally:
+        await application.state.market_data_http_client.aclose()
 
 
 def create_app() -> FastAPI:

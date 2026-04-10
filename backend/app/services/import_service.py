@@ -11,11 +11,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import cast
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AccountNotFoundError
-from app.models.corporate_action import CorporateAction
 from app.repositories.account_repository import AccountRepository
 from app.repositories.broker_raw_transaction_repository import (
     BrokerRawTransactionRepository,
@@ -214,15 +212,13 @@ class ImportService:
 
         if use_raw_pipeline:
             for ca in parsed_corporate_actions:
-                existing = await self._session.execute(
-                    select(CorporateAction).where(
-                        CorporateAction.user_id == user_id,
-                        CorporateAction.symbol == ca.symbol,
-                        CorporateAction.date == ca.date,
-                        CorporateAction.ratio == ca.ratio,
-                    )
+                existing = await self._ca_repo.find_by_user_symbol_date_ratio(
+                    user_id=user_id,
+                    symbol=ca.symbol,
+                    action_date=ca.date,
+                    ratio=ca.ratio,
                 )
-                if not existing.scalar_one_or_none():
+                if existing is None:
                     await self._ca_repo.create(ca.to_corporate_action_create(user_id))
 
             # Reload corporate actions after adding new ones from the file
@@ -564,6 +560,7 @@ class ImportService:
                 create_warnings.append(msg)
 
         if account_id is not None:
+            cash_service = CashTransactionService(self._session)
             for cash_tx_data in parsed_cash_txs:
                 # Duplicate check: same account + date + type + amount + symbol
                 is_dup = await CashTransactionRepository.find_duplicate(
@@ -584,8 +581,10 @@ class ImportService:
                     continue
 
                 try:
-                    await CashTransactionService.create(
-                        self._session, user_id, account_id, cash_tx_data
+                    await cash_service.create(
+                        user_id=user_id,
+                        account_id=account_id,
+                        create_request=cash_tx_data,
                     )
                     cash_txs_created += 1
                 except Exception as exc:  # noqa: BLE001

@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -62,9 +62,18 @@ async def sync_account(
     account_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[BrokerService, Depends(_get_service)],
-    days: int = 30,
-    from_date: str | None = None,
-    overwrite_manually_edited: bool = False,
+    days: Annotated[
+        int,
+        Query(description="Number of past days to include when from_date is omitted."),
+    ] = 30,
+    from_date: Annotated[
+        str | None,
+        Query(description="Optional YYYYMMDD start date that overrides days."),
+    ] = None,
+    overwrite_manually_edited: Annotated[
+        bool,
+        Query(description="When true, overwrite trades marked as manually edited."),
+    ] = False,
 ) -> ResponseEnvelope[BrokerSyncResult]:
     """Trigger an incremental broker trade sync for the given account.
 

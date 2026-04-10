@@ -2,11 +2,16 @@ import uuid
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.deps import get_current_user
+from app.core.exceptions import (
+    SavedTradeFilterNotFoundError,
+    SavedTradeFilterPermissionError,
+    SavedTradeFilterValidationError,
+)
 from app.models.user import User
 from app.repositories.saved_trade_filter_repository import SavedTradeFilterRepository
 from app.schemas.common import ResponseEnvelope
@@ -85,12 +90,28 @@ async def update_saved_trade_filter(
         SavedTradeFilterService, Depends(get_saved_trade_filter_service)
     ],
 ) -> ResponseEnvelope[SavedTradeFilterRead]:
-    db_filter = await service.update_user_filter(
-        user_id=user.id,
-        filter_id=filter_id,
-        name=payload.name,
-        definition=payload.definition,
-    )
+    try:
+        db_filter = await service.update_user_filter(
+            user_id=user.id,
+            filter_id=filter_id,
+            name=payload.name,
+            definition=payload.definition,
+        )
+    except SavedTradeFilterNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except SavedTradeFilterPermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+    except SavedTradeFilterValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope(data=SavedTradeFilterRead.model_validate(db_filter))
 
 
@@ -109,4 +130,15 @@ async def delete_saved_trade_filter(
         SavedTradeFilterService, Depends(get_saved_trade_filter_service)
     ],
 ) -> None:
-    await service.delete_user_filter(user_id=user.id, filter_id=filter_id)
+    try:
+        await service.delete_user_filter(user_id=user.id, filter_id=filter_id)
+    except SavedTradeFilterNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except SavedTradeFilterPermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc

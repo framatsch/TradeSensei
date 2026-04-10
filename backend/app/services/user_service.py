@@ -5,6 +5,8 @@ authenticated user.  All domain exceptions raised here are caught by
 the route layer.
 """
 
+import json
+import logging
 import uuid
 from typing import cast
 
@@ -22,6 +24,8 @@ _SETTINGS_DEFAULTS: dict[str, object] = {
     "default_date_range": "all",
     "features": "{}",
 }
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -139,8 +143,6 @@ class UserService:
         for k, v in stored.items():
             merged[k] = cast(str | dict[str, bool], v)
         # Deserialize features JSON into dict
-        import json
-
         try:
             features_val = merged.get("features", "{}")
             if isinstance(features_val, str):
@@ -149,9 +151,14 @@ class UserService:
                 # Type safe: _SETTINGS_DEFAULTS["features"] is a dict
                 merged_features = features_val
         except Exception:
+            logger.warning(
+                "Failed to parse features JSON for user %s",
+                user_id,
+                exc_info=True,
+            )
             merged_features = {}
         merged["features"] = merged_features
-        return UserSettingsRead(**merged)  # type: ignore[arg-type]
+        return UserSettingsRead(**merged)  # type: ignore[arg-type]  # Type narrowing from dynamic settings dict is imperfect for mypy.
 
     async def update_settings(
         self,
@@ -172,7 +179,6 @@ class UserService:
             current settings after the update.
         """
         update_dict = data.model_dump(exclude_unset=True)
-        import json
 
         # Handle features merge specially
         features_update = update_dict.pop("features", None)
@@ -185,6 +191,11 @@ class UserService:
                 try:
                     current_features = json.loads(stored["features"])
                 except Exception:
+                    logger.warning(
+                        "Failed to parse features JSON for user %s",
+                        user_id,
+                        exc_info=True,
+                    )
                     current_features = {}
             # Merge (incoming keys overwrite)
             merged_features = {**current_features, **(features_update or {})}

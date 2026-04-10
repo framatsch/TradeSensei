@@ -7,7 +7,7 @@ token refresh via httpOnly cookie, logout, and Google OAuth.
 import contextlib
 from typing import Annotated
 
-from authlib.integrations.starlette_client import (  # type: ignore[import-untyped]
+from authlib.integrations.starlette_client import (  # type: ignore[import-untyped]  # authlib has no type stubs
     OAuth,
     OAuthError,
 )
@@ -448,9 +448,6 @@ async def google_callback(
         )
         return redirect
 
-    # Commit is needed here — service methods flush but don't commit
-    await request.state.session.commit() if hasattr(request.state, "session") else None
-
     redirect = RedirectResponse(
         url=f"{_FRONTEND_CALLBACK_URL}?token={one_time_token}",
         status_code=status.HTTP_302_FOUND,
@@ -617,8 +614,6 @@ async def oidc_callback(
             url=f"{_FRONTEND_LOGIN_URL}?error=oauth_failed",
             status_code=status.HTTP_302_FOUND,
         )
-
-    await request.state.session.commit() if hasattr(request.state, "session") else None
 
     redirect = RedirectResponse(
         url=f"{_FRONTEND_CALLBACK_URL}?token={one_time_token}",

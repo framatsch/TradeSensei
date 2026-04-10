@@ -263,16 +263,3 @@ class AuthService:
             candidate = f"{base}{counter}"
             counter += 1
         return candidate
-
-    def _issue_token_pair(self, user: User) -> tuple[str, str]:
-        """Issue a fresh access + refresh token pair for the given user.
-
-        Args:
-            user: The authenticated user.
-
-        Returns:
-            A two-tuple of ``(access_token, refresh_token)`` strings.
-        """
-        access_token = create_access_token(user.id)
-        refresh_token = create_refresh_token(user.id, user.refresh_token_version)
-        return access_token, refresh_token

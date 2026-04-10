@@ -263,7 +263,10 @@ async def delete_account(
     try:
         await service.delete_account(account_id, current_user.id)
     except AccountNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Account not found.") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found.",
+        ) from exc
 
 
 @router.get(

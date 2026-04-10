@@ -1,3 +1,5 @@
+"""Pydantic schemas for logical execution request and response payloads."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -51,6 +53,27 @@ class LogicalExecutionUpdate(BaseModel):
     commission: Decimal | None = None
     executed_at: datetime | None = None
     pnl: Decimal | None = None
+
+    @field_validator("executed_at", mode="after")
+    @classmethod
+    def require_timezone(cls, value: datetime | None) -> datetime | None:
+        """Reject naive datetimes when executed_at is provided."""
+        if value is not None and value.tzinfo is None:
+            raise ValueError("executed_at must be timezone-aware (include UTC offset).")
+        return value
+
+
+class ReassignExecutionRequest(BaseModel):
+    """Request payload for moving an execution to another trade."""
+
+    target_trade_id: uuid.UUID
+
+
+class ReassignExecutionResponse(BaseModel):
+    """Response payload returned after reassigning an execution."""
+
+    execution: "LogicalExecutionRead"
+    message: str
 
 
 class LogicalExecutionRead(LogicalExecutionBase):

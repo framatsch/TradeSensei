@@ -36,9 +36,14 @@ async def _get_auth_headers(client: AsyncClient, suffix: str = "") -> dict[str, 
 
 
 async def _create_trade(
-    client: AsyncClient, headers: dict[str, str], overrides: dict | None = None
-) -> dict:
-    """Create a default trade using the API to ensure all DB invariants and triggers fire."""
+    client: AsyncClient,
+    headers: dict[str, str],
+    overrides: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Create a default trade through the API.
+
+    Uses the endpoint to ensure DB invariants and triggers execute.
+    """
     payload = {
         "symbol": "AAPL",
         "direction": "LONG",
@@ -77,7 +82,7 @@ class TestExecutionAPI:
             f"/api/v1/trades/{trade_id}/executions", json=payload, headers=headers
         )
         assert res.status_code == 201, res.text
-        data = res.json()
+        data = res.json()["data"]
         assert data["trade_id"] == trade_id
         assert data["direction"] == "SHORT"
         assert Decimal(data["quantity"]) == Decimal("5")
@@ -114,7 +119,7 @@ class TestExecutionAPI:
 
         res = await client.get(f"/api/v1/trades/{trade_id}/executions", headers=headers)
         assert res.status_code == 200
-        data = res.json()
+        data = res.json()["data"]
         # Should have the auto-created initial execution from the trade
         assert len(data) >= 1
 
@@ -128,16 +133,19 @@ class TestExecutionAPI:
         list_res = await client.get(
             f"/api/v1/trades/{trade_id}/executions", headers=headers
         )
-        ex_id = list_res.json()[0]["id"]
+        ex_id = list_res.json()["data"][0]["id"]
 
         patch_res = await client.patch(
             f"/api/v1/executions/{ex_id}", json={"price": "155.00"}, headers=headers
         )
         assert patch_res.status_code == 200, patch_res.text
-        assert Decimal(patch_res.json()["price"]) == Decimal("155.00")
+        assert Decimal(patch_res.json()["data"]["price"]) == Decimal("155.00")
 
     async def test_delete_execution_cascade(self, client: AsyncClient) -> None:
-        """DELETE /executions/{execution_id} should delete execution, deleting trade if empty."""
+        """DELETE /executions/{execution_id} should delete the execution.
+
+        The owning trade should also be deleted when it becomes empty.
+        """
         headers = await _get_auth_headers(client, "del_exec")
         trade = await _create_trade(client, headers)
         trade_id = trade["id"]
@@ -145,7 +153,7 @@ class TestExecutionAPI:
         list_res = await client.get(
             f"/api/v1/trades/{trade_id}/executions", headers=headers
         )
-        ex_id = list_res.json()[0]["id"]
+        ex_id = list_res.json()["data"][0]["id"]
 
         del_res = await client.delete(f"/api/v1/executions/{ex_id}", headers=headers)
         assert del_res.status_code == 204
@@ -164,7 +172,7 @@ class TestExecutionAPI:
         list_res = await client.get(
             f"/api/v1/trades/{source_trade['id']}/executions", headers=headers
         )
-        ex_id = list_res.json()[0]["id"]
+        ex_id = list_res.json()["data"][0]["id"]
 
         reassign_res = await client.post(
             f"/api/v1/executions/{ex_id}/reassign",
@@ -172,7 +180,9 @@ class TestExecutionAPI:
             headers=headers,
         )
         assert reassign_res.status_code == 200
-        assert reassign_res.json()["execution"]["trade_id"] == target_trade["id"]
+        assert (
+            reassign_res.json()["data"]["execution"]["trade_id"] == target_trade["id"]
+        )
 
         # Source trade should be deleted since it was empty
         get_res = await client.get(
@@ -200,7 +210,7 @@ class TestExecutionAPI:
         list_res = await client.get(
             f"/api/v1/trades/{trade_id}/executions", headers=headers
         )
-        executions = list_res.json()
+        executions = list_res.json()["data"]
         assert len(executions) == 2
         ex_to_detach = executions[1]["id"]
 
@@ -208,5 +218,5 @@ class TestExecutionAPI:
             f"/api/v1/executions/{ex_to_detach}/detach", headers=headers
         )
         assert detach_res.status_code == 200
-        new_trade_id = detach_res.json()["id"]
+        new_trade_id = detach_res.json()["data"]["id"]
         assert new_trade_id != trade_id

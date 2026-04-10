@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 import pytest
 from jose import jwt
+from jose.exceptions import JWTError
 
 from app.core.config import settings
 from app.core.constants import ONE_TIME_TOKEN_EXPIRE_SECONDS, TOKEN_ALGORITHM
@@ -457,7 +458,7 @@ class TestConsumeOneTimeToken:
         with (
             patch(
                 "app.core.security.jwt.decode",
-                side_effect=Exception("simulated decode failure"),
+                side_effect=JWTError("simulated decode failure"),
             ),
             pytest.raises(InvalidTokenError),
         ):

@@ -126,4 +126,3 @@ async def test_cache_prices_with_interval_fallback(
 
     await service.cache_prices(bars)
     mock_session.execute.assert_called_once()
-    mock_session.commit.assert_called_once()

@@ -12,14 +12,15 @@ TradingView embedded widget without displaying an error to the user.
 """
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, cast
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_session
+from app.schemas.market_data import OHLCResponse
 from app.services.market_data_service import MarketDataService
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
@@ -32,20 +33,9 @@ def _get_service(
     return MarketDataService(session)
 
 
-# Shared async httpx client — reused across requests for connection pooling.
-_http_client: httpx.AsyncClient | None = None
-
-
-def _get_http_client() -> httpx.AsyncClient:
-    """Return (or lazily create) the shared :class:`httpx.AsyncClient`.
-
-    Returns:
-        A singleton :class:`httpx.AsyncClient` instance.
-    """
-    global _http_client  # noqa: PLW0603
-    if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient(timeout=15.0, follow_redirects=True)
-    return _http_client
+def _get_http_client(request: Request) -> httpx.AsyncClient:
+    """Return the lifespan-managed market data HTTP client."""
+    return cast(httpx.AsyncClient, request.app.state.market_data_http_client)
 
 
 def _hub_base() -> str:
@@ -70,7 +60,7 @@ def _hub_base() -> str:
 @router.get(
     "/prices/{symbol}/history",
     summary="Proxy: OHLC price history for a symbol",
-    response_model=None,
+    response_model=OHLCResponse,
 )
 async def get_price_history(
     symbol: str,
@@ -81,7 +71,7 @@ async def get_price_history(
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
     sec_type: str | None = Query(default=None),
-) -> Any:
+) -> OHLCResponse:
     """Proxy OHLC candlestick history from the Market Data Hub with local caching.
 
     Checks the local database cache first. If data is missing or incomplete,
@@ -116,7 +106,7 @@ async def get_price_history(
     # For now, if we have bars, we skip the upstream call IF the end_dt
     # is in the past. If end_dt is None (requesting until "now"), we always fetch.
     if cached_bars and end_dt and cached_bars[-1].start >= end_dt:
-        return {"data": service.format_bars(cached_bars)}
+        return OHLCResponse.model_validate({"data": service.format_bars(cached_bars)})
 
     # 2. Fetch from upstream Hub
     # ─────────────────────────────────────────────
@@ -132,7 +122,7 @@ async def get_price_history(
 
     target_url = f"{base}/prices/{symbol}/history"
 
-    client = _get_http_client()
+    client = _get_http_client(request)
     try:
         upstream = await client.get(target_url, params=params)
     except httpx.RequestError as exc:
@@ -141,9 +131,9 @@ async def get_price_history(
             symbol, interval, provider, start_dt, end_dt
         )
         if cached:
-            return {"data": service.format_bars(cached)}
+            return OHLCResponse.model_validate({"data": service.format_bars(cached)})
         raise HTTPException(
-            status_code=502,
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Market Data Hub unreachable: {exc}",
         ) from exc
 
@@ -153,7 +143,7 @@ async def get_price_history(
             symbol, interval, provider, start_dt, end_dt
         )
         if cached:
-            return {"data": service.format_bars(cached)}
+            return OHLCResponse.model_validate({"data": service.format_bars(cached)})
         raise HTTPException(
             status_code=upstream.status_code,
             detail=f"Hub returned {upstream.status_code}: {upstream.text[:200]}",
@@ -171,4 +161,4 @@ async def get_price_history(
             b["provider"] = provider
         await service.cache_prices(bars)
 
-    return response_json
+    return OHLCResponse.model_validate(response_json)

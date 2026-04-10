@@ -17,6 +17,18 @@ class ExecutionValidationError(ValueError):
     """Raised when execution business-rule validation fails."""
 
 
+class SavedTradeFilterNotFoundError(Exception):
+    """Raised when a saved trade filter cannot be found."""
+
+
+class SavedTradeFilterPermissionError(PermissionError):
+    """Raised when a user cannot modify a saved trade filter."""
+
+
+class SavedTradeFilterValidationError(ValueError):
+    """Raised when a saved trade filter definition is invalid."""
+
+
 class InvalidCursorError(ValueError):
     """Raised when a pagination cursor cannot be decoded."""
 

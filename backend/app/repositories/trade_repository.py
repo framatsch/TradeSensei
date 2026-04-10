@@ -7,6 +7,7 @@ return SQLAlchemy ORM instances.  No business logic lives here.
 import base64
 import binascii
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -282,6 +283,11 @@ class TradeRepository:
         """
         self._session = session
 
+    @property
+    def session(self) -> AsyncSession:
+        """Expose the active database session for service-level orchestration."""
+        return self._session
+
     async def _set_tags(self, trade: Trade, tag_ids: list[uuid.UUID]) -> None:
         """Replace the tag associations for a trade.
 
@@ -330,6 +336,73 @@ class TradeRepository:
             trade, attribute_names=["tags", "trade_notes", "playbook", "account"]
         )
         return trade
+
+    async def bulk_create(self, trades: Sequence[TradeCreate]) -> int:
+        """Persist multiple trades in one batch.
+
+        Args:
+            trades: Trade payloads to insert.
+
+        Returns:
+            Number of inserted rows.
+        """
+        if not trades:
+            return 0
+
+        for trade_data in trades:
+            create_dict = trade_data.model_dump(exclude={"tag_ids"})
+            self._session.add(Trade(**create_dict))
+
+        await self._session.flush()
+        return len(trades)
+
+    async def find_by_broker_order_ids(
+        self,
+        user_id: uuid.UUID,
+        broker_order_ids: Sequence[str],
+    ) -> set[str]:
+        """Return existing broker order IDs for a user.
+
+        Args:
+            user_id: Owning user UUID.
+            broker_order_ids: Candidate broker order IDs.
+
+        Returns:
+            Set of existing broker order IDs for that user.
+        """
+        if not broker_order_ids:
+            return set()
+
+        stmt = select(Trade.broker_order_id).where(
+            Trade.user_id == user_id,
+            Trade.broker_order_id.in_(broker_order_ids),
+        )
+        result = await self._session.execute(stmt)
+        return {row[0] for row in result if row[0] is not None}
+
+    async def find_duplicate(
+        self,
+        user_id: uuid.UUID,
+        symbol: str,
+        opened_at: datetime,
+    ) -> bool:
+        """Check whether a trade with the same key already exists.
+
+        Args:
+            user_id: Owning user UUID.
+            symbol: Trade symbol.
+            opened_at: Trade open timestamp.
+
+        Returns:
+            ``True`` when a matching row exists, otherwise ``False``.
+        """
+        stmt = select(Trade.id).where(
+            Trade.user_id == user_id,
+            Trade.symbol == symbol,
+            Trade.opened_at == opened_at,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
 
     async def get_by_id(self, trade_id: uuid.UUID) -> Trade | None:
         """Retrieve a single trade by its primary key.

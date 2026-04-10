@@ -12,14 +12,13 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AccountNotFoundError, ConfigurationError
 from app.models.account import Account, AccountType
 from app.models.account_property import AccountProperty
-from app.models.trade import Trade
+from app.repositories.account_repository import AccountRepository
+from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker import BrokerSyncResult
 from app.schemas.trade import TradeCreate
 from app.utils.encryption import decrypt_token
@@ -50,6 +49,8 @@ class BrokerService:
                 request lifecycle.
         """
         self._session = session
+        self._account_repo = AccountRepository(session)
+        self._trade_repo = TradeRepository(session)
 
     async def sync_account(
         self,
@@ -87,12 +88,9 @@ class BrokerService:
                 type is ``MANUAL`` (no API sync supported) or required
                 credentials are missing / corrupted.
         """
-        result = await self._session.execute(
-            select(Account)
-            .options(selectinload(Account.properties))
-            .where(Account.id == account_id, Account.user_id == user_id)
+        account = await self._account_repo.get_by_id_with_properties(
+            account_id, user_id
         )
-        account = result.scalar_one_or_none()
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         if account.type == AccountType.SCHWAB:
@@ -260,17 +258,14 @@ class BrokerService:
 
         # Bulk-fetch existing broker_order_ids to deduplicate
         candidate_ids = [tc.broker_order_id for tc in normalised if tc.broker_order_id]
-        existing_ids: set[str] = set()
-        if candidate_ids:
-            stmt = select(Trade.broker_order_id).where(
-                Trade.user_id == user_id,
-                Trade.broker_order_id.in_(candidate_ids),
-            )
-            db_result = await self._session.execute(stmt)
-            existing_ids = {row[0] for row in db_result if row[0]}
+        existing_ids = await self._trade_repo.find_by_broker_order_ids(
+            user_id,
+            candidate_ids,
+        )
 
         # Insert new trades
         imported_count = 0
+        new_trades: list[TradeCreate] = []
         for trade_create in normalised:
             if (
                 trade_create.broker_order_id is not None
@@ -279,11 +274,10 @@ class BrokerService:
                 skipped_count += 1
                 continue
             trade_create.user_id = user_id
-            create_dict = trade_create.model_dump(exclude={"tag_ids"})
-            self._session.add(Trade(**create_dict))
+            new_trades.append(trade_create)
             imported_count += 1
 
-        await self._session.flush()
+        await self._trade_repo.bulk_create(new_trades)
         await self._session.commit()
 
         return BrokerSyncResult(

@@ -134,7 +134,10 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value: Any) -> Any:
+    def parse_cors_origins(
+        cls,
+        value: Any,  # Any: pydantic-settings passes raw env values with unknown type
+    ) -> Any:
         """Parse CORS origins from JSON arrays or comma-separated strings.
 
         Args:

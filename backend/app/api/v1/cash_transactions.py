@@ -6,12 +6,13 @@ This router handles endpoints related to non-trade cash flows (dividends, fees, 
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
 from app.core.database import get_session
 from app.core.deps import get_current_user
+from app.core.exceptions import CashTransactionNotFoundError
 from app.models.user import User
 from app.schemas.cash_transaction import (
     CashTransactionCreateRequest,
@@ -27,6 +28,13 @@ router = APIRouter(
 )
 
 
+def _get_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CashTransactionService:
+    """Build a cash transaction service bound to the request session."""
+    return CashTransactionService(session)
+
+
 @router.post(
     "",
     response_model=ResponseEnvelope[CashTransactionRead],
@@ -40,11 +48,10 @@ async def create_cash_transaction(
     account_id: uuid.UUID,
     create_request: CashTransactionCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
+    service: Annotated[CashTransactionService, Depends(_get_service)],
 ) -> ResponseEnvelope[CashTransactionRead]:
     """Create a new cash transaction."""
-    transaction = await CashTransactionService.create(
-        session=session,
+    transaction = await service.create(
         user_id=current_user.id,
         account_id=account_id,
         create_request=create_request,
@@ -62,7 +69,7 @@ async def list_cash_transactions(
     account_id: uuid.UUID,
     filters: Annotated[CashTransactionFilterParams, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
+    service: Annotated[CashTransactionService, Depends(_get_service)],
     limit: Annotated[
         int,
         Query(
@@ -80,8 +87,7 @@ async def list_cash_transactions(
     ] = 0,
 ) -> ResponseEnvelope[OffsetPage[CashTransactionRead]]:
     """List cash transactions."""
-    transactions, total_count = await CashTransactionService.list_by_account(
-        session=session,
+    transactions, total_count = await service.list_by_account(
         user_id=current_user.id,
         account_id=account_id,
         filters=filters,
@@ -109,15 +115,20 @@ async def get_cash_transaction(
     account_id: uuid.UUID,
     transaction_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
+    service: Annotated[CashTransactionService, Depends(_get_service)],
 ) -> ResponseEnvelope[CashTransactionRead]:
     """Get a single cash transaction."""
-    transaction = await CashTransactionService.get(
-        session=session,
-        user_id=current_user.id,
-        account_id=account_id,
-        transaction_id=transaction_id,
-    )
+    try:
+        transaction = await service.get(
+            user_id=current_user.id,
+            account_id=account_id,
+            transaction_id=transaction_id,
+        )
+    except CashTransactionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope(data=CashTransactionRead.model_validate(transaction))
 
 
@@ -132,16 +143,21 @@ async def update_cash_transaction(
     transaction_id: uuid.UUID,
     update_request: CashTransactionUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
+    service: Annotated[CashTransactionService, Depends(_get_service)],
 ) -> ResponseEnvelope[CashTransactionRead]:
     """Update a cash transaction."""
-    transaction = await CashTransactionService.update(
-        session=session,
-        user_id=current_user.id,
-        account_id=account_id,
-        transaction_id=transaction_id,
-        update_schema=update_request,
-    )
+    try:
+        transaction = await service.update(
+            user_id=current_user.id,
+            account_id=account_id,
+            transaction_id=transaction_id,
+            update_schema=update_request,
+        )
+    except CashTransactionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope(data=CashTransactionRead.model_validate(transaction))
 
 
@@ -155,12 +171,17 @@ async def delete_cash_transaction(
     account_id: uuid.UUID,
     transaction_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
+    service: Annotated[CashTransactionService, Depends(_get_service)],
 ) -> None:
     """Delete a cash transaction."""
-    await CashTransactionService.delete(
-        session=session,
-        user_id=current_user.id,
-        account_id=account_id,
-        transaction_id=transaction_id,
-    )
+    try:
+        await service.delete(
+            user_id=current_user.id,
+            account_id=account_id,
+            transaction_id=transaction_id,
+        )
+    except CashTransactionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

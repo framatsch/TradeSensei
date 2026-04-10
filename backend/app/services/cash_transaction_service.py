@@ -23,9 +23,23 @@ from app.services.fx_rate_service import FxRateService
 class CashTransactionService:
     """Service for managing cash transactions."""
 
-    @staticmethod
+    def __init__(self, session: AsyncSession) -> None:
+        """Initialise the cash transaction service.
+
+        Args:
+            session: Database session scoped to the current request.
+        """
+        self._session = session
+        self._account_repo = AccountRepository(session)
+
+    async def _ensure_account(self, user_id: uuid.UUID, account_id: uuid.UUID) -> None:
+        """Ensure the requested account exists and belongs to the user."""
+        account = await self._account_repo.get_by_id(account_id, user_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
     async def create(
-        session: AsyncSession,
+        self,
         user_id: uuid.UUID,
         account_id: uuid.UUID,
         create_request: CashTransactionCreateRequest,
@@ -33,7 +47,6 @@ class CashTransactionService:
         """Create a new cash transaction.
 
         Args:
-            session: The database session.
             user_id: The ID of the authenticated user.
             account_id: The ID of the account.
             create_request: The cash transaction data.
@@ -44,10 +57,7 @@ class CashTransactionService:
         Raises:
             AccountNotFoundError: If the account does not exist or user lacks access.
         """
-        account_repo = AccountRepository(session)
-        account = await account_repo.get_by_id(account_id, user_id)
-        if not account:
-            raise AccountNotFoundError(f"Account {account_id} not found.")
+        await self._ensure_account(user_id, account_id)
 
         # Convert to internal schema
         create_schema = create_request.to_cash_transaction_create(account_id)
@@ -59,17 +69,18 @@ class CashTransactionService:
             elif create_schema.currency == "USD":
                 fx_service = FxRateService()
                 rate = await fx_service.get_usd_to_eur(
-                    session, create_schema.date.date()
+                    self._session, create_schema.date.date()
                 )
                 if rate:
                     create_schema.amount_eur = create_schema.amount * rate
 
-        transaction = await CashTransactionRepository.create(session, create_schema)
+        transaction = await CashTransactionRepository.create(
+            self._session, create_schema
+        )
         return transaction
 
-    @staticmethod
     async def get(
-        session: AsyncSession,
+        self,
         user_id: uuid.UUID,
         account_id: uuid.UUID,
         transaction_id: uuid.UUID,
@@ -77,7 +88,6 @@ class CashTransactionService:
         """Get a single cash transaction by ID.
 
         Args:
-            session: The database session.
             user_id: The ID of the authenticated user.
             account_id: The ID of the account.
             transaction_id: The ID of the transaction.
@@ -89,13 +99,10 @@ class CashTransactionService:
             AccountNotFoundError: If the account does not exist or user lacks access.
             CashTransactionNotFoundError: If the transaction does not exist.
         """
-        account_repo = AccountRepository(session)
-        account = await account_repo.get_by_id(account_id, user_id)
-        if not account:
-            raise AccountNotFoundError(f"Account {account_id} not found.")
+        await self._ensure_account(user_id, account_id)
 
         transaction = await CashTransactionRepository.get_by_account_id(
-            session, account_id, transaction_id
+            self._session, account_id, transaction_id
         )
         if not transaction:
             raise CashTransactionNotFoundError(
@@ -104,9 +111,8 @@ class CashTransactionService:
 
         return transaction
 
-    @staticmethod
     async def list_by_account(
-        session: AsyncSession,
+        self,
         user_id: uuid.UUID,
         account_id: uuid.UUID,
         filters: CashTransactionFilterParams,
@@ -116,7 +122,6 @@ class CashTransactionService:
         """List cash transactions for an account.
 
         Args:
-            session: The database session.
             user_id: The ID of the authenticated user.
             account_id: The ID of the account.
             filters: Filter parameters.
@@ -129,23 +134,19 @@ class CashTransactionService:
         Raises:
             AccountNotFoundError: If the account does not exist or user lacks access.
         """
-        account_repo = AccountRepository(session)
-        account = await account_repo.get_by_id(account_id, user_id)
-        if not account:
-            raise AccountNotFoundError(f"Account {account_id} not found.")
+        await self._ensure_account(user_id, account_id)
 
         transactions = await CashTransactionRepository.list_by_account(
-            session, account_id, filters, limit, offset
+            self._session, account_id, filters, limit, offset
         )
         total_count = await CashTransactionRepository.count_by_account(
-            session, account_id, filters
+            self._session, account_id, filters
         )
 
         return transactions, total_count
 
-    @staticmethod
     async def update(
-        session: AsyncSession,
+        self,
         user_id: uuid.UUID,
         account_id: uuid.UUID,
         transaction_id: uuid.UUID,
@@ -154,7 +155,6 @@ class CashTransactionService:
         """Update a cash transaction.
 
         Args:
-            session: The database session.
             user_id: The ID of the authenticated user.
             account_id: The ID of the account.
             transaction_id: The ID of the transaction to update.
@@ -167,8 +167,10 @@ class CashTransactionService:
             AccountNotFoundError: If the account does not exist or user lacks access.
             CashTransactionNotFoundError: If the transaction does not exist.
         """
-        transaction = await CashTransactionService.get(
-            session, user_id, account_id, transaction_id
+        transaction = await self.get(
+            user_id=user_id,
+            account_id=account_id,
+            transaction_id=transaction_id,
         )
 
         # Re-compute EUR amount if amount or currency changed and no explicit
@@ -196,7 +198,7 @@ class CashTransactionService:
                 update_schema.amount_eur = new_amount
             elif new_currency == "USD":
                 fx_service = FxRateService()
-                rate = await fx_service.get_usd_to_eur(session, new_date.date())
+                rate = await fx_service.get_usd_to_eur(self._session, new_date.date())
                 if rate:
                     update_schema.amount_eur = new_amount * rate
                 else:
@@ -205,13 +207,12 @@ class CashTransactionService:
                 update_schema.amount_eur = None
 
         updated_transaction = await CashTransactionRepository.update(
-            session, transaction, update_schema
+            self._session, transaction, update_schema
         )
         return updated_transaction
 
-    @staticmethod
     async def delete(
-        session: AsyncSession,
+        self,
         user_id: uuid.UUID,
         account_id: uuid.UUID,
         transaction_id: uuid.UUID,
@@ -219,7 +220,6 @@ class CashTransactionService:
         """Delete a cash transaction.
 
         Args:
-            session: The database session.
             user_id: The ID of the authenticated user.
             account_id: The ID of the account.
             transaction_id: The ID of the transaction to delete.
@@ -228,7 +228,9 @@ class CashTransactionService:
             AccountNotFoundError: If the account does not exist or user lacks access.
             CashTransactionNotFoundError: If the transaction does not exist.
         """
-        transaction = await CashTransactionService.get(
-            session, user_id, account_id, transaction_id
+        transaction = await self.get(
+            user_id=user_id,
+            account_id=account_id,
+            transaction_id=transaction_id,
         )
-        await CashTransactionRepository.delete(session, transaction.id)
+        await CashTransactionRepository.delete(self._session, transaction.id)

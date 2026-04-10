@@ -17,12 +17,15 @@ and manual creation of logical executions will be separate operations.
 import logging
 import uuid
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.broker_raw_transaction import BrokerRawTransaction
 from app.models.logical_execution import ExecutionStatus, LogicalExecution
 from app.models.transaction_execution_mapping import TransactionExecutionMapping
+from app.repositories.execution import ExecutionRepository
+from app.repositories.transaction_execution_mapping_repository import (
+    TransactionExecutionMappingRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,8 @@ class LogicalExecutionService:
             session: The session to use for all DB operations.
         """
         self._session = session
+        self._execution_repo = ExecutionRepository(session)
+        self._mapping_repo = TransactionExecutionMappingRepository(session)
 
     async def create_from_raw(
         self,
@@ -72,12 +77,7 @@ class LogicalExecutionService:
             transaction.
         """
         # Check if a mapping already exists for this raw transaction.
-        existing = await self._session.execute(
-            select(TransactionExecutionMapping).where(
-                TransactionExecutionMapping.raw_transaction_id == raw.id
-            )
-        )
-        if existing.scalar_one_or_none() is not None:
+        if await self._mapping_repo.exists_for_raw_transaction(raw.id):
             logger.debug(
                 "Logical execution already exists for raw transaction %s — skipping.",
                 raw.id,
@@ -165,16 +165,8 @@ class LogicalExecutionService:
             List of linked :class:`~app.models.logical_execution.LogicalExecution`
             instances (usually one for ``imported`` status).
         """
-        stmt = (
-            select(LogicalExecution)
-            .join(
-                TransactionExecutionMapping,
-                TransactionExecutionMapping.logical_execution_id == LogicalExecution.id,
-            )
-            .where(TransactionExecutionMapping.raw_transaction_id == raw_id)
-        )
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+        execution_ids = await self._mapping_repo.list_execution_ids_for_raw(raw_id)
+        return await self._execution_repo.list_by_ids(execution_ids)
 
     async def list_by_user(
         self,
@@ -193,23 +185,8 @@ class LogicalExecutionService:
             List of :class:`~app.models.logical_execution.LogicalExecution`
             ordered by ``executed_at`` ascending.
         """
-        stmt = (
-            select(LogicalExecution)
-            .outerjoin(
-                TransactionExecutionMapping,
-                TransactionExecutionMapping.logical_execution_id == LogicalExecution.id,
-            )
-            .outerjoin(
-                BrokerRawTransaction,
-                BrokerRawTransaction.id
-                == TransactionExecutionMapping.raw_transaction_id,
-            )
-            .where(LogicalExecution.user_id == user_id)
-            .order_by(LogicalExecution.executed_at, BrokerRawTransaction.id)
+        return await self._execution_repo.list_by_user(
+            user_id=user_id,
+            account_id=account_id,
+            status=status,
         )
-        if account_id is not None:
-            stmt = stmt.where(LogicalExecution.account_id == account_id)
-        if status is not None:
-            stmt = stmt.where(LogicalExecution.status == status)
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())

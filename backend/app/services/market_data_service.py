@@ -3,23 +3,22 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ohlc_price import OhlcPrice
+from app.repositories.ohlc_price_repository import OhlcPriceRepository
 
 
 class MarketDataService:
     """Service for managing OHLC price data with a database cache."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         """Initialize the service with a database session.
 
         Args:
             session: Async SQLAlchemy session.
         """
-        self.session = session
+        self._repo = OhlcPriceRepository(session)
 
     async def get_cached_prices(
         self,
@@ -41,20 +40,13 @@ class MarketDataService:
         Returns:
             A list of OhlcPrice ORM models.
         """
-        stmt = select(OhlcPrice).where(
-            OhlcPrice.symbol == symbol,
-            OhlcPrice.interval == interval,
-            OhlcPrice.provider == provider,
+        return await self._repo.get_cached_prices(
+            symbol=symbol,
+            interval=interval,
+            provider=provider,
+            start=start,
+            end=end,
         )
-
-        if start:
-            stmt = stmt.where(OhlcPrice.start >= start)
-        if end:
-            stmt = stmt.where(OhlcPrice.start <= end)
-
-        stmt = stmt.order_by(OhlcPrice.start.asc())
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
     def format_bars(self, bars: list[OhlcPrice]) -> list[dict[str, Any]]:
         """Format OHLC bars for the frontend.
@@ -108,19 +100,4 @@ class MarketDataService:
                 }
             )
 
-        # PostgreSQL upsert (ON CONFLICT DO UPDATE)
-        stmt = insert(OhlcPrice).values(values)
-        stmt = stmt.on_conflict_do_update(
-            constraint="uq_ohlc_price_bar",
-            set_={
-                "open": stmt.excluded.open,
-                "high": stmt.excluded.high,
-                "low": stmt.excluded.low,
-                "close": stmt.excluded.close,
-                "volume": stmt.excluded.volume,
-                "meta": stmt.excluded.meta,
-            },
-        )
-
-        await self.session.execute(stmt)
-        await self.session.commit()
+        await self._repo.upsert_bars(values)

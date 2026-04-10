@@ -6,6 +6,7 @@ and converts raw DB tuples into typed Pydantic DTOs.  No HTTP concepts
 queries are issued here — all data access is delegated to the repository.
 """
 
+import calendar
 import uuid
 from collections import deque
 from datetime import datetime
@@ -175,8 +176,6 @@ class TimeSeriesService:
             A chronologically ordered list of
             :class:`~app.schemas.timeseries.MonthlyWinratePoint` DTOs.
         """
-        import calendar
-
         rows = await self._repo.get_closed_pnl_series(
             user_id=user_id,
             account_id=account_id,

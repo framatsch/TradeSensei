@@ -18,25 +18,21 @@ import uuid
 import xml.etree.ElementTree as ET
 
 import httpx
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import (
+    FLEX_API_VERSION,
+    FLEX_BASE_URL,
+    FLEX_POLL_INTERVAL_SECONDS,
+    FLEX_POLL_MAX_ATTEMPTS,
+)
 from app.core.exceptions import AccountNotFoundError, FlexAPIError, RateLimitError
-from app.models.trade import Trade
 from app.repositories.account_repository import AccountRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.imports import ImportResult
-from app.schemas.trade import TradeCreate
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
 
 logger = logging.getLogger(__name__)
-
-# ─── Flex Web Service constants ───────────────────────────────────────────────
-
-_FLEX_BASE_URL = "https://gdcdyn.interactivebrokers.com/Universal/servlet"
-_FLEX_API_VERSION = "3"
-_POLL_INTERVAL_SECONDS = 2
-_POLL_MAX_ATTEMPTS = 10
 
 
 class FlexImportService:
@@ -154,7 +150,11 @@ class FlexImportService:
                 continue
 
             # Duplicate check: same user + symbol + opened_at already exists.
-            if await self._is_duplicate(trade_with_owner):
+            if await self._trade_repo.find_duplicate(
+                user_id=user_id,
+                symbol=trade_with_owner.symbol,
+                opened_at=trade_with_owner.opened_at,
+            ):
                 trades_skipped += 1
                 logger.debug(
                     "Skipping duplicate trade: %s @ %s",
@@ -182,6 +182,7 @@ class FlexImportService:
             )
             from app.services.cash_transaction_service import CashTransactionService
 
+            cash_service = CashTransactionService(self._session)
             for cash_tx_data in parsed_cash_txs:
                 # Duplicate check: same account + date + type + amount + symbol
                 is_dup = await CashTransactionRepository.find_duplicate(
@@ -203,8 +204,10 @@ class FlexImportService:
                     continue
 
                 try:
-                    await CashTransactionService.create(
-                        self._session, user_id, account_id, cash_tx_data
+                    await cash_service.create(
+                        user_id=user_id,
+                        account_id=account_id,
+                        create_request=cash_tx_data,
                     )
                     cash_txs_created += 1
                 except Exception as exc:  # noqa: BLE001
@@ -275,12 +278,12 @@ class FlexImportService:
         params: dict[str, str] = {
             "t": self._token,
             "q": query_id,
-            "v": _FLEX_API_VERSION,
+            "v": FLEX_API_VERSION,
         }
         if from_date:
             params["period"] = from_date
 
-        url = f"{_FLEX_BASE_URL}/FlexStatementService.SendRequest"
+        url = f"{FLEX_BASE_URL}/FlexStatementService.SendRequest"
         logger.info("Requesting Flex Query %s generation…", query_id)
 
         try:
@@ -332,19 +335,19 @@ class FlexImportService:
         Raises:
             FlexAPIError: If the report fails or polling times out.
         """
-        url = f"{_FLEX_BASE_URL}/FlexStatementService.GetStatement"
+        url = f"{FLEX_BASE_URL}/FlexStatementService.GetStatement"
         params = {
             "t": self._token,
             "q": reference_code,
-            "v": _FLEX_API_VERSION,
+            "v": FLEX_API_VERSION,
         }
 
-        for attempt in range(1, _POLL_MAX_ATTEMPTS + 1):
-            await asyncio.sleep(_POLL_INTERVAL_SECONDS)
+        for attempt in range(1, FLEX_POLL_MAX_ATTEMPTS + 1):
+            await asyncio.sleep(FLEX_POLL_INTERVAL_SECONDS)
             logger.debug(
                 "Polling for Flex report (attempt %d/%d)…",
                 attempt,
-                _POLL_MAX_ATTEMPTS,
+                FLEX_POLL_MAX_ATTEMPTS,
             )
 
             try:
@@ -377,30 +380,8 @@ class FlexImportService:
             raise FlexAPIError(f"Flex GetStatement error (status={status}): {msg}")
 
         raise FlexAPIError(
-            f"Flex report not ready after {_POLL_MAX_ATTEMPTS} polling attempts."
+            f"Flex report not ready after {FLEX_POLL_MAX_ATTEMPTS} polling attempts."
         )
-
-    # ─── DB helpers ───────────────────────────────────────────────────────────
-
-    async def _is_duplicate(self, trade: TradeCreate) -> bool:
-        """Check whether an identical trade already exists for this user.
-
-        Two trades are considered duplicates when they share the same
-        ``user_id``, ``symbol``, and ``opened_at`` timestamp.
-
-        Args:
-            trade: The candidate :class:`~app.schemas.trade.TradeCreate`.
-
-        Returns:
-            ``True`` if a matching row already exists in the database.
-        """
-        stmt = select(Trade.id).where(
-            Trade.user_id == trade.user_id,
-            Trade.symbol == trade.symbol,
-            Trade.opened_at == trade.opened_at,
-        )
-        result = await self._session.execute(stmt)
-        return result.scalar_one_or_none() is not None
 
 
 # ─── Module-level helpers ─────────────────────────────────────────────────────

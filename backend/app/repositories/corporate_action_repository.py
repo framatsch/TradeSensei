@@ -6,6 +6,7 @@ return SQLAlchemy ORM instances.  No business logic lives here.
 
 import uuid
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -150,6 +151,34 @@ class CorporateActionRepository:
         await self._session.flush()
         await self._session.refresh(action)
         return action
+
+    async def find_by_user_symbol_date_ratio(
+        self,
+        user_id: uuid.UUID,
+        symbol: str,
+        action_date: date,
+        ratio: Decimal,
+    ) -> CorporateAction | None:
+        """Find a corporate action by uniqueness key.
+
+        Args:
+            user_id: Owning user UUID.
+            symbol: Ticker symbol.
+            action_date: Effective date.
+            ratio: Split ratio.
+
+        Returns:
+            Matching corporate action or ``None``.
+        """
+        result = await self._session.execute(
+            select(CorporateAction).where(
+                CorporateAction.user_id == user_id,
+                CorporateAction.symbol == symbol,
+                CorporateAction.date == action_date,
+                CorporateAction.ratio == ratio,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def update(
         self,

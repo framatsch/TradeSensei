@@ -38,6 +38,9 @@ NUMERIC_SCALE: int = 8
 
 # ─── Auth / JWT ───────────────────────────────────────────────────────────────
 
+SECONDS_PER_DAY: int = 86_400
+"""Number of seconds in one day."""
+
 ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
 """Lifetime of an access JWT in minutes."""
 
@@ -114,11 +117,29 @@ ROLLING_WINRATE_MAX_WINDOW: int = 100
 
 # ─── Broker Import ────────────────────────────────────────────────────────────
 
+BYTES_PER_MB: int = 1024 * 1024
+"""Number of bytes in one mebibyte."""
+
 IMPORT_MAX_FILE_SIZE_MB: int = 10
 """Maximum file size in megabytes allowed for broker import uploads."""
 
 IMPORT_SUPPORTED_FORMATS: list[str] = ["csv", "xlsx", "xml"]
 """File extensions accepted by the broker import endpoint."""
+
+FLEX_BASE_URL: str = "https://gdcdyn.interactivebrokers.com/Universal/servlet"
+"""Base URL for the IBKR Flex Web Service API."""
+
+FLEX_API_VERSION: str = "3"
+"""IBKR Flex API version parameter value."""
+
+FLEX_POLL_INTERVAL_SECONDS: int = 2
+"""Delay between polling attempts for Flex report generation."""
+
+FLEX_POLL_MAX_ATTEMPTS: int = 10
+"""Maximum number of polling attempts for Flex report readiness."""
+
+SCREENSHOT_MAX_FILE_SIZE_MB: int = 20
+"""Maximum file size in megabytes allowed for screenshot uploads."""
 
 # ─── Playbook field sizes ─────────────────────────────────────────────────────
 
@@ -143,9 +164,6 @@ TAG_NAME_MAX_LENGTH: int = 50
 
 NOTE_MAX_LENGTH: int = 5_000
 """Maximum character length for trade note content (enforced at API boundary)."""
-
-NOTE_CONTENT_MAX_LENGTH: int = NOTE_MAX_LENGTH
-"""Alias for NOTE_MAX_LENGTH — kept for backward compatibility."""
 
 EMOTION_MAX_LENGTH: int = 50
 """Maximum length for an emotion label attached to a trade note."""

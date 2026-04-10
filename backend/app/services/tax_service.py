@@ -23,7 +23,9 @@ from app.schemas.tax import AccountTaxSummary, TaxAnnualSummary, TaxCategoryBloc
 _ZERO = Decimal("0")
 
 _EQUITY_CATEGORY = "Aktie (§20 Abs. 2 Nr. 1 EStG)"
+# German tax-law category label for equity transactions.
 _DERIVATIVE_CATEGORY = "Derivat (§20 Abs. 2 Nr. 3 EStG)"
+# German tax-law category label for derivative transactions.
 
 _TRADE_CSV_HEADERS = [
     "Konto",

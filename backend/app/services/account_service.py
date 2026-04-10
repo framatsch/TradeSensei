@@ -148,7 +148,10 @@ class AccountService:
         # Re-fetch with selectinload so that account.properties is eagerly
         # loaded in the async context — bare refresh() does not load relations.
         refreshed = await self._repo.get_by_id(account.id, user_id)
-        assert refreshed is not None
+        if refreshed is None:
+            raise RuntimeError(
+                f"Account {account.id} disappeared after creation/update."
+            )
         return _build_account_read(refreshed, len(refreshed.properties) > 0)
 
     async def update_account(
@@ -191,7 +194,10 @@ class AccountService:
         # Re-fetch with selectinload so that updated.properties is eagerly
         # loaded in the async context — bare refresh() does not load relations.
         refreshed = await self._repo.get_by_id(updated.id, user_id)
-        assert refreshed is not None
+        if refreshed is None:
+            raise RuntimeError(
+                f"Account {updated.id} disappeared after creation/update."
+            )
         return _build_account_read(refreshed, len(refreshed.properties) > 0)
 
     async def delete_account(

@@ -1,9 +1,14 @@
+"""Service layer for managing saved trade-filter presets."""
+
 import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from fastapi import HTTPException
-
+from app.core.exceptions import (
+    SavedTradeFilterNotFoundError,
+    SavedTradeFilterPermissionError,
+    SavedTradeFilterValidationError,
+)
 from app.models.saved_trade_filter import FilterScope, SavedTradeFilter
 from app.repositories.saved_trade_filter_repository import SavedTradeFilterRepository
 from app.schemas.trade import TradeFilterParams
@@ -23,15 +28,14 @@ class SavedTradeFilterService:
             definition: The filter definition to validate.
 
         Raises:
-            HTTPException: If the definition contains invalid fields or types.
+            SavedTradeFilterValidationError: If the definition is invalid.
         """
         try:
             # Pydantic will validate the schema and strip unknowns or raise errors
             TradeFilterParams.model_validate(definition)
         except Exception as e:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid filter definition: {str(e)}",
+            raise SavedTradeFilterValidationError(
+                f"Invalid filter definition: {str(e)}"
             ) from e
 
     async def list_for_user(self, user_id: uuid.UUID) -> Sequence[SavedTradeFilter]:
@@ -65,14 +69,14 @@ class SavedTradeFilterService:
         """Update an existing user-owned saved filter."""
         db_filter = await self.repository.get_by_id(filter_id)
         if not db_filter:
-            raise HTTPException(status_code=404, detail="Saved trade filter not found")
+            raise SavedTradeFilterNotFoundError("Saved trade filter not found")
 
         if db_filter.scope == FilterScope.SYSTEM:
-            raise HTTPException(status_code=403, detail="Cannot modify system filters")
+            raise SavedTradeFilterPermissionError("Cannot modify system filters")
 
         if db_filter.owner_id != user_id:
-            raise HTTPException(
-                status_code=403, detail="Not authorized to modify this filter"
+            raise SavedTradeFilterPermissionError(
+                "Not authorized to modify this filter"
             )
 
         if definition is not None:
@@ -96,14 +100,14 @@ class SavedTradeFilterService:
         """Delete an existing user-owned saved filter."""
         db_filter = await self.repository.get_by_id(filter_id)
         if not db_filter:
-            raise HTTPException(status_code=404, detail="Saved trade filter not found")
+            raise SavedTradeFilterNotFoundError("Saved trade filter not found")
 
         if db_filter.scope == FilterScope.SYSTEM:
-            raise HTTPException(status_code=403, detail="Cannot modify system filters")
+            raise SavedTradeFilterPermissionError("Cannot modify system filters")
 
         if db_filter.owner_id != user_id:
-            raise HTTPException(
-                status_code=403, detail="Not authorized to modify this filter"
+            raise SavedTradeFilterPermissionError(
+                "Not authorized to modify this filter"
             )
 
         await self.repository.delete(filter_id)

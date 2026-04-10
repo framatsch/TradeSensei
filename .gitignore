@@ -76,3 +76,8 @@ frontend/playwright-report/
 
 #tmp
 tmp
+
+
+# Temp scripts
+patch_*.py
+fix_*.py

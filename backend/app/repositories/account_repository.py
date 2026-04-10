@@ -72,6 +72,22 @@ class AccountRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id_with_properties(
+        self,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Account | None:
+        """Retrieve an account by ID with eagerly loaded properties.
+
+        Args:
+            account_id: UUID of the account to fetch.
+            user_id: UUID of the requesting user.
+
+        Returns:
+            Matching account or ``None``.
+        """
+        return await self.get_by_id(account_id, user_id)
+
     async def list_by_user(self, user_id: uuid.UUID) -> list[Account]:
         """Return all accounts owned by the given user.
 

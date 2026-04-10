@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.logical_execution import LogicalExecution
+from app.models.logical_execution import ExecutionStatus, LogicalExecution
 
 
 class ExecutionRepository:
@@ -47,6 +47,49 @@ class ExecutionRepository:
         stmt = select(LogicalExecution).where(LogicalExecution.id == execution_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_by_ids(
+        self, execution_ids: list[uuid.UUID]
+    ) -> list[LogicalExecution]:
+        """Fetch executions by primary keys.
+
+        Args:
+            execution_ids: Execution UUIDs to fetch.
+
+        Returns:
+            Matching execution rows.
+        """
+        if not execution_ids:
+            return []
+        result = await self.session.execute(
+            select(LogicalExecution).where(LogicalExecution.id.in_(execution_ids))
+        )
+        return list(result.scalars().all())
+
+    async def list_by_user(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None = None,
+        status: ExecutionStatus | None = None,
+    ) -> list[LogicalExecution]:
+        """Return executions for a user with optional filters.
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Optional account UUID filter.
+            status: Optional execution status filter.
+
+        Returns:
+            Matching executions ordered by execution time.
+        """
+        stmt = select(LogicalExecution).where(LogicalExecution.user_id == user_id)
+        if account_id is not None:
+            stmt = stmt.where(LogicalExecution.account_id == account_id)
+        if status is not None:
+            stmt = stmt.where(LogicalExecution.status == status)
+        stmt = stmt.order_by(LogicalExecution.executed_at.asc())
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
 
     async def create(self, **kwargs: object) -> LogicalExecution:
         """Create a new execution record.

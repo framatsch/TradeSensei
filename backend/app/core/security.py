@@ -142,7 +142,7 @@ def decode_token(token: str) -> uuid.UUID:
         )
         validated = TokenPayload.model_validate(raw)
         return validated.sub
-    except (JWTError, ValueError, Exception) as exc:
+    except (JWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired token.") from exc
 
 
@@ -177,7 +177,7 @@ def decode_refresh_token(token: str) -> tuple[uuid.UUID, int]:
         return validated.sub, rtv
     except InvalidTokenError:
         raise
-    except (JWTError, ValueError, Exception) as exc:
+    except (JWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired refresh token.") from exc
 
 
@@ -185,8 +185,8 @@ def decode_refresh_token(token: str) -> tuple[uuid.UUID, int]:
 # One-time OAuth exchange tokens
 # ---------------------------------------------------------------------------
 
-# In-memory store: jti → expiry. Small enough for single-process dev; for
-# multi-process production this should be replaced with a Redis set.
+# In-memory store: jti → expiry. Works only per-process; in multi-process
+# production deployments this must be replaced with shared state (e.g. Redis).
 _used_ott_jti: set[str] = set()
 
 
@@ -246,5 +246,5 @@ def consume_one_time_token(token: str) -> uuid.UUID:
         return validated.sub
     except InvalidTokenError:
         raise
-    except (JWTError, ValueError, Exception) as exc:
+    except (JWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired one-time token.") from exc
