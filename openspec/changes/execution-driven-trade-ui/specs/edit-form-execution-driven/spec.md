@@ -1,43 +1,103 @@
 ## ADDED Requirements
 
-### Requirement: Read-Only Computed Fields in Edit Form
-The `TradeEditForm` SHALL render execution-derived fields as read-only when the trade has `LogicalExecution` records.
+### Requirement: Inline Editing of SL/TP in Performance Card
+The Performance Card in the right sidebar SHALL allow inline editing of Stop Loss and Take Profit values.
 
-#### Scenario: Computed fields are non-editable
-- **WHEN** the user opens the Edit Trade form for a trade with execution legs
-- **THEN** the following fields MUST be rendered as read-only (disabled inputs with a lock icon): Quantity, Entry Price, Exit Price, PnL, Commission
-- **AND** each read-only field MUST display a "Computed from executions" hint
-- **AND** a link MUST be provided to navigate to the Execution Legs section ("Edit individual executions in the Execution Legs section above")
+#### Scenario: Click-to-edit SL/TP
+- **WHEN** a user clicks on the Stop Loss or Take Profit value in the Performance Card
+- **THEN** the value MUST transform into an editable number input field
+- **AND** Save (✓) and Cancel (✕) action buttons MUST appear
+- **AND** pressing Enter MUST save, pressing Escape MUST cancel
 
-#### Scenario: Computed timestamps
-- **WHEN** the trade has execution legs
-- **THEN** Opened At MUST be read-only (derived from the earliest execution's `executed_at`)
-- **AND** Closed At MUST be read-only (derived from the latest closing execution's `executed_at`, or null if open)
+#### Scenario: Saving SL/TP inline
+- **WHEN** a user modifies the Stop Loss value and clicks Save
+- **THEN** the system MUST call `PATCH /api/v1/trades/{id}` with `{ "stop_loss": "148.00" }`
+- **AND** the Performance Card MUST refresh with the updated value
+- **AND** dependent metrics (Initial Risk, Planned RRR, Realized R) MUST recalculate immediately
 
-### Requirement: Editable Metadata Fields
-The `TradeEditForm` SHALL keep metadata fields fully editable regardless of execution presence.
+#### Scenario: Clearing SL/TP
+- **WHEN** a user clears the input field and saves
+- **THEN** the system MUST send `{ "stop_loss": null }` to clear the value
+- **AND** the display MUST show "—"
 
-#### Scenario: Editable metadata fields
-- **WHEN** the user opens the Edit Trade form
-- **THEN** the following fields MUST remain editable: Symbol, Direction, Asset Class, Currency, Stop Loss, Take Profit, Playbook, Tags, Notes, TradingView Link
+### Requirement: Inline Editing of Playbook in Playbook & Psychology Card
+The Playbook & Psychology Card SHALL allow inline editing of the Playbook assignment.
 
-### Requirement: Read-Only Visual Style
-Read-only computed fields SHALL be visually distinct from editable fields.
+#### Scenario: Click-to-edit Playbook
+- **WHEN** a user clicks on the current playbook name (or "No playbook assigned" placeholder)
+- **THEN** a dropdown selector MUST appear with all available playbooks
+- **AND** selecting a playbook MUST immediately call `PATCH /api/v1/trades/{id}` with `{ "playbook_id": "uuid" }`
+- **AND** selecting "None" MUST clear the playbook assignment
 
-#### Scenario: Visual differentiation
-- **WHEN** the Edit Form renders a read-only computed field
-- **THEN** the input MUST have a lighter background (`bg-secondary/50`)
-- **AND** the input MUST display a lock icon (🔒 or padlock SVG)
-- **AND** the input MUST be disabled (not focusable, no cursor)
-- **AND** the label MUST include a "Computed" indicator
+### Requirement: Inline Editing of Tags in Playbook & Psychology Card
+The Playbook & Psychology Card SHALL allow inline editing of trade tags.
 
-### Requirement: Manual Trade Edit Fallback
-For trades created manually without any `LogicalExecution` records, the Edit Form SHALL remain fully editable.
+#### Scenario: Click-to-edit Tags
+- **WHEN** a user clicks on the tags area (or "No tags" placeholder)
+- **THEN** a multi-select tag picker MUST appear with all available tags
+- **AND** adding or removing a tag MUST immediately call `PATCH /api/v1/trades/{id}` with the updated `tag_ids` array
 
-#### Scenario: Full edit for execution-less trades
-- **WHEN** a user opens the Edit Form for a trade with zero execution legs
-- **THEN** all fields MUST remain editable (same behavior as current)
-- **AND** no "Computed from executions" hints MUST be shown
+#### Scenario: Tag badges display
+- **WHEN** tags are not being edited
+- **THEN** they MUST display as the existing `TagBadge` components
+- **AND** clicking any badge area MUST enter edit mode
+
+### Requirement: Correct Trade Modal for Rare Corrections
+The system SHALL provide a "Correct Trade..." option for editing rarely-changed identity fields (Symbol, Asset Class) that opens a small correction modal.
+
+#### Scenario: Accessing the correction modal
+- **WHEN** a user clicks "Correct Trade..." in the header overflow menu (⋮)
+- **THEN** a modal dialog MUST open with editable fields: Symbol, Asset Class
+- **AND** Direction MUST be displayed as **read-only** (derived from execution directions)
+- **AND** Currency MUST be displayed as **read-only** (inherited from account)
+
+#### Scenario: Correction modal content
+- **WHEN** the correction modal is open
+- **THEN** it MUST show a warning: "These fields affect trade identity. Only change them to fix import errors."
+- **AND** the modal MUST have Cancel and "Save Corrections" buttons
+
+#### Scenario: Saving corrections
+- **WHEN** a user modifies the symbol and clicks "Save Corrections"
+- **THEN** the system MUST call `PATCH /api/v1/trades/{id}` with the updated fields
+- **AND** the system MUST set `is_manually_edited: true` on the trade
+- **AND** the modal MUST close and the trade header MUST refresh
+
+### Requirement: Direction and Currency are Read-Only
+Direction and Currency SHALL be derived values that cannot be manually edited on the Trade Detail page.
+
+#### Scenario: Direction derived from executions
+- **WHEN** the trade detail page renders
+- **THEN** Direction MUST be displayed as a badge (LONG/SHORT) but MUST NOT be editable
+- **AND** the direction is determined by the opening execution legs
+
+#### Scenario: Currency inherited from account
+- **WHEN** the trade detail page renders
+- **THEN** Currency MUST NOT be editable
+- **AND** it is inherited from the associated broker account
+
+### Requirement: Notes and TradingView Link Remain Inline (Unchanged)
+The existing inline editing for Notes (Journal & Notes section) and TradingView Link (Media & Charts Card) SHALL remain as-is.
+
+#### Scenario: Notes inline editing unchanged
+- **WHEN** a user interacts with the Journal & Notes section
+- **THEN** the existing inline note editor (NoteList + "Add Note") MUST work as before
+
+#### Scenario: TradingView link inline editing unchanged
+- **WHEN** a user interacts with the TradingView link area in MediaChartsCard
+- **THEN** the existing inline edit behavior (click to edit URL) MUST work as before
+
+### Requirement: Remove Full-Page Edit Form
+The existing `TradeEditForm` component that replaces the entire Trade Detail page SHALL be removed. All editing is now inline or via the correction modal.
+
+#### Scenario: No page-replacing edit mode
+- **WHEN** the Trade Detail page renders
+- **THEN** there MUST NOT be an `{isEditing ? <TradeEditForm/> : <NormalView/>}` toggle
+- **AND** the entire page MUST always show the normal view with inline editing capabilities
+
+#### Scenario: Edit Trade button behavior change
+- **WHEN** the user clicks "Edit Trade" (in header or overflow menu)
+- **THEN** it MUST NOT replace the page with a form
+- **AND** instead it MUST activate inline edit mode on the sidebar cards (Performance + Playbook cards enter their editable state simultaneously)
 
 ### Requirement: Auto-Create Execution on Manual Trade Creation
 When a trade is created via the "New Trade" form, the backend SHALL automatically create a corresponding `LogicalExecution` with `status: manual`.
@@ -47,10 +107,8 @@ When a trade is created via the "New Trade" form, the backend SHALL automaticall
 - **THEN** the backend MUST create a `LogicalExecution` with the trade's entry values and `status: manual`
 - **AND** the execution MUST be assigned to the newly created trade
 
-### Requirement: TradeEditForm Payload Reduction
-The `TradeEditForm` SHALL exclude computed fields from its update payload when the trade has execution legs.
+## REMOVED Requirements
 
-#### Scenario: Payload excludes computed fields
-- **WHEN** the user saves the Edit Form for a trade with execution legs
-- **THEN** the `TradeUpdate` payload MUST NOT include: `quantity`, `entry_price`, `exit_price`, `pnl`, `commission`, `opened_at`, `closed_at`
-- **AND** only metadata fields changed by the user MUST be sent
+### Requirement: TradeEditForm Full Page Override
+**Reason**: Replaced by inline editing in sidebar cards and a small correction modal for rare identity fixes. The full-page form was necessary when all fields were editable; with execution-driven computed values, the remaining editable fields are few enough for inline editing.
+**Migration**: SL/TP → inline in Performance Card. Playbook/Tags → inline in Playbook Card. Notes/TradingView → already inline. Symbol/AssetClass → Correct Trade modal. Direction/Currency → read-only.

@@ -69,12 +69,15 @@
 - [ ] 9.3 Delete `components/trades/PartialCloseModal.tsx` and remove all imports/references from the codebase
 - [ ] 9.4 Update `hooks/useTrade.ts` to remove the `usePartialCloseTrade` hook (or deprecate it)
 
-## 10. Frontend: Trade Edit Form Refactor
+## 10. Frontend: Inline Editing in Sidebar Cards + Remove Edit Form
 
-- [ ] 10.1 Update `TradeEditForm` to accept an `executions` prop (or fetch them). When executions exist (length > 0): render Quantity, Entry Price, Exit Price, PnL, Commission, Opened At, Closed At as read-only inputs with `bg-secondary/50`, lock icon, and "Computed from executions" hint text
-- [ ] 10.2 Add a "Edit individual executions in the Execution Legs section" link in the read-only fields section
-- [ ] 10.3 Update `handleSubmit` to exclude computed fields from the `TradeUpdate` payload when executions exist
-- [ ] 10.4 Verify the form still works fully editable for trades with zero executions (backward compat)
+- [ ] 10.1 Add inline-editable SL/TP to `PerformanceCard`: click on SL or TP value → transforms into number input with Save (✓) / Cancel (✕) buttons. Save calls `PATCH /api/v1/trades/{id}` with `{ stop_loss }` or `{ take_profit }`. Clearing sends `null`. Dependent metrics (Initial Risk, Planned RRR, Realized R) recalculate on save
+- [ ] 10.2 Add inline-editable Playbook to `PlaybookPsychologyCard`: click playbook name → dropdown of all playbooks appears. Selecting auto-saves via `PATCH /api/v1/trades/{id}` with `{ playbook_id }`. "None" option clears the assignment
+- [ ] 10.3 Add inline-editable Tags to `PlaybookPsychologyCard`: click tags area → tag picker with search appears. Toggling tags auto-saves via `PATCH /api/v1/trades/{id}` with updated `{ tag_ids }` array
+- [ ] 10.4 Create `components/trades/CorrectTradeModal.tsx` — small modal for rare corrections: editable Symbol + Asset Class fields, read-only Direction + Currency, warning text ("These fields affect trade identity. Only change them to fix import errors."), sets `is_manually_edited: true` on save
+- [ ] 10.5 Update Trade Detail header overflow menu (⋮): replace "Edit Trade" with "Correct Trade..." which opens the `CorrectTradeModal`
+- [ ] 10.6 Remove `TradeEditForm` component and the `{isEditing ? <TradeEditForm/> : <NormalView/>}` toggle from `TradeDetailPage` — the page always renders the normal view
+- [ ] 10.7 Delete `components/trades/TradeEditForm.tsx` and remove all imports/references from the codebase
 
 ## 11. Frontend: Conflict Resolution UI
 
@@ -92,11 +95,53 @@
 - [ ] 12.5 Wire "Move to..." in `ExecutionRow` context menu: clicking opens `TradePickerModal` (single-select mode), on selection calls `useReassignExecution` with `{ target_trade_id }`, refreshes both source and target trade caches, shows success toast
 - [ ] 12.6 Wire "Detach as new Trade" in `ExecutionRow` context menu: clicking shows confirmation dialog, on confirm calls `useDetachExecution`, refreshes execution table, shows success toast with link to newly created trade
 
-## 13. Testing & Cleanup
+## 13. Backend Tests: New Execution & Merge Tests
 
-- [ ] 13.1 Write backend unit tests for `ExecutionService`: create, update, delete, re-aggregation correctness
-- [ ] 13.2 Write backend unit tests for execution API endpoints: list, create, update, delete, authorization
-- [ ] 13.3 Write backend unit tests for merge endpoint: happy path, validation failures, metadata preservation
-- [ ] 13.4 Update or replace any existing `PartialCloseModal` frontend tests with `AddExecutionModal` tests
-- [ ] 13.5 Run linting (`ruff check`, `ruff format`, `mypy --strict`) and fix any issues
-- [ ] 13.6 Run full backend test suite and fix any regressions
+- [ ] 13.1 Create `tests/test_execution_service.py` — unit tests for `ExecutionService`: `create_manual_execution` (happy path, validation), `update_execution` (price change triggers re-aggregation), `delete_execution` (re-aggregates parent, deletes empty trade), `reassign_execution` (happy path, symbol mismatch, account mismatch, source trade deleted when empty), `detach_execution` (happy path, cannot detach last execution)
+- [ ] 13.2 Create `tests/test_execution_api.py` — integration tests for execution endpoints: `GET /trades/{id}/executions` (list, empty, auth), `POST /trades/{id}/executions` (create manual, validation 422), `PATCH /executions/{id}` (update, auth), `DELETE /executions/{id}` (delete, last-execution cascade), `POST /executions/{id}/reassign` (happy path, validation), `POST /executions/{id}/detach` (happy path, single-execution rejection)
+- [ ] 13.3 Create `tests/test_merge_trades.py` — integration tests for `POST /api/v1/trades/merge`: happy path (2 trades, 3 trades), validation failures (different symbol, different account, <2 trades, >10 trades), metadata preservation (notes appended, tags from oldest, playbook from oldest), re-aggregation correctness of survivor
+
+## 14. Backend Tests: Consolidate Existing Tests
+
+- [ ] 14.1 Update `tests/test_trades_partial_close.py` → replace the 4 `PartialClose` tests with execution-based equivalents: "adding a SELL execution to an open LONG trade reduces position", "adding SELL for full qty closes the trade", "invalid execution (qty=0) returns 422". Rename file to `tests/test_trades_execution_close.py`
+- [ ] 14.2 Update `tests/test_aggregator.py` → replace `test_aggregate_partial_close` with execution-driven aggregation test: "re-aggregate from 2 BUY + 1 SELL execution computes correct VWAP entry, exit, PnL"
+- [ ] 14.3 Update `tests/test_trade_service.py` → fix tests that break due to `create_trade` now auto-creating a `LogicalExecution`. Verify that `create_trade` response includes the auto-created execution. Add assertion that the execution has `status=manual`
+- [ ] 14.4 Update `tests/test_trades_api.py` → add `has_conflict` field assertions to trade response tests. Add filter test: `GET /trades?has_conflict=true`
+- [ ] 14.5 Update `tests/test_trade_schemas.py` → add tests for new schemas: `LogicalExecutionRead`, `LogicalExecutionCreate`, `LogicalExecutionUpdate`, `MergeTradesRequest` validation
+
+## 15. Frontend Tests: Trade Detail E2E Consolidation
+
+The existing `Trade Detail` describe block in `trades.spec.ts` has only one test (TC-060: "page renders without 404") with zero assertions on actual content. This must be expanded to cover the new execution-driven layout and serve as a proper regression suite.
+
+- [ ] 15.1 Rewrite/expand the `Trade Detail` describe block in `trades.spec.ts` with the following tests:
+  - TC-060 (update): Trade detail page renders trade header (symbol, direction badge, asset class badge, P&L, status OPEN/CLOSED)
+  - TC-061: Execution Summary Card displays computed VWAP entry price, exit price, total quantity, total commission
+  - TC-062: Execution Legs Table renders correct number of execution rows with date, side badge, qty, price, status badge
+  - TC-063: Execution rows are sorted chronologically (oldest first)
+  - TC-064: "Add Execution" button is visible in the execution legs section header
+  - TC-065: Performance sidebar shows Gross P&L, Net P&L, Return %, Holding Period
+  - TC-066: Overflow menu (⋮) on header contains "Merge with...", "Correct Trade...", "Delete Trade"
+  - TC-067: Conflict banner is NOT shown for non-conflicting trades
+- [ ] 15.2 Add E2E tests for Add Execution Modal flow:
+  - TC-070: Clicking "+ Add Execution" opens the modal with BUY/SELL toggle, qty, price, date, commission fields
+  - TC-071: Submitting valid execution data closes modal, new execution row appears in the table, summary card values update
+  - TC-072: Submitting invalid data (qty=0) shows validation error, modal stays open
+- [ ] 15.3 Add E2E tests for inline sidebar editing:
+  - TC-075: Clicking SL value in Performance Card transforms it into an editable input, saving updates the value
+  - TC-076: Clicking playbook name in Playbook Card opens dropdown, selecting a playbook auto-saves
+  - TC-077: Clicking tags area in Playbook Card opens tag picker, toggling a tag auto-saves
+- [ ] 15.4 Add E2E tests for Merge workflow:
+  - TC-080: Selecting 2+ same-symbol trades in the list shows "Merge" button in toolbar
+  - TC-081: Clicking "Merge" opens preview modal showing source trades and combined result
+  - TC-082: Confirming merge navigates to the merged trade, trade list is refreshed
+- [ ] 15.5 Add E2E test for execution context menu actions:
+  - TC-085: Overflow menu (⋮) on execution row shows "Edit", "Move to...", "Detach as new Trade", "Delete"
+  - TC-086: "Detach as new Trade" removes execution from current trade and shows success toast with link
+- [ ] 15.6 Delete any existing `PartialCloseModal` and `TradeEditForm` test files or test blocks, verify no references remain in the test suite
+- [ ] 15.7 Update Trade List tests (TC-051) to include `Qty` and `Broker` column headers if the table structure changed
+
+## 16. Linting & Regression Check
+
+- [ ] 16.1 Run `ruff check` + `ruff format` + `mypy --strict` on all new and modified backend files, fix any issues
+- [ ] 16.2 Run full backend test suite (`pytest`), fix any regressions in existing tests caused by the execution-layer changes
+- [ ] 16.3 Run frontend type check (`tsc --noEmit`) and fix any TypeScript errors in new/modified components

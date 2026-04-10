@@ -90,14 +90,67 @@ The execution legs section SHALL display an "Add Execution" button that opens th
 - **THEN** an "+ Add Execution" button MUST be visible in the section header (top-right)
 - **AND** the button MUST use the primary accent style (`bg-[#6063dd] text-white`)
 
-### Requirement: Replace Flat Execution Details Grid
-The current flat "Execution Details" grid in `TradeDetailPage` SHALL be replaced by the new `ExecutionSummaryCard` + `ExecutionLegsTable` combination.
+### Requirement: Trade Detail Page Layout
+The Trade Detail page SHALL follow the section ordering and grid structure defined in the UI mockup (`specs/execution-legs-display/UI-MOCKUP.md`). The current flat "Execution Details" grid SHALL be replaced.
 
-#### Scenario: Layout change
-- **WHEN** the Trade Detail page is rendered
-- **THEN** the old 6-field grid (Entry Price, Exit Price, Quantity, Commission, Stop Loss, Take Profit) MUST be replaced
-- **AND** the `ExecutionSummaryCard` MUST appear in its place
-- **AND** the `ExecutionLegsTable` MUST appear directly below the summary card
+#### Scenario: Desktop layout (lg breakpoint, ≥1024px)
+- **WHEN** the Trade Detail page is rendered on a desktop viewport
+- **THEN** the page MUST use a 3-column grid (`grid-cols-3`) with left column spanning 2 columns and right column spanning 1
+- **AND** the left column MUST contain, in order: Media & Charts, Execution Summary Card, Execution Legs Table, Journal & Notes
+- **AND** the right column MUST contain, in order: Performance, Playbook & Psychology
+
+#### Scenario: Section ordering (left column)
+- **WHEN** the left column renders
+- **THEN** sections MUST appear in this exact order:
+  1. `MediaChartsCard` (chart with per-execution markers)
+  2. `ExecutionSummaryCard` (computed VWAP values)
+  3. `ExecutionLegsTable` (per-execution rows with context menu)
+  4. Journal & Notes (`NoteList` + general note)
+
+#### Scenario: Header card with overflow menu
+- **WHEN** the header card renders
+- **THEN** it MUST show: symbol, direction badge, asset class badge, P&L, open/closed status
+- **AND** it MUST include an overflow menu (⋮) with options: "Edit Trade", "Merge with...", separator, "Delete Trade"
+- **AND** the "Partial Close" button MUST NOT appear (replaced by "+ Add Execution" in the legs table)
+
+#### Scenario: Conflict banner placement
+- **WHEN** `trade.has_conflict === true`
+- **THEN** a `ConflictBanner` MUST appear between the header card and the grid layout (full width, above the columns)
+
+#### Scenario: Mobile layout (below lg breakpoint)
+- **WHEN** the viewport is below 1024px
+- **THEN** all sections MUST stack in a single column in this order: Header, Conflict Banner, Media & Charts, Performance, Execution Summary, Playbook & Psychology, Execution Legs Table, Journal & Notes
+
+### Requirement: All Editing is Inline — No Page-Replacing Edit Form
+The Trade Detail page SHALL NOT have a separate edit mode that replaces the entire page. All editing SHALL be inline within the existing cards and sections. The existing `TradeEditForm` component SHALL be removed.
+
+#### Scenario: No edit mode toggle
+- **WHEN** the Trade Detail page renders
+- **THEN** there MUST NOT be an `{isEditing ? <Form/> : <View/>}` pattern
+- **AND** the page MUST always show the normal view with all sections visible
+
+#### Scenario: Execution CRUD inline
+- **WHEN** a user is on the Trade Detail page
+- **THEN** the user MUST be able to: add an execution via "+ Add Execution" button, edit an execution inline by clicking its row, delete an execution via the row overflow menu (⋮), move an execution to another trade via "Move to..." in the row menu, detach an execution as a new trade via "Detach as new Trade" in the row menu
+
+#### Scenario: SL/TP inline in Performance Card
+- **WHEN** a user clicks on the Stop Loss or Take Profit value in the Performance Card
+- **THEN** the value MUST transform into an editable input with Save/Cancel buttons
+- **AND** saving MUST call `PATCH /api/v1/trades/{id}` and refresh dependent metrics
+
+#### Scenario: Playbook/Tags inline in Playbook Card
+- **WHEN** a user clicks on the playbook name or tags area in the Playbook & Psychology Card
+- **THEN** a dropdown (playbook) or tag picker (tags) MUST appear
+- **AND** selections MUST auto-save via `PATCH /api/v1/trades/{id}`
+
+#### Scenario: Correct Trade for rare identity fixes
+- **WHEN** a user clicks "Correct Trade..." in the header overflow menu (⋮)
+- **THEN** a small modal MUST open with editable Symbol and Asset Class fields
+- **AND** Direction and Currency MUST be read-only in that modal
+
+#### Scenario: Merge accessible from normal view
+- **WHEN** a user is on the Trade Detail page
+- **THEN** "Merge with..." MUST be accessible via the header overflow menu (⋮)
 
 ### Requirement: Chart Execution Markers
 The `TradeChart` component SHALL render individual execution markers for each `LogicalExecution` instead of the current single ENTRY/EXIT pair. When multiple executions fall on the same candle, they SHALL be aggregated into a single marker with a combined label.
