@@ -10,6 +10,7 @@ The `isolated-raw-layer-architecture` change introduced a two-layer data model (
 - **Trade Merge workflow** — merge 2+ trades (same symbol/account) into one by reassigning their executions. Entry from both the trade list (bulk select) and trade detail page (picker). Preview modal shows the combined result before confirming.
 - **Conflict resolution workflow** — amber conflict banner on Trade Detail when `has_conflict` is true, warning badge on trade rows, and a system-level "Needs Review" saved filter.
 - **Edit Form scope reduction** — computed fields (quantity, entry price, exit price, PnL, commission) become read-only in the Trade Edit Form. Only metadata fields remain editable: stop loss, take profit, tags, playbook, notes, TradingView link.
+- **Chart execution markers** — the `TradeChart` candlestick chart renders individual entry/exit markers per `LogicalExecution` instead of the current single ENTRY/EXIT pair. Multiple executions on the same candle are aggregated into one arrow marker with a combined quantity/price label (e.g., `"+25+10 @ $373/$375"`).
 - **Delete `PartialCloseModal`** — all its functionality is absorbed by the new Add Execution Modal.
 
 ## Capabilities
@@ -18,7 +19,7 @@ The `isolated-raw-layer-architecture` change introduced a two-layer data model (
 - `execution-legs-display`: Trade Detail page components for displaying the computed execution summary and the collapsible execution legs table with status badges and inline edit.
 - `execution-crud-api`: Backend API endpoints (`GET/POST /trades/{id}/executions`, `PATCH/DELETE /executions/{id}`) with Pydantic schemas, re-aggregation trigger, and frontend hooks/types.
 - `add-execution-modal`: Modal dialog for creating manual execution legs (BUY/SELL toggle, qty, price, date, commission) — replaces `PartialCloseModal`.
-- `trade-merge`: Merge workflow including backend merge endpoint (`POST /trades/merge`), bulk-select merge from trade list, "Merge with..." from detail page, and preview modal.
+- `trade-merge`: Full execution routing: (A) Merge whole trades via `POST /trades/merge` (bulk-select + detail page picker + preview modal), (B) Reassign individual executions to another trade via `POST /executions/{id}/reassign` ("Move to..." in context menu), (C) Detach an execution into a new trade via `POST /executions/{id}/detach` ("Detach as new Trade" in context menu).
 - `conflict-resolution-ui`: Conflict banner on detail page, warning badge on trade rows, "Needs Review" system filter, and backend filter support for `has_conflict`.
 - `edit-form-execution-driven`: Refactored Trade Edit Form with computed fields rendered read-only and metadata-only editing scope.
 

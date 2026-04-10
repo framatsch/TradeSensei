@@ -88,3 +88,61 @@ The backend SHALL provide a `MergeTradesRequest` Pydantic schema in the trade sc
 #### Scenario: Schema validation
 - **WHEN** a `MergeTradesRequest` is submitted
 - **THEN** `trade_ids` MUST be a list of UUIDs with `min_length=2` and `max_length=10`
+
+### Requirement: Reassign Execution to Another Trade
+The system SHALL allow a user to move a single `LogicalExecution` from its current trade to a different existing trade via `POST /api/v1/executions/{execution_id}/reassign`.
+
+#### Scenario: Successful reassign
+- **WHEN** a user submits `{"target_trade_id": "uuid"}` to `POST /api/v1/executions/{execution_id}/reassign`
+- **THEN** the system MUST update the execution's `trade_id` to the target trade
+- **AND** the system MUST re-aggregate both the source trade (fewer executions) and the target trade (more executions)
+- **AND** if the source trade has zero remaining executions, it MUST be deleted
+- **AND** the response MUST return the updated `LogicalExecutionRead` and both affected `TradeRead` objects (source and target, or only target if source was deleted)
+
+#### Scenario: Reassign validation — same symbol required
+- **WHEN** a user tries to reassign an execution to a trade with a different symbol
+- **THEN** the system MUST return HTTP 422 with error "Execution symbol must match target trade symbol"
+
+#### Scenario: Reassign validation — same account required
+- **WHEN** a user tries to reassign an execution to a trade in a different account
+- **THEN** the system MUST return HTTP 422 with error "Execution and target trade must belong to the same account"
+
+#### Scenario: Authorization check
+- **WHEN** a user tries to reassign an execution they do not own, or to a trade they do not own
+- **THEN** the system MUST return HTTP 404
+
+### Requirement: Detach Execution as New Trade
+The system SHALL allow a user to detach a single `LogicalExecution` from its current trade and create a new trade containing only that execution via `POST /api/v1/executions/{execution_id}/detach`.
+
+#### Scenario: Successful detach
+- **WHEN** a user submits `POST /api/v1/executions/{execution_id}/detach`
+- **THEN** the system MUST create a new `Trade` record
+- **AND** the system MUST reassign the execution's `trade_id` to the new trade
+- **AND** the system MUST re-aggregate the source trade (fewer executions) and the new trade
+- **AND** if the source trade has zero remaining executions, it MUST be deleted
+- **AND** the response MUST return the new `TradeRead` and optionally the updated source `TradeRead`
+
+#### Scenario: Detach from a single-execution trade
+- **WHEN** a user tries to detach the only execution from a trade
+- **THEN** the system MUST return HTTP 422 with error "Cannot detach the only execution from a trade — use delete instead"
+
+### Requirement: Execution Row Context Menu — Routing Actions
+The execution row context menu (⋮) SHALL include "Move to..." and "Detach as new Trade" options in addition to "Edit" and "Delete".
+
+#### Scenario: Context menu options
+- **WHEN** a user clicks the overflow menu (⋮) on an execution row
+- **THEN** the menu MUST show: "Edit", "Move to...", "Detach as new Trade", "Delete"
+
+#### Scenario: "Move to..." opens trade picker
+- **WHEN** a user clicks "Move to..." in the context menu
+- **THEN** a `TradePickerModal` MUST open filtered to the same symbol and account
+- **AND** the user MUST select a target trade
+- **AND** on selection, the system MUST call `POST /api/v1/executions/{id}/reassign` with the target trade ID
+- **AND** both the current trade detail and the execution legs table MUST refresh
+
+#### Scenario: "Detach as new Trade" confirmation
+- **WHEN** a user clicks "Detach as new Trade" in the context menu
+- **THEN** a confirmation dialog MUST appear: "This will remove this execution from the current trade and create a new trade. Continue?"
+- **AND** on confirmation, the system MUST call `POST /api/v1/executions/{id}/detach`
+- **AND** the execution legs table MUST refresh (execution disappears from current trade)
+- **AND** a success toast MUST show with a link to the newly created trade
