@@ -1,7 +1,7 @@
 ---
 description: Collects completed code changes and maintains CHANGELOG.md following Keep a Changelog format, triggered after a feature or fix is merged
 mode: subagent
-model: github-copilot/gemini-3-flash-preview
+# model: github-copilot/gemini-3-flash-preview
 temperature: 0.2
 tools:
   write: true

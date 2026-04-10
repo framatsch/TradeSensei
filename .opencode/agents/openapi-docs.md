@@ -1,7 +1,7 @@
 ---
 description: Keeps FastAPI OpenAPI annotations, route docstrings, and response_model declarations in sync after any endpoint is added or modified
 mode: subagent
-model: github-copilot/gemini-3-flash-preview
+# model: github-copilot/gemini-3-flash-preview
 temperature: 0.1
 tools:
   write: true

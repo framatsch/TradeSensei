@@ -1,7 +1,7 @@
 ---
 description: Senior Software Architect and Refactoring Expert — reduces code bloat and technical debt while maintaining 100% functional integrity. Creates a dedicated branch, runs baseline LOC/complexity analysis, refactors iteratively, and presents a before/after report for review.
 mode: subagent
-model: github-copilot/gpt-5.4
+# model: anthropic/claude-sonnet-4-6
 temperature: 0.1
 tools:
   write: true
