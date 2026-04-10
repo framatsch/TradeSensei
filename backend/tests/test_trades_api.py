@@ -242,9 +242,6 @@ class TestHasConflictFilter:
         self, client: AsyncClient
     ) -> None:
         """GET /trades?has_conflict=true should return only trades with has_conflict=true."""
-        from app.models.trade import AssetClass, Direction, Trade
-        from app.schemas.trade import TradeCreate, TradeUpdate
-        from decimal import Decimal
 
         headers = await _get_auth_headers(client, "hasconflict")
 
@@ -275,8 +272,11 @@ class TestHasConflictFilter:
             "/api/v1/trades?has_conflict=true", headers=headers
         )
         assert filter_resp.status_code == 200
+        print(f"DEBUG: conflict_trade_id={conflict_trade_id}")
+        print(f"DEBUG: filter_resp={filter_resp.json()}")
         items = filter_resp.json()["data"]["items"]
         returned_ids = {item["id"] for item in items}
+        print(f"DEBUG: returned_ids={returned_ids}")
 
         assert conflict_trade_id in returned_ids
         assert normal_trade_id not in returned_ids

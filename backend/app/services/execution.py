@@ -3,9 +3,13 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import (
+    ExecutionNotFoundError,
+    ExecutionValidationError,
+    TradeNotFoundError,
+)
 from app.models.logical_execution import ExecutionStatus, LogicalExecution
 from app.repositories.execution import ExecutionRepository
 from app.repositories.trade_repository import TradeRepository
@@ -41,13 +45,11 @@ class ExecutionService:
             A sequence of logical executions.
 
         Raises:
-            HTTPException 404: If the trade is not found or user lacks access.
+            TradeNotFoundError: If the trade is not found or user lacks access.
         """
         trade = await self.trade_repo.get_by_id(trade_id)
         if not trade or trade.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found."
-            )
+            raise TradeNotFoundError("Trade not found.")
 
         return await self.execution_repo.list_by_trade_id(trade_id)
 
@@ -65,13 +67,11 @@ class ExecutionService:
             The created logical execution.
 
         Raises:
-            HTTPException 404: If the trade is not found.
+            TradeNotFoundError: If the trade is not found.
         """
         trade = await self.trade_repo.get_by_id(trade_id)
         if not trade or trade.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found."
-            )
+            raise TradeNotFoundError("Trade not found.")
 
         # Create with status=manual and copy instrument props from trade
         execution = await self.execution_repo.create(
@@ -104,13 +104,11 @@ class ExecutionService:
             The updated logical execution.
 
         Raises:
-            HTTPException 404: If execution is not found or not owned by user.
+            ExecutionNotFoundError: If execution is not found or not owned by user.
         """
         execution = await self.execution_repo.get_by_id(execution_id)
         if not execution or execution.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found."
-            )
+            raise ExecutionNotFoundError("Execution not found.")
 
         execution = await self.execution_repo.update(
             execution, **data.model_dump(exclude_unset=True)
@@ -131,13 +129,11 @@ class ExecutionService:
             user_id: User ownership check.
 
         Raises:
-            HTTPException 404: If execution is not found or not owned by user.
+            ExecutionNotFoundError: If execution is not found or not owned by user.
         """
         execution = await self.execution_repo.get_by_id(execution_id)
         if not execution or execution.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found."
-            )
+            raise ExecutionNotFoundError("Execution not found.")
 
         trade_id = execution.trade_id
         await self.execution_repo.delete(execution_id)
@@ -167,28 +163,25 @@ class ExecutionService:
             The updated logical execution.
 
         Raises:
-            HTTPException: If execution/trade is not found, or mismatch in
+            ExecutionNotFoundError: If execution is not found or not owned by user.
+            TradeNotFoundError: If target trade is not found or not owned by user.
+            ExecutionValidationError: If symbol/account constraints do not match.
                 symbol/account.
         """
         execution = await self.execution_repo.get_by_id(execution_id)
         if not execution or execution.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found."
-            )
+            raise ExecutionNotFoundError("Execution not found.")
 
         target_trade = await self.trade_repo.get_by_id(target_trade_id)
         if not target_trade or target_trade.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Target trade not found."
-            )
+            raise TradeNotFoundError("Target trade not found.")
 
         if (
             execution.symbol != target_trade.symbol
             or execution.account_id != target_trade.account_id
         ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot reassign: symbol or account mismatch.",
+            raise ExecutionValidationError(
+                "Cannot reassign: symbol or account mismatch."
             )
 
         source_trade_id = execution.trade_id
@@ -226,31 +219,26 @@ class ExecutionService:
             The newly created Trade.
 
         Raises:
-            HTTPException: If execution is not found or is the only execution
+            ExecutionNotFoundError: If execution is not found or not owned by user.
+            ExecutionValidationError: If execution cannot be detached.
                 in the trade.
         """
         from app.schemas.trade import TradeCreate
 
         execution = await self.execution_repo.get_by_id(execution_id)
         if not execution or execution.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found."
-            )
+            raise ExecutionNotFoundError("Execution not found.")
 
         source_trade_id = execution.trade_id
         if not source_trade_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Execution is not attached to a trade.",
-            )
+            raise ExecutionValidationError("Execution is not attached to a trade.")
 
         remaining_executions = await self.execution_repo.list_by_trade_id(
             source_trade_id
         )
         if len(remaining_executions) <= 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot detach the only execution in a trade.",
+            raise ExecutionValidationError(
+                "Cannot detach the only execution in a trade."
             )
 
         # Create a new trade for the execution
@@ -279,7 +267,10 @@ class ExecutionService:
         return new_trade
 
     async def _re_aggregate_trade(
-        self, trade_id: uuid.UUID, user_id: uuid.UUID
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        skip_conflict_auto_clear: bool = False,
     ) -> None:
         """Re-aggregate a trade's values from its logical executions using VWAP logic.
 
@@ -362,27 +353,36 @@ class ExecutionService:
             trade.closed_at = None
 
         # PnL: prefer sum of broker-reported pnl, else compute from prices
+        # Round to 10 decimal places to avoid accumulating precision drift from
+        # repeating-decimal VWAP prices (e.g. 23000/150 = 153.333...).
+        _PRECISION = Decimal("0.0000000001")
         if exit_qty > 0 and trade.exit_price is not None:
             if has_broker_pnl and total_pnl is not None:
-                trade.pnl = total_pnl
+                trade.pnl = total_pnl.quantize(_PRECISION).normalize()
             else:
                 multiplier = Decimal(trade.multiplier)
                 if is_long:
-                    trade.pnl = (
+                    raw_pnl = (
                         (trade.exit_price - trade.entry_price) * exit_qty * multiplier
                     )
                 else:
-                    trade.pnl = (
+                    raw_pnl = (
                         (trade.entry_price - trade.exit_price) * exit_qty * multiplier
                     )
-            trade.net_pnl = trade.pnl - total_commission
+                trade.pnl = raw_pnl.quantize(_PRECISION).normalize()
+            trade.net_pnl = (
+                (trade.pnl - total_commission).quantize(_PRECISION).normalize()
+            )
         else:
             trade.pnl = None
             trade.net_pnl = None
 
         # Clear conflict flag when position totals are consistent
         # (exit qty does not exceed entry qty)
-        if exit_qty <= entry_qty:
+        if exit_qty <= entry_qty and not skip_conflict_auto_clear:
+            # Only auto-clear if it wasn't explicitly set to True
+            # For now, we trust the re-aggregation to be the source of truth
+            # unless we implement a "manual override" flag for conflict.
             trade.has_conflict = False
 
         trade.updated_at = datetime.now(UTC)

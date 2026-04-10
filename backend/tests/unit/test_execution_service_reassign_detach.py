@@ -1,10 +1,8 @@
-import pytest
-import uuid
 from unittest.mock import AsyncMock
-from fastapi import HTTPException
+
+import pytest
+
 from app.services.execution import ExecutionService
-from app.models.logical_execution import LogicalExecution
-from app.models.trade import Trade
 
 
 @pytest.fixture

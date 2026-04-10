@@ -1,12 +1,14 @@
-import pytest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
+import pytest
+
+from app.models.logical_execution import ExecutionStatus, LogicalExecution
 from app.models.trade import Direction, Trade
-from app.models.logical_execution import LogicalExecution, ExecutionStatus
 from app.services.execution import ExecutionService
+
 
 @pytest.mark.asyncio
 async def test_re_aggregate_trade_vwap_logic():
@@ -40,7 +42,7 @@ async def test_re_aggregate_trade_vwap_logic():
         quantity=Decimal("100"),
         price=Decimal("150.00"),
         commission=Decimal("1.00"),
-        executed_at=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc),
+        executed_at=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
         status=ExecutionStatus.MANUAL
     )
     exec2 = LogicalExecution(
@@ -50,7 +52,7 @@ async def test_re_aggregate_trade_vwap_logic():
         quantity=Decimal("50"),
         price=Decimal("160.00"),
         commission=Decimal("0.50"),
-        executed_at=datetime(2024, 1, 1, 11, 0, tzinfo=timezone.utc),
+        executed_at=datetime(2024, 1, 1, 11, 0, tzinfo=UTC),
         status=ExecutionStatus.MANUAL
     )
     exec3 = LogicalExecution(
@@ -60,7 +62,7 @@ async def test_re_aggregate_trade_vwap_logic():
         quantity=Decimal("75"),
         price=Decimal("170.00"),
         commission=Decimal("1.50"),
-        executed_at=datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
+        executed_at=datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
         status=ExecutionStatus.MANUAL
     )
     
@@ -122,7 +124,7 @@ async def test_re_aggregate_trade_full_close():
         quantity=Decimal("1"),
         price=Decimal("5.00"),
         commission=Decimal("0.50"),
-        executed_at=datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        executed_at=datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
     )
     exec2 = LogicalExecution(
         id=uuid.uuid4(),
@@ -131,7 +133,7 @@ async def test_re_aggregate_trade_full_close():
         quantity=Decimal("1"),
         price=Decimal("4.00"),
         commission=Decimal("0.50"),
-        executed_at=datetime(2024, 1, 1, 11, 0, tzinfo=timezone.utc)
+        executed_at=datetime(2024, 1, 1, 11, 0, tzinfo=UTC)
     )
     
     service.execution_repo.list_by_trade_id = AsyncMock(return_value=[exec1, exec2])

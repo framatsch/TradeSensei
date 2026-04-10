@@ -3,11 +3,14 @@
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import HTTPException
 
+from app.core.exceptions import (
+    ExecutionValidationError,
+    TradeNotFoundError,
+)
 from app.models.logical_execution import ExecutionStatus, LogicalExecution
 from app.models.trade import AssetClass, Direction, Trade
 from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionUpdate
@@ -125,9 +128,8 @@ class TestExecutionService:
             executed_at=datetime.now(UTC),
         )
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(TradeNotFoundError):
             await service.create_manual_execution(uuid.uuid4(), uuid.uuid4(), data)
-        assert exc.value.status_code == 404
 
     async def test_update_execution_success(
         self, service: ExecutionService, mock_session: AsyncMock
@@ -233,9 +235,8 @@ class TestExecutionService:
         service.execution_repo.get_by_id.return_value = ex
         service.trade_repo.get_by_id.return_value = target_trade
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(ExecutionValidationError):
             await service.reassign_execution(ex.id, target_trade.id, user_id)
-        assert exc.value.status_code == 400
 
     async def test_detach_execution_success(
         self, service: ExecutionService, mock_session: AsyncMock
@@ -271,6 +272,5 @@ class TestExecutionService:
         # Mock exactly 1 execution
         service.execution_repo.list_by_trade_id.return_value = [ex]
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(ExecutionValidationError):
             await service.detach_execution(ex.id, user_id)
-        assert exc.value.status_code == 400

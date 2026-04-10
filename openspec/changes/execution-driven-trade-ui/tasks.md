@@ -265,6 +265,6 @@ await page.waitForLoadState('networkidle');
 
 ## 16. Linting & Regression Check
 
-- [ ] 16.1 Run `ruff check` + `ruff format` + `mypy --strict` on all new and modified backend files, fix any issues
-- [ ] 16.2 Run full backend test suite (`pytest`), fix any regressions in existing tests caused by the execution-layer changes
-- [ ] 16.3 Run frontend type check (`tsc --noEmit`) and fix any TypeScript errors in new/modified components
+- [x] 16.1 Run `ruff check` + `ruff format` + `mypy --strict` on all new and modified backend files, fix any issues
+- [x] 16.2 Run full backend test suite (`pytest`), fix any regressions in existing tests caused by the execution-layer changes
+- [x] 16.3 Run frontend type check (`tsc --noEmit`) and fix any TypeScript errors in new/modified components

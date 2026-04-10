@@ -26,7 +26,7 @@ function toISOString(localDatetime: string): string {
 }
 
 export function AddExecutionModal({ tradeId, onClose }: Props) {
-  const [direction, setDirection] = useState<Direction>("BUY");
+  const [direction, setDirection] = useState<Direction>("LONG");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [executedAt, setExecutedAt] = useState(toLocalDatetimeValue(new Date().toISOString()));
@@ -105,18 +105,21 @@ export function AddExecutionModal({ tradeId, onClose }: Props) {
           <div>
             <label className={labelCls}>Side</label>
             <div className="flex rounded-lg border border-border overflow-hidden bg-[#e9e9e9] dark:bg-secondary p-0.5 gap-0.5">
-              {(["BUY", "SELL"] as Direction[]).map((d) => (
+              {[
+                { label: "BUY", value: "LONG" as Direction },
+                { label: "SELL", value: "SHORT" as Direction },
+              ].map((side) => (
                 <button
-                  key={d}
+                  key={side.value}
                   type="button"
-                  onClick={() => setDirection(d)}
+                  onClick={() => setDirection(side.value)}
                   className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
-                    direction === d
+                    direction === side.value
                       ? "bg-[#6063dd] text-white"
                       : "text-[#717174] hover:text-foreground"
                   }`}
                 >
-                  {d}
+                  {side.label}
                 </button>
               ))}
             </div>

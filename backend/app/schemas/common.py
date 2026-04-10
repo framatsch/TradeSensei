@@ -1,13 +1,13 @@
 """Common Pydantic schemas: response envelopes and pagination types."""
 
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
 
-class ResponseEnvelope(BaseModel, Generic[T]):
+class ResponseEnvelope[T](BaseModel):
     """Uniform response wrapper for all non-paginated API responses.
 
     Attributes:
@@ -32,7 +32,7 @@ class ResponseEnvelope(BaseModel, Generic[T]):
     )
 
 
-class CursorPage(BaseModel, Generic[T]):
+class CursorPage[T](BaseModel):
     """Paginated response using opaque cursor tokens.
 
     Attributes:
@@ -66,7 +66,7 @@ class CursorPage(BaseModel, Generic[T]):
     )
 
 
-class OffsetPage(BaseModel, Generic[T]):
+class OffsetPage[T](BaseModel):
     """Paginated response using limit/offset.
 
     Attributes:

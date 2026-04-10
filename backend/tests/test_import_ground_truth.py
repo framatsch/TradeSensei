@@ -31,12 +31,29 @@ _IMPORT_URL = "/api/v1/imports/upload"
 def _historical_xml_paths() -> list[Path]:
     """Return all historical TraderJournal XML files in import order."""
     base = Path(__file__).resolve().parents[1]
-    return [
+    legacy_split_files = [
         base / "TraderJournal_2023.xml",
         base / "TraderJournal_2024.xml",
         base / "TraderJournal_2025.xml",
         base / "TraderJournal_Q1_2026.xml",
     ]
+    if all(path.exists() for path in legacy_split_files):
+        return legacy_split_files
+
+    repo_root = base.parent
+    fixture_candidates = [
+        base / "tests" / "test_data" / "ibkr" / "TraderJournal_anonymized_combined.xml",
+        repo_root
+        / "tests"
+        / "test_data"
+        / "ibkr"
+        / "TraderJournal_anonymized_combined.xml",
+    ]
+    for candidate in fixture_candidates:
+        if candidate.exists():
+            return [candidate]
+
+    return [fixture_candidates[0]]
 
 
 async def _register_and_login(client: AsyncClient) -> tuple[str, uuid.UUID]:

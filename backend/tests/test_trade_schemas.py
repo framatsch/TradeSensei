@@ -7,14 +7,14 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.models.trade import AssetClass, Direction
 from app.models.logical_execution import ExecutionStatus
-from app.schemas.trade import TradeCreate, TradeRead, TradeUpdate, MergeTradesRequest
+from app.models.trade import AssetClass, Direction
 from app.schemas.execution import (
     LogicalExecutionCreate,
     LogicalExecutionRead,
     LogicalExecutionUpdate,
 )
+from app.schemas.trade import MergeTradesRequest, TradeCreate, TradeRead, TradeUpdate
 
 
 class TestTradeCreate:

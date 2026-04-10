@@ -353,6 +353,13 @@ async def list_trades(
             )
         ),
     ] = None,
+    has_conflict: Annotated[
+        bool | None,
+        Query(
+            description="Filter trades by conflict status (True = has conflict)",
+            alias="has_conflict",
+        ),
+    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 
@@ -379,6 +386,8 @@ async def list_trades(
     # so tag_ids is declared separately and merged here.
     if tag_ids is not None:
         filters.tag_ids = tag_ids
+    if has_conflict is not None:
+        filters.has_conflict = has_conflict
     try:
         page = await service.list_trades(
             limit=limit,
@@ -597,5 +606,13 @@ async def merge_trades(
 ) -> ResponseEnvelope[TradeRead]:
     """Merge multiple trades into one."""
     service = TradeService(session)
-    survivor = await service.merge_trades(payload.trade_ids, current_user.id)
-    return ResponseEnvelope[TradeRead](data=survivor)
+    try:
+        survivor = await service.merge_trades(payload.trade_ids, current_user.id)
+        return ResponseEnvelope[TradeRead](data=survivor)
+    except TradeNotFoundError:
+        _raise_not_found()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc

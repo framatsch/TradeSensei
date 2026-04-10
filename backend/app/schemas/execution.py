@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.logical_execution import ExecutionStatus
 from app.models.trade import AssetClass, Direction
@@ -19,10 +19,21 @@ class LogicalExecutionBase(BaseModel):
     commission: Decimal = Field(
         default=Decimal("0.0"), description="Commission for this execution leg"
     )
-    executed_at: datetime = Field(description="Timestamp of the execution (UTC)")
+    executed_at: datetime = Field(
+        description="Timestamp of the execution (UTC)",
+        json_schema_extra={"format": "date-time-tz"},
+    )
     pnl: Decimal | None = Field(
         default=None, description="Broker-reported realised P&L (None for opening legs)"
     )
+
+    @field_validator("executed_at", mode="after")
+    @classmethod
+    def require_timezone(cls, value: datetime) -> datetime:
+        """Reject naive datetimes."""
+        if value.tzinfo is None:
+            raise ValueError("executed_at must be timezone-aware (include UTC offset).")
+        return value
 
 
 class LogicalExecutionCreate(LogicalExecutionBase):

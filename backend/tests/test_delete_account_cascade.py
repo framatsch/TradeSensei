@@ -1,12 +1,13 @@
-import pytest
 import uuid
-from httpx import AsyncClient
+from datetime import UTC, datetime
 from decimal import Decimal
-from datetime import datetime, timezone
+
+import pytest
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.account import Account, AccountType
-from app.models.trade import Trade, Direction, AssetClass
+from app.models.trade import AssetClass, Direction, Trade
+
 
 async def _register_and_get_token(client: AsyncClient, email: str) -> str:
     res1 = await client.post(
@@ -47,7 +48,7 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
         quantity=Decimal("100"),
         entry_price=Decimal("150"),
         commission=Decimal("0"),
-        opened_at=datetime.now(timezone.utc)
+        opened_at=datetime.now(UTC)
     )
     db_session.add(trade)
     await db_session.flush()
@@ -56,7 +57,7 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
     from app.models.logical_execution import LogicalExecution
     
     raw = BrokerRawTransaction(
-        id=f"user:123",
+        id="user:123",
         user_id=uuid.UUID(user_id),
         account_id=uuid.UUID(account_id),
         broker_type="ibkr",
@@ -65,7 +66,7 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
         quantity=Decimal("100"),
         price=Decimal("150"),
         commission=Decimal("0"),
-        executed_at=datetime.now(timezone.utc),
+        executed_at=datetime.now(UTC),
         asset_class=AssetClass.EQUITY,
         raw_data={"foo": "bar"}
     )
@@ -81,7 +82,7 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
         direction=Direction.LONG,
         quantity=Decimal("100"),
         price=Decimal("150"),
-        executed_at=datetime.now(timezone.utc),
+        executed_at=datetime.now(UTC),
         asset_class=AssetClass.EQUITY
     )
     # Add mapping!

@@ -19,6 +19,7 @@ import { CorrectTradeModal } from "@/components/trades/CorrectTradeModal";
 import { ConflictBanner } from "@/components/trades/ConflictBanner";
 import { TradePickerModal } from "@/components/trades/TradePickerModal";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
+import type { Tag } from "@/lib/types";
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -216,7 +217,7 @@ function InlinePlaybookField({ playbookId, playbookName, onSave }: InlinePlayboo
 
 interface InlineTagsFieldProps {
   tagIds: string[];
-  tags: Array<{ id: string; name: string; color: string | null }>;
+  tags: Tag[];
   onSave: (tagIds: string[]) => void;
 }
 

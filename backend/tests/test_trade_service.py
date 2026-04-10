@@ -15,6 +15,8 @@ from app.services.trade_service import TradeService
 
 def _make_trade(
     id: uuid.UUID | None = None,
+    user_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None,
     symbol: str = "AAPL",
     direction: Direction = Direction.LONG,
     asset_class: AssetClass = AssetClass.EQUITY,
@@ -28,6 +30,7 @@ def _make_trade(
     pnl: Decimal | None = None,
     commission: Decimal = Decimal("0"),
     multiplier: int = 1,
+    currency: str | None = None,
     notes: str | None = None,
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
@@ -39,6 +42,8 @@ def _make_trade(
 
     Args:
         id: UUID primary key. Defaults to a new random UUID.
+        user_id: User ID. Defaults to a new random UUID.
+        account_id: Account ID. Defaults to None.
         symbol: Ticker symbol. Defaults to ``"AAPL"``.
         direction: Trade direction. Defaults to ``Direction.LONG``.
         asset_class: Asset class. Defaults to ``AssetClass.EQUITY``.
@@ -65,6 +70,8 @@ def _make_trade(
     # SQLCoreOperations at the class level but they behave as plain values
     # on instances.  The assignments are correct at runtime.
     trade.id = id if id is not None else uuid.uuid4()  # type: ignore[assignment]
+    trade.user_id = user_id if user_id is not None else uuid.uuid4()  # type: ignore[assignment]
+    trade.account_id = account_id  # type: ignore[assignment]
     trade.symbol = symbol  # type: ignore[assignment]
     trade.direction = direction  # type: ignore[assignment]
     trade.asset_class = asset_class  # type: ignore[assignment]
@@ -78,6 +85,7 @@ def _make_trade(
     trade.pnl = pnl  # type: ignore[assignment]
     trade.commission = commission  # type: ignore[assignment]
     trade.multiplier = multiplier  # type: ignore[assignment]
+    trade.currency = currency  # type: ignore[assignment]
     trade.notes = notes  # type: ignore[assignment]
     trade.created_at = created_at if created_at is not None else now  # type: ignore[assignment]
     trade.updated_at = updated_at if updated_at is not None else now  # type: ignore[assignment]
@@ -172,9 +180,6 @@ class TestCreateTrade:
             multiplier=1,
             currency="USD",
         )
-        # Mocking user_id manually as _make_trade doesn't take it and it's not a Mapped attribute in the helper
-        trade.user_id = uuid.uuid4()  # type: ignore
-        trade.account_id = uuid.uuid4()  # type: ignore
 
         with (
             patch(

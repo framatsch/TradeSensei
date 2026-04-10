@@ -11,12 +11,11 @@ Covers:
 - Corporate action for a symbol with no open lots (graceful no-op)
 """
 
-import pytest
-import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import pytest
 
 from app.models.trade import AssetClass, Direction
 from app.schemas.trade import TradeCreate

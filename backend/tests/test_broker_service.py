@@ -277,6 +277,7 @@ class TestImportOrders:
         mock_execute_result.__iter__ = MagicMock(return_value=iter([]))
         mock_session.execute = AsyncMock(return_value=mock_execute_result)
         mock_session.flush = AsyncMock()
+        mock_session.add = MagicMock()
 
         svc = BrokerService(mock_session)
 
@@ -312,6 +313,7 @@ class TestImportOrders:
         )
         mock_session.execute = AsyncMock(return_value=mock_execute_result)
         mock_session.flush = AsyncMock()
+        mock_session.add = MagicMock()
 
         svc = BrokerService(mock_session)
         trade_1 = _make_trade_create("ord-already-exists")
@@ -341,6 +343,7 @@ class TestImportOrders:
         mock_execute_result.__iter__ = MagicMock(return_value=iter([]))
         mock_session.execute = AsyncMock(return_value=mock_execute_result)
         mock_session.flush = AsyncMock()
+        mock_session.add = MagicMock()
 
         svc = BrokerService(mock_session)
 
@@ -369,6 +372,7 @@ class TestImportOrders:
         mock_execute_result.__iter__ = MagicMock(return_value=iter([]))
         mock_session.execute = AsyncMock(return_value=mock_execute_result)
         mock_session.flush = AsyncMock()
+        mock_session.add = MagicMock()
 
         svc = BrokerService(mock_session)
 

@@ -4,14 +4,10 @@ Runs against a real PostgreSQL instance via the test client and session fixtures
 """
 
 import uuid
-from decimal import Decimal
 from datetime import UTC, datetime
+from decimal import Decimal
 
-import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.trade import AssetClass, Direction
 
 _REGISTER_URL = "/api/v1/auth/register"
 _LOGIN_URL = "/api/v1/auth/login"

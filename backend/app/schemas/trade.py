@@ -776,6 +776,14 @@ class TradeUpdate(BaseModel):
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], [], None],
     )
+    has_conflict: bool | None = Field(
+        default=None,
+        description=(
+            "Optional flag to indicate whether this trade has conflicting "
+            "executions. This is used by the importer to signal that "
+            "re-aggregation should skip clearing the conflict flag."
+        ),
+    )
 
     @field_validator("opened_at", "closed_at", mode="before")
     @classmethod
@@ -994,6 +1002,15 @@ class TradeRead(BaseModel):
         default=False,
         description="Whether this trade has conflicting or mismatched executions.",
     )
+
+    @field_validator("has_conflict", mode="before")
+    @classmethod
+    def _validate_has_conflict(cls, v: Any) -> bool:
+        """Coerce None to False for has_conflict."""
+        if v is None:
+            return False
+        return bool(v)
+
     tags: list[TagRead] = Field(
         default_factory=list,
         description="Tags attached to this trade.",

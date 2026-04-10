@@ -1,10 +1,10 @@
-import pytest
 import uuid
-from unittest.mock import AsyncMock, MagicMock
-from fastapi import HTTPException
-from app.services.trade_service import TradeService
+from unittest.mock import AsyncMock
+
+import pytest
+
 from app.models.trade import Trade
-from app.schemas.trade import TradeRead
+from app.services.trade_service import TradeService
 
 
 @pytest.fixture

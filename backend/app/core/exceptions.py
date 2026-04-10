@@ -5,6 +5,18 @@ class TradeNotFoundError(Exception):
     """Raised when a trade cannot be found by its identifier."""
 
 
+class TradeValidationError(ValueError):
+    """Raised when trade business-rule validation fails."""
+
+
+class ExecutionNotFoundError(Exception):
+    """Raised when an execution cannot be found by its identifier."""
+
+
+class ExecutionValidationError(ValueError):
+    """Raised when execution business-rule validation fails."""
+
+
 class InvalidCursorError(ValueError):
     """Raised when a pagination cursor cannot be decoded."""
 

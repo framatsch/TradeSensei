@@ -1,18 +1,18 @@
-import pytest
 from decimal import Decimal
 from pathlib import Path
-from sqlalchemy import select, delete
-from httpx import AsyncClient
 
-from app.models.trade import Trade
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import delete, select
+
+from app.models.broker_raw_transaction import BrokerRawTransaction
 from app.models.cash_transaction import CashTransaction
 from app.models.corporate_action import CorporateAction
-from app.models.broker_raw_transaction import BrokerRawTransaction
 from app.models.logical_execution import LogicalExecution
-from app.utils.parsers.factory import BrokerType
+from app.models.trade import Trade
 from app.services.import_service import ImportService
-from tests.integration.ground_truth_aggregator import aggregate_files_yearly
-from tests.test_import_ground_truth import _register_and_login, _create_account
+from app.utils.parsers.factory import BrokerType
+from tests.test_import_ground_truth import _create_account, _register_and_login
 
 pytestmark = pytest.mark.asyncio
 
@@ -57,8 +57,8 @@ async def test_sequential_import_matches_in_memory_ground_truth(
     from tests.integration.ground_truth_aggregator import (
         _parse_raw_files,
         _stable_sort_executions,
-        logical_executions_to_trade_creates,
         aggregate_executions_fifo,
+        logical_executions_to_trade_creates,
     )
 
     raw_records, cash_transactions, corporate_actions = _parse_raw_files(paths)
