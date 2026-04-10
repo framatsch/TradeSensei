@@ -1,7 +1,7 @@
 ---
 description: Writes and maintains tests for both backend (pytest, pytest-asyncio) and frontend (Jest, React Testing Library) after implementation is complete
 mode: subagent
-model: gemini-3.0-flash
+model: github-copilot/gemini-3-flash-preview
 temperature: 0.1
 tools:
   write: true

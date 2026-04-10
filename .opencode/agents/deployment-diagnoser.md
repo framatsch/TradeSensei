@@ -1,7 +1,7 @@
 ---
 description: Diagnoses Kubernetes deployments and validates UI flows with Playwright, then summarizes fixes
 mode: subagent
-model: claude-4.6-sonnet
+model: anthropic/claude-sonnet-4-6
 temperature: 0.2
 tools:
   write: true

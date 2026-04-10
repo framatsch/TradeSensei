@@ -1,7 +1,7 @@
 ---
 description: This subagent should only be called manually by the user.
 mode: subagent
-model: gemini-3.1-pro-preview
+model: github-copilot/gemini-3.1-pro-preview
 tools:
   bash: true
 ---

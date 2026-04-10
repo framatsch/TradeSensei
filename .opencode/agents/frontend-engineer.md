@@ -1,7 +1,7 @@
 ---
 description: Implements Next.js frontend features using TypeScript, Tailwind CSS, React Query, and Recharts following the project's API-first architecture
 mode: subagent
-model: gemini-3.1-pro-preview
+model: github-copilot/gemini-3.1-pro-preview
 temperature: 0.2
 tools:
   write: true
