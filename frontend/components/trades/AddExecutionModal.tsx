@@ -21,8 +21,7 @@ function toLocalDatetimeValue(isoString: string): string {
 }
 
 function toISOString(localDatetime: string): string {
-  // Treat the local value as UTC (append :00Z)
-  return new Date(localDatetime + ":00Z").toISOString();
+  return new Date(localDatetime).toISOString();
 }
 
 export function AddExecutionModal({ tradeId, onClose }: Props) {
@@ -157,7 +156,7 @@ export function AddExecutionModal({ tradeId, onClose }: Props) {
 
           {/* Executed At */}
           <div>
-            <label className={labelCls}>Executed At (UTC)</label>
+            <label className={labelCls}>Executed At</label>
             <input
               type="datetime-local"
               className={inputCls}

@@ -4,7 +4,6 @@ import uuid
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import (
@@ -15,8 +14,6 @@ from app.core.constants import (
 from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
-from app.models.playbook import Playbook as PlaybookModel
-from app.models.tag import Tag as TagModel
 from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.schemas.trade import (
@@ -130,7 +127,6 @@ async def bulk_assign_tags(
     payload: BulkAssignTagsRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ResponseEnvelope[BulkUpdateResponse]:
     """Bulk add or remove tags from trades.
 
@@ -140,8 +136,6 @@ async def bulk_assign_tags(
         payload: Request body with trade IDs, tag IDs, and mode.
         service: Injected trade service.
         current_user: Injected authenticated user.
-        session: Injected database session for tag ownership lookup.
-
     Returns:
         A :class:`ResponseEnvelope` containing the count of updated trades.
 
@@ -149,25 +143,18 @@ async def bulk_assign_tags(
         HTTPException: 404 if any tag UUID is not found.
         HTTPException: 403 if any tag does not belong to the current user.
     """
-    # Verify all requested tags exist and load their owner UUIDs.
-    tag_result = await session.execute(
-        sa_select(TagModel.user_id).where(TagModel.id.in_(payload.tag_ids))
-    )
-    tag_user_ids = list(tag_result.scalars().all())
-    if len(tag_user_ids) != len(payload.tag_ids):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="One or more tags not found.",
-        )
-
     try:
         updated_count = await service.bulk_assign_tags(
             trade_ids=payload.trade_ids,
             tag_ids=payload.tag_ids,
             mode=payload.mode,
             user_id=current_user.id,
-            tag_user_ids=tag_user_ids,
         )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except PermissionError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -201,7 +188,6 @@ async def bulk_assign_playbook(
     payload: BulkAssignPlaybookRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ResponseEnvelope[BulkUpdateResponse]:
     """Bulk assign or unassign a playbook on trades.
 
@@ -212,8 +198,6 @@ async def bulk_assign_playbook(
         payload: Request body with trade IDs and optional playbook UUID.
         service: Injected trade service.
         current_user: Injected authenticated user.
-        session: Injected database session for playbook ownership lookup.
-
     Returns:
         A :class:`ResponseEnvelope` containing the count of updated trades.
 
@@ -221,27 +205,17 @@ async def bulk_assign_playbook(
         HTTPException: 404 if the playbook UUID is not found.
         HTTPException: 403 if the playbook does not belong to the current user.
     """
-    playbook_user_id: uuid.UUID | None = None
-    if payload.playbook_id is not None:
-        pb_result = await session.execute(
-            sa_select(PlaybookModel.user_id).where(
-                PlaybookModel.id == payload.playbook_id
-            )
-        )
-        playbook_user_id = pb_result.scalar_one_or_none()
-        if playbook_user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Playbook not found.",
-            )
-
     try:
         updated_count = await service.bulk_assign_playbook(
             trade_ids=payload.trade_ids,
             playbook_id=payload.playbook_id,
             user_id=current_user.id,
-            playbook_user_id=playbook_user_id,
         )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except PermissionError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -440,7 +414,7 @@ async def get_trade(
         HTTPException: 404 if no trade with the given ID exists.
     """
     try:
-        trade = await service.get_trade(trade_id)
+        trade = await service.get_trade(trade_id, current_user.id)
     except TradeNotFoundError:
         _raise_not_found()
     return ResponseEnvelope[TradeRead](data=trade)
@@ -489,7 +463,7 @@ async def update_trade(
         HTTPException: 404 if no trade with the given ID exists.
     """
     try:
-        trade = await service.update_trade(trade_id, payload)
+        trade = await service.update_trade(trade_id, payload, current_user.id)
     except TradeNotFoundError:
         _raise_not_found()
     return ResponseEnvelope[TradeRead](data=trade)
@@ -525,7 +499,7 @@ async def delete_trade(
         HTTPException: 404 if no trade with the given ID exists.
     """
     try:
-        await service.delete_trade(trade_id)
+        await service.delete_trade(trade_id, current_user.id)
     except TradeNotFoundError:
         _raise_not_found()
 
@@ -601,11 +575,10 @@ async def partial_close_trade(
 )
 async def merge_trades(
     payload: MergeTradesRequest,
+    service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ResponseEnvelope[TradeRead]:
     """Merge multiple trades into one."""
-    service = TradeService(session)
     try:
         survivor = await service.merge_trades(payload.trade_ids, current_user.id)
         return ResponseEnvelope[TradeRead](data=survivor)

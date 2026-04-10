@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.constants import BYTES_PER_MB, SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.exceptions import TradeNotFoundError
@@ -24,7 +25,7 @@ from app.services.trade_service import TradeService
 router = APIRouter(prefix="/trades/{trade_id}/screenshots", tags=["screenshots"])
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+MAX_FILE_SIZE = SCREENSHOT_MAX_FILE_SIZE_MB * BYTES_PER_MB
 
 
 def _get_service(
@@ -77,36 +78,20 @@ async def upload_screenshot(
         )
 
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
+    suffix = Path(file.filename or "upload").suffix.lower() or ".jpg"
+    try:
+        updated = await service.add_screenshot(
+            trade_id, content, suffix, current_user.id
+        )
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File too large. Maximum size is 20 MB.",
-        )
-
-    # Build a safe unique filename
-    suffix = Path(file.filename or "upload").suffix.lower() or ".jpg"
-    filename = f"{uuid.uuid4()}{suffix}"
-    dest = _upload_dir(trade_id) / filename
-    dest.write_bytes(content)
-
-    # URL path that the static files mount exposes
-    url = f"/uploads/screenshots/{trade_id}/{filename}"
-
-    try:
-        trade = await service.get_trade(trade_id)
+            detail=str(exc),
+        ) from exc
     except TradeNotFoundError as exc:
-        dest.unlink(missing_ok=True)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found."
         ) from exc
-
-    from app.schemas.trade import TradeUpdate  # local import to avoid circular
-
-    current_screenshots: list[str] = list(trade.screenshots or [])
-    current_screenshots.append(url)
-    updated = await service.update_trade(
-        trade_id, TradeUpdate(screenshots=current_screenshots)
-    )
     return ResponseEnvelope[TradeRead](data=updated)
 
 
@@ -143,7 +128,7 @@ async def delete_screenshot(
         )
 
     try:
-        trade = await service.get_trade(trade_id)
+        trade = await service.get_trade(trade_id, current_user.id)
     except TradeNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found."
@@ -158,5 +143,9 @@ async def delete_screenshot(
 
     from app.schemas.trade import TradeUpdate  # local import to avoid circular
 
-    updated = await service.update_trade(trade_id, TradeUpdate(screenshots=remaining))
+    updated = await service.update_trade(
+        trade_id,
+        TradeUpdate(screenshots=remaining),
+        current_user.id,
+    )
     return ResponseEnvelope[TradeRead](data=updated)

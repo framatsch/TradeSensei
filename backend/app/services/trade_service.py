@@ -5,11 +5,16 @@ No HTTP concepts (``Request``, ``Response``, status codes) appear here.
 """
 
 import uuid
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.constants import SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.trade import Trade
+from app.repositories.playbook_repository import PlaybookRepository
+from app.repositories.tag_repository import TagRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.common import CursorPage
 from app.schemas.trade import (
@@ -24,32 +29,10 @@ from app.schemas.trade import (
 
 
 class TradeService:
-    async def _re_aggregate_trade(
-        self, trade_id: uuid.UUID, skip_conflict_auto_clear: bool = False
-    ) -> None:
-        """Re-aggregate a trade from its logical executions.
-
-        Delegates to :class:`ExecutionService._re_aggregate_trade` using the
-        trade's owner for the permission check.
-
-        Args:
-            trade_id: UUID of the trade to re-aggregate.
-        """
-        from app.services.execution import ExecutionService
-
-        trade = await self._repo.get_by_id(trade_id)
-        if not trade or trade.user_id is None:
-            return
-
-        exec_service = ExecutionService(self._repo._session)
-        await exec_service._re_aggregate_trade(
-            trade_id, trade.user_id, skip_conflict_auto_clear=skip_conflict_auto_clear
-        )
-
     """Service layer for trade CRUD operations.
 
     Receives a session from the route handler and delegates all data
-    access to :class:`~app.repositories.trade_repository.TradeRepository`.
+    access to repository classes.
 
     Args:
         session: An open :class:`AsyncSession` managed by the caller.
@@ -62,7 +45,86 @@ class TradeService:
             session: The session to use for all operations within this
                 request.
         """
+        self._session = session
         self._repo = TradeRepository(session)
+        self._tag_repo = TagRepository(session)
+        self._playbook_repo = PlaybookRepository(session)
+
+    def _screenshot_dir(self, trade_id: uuid.UUID) -> Path:
+        """Return the filesystem directory used for trade screenshots."""
+        base = Path(settings.upload_dir) / "screenshots" / str(trade_id)
+        base.mkdir(parents=True, exist_ok=True)
+        return base
+
+    async def add_screenshot(
+        self,
+        trade_id: uuid.UUID,
+        content: bytes,
+        suffix: str,
+        user_id: uuid.UUID,
+    ) -> TradeRead:
+        """Persist an uploaded screenshot and attach its URL to a trade.
+
+        Args:
+            trade_id: UUID of the trade to update.
+            content: Raw file bytes of the screenshot.
+            suffix: File extension suffix (e.g. ``".png"``).
+            user_id: Authenticated user UUID for ownership checks.
+
+        Returns:
+            Updated trade DTO including the appended screenshot URL.
+
+        Raises:
+            TradeNotFoundError: If the target trade does not exist.
+            ValueError: If the file exceeds the configured size limit.
+        """
+        max_size = SCREENSHOT_MAX_FILE_SIZE_MB * 1024 * 1024
+        if len(content) > max_size:
+            raise ValueError(
+                f"File too large. Maximum size is {SCREENSHOT_MAX_FILE_SIZE_MB} MB."
+            )
+
+        safe_suffix = suffix if suffix.startswith(".") else f".{suffix}"
+        filename = f"{uuid.uuid4()}{safe_suffix}"
+        dest = self._screenshot_dir(trade_id) / filename
+        dest.write_bytes(content)
+        url = f"/uploads/screenshots/{trade_id}/{filename}"
+
+        try:
+            trade = await self.get_trade(trade_id, user_id)
+            current_screenshots: list[str] = list(trade.screenshots or [])
+            current_screenshots.append(url)
+            return await self.update_trade(
+                trade_id,
+                TradeUpdate(screenshots=current_screenshots),
+                user_id,
+            )
+        except TradeNotFoundError:
+            dest.unlink(missing_ok=True)
+            raise
+
+    async def _re_aggregate_trade(
+        self, trade_id: uuid.UUID, skip_conflict_auto_clear: bool = False
+    ) -> None:
+        """Re-aggregate a trade from its logical executions.
+
+        Delegates to :class:`ExecutionService._re_aggregate_trade` using the
+        trade's owner for the permission check.
+
+        Args:
+            trade_id: UUID of the trade to re-aggregate.
+        """
+        # Deferred import to break circular dependency: execution -> trade
+        from app.services.execution import ExecutionService
+
+        trade = await self._repo.get_by_id(trade_id)
+        if not trade or trade.user_id is None:
+            return
+
+        exec_service = ExecutionService(self._session)
+        await exec_service._re_aggregate_trade(
+            trade_id, trade.user_id, skip_conflict_auto_clear=skip_conflict_auto_clear
+        )
 
     async def create_trade(self, data: TradeCreate) -> TradeRead:
         """Create a new trade record.
@@ -75,10 +137,13 @@ class TradeService:
         """
         trade: Trade = await self._repo.create(data)
 
+        # Deferred import to break circular dependency: execution -> trade
         from app.models.logical_execution import ExecutionStatus
+
+        # Deferred import to break circular dependency: execution -> trade
         from app.repositories.execution import ExecutionRepository
 
-        exec_repo = ExecutionRepository(self._repo._session)
+        exec_repo = ExecutionRepository(self._session)
         await exec_repo.create(
             user_id=trade.user_id,
             account_id=trade.account_id,
@@ -107,16 +172,16 @@ class TradeService:
         if should_reaggregate:
             await self._re_aggregate_trade(trade.id)
 
-        await self._repo._session.commit()
         trade_reloaded = await self._repo.get_by_id(trade.id)
 
         return TradeRead.model_validate(trade_reloaded)
 
-    async def get_trade(self, trade_id: uuid.UUID) -> TradeRead:
+    async def get_trade(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> TradeRead:
         """Fetch a single trade by its UUID.
 
         Args:
             trade_id: UUID of the trade to retrieve.
+            user_id: Authenticated user UUID for ownership checks.
 
         Returns:
             A :class:`TradeRead` DTO for the requested trade.
@@ -125,7 +190,7 @@ class TradeService:
             TradeNotFoundError: If no trade with the given ID exists.
         """
         trade = await self._repo.get_by_id(trade_id)
-        if trade is None:
+        if trade is None or trade.user_id != user_id:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         return TradeRead.model_validate(trade)
 
@@ -185,12 +250,14 @@ class TradeService:
         self,
         trade_id: uuid.UUID,
         data: TradeUpdate,
+        user_id: uuid.UUID,
     ) -> TradeRead:
         """Partially update an existing trade.
 
         Args:
             trade_id: UUID of the trade to update.
             data: Validated partial update payload.
+            user_id: Authenticated user UUID for ownership checks.
 
         Returns:
             A :class:`TradeRead` DTO reflecting the updated state.
@@ -199,7 +266,7 @@ class TradeService:
             TradeNotFoundError: If no trade with the given ID exists.
         """
         trade = await self._repo.get_by_id(trade_id)
-        if trade is None:
+        if trade is None or trade.user_id != user_id:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         updated = await self._repo.update(trade, data)
         reaggregate_fields = {
@@ -224,20 +291,21 @@ class TradeService:
                 trade_id,
                 skip_conflict_auto_clear=skip_clear,
             )
-        await self._repo._session.commit()
+        await self._session.commit()
         return TradeRead.model_validate(updated)
 
-    async def delete_trade(self, trade_id: uuid.UUID) -> None:
+    async def delete_trade(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Delete a trade by its UUID.
 
         Args:
             trade_id: UUID of the trade to delete.
+            user_id: Authenticated user UUID for ownership checks.
 
         Raises:
             TradeNotFoundError: If no trade with the given ID exists.
         """
         trade = await self._repo.get_by_id(trade_id)
-        if trade is None:
+        if trade is None or trade.user_id != user_id:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         await self._repo.delete(trade)
 
@@ -265,7 +333,6 @@ class TradeService:
         tag_ids: list[uuid.UUID],
         mode: BulkTagMode,
         user_id: uuid.UUID,
-        tag_user_ids: list[uuid.UUID],
     ) -> int:
         """Bulk add or remove tags from trades.
 
@@ -277,16 +344,16 @@ class TradeService:
             tag_ids: UUIDs of tags to add/remove.
             mode: ``BulkTagMode.add`` or ``BulkTagMode.remove``.
             user_id: The authenticated user's UUID.
-            tag_user_ids: ``user_id`` values of the provided tags,
-                fetched by the route handler for ownership validation.
-
         Returns:
             Number of trades updated.
 
         Raises:
             PermissionError: If any tag does not belong to ``user_id``.
         """
-        if any(uid != user_id for uid in tag_user_ids):
+        tags = await self._tag_repo.get_many_by_ids(tag_ids, user_id)
+        if len(tags) != len(tag_ids):
+            raise ValueError("One or more tags not found.")
+        if any(tag.user_id != user_id for tag in tags):
             raise PermissionError("One or more tags do not belong to this user.")
         return await self._repo.bulk_assign_tags(trade_ids, tag_ids, mode, user_id)
 
@@ -295,7 +362,6 @@ class TradeService:
         trade_ids: list[uuid.UUID],
         playbook_id: uuid.UUID | None,
         user_id: uuid.UUID,
-        playbook_user_id: uuid.UUID | None,
     ) -> int:
         """Bulk assign or unassign a playbook on trades.
 
@@ -305,17 +371,18 @@ class TradeService:
             trade_ids: UUIDs of trades to update.
             playbook_id: UUID of playbook to assign, or ``None`` to unassign.
             user_id: The authenticated user's UUID.
-            playbook_user_id: ``user_id`` of the playbook (``None`` if
-                unassigning), fetched by the route handler.
-
         Returns:
             Number of trades updated.
 
         Raises:
             PermissionError: If the playbook does not belong to ``user_id``.
         """
-        if playbook_id is not None and playbook_user_id != user_id:
-            raise PermissionError("Playbook does not belong to this user.")
+        if playbook_id is not None:
+            playbook = await self._playbook_repo.get_by_id(playbook_id, user_id)
+            if playbook is None:
+                raise ValueError("Playbook not found.")
+            if playbook.user_id != user_id:
+                raise PermissionError("Playbook does not belong to this user.")
         return await self._repo.bulk_assign_playbook(trade_ids, playbook_id, user_id)
 
     async def merge_trades(
@@ -362,17 +429,17 @@ class TradeService:
         survivor = trades[0]
         non_survivors = trades[1:]
 
+        # Deferred import to break circular dependency: execution -> trade
         from app.repositories.execution import ExecutionRepository
 
-        exec_repo = ExecutionRepository(self._repo._session)
+        exec_repo = ExecutionRepository(self._session)
 
         # Merge logic
         for t in non_survivors:
             # Reassign logical executions
             executions = await exec_repo.list_by_trade_id(t.id)
-            for ex in executions:
-                ex.trade_id = survivor.id
-                await self._repo._session.flush()
+            execution_ids = [ex.id for ex in executions]
+            await exec_repo.reassign_to_trade(execution_ids, survivor.id)
 
             # Append notes
             if t.notes:
@@ -391,12 +458,9 @@ class TradeService:
 
         # Re-aggregate survivor
         await self._re_aggregate_trade(survivor.id)
-        await self._repo._session.commit()
 
         # Reload survivor
         survivor_reloaded = await self._repo.get_by_id(survivor.id)
-        from app.schemas.trade import TradeRead
-
         return TradeRead.model_validate(survivor_reloaded)
 
     async def partial_close_trade(
@@ -451,9 +515,7 @@ class TradeService:
         # 2. Perform Split (Partial Close).
         # Refresh trade from DB to ensure all associations are correctly loaded
         # and current in the session before copying.
-        await self._repo._session.refresh(
-            trade, attribute_names=["tags", "trade_notes"]
-        )
+        await self._session.refresh(trade, attribute_names=["tags", "trade_notes"])
         tag_ids = [t.id for t in trade.tags]
 
         # Calculate proportional entry commission for the portion being closed.
@@ -499,7 +561,7 @@ class TradeService:
         for note in trade.trade_notes:
             from app.models.trade_note import TradeNote
 
-            self._repo._session.add(
+            self._session.add(
                 TradeNote(
                     trade_id=new_trade_orm.id,
                     user_id=user_id,
@@ -508,9 +570,7 @@ class TradeService:
                 )
             )
 
-        await self._repo._session.flush()
-        await self._repo._session.refresh(
-            new_trade_orm, attribute_names=["trade_notes"]
-        )
+        await self._session.flush()
+        await self._session.refresh(new_trade_orm, attribute_names=["trade_notes"])
 
         return TradeRead.model_validate(new_trade_orm)

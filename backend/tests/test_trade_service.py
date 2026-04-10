@@ -232,7 +232,10 @@ class TestGetTrade:
             new_callable=AsyncMock,
             return_value=trade,
         ):
-            result = await service.get_trade(trade.id)  # type: ignore[arg-type]
+            result = await service.get_trade(  # type: ignore[arg-type]
+                trade.id,
+                trade.user_id,
+            )
 
         assert isinstance(result, TradeRead)
         assert result.id == trade.id  # type: ignore[comparison-overlap]
@@ -248,7 +251,7 @@ class TestGetTrade:
             ),
             pytest.raises(TradeNotFoundError),
         ):
-            await service.get_trade(uuid.uuid4())
+            await service.get_trade(uuid.uuid4(), uuid.uuid4())
 
 
 class TestListTrades:
@@ -308,6 +311,7 @@ class TestUpdateTrade:
             result = await service.update_trade(
                 trade.id,  # type: ignore[arg-type]
                 TradeUpdate(symbol="TSLA"),
+                trade.user_id,
             )
 
         assert result.symbol == "TSLA"
@@ -323,7 +327,11 @@ class TestUpdateTrade:
             ),
             pytest.raises(TradeNotFoundError),
         ):
-            await service.update_trade(uuid.uuid4(), TradeUpdate(symbol="X"))
+            await service.update_trade(
+                uuid.uuid4(),
+                TradeUpdate(symbol="X"),
+                uuid.uuid4(),
+            )
 
 
 class TestTradeUpdateNullableSentinel:
@@ -408,6 +416,7 @@ class TestTradeUpdateNullableSentinel:
             result = await service.update_trade(
                 trade.id,  # type: ignore[arg-type]
                 clear_payload,
+                trade.user_id,
             )
 
         # Verify the repo received the exact payload (not a mutated copy)
@@ -434,7 +443,7 @@ class TestDeleteTrade:
                 new=mock_delete,
             ),
         ):
-            await service.delete_trade(trade.id)  # type: ignore[arg-type]
+            await service.delete_trade(trade.id, trade.user_id)  # type: ignore[arg-type]
 
         mock_delete.assert_awaited_once_with(trade)
 
@@ -449,4 +458,4 @@ class TestDeleteTrade:
             ),
             pytest.raises(TradeNotFoundError),
         ):
-            await service.delete_trade(uuid.uuid4())
+            await service.delete_trade(uuid.uuid4(), uuid.uuid4())

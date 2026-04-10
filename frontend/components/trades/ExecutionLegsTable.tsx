@@ -19,6 +19,7 @@ export function ExecutionLegsTable({ tradeId }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [moveExecutionId, setMoveExecutionId] = useState<string | null>(null);
+  const [detachExecutionId, setDetachExecutionId] = useState<string | null>(null);
 
   const { data: executions, isLoading, isError } = useTradeExecutions(tradeId);
   const reassignExecution = useReassignExecution();
@@ -31,14 +32,15 @@ export function ExecutionLegsTable({ tradeId }: Props) {
   };
 
   const handleDetach = (executionId: string) => {
-    if (!window.confirm("Detach this execution into a new trade? The execution will be removed from this trade.")) return;
+    setDetachExecutionId(executionId);
+  };
+
+  const confirmDetach = () => {
+    if (!detachExecutionId) return;
     detachExecution.mutate(
-      { executionId, sourceTradeId: tradeId },
+      { executionId: detachExecutionId, sourceTradeId: tradeId },
       {
-        onSuccess: (newTrade) => {
-          // Optionally show a toast or navigate — for now just refresh
-          window.dispatchEvent(new CustomEvent("trade-detached", { detail: { newTradeId: newTrade.id } }));
-        },
+        onSettled: () => setDetachExecutionId(null),
       }
     );
   };
@@ -139,7 +141,34 @@ export function ExecutionLegsTable({ tradeId }: Props) {
           onClose={() => setMoveExecutionId(null)}
         />
       )}
+
+      {detachExecutionId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl">
+            <h3 className="text-sm font-semibold text-foreground">Detach Execution</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Detach this execution into a new trade? The execution will be removed from this trade.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDetachExecutionId(null)}
+                className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDetach}
+                disabled={detachExecution.isPending}
+                className="rounded-md bg-[#6063dd] px-3 py-1.5 text-sm text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {detachExecution.isPending ? "Detaching..." : "Detach"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

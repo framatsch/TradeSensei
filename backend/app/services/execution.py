@@ -1,6 +1,9 @@
+"""Business logic for logical execution lifecycle and trade re-aggregation."""
+
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -264,7 +267,10 @@ class ExecutionService:
         await self._re_aggregate_trade(source_trade_id, user_id)
 
         await self.session.commit()
-        return new_trade
+        reloaded_new_trade = await self.trade_repo.get_by_id(new_trade.id)
+        if reloaded_new_trade is None:
+            raise TradeNotFoundError(f"Trade {new_trade.id} not found.")
+        return reloaded_new_trade
 
     async def _re_aggregate_trade(
         self,
@@ -297,9 +303,9 @@ class ExecutionService:
         if not executions:
             return
 
-        from decimal import Decimal
-
-        from app.models.trade import Direction
+        from app.models.trade import (
+            Direction,
+        )  # Deferred import to break circular dependency: trade -> execution
 
         is_long = trade.direction == Direction.LONG
 
