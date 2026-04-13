@@ -1,6 +1,6 @@
 [project]
 name = "tradejournal-backend"
-version = "0.14.0-SNAPSHOT"
+version = "0.14.0.dev0"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",

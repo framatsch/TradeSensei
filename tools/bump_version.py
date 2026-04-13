@@ -57,7 +57,9 @@ def main():
     parser = argparse.ArgumentParser(description="Bump version in project files")
     parser.add_argument("version", help="The version to set (e.g., 0.5.0)")
     parser.add_argument(
-        "--snapshot", action="store_true", help="Add -SNAPSHOT and git hash"
+        "--snapshot",
+        action="store_true",
+        help="Add .dev0 suffix for development versions",
     )
     parser.add_argument(
         "--release",
@@ -82,11 +84,7 @@ def main():
 
     version = args.version
     if args.snapshot:
-        git_hash = get_git_hash()
-        suffix = f"-SNAPSHOT"
-        if git_hash:
-            suffix += f"+{git_hash}"
-        version += suffix
+        version += ".dev0"
 
     # Files to update
     json_files = ["package.json", "frontend/package.json"]

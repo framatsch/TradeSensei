@@ -253,6 +253,8 @@ class TestExecutionService:
         # Mock > 1 remaining executions
         service.execution_repo.list_by_trade_id.return_value = [ex, _make_execution()]
         service.trade_repo.create.return_value = new_trade
+        # Mock get_by_id to return the new_trade when reloaded at line 270
+        service.trade_repo.get_by_id.return_value = new_trade
 
         result = await service.detach_execution(ex.id, user_id)
 

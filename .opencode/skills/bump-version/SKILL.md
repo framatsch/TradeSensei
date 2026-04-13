@@ -1,6 +1,6 @@
 ---
 name: bump-version
-description: Automate version bumping across project files and prepare releases or snapshot versions
+description: Automate version bumping across project files and prepare releases or development versions
 license: MIT
 compatibility: opencode
 metadata:
@@ -9,7 +9,7 @@ metadata:
 
 ## What I do
 
-Automate version bumping across all project files (`package.json`, `frontend/package.json`, `backend/pyproject.toml`) and prepare a consistent release or snapshot checkpoint. This is the skill to use when the user asks to "create release version X.Y.Z".
+Automate version bumping across all project files (`package.json`, `frontend/package.json`, `backend/pyproject.toml`) and prepare a consistent release or development version. This is the skill to use when the user asks to "create release version X.Y.Z".
 
 ## Usage
 
@@ -20,8 +20,8 @@ Sets a clean version for a formal release, pushes it, creates the release, and p
 python tools/bump_version.py 0.10.0 --release
 ```
 
-### 🌙 Snapshot Bumping (Nightly)
-Adds `-SNAPSHOT+<git-hash>` for development or nightly builds.
+### 🌙 Development Version Bumping
+Adds `.dev0` suffix for development versions (PEP 440 compliant).
 
 ```bash
 python tools/bump_version.py 0.10.1 --snapshot
@@ -47,7 +47,7 @@ Changelog integration:
 
 - Version must follow Semantic Versioning (`X.Y.Z`).
 - `package.json`, `frontend/package.json`, and `backend/pyproject.toml` MUST all be kept in sync.
-- Snapshot versions include the short git hash for traceability.
+- Development versions use `.dev0` suffix (PEP 440 compliant).
 
 ## Workflow: Creating a Release
 
@@ -84,8 +84,8 @@ When the user asks to "create release version <X.Y.Z>":
    rm /tmp/release_notes.md
    ```
 
-6. **Automatic Snapshot Progression (Next Version)**
-   Immediately ask the user what the *next* version should be (e.g. `0.11.0` or `0.10.1-SNAPSHOT`).
+6. **Automatic Development Version Progression (Next Version)**
+   Immediately ask the user what the *next* version should be (e.g. `0.11.0` or `0.10.1.dev0`).
    If they approve, run `python tools/bump_version.py <next-version> [--snapshot]` and commit the new development version:
    ```bash
    git add package.json frontend/package.json backend/pyproject.toml
