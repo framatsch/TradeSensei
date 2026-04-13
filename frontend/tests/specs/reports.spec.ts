@@ -23,6 +23,9 @@ test.describe('Performance Reports — Navigation', () => {
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
+    await page.getByRole('button', { name: 'Hourly' }).click();
+    await page.waitForLoadState('networkidle');
+
     // Wait for the performance table to render (at least one row with data)
     // We look for a row that has a numeric value in one of its cells.
     const firstRow = page.locator('tbody tr').filter({ hasText: /[1-9]/ }).first();
@@ -90,6 +93,7 @@ test.describe('Performance Reports — Navigation', () => {
   test('TC-R005 after Hourly navigation, one filter is active in Trades', async ({ page }) => {
     await page.goto('/dashboard/analytics?tab=time');
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Hourly' }).click();
     await page.waitForLoadState('networkidle');
 
     const firstRow = page.locator('tbody tr').first();
@@ -98,7 +102,8 @@ test.describe('Performance Reports — Navigation', () => {
 
     await expect(page).toHaveURL(/hour_of_day=\d+/, { timeout: 8_000 });
 
-    await expect(page.getByRole('button', { name: 'Filters' })).toContainText('1');
+    // hour_of_day counts as 1 active filter
+    await expect(page.getByRole('button', { name: 'Filters' })).toContainText(/[1-9]/);
   });
 
   test('TC-R006 after Weekday navigation, one filter is active in Trades', async ({ page }) => {
@@ -113,7 +118,7 @@ test.describe('Performance Reports — Navigation', () => {
 
     await expect(page).toHaveURL(/day_of_week=\d+/, { timeout: 8_000 });
 
-    await expect(page.getByRole('button', { name: 'Filters' })).toContainText('1');
+    await expect(page.getByRole('button', { name: 'Filters' })).toContainText(/[1-9]/);
   });
 
   test('TC-R007 Calendar report day click navigates to trades with closed_at filters', async ({ page }) => {

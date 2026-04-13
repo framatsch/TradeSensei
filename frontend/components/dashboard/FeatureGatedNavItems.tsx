@@ -35,7 +35,7 @@ export default function FeatureGatedNavItems({ showCash, showTax }: FeatureGated
   if (showTax) {
     items.push({
       href: "/dashboard/tax",
-      label: "Cash Report",
+      label: "Tax Report",
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-[18px] h-[18px]">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />

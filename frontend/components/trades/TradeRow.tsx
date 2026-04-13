@@ -93,6 +93,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
         <Link
           href={`/dashboard/trades/${trade.id}`}
           className="hover:text-primary transition-colors inline-flex items-center gap-1.5"
+          title={trade.id}
         >
           {trade.symbol}
           {trade.has_conflict && (

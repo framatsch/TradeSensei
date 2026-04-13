@@ -76,8 +76,8 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const tagIdsRaw = params.get("tag_ids");
 
   const statusRaw = params.get("status");
-  const status: "open" | "closed" | null =
-    statusRaw === "open" || statusRaw === "closed" ? statusRaw : null;
+  const status: "open" | "closed" | "all" | null =
+    statusRaw === "open" || statusRaw === "closed" || statusRaw === "all" ? statusRaw : null;
 
   const hourRaw = params.get("hour_of_day");
   const dowRaw = params.get("day_of_week");
@@ -93,7 +93,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     tag_ids: tagIdsRaw ? tagIdsRaw.split(",").filter(Boolean) : undefined,
     playbook_id: params.get("playbook_id") ?? undefined,
     pnl_positive,
-    status,
+    status: status === "all" ? null : status,
     account_id: params.get("account_id") ?? undefined,
     hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
     day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
@@ -532,10 +532,11 @@ export function TradesPageClient() {
         <MergePreviewModal
           trades={selectedTrades}
           onClose={() => setShowMergeModal(false)}
-          onSuccess={() => {
+          onSuccess={(survivorId) => {
             setSelectedIds(new Set());
             setSelectedTrades([]);
             setShowMergeModal(false);
+            router.push(`/dashboard/trades/${survivorId}`);
           }}
         />
       )}

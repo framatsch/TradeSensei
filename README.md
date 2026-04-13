@@ -1,4 +1,3 @@
-docker-c
 <div align="center">
 
 ![Trading Journal Logo](logo.svg)
@@ -247,11 +246,40 @@ curl http://localhost:8000/api/v1/trades \
 
 ### Running tests
 
+**Backend unit tests**
+
 ```bash
 cd backend
 uv run pytest tests/ -m unit        # unit tests only (no database required)
 uv run pytest tests/                # all tests (requires a running test DB)
 ```
+
+**Playwright E2E tests (Docker)**
+
+The E2E tests require the full stack to be running. The easiest way is via Docker Compose:
+
+```bash
+# 1. Start the full stack (db + backend + frontend)
+docker compose up -d --wait
+
+# 2. Install Playwright and its browser dependencies (once)
+npm ci
+npx playwright install chromium --with-deps
+
+# 3. Run all E2E tests
+npx playwright test --project=chromium
+
+# 4. (Optional) Show the HTML report
+npx playwright show-report
+```
+
+To stop and clean up afterwards:
+
+```bash
+docker compose down -v
+```
+
+> **Tip:** The `--wait` flag in step 1 blocks until all services report healthy, so you don't need a separate wait loop. If the stack is already running, skip step 1.
 
 ### Linting
 

@@ -99,7 +99,7 @@ export function AddExecutionModal({ tradeId, onClose }: Props) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="add-execution-form" onSubmit={handleSubmit} className="space-y-4">
           {/* BUY / SELL toggle */}
           <div>
             <label className={labelCls}>Side</label>
