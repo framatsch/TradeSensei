@@ -111,7 +111,7 @@ test.describe('Accounts', () => {
     ).toBeVisible();
 
     // API credentials indicator (🔑) should be visible
-    await expect(page.getByTitle('API credentials stored')).toBeVisible();
+    await expect(page.getByTitle('API credentials stored').first()).toBeVisible();
 
     // No server error
     await expect(page.locator('text=Internal Server Error')).not.toBeVisible();

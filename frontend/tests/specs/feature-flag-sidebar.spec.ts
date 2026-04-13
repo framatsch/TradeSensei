@@ -35,7 +35,7 @@ test('enabled financials flags inject Cash and Tax nav items into the sidebar', 
   await page.waitForLoadState('networkidle');
 
   await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('link', { name: /Cash Report/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('link', { name: /Tax Report/i })).toBeVisible({ timeout: 15_000 });
 
   // Cleanup: disable flags again so other tests start clean
   await page.request.fetch(`${API_URL}/api/v1/users/me/settings`, {
