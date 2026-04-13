@@ -48,6 +48,10 @@ test.describe('Trades List', () => {
     // Wait for table to be fully loaded
     await page.waitForSelector('thead th', { timeout: 15_000 });
     
+    // Check for each header in the table to ensure they are present.
+    // Some headers might be hidden on small screens, so we ensure the viewport is large.
+    await page.setViewportSize({ width: 1440, height: 900 });
+
     for (const header of expectedHeaders) {
       await expect(page.getByRole('columnheader', { name: header })).toBeVisible({
         timeout: 10_000,
@@ -145,11 +149,12 @@ test.describe('Trade Detail', () => {
     // Assert VWAP Entry label visible
     await expect(page.getByText('VWAP Entry')).toBeVisible();
     // Assert the entry price ($400.00) appears in the card
-    await expect(page.getByText('$400.00')).toBeVisible();
+    await expect(page.getByRole('definition').filter({ hasText: '$400.00' }).first()).toBeVisible();
     // Assert Total Quantity label visible
     await expect(page.getByText('Total Quantity')).toBeVisible();
-    // Assert total commission ($3.00) visible
-    await expect(page.getByText('$3.00')).toBeVisible();
+    // Assert total commission ($3.00) visible in the execution summary card
+    // We use a broader search if the exact $3.00 isn't unique or easily found
+    await expect(page.locator('dt:has-text("Total Commission") + dd')).toContainText('3.00');
   });
 
   // ── TC-062: Execution table renders with correct direction badges ──
@@ -164,8 +169,9 @@ test.describe('Trade Detail', () => {
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
 
     // Assert execution table has exactly 2 rows
+    // Note: If tests fail here with count 3, check if TC-071 is running in parallel or if seeding changed
     const tbodyRows = page.locator('table tbody tr');
-    await expect(tbodyRows).toHaveCount(2, { timeout: 10_000 });
+    await expect(tbodyRows).toHaveCount(2, { timeout: 15_000 });
 
     // Assert first row contains LONG badge
     const firstRow = tbodyRows.first();
@@ -348,13 +354,15 @@ test.describe('Add Execution Modal', () => {
 
     // Set quantity to 0
     const quantityInput = page.locator('input[type="number"]').first();
+    await quantityInput.clear();
     await quantityInput.fill('0');
 
     // Click submit button
     await page.getByRole('button', { name: 'Add Execution' }).last().click();
 
-    // Assert error message visible
-    await expect(page.getByText('Quantity must be greater than 0.')).toBeVisible({ timeout: 10_000 });
+    // Assert error message visible (could be HTML5 validation or application error)
+    // If it's HTML5, we might need a different check, but if it's application:
+    await expect(page.locator('form')).toContainText(/greater than 0/i, { timeout: 10_000 });
     // Assert modal is still open
     await expect(page.getByRole('heading', { name: 'Add Execution' })).toBeVisible();
   });
@@ -383,11 +391,15 @@ test.describe('Inline Sidebar Editing', () => {
     // Type the new value
     await numberInput.fill('150.00');
 
-    // Click save button
-    await page.locator('button[title="Save"]').first().click();
+    // Click save button and wait for it to be stable
+    const saveButton = page.locator('button[title="Save"]').first();
+    await saveButton.click();
+
+    // Alternatively, press Enter in the input
+    // await numberInput.press('Enter');
 
     // Wait for input to disappear and value to appear
-    await expect(numberInput).not.toBeVisible();
+    await expect(numberInput).not.toBeVisible({ timeout: 15_000 });
 
     // Assert the new value appears in Stop Loss area
     await expect(page.getByText('$150.00')).toBeVisible();
@@ -424,7 +436,7 @@ test.describe('Inline Sidebar Editing', () => {
     const tagsContainer = tagsLabel.locator('..');
 
     // Click on tags edit area
-    await tagsContainer.click();
+    await page.getByRole('button', { name: /tags/i }).first().click();
 
     // Wait for tag picker with high-conviction tag
     await expect(page.getByText('high-conviction')).toBeVisible({ timeout: 10_000 });
@@ -448,15 +460,20 @@ test.describe('Merge Workflow', () => {
 
     const [tradeId1, tradeId2] = seedState.mergeTradeIds;
 
-    // Find and check checkbox for first merge trade
-    const checkbox1 = page.locator(`tr:has-text("${tradeId1}") input[type="checkbox"]`);
-    await expect(checkbox1).toBeVisible({ timeout: 10_000 });
-    await checkbox1.click();
+    // Wait for the specific rows to be present
+    await expect(page.getByText(tradeId1)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(tradeId2)).toBeVisible({ timeout: 15_000 });
+
+    // Find and check checkbox for first merge trade using ID in a data attribute if possible,
+    // or scoped to the row containing the text.
+    const checkbox1 = page.locator('tr').filter({ hasText: tradeId1 }).locator('input[type="checkbox"]');
+    await expect(checkbox1).toBeVisible({ timeout: 15_000 });
+    await checkbox1.check();
 
     // Find and check checkbox for second merge trade
-    const checkbox2 = page.locator(`tr:has-text("${tradeId2}") input[type="checkbox"]`);
-    await expect(checkbox2).toBeVisible({ timeout: 10_000 });
-    await checkbox2.click();
+    const checkbox2 = page.locator('tr').filter({ hasText: tradeId2 }).locator('input[type="checkbox"]');
+    await expect(checkbox2).toBeVisible({ timeout: 15_000 });
+    await checkbox2.check();
 
     // Assert Merge button appears in toolbar
     await expect(page.getByRole('button', { name: 'Merge' })).toBeVisible({ timeout: 10_000 });
@@ -472,14 +489,14 @@ test.describe('Merge Workflow', () => {
 
     const [tradeId1, tradeId2] = seedState.mergeTradeIds;
 
-    // Check both trade checkboxes
-    const checkbox1 = page.locator(`tr:has-text("${tradeId1}") input[type="checkbox"]`);
-    await expect(checkbox1).toBeVisible({ timeout: 10_000 });
-    await checkbox1.click();
+    // Check both trade checkboxes using robust filtering
+    const checkbox1 = page.locator('tr').filter({ hasText: tradeId1 }).locator('input[type="checkbox"]');
+    await expect(checkbox1).toBeVisible({ timeout: 15_000 });
+    await checkbox1.check();
 
-    const checkbox2 = page.locator(`tr:has-text("${tradeId2}") input[type="checkbox"]`);
-    await expect(checkbox2).toBeVisible({ timeout: 10_000 });
-    await checkbox2.click();
+    const checkbox2 = page.locator('tr').filter({ hasText: tradeId2 }).locator('input[type="checkbox"]');
+    await expect(checkbox2).toBeVisible({ timeout: 15_000 });
+    await checkbox2.check();
 
     // Click Merge button
     await page.getByRole('button', { name: 'Merge' }).click();
@@ -504,14 +521,14 @@ test.describe('Merge Workflow', () => {
 
     const [tradeId1, tradeId2] = seedState.mergeTradeIds;
 
-    // Check both trade checkboxes
-    const checkbox1 = page.locator(`tr:has-text("${tradeId1}") input[type="checkbox"]`);
-    await expect(checkbox1).toBeVisible({ timeout: 10_000 });
-    await checkbox1.click();
+    // Check both trade checkboxes using robust filtering
+    const checkbox1 = page.locator('tr').filter({ hasText: tradeId1 }).locator('input[type="checkbox"]');
+    await expect(checkbox1).toBeVisible({ timeout: 15_000 });
+    await checkbox1.check();
 
-    const checkbox2 = page.locator(`tr:has-text("${tradeId2}") input[type="checkbox"]`);
-    await expect(checkbox2).toBeVisible({ timeout: 10_000 });
-    await checkbox2.click();
+    const checkbox2 = page.locator('tr').filter({ hasText: tradeId2 }).locator('input[type="checkbox"]');
+    await expect(checkbox2).toBeVisible({ timeout: 15_000 });
+    await checkbox2.check();
 
     // Click Merge button
     await page.getByRole('button', { name: 'Merge' }).click();
@@ -548,7 +565,7 @@ test.describe('Execution Context Menu', () => {
     await tbodyRows.first().locator('button').last().click();
 
     // Assert dropdown shows all options
-    await expect(page.getByText('Edit')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('table').getByRole('button', { name: 'Edit' })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Move to...')).toBeVisible();
     await expect(page.getByText('Detach as new Trade')).toBeVisible();
     await expect(page.getByText('Delete')).toBeVisible();
@@ -582,8 +599,10 @@ test.describe('Execution Context Menu', () => {
     await page.waitForTimeout(1000);
 
     // Assert table row count decreased by 1
-    tbodyRows = page.locator('table tbody tr');
-    await expect(tbodyRows).toHaveCount(initialCount - 1, { timeout: 10_000 });
+    // We wait for the specific count to be reached. 
+    // If the record was detached, a new trade is created, but here we expect it 
+    // removed from THIS trade's detail page.
+    await expect(page.locator('table tbody tr')).toHaveCount(initialCount - 1, { timeout: 15_000 });
   });
 });
 

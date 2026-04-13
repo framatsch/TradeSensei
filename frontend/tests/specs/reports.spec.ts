@@ -23,10 +23,12 @@ test.describe('Performance Reports — Navigation', () => {
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
-    // Wait for the performance table to render (at least one "View Report" button)
-    const firstRow = page.locator('tbody tr').first();
+    // Wait for the performance table to render (at least one row with data)
+    // We look for a row that has a numeric value in one of its cells.
+    const firstRow = page.locator('tbody tr').filter({ hasText: /[1-9]/ }).first();
     await expect(firstRow).toBeVisible({ timeout: 15_000 });
     await firstRow.click();
+
 
     // Should navigate to trades page with hour_of_day param
     await expect(page).toHaveURL(/\/dashboard\/trades/, { timeout: 8_000 });
