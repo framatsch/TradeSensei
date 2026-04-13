@@ -16,8 +16,8 @@ export const FEATURE_FLAGS: { key: FeatureFlagKey; label: string; description: s
   },
   {
     key: "tax_report",
-    label: "Cash Report",
-    description: "Show the Cash Report page and export.",
+    label: "Tax Report",
+    description: "Show the Tax Report page and export.",
   },
 ];
 

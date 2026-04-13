@@ -254,8 +254,12 @@ export const SEED_STATE_FILE = path.join(__dirname, '.auth', 'seed-state.json');
 
 export interface SeedState {
   accountId: string;
-  /** ID of the E2E execution-test trade (MSFT LONG, 2 executions) */
+  /** ID of the E2E execution-test trade (MSFT LONG, 2 executions) - for TC-061, TC-062, TC-063 */
   executionTradeId: string;
+  /** ID of the dedicated add-execution-test trade (AMZN LONG, 2 executions) - for TC-071 */
+  addExecutionTestTradeId: string;
+  /** ID of the dedicated detach-test trade (GOOGL LONG, 3 executions) - for TC-086 */
+  detachTestTradeId: string;
   /** IDs of the two AAPL trades used in the merge-workflow test */
   mergeTradeIds: [string, string];
 }
@@ -280,6 +284,38 @@ const SEED_EXECUTION_TRADE = {
   quantity: '100',
   entry_price: '400.00',
   opened_at: isoDate(60),
+};
+
+/**
+ * Dedicated trade for TC-071 add-execution test.
+ *
+ * AMZN LONG, opened 58 days ago.
+ * After creation the setup adds two manual executions.
+ * TC-071 will add a third execution via the UI.
+ */
+const SEED_ADD_EXECUTION_TEST_TRADE = {
+  symbol: 'AMZN',
+  direction: 'LONG',
+  asset_class: 'EQUITY',
+  quantity: '50',
+  entry_price: '180.00',
+  opened_at: isoDate(58),
+};
+
+/**
+ * Dedicated trade for TC-086 detach-execution test.
+ *
+ * GOOGL LONG, opened 55 days ago.
+ * After creation the setup adds three manual executions to ensure
+ * the test has multiple rows to work with independently of other tests.
+ */
+const SEED_DETACH_TEST_TRADE = {
+  symbol: 'GOOGL',
+  direction: 'LONG',
+  asset_class: 'EQUITY',
+  quantity: '100',
+  entry_price: '150.00',
+  opened_at: isoDate(55),
 };
 
 // Two AAPL trades with the same symbol — used for merge-workflow E2E test.
@@ -407,8 +443,11 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     executionTradeId = body.data.id;
     console.log(`[global-setup] Execution-test trade seeded: ${executionTradeId}`);
 
+    // Brief pause to allow the backend's async session commit to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     // Add BUY execution leg — 100 @ $400.00
-    await apiPost(
+    const exec1Res = await apiPost(
       `/api/v1/trades/${executionTradeId}/executions`,
       {
         direction: 'LONG',
@@ -419,8 +458,12 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       },
       token
     );
+    if (!exec1Res.ok) {
+      console.warn(`[global-setup] Execution 1 seed warning (${exec1Res.status}): ${await exec1Res.text()}`);
+    }
+    
     // Add SELL execution leg — 50 @ $420.00
-    await apiPost(
+    const exec2Res = await apiPost(
       `/api/v1/trades/${executionTradeId}/executions`,
       {
         direction: 'SHORT',
@@ -431,12 +474,130 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       },
       token
     );
+    if (!exec2Res.ok) {
+      console.warn(`[global-setup] Execution 2 seed warning (${exec2Res.status}): ${await exec2Res.text()}`);
+    }
     console.log(`[global-setup] Two execution legs added to trade ${executionTradeId}.`);
   } else {
     console.warn(`[global-setup] Execution-test trade seed warning (${execTradeRes.status})`);
   }
 
-  // 8. Seed two AAPL trades for merge-workflow test
+  // 8. Seed dedicated add-execution-test trade (AMZN LONG) + two manual execution legs
+  let addExecutionTestTradeId = '';
+  const addExecTradeRes = await apiPost(
+    '/api/v1/trades',
+    SEED_ADD_EXECUTION_TEST_TRADE as unknown as Record<string, unknown>,
+    token
+  );
+  if (addExecTradeRes.ok) {
+    const body = (await addExecTradeRes.json()) as { data: { id: string } };
+    addExecutionTestTradeId = body.data.id;
+    console.log(`[global-setup] Add-execution-test trade seeded: ${addExecutionTestTradeId}`);
+
+    // Brief pause to allow the backend's async session commit to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Add two execution legs for the add-execution test (TC-071 will add a third)
+    const addExec1Res = await apiPost(
+      `/api/v1/trades/${addExecutionTestTradeId}/executions`,
+      {
+        direction: 'LONG',
+        quantity: '25',
+        price: '180.00',
+        commission: '0.50',
+        executed_at: isoDate(58, 9, 30),
+      },
+      token
+    );
+    if (!addExec1Res.ok) {
+      console.warn(`[global-setup] Add-exec 1 seed warning (${addExec1Res.status}): ${await addExec1Res.text()}`);
+    }
+    
+    const addExec2Res = await apiPost(
+      `/api/v1/trades/${addExecutionTestTradeId}/executions`,
+      {
+        direction: 'SHORT',
+        quantity: '10',
+        price: '185.00',
+        commission: '0.25',
+        executed_at: isoDate(58, 14, 0),
+      },
+      token
+    );
+    if (!addExec2Res.ok) {
+      console.warn(`[global-setup] Add-exec 2 seed warning (${addExec2Res.status}): ${await addExec2Res.text()}`);
+    }
+    console.log(`[global-setup] Two execution legs added to add-execution-test trade ${addExecutionTestTradeId}.`);
+  } else {
+    console.warn(`[global-setup] Add-execution-test trade seed warning (${addExecTradeRes.status})`);
+  }
+
+  // 9. Seed dedicated detach-test trade (GOOGL LONG) + three manual execution legs
+  let detachTestTradeId = '';
+  const detachTradeRes = await apiPost(
+    '/api/v1/trades',
+    SEED_DETACH_TEST_TRADE as unknown as Record<string, unknown>,
+    token
+  );
+  if (detachTradeRes.ok) {
+    const body = (await detachTradeRes.json()) as { data: { id: string } };
+    detachTestTradeId = body.data.id;
+    console.log(`[global-setup] Detach-test trade seeded: ${detachTestTradeId}`);
+
+    // Brief pause to allow the backend's async session commit to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Add three execution legs for the detach test
+    const detachExec1Res = await apiPost(
+      `/api/v1/trades/${detachTestTradeId}/executions`,
+      {
+        direction: 'LONG',
+        quantity: '50',
+        price: '150.00',
+        commission: '1.00',
+        executed_at: isoDate(55, 9, 30),
+      },
+      token
+    );
+    if (!detachExec1Res.ok) {
+      console.warn(`[global-setup] Detach-exec 1 seed warning (${detachExec1Res.status}): ${await detachExec1Res.text()}`);
+    }
+    
+    const detachExec2Res = await apiPost(
+      `/api/v1/trades/${detachTestTradeId}/executions`,
+      {
+        direction: 'LONG',
+        quantity: '30',
+        price: '152.00',
+        commission: '0.50',
+        executed_at: isoDate(55, 10, 15),
+      },
+      token
+    );
+    if (!detachExec2Res.ok) {
+      console.warn(`[global-setup] Detach-exec 2 seed warning (${detachExec2Res.status}): ${await detachExec2Res.text()}`);
+    }
+    
+    const detachExec3Res = await apiPost(
+      `/api/v1/trades/${detachTestTradeId}/executions`,
+      {
+        direction: 'SHORT',
+        quantity: '20',
+        price: '155.00',
+        commission: '0.50',
+        executed_at: isoDate(55, 14, 0),
+      },
+      token
+    );
+    if (!detachExec3Res.ok) {
+      console.warn(`[global-setup] Detach-exec 3 seed warning (${detachExec3Res.status}): ${await detachExec3Res.text()}`);
+    }
+    console.log(`[global-setup] Three execution legs added to detach-test trade ${detachTestTradeId}.`);
+  } else {
+    console.warn(`[global-setup] Detach-test trade seed warning (${detachTradeRes.status})`);
+  }
+
+  // 10. Seed two AAPL trades for merge-workflow test
   const mergeTradeIds: [string, string] = ['', ''];
   for (let i = 0; i < SEED_MERGE_TRADES.length; i++) {
     const res = await apiPost(
@@ -457,7 +618,13 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   fs.mkdirSync(path.dirname(SEED_STATE_FILE), { recursive: true });
   fs.writeFileSync(
     SEED_STATE_FILE,
-    JSON.stringify({ accountId, executionTradeId, mergeTradeIds })
+    JSON.stringify({ 
+      accountId, 
+      executionTradeId, 
+      addExecutionTestTradeId,
+      detachTestTradeId, 
+      mergeTradeIds 
+    })
   );
 
   // 7. Produce storageState: log in via browser and save localStorage

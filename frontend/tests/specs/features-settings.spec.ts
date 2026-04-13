@@ -100,7 +100,7 @@ test.describe.serial('Feature flag settings', () => {
     await openFeaturesTab(page);
 
     const cashToggle = page.getByRole('switch', { name: 'Cash & Dividends' });
-    const taxToggle  = page.getByRole('switch', { name: 'Cash Report' });
+    const taxToggle  = page.getByRole('switch', { name: 'Tax Report' });
     const applyBtn   = page.getByRole('button', { name: 'Apply Changes' });
 
     // Enable Cash & Dividends
@@ -109,7 +109,7 @@ test.describe.serial('Feature flag settings', () => {
     await applyBtn.click();
     await expect(applyBtn).toBeDisabled();
 
-    // Enable Cash Report — Cash & Dividends must still be on
+    // Enable Tax Report — Cash & Dividends must still be on
     await expect(cashToggle).toHaveAttribute('aria-checked', 'true');
     await taxToggle.click();
     await expect(taxToggle).toHaveAttribute('aria-checked', 'true');
@@ -123,7 +123,7 @@ test.describe.serial('Feature flag settings', () => {
       'aria-checked',
       'true',
     );
-    await expect(page.getByRole('switch', { name: 'Cash Report' })).toHaveAttribute(
+    await expect(page.getByRole('switch', { name: 'Tax Report' })).toHaveAttribute(
       'aria-checked',
       'true',
     );
@@ -135,7 +135,7 @@ test.describe.serial('Feature flag settings', () => {
     await openFeaturesTab(page);
 
     const cashToggle = page.getByRole('switch', { name: 'Cash & Dividends' });
-    const taxToggle  = page.getByRole('switch', { name: 'Cash Report' });
+    const taxToggle  = page.getByRole('switch', { name: 'Tax Report' });
     const applyBtn   = page.getByRole('button', { name: 'Apply Changes' });
 
     await cashToggle.click();
@@ -146,7 +146,7 @@ test.describe.serial('Feature flag settings', () => {
     // Navigate to dashboard and check sidebar
     await page.goto('/dashboard');
     await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Cash Report/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Tax Report/i })).toBeVisible();
   });
 
   // ── 4b. Sidebar live-update — no page navigation ──────────────────────────
@@ -168,10 +168,10 @@ test.describe.serial('Feature flag settings', () => {
     // Wait until the layout's settings subscription has settled (sidebar rendered)
     // by asserting the nav does NOT yet have these items
     await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeHidden();
-    await expect(page.getByRole('link', { name: /Cash Report/i })).toBeHidden();
+    await expect(page.getByRole('link', { name: /Tax Report/i })).toBeHidden();
 
     const cashToggle = page.getByRole('switch', { name: 'Cash & Dividends' });
-    const taxToggle  = page.getByRole('switch', { name: 'Cash Report' });
+    const taxToggle  = page.getByRole('switch', { name: 'Tax Report' });
     const applyBtn   = page.getByRole('button', { name: 'Apply Changes' });
 
     // Enable both flags
@@ -184,7 +184,7 @@ test.describe.serial('Feature flag settings', () => {
 
     // Sidebar must update without any page.goto() call
     await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Cash Report/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Tax Report/i })).toBeVisible();
   });
 
   test('disabling Financials flags hides sidebar nav items', async ({ page }) => {
@@ -212,13 +212,44 @@ test.describe.serial('Feature flag settings', () => {
 
     // Disable both
     await page.getByRole('switch', { name: 'Cash & Dividends' }).click();
-    await page.getByRole('switch', { name: 'Cash Report' }).click();
+    await page.getByRole('switch', { name: 'Tax Report' }).click();
     await page.getByRole('button', { name: 'Apply Changes' }).click();
     await expect(page.getByRole('button', { name: 'Apply Changes' })).toBeDisabled();
 
     // Navigate to dashboard — nav items should be gone
     await page.goto('/dashboard');
     await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeHidden();
-    await expect(page.getByRole('link', { name: /Cash Report/i })).toBeHidden();
+    await expect(page.getByRole('link', { name: /Tax Report/i })).toBeHidden();
+  });
+
+  // ── 5. API-based smoke test (faster than UI) ─────────────────────────────
+  
+  test('enabled financials flags inject Cash and Tax nav items via API', async ({ page }) => {
+    // Enable both financials flags via API (faster than UI for a smoke test)
+    await page.goto('/dashboard');
+    const token = await getToken(page);
+    
+    const res = await page.request.fetch(`${API_URL}/api/v1/users/me/settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: JSON.stringify({
+        features: { cash_and_dividends: true, tax_report: true },
+      }),
+    });
+    expect(res.ok()).toBeTruthy();
+
+    // Navigate to a different route first to ensure React Query cache is invalidated
+    await page.goto('/dashboard/settings');
+    await page.waitForLoadState('networkidle');
+    
+    // Now navigate back to dashboard - the sidebar should have fresh settings
+    await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('link', { name: /Tax Report/i })).toBeVisible({ timeout: 15_000 });
   });
 });

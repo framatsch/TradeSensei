@@ -1,4 +1,4 @@
-# IBKR Flex Query Setup - Bracket.IO
+# IBKR Flex Query Setup - Trading Journal
 
 **How to create and configure the IBKR Flex Query for trade imports**
 
@@ -165,5 +165,5 @@ Data is typically available daily after **22:00 UTC** (IBKR processes EOD data).
 
 ## ⚠️ Limitations
 
-- Exporting csv file from broker only allows 365 days at a time. If you are looking to export more than one year you must run one export per year.
+- Exporting the XML file from the broker only allows 365 days at a time. If you are looking to export more than one year you must run one export per year.
 - Interactive Broker creates DUST trades sometimes when trading currencies different from your base currencies. These trades are entered as open trades on TraderSync. You must close them manually creating an opposite order with the same price so they show as breakeven

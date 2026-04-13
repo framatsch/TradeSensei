@@ -299,7 +299,8 @@ test.describe('Add Execution Modal', () => {
 
   // ── TC-071: Successfully add execution increases table row count ──
   test('TC-071 adding execution with quantity and price increases table rows', async ({ page }) => {
-    await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
+    // Use dedicated add-execution-test trade to avoid race conditions with other tests
+    await page.goto(`/dashboard/trades/${seedState.addExecutionTestTradeId}`);
     await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
@@ -311,7 +312,8 @@ test.describe('Add Execution Modal', () => {
     // Get initial row count
     let tbodyRows = page.locator('table tbody tr');
     const initialCount = await tbodyRows.count();
-    expect(initialCount).toBeGreaterThanOrEqual(2); // At least 2 from seeding
+    // Assert we have exactly 3 rows: 1 auto-created + 2 manual from seeding
+    expect(initialCount).toBe(3);
 
     // Click Add Execution button
     await page.getByRole('button', { name: 'Add Execution' }).click();
@@ -575,7 +577,8 @@ test.describe('Execution Context Menu', () => {
 
   // ── TC-086: Detach execution decreases table row count ──
   test('TC-086 detaching execution removes row from table', async ({ page }) => {
-    await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
+    // Use the dedicated detach-test trade to avoid race conditions with TC-071
+    await page.goto(`/dashboard/trades/${seedState.detachTestTradeId}`);
     await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
@@ -586,6 +589,8 @@ test.describe('Execution Context Menu', () => {
     let tbodyRows = page.locator('table tbody tr');
     await expect(tbodyRows.first()).toBeVisible({ timeout: 10_000 });
     const initialCount = await tbodyRows.count();
+    // Assert we have exactly 4 rows: 1 auto-created + 3 manual from seeding
+    expect(initialCount).toBe(4);
 
     // Set up dialog handler before clicking
     page.on('dialog', (d) => d.accept());
