@@ -139,11 +139,19 @@ class TradeService:
 
         # Deferred import to break circular dependency: execution -> trade
         from app.models.logical_execution import ExecutionStatus
-
-        # Deferred import to break circular dependency: execution -> trade
+        from app.models.trade import Direction as TradeDirection
         from app.repositories.execution import ExecutionRepository
 
         exec_repo = ExecutionRepository(self._session)
+
+        # Determine the exit direction (opposite of trade direction).
+        exit_direction = (
+            TradeDirection.SHORT
+            if trade.direction == TradeDirection.LONG
+            else TradeDirection.LONG
+        )
+
+        # Always create a synthetic entry execution.
         await exec_repo.create(
             user_id=trade.user_id,
             account_id=trade.account_id,
@@ -159,6 +167,27 @@ class TradeService:
             status=ExecutionStatus.MANUAL,
             trade_id=trade.id,
         )
+
+        # If the trade is already closed (exit_price + closed_at provided),
+        # also create a synthetic exit execution so the legs table is complete.
+        is_closed = trade.closed_at is not None and trade.exit_price is not None
+        if is_closed:
+            await exec_repo.create(
+                user_id=trade.user_id,
+                account_id=trade.account_id,
+                symbol=trade.symbol,
+                asset_class=trade.asset_class,
+                direction=exit_direction,
+                quantity=trade.quantity,
+                price=trade.exit_price,
+                commission=trade.commission,
+                executed_at=trade.closed_at,
+                multiplier=trade.multiplier,
+                currency=trade.currency,
+                status=ExecutionStatus.MANUAL,
+                trade_id=trade.id,
+                pnl=trade.pnl,
+            )
 
         # Re-aggregate only for open/manual-entry trades. Closed trades created via
         # API can include explicit exit/PnL values that cannot be reconstructed from

@@ -219,6 +219,79 @@ class TestCreateTrade:
             trade_id=trade.id,
         )
 
+    @pytest.mark.unit
+    async def test_create_closed_trade_creates_entry_and_exit_executions(
+        self, service: TradeService, mock_session: AsyncMock
+    ) -> None:
+        """create_trade with exit_price+closed_at should create both entry and exit executions."""
+        from app.models.logical_execution import ExecutionStatus
+
+        now = datetime.now(tz=UTC)
+        closed = datetime.now(tz=UTC)
+        trade = _make_trade(
+            id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            account_id=None,
+            symbol="AAPL",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            entry_price=Decimal("150.00"),
+            exit_price=Decimal("160.00"),
+            opened_at=now,
+            closed_at=closed,
+            pnl=Decimal("100.00"),
+        )
+
+        payload = TradeCreate(
+            user_id=trade.user_id,
+            symbol="AAPL",
+            direction=Direction.LONG,
+            asset_class=AssetClass.EQUITY,
+            quantity=Decimal("10"),
+            entry_price=Decimal("150.00"),
+            exit_price=Decimal("160.00"),
+            opened_at=now,
+            closed_at=closed,
+            pnl=Decimal("100.00"),
+        )
+
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.create",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.repositories.execution.ExecutionRepository.create",
+                new_callable=AsyncMock,
+            ) as mock_exec_create,
+            patch(
+                "app.services.trade_service.TradeService._re_aggregate_trade",
+                new_callable=AsyncMock,
+            ) as mock_reaggregate,
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+        ):
+            await service.create_trade(payload)
+
+        # Two executions must be created: entry (LONG) and exit (SHORT).
+        assert mock_exec_create.await_count == 2
+        calls = mock_exec_create.call_args_list
+        entry_kwargs = calls[0].kwargs
+        exit_kwargs = calls[1].kwargs
+        assert entry_kwargs["direction"] == Direction.LONG
+        assert entry_kwargs["price"] == Decimal("150.00")
+        assert entry_kwargs["status"] == ExecutionStatus.MANUAL
+        assert exit_kwargs["direction"] == Direction.SHORT
+        assert exit_kwargs["price"] == Decimal("160.00")
+        assert exit_kwargs["pnl"] == Decimal("100.00")
+        assert exit_kwargs["status"] == ExecutionStatus.MANUAL
+        # Re-aggregation must NOT run for an already-closed trade.
+        mock_reaggregate.assert_not_awaited()
+
 
 class TestGetTrade:
     """Unit tests for :meth:`TradeService.get_trade`."""

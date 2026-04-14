@@ -14,12 +14,15 @@ from typing import cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AccountNotFoundError
+from app.models.logical_execution import ExecutionStatus
+from app.models.trade import Direction as TradeDirection
 from app.repositories.account_repository import AccountRepository
 from app.repositories.broker_raw_transaction_repository import (
     BrokerRawTransactionRepository,
 )
 from app.repositories.cash_transaction_repository import CashTransactionRepository
 from app.repositories.corporate_action_repository import CorporateActionRepository
+from app.repositories.execution import ExecutionRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.cash_transaction import CashTransactionCreateRequest
@@ -79,6 +82,7 @@ class ImportService:
         self._ca_repo = CorporateActionRepository(session)
         self._raw_repo = BrokerRawTransactionRepository(session)
         self._logical_svc = LogicalExecutionService(session)
+        self._exec_repo = ExecutionRepository(session)
 
     async def import_file(
         self,
@@ -549,8 +553,52 @@ class ImportService:
                 update={"account_id": account_id, "user_id": user_id}
             )
             try:
-                await self._trade_repo.create(trade_with_owner)
+                created_trade = await self._trade_repo.create(trade_with_owner)
                 trades_created += 1
+                # ── Synthetic execution legs for legacy-imported trades ────────
+                # The legacy pipeline does not create LogicalExecution rows,
+                # so we synthesise them here so the Execution Legs table is
+                # populated for every imported trade.
+                exit_direction = (
+                    TradeDirection.SHORT
+                    if trade_data.direction == TradeDirection.LONG
+                    else TradeDirection.LONG
+                )
+                await self._exec_repo.create(
+                    user_id=user_id,
+                    account_id=account_id,
+                    symbol=created_trade.symbol,
+                    asset_class=created_trade.asset_class,
+                    direction=created_trade.direction,
+                    quantity=created_trade.quantity,
+                    price=created_trade.entry_price,
+                    commission=created_trade.commission,
+                    executed_at=created_trade.opened_at,
+                    multiplier=created_trade.multiplier,
+                    currency=created_trade.currency,
+                    status=ExecutionStatus.IMPORTED,
+                    trade_id=created_trade.id,
+                )
+                if (
+                    created_trade.closed_at is not None
+                    and created_trade.exit_price is not None
+                ):
+                    await self._exec_repo.create(
+                        user_id=user_id,
+                        account_id=account_id,
+                        symbol=created_trade.symbol,
+                        asset_class=created_trade.asset_class,
+                        direction=exit_direction,
+                        quantity=created_trade.quantity,
+                        price=created_trade.exit_price,
+                        commission=created_trade.commission,
+                        executed_at=created_trade.closed_at,
+                        multiplier=created_trade.multiplier,
+                        currency=created_trade.currency,
+                        status=ExecutionStatus.IMPORTED,
+                        trade_id=created_trade.id,
+                        pnl=created_trade.pnl,
+                    )
             except Exception as exc:  # noqa: BLE001
                 msg = (
                     f"Failed to persist trade {trade_data.symbol} "
