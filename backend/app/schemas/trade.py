@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
+from app.schemas.execution import LogicalExecutionCreate
 from app.schemas.note import TradeNoteRead
 from app.schemas.tag import TagRead
 
@@ -257,6 +258,10 @@ class TradeCreate(BaseModel):
             "All UUIDs must belong to the authenticated user."
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
+    )
+    executions: list[LogicalExecutionCreate] | None = Field(
+        default=None,
+        description="Optional list of manual execution legs to create with the trade.",
     )
     broker_order_id: str | None = Field(
         default=None,
@@ -537,6 +542,10 @@ class TradeCreateRequest(BaseModel):
             "All UUIDs must belong to the authenticated user."
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
+    )
+    executions: list[LogicalExecutionCreate] | None = Field(
+        default=None,
+        description="Optional list of manual execution legs to create with the trade.",
     )
 
     @field_validator("opened_at", "closed_at", mode="after")

@@ -1,3 +1,4 @@
+from sqlalchemy.ext.asyncio import AsyncSession
 """Unit tests for TradeService — no database access (all DB calls mocked)."""
 
 import uuid
@@ -220,6 +221,87 @@ class TestCreateTrade:
         )
 
     @pytest.mark.unit
+
+    @pytest.mark.unit
+    async def test_create_trade_with_manual_executions(
+        self, service: TradeService, mock_session: AsyncMock
+    ) -> None:
+        from app.schemas.execution import LogicalExecutionCreate
+        from app.models.logical_execution import ExecutionStatus
+        from app.models.trade import Direction, AssetClass
+        from app.schemas.trade import TradeCreate
+        import uuid
+        from decimal import Decimal
+        from datetime import datetime, UTC
+
+        trade_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+        opened_at = datetime.now(UTC)
+
+        trade = _make_trade(id=trade_id, user_id=user_id, symbol="MANUAL_EXEC", direction=Direction.LONG)
+        
+        leg = LogicalExecutionCreate(
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            price=Decimal("100"),
+            commission=Decimal("1"),
+            executed_at=opened_at,
+            pnl=None,
+        )
+
+        data = TradeCreate(
+            user_id=user_id,
+            symbol="MANUAL_EXEC",
+            direction=Direction.LONG,
+            asset_class=AssetClass.EQUITY,
+            quantity=Decimal("10"),
+            entry_price=Decimal("100"),
+            opened_at=opened_at,
+            commission=Decimal("1"),
+            executions=[leg],
+        )
+
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.create",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.repositories.execution.ExecutionRepository.create",
+                new_callable=AsyncMock,
+            ) as mock_exec_create,
+            patch(
+                "app.services.trade_service.TradeService._re_aggregate_trade",
+                new_callable=AsyncMock,
+            ) as mock_re_aggregate,
+        ):
+            created = await service.create_trade(data)
+            
+            assert created.symbol == "MANUAL_EXEC"
+            mock_exec_create.assert_called_once_with(
+                user_id=user_id,
+                account_id=trade.account_id,
+                symbol="MANUAL_EXEC",
+                asset_class=AssetClass.EQUITY,
+                direction=Direction.LONG,
+                quantity=Decimal("10"),
+                price=Decimal("100"),
+                commission=Decimal("1"),
+                executed_at=opened_at,
+                multiplier=trade.multiplier,
+                currency=trade.currency,
+                status=ExecutionStatus.MANUAL,
+                trade_id=trade_id,
+                pnl=None,
+            )
+            mock_re_aggregate.assert_called_once_with(trade_id)
+
     async def test_create_closed_trade_creates_entry_and_exit_executions(
         self, service: TradeService, mock_session: AsyncMock
     ) -> None:
@@ -532,3 +614,5 @@ class TestDeleteTrade:
             pytest.raises(TradeNotFoundError),
         ):
             await service.delete_trade(uuid.uuid4(), uuid.uuid4())
+
+

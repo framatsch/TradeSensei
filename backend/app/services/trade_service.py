@@ -151,43 +151,63 @@ class TradeService:
             else TradeDirection.LONG
         )
 
-        # Always create a synthetic entry execution.
-        await exec_repo.create(
-            user_id=trade.user_id,
-            account_id=trade.account_id,
-            symbol=trade.symbol,
-            asset_class=trade.asset_class,
-            direction=trade.direction,
-            quantity=trade.quantity,
-            price=trade.entry_price,
-            commission=trade.commission,
-            executed_at=trade.opened_at,
-            multiplier=trade.multiplier,
-            currency=trade.currency,
-            status=ExecutionStatus.MANUAL,
-            trade_id=trade.id,
-        )
-
-        # If the trade is already closed (exit_price + closed_at provided),
-        # also create a synthetic exit execution so the legs table is complete.
-        is_closed = trade.closed_at is not None and trade.exit_price is not None
-        if is_closed:
+        if data.executions:
+            # Bypass auto-generation and create manual execution legs
+            for leg in data.executions:
+                await exec_repo.create(
+                    user_id=trade.user_id,
+                    account_id=trade.account_id,
+                    symbol=trade.symbol,
+                    asset_class=trade.asset_class,
+                    direction=leg.direction,
+                    quantity=leg.quantity,
+                    price=leg.price,
+                    commission=leg.commission,
+                    executed_at=leg.executed_at,
+                    multiplier=trade.multiplier,
+                    currency=trade.currency,
+                    status=ExecutionStatus.MANUAL,
+                    trade_id=trade.id,
+                    pnl=leg.pnl,
+                )
+        else:
+            # Always create a synthetic entry execution.
             await exec_repo.create(
                 user_id=trade.user_id,
                 account_id=trade.account_id,
                 symbol=trade.symbol,
                 asset_class=trade.asset_class,
-                direction=exit_direction,
+                direction=trade.direction,
                 quantity=trade.quantity,
-                price=trade.exit_price,
+                price=trade.entry_price,
                 commission=trade.commission,
-                executed_at=trade.closed_at,
+                executed_at=trade.opened_at,
                 multiplier=trade.multiplier,
                 currency=trade.currency,
                 status=ExecutionStatus.MANUAL,
                 trade_id=trade.id,
-                pnl=trade.pnl,
             )
+
+            # If the trade is already closed (exit_price + closed_at provided),
+            # also create a synthetic exit execution so the legs table is complete.
+            is_closed = trade.closed_at is not None and trade.exit_price is not None
+            if is_closed:
+                await exec_repo.create(
+                    user_id=trade.user_id,
+                    account_id=trade.account_id,
+                    symbol=trade.symbol,
+                    asset_class=trade.asset_class,
+                    direction=exit_direction,
+                    quantity=trade.quantity,
+                    price=trade.exit_price,
+                    commission=trade.commission,
+                    executed_at=trade.closed_at,
+                    multiplier=trade.multiplier,
+                    currency=trade.currency,
+                    status=ExecutionStatus.MANUAL,
+                    trade_id=trade.id,
+                    pnl=trade.pnl,
+                )
 
         # Re-aggregate only for open/manual-entry trades. Closed trades created via
         # API can include explicit exit/PnL values that cannot be reconstructed from

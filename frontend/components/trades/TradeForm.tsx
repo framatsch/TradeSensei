@@ -1,14 +1,11 @@
-/**
- * TradeForm — shared create/edit form for trades.
- * In create mode: all fields start empty, calls useCreateTrade on submit.
- * In edit mode: fields pre-populated from trade, calls useUpdateTrade on submit.
- */
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass } from "@/lib/types";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass, LogicalExecutionCreate } from "@/lib/types";
 import { useCreateTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useTags } from "@/hooks/useTags";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
@@ -16,6 +13,7 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import type { AxiosError } from "axios";
+import { Trash2, Plus } from "lucide-react";
 
 const DIRECTIONS: Direction[] = ["LONG", "SHORT"];
 const ASSET_CLASSES: AssetClass[] = [
@@ -26,12 +24,44 @@ const ASSET_CLASSES: AssetClass[] = [
   "CRYPTO",
 ];
 
+const legSchema = z.object({
+  executed_at: z.string().min(1, "Date is required"),
+  direction: z.enum(["LONG", "SHORT"]),
+  quantity: z.string().min(1, "Quantity is required"),
+  price: z.string().min(1, "Price is required"),
+  commission: z.string().optional(),
+});
+
+const formSchema = z.object({
+  symbol: z.string().min(1, "Symbol is required").transform(val => val.toUpperCase()),
+  direction: z.enum(["LONG", "SHORT"]),
+  asset_class: z.enum(["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"]),
+  currency: z.string().max(3).optional().refine(val => !val || val.length === 3, "Currency must be a 3-letter ISO code").transform(val => val?.toUpperCase() || ""),
+  account_id: z.string().optional(),
+  
+  quantity: z.string().min(1, "Quantity is required").refine(val => parseFloat(val) > 0, "Quantity must be > 0"),
+  entry_price: z.string().min(1, "Entry price is required").refine(val => parseFloat(val) > 0, "Entry price must be > 0"),
+  exit_price: z.string().optional().refine(val => !val || parseFloat(val) > 0, "Exit price must be > 0 when provided"),
+  pnl: z.string().optional(),
+  stop_loss: z.string().optional().refine(val => !val || parseFloat(val) > 0, "Stop loss must be > 0 when provided"),
+  take_profit: z.string().optional().refine(val => !val || parseFloat(val) > 0, "Take profit must be > 0 when provided"),
+  commission: z.string().optional(),
+  
+  opened_at: z.string().min(1, "Opened at is required"),
+  closed_at: z.string().optional(),
+  
+  playbook_id: z.string().optional(),
+  notes: z.string().optional(),
+  
+  isAdvancedMode: z.boolean().default(false),
+  executions: z.array(legSchema).optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
 interface Props {
-  /** When provided, the form operates in edit mode. */
   trade?: Trade;
-  /** Called after successful save (create or update). */
   onSuccess?: (trade: Trade) => void;
-  /** Called when user clicks Cancel. */
   onCancel?: () => void;
 }
 
@@ -55,28 +85,95 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   const { data: playbooks } = usePlaybooks();
   const { data: accounts } = useAccounts();
 
-  // ── Form state ────────────────────────────────────────────────────────────
-  const [symbol, setSymbol] = useState(trade?.symbol ?? "");
-  const [direction, setDirection] = useState<Direction>(trade?.direction ?? "LONG");
-  const [assetClass, setAssetClass] = useState<AssetClass>(trade?.asset_class ?? "EQUITY");
-  const [quantity, setQuantity] = useState(trade?.quantity ?? "");
-  const [entryPrice, setEntryPrice] = useState(trade?.entry_price ?? "");
-  const [exitPrice, setExitPrice] = useState(trade?.exit_price ?? "");
-  const [stopLoss, setStopLoss] = useState(trade?.stop_loss ?? "");
-  const [takeProfit, setTakeProfit] = useState(trade?.take_profit ?? "");
-  const [openedAt, setOpenedAt] = useState(toLocalDatetimeValue(trade?.opened_at));
-  const [closedAt, setClosedAt] = useState(toLocalDatetimeValue(trade?.closed_at));
-  const [pnl, setPnl] = useState(trade?.pnl ?? "");
-  const [commission, setCommission] = useState(trade?.commission ?? "0");
-  const [currency, setCurrency] = useState(trade?.currency ?? "");
-  const [notes, setNotes] = useState(trade?.notes ?? "");
-  const [playbookId, setPlaybookId] = useState<string>(trade?.playbook_id ?? "");
-  const [accountId, setAccountId] = useState<string>("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     trade?.tags.map((t) => t.id) ?? []
   );
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
+  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      symbol: trade?.symbol ?? "",
+      direction: trade?.direction ?? "LONG",
+      asset_class: trade?.asset_class ?? "EQUITY",
+      currency: trade?.currency ?? "",
+      account_id: trade?.account_id ?? "",
+      quantity: trade?.quantity ?? "",
+      entry_price: trade?.entry_price ?? "",
+      exit_price: trade?.exit_price ?? "",
+      pnl: trade?.pnl ?? "",
+      stop_loss: trade?.stop_loss ?? "",
+      take_profit: trade?.take_profit ?? "",
+      commission: trade?.commission ?? "0",
+      opened_at: toLocalDatetimeValue(trade?.opened_at),
+      closed_at: toLocalDatetimeValue(trade?.closed_at),
+      playbook_id: trade?.playbook_id ?? "",
+      notes: trade?.notes ?? "",
+      isAdvancedMode: false,
+      executions: [],
+    }
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "executions"
+  });
+
+  const isAdvancedMode = watch("isAdvancedMode");
+  const executions = watch("executions");
+  const tradeDirection = watch("direction");
+  const openedAt = watch("opened_at");
+
+  // Sync executions with main fields when in advanced mode
+  useEffect(() => {
+    if (isAdvancedMode && executions && executions.length > 0) {
+      let totalQty = 0;
+      let totalValue = 0;
+      let totalComm = 0;
+      
+      // Calculate based on first execution as entry
+      const entryDirection = executions[0].direction;
+      let entryQty = 0;
+      let entryValue = 0;
+      
+      executions.forEach(leg => {
+        const legQty = parseFloat(leg.quantity) || 0;
+        const legPrice = parseFloat(leg.price) || 0;
+        const legComm = parseFloat(leg.commission || "0") || 0;
+        
+        totalComm += legComm;
+        
+        if (leg.direction === entryDirection) {
+          entryQty += legQty;
+          entryValue += legQty * legPrice;
+        }
+      });
+      
+      if (entryQty > 0) {
+        setValue("entry_price", (entryValue / entryQty).toFixed(4));
+      }
+      
+      // Calculate current position (can be negative if over-closed)
+      let currentQty = 0;
+      executions.forEach(leg => {
+        const legQty = parseFloat(leg.quantity) || 0;
+        if (leg.direction === entryDirection) {
+          currentQty += legQty;
+        } else {
+          currentQty -= legQty;
+        }
+      });
+      
+      // Max quantity is the max position size ever reached
+      setValue("quantity", entryQty.toString());
+      setValue("commission", totalComm.toString());
+      
+      if (currentQty <= 0) {
+        // Trade is closed or reversed
+        // We could calculate exit price here, but let's keep it simple for now
+      }
+    }
+  }, [isAdvancedMode, executions, setValue]);
+
   const createMutation = useCreateTrade();
   const updateMutation = useUpdateTrade(trade?.id ?? "");
 
@@ -89,45 +186,41 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
     return axiosErr.response?.data?.detail ?? mutError.message;
   })();
 
-  // ── Validation ────────────────────────────────────────────────────────────
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const onSubmit = (data: FormValues) => {
+    const payloadBase = {
+      symbol: data.symbol,
+      direction: data.direction,
+      asset_class: data.asset_class,
+      quantity: data.quantity,
+      entry_price: data.entry_price,
+      exit_price: data.exit_price || null,
+      stop_loss: data.stop_loss === "" ? null : data.stop_loss,
+      take_profit: data.take_profit === "" ? null : data.take_profit,
+      opened_at: toISOWithOffset(data.opened_at) ?? new Date().toISOString(),
+      closed_at: data.closed_at ? toISOWithOffset(data.closed_at) : null,
+      pnl: data.pnl || null,
+      commission: data.commission || "0",
+      currency: data.currency || null,
+      notes: data.notes || null,
+      playbook_id: data.playbook_id || null,
+      tag_ids: selectedTagIds,
+    };
 
-  function validate(): boolean {
-    const errs: Record<string, string> = {};
-    if (!symbol.trim()) errs.symbol = "Symbol is required.";
-    if (!quantity || parseFloat(quantity) <= 0) errs.quantity = "Quantity must be > 0.";
-    if (!entryPrice || parseFloat(entryPrice) <= 0) errs.entry_price = "Entry price must be > 0.";
-    if (exitPrice && parseFloat(exitPrice) <= 0) errs.exit_price = "Exit price must be > 0 when provided.";
-    if (stopLoss && parseFloat(stopLoss) <= 0) errs.stop_loss = "Stop loss must be > 0 when provided.";
-    if (takeProfit && parseFloat(takeProfit) <= 0) errs.take_profit = "Take profit must be > 0 when provided.";
-    if (!openedAt) errs.opened_at = "Opened at is required.";
-    if (currency && currency.length !== 3) errs.currency = "Currency must be a 3-letter ISO code.";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!validate()) return;
+    let payloadExecutions = null;
+    if (data.isAdvancedMode && data.executions && data.executions.length > 0) {
+      payloadExecutions = data.executions.map(leg => ({
+        direction: leg.direction,
+        quantity: leg.quantity,
+        price: leg.price,
+        commission: leg.commission || "0",
+        executed_at: toISOWithOffset(leg.executed_at) ?? new Date().toISOString(),
+      }));
+    }
 
     if (isEditing) {
       const payload: TradeUpdate = {
-        symbol: symbol.trim(),
-        direction,
-        asset_class: assetClass,
-        quantity,
-        entry_price: entryPrice,
-        exit_price: exitPrice || null,
-        stop_loss: stopLoss === "" ? null : stopLoss,
-        take_profit: takeProfit === "" ? null : takeProfit,
-        opened_at: toISOWithOffset(openedAt),
-        closed_at: closedAt ? toISOWithOffset(closedAt) : null,
-        pnl: pnl || null,
-        commission,
-        currency: currency.trim() || null,
-        notes: notes.trim() || null,
-        playbook_id: playbookId || null,
-        tag_ids: selectedTagIds,
+        ...payloadBase,
+        executions: payloadExecutions,
       };
       updateMutation.mutate(payload, {
         onSuccess: (updated) => {
@@ -137,23 +230,9 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       });
     } else {
       const payload: TradeCreate = {
-        symbol: symbol.trim(),
-        direction,
-        asset_class: assetClass,
-        quantity,
-        entry_price: entryPrice,
-        exit_price: exitPrice || null,
-        stop_loss: stopLoss || null,
-        take_profit: takeProfit || null,
-        opened_at: toISOWithOffset(openedAt) ?? new Date().toISOString(),
-        closed_at: closedAt ? toISOWithOffset(closedAt) : null,
-        pnl: pnl || null,
-        commission: commission || "0",
-        currency: currency.trim() || null,
-        notes: notes.trim() || null,
-        account_id: accountId || null,
-        playbook_id: playbookId || null,
-        tag_ids: selectedTagIds,
+        ...payloadBase,
+        account_id: data.account_id || null,
+        executions: payloadExecutions,
       };
       createMutation.mutate(payload, {
         onSuccess: (created) => {
@@ -162,7 +241,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         },
       });
     }
-  }
+  };
 
   function toggleTag(tagId: string) {
     setSelectedTagIds((prev) =>
@@ -171,12 +250,12 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   }
 
   const inputCls =
-    "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-zinc-500";
+    "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed";
   const labelCls = "block text-xs font-medium text-muted-foreground mb-1";
   const errorCls = "text-xs text-red-400 mt-0.5";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {serverError && (
         <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
           {serverError}
@@ -191,20 +270,18 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             <label className={labelCls}>Symbol *</label>
             <input
               type="text"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+              {...register("symbol")}
               placeholder="AAPL"
               className={inputCls}
               maxLength={20}
             />
-            {errors.symbol && <p className={errorCls}>{errors.symbol}</p>}
+            {errors.symbol && <p className={errorCls}>{errors.symbol.message}</p>}
           </div>
 
           <div>
             <label className={labelCls}>Direction *</label>
             <select
-              value={direction}
-              onChange={(e) => setDirection(e.target.value as Direction)}
+              {...register("direction")}
               className={inputCls}
             >
               {DIRECTIONS.map((d) => (
@@ -216,8 +293,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
           <div>
             <label className={labelCls}>Asset Class *</label>
             <select
-              value={assetClass}
-              onChange={(e) => setAssetClass(e.target.value as AssetClass)}
+              {...register("asset_class")}
               className={inputCls}
             >
               {ASSET_CLASSES.map((ac) => (
@@ -230,21 +306,19 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             <label className={labelCls}>Currency (ISO-4217)</label>
             <input
               type="text"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+              {...register("currency")}
               placeholder="USD"
               maxLength={3}
               className={inputCls}
             />
-            {errors.currency && <p className={errorCls}>{errors.currency}</p>}
+            {errors.currency && <p className={errorCls}>{errors.currency.message}</p>}
           </div>
 
           {!isEditing && accounts && accounts.length > 0 && (
             <div>
               <label className={labelCls}>Account</label>
               <select
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
+                {...register("account_id")}
                 className={inputCls}
               >
                 <option value="">— None —</option>
@@ -257,6 +331,122 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         </div>
       </div>
 
+      {/* ── Advanced Mode Toggle ────────────────────────────────────────── */}
+      <div className="flex items-center justify-between bg-card rounded-xl border border-border p-5">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Advanced Mode (Manual Legs)</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Build this trade by specifying individual execution legs.
+          </p>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input 
+            type="checkbox" 
+            className="sr-only peer" 
+            {...register("isAdvancedMode")}
+          />
+          <div className="w-11 h-6 bg-secondary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+        </label>
+      </div>
+
+      {/* ── Execution Legs (Advanced Mode) ────────────────────────────────── */}
+      {isAdvancedMode && (
+        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-semibold text-muted-foreground">Execution Legs</h3>
+            <button
+              type="button"
+              onClick={() => append({ 
+                executed_at: openedAt || toLocalDatetimeValue(new Date().toISOString()), 
+                direction: tradeDirection, 
+                quantity: "", 
+                price: "", 
+                commission: "0" 
+              })}
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
+            >
+              <Plus className="w-4 h-4" /> Add Leg
+            </button>
+          </div>
+          
+          {fields.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4 border border-dashed border-border rounded-md">
+              No execution legs added. Add a leg to calculate trade quantity and price.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {fields.map((field, index) => (
+                <div key={field.id} className="flex gap-2 items-start bg-secondary/50 p-3 rounded-lg border border-border">
+                  <div className="grid grid-cols-5 gap-2 flex-1">
+                    <div>
+                      <label className={labelCls}>Date/Time</label>
+                      <input
+                        type="datetime-local"
+                        {...register(`executions.${index}.executed_at` as const)}
+                        className={inputCls}
+                      />
+                      {errors.executions?.[index]?.executed_at && <p className={errorCls}>{errors.executions[index]?.executed_at?.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelCls}>Side</label>
+                      <select
+                        {...register(`executions.${index}.direction` as const)}
+                        className={inputCls}
+                      >
+                        <option value="LONG">Buy</option>
+                        <option value="SHORT">Sell</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Qty</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.000001"
+                        {...register(`executions.${index}.quantity` as const)}
+                        className={inputCls}
+                      />
+                      {errors.executions?.[index]?.quantity && <p className={errorCls}>{errors.executions[index]?.quantity?.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelCls}>Price</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0.000001"
+                        {...register(`executions.${index}.price` as const)}
+                        className={inputCls}
+                      />
+                      {errors.executions?.[index]?.price && <p className={errorCls}>{errors.executions[index]?.price?.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelCls}>Fees</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        {...register(`executions.${index}.commission` as const)}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                  <div className="pt-6">
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
+                      title="Remove leg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Section 2: Entry / Exit ───────────────────────────────────────── */}
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Entry / Exit</h3>
@@ -267,11 +457,11 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               type="number"
               step="any"
               min="0.000001"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              {...register("quantity")}
+              disabled={isAdvancedMode}
               className={inputCls}
             />
-            {errors.quantity && <p className={errorCls}>{errors.quantity}</p>}
+            {errors.quantity && <p className={errorCls}>{errors.quantity.message}</p>}
           </div>
 
           <div>
@@ -280,11 +470,11 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               type="number"
               step="any"
               min="0.000001"
-              value={entryPrice}
-              onChange={(e) => setEntryPrice(e.target.value)}
+              {...register("entry_price")}
+              disabled={isAdvancedMode}
               className={inputCls}
             />
-            {errors.entry_price && <p className={errorCls}>{errors.entry_price}</p>}
+            {errors.entry_price && <p className={errorCls}>{errors.entry_price.message}</p>}
           </div>
 
           <div>
@@ -293,12 +483,12 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               type="number"
               step="any"
               min="0.000001"
-              value={exitPrice}
-              onChange={(e) => setExitPrice(e.target.value)}
+              {...register("exit_price")}
+              disabled={isAdvancedMode}
               placeholder="Leave blank for open trade"
               className={inputCls}
             />
-            {errors.exit_price && <p className={errorCls}>{errors.exit_price}</p>}
+            {errors.exit_price && <p className={errorCls}>{errors.exit_price.message}</p>}
           </div>
 
           <div>
@@ -306,8 +496,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             <input
               type="number"
               step="any"
-              value={pnl}
-              onChange={(e) => setPnl(e.target.value)}
+              {...register("pnl")}
               placeholder="Realised PnL"
               className={inputCls}
             />
@@ -322,12 +511,11 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               type="number"
               step="any"
               min="0.000001"
-              value={stopLoss}
-              onChange={(e) => setStopLoss(e.target.value)}
+              {...register("stop_loss")}
               placeholder="None"
               className={inputCls}
             />
-            {errors.stop_loss && <p className={errorCls}>{errors.stop_loss}</p>}
+            {errors.stop_loss && <p className={errorCls}>{errors.stop_loss.message}</p>}
           </div>
 
           <div>
@@ -339,12 +527,11 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               type="number"
               step="any"
               min="0.000001"
-              value={takeProfit}
-              onChange={(e) => setTakeProfit(e.target.value)}
+              {...register("take_profit")}
               placeholder="None"
               className={inputCls}
             />
-            {errors.take_profit && <p className={errorCls}>{errors.take_profit}</p>}
+            {errors.take_profit && <p className={errorCls}>{errors.take_profit.message}</p>}
           </div>
 
           <div>
@@ -353,8 +540,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               type="number"
               step="any"
               min="0"
-              value={commission}
-              onChange={(e) => setCommission(e.target.value)}
+              {...register("commission")}
+              disabled={isAdvancedMode}
               className={inputCls}
             />
           </div>
@@ -369,19 +556,17 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             <label className={labelCls}>Opened At *</label>
             <input
               type="datetime-local"
-              value={openedAt}
-              onChange={(e) => setOpenedAt(e.target.value)}
+              {...register("opened_at")}
               className={inputCls}
             />
-            {errors.opened_at && <p className={errorCls}>{errors.opened_at}</p>}
+            {errors.opened_at && <p className={errorCls}>{errors.opened_at.message}</p>}
           </div>
 
           <div>
             <label className={labelCls}>Closed At</label>
             <input
               type="datetime-local"
-              value={closedAt}
-              onChange={(e) => setClosedAt(e.target.value)}
+              {...register("closed_at")}
               className={inputCls}
             />
           </div>
@@ -395,8 +580,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         <div className="mb-4">
           <label className={labelCls}>Playbook</label>
           <select
-            value={playbookId}
-            onChange={(e) => setPlaybookId(e.target.value)}
+            {...register("playbook_id")}
             className={inputCls}
           >
             <option value="">— None —</option>
@@ -441,8 +625,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Notes</h3>
         <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          {...register("notes")}
           rows={4}
           placeholder="Trade rationale, emotional state, post-trade review…"
           className={`${inputCls} resize-y`}

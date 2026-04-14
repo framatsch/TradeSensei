@@ -1,0 +1,13 @@
+--- backend/app/schemas/trade.py
++++ backend/app/schemas/trade.py
+@@ -541,6 +541,10 @@
+         ),
+         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
+     )
++    executions: list[LogicalExecutionCreate] | None = Field(
++        default=None,
++        description="Optional list of manual execution legs to create with the trade.",
++    )
+ 
+     @field_validator("opened_at", "closed_at", mode="after")
+     @classmethod

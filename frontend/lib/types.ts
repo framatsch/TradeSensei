@@ -214,6 +214,7 @@ export interface TradeCreate {
   account_id?: string | null;
   playbook_id?: string | null;
   tag_ids?: string[];
+  executions?: LogicalExecutionCreate[] | null;
 }
 
 export interface TradeUpdate {

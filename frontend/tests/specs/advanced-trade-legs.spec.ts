@@ -1,0 +1,154 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Trade Creation - Advanced Legs', () => {
+
+  test.beforeEach(async ({ page }) => {
+    // Navigate to the dashboard or directly to the new trade page
+    // Assuming the user is logged in by the global setup
+    await page.goto('/dashboard/trades/new');
+    await page.waitForLoadState('networkidle');
+  });
+
+  // 5.1 Add Playwright test to verify successful trade creation in standard "Basic" mode.
+  test('TC-090 successful trade creation in standard "Basic" mode', async ({ page }) => {
+    // Fill required basic fields
+    await page.fill('input[name="symbol"]', 'AAPL');
+    await page.selectOption('select[name="direction"]', 'LONG');
+    await page.selectOption('select[name="asset_class"]', 'STOCK');
+    
+    // Fill quantity and prices
+    await page.fill('input[name="quantity"]', '100');
+    await page.fill('input[name="entry_price"]', '150');
+    
+    // Fill mandatory date
+    await page.fill('input[name="opened_at"]', '2023-10-10T10:00');
+
+    // Submit form
+    await page.click('button[type="submit"]');
+
+    // Should redirect to trades list or trade details
+    // Check for success indicator like the symbol appearing or "Trade details" text
+    await expect(page).toHaveURL(/\/dashboard\/trades/);
+    await expect(page.getByText('AAPL')).toBeVisible({ timeout: 10000 });
+  });
+
+  // 5.2 Add Playwright test to verify "Advanced" mode toggle makes main fields read-only and displays the dynamic legs list.
+  test('TC-091 "Advanced" mode toggle makes main fields read-only and displays dynamic legs list', async ({ page }) => {
+    // Check advanced mode toggle
+    const advancedToggle = page.locator('input[type="checkbox"]');
+    await advancedToggle.check();
+
+    // Verify main fields are read-only or disabled
+    await expect(page.locator('input[name="quantity"]')).toBeDisabled();
+    await expect(page.locator('input[name="entry_price"]')).toBeDisabled();
+    await expect(page.locator('input[name="exit_price"]')).toBeDisabled();
+    
+    // Verify legs section is visible
+    await expect(page.getByText('Execution Legs')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Leg' })).toBeVisible();
+  });
+
+  // 5.3 Add Playwright test to verify adding legs auto-calculates total quantity and average entry/exit prices correctly.
+  test('TC-092 adding legs auto-calculates total quantity and average prices correctly', async ({ page }) => {
+    // Check advanced mode toggle
+    const advancedToggle = page.locator('input[type="checkbox"]');
+    await advancedToggle.check();
+    
+    await page.selectOption('select[name="direction"]', 'LONG');
+
+    // Add first leg
+    await page.getByRole('button', { name: 'Add Leg' }).click();
+    
+    // Wait for leg fields to appear (they might have data-index attributes or just use nth)
+    const legQuantities = page.locator('input[name^="legs["][name$="].quantity"]');
+    const legPrices = page.locator('input[name^="legs["][name$="].price"]');
+    const legSides = page.locator('select[name^="legs["][name$="].side"]');
+
+    await legSides.nth(0).selectOption('BUY');
+    await legQuantities.nth(0).fill('10');
+    await legPrices.nth(0).fill('100');
+
+    // Check calculated fields (they should update dynamically)
+    // 10 * 100 = 1000 total value / 10 = 100 avg
+    await expect(page.locator('input[name="quantity"]')).toHaveValue('10');
+    await expect(page.locator('input[name="entry_price"]')).toHaveValue('100');
+
+    // Add second leg
+    await page.getByRole('button', { name: 'Add Leg' }).click();
+    
+    await legSides.nth(1).selectOption('BUY');
+    await legQuantities.nth(1).fill('10');
+    await legPrices.nth(1).fill('120');
+
+    // Total quantity = 20
+    // Total value = 1000 + 1200 = 2200
+    // Avg entry = 110
+    await expect(page.locator('input[name="quantity"]')).toHaveValue('20');
+    await expect(page.locator('input[name="entry_price"]')).toHaveValue('110');
+    
+    // Add third leg (sell/exit)
+    await page.getByRole('button', { name: 'Add Leg' }).click();
+    
+    await legSides.nth(2).selectOption('SELL');
+    await legQuantities.nth(2).fill('20');
+    await legPrices.nth(2).fill('150');
+    
+    // Exit price should be 150
+    await expect(page.locator('input[name="exit_price"]')).toHaveValue('150');
+  });
+
+  // 5.4 Add Playwright test to verify successful submission of an "Advanced" mode trade and rendering of multiple legs in the Trade Detail view.
+  test('TC-093 successful submission of an "Advanced" mode trade and rendering of multiple legs', async ({ page }) => {
+    // Fill basic fields
+    await page.fill('input[name="symbol"]', 'MSFT');
+    await page.selectOption('select[name="direction"]', 'LONG');
+    await page.selectOption('select[name="asset_class"]', 'STOCK');
+    await page.fill('input[name="opened_at"]', '2023-10-10T10:00');
+
+    // Check advanced mode toggle
+    const advancedToggle = page.locator('input[type="checkbox"]');
+    await advancedToggle.check();
+    
+    // Add a BUY leg
+    await page.getByRole('button', { name: 'Add Leg' }).click();
+    
+    const legQuantities = page.locator('input[name^="legs["][name$="].quantity"]');
+    const legPrices = page.locator('input[name^="legs["][name$="].price"]');
+    const legSides = page.locator('select[name^="legs["][name$="].side"]');
+    const legDates = page.locator('input[name^="legs["][name$="].time"]');
+
+    await legSides.nth(0).selectOption('BUY');
+    await legQuantities.nth(0).fill('50');
+    await legPrices.nth(0).fill('300');
+    await legDates.nth(0).fill('2023-10-10T10:05');
+
+    // Add another BUY leg
+    await page.getByRole('button', { name: 'Add Leg' }).click();
+    
+    await legSides.nth(1).selectOption('BUY');
+    await legQuantities.nth(1).fill('50');
+    await legPrices.nth(1).fill('310');
+    await legDates.nth(1).fill('2023-10-10T11:00');
+
+    // Submit form
+    await page.click('button[type="submit"]');
+
+    // Should redirect to trades list
+    await expect(page).toHaveURL(/\/dashboard\/trades/);
+    
+    // Wait for trade list and click the trade
+    await page.getByText('MSFT').first().click();
+    
+    // Wait for detail view
+    await expect(page).toHaveURL(/\/dashboard\/trades\/[a-zA-Z0-9-]+/);
+    
+    // Verify legs in execution table (should be 2 rows + perhaps an empty one)
+    const rows = page.locator('table tbody tr');
+    // Ensure we have at least the two legs we added
+    await expect(rows).toHaveCount(2);
+    
+    await expect(page.getByText('300').first()).toBeVisible();
+    await expect(page.getByText('310').first()).toBeVisible();
+  });
+
+});
