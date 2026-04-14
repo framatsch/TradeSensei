@@ -118,13 +118,15 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
     name: "executions"
   });
 
-  const isAdvancedMode = watch("isAdvancedMode");
-  const executions = watch("executions");
-  const tradeDirection = watch("direction");
-  const openedAt = watch("opened_at");
+  const formValues = watch();
+  const isAdvancedMode = formValues.isAdvancedMode;
+  const executions = formValues.executions;
+  const tradeDirection = formValues.direction;
+  const openedAt = formValues.opened_at;
 
   // Sync executions with main fields when in advanced mode
   useEffect(() => {
+    console.log("Executions array:", JSON.stringify(executions));
     if (isAdvancedMode && executions && executions.length > 0) {
       let totalQty = 0;
       let totalValue = 0;
@@ -147,6 +149,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
           entryValue += legQty * legPrice;
         }
       });
+      
+      console.log("CALCULATED entryQty:", entryQty);
       
       if (entryQty > 0) {
         setValue("entry_price", (entryValue / entryQty).toFixed(4));
@@ -256,6 +260,9 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div id="debug-executions" style={{ display: 'none' }}>
+        {JSON.stringify(executions)}
+      </div>
       {serverError && (
         <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
           {serverError}

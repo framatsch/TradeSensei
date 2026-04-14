@@ -324,7 +324,7 @@ class TradeRepository:
             populated (including eager-loaded ``tags`` and
             ``trade_notes``).
         """
-        create_dict = data.model_dump(exclude={"tag_ids"})
+        create_dict = data.model_dump(exclude={"tag_ids", "executions"})
         trade = Trade(**create_dict)
         self._session.add(trade)
         await self._session.flush()
@@ -350,7 +350,7 @@ class TradeRepository:
             return 0
 
         for trade_data in trades:
-            create_dict = trade_data.model_dump(exclude={"tag_ids"})
+            create_dict = trade_data.model_dump(exclude={"tag_ids", "executions"})
             self._session.add(Trade(**create_dict))
 
         await self._session.flush()

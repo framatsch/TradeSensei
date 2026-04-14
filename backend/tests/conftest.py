@@ -21,7 +21,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32ch
 os.environ.setdefault("UPLOAD_DIR", "./uploads")
 
 from collections.abc import AsyncGenerator  # noqa: E402
-from unittest.mock import AsyncMock  # noqa: E402
+from unittest.mock import AsyncMock, MagicMock  # noqa: E402
 
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
@@ -48,7 +48,10 @@ def mock_session() -> AsyncMock:
     Returns:
         A fresh :class:`AsyncMock` standing in for the SQLAlchemy session.
     """
-    return AsyncMock()
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.delete = MagicMock()
+    return session
 
 
 @pytest_asyncio.fixture(scope="session")

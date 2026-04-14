@@ -469,7 +469,10 @@ def _make_trade_create(**kwargs: object) -> TradeCreate:
 @pytest.fixture()
 def mock_session() -> AsyncMock:
     """Return a mock :class:`AsyncSession`."""
-    return AsyncMock()
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.delete = MagicMock()
+    return session
 
 
 @pytest.fixture()
