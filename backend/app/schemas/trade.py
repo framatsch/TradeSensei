@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
-from app.schemas.execution import LogicalExecutionCreate
+from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionRead
 from app.schemas.note import TradeNoteRead
 from app.schemas.tag import TagRead
 
@@ -838,7 +838,7 @@ class TradeRead(BaseModel):
         updated_at: Row-last-updated timestamp.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: uuid.UUID = Field(
         ...,
@@ -1028,6 +1028,10 @@ class TradeRead(BaseModel):
         default_factory=list,
         description="Psychological and review notes attached to this trade.",
     )
+    legs: list[LogicalExecutionRead] = Field(
+        default_factory=list,
+        description="Execution legs (entry and exit) for this trade.",
+    )
     is_manually_edited: bool = Field(
         default=False,
         description=(
@@ -1088,6 +1092,12 @@ class TradeRead(BaseModel):
                             if hasattr(raw_type, "value")
                             else str(raw_type)
                         )
+
+            # Map logical_executions to legs (only if already loaded).
+            # Use __dict__ to avoid triggering lazy-load of the relationship.
+            if "logical_executions" in data.__dict__ and "legs" not in data.__dict__:
+                with contextlib.suppress(Exception):
+                    data.__dict__["legs"] = data.__dict__["logical_executions"]
         return data
 
 

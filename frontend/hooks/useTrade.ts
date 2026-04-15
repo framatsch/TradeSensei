@@ -17,7 +17,7 @@ export function useTrade(id: string) {
       );
       return res.data.data;
     },
-    staleTime: 30 * 1000,
+    staleTime: 5 * 1000, // 5 seconds to ensure fresh data after execution updates
     enabled: Boolean(id),
   });
 }

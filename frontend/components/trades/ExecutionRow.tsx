@@ -5,6 +5,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { MoreHorizontal, ArrowUp, ArrowDown, Check, X } from "lucide-react";
 import type { LogicalExecution } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
@@ -51,6 +52,8 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
   const [editQty, setEditQty] = useState(execution.quantity);
   const [editCommission, setEditCommission] = useState(execution.commission);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
   const updateExecution = useUpdateExecution();
   const deleteExecution = useDeleteExecution();
@@ -59,13 +62,24 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && 
+          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (menuOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.right + window.scrollX - 176, // 176px = w-44
+      });
+    }
+  }, [menuOpen]);
 
   function handleSave() {
     updateExecution.mutate(
@@ -175,69 +189,78 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
           <ExecutionStatusBadge status={execution.status} />
         </td>
 
-        {/* Actions */}
-        <td className="px-3 py-2 text-right">
-          {isEditing ? (
-            <div className="inline-flex items-center gap-1">
-              <button
-                onClick={handleSave}
-                disabled={updateExecution.isPending}
-                className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
-                title="Save"
-              >
-                <Check size={14} />
-              </button>
-              <button
-                onClick={handleCancel}
-                className="p-1 rounded hover:bg-muted text-muted-foreground"
-                title="Cancel"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="p-1 rounded hover:bg-muted text-muted-foreground"
-              >
-                <MoreHorizontal size={14} />
-              </button>
-              {menuOpen && (
-                <div className="absolute right-0 z-50 mt-1 w-44 bg-popover border border-border rounded-lg shadow-lg py-1">
-                  <button
-                    onClick={() => { setIsEditing(true); setMenuOpen(false); }}
-                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                  >
-                    Edit
-                  </button>
-                  {onMoveToTrade && (
-                    <button
-                      onClick={() => { setMenuOpen(false); onMoveToTrade(execution.id); }}
-                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                    >
-                      Move to...
-                    </button>
-                  )}
-                  {onDetach && (
-                    <button
-                      onClick={() => { setMenuOpen(false); onDetach(execution.id); }}
-                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                    >
-                      Detach as new Trade
-                    </button>
-                  )}
-                  <button
-                    onClick={handleDelete}
-                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </td>
+         {/* Actions */}
+         <td className="px-3 py-2 text-right">
+           {isEditing ? (
+             <div className="inline-flex items-center gap-1">
+               <button
+                 onClick={handleSave}
+                 disabled={updateExecution.isPending}
+                 className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                 title="Save"
+               >
+                 <Check size={14} />
+               </button>
+               <button
+                 onClick={handleCancel}
+                 className="p-1 rounded hover:bg-muted text-muted-foreground"
+                 title="Cancel"
+               >
+                 <X size={14} />
+               </button>
+             </div>
+           ) : (
+             <>
+               <button
+                 ref={buttonRef}
+                 onClick={() => setMenuOpen(!menuOpen)}
+                 className="p-1 rounded hover:bg-muted text-muted-foreground"
+               >
+                 <MoreHorizontal size={14} />
+               </button>
+               {menuOpen && menuPosition && createPortal(
+                 <div
+                   ref={menuRef}
+                   className="fixed z-50 w-44 bg-popover border border-border rounded-lg shadow-lg py-1"
+                   style={{
+                     top: `${menuPosition.top}px`,
+                     left: `${menuPosition.left}px`,
+                   }}
+                 >
+                   <button
+                     onClick={() => { setIsEditing(true); setMenuOpen(false); }}
+                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
+                   >
+                     Edit
+                   </button>
+                   {onMoveToTrade && (
+                     <button
+                       onClick={() => { setMenuOpen(false); onMoveToTrade(execution.id); }}
+                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
+                     >
+                       Move to...
+                     </button>
+                   )}
+                   {onDetach && (
+                     <button
+                       onClick={() => { setMenuOpen(false); onDetach(execution.id); }}
+                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
+                     >
+                       Detach as new Trade
+                     </button>
+                   )}
+                   <button
+                     onClick={handleDelete}
+                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                   >
+                     Delete
+                   </button>
+                 </div>,
+                 document.body
+               )}
+             </>
+           )}
+         </td>
       </tr>
 
       {showDeleteConfirm && (

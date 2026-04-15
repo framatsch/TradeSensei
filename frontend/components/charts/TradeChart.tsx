@@ -288,7 +288,7 @@ interface MarkerGroup {
   position: "belowBar" | "aboveBar";
   color: string;
   shape: "arrowUp" | "arrowDown";
-  label: string;
+  text: string;
 }
 
 /**
@@ -346,23 +346,24 @@ function buildExecutionMarkers(
 
   const markers: SeriesMarker<Time>[] = [];
 
-  for (const [, group] of groups) {
-    const label =
-      group.qtys.length === 1
-        ? `${group.isEntry ? "+" : "-"}${group.qtys[0]} @ $${Number(group.prices[0]).toFixed(2)}`
-        : group.qtys
-            .map((q, i) => `${group.isEntry ? "+" : "-"}${q} @ $${Number(group.prices[i]).toFixed(2)}`)
-            .join(", ");
+   for (const [, group] of groups) {
+     // Hover label with quantity and price details (shown only on hover)
+     const detailedLabel =
+       group.qtys.length === 1
+         ? `${Number(group.qtys[0]).toFixed(2)} @ $${Number(group.prices[0]).toFixed(2)}`
+         : group.qtys
+             .map((q, i) => `${Number(q).toFixed(2)} @ $${Number(group.prices[i]).toFixed(2)}`)
+             .join(", ");
 
-    markers.push({
-      time: group.time,
-      position: group.isEntry ? "belowBar" : "aboveBar",
-      color: group.isEntry ? "#00d2ff" : "#f0abfc",
-      shape: group.isEntry ? "arrowUp" : "arrowDown",
-      text: label,
-      size: 2,
-    });
-  }
+      markers.push({
+        time: group.time,
+        position: group.isEntry ? "belowBar" : "aboveBar",
+        color: group.isEntry ? "#00d2ff" : "#f0abfc",
+        shape: group.isEntry ? "arrowUp" : "arrowDown",
+        text: detailedLabel,
+        size: 2,
+      });
+   }
 
   // Sort markers by time (required by lightweight-charts)
   markers.sort((a, b) => (a.time as number) - (b.time as number));

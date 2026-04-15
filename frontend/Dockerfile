@@ -15,9 +15,15 @@ ENV NODE_ENV=development
 # a fallback for bare `docker build --target development` invocations.
 COPY frontend/ .
 
+# Use the sh wrapper to ensure npm install runs when needed
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'npm install --legacy-peer-deps' >> /entrypoint.sh && \
+    echo 'exec npm run dev -- --hostname 0.0.0.0' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
 EXPOSE 3000
 
-CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 FROM base AS builder
 

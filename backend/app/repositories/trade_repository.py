@@ -161,14 +161,15 @@ def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
 
     Returns:
         A :func:`select` statement with ``selectinload`` options applied
-        for the ``tags``, ``trade_notes``, ``playbook``, and ``account``
-        relationships.
+        for the ``tags``, ``trade_notes``, ``playbook``, ``account``, and
+        ``logical_executions`` relationships.
     """
     return select(Trade).options(
         selectinload(Trade.tags),
         selectinload(Trade.trade_notes),
         selectinload(Trade.playbook),
         selectinload(Trade.account),
+        selectinload(Trade.logical_executions),
     )
 
 

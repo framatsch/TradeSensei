@@ -391,6 +391,22 @@ class ImportService:
                                     commission_add=trade_data.commission,
                                     quantity=trade_data.quantity,
                                 )
+                                # Create entry execution for newly filled orphaned lot
+                                await self._exec_repo.create(
+                                    user_id=user_id,
+                                    account_id=account_id,
+                                    symbol=trade_data.symbol,
+                                    asset_class=trade_data.asset_class,
+                                    direction=trade_data.direction,
+                                    quantity=trade_data.quantity,
+                                    price=trade_data.entry_price,
+                                    commission=Decimal("0"),
+                                    executed_at=trade_data.opened_at,
+                                    multiplier=trade_data.multiplier or 1,
+                                    currency=trade_data.currency,
+                                    status=ExecutionStatus.IMPORTED,
+                                    trade_id=db_trade_id,
+                                )
                             else:
                                 await self._trade_repo.close_open_lot(
                                     trade_id=db_trade_id,
@@ -403,6 +419,30 @@ class ImportService:
                                     commission_add=trade_data.commission,
                                     quantity=trade_data.quantity,
                                 )
+
+                            # Create exit execution for closed lot
+                            exit_direction = (
+                                TradeDirection.SHORT
+                                if trade_data.direction == TradeDirection.LONG
+                                else TradeDirection.LONG
+                            )
+                            await self._exec_repo.create(
+                                user_id=user_id,
+                                account_id=account_id,
+                                symbol=trade_data.symbol,
+                                asset_class=trade_data.asset_class,
+                                direction=exit_direction,
+                                quantity=trade_data.quantity,
+                                price=trade_data.exit_price,
+                                commission=trade_data.commission,
+                                executed_at=trade_data.closed_at,
+                                multiplier=trade_data.multiplier or 1,
+                                currency=trade_data.currency,
+                                status=ExecutionStatus.IMPORTED,
+                                trade_id=db_trade_id,
+                                pnl=trade_data.pnl,
+                            )
+
                             already_updated_ids.add(db_trade_id)
                             trades_updated += 1
                         except Exception as exc:  # noqa: BLE001

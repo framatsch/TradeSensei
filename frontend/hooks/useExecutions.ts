@@ -25,7 +25,7 @@ export function useTradeExecutions(tradeId: string) {
       );
       return res.data.data;
     },
-    staleTime: 30 * 1000,
+    staleTime: 5 * 1000, // 5 seconds to ensure fresh data after updates
     enabled: Boolean(tradeId),
   });
 }
@@ -42,8 +42,10 @@ export function useCreateExecution(tradeId: string) {
       return res.data.data;
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
-      void qc.invalidateQueries({ queryKey: ["trade", tradeId] });
+      // Force immediate refetch of executions
+      void qc.refetchQueries({ queryKey: ["executions", tradeId], type: "all" });
+      // Force immediate refetch of trade (P&L, etc will be re-calculated server-side)
+      void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
   });
@@ -65,8 +67,10 @@ export function useUpdateExecution() {
       return res.data.data;
     },
     onSuccess: (_, { tradeId }) => {
-      void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
-      void qc.invalidateQueries({ queryKey: ["trade", tradeId] });
+      // Force immediate refetch of executions (pnl field will be updated)
+      void qc.refetchQueries({ queryKey: ["executions", tradeId], type: "all" });
+      // Force immediate refetch of trade (P&L, etc will be re-calculated server-side)
+      void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
   });
@@ -80,8 +84,10 @@ export function useDeleteExecution() {
       await apiClient.delete(`/api/v1/executions/${executionId}`);
     },
     onSuccess: (_, { tradeId }) => {
-      void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
-      void qc.invalidateQueries({ queryKey: ["trade", tradeId] });
+      // Force immediate refetch of executions
+      void qc.refetchQueries({ queryKey: ["executions", tradeId], type: "all" });
+      // Force immediate refetch of trade (P&L, etc will be re-calculated server-side)
+      void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
   });
@@ -103,10 +109,12 @@ export function useReassignExecution() {
       return res.data.data;
     },
     onSuccess: (_, { sourceTradeId, target_trade_id }) => {
-      void qc.invalidateQueries({ queryKey: ["executions", sourceTradeId] });
-      void qc.invalidateQueries({ queryKey: ["executions", target_trade_id] });
-      void qc.invalidateQueries({ queryKey: ["trade", sourceTradeId] });
-      void qc.invalidateQueries({ queryKey: ["trade", target_trade_id] });
+      // Force immediate refetch of both execution lists
+      void qc.refetchQueries({ queryKey: ["executions", sourceTradeId], type: "all" });
+      void qc.refetchQueries({ queryKey: ["executions", target_trade_id], type: "all" });
+      // Force immediate refetch of both trades (P&L will be re-calculated server-side)
+      void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
+      void qc.refetchQueries({ queryKey: ["trade", target_trade_id], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
   });
@@ -126,10 +134,12 @@ export function useDetachExecution() {
       );
       return res.data.data;
     },
-    onSuccess: (_, { sourceTradeId }) => {
-      void qc.invalidateQueries({ queryKey: ["executions", sourceTradeId] });
-      void qc.invalidateQueries({ queryKey: ["trade", sourceTradeId] });
-      void qc.invalidateQueries({ queryKey: ["trades"] });
-    },
+      onSuccess: (_, { sourceTradeId }) => {
+        // Force immediate refetch of executions
+        void qc.refetchQueries({ queryKey: ["executions", sourceTradeId], type: "all" });
+        // Force immediate refetch of trade (P&L will be re-calculated server-side)
+        void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
+        void qc.invalidateQueries({ queryKey: ["trades"] });
+      },
   });
 }

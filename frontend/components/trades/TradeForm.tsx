@@ -128,16 +128,25 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   useEffect(() => {
     console.log("Executions array:", JSON.stringify(executions));
     if (isAdvancedMode && executions && executions.length > 0) {
+      // Find the first execution with a valid direction
+      const firstExecutionWithDirection = executions.find(leg => leg && leg.direction);
+      
+      if (!firstExecutionWithDirection) {
+        console.log("No executions with direction found yet");
+        return;
+      }
+      
       let totalQty = 0;
       let totalValue = 0;
       let totalComm = 0;
       
       // Calculate based on first execution as entry
-      const entryDirection = executions[0].direction;
+      const entryDirection = firstExecutionWithDirection.direction;
       let entryQty = 0;
       let entryValue = 0;
       
       executions.forEach(leg => {
+        if (!leg) return;
         const legQty = parseFloat(leg.quantity) || 0;
         const legPrice = parseFloat(leg.price) || 0;
         const legComm = parseFloat(leg.commission || "0") || 0;
@@ -150,7 +159,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         }
       });
       
-      console.log("CALCULATED entryQty:", entryQty);
+      console.log("CALCULATED entryQty:", entryQty, "with direction:", entryDirection);
       
       if (entryQty > 0) {
         setValue("entry_price", (entryValue / entryQty).toFixed(4));
@@ -159,6 +168,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       // Calculate current position (can be negative if over-closed)
       let currentQty = 0;
       executions.forEach(leg => {
+        if (!leg) return;
         const legQty = parseFloat(leg.quantity) || 0;
         if (leg.direction === entryDirection) {
           currentQty += legQty;
@@ -168,6 +178,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       });
       
       // Max quantity is the max position size ever reached
+      console.log("Setting quantity to:", entryQty.toString());
       setValue("quantity", entryQty.toString());
       setValue("commission", totalComm.toString());
       

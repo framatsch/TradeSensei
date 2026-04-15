@@ -45,6 +45,9 @@ class ExecutionStatus(StrEnum):
     Attributes:
         IMPORTED: The execution was created directly from a broker raw
             transaction (1:1 mapping, unmodified).
+        EDITED: The execution was created from a broker import but has been
+            modified by the user (price, quantity, commission, etc.).
+            Protected from re-import overwrite.
         MANUAL: The execution was created by the user without a corresponding
             raw broker transaction.
         MERGED: The execution was produced by merging two or more raw
@@ -54,6 +57,7 @@ class ExecutionStatus(StrEnum):
     """
 
     IMPORTED = "imported"
+    EDITED = "edited"
     MANUAL = "manual"
     MERGED = "merged"
     SPLIT = "split"

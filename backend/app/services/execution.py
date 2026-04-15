@@ -113,9 +113,12 @@ class ExecutionService:
         if not execution or execution.user_id != user_id:
             raise ExecutionNotFoundError("Execution not found.")
 
-        execution = await self.execution_repo.update(
-            execution, **data.model_dump(exclude_unset=True)
-        )
+        # If execution was imported and is now being edited, change status to "edited"
+        update_data = data.model_dump(exclude_unset=True)
+        if execution.status == ExecutionStatus.IMPORTED:
+            update_data["status"] = ExecutionStatus.EDITED
+
+        execution = await self.execution_repo.update(execution, **update_data)
         if execution.trade_id:
             await self._re_aggregate_trade(execution.trade_id, user_id)
 
