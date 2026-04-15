@@ -1,0 +1,14 @@
+name: fresh-start-import-mode
+title: Fresh Start Import Mode
+status: proposed
+priority: medium
+created: 2026-04-15
+dependencies:
+  - execution-soft-delete-tombstone-protection
+blocks:
+  - orphaned-journaling-management
+tags:
+  - backend
+  - frontend
+  - import
+  - tombstone-cleanup

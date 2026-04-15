@@ -209,10 +209,12 @@ test.describe('Accounts', () => {
     await page.getByRole('button', { name: 'Save Changes' }).click();
 
     // Updated row visible, old name gone
-    await expect(page.getByRole('cell', { name: 'Account Renamed TC085' })).toBeVisible({
+    // Use a more specific selector to avoid strict mode violation (filter by exact row)
+    const renamedRow = page.getByRole('row', { name: /Account Renamed TC085/ });
+    await expect(renamedRow).toBeVisible({
       timeout: 8_000,
     });
-    await expect(page.getByRole('cell', { name: 'Account To Edit TC085' })).not.toBeVisible();
+    await expect(page.getByRole('row', { name: /Account To Edit TC085/ })).not.toBeVisible();
 
     // Clean up
     const updatedRow = page.getByRole('row', { name: /Account Renamed TC085/ });

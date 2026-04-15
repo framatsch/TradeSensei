@@ -1,0 +1,14 @@
+name: orphaned-journaling-management
+title: Orphaned Journaling Management
+status: proposed
+priority: low
+created: 2026-04-15
+dependencies:
+  - execution-soft-delete-tombstone-protection
+  - fresh-start-import-mode
+tags:
+  - backend
+  - frontend
+  - journaling
+  - auto-matching
+  - ui
