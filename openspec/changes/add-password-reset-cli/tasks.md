@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Create `backend/reset_password.py` file with basic executable permissions and python shebang.
 - [ ] 1.2 Implement `argparse` configuration to accept mutually exclusive `-u/--username` or `-e/--email` arguments.
-- [ ] 1.3 Add required `-p/--password` argument to argparse.
+- ~~[ ] 1.3 Add required `-p/--password` argument to argparse.~~ **Removed** — superseded by `security-hardening` tasks 4.1–4.4 which implement `getpass`-based interactive input instead. Do NOT add a `-p` argument.
 - [ ] 1.4 Add help and epilog descriptions to argparse.
 
 ## 2. Environment & Dependency Management

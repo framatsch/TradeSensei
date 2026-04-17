@@ -31,17 +31,28 @@ The Trade Detail page SHALL display an `ExecutionLegsTable` component below the 
 - **AND** it MUST provide a collapse/expand toggle
 
 ### Requirement: Execution Status Badge
-Each execution row SHALL display a colored status badge indicating its lineage.
+Each execution row SHALL display a colored status badge derived from `origin`, `deleted`, and `user_modified` fields. There is no server-side `status` enum — the badge is computed client-side.
+
+> **Model update (simplified-execution-model)**: The `status` column is replaced by three orthogonal fields: `origin` (TEXT: `imported|manual|merged|split`, immutable), `user_modified` (BOOLEAN), `deleted` (BOOLEAN). The badge derivation below supersedes the original single-field mapping.
 
 #### Scenario: Status badge rendering
-- **WHEN** an execution has `status: "imported"`
+- **WHEN** `origin='imported'`, `user_modified=false`, `deleted=false`
 - **THEN** a blue badge with text "imported" MUST be displayed
-- **WHEN** an execution has `status: "manual"`
-- **THEN** a purple badge with text "manual" MUST be displayed
-- **WHEN** an execution has `status: "merged"`
+- **WHEN** `origin='imported'`, `user_modified=true`, `deleted=false`
+- **THEN** an amber badge with text "edited" MUST be displayed
+- **WHEN** `origin='manual'` and `deleted=false`
+- **THEN** a violet badge with text "manual" MUST be displayed
+- **WHEN** `origin='merged'` and `deleted=false`
 - **THEN** an orange badge with text "merged" MUST be displayed
-- **WHEN** an execution has `status: "split"`
+- **WHEN** `origin='split'` and `deleted=false`
 - **THEN** a cyan badge with text "split" MUST be displayed
+- **WHEN** `deleted=true` (any `origin`)
+- **THEN** a gray badge with text "deleted" MUST be displayed and the row MUST render at 50% opacity
+
+#### Scenario: Show deleted toggle
+- **WHEN** the `ExecutionLegsTable` header renders
+- **THEN** a "Show deleted" toggle MUST be present (hidden by default)
+- **AND** when the toggle is active, deleted rows appear at 50% opacity with a `[Restore]` button
 
 ### Requirement: Side Badge (BUY/SELL)
 Each execution row SHALL display a direction badge using the existing color conventions.
@@ -73,14 +84,14 @@ Users SHALL be able to click an execution row to enter inline edit mode for pric
 Each execution row SHALL provide a context menu with additional actions.
 
 #### Scenario: Context menu options
-- **WHEN** a user clicks the overflow menu (⋮) on an execution row
-- **THEN** the menu MUST show: "Edit", "Delete"
-- **AND** "Delete" MUST show a confirmation prompt before executing
+- **WHEN** a user clicks the overflow menu (⋮) on a non-deleted execution row
+- **THEN** the menu MUST show: "Edit", "Split" (only for `origin='imported'` or `origin='manual'`), "Move to...", "Detach as new Trade", "Delete"
 
-#### Scenario: Deleting an execution via context menu
-- **WHEN** a user confirms deletion of an execution
-- **THEN** the system MUST call `DELETE /api/v1/executions/{id}`
-- **AND** the execution legs table and summary card MUST refresh
+#### Scenario: Delete behavior by origin
+- **WHEN** a user confirms deletion of an execution with `origin` in `imported|merged|split`
+- **THEN** the system performs soft-delete (`deleted=true`), returns 200 with body, and the row moves to the deleted section
+- **WHEN** a user confirms deletion of an execution with `origin='manual'`
+- **THEN** the system performs hard-delete, returns 204, and the row is removed entirely
 
 ### Requirement: Add Execution Button
 The execution legs section SHALL display an "Add Execution" button that opens the `AddExecutionModal`.

@@ -268,3 +268,17 @@ await page.waitForLoadState('networkidle');
 - [x] 16.1 Run `ruff check` + `ruff format` + `mypy --strict` on all new and modified backend files, fix any issues
 - [x] 16.2 Run full backend test suite (`pytest`), fix any regressions in existing tests caused by the execution-layer changes
 - [x] 16.3 Run frontend type check (`tsc --noEmit`) and fix any TypeScript errors in new/modified components
+
+## 17. Alignment with `simplified-execution-model`
+
+Tasks below are pending and must be completed after `simplified-execution-model` is applied. The data-model migration (`status` enum → `origin` + `deleted` + `user_modified`) invalidates several components implemented in sections 1–16.
+
+- [ ] 17.1 Update `ExecutionStatusBadge` component: replace `status`-based mapping with the derivation table from `simplified-execution-model/specs/execution-provenance/spec.md` (origin + deleted + user_modified → badge label + color). Tracked also in `simplified-execution-model` task 8.3.
+- [ ] 17.2 Update `ExecutionRow` context menu: add "Split" option (opens `SplitExecutionModal` from `simplified-execution-model` task 8.9) for non-deleted executions with `origin='imported'` or `origin='manual'`. Tracked also in `simplified-execution-model` task 8.9.
+- [ ] 17.3 Update `ExecutionLegsTable`: add "Show deleted" toggle and `[Restore]` button on deleted rows. Tracked also in `simplified-execution-model` tasks 8.4–8.5.
+- [ ] 17.4 Remove `has_conflict`-dependent UI: delete `ConflictBanner` component, remove conflict badge (⚠) from `TradeRow`, remove "Needs Review" system filter from sidebar and delete its seed data row. `has_conflict` is removed from the trade model in `simplified-execution-model` task 5.5. Tracked also in `simplified-execution-model` task 8.11.
+- [ ] 17.5 Remove `is_empty`-dependent UI: delete EMPTY badge from `TradeCard`, remove "Archive" tab from `TradeListTabs`, drop `include_empty`/`only_empty` params from trade list hook and filter form. Tracked also in `simplified-execution-model` task 8.10.
+- [ ] 17.6 Update backend service and repository call sites that pass `status='manual'` to pass `origin='manual'` (tasks 1.3 and 3.1 in this spec were implemented against the old model).
+- [ ] 17.7 Update TypeScript types: remove `status` field from `LogicalExecution` interface; add `origin`, `deleted`, `user_modified`, `parent_id`. Remove `has_conflict` and `is_empty` from the `Trade` interface. Tracked also in `simplified-execution-model` tasks 8.1–8.2.
+- [ ] 17.8 Update all backend and frontend tests that assert `status === 'manual'` or `status === 'imported'` (etc.) to assert `origin === 'manual'` / `origin === 'imported'`, and add assertions for `deleted` and `user_modified` where relevant.
+- [ ] 17.9 Run `ruff check`, `mypy --strict`, `pytest`, and `tsc --noEmit` — all must pass after the model migration.
