@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronUp } from "lucide-react";
+import { Logo } from "../../components/ui/Logo";
 import type { Section, MetricEntry } from "./page";
 
 // ─── MetricCard ───────────────────────────────────────────────────────────────
@@ -52,9 +53,10 @@ function MetricCard({ entry }: { entry: MetricEntry }) {
 
 interface Props {
   sections: Section[];
+  version: string;
 }
 
-export function HelpClient({ sections }: Props) {
+export function HelpClient({ sections, version }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string>("");
   const [showTop, setShowTop] = useState(false);
@@ -133,11 +135,17 @@ export function HelpClient({ sections }: Props) {
       {/* ── Scrollable content ─────────────────────────────── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
         <div className="max-w-xl mx-auto py-8 px-5 flex flex-col gap-6">
-          {/* Header */}
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl font-bold text-foreground">Metric Reference</h1>
-            <p className="text-sm text-muted-foreground">
-              Explanations for every metric and chart in your trading journal.
+          {/* Intro — shown on first load before any topic is selected */}
+          <div className="flex flex-col items-center justify-center min-h-[80vh] gap-6 text-center">
+            <Logo size={72} />
+            <div className="flex flex-col items-center gap-2">
+              <h1 className="text-2xl font-bold text-foreground">Trade Sensei Help</h1>
+              <span className="text-[11px] font-mono text-muted-foreground bg-muted border border-border px-2.5 py-0.5 rounded-full">
+                v{version}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground max-w-[22rem]">
+              Select a topic from the sidebar to learn more about a metric or chart.
             </p>
           </div>
 

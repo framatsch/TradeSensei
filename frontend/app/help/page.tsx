@@ -6,6 +6,7 @@
 
 import type { Metadata } from "next";
 import { HelpClient } from "./HelpClient";
+import { version } from "../../package.json";
 
 export const metadata: Metadata = {
   title: "Metric Reference — Trade Sensei",
@@ -280,5 +281,5 @@ const SECTIONS: Section[] = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HelpPage() {
-  return <HelpClient sections={SECTIONS} />;
+  return <HelpClient sections={SECTIONS} version={version} />;
 }
