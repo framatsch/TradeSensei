@@ -88,7 +88,12 @@ class AuthConfigResponse(BaseModel):
     Attributes:
         google_enabled: Whether Google OAuth is configured and enabled.
         oidc: Configuration for generic OIDC.
+        local_auth_enabled: Whether the local username/password login is enabled.
     """
 
     google_enabled: bool = Field(description="Whether Google OAuth is enabled.")
     oidc: OIDCConfig = Field(description="OIDC configuration details.")
+    local_auth_enabled: bool = Field(
+        default=True,
+        description="Whether the local username/password login form is enabled.",
+    )

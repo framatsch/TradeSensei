@@ -55,6 +55,8 @@ services:
       OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-}"
       OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-}"
       GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
+      # Set to true to hide the username/password form (requires Google or OIDC to be configured).
+      LOCAL_AUTH_DISABLED: "${LOCAL_AUTH_DISABLED:-false}"
       BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-daJEwBPiYPyToA8tPYgcN9IZqaZpJFUCOjIgA6FbWl4=}"
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
     ports:

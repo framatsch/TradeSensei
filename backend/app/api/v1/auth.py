@@ -5,6 +5,7 @@ token refresh via httpOnly cookie, logout, and Google OAuth.
 """
 
 import contextlib
+import logging
 from typing import Annotated
 
 from authlib.integrations.starlette_client import (  # type: ignore[import-untyped]
@@ -31,6 +32,8 @@ from app.schemas.auth import (
 from app.schemas.common import ResponseEnvelope
 from app.schemas.user import UserCreate, UserLogin, UserRead
 from app.services.auth_service import AuthService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -90,12 +93,21 @@ async def get_config() -> AuthConfigResponse:
         An :class:`AuthConfigResponse` indicating which providers are active.
     """
     google_enabled = bool(settings.google_client_id and settings.google_client_secret)
+    oidc_active = settings.oidc_enabled and bool(settings.oidc_configuration_url)
+    any_external_provider = google_enabled or oidc_active
+    if settings.local_auth_disabled and not any_external_provider:
+        logger.warning(
+            "LOCAL_AUTH_DISABLED=true but no external provider is configured — "
+            "ignoring flag to prevent lockout."
+        )
+    local_auth_enabled = not (settings.local_auth_disabled and any_external_provider)
     return AuthConfigResponse(
         google_enabled=google_enabled,
         oidc=OIDCConfig(
             enabled=settings.oidc_enabled,
             provider_name=settings.oidc_provider_name,
         ),
+        local_auth_enabled=local_auth_enabled,
     )
 
 

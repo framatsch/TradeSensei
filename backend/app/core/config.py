@@ -108,6 +108,12 @@ class Settings(BaseSettings):
     google_client_secret: str | None = None
     google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
 
+    # Local auth
+    local_auth_disabled: bool = False
+    """Set to True to hide the username/password form in the UI.
+    Requires at least one external provider (Google or OIDC) to be configured;
+    otherwise the flag is ignored and local auth remains available."""
+
     # Generic OIDC
     oidc_enabled: bool = False
     oidc_provider_name: str = "OpenID Connect"

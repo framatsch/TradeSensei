@@ -185,6 +185,19 @@ LOG_LEVEL=INFO
 CORS_ORIGINS=http://localhost:3000
 ```
 
+### Authentication
+
+| Variable | Default | Description |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` | — | Google OAuth client ID (leave empty to disable Google login) |
+| `GOOGLE_CLIENT_SECRET` | — | Google OAuth client secret |
+| `OIDC_ENABLED` | `false` | Enable generic OIDC provider (Authentik, Keycloak, etc.) |
+| `OIDC_PROVIDER_NAME` | `OpenID Connect` | Label shown on the login button |
+| `OIDC_CONFIGURATION_URL` | — | OIDC discovery URL (`.well-known/openid-configuration`) |
+| `OIDC_CLIENT_ID` | — | OIDC client ID |
+| `OIDC_CLIENT_SECRET` | — | OIDC client secret |
+| `LOCAL_AUTH_DISABLED` | `false` | Set `true` to hide the username/password form. **Safety guard:** ignored if no external provider is configured (prevents lockout). |
+
 ---
 
 ## 9. Agent Strategy

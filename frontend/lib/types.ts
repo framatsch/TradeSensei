@@ -48,6 +48,7 @@ export interface OIDCConfig {
 export interface AuthConfigResponse {
   google_enabled: boolean;
   oidc: OIDCConfig;
+  local_auth_enabled: boolean;
 }
 
 // ─── User ─────────────────────────────────────────────────────────────────────

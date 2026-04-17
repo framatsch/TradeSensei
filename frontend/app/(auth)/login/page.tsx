@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { OAuthErrorBanner } from "@/components/auth/OAuthErrorBanner";
 import { LoginHeader } from "@/components/auth/LoginHeader";
@@ -22,16 +21,6 @@ export default function LoginPage() {
           </Suspense>
 
           <LoginForm />
-
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="text-primary hover:text-primary/80 font-medium transition-colors"
-            >
-              Create one
-            </Link>
-          </p>
         </div>
       </div>
     </main>
