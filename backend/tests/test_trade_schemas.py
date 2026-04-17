@@ -109,11 +109,7 @@ class TestTradeUpdate:
         assert "symbol" in dumped
         assert "direction" not in dumped
 
-    @pytest.mark.unit
-    def test_naive_datetime_rejected(self) -> None:
-        """A naive datetime in an update payload should raise a ValidationError."""
-        with pytest.raises(ValidationError, match="timezone-aware"):
-            TradeUpdate(opened_at=datetime(2025, 3, 1))  # naive
+
 
 
 class TestTradeRead:

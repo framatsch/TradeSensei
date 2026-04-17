@@ -33,18 +33,56 @@ def _build_migration_command() -> list[str]:
     ]
 
 
+def _build_current_command() -> list[str]:
+    """Create the Alembic CLI command to get the current revision."""
+    return [
+        str(ALEMBIC_BINARY),
+        "-c",
+        str(PROJECT_ROOT / "alembic.ini"),
+        "current",
+    ]
+
+
+def _get_current_revision() -> str:
+    """Get the current Alembic revision."""
+    try:
+        result = subprocess.run(
+            _build_current_command(),
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        lines = result.stdout.strip().split("\n")
+        if lines and lines[-1]:
+            # typically "<rev> (head)" or just "<rev>"
+            return lines[-1].split(" ")[0]
+        return "none"
+    except subprocess.CalledProcessError:
+        return "unknown"
+
+
 def run_migrations() -> None:
     """Apply all pending Alembic migrations to the configured database."""
     MIGRATION_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
     with MIGRATION_LOCK_FILE.open("w", encoding="utf-8") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        
+        old_rev = _get_current_revision()
+        
         logger.info("Running database migrations")
         subprocess.run(
             _build_migration_command(),
             cwd=PROJECT_ROOT,
             check=True,
         )
-        logger.info("Database migrations finished")
+        
+        new_rev = _get_current_revision()
+        if old_rev == new_rev:
+            logger.info("Database at revision %s (head) — no pending migrations", new_rev)
+        else:
+            logger.info("Upgraded database from %s to %s (head)", old_rev, new_rev)
+            
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 

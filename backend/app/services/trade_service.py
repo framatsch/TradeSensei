@@ -328,14 +328,6 @@ class TradeService:
         updated = await self._repo.update(trade, data)
         reaggregate_fields = {
             "direction",
-            "quantity",
-            "entry_price",
-            "exit_price",
-            "commission",
-            "opened_at",
-            "closed_at",
-            "pnl",
-            "net_pnl",
             "multiplier",
         }
         should_reaggregate = bool(reaggregate_fields & data.model_fields_set)
@@ -575,14 +567,47 @@ class TradeService:
 
         # 1. Handle Full Close edge case.
         if request.quantity == trade.quantity:
-            updated = await self._repo.update(
-                trade,
-                TradeUpdate(
-                    exit_price=request.exit_price,
-                    closed_at=request.closed_at,
-                    commission=trade.commission + request.exit_commission,
-                ),
+            from app.models.trade import Direction
+            from app.schemas.execution import LogicalExecutionCreate
+            # Instead of updating TradeUpdate, we create an exit leg
+            exit_direction = (
+                Direction.SHORT if trade.direction == Direction.LONG else Direction.LONG
             )
+            new_leg = LogicalExecutionCreate(
+                direction=exit_direction,
+                price=request.exit_price,
+                quantity=request.quantity,
+                commission=request.exit_commission,
+                executed_at=request.closed_at,
+            )
+            # Add to trade.logical_executions
+            # create the Execution object manually
+            from app.models.logical_execution import LogicalExecution
+            execution = LogicalExecution(
+                trade_id=trade.id,
+                user_id=trade.user_id,
+                account_id=trade.account_id,
+                symbol=trade.symbol,
+                conid=trade.broker_conid,
+                asset_class=trade.asset_class,
+                multiplier=trade.multiplier,
+                currency=trade.currency,
+                direction=new_leg.direction,
+                quantity=new_leg.quantity,
+                price=new_leg.price,
+                commission=new_leg.commission,
+                executed_at=new_leg.executed_at,
+                origin="manual",
+                deleted=False,
+                user_modified=False,
+            )
+            self._session.add(execution)
+            await self._session.flush()
+
+            # Reaggregate trade using the execution service logic
+            await self._re_aggregate_trade(trade.id)
+            await self._session.commit()
+            updated = await self._repo.get_by_id(trade.id, user_id)
             return TradeRead.model_validate(updated)
 
         # 2. Perform Split (Partial Close).

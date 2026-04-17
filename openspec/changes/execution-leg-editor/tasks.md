@@ -1,50 +1,50 @@
 ## 1. Backend — Startup Migration Logging
 
-- [ ] 1.1 In `app/core/migrations.py`: capture the current revision before running `alembic upgrade head` by calling `alembic current` and parsing its output
-- [ ] 1.2 After the upgrade, call `alembic current` again to capture the post-upgrade revision
-- [ ] 1.3 Log the result at INFO level: if revision unchanged → "Database at revision <rev> (head) — no pending migrations"; if changed → "Upgraded database from <old> to <new> (head)"
-- [ ] 1.4 Run `mypy --strict` on `migrations.py` and fix any type errors
+- [x] 1.1 In `app/core/migrations.py`: capture the current revision before running `alembic upgrade head` by calling `alembic current` and parsing its output
+- [x] 1.2 After the upgrade, call `alembic current` again to capture the post-upgrade revision
+- [x] 1.3 Log the result at INFO level: if revision unchanged → "Database at revision <rev> (head) — no pending migrations"; if changed → "Upgraded database from <old> to <new> (head)"
+- [x] 1.4 Run `mypy --strict` on `migrations.py` and fix any type errors
 
 ## 2. Frontend — ExecutionLegsTable Error State
 
-- [ ] 2.1 In `ExecutionLegsTable.tsx`: refactor the `isError` branch to include a "Retry" button that calls `refetch()` from the `useTradeExecutions` hook return value
-- [ ] 2.2 Add a diagnostic hint message alongside the retry button: "Could not load executions. Check backend connectivity."
-- [ ] 2.3 Verify no `dark:` modifier is used; use semantic tokens only (`text-destructive`, `bg-muted`, etc.)
+- [x] 2.1 In `ExecutionLegsTable.tsx`: refactor the `isError` branch to include a "Retry" button that calls `refetch()` from the `useTradeExecutions` hook return value
+- [x] 2.2 Add a diagnostic hint message alongside the retry button: "Could not load executions. Check backend connectivity."
+- [x] 2.3 Verify no `dark:` modifier is used; use semantic tokens only (`text-destructive`, `bg-muted`, etc.)
 
 ## 3. Frontend — ExecutionRow: Direction Toggle
 
-- [ ] 3.1 Add `editDirection` state to `ExecutionRow` initialized from `execution.direction`
-- [ ] 3.2 Render a LONG/SHORT two-button toggle in edit mode (pill style, consistent with the existing Side badge colors — emerald for LONG, red for SHORT)
-- [ ] 3.3 Include `direction: editDirection` in the `useUpdateExecution` payload when saving
-- [ ] 3.4 Ensure cancel resets `editDirection` to the original value
+- [x] 3.1 Add `editDirection` state to `ExecutionRow` initialized from `execution.direction`
+- [x] 3.2 Render a LONG/SHORT two-button toggle in edit mode (pill style, consistent with the existing Side badge colors — emerald for LONG, red for SHORT)
+- [x] 3.3 Include `direction: editDirection` in the `useUpdateExecution` payload when saving
+- [x] 3.4 Ensure cancel resets `editDirection` to the original value
 
 ## 4. Frontend — ExecutionRow: Timestamp Picker
 
-- [ ] 4.1 Add `editExecutedAt` state to `ExecutionRow` initialized from `execution.executed_at` converted to `datetime-local` format (`YYYY-MM-DDTHH:mm`)
-- [ ] 4.2 Render `<input type="datetime-local">` in edit mode with the pre-filled value
-- [ ] 4.3 On save, convert the local datetime string to a UTC ISO-8601 string via `new Date(value).toISOString()` and include as `executed_at` in the patch payload
-- [ ] 4.4 Disable the save button if `editExecutedAt` is empty
+- [x] 4.1 Add `editExecutedAt` state to `ExecutionRow` initialized from `execution.executed_at` converted to `datetime-local` format (`YYYY-MM-DDTHH:mm`)
+- [x] 4.2 Render `<input type="datetime-local">` in edit mode with the pre-filled value
+- [x] 4.3 On save, convert the local datetime string to a UTC ISO-8601 string via `new Date(value).toISOString()` and include as `executed_at` in the patch payload
+- [x] 4.4 Disable the save button if `editExecutedAt` is empty
 
 ## 5. Frontend — ExecutionRow: P&L Field
 
-- [ ] 5.1 Add `editPnl` state to `ExecutionRow` initialized from `execution.pnl ?? ""`
-- [ ] 5.2 Render a numeric input for P&L in edit mode (allow empty/negative values; placeholder "—")
-- [ ] 5.3 On save, include `pnl: editPnl === "" ? null : editPnl` in the patch payload
-- [ ] 5.4 Ensure cancel resets `editPnl` to the original value
+- [x] 5.1 Add `editPnl` state to `ExecutionRow` initialized from `execution.pnl ?? ""`
+- [x] 5.2 Render a numeric input for P&L in edit mode (allow empty/negative values; placeholder "—")
+- [x] 5.3 On save, include `pnl: editPnl === "" ? null : editPnl` in the patch payload
+- [x] 5.4 Ensure cancel resets `editPnl` to the original value
 
 ## 6. Frontend — ExecutionLegsTable: Multiplier Column
 
-- [ ] 6.1 In `ExecutionLegsTable.tsx`: add a `Mult.` column header between `Qty` and `Price` — visible always (not conditional), shows the per-leg multiplier
-- [ ] 6.2 In `ExecutionRow.tsx` (view mode): render `execution.multiplier` in the new column; display as plain number (e.g., `100`); if `multiplier === 1` render as `—` to reduce noise for equity legs
-- [ ] 6.3 In `ExecutionRow.tsx` (view mode): add a `Notional` column or tooltip showing `qty × price × multiplier` for legs with `multiplier > 1`; display in the same currency format as `price`
-- [ ] 6.4 Do NOT add multiplier to the edit form — it is set at leg creation and is not patchable via `LogicalExecutionUpdate`
+- [x] 6.1 In `ExecutionLegsTable.tsx`: add a `Mult.` column header between `Qty` and `Price` — visible always (not conditional), shows the per-leg multiplier
+- [x] 6.2 In `ExecutionRow.tsx` (view mode): render `execution.multiplier` in the new column; display as plain number (e.g., `100`); if `multiplier === 1` render as `—` to reduce noise for equity legs
+- [x] 6.3 In `ExecutionRow.tsx` (view mode): add a `Notional` column or tooltip showing `qty × price × multiplier` for legs with `multiplier > 1`; display in the same currency format as `price`
+- [x] 6.4 Do NOT add multiplier to the edit form — it is set at leg creation and is not patchable via `LogicalExecutionUpdate`
 
 ## 7. Backend — Remove Aggregated Fields from TradeUpdate
 
-- [ ] 6.1 In `app/schemas/trade.py` (`TradeUpdate`): remove fields `pnl`, `net_pnl`, `commission`, `quantity`, `entry_price`, `exit_price`, `opened_at`, `closed_at` — keep `direction`, `multiplier`, and all metadata fields (`symbol`, `asset_class`, `stop_loss`, `take_profit`, `notes`, etc.)
-- [ ] 6.2 In `app/services/trade_service.py`: remove the same 8 fields from `reaggregate_fields` (set becomes empty or only `direction`/`multiplier` if those still trigger re-aggregation)
-- [ ] 6.3 Run `mypy --strict` and `ruff check` — fix any resulting type errors
-- [ ] 6.4 Run the test suite (`pytest`) — fix any tests that sent the removed fields in `TradeUpdate` payloads
+- [x] 6.1 In `app/schemas/trade.py` (`TradeUpdate`): remove fields `pnl`, `net_pnl`, `commission`, `quantity`, `entry_price`, `exit_price`, `opened_at`, `closed_at` — keep `direction`, `multiplier`, and all metadata fields (`symbol`, `asset_class`, `stop_loss`, `take_profit`, `notes`, etc.)
+- [x] 6.2 In `app/services/trade_service.py`: remove the same 8 fields from `reaggregate_fields` (set becomes empty or only `direction`/`multiplier` if those still trigger re-aggregation)
+- [x] 6.3 Run `mypy --strict` and `ruff check` — fix any resulting type errors
+- [x] 6.4 Run the test suite (`pytest`) — fix any tests that sent the removed fields in `TradeUpdate` payloads
 
 ## 7. Frontend — ExecutionSummaryCard: Multiplier and Notional
 

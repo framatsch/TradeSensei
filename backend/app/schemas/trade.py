@@ -614,15 +614,8 @@ class TradeUpdate(BaseModel):
         symbol: Updated ticker symbol.
         direction: Updated direction.
         asset_class: Updated asset class.
-        quantity: Updated quantity.
-        entry_price: Updated entry price.
-        exit_price: Updated exit price (set to ``None`` to re-open).
         stop_loss: Updated stop-loss level; ``null`` clears it.
         take_profit: Updated take-profit level; ``null`` clears it.
-        opened_at: Updated open timestamp.
-        closed_at: Updated close timestamp.
-        pnl: Updated PnL value.
-        commission: Updated commission value.
         notes: Updated notes.
     """
 
@@ -646,34 +639,6 @@ class TradeUpdate(BaseModel):
         default=None,
         description=("Updated asset class of the instrument. Omit to leave unchanged."),
         examples=["EQUITY", "CRYPTO", None],
-    )
-    quantity: Decimal | None = Field(
-        default=None,
-        ge=Decimal("0"),
-        description=(
-            "Updated number of units or contracts. Must be greater than zero. "
-            "Omit to leave unchanged."
-        ),
-        examples=["200", "0.5", None],
-    )
-    entry_price: Decimal | None = Field(
-        default=None,
-        ge=Decimal("0"),
-        description=(
-            "Updated entry execution price. Must be greater than zero. "
-            "Omit to leave unchanged."
-        ),
-        examples=["151.00", "1.0830", None],
-    )
-    exit_price: Decimal | None = Field(
-        default=None,
-        ge=Decimal("0"),
-        description=(
-            "Updated exit execution price. Supply this field (along with "
-            "`closed_at` and `pnl`) to close an open trade. "
-            "Omit to leave unchanged."
-        ),
-        examples=["156.50", "1.0910", None],
     )
     stop_loss: Decimal | None = Field(
         default=None,
@@ -702,47 +667,6 @@ class TradeUpdate(BaseModel):
             "leaves it unchanged."
         ),
         examples=["160.00", None],
-    )
-    opened_at: datetime | None = Field(
-        default=None,
-        description=(
-            "Updated timezone-aware UTC timestamp for position open. "
-            "Naive datetimes are rejected. Omit to leave unchanged."
-        ),
-        examples=["2024-03-15T09:31:00Z", None],
-    )
-    closed_at: datetime | None = Field(
-        default=None,
-        description=(
-            "Updated timezone-aware UTC timestamp for position close. "
-            "Naive datetimes are rejected. Omit to leave unchanged."
-        ),
-        examples=["2024-03-15T16:00:00Z", None],
-    )
-    pnl: Decimal | None = Field(
-        default=None,
-        description=(
-            "Updated realised profit or loss in account currency. "
-            "Omit to leave unchanged."
-        ),
-        examples=["530.00", "-85.00", None],
-    )
-    net_pnl: Decimal | None = Field(
-        default=None,
-        description=(
-            "Updated realised net profit or loss in account currency. "
-            "Omit to leave unchanged."
-        ),
-        examples=["528.00", "-87.00", None],
-    )
-    commission: Decimal | None = Field(
-        default=None,
-        ge=Decimal("0"),
-        description=(
-            "Updated total commission paid. Must be zero or greater. "
-            "Omit to leave unchanged."
-        ),
-        examples=["2.00", "0", None],
     )
     notes: str | None = Field(
         default=None,
@@ -785,24 +709,6 @@ class TradeUpdate(BaseModel):
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], [], None],
     )
-
-    @field_validator("opened_at", "closed_at", mode="before")
-    @classmethod
-    def require_timezone(cls, value: object) -> object:
-        """Reject naive datetimes — all timestamps must carry timezone info.
-
-        Args:
-            value: Raw datetime value from the request payload.
-
-        Returns:
-            The original value unchanged if it is timezone-aware.
-
-        Raises:
-            ValueError: If the supplied ``datetime`` has no ``tzinfo``.
-        """
-        if isinstance(value, datetime) and value.tzinfo is None:
-            raise ValueError("Datetime must be timezone-aware (include UTC offset).")
-        return value
 
 
 class TradeRead(BaseModel):

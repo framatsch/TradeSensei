@@ -23,16 +23,20 @@ def test_run_migrations_calls_upgrade(monkeypatch: MonkeyPatch) -> None:
     calls: list[tuple[list[str], Path, bool]] = []
 
     def fake_run(
-        command: list[str], cwd: Path, check: bool
+        command: list[str], cwd: Path, check: bool, **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
         calls.append((command, cwd, check))
+        if "current" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="rev123 (head)\n")
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(migrations.subprocess, "run", fake_run)
 
     migrations.run_migrations()
 
-    assert len(calls) == 1
-    assert calls[0][0][-2:] == ["upgrade", "head"]
-    assert calls[0][1] == migrations.PROJECT_ROOT
-    assert calls[0][2] is True
+    # _get_current_revision calls fake_run twice, and the migration once
+    # So length of calls should be 3
+    assert len(calls) == 3
+    assert calls[1][0][-2:] == ["upgrade", "head"]
+    assert calls[1][1] == migrations.PROJECT_ROOT
+    assert calls[1][2] is True

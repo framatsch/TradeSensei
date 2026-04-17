@@ -30,7 +30,7 @@ export function ExecutionLegsTable({ tradeId }: Props) {
   const [splitExecution, setSplitExecution] = useState<LogicalExecution | null>(null);
 
   // Fetch with include_deleted=true when the toggle is on so we can show them
-  const { data: executions, isLoading, isError } = useTradeExecutions(tradeId, showDeleted);
+  const { data: executions, isLoading, isError, refetch } = useTradeExecutions(tradeId, showDeleted);
   const reassignExecution = useReassignExecution();
   const detachExecution = useDetachExecution();
 
@@ -107,8 +107,14 @@ export function ExecutionLegsTable({ tradeId }: Props) {
             </div>
           )}
           {isError && (
-            <div className="px-4 py-4 text-sm text-red-500">
-              Failed to load executions.
+            <div className="px-4 py-6 flex flex-col items-center justify-center gap-3 border border-destructive/20 rounded-lg bg-destructive/5 m-4">
+              <span className="text-sm text-destructive font-medium">Could not load executions. Check backend connectivity.</span>
+              <button
+                onClick={() => refetch()}
+                className="px-3 py-1.5 text-xs font-medium rounded-md bg-muted text-foreground hover:bg-muted/80 transition-colors border border-border"
+              >
+                Retry
+              </button>
             </div>
           )}
           {!isLoading && !isError && activeCount === 0 && !showDeleted && (
@@ -128,6 +134,7 @@ export function ExecutionLegsTable({ tradeId }: Props) {
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Side</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Mult.</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Price</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Commission</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P&amp;L</th>

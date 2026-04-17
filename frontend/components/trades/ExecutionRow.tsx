@@ -57,6 +57,14 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
   const [editPrice, setEditPrice] = useState(execution.price);
   const [editQty, setEditQty] = useState(execution.quantity);
   const [editCommission, setEditCommission] = useState(execution.commission);
+  const [editDirection, setEditDirection] = useState(execution.direction);
+  const [editExecutedAt, setEditExecutedAt] = useState(() => {
+    // format to datetime-local: YYYY-MM-DDTHH:mm
+    if (!execution.executed_at) return "";
+    const d = new Date(execution.executed_at);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  });
+  const [editPnl, setEditPnl] = useState(execution.pnl ?? "");
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -98,9 +106,12 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
         executionId: execution.id,
         tradeId,
         data: {
+          direction: editDirection,
+          executed_at: new Date(editExecutedAt).toISOString(),
           price: editPrice,
           quantity: editQty,
           commission: editCommission,
+          pnl: editPnl === "" ? null : editPnl,
         },
       },
       { onSuccess: () => setIsEditing(false) }
@@ -108,9 +119,17 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
   }
 
   function handleCancel() {
+    setEditDirection(execution.direction);
+    if (execution.executed_at) {
+      const d = new Date(execution.executed_at);
+      setEditExecutedAt(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+    } else {
+      setEditExecutedAt("");
+    }
     setEditPrice(execution.price);
     setEditQty(execution.quantity);
     setEditCommission(execution.commission);
+    setEditPnl(execution.pnl ?? "");
     setIsEditing(false);
   }
 
@@ -154,7 +173,17 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
         </td>
 
         <td className="px-3 py-2 text-sm text-right">{fmtQty(execution.quantity)}</td>
-        <td className="px-3 py-2 text-sm text-right">{fmt(execution.price)}</td>
+        <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+          {execution.multiplier === 1 ? "—" : execution.multiplier}
+        </td>
+        <td className="px-3 py-2 text-sm text-right">
+          {fmt(execution.price)}
+          {execution.multiplier > 1 && (
+            <div className="text-[10px] text-muted-foreground">
+              Notional: {fmt((parseFloat(execution.quantity) * parseFloat(execution.price) * execution.multiplier).toString())}
+            </div>
+          )}
+        </td>
         <td className="px-3 py-2 text-sm text-right text-muted-foreground">{fmt(execution.commission)}</td>
         <td className="px-3 py-2 text-sm text-right">{fmtPnl(execution.pnl)}</td>
 
@@ -184,21 +213,58 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
       <tr className="border-b border-border hover:bg-muted/30 transition-colors">
         {/* Date */}
         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
-          {fmtDate(execution.executed_at)}
+          {isEditing ? (
+            <input
+              type="datetime-local"
+              value={editExecutedAt}
+              onChange={(e) => setEditExecutedAt(e.target.value)}
+              className="w-36 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground"
+            />
+          ) : (
+            <span className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmtDate(execution.executed_at)}</span>
+          )}
         </td>
 
         {/* Side badge */}
         <td className="px-3 py-2">
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-              isLong
-                ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                : "bg-red-100 text-red-700 border border-red-200"
-            }`}
-          >
-            {isLong ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />}
-            {execution.direction}
-          </span>
+          {isEditing ? (
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setEditDirection("LONG")}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  editDirection === "LONG"
+                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                    : "bg-muted text-muted-foreground border border-border"
+                }`}
+              >
+                LONG
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditDirection("SHORT")}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  editDirection === "SHORT"
+                    ? "bg-red-100 text-red-700 border border-red-200"
+                    : "bg-muted text-muted-foreground border border-border"
+                }`}
+              >
+                SHORT
+              </button>
+            </div>
+          ) : (
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer ${
+                isLong
+                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                  : "bg-red-100 text-red-700 border border-red-200"
+              }`}
+              onClick={() => setIsEditing(true)}
+            >
+              {isLong ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />}
+              {execution.direction}
+            </span>
+          )}
         </td>
 
         {/* Quantity */}
@@ -215,6 +281,11 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
           )}
         </td>
 
+        {/* Multiplier */}
+        <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+          {execution.multiplier === 1 ? "—" : execution.multiplier}
+        </td>
+
         {/* Price */}
         <td className="px-3 py-2 text-sm text-right">
           {isEditing ? (
@@ -225,7 +296,14 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
               className="w-24 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right"
             />
           ) : (
-            <span className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmt(execution.price)}</span>
+            <>
+              <div className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmt(execution.price)}</div>
+              {execution.multiplier > 1 && (
+                <div className="text-[10px] text-muted-foreground mt-0.5" title="Notional Value">
+                  {fmt((parseFloat(execution.quantity) * parseFloat(execution.price) * execution.multiplier).toString())}
+                </div>
+              )}
+            </>
           )}
         </td>
 
@@ -245,7 +323,17 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
 
         {/* P&L */}
         <td className="px-3 py-2 text-sm text-right">
-          {fmtPnl(execution.pnl)}
+          {isEditing ? (
+            <input
+              type="number"
+              value={editPnl}
+              placeholder="—"
+              onChange={(e) => setEditPnl(e.target.value)}
+              className="w-24 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right"
+            />
+          ) : (
+            <span className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmtPnl(execution.pnl)}</span>
+          )}
         </td>
 
         {/* Status badge */}
@@ -263,8 +351,8 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
              <div className="inline-flex items-center gap-1">
                <button
                  onClick={handleSave}
-                 disabled={updateExecution.isPending}
-                 className="p-1 rounded hover:bg-emerald-100 text-emerald-600"
+                 disabled={updateExecution.isPending || !editExecutedAt}
+                 className="p-1 rounded hover:bg-emerald-100 text-emerald-600 disabled:opacity-50"
                  title="Save"
                >
                  <Check size={14} />
