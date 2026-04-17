@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-04-18
+
+### Added
+- [backend] `LOCAL_AUTH_DISABLED` config flag: set to `true` to hide the username/password login form in the UI. Requires at least one external provider (Google or OIDC) to be configured; ignored otherwise to prevent lockout.
+- [backend] `GET /api/v1/auth/config` endpoint returns `local_auth_enabled` field so the frontend can conditionally render the login form.
+- [frontend] Login page reads `local_auth_enabled` from the auth config API and hides the credentials form when local auth is disabled.
+
+### Changed
+- [infra] Replaced TimescaleDB with plain **PostgreSQL 18** across all environments (`docker-compose.yml`, `docker-compose.test.yml`, `k8s/database/statefulset.yaml`). The PG 18 image requires the data volume to be mounted at `/var/lib/postgresql` (not `/var/lib/postgresql/data`).
+- [backend] Removed `CREATE EXTENSION timescaledb` and `create_hypertable` calls from Alembic migrations `0001` and `f91cc12066ce`. The schema is now fully compatible with plain PostgreSQL.
+
 ## [0.17.0] - 2026-04-18
 
 ### Fixed

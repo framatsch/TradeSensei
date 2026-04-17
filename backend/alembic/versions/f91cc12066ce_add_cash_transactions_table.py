@@ -98,10 +98,6 @@ def upgrade() -> None:
         "ix_cash_transactions_type", "cash_transactions", ["type"], unique=False
     )
 
-    # Convert to TimescaleDB hypertable
-    op.execute(
-        "SELECT create_hypertable('cash_transactions', 'date', chunk_time_interval => INTERVAL '1 year', if_not_exists => TRUE)"
-    )
 
 
 def downgrade() -> None:

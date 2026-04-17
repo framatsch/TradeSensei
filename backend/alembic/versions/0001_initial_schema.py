@@ -6,14 +6,12 @@ Create Date: 2026-03-14 00:00:00.000000
 
 """
 
-import logging
 from collections.abc import Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import DBAPIError
 
-from alembic import context, op
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0001"
@@ -21,13 +19,10 @@ down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-logger = logging.getLogger(__name__)
-
 
 def upgrade() -> None:
     """Create the ``trades`` table, its indexes, and the TimescaleDB hypertable."""
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-    op.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
 
     # ── Enum types ─────────────────────────────────────────────────────────────
     direction_enum = postgresql.ENUM(
@@ -118,26 +113,6 @@ def upgrade() -> None:
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     """)
 
-    # ── TimescaleDB hypertable ─────────────────────────────────────────────────
-    # Partition by ``opened_at`` (always non-NULL) with monthly chunks.
-    with context.get_context().autocommit_block():
-        try:
-            op.execute(
-                """
-                SELECT create_hypertable(
-                    'trades',
-                    'opened_at',
-                    migrate_data      => true,
-                    if_not_exists     => true,
-                    chunk_time_interval => INTERVAL '1 month'
-                )
-                """
-            )
-        except DBAPIError as exc:
-            logger.warning(
-                "Skipping TimescaleDB hypertable conversion for trades: %s",
-                exc,
-            )
 
 
 def downgrade() -> None:

@@ -12,7 +12,7 @@ services:
   # TimescaleDB (PostgreSQL with time-series extension)
   # ─────────────────────────────────────────────
   db:
-    image: timescale/timescaledb:latest-pg16
+    image: postgres:18
     restart: unless-stopped
     environment:
       POSTGRES_USER: tradesensei
@@ -21,7 +21,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tradesensei -d tradesensei"]
       interval: 5s
