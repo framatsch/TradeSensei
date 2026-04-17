@@ -36,7 +36,7 @@ const formSchema = z.object({
   symbol: z.string().min(1, "Symbol is required").transform(val => val.toUpperCase()),
   direction: z.enum(["LONG", "SHORT"]),
   asset_class: z.enum(["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"]),
-  currency: z.string().max(3).optional().refine(val => !val || val.length === 3, "Currency must be a 3-letter ISO code").transform(val => val?.toUpperCase() || ""),
+  currency: z.string().max(3).optional().refine(val => !val || val.length === 3, "Currency must be a 3-letter ISO code"),
   account_id: z.string().optional(),
   
   quantity: z.string().min(1, "Quantity is required").refine(val => parseFloat(val) > 0, "Quantity must be > 0"),
@@ -215,7 +215,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       closed_at: data.closed_at ? toISOWithOffset(data.closed_at) : null,
       pnl: data.pnl || null,
       commission: data.commission || "0",
-      currency: data.currency || null,
+      currency: data.currency?.toUpperCase() || null,
       notes: data.notes || null,
       playbook_id: data.playbook_id || null,
       tag_ids: selectedTagIds,
