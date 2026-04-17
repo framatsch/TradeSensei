@@ -402,14 +402,14 @@ class ImportService:
                             if is_orphan:
                                 await self._trade_repo.fill_orphaned_lot(
                                     trade_id=db_trade_id,
-                                    entry_price=trade_data.entry_price,
+                                    entry_price=cast(Decimal, trade_data.entry_price),
                                     opened_at=trade_data.opened_at,
                                     pnl=trade_data.pnl,
                                     pnl_eur=trade_data.pnl_eur,
                                     net_pnl=trade_data.net_pnl,
                                     net_pnl_eur=trade_data.net_pnl_eur,
                                     commission_add=trade_data.commission,
-                                    quantity=trade_data.quantity,
+                                    quantity=cast(Decimal, trade_data.quantity),
                                 )
                                 # Create entry execution for newly filled orphaned lot
                                 await self._exec_repo.create(
@@ -418,8 +418,8 @@ class ImportService:
                                     symbol=trade_data.symbol,
                                     asset_class=trade_data.asset_class,
                                     direction=trade_data.direction,
-                                    quantity=trade_data.quantity,
-                                    price=trade_data.entry_price,
+                                    quantity=cast(Decimal, trade_data.quantity),
+                                    price=cast(Decimal, trade_data.entry_price),
                                     commission=Decimal("0"),
                                     executed_at=trade_data.opened_at,
                                     multiplier=trade_data.multiplier or 1,
@@ -437,7 +437,7 @@ class ImportService:
                                     net_pnl=trade_data.net_pnl,
                                     net_pnl_eur=trade_data.net_pnl_eur,
                                     commission_add=trade_data.commission,
-                                    quantity=trade_data.quantity,
+                                    quantity=cast(Decimal, trade_data.quantity),
                                 )
 
                             # Create exit execution for closed lot
@@ -574,31 +574,41 @@ class ImportService:
             # 2. Match closing leg (either it's an orphaned close,
             # or a full open/close trade).
             close_key: tuple[str, datetime, Decimal, Decimal, str] | None = None
+            trade_data_symbol = trade_data.symbol
+            trade_data_opened_at = trade_data.opened_at
+            trade_data_exit_price = trade_data.exit_price
+            trade_data_quantity = trade_data.quantity
+            trade_data_direction_val = trade_data.direction.value
             if is_orphan:
                 # For orphaned trades, the 'opened_at' is actually the
                 # execution time of the close leg.
-                if trade_data.exit_price is not None:
+                if (
+                    trade_data_exit_price is not None
+                    and trade_data_quantity is not None
+                ):
                     close_key = (
-                        trade_data.symbol,
-                        trade_data.opened_at,
-                        trade_data.exit_price,
-                        trade_data.quantity,
-                        trade_data.direction.value,
+                        trade_data_symbol,
+                        trade_data_opened_at,
+                        trade_data_exit_price,
+                        trade_data_quantity,
+                        trade_data_direction_val,
                     )
             else:
                 # For regular trades that are closed, closed_at is the
                 # execution time of the close leg.
-                close_key = (
-                    (
-                        trade_data.symbol,
-                        trade_data.closed_at,
-                        trade_data.exit_price,
-                        trade_data.quantity,
-                        trade_data.direction.value,
+                trade_data_closed_at = trade_data.closed_at
+                if (
+                    trade_data_closed_at
+                    and trade_data_exit_price is not None
+                    and trade_data_quantity is not None
+                ):
+                    close_key = (
+                        trade_data_symbol,
+                        trade_data_closed_at,
+                        trade_data_exit_price,
+                        trade_data_quantity,
+                        trade_data_direction_val,
                     )
-                    if trade_data.closed_at and trade_data.exit_price is not None
-                    else None
-                )
 
             if close_key is not None and close_key in existing_close_keys:
                 logger.debug(
