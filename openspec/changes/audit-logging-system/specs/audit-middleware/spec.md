@@ -133,3 +133,39 @@ The middleware SHALL log failed authentication attempts (invalid JWT token, expi
 #### Scenario: Expired token logged as auth failure
 - **WHEN** a user sends `DELETE /api/v1/trades/123` with expired JWT token
 - **THEN** middleware creates audit log with action `auth.failed`, `reason=expired_token`
+
+---
+
+### Requirement: Middleware logs unhandled exceptions
+
+The middleware SHALL catch all unhandled exceptions from route handlers and log them with action `error.unhandled`. The log SHALL include exception type, message, stack trace, user context, request details, and correlation ID for debugging.
+
+#### Scenario: Unhandled exception in route handler
+- **WHEN** route handler raises `ValueError("Invalid trade data")`
+- **THEN** middleware logs `error.unhandled` with `exception_type=ValueError`, `exception_message=Invalid trade data`, `stack_trace=<full trace>`, and returns HTTP 500
+
+#### Scenario: Database error logged with context
+- **WHEN** route handler raises `SQLAlchemyError` during database operation
+- **THEN** middleware logs `error.database` with user_id, resource context, and exception details
+
+#### Scenario: Validation error logged
+- **WHEN** Pydantic validation fails with `ValidationError`
+- **THEN** middleware logs `error.validation` with failed fields and validation messages (status code 422)
+
+---
+
+### Requirement: Middleware logs HTTP error responses
+
+The middleware SHALL log all HTTP error responses (4xx, 5xx status codes) with action pattern `error.<category>`. The log SHALL include status code, error message, user context, and request details for troubleshooting.
+
+#### Scenario: 404 Not Found logged
+- **WHEN** user requests `GET /api/v1/trades/99999` (trade does not exist)
+- **THEN** middleware logs `error.not_found` with `status_code=404`, `resource_type=trade`, `resource_id=99999`
+
+#### Scenario: 403 Forbidden logged
+- **WHEN** user attempts unauthorized action (access another user's data)
+- **THEN** middleware logs `error.forbidden` with `status_code=403`, `user_id`, `attempted_resource`
+
+#### Scenario: 500 Internal Server Error logged
+- **WHEN** route handler raises unhandled exception
+- **THEN** middleware logs `error.internal` with `status_code=500`, full stack trace, request correlation ID

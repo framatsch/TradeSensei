@@ -24,6 +24,10 @@
 - [ ] 2.11 Add special handling for auth endpoints (`/api/v1/auth/token` → `auth.login`)
 - [ ] 2.12 Implement synchronous logging with try/except error handling
 - [ ] 2.13 Add logging for authentication failures (invalid/expired tokens)
+- [ ] 2.14 Implement unhandled exception catching with action `error.unhandled`
+- [ ] 2.15 Add structured exception logging (type, message, stack trace, correlation ID)
+- [ ] 2.16 Implement HTTP error response logging (4xx, 5xx status codes)
+- [ ] 2.17 Add specific error action patterns (`error.not_found`, `error.forbidden`, `error.validation`, `error.internal`)
 
 ## 3. Middleware Registration
 
@@ -51,6 +55,10 @@
 - [ ] 5.10 Test middleware logs write operations but not read operations (unless DEBUG)
 - [ ] 5.11 Test middleware error handling (logging failure doesn't break request)
 - [ ] 5.12 Test authentication failure logging
+- [ ] 5.13 Test unhandled exception logging with stack traces
+- [ ] 5.14 Test HTTP error response logging (404, 403, 422, 500)
+- [ ] 5.15 Test validation error logging with field details
+- [ ] 5.16 Test database error logging with correlation IDs
 
 ## 6. Grafana Dashboard Creation
 
@@ -65,7 +73,9 @@
 - [ ] 6.9 Configure time range picker with presets (15m, 1h, 6h, 24h, 7d, 30d)
 - [ ] 6.10 Configure auto-refresh with 30-second default interval
 - [ ] 6.11 Add dashboard variables for filtering by user_id, action, ip_address, email_hash
-- [ ] 6.12 Test dashboard with sample audit logs from staging environment
+- [ ] 6.12 Add "Error Rate" panel for tracking `error.*` actions over time
+- [ ] 6.13 Add "Top Errors" panel grouped by exception type
+- [ ] 6.14 Test dashboard with sample audit logs from staging environment
 
 ## 7. Deployment and Validation
 
@@ -80,10 +90,25 @@
 - [ ] 7.9 Test dashboard filters and time range selection
 - [ ] 7.10 Deploy to production after staging validation
 
-## 8. Documentation and Compliance
+## 8. AGENTS.md Policy Documentation
 
-- [ ] 8.1 Update Privacy Policy to mention IP logging for security purposes (DSGVO Art. 6(1)(f))
-- [ ] 8.2 Document audit log fields in `docs/audit-logging.md`
-- [ ] 8.3 Document Grafana dashboard usage in `docs/grafana-audit-dashboard.md`
-- [ ] 8.4 Add code comments explaining action inference logic
-- [ ] 8.5 Update CHANGELOG.md with new audit logging feature
+- [ ] 8.1 Add "Audit Logging Policy" section to AGENTS.md
+- [ ] 8.2 Document automatic audit coverage for POST/PUT/PATCH/DELETE endpoints
+- [ ] 8.3 Document sensitive data exclusion list (P&L, commissions, prices, passwords, tokens)
+- [ ] 8.4 Document action naming conventions (`<resource>.<verb>` format)
+- [ ] 8.5 Document error logging requirements (try/except with logger.error)
+- [ ] 8.6 Add code review checklist for audit logging compliance
+- [ ] 8.7 Link to implementation examples (middleware auto-logging, manual events, error logging)
+- [ ] 8.8 Instruct backend-engineer agent to verify audit logging for new features
+- [ ] 8.9 Instruct frontend-engineer agent to verify backend audit logging exists
+- [ ] 8.10 Instruct code-reviewer agent to check audit policy compliance
+
+## 9. Documentation and Compliance
+
+- [ ] 9.1 Update Privacy Policy to mention IP logging for security purposes (DSGVO Art. 6(1)(f))
+- [ ] 9.2 Document audit log fields in `docs/audit-logging.md`
+- [ ] 9.3 Document error logging patterns in `docs/audit-logging.md`
+- [ ] 9.4 Document Grafana dashboard usage in `docs/grafana-audit-dashboard.md`
+- [ ] 9.5 Add code comments explaining action inference logic
+- [ ] 9.6 Add code comments explaining exception handling and error categorization
+- [ ] 9.7 Update CHANGELOG.md with new audit logging feature
