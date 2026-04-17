@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-04-18
+
+### Added
+- [backend] Email-based self-service password reset: `POST /auth/forgot-password` sends a reset link to the registered address; `POST /auth/reset-password` validates the single-use JWT and updates the password.
+- [backend] SMTP configuration fields (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `SMTP_TLS`) and `password_reset_enabled` computed property on `Settings`; feature is off unless all SMTP fields are present.
+- [backend] `create_password_reset_token` / `consume_password_reset_token` in `security.py`: 1-hour JWT with `pwreset` claim and replay protection via the existing `used_otts` table.
+- [backend] `GET /auth/config` response now includes `password_reset_enabled` flag.
+- [backend] Unit tests for password-reset token functions; integration tests for `POST /auth/forgot-password`, `POST /auth/reset-password`, and `GET /auth/config`.
+- [frontend] `/forgot-password` page: email form that always shows a static success message after submission to prevent user enumeration.
+- [frontend] `/reset-password` page: reads `?token=` from the URL, validates new + confirm password, and redirects to `/login?reset=success` on success.
+- [frontend] Login page shows "Forgot password?" link below the password field only when `password_reset_enabled` is `true`.
+- [frontend] Login page shows a green success banner when arriving from `/reset-password` via `?reset=success`.
+
 ## [0.20.0] - 2026-04-18
 
 ### Added
