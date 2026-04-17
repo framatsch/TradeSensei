@@ -30,6 +30,17 @@ function fmtQty(value: string | number | null): string {
 
 export function ExecutionSummaryCard({ trade, executions }: Props) {
   const count = executions.length;
+  const isMult = trade.multiplier > 1;
+
+  const notionalEntry =
+    isMult && trade.entry_price !== null && trade.quantity !== null
+      ? parseFloat(trade.entry_price) * parseFloat(trade.quantity) * trade.multiplier
+      : null;
+
+  const notionalExit =
+    isMult && trade.exit_price !== null && trade.quantity !== null
+      ? parseFloat(trade.exit_price) * parseFloat(trade.quantity) * trade.multiplier
+      : null;
 
   return (
     <div className="bg-card rounded-xl border border-border p-4">
@@ -46,14 +57,36 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+        {isMult && (
+          <div>
+            <dt className="text-xs text-muted-foreground mb-0.5">Multiplier</dt>
+            <dd className="font-medium text-foreground text-sm">{trade.multiplier}&times;</dd>
+          </div>
+        )}
         <div>
-          <dt className="text-xs text-muted-foreground mb-0.5">VWAP Entry</dt>
+          <dt className="text-xs text-muted-foreground mb-0.5">
+            {isMult ? "Entry Price (per unit)" : "VWAP Entry"}
+          </dt>
           <dd className="font-medium text-foreground text-sm">{fmt(trade.entry_price)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground mb-0.5">VWAP Exit</dt>
+          <dt className="text-xs text-muted-foreground mb-0.5">
+            {isMult ? "Exit Price (per unit)" : "VWAP Exit"}
+          </dt>
           <dd className="font-medium text-foreground text-sm">{fmt(trade.exit_price)}</dd>
         </div>
+        {isMult && notionalEntry !== null && (
+          <div>
+            <dt className="text-xs text-muted-foreground mb-0.5">Notional Entry</dt>
+            <dd className="font-medium text-foreground text-sm">{fmt(notionalEntry)}</dd>
+          </div>
+        )}
+        {isMult && notionalExit !== null && (
+          <div>
+            <dt className="text-xs text-muted-foreground mb-0.5">Notional Exit</dt>
+            <dd className="font-medium text-foreground text-sm">{fmt(notionalExit)}</dd>
+          </div>
+        )}
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Total Quantity</dt>
           <dd className="font-medium text-foreground text-sm">{fmtQty(trade.quantity)}</dd>
@@ -61,6 +94,19 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Total Commission</dt>
           <dd className="font-medium text-foreground text-sm">{fmt(trade.commission)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground mb-0.5">P&amp;L</dt>
+          <dd className="font-medium text-foreground text-sm">
+            {trade.pnl ? (
+              <span className={parseFloat(trade.pnl) >= 0 ? "text-emerald-500" : "text-red-500"}>
+                {parseFloat(trade.pnl) >= 0 ? "+" : ""}
+                {fmt(trade.pnl)}
+              </span>
+            ) : (
+              "—"
+            )}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Stop Loss</dt>

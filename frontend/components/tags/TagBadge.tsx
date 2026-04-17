@@ -6,7 +6,7 @@
 import type { Tag } from "@/lib/types";
 
 interface Props {
-  tag: Tag;
+  tag: Pick<Tag, 'id' | 'name' | 'color'>;
   /** If provided, renders a dismiss button inside the badge. */
   onRemove?: () => void;
 }

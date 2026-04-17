@@ -262,6 +262,10 @@ export interface SeedState {
   detachTestTradeId: string;
   /** IDs of the two AAPL trades used in the merge-workflow test */
   mergeTradeIds: [string, string];
+  /** ID of the dedicated edit-execution-test trade (TSLA LONG, 2 executions) */
+  editExecutionTestTradeId: string;
+  /** ID of the dedicated option-test trade (AAPL OPTION, multiplier=100, 1 execution) */
+  optionTestTradeId: string;
 }
 
 /**
@@ -338,6 +342,40 @@ const SEED_MERGE_TRADES = [
     opened_at: isoDate(44),
   },
 ] as const;
+
+/**
+ * Dedicated trade for edit-execution test.
+ *
+ * TSLA LONG, opened 50 days ago.
+ * Two manual executions:
+ *   Exec-1 BUY 50 @ $200.00
+ *   Exec-2 SELL 50 @ $210.00
+ */
+const SEED_EDIT_EXECUTION_TEST_TRADE = {
+  symbol: 'TSLA',
+  direction: 'LONG',
+  asset_class: 'EQUITY',
+  quantity: '50',
+  entry_price: '200.00',
+  opened_at: isoDate(50),
+};
+
+/**
+ * Dedicated OPTION trade for testing option-specific multiplier logic.
+ *
+ * AAPL OPTION, opened 45 days ago.
+ * One manual execution:
+ *   Exec-1 BUY 5 @ $10.50 (premium), multiplier 100
+ */
+const SEED_OPTION_TEST_TRADE = {
+  symbol: 'AAPL',
+  direction: 'LONG',
+  asset_class: 'OPTION',
+  quantity: '5',
+  entry_price: '10.50',
+  multiplier: '100',
+  opened_at: isoDate(45),
+};
 
 // ─── Main setup function ─────────────────────────────────────────────────────
 
@@ -614,6 +652,82 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   }
   console.log(`[global-setup] Merge-test trades seeded: ${mergeTradeIds.join(', ')}`);
 
+  // 11. Seed dedicated edit-execution-test trade (TSLA LONG)
+  let editExecutionTestTradeId = '';
+  const editExecTradeRes = await apiPost(
+    '/api/v1/trades',
+    SEED_EDIT_EXECUTION_TEST_TRADE as unknown as Record<string, unknown>,
+    token
+  );
+  if (editExecTradeRes.ok) {
+    const body = (await editExecTradeRes.json()) as { data: { id: string } };
+    editExecutionTestTradeId = body.data.id;
+    console.log(`[global-setup] Edit-execution-test trade seeded: ${editExecutionTestTradeId}`);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Add BUY execution leg — 50 @ $200.00
+    const editExec1Res = await apiPost(
+      `/api/v1/trades/${editExecutionTestTradeId}/executions`,
+      {
+        direction: 'LONG',
+        quantity: '50',
+        price: '200.00',
+        commission: '1.00',
+        executed_at: isoDate(50, 9, 30),
+      },
+      token
+    );
+    if (!editExec1Res.ok) console.warn(`[global-setup] Edit-exec 1 seed warning (${editExec1Res.status})`);
+    
+    // Add SELL execution leg — 50 @ $210.00
+    const editExec2Res = await apiPost(
+      `/api/v1/trades/${editExecutionTestTradeId}/executions`,
+      {
+        direction: 'SHORT',
+        quantity: '50',
+        price: '210.00',
+        commission: '1.00',
+        executed_at: isoDate(50, 15, 0),
+      },
+      token
+    );
+    if (!editExec2Res.ok) console.warn(`[global-setup] Edit-exec 2 seed warning (${editExec2Res.status})`);
+  } else {
+    console.warn(`[global-setup] Edit-execution-test trade seed warning (${editExecTradeRes.status})`);
+  }
+
+  // 12. Seed dedicated option-test trade (AAPL OPTION)
+  let optionTestTradeId = '';
+  const optionTradeRes = await apiPost(
+    '/api/v1/trades',
+    SEED_OPTION_TEST_TRADE as unknown as Record<string, unknown>,
+    token
+  );
+  if (optionTradeRes.ok) {
+    const body = (await optionTradeRes.json()) as { data: { id: string } };
+    optionTestTradeId = body.data.id;
+    console.log(`[global-setup] Option-test trade seeded: ${optionTestTradeId}`);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Add BUY execution leg — 5 @ $10.50
+    const optExecRes = await apiPost(
+      `/api/v1/trades/${optionTestTradeId}/executions`,
+      {
+        direction: 'LONG',
+        quantity: '5',
+        price: '10.50',
+        commission: '2.50',
+        executed_at: isoDate(45, 10, 0),
+      },
+      token
+    );
+    if (!optExecRes.ok) console.warn(`[global-setup] Option-exec seed warning (${optExecRes.status})`);
+  } else {
+    console.warn(`[global-setup] Option-test trade seed warning (${optionTradeRes.status})`);
+  }
+
   // Write seed state for use by tests
   fs.mkdirSync(path.dirname(SEED_STATE_FILE), { recursive: true });
   fs.writeFileSync(
@@ -623,7 +737,9 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       executionTradeId, 
       addExecutionTestTradeId,
       detachTestTradeId, 
-      mergeTradeIds 
+      mergeTradeIds,
+      editExecutionTestTradeId,
+      optionTestTradeId
     })
   );
 

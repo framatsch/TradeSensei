@@ -169,6 +169,7 @@ export interface Trade {
   symbol: string;
   direction: Direction;
   asset_class: AssetClass;
+  multiplier: number;
   quantity: string;
   entry_price: string;
   exit_price: string | null;
@@ -177,24 +178,25 @@ export interface Trade {
   opened_at: string;
   closed_at: string | null;
   pnl: string | null;
-  net_pnl?: number;
+  net_pnl: string | null;
   commission: string;
+  notes: string | null;
   currency: string | null;
   pnl_eur: string | null;
-  net_pnl_eur?: number;
-  notes: string | null;
-  account_id: string | null;
-  account_name: string | null;
-  account_type: AccountType | null;
+  net_pnl_eur: string | null;
+  tradingview_link: string | null;
+  screenshots: string[];
   playbook_id: string | null;
   playbook_name: string | null;
-  tags: Tag[];
-  trade_notes: TradeNote[];
+  account_id: string | null;
+  account_name: string | null;
+  account_type: string | null;
   created_at: string;
   updated_at: string;
-  tradingview_link?: string | null;
-  screenshots?: string[];
   is_manually_edited: boolean;
+  tags: Array<{ id: string; name: string; color: string | null }>;
+  trade_notes: TradeNote[];
+  legs?: LogicalExecution[];
 }
 
 export interface TradeCreate {
@@ -222,20 +224,14 @@ export interface TradeUpdate {
   symbol?: string | null;
   direction?: Direction | null;
   asset_class?: AssetClass | null;
-  quantity?: string | null;
-  entry_price?: string | null;
-  exit_price?: string | null;
   stop_loss?: string | null;
   take_profit?: string | null;
-  opened_at?: string | null;
-  closed_at?: string | null;
   pnl?: string | null;
   commission?: string | null;
   notes?: string | null;
   tradingview_link?: string | null;
   playbook_id?: string | null;
   tag_ids?: string[] | null;
-  currency?: string | null;
   is_manually_edited?: boolean | null;
 }
 

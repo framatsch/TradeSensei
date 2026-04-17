@@ -28,7 +28,7 @@ import type { Trade, Tag } from "@/lib/types";
 
 const RED_HEX_PREFIXES = ["#f", "#e", "#d"]; // rose / red / pink shades
 
-function isErrorTag(tag: Tag): boolean {
+function isErrorTag(tag: Pick<Tag, "name" | "color">): boolean {
   const nameLower = tag.name.toLowerCase();
   if (
     nameLower.includes("mistake") ||
@@ -61,7 +61,7 @@ function aggregateByTag(trades: Trade[]): TagStats[] {
   const map = new Map<
     string,
     {
-      tag: Tag;
+      tag: Pick<Tag, "id" | "name" | "color">;
       trades: number;
       wins: number;
       totalPnl: number;

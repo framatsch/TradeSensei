@@ -216,7 +216,7 @@ function InlinePlaybookField({ playbookId, playbookName, onSave }: InlinePlayboo
 
 interface InlineTagsFieldProps {
   tagIds: string[];
-  tags: Tag[];
+  tags: Pick<Tag, "id" | "name" | "color">[];
   onSave: (tagIds: string[]) => void;
 }
 

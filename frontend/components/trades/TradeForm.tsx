@@ -14,6 +14,7 @@ import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import type { AxiosError } from "axios";
 import { Trash2, Plus } from "lucide-react";
+import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
 
 const DIRECTIONS: Direction[] = ["LONG", "SHORT"];
 const ASSET_CLASSES: AssetClass[] = [
@@ -39,22 +40,33 @@ const formSchema = z.object({
   currency: z.string().max(3).optional().refine(val => !val || val.length === 3, "Currency must be a 3-letter ISO code"),
   account_id: z.string().optional(),
   
-  quantity: z.string().min(1, "Quantity is required").refine(val => parseFloat(val) > 0, "Quantity must be > 0"),
-  entry_price: z.string().min(1, "Entry price is required").refine(val => parseFloat(val) > 0, "Entry price must be > 0"),
-  exit_price: z.string().optional().refine(val => !val || parseFloat(val) > 0, "Exit price must be > 0 when provided"),
+  quantity: z.string().optional(),
+  entry_price: z.string().optional(),
+  exit_price: z.string().optional(),
   pnl: z.string().optional(),
   stop_loss: z.string().optional().refine(val => !val || parseFloat(val) > 0, "Stop loss must be > 0 when provided"),
   take_profit: z.string().optional().refine(val => !val || parseFloat(val) > 0, "Take profit must be > 0 when provided"),
   commission: z.string().optional(),
   
-  opened_at: z.string().min(1, "Opened at is required"),
+  opened_at: z.string().optional(),
   closed_at: z.string().optional(),
   
   playbook_id: z.string().optional(),
   notes: z.string().optional(),
   
-  isAdvancedMode: z.boolean(),
+  isAdvancedMode: z.boolean().optional(),
   executions: z.array(legSchema).optional(),
+});
+
+const createSchema = formSchema.refine(data => data.quantity && parseFloat(data.quantity) > 0, {
+  message: "Quantity is required and must be > 0",
+  path: ["quantity"]
+}).refine(data => data.entry_price && parseFloat(data.entry_price) > 0, {
+  message: "Entry price is required and must be > 0",
+  path: ["entry_price"]
+}).refine(data => data.opened_at && data.opened_at.length > 0, {
+  message: "Opened at is required",
+  path: ["opened_at"]
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -90,24 +102,36 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   );
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      symbol: trade?.symbol ?? "",
-      direction: trade?.direction ?? "LONG",
-      asset_class: trade?.asset_class ?? "EQUITY",
-      currency: trade?.currency ?? "",
-      account_id: trade?.account_id ?? "",
-      quantity: trade?.quantity ?? "",
-      entry_price: trade?.entry_price ?? "",
-      exit_price: trade?.exit_price ?? "",
-      pnl: trade?.pnl ?? "",
-      stop_loss: trade?.stop_loss ?? "",
-      take_profit: trade?.take_profit ?? "",
-      commission: trade?.commission ?? "0",
-      opened_at: toLocalDatetimeValue(trade?.opened_at),
-      closed_at: toLocalDatetimeValue(trade?.closed_at),
-      playbook_id: trade?.playbook_id ?? "",
-      notes: trade?.notes ?? "",
+    resolver: zodResolver(isEditing ? formSchema : createSchema),
+    defaultValues: isEditing ? {
+      symbol: trade.symbol,
+      direction: trade.direction,
+      asset_class: trade.asset_class,
+      currency: trade.currency ?? "",
+      account_id: trade.account_id ?? "",
+      stop_loss: trade.stop_loss ?? "",
+      take_profit: trade.take_profit ?? "",
+      playbook_id: trade.playbook_id ?? "",
+      notes: trade.notes ?? "",
+      isAdvancedMode: false,
+      executions: [],
+    } : {
+      symbol: "",
+      direction: "LONG",
+      asset_class: "EQUITY",
+      currency: "",
+      account_id: "",
+      quantity: "",
+      entry_price: "",
+      exit_price: "",
+      pnl: "",
+      stop_loss: "",
+      take_profit: "",
+      commission: "0",
+      opened_at: "",
+      closed_at: "",
+      playbook_id: "",
+      notes: "",
       isAdvancedMode: false,
       executions: [],
     }
@@ -206,12 +230,12 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       symbol: data.symbol,
       direction: data.direction,
       asset_class: data.asset_class,
-      quantity: data.quantity,
-      entry_price: data.entry_price,
+      quantity: data.quantity!,
+      entry_price: data.entry_price!,
       exit_price: data.exit_price || null,
       stop_loss: data.stop_loss === "" ? null : data.stop_loss,
       take_profit: data.take_profit === "" ? null : data.take_profit,
-      opened_at: toISOWithOffset(data.opened_at) ?? new Date().toISOString(),
+      opened_at: toISOWithOffset(data.opened_at!) ?? new Date().toISOString(),
       closed_at: data.closed_at ? toISOWithOffset(data.closed_at) : null,
       pnl: data.pnl || null,
       commission: data.commission || "0",
@@ -234,7 +258,14 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
     if (isEditing) {
       const payload: TradeUpdate = {
-        ...payloadBase,
+        symbol: data.symbol,
+        direction: data.direction,
+        asset_class: data.asset_class,
+        stop_loss: data.stop_loss === "" ? null : data.stop_loss,
+        take_profit: data.take_profit === "" ? null : data.take_profit,
+        notes: data.notes || null,
+        playbook_id: data.playbook_id || null,
+        tag_ids: selectedTagIds,
       };
       updateMutation.mutate(payload, {
         onSuccess: (updated) => {
@@ -467,57 +498,66 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       {/* ── Section 2: Entry / Exit ───────────────────────────────────────── */}
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Entry / Exit</h3>
+        {isEditing && trade && (
+          <div className="mb-6">
+            <ExecutionSummaryCard trade={trade} executions={trade.legs || []} />
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Quantity *</label>
-            <input
-              type="number"
-              step="any"
-              min="0.000001"
-              {...register("quantity")}
-              disabled={isAdvancedMode}
-              className={inputCls}
-            />
-            {errors.quantity && <p className={errorCls}>{errors.quantity.message}</p>}
-          </div>
+          {!isEditing && (
+            <>
+              <div>
+                <label className={labelCls}>Quantity *</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.000001"
+                  {...register("quantity")}
+                  disabled={isAdvancedMode}
+                  className={inputCls}
+                />
+                {errors.quantity && <p className={errorCls}>{errors.quantity.message}</p>}
+              </div>
 
-          <div>
-            <label className={labelCls}>Entry Price *</label>
-            <input
-              type="number"
-              step="any"
-              min="0.000001"
-              {...register("entry_price")}
-              disabled={isAdvancedMode}
-              className={inputCls}
-            />
-            {errors.entry_price && <p className={errorCls}>{errors.entry_price.message}</p>}
-          </div>
+              <div>
+                <label className={labelCls}>Entry Price *</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.000001"
+                  {...register("entry_price")}
+                  disabled={isAdvancedMode}
+                  className={inputCls}
+                />
+                {errors.entry_price && <p className={errorCls}>{errors.entry_price.message}</p>}
+              </div>
 
-          <div>
-            <label className={labelCls}>Exit Price</label>
-            <input
-              type="number"
-              step="any"
-              min="0.000001"
-              {...register("exit_price")}
-              disabled={isAdvancedMode}
-              placeholder="Leave blank for open trade"
-              className={inputCls}
-            />
-            {errors.exit_price && <p className={errorCls}>{errors.exit_price.message}</p>}
-          </div>
+              <div>
+                <label className={labelCls}>Exit Price</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.000001"
+                  {...register("exit_price")}
+                  disabled={isAdvancedMode}
+                  placeholder="Leave blank for open trade"
+                  className={inputCls}
+                />
+                {errors.exit_price && <p className={errorCls}>{errors.exit_price.message}</p>}
+              </div>
 
-          <div>
-            <label className={labelCls}>PnL</label>
-            <input
-              type="number"
-              step="any"
-              {...register("pnl")}
-              placeholder="Realised PnL"
-              className={inputCls}
-            />
-          </div>
+              <div>
+                <label className={labelCls}>PnL</label>
+                <input
+                  type="number"
+                  step="any"
+                  {...register("pnl")}
+                  placeholder="Realised PnL"
+                  className={inputCls}
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <label className={labelCls}>
@@ -551,44 +591,48 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             {errors.take_profit && <p className={errorCls}>{errors.take_profit.message}</p>}
           </div>
 
-          <div>
-            <label className={labelCls}>Commission</label>
-            <input
-              type="number"
-              step="any"
-              min="0"
-              {...register("commission")}
-              disabled={isAdvancedMode}
-              className={inputCls}
-            />
-          </div>
+          {!isEditing && (
+            <div>
+              <label className={labelCls}>Commission</label>
+              <input
+                type="number"
+                step="any"
+                min="0"
+                {...register("commission")}
+                disabled={isAdvancedMode}
+                className={inputCls}
+              />
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Section 3: Timestamps ─────────────────────────────────────────── */}
-      <div className="bg-card rounded-xl border border-border p-5">
-        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Timestamps (UTC)</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Opened At *</label>
-            <input
-              type="datetime-local"
-              {...register("opened_at")}
-              className={inputCls}
-            />
-            {errors.opened_at && <p className={errorCls}>{errors.opened_at.message}</p>}
-          </div>
+      {!isEditing && (
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-4">Timestamps (UTC)</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Opened At *</label>
+              <input
+                type="datetime-local"
+                {...register("opened_at")}
+                className={inputCls}
+              />
+              {errors.opened_at && <p className={errorCls}>{errors.opened_at.message}</p>}
+            </div>
 
-          <div>
-            <label className={labelCls}>Closed At</label>
-            <input
-              type="datetime-local"
-              {...register("closed_at")}
-              className={inputCls}
-            />
+            <div>
+              <label className={labelCls}>Closed At</label>
+              <input
+                type="datetime-local"
+                {...register("closed_at")}
+                className={inputCls}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Section 4: Tags & Playbook ────────────────────────────────────── */}
       <div className="bg-card rounded-xl border border-border p-5">
