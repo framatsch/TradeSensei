@@ -235,7 +235,6 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
     if (isEditing) {
       const payload: TradeUpdate = {
         ...payloadBase,
-        executions: payloadExecutions,
       };
       updateMutation.mutate(payload, {
         onSuccess: (updated) => {
