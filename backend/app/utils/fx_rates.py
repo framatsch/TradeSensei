@@ -1,15 +1,18 @@
-"""Utility for fetching EUR/USD daily exchange rates from the Deutsche Bundesbank.
+"""Utility for fetching EUR/USD daily exchange rates from the ECB.
 
-Uses the Bundesbank Statistical Data Warehouse SDMX-REST API to retrieve the
+Uses the ECB Statistical Data Warehouse SDMX-REST API to retrieve the
 official EZB reference rate.  This rate is the legally recognised rate for
 German income tax (§20 EStG) purposes.
 
 API endpoint:
-    https://api.bundesbank.de/service/data/EXR/D.USD.EUR.SP00.A
+    https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A
     ?detail=dataonly&startPeriod=YYYY-MM-DD&endPeriod=YYYY-MM-DD
 
 The response is an SDMX-JSON document.  We parse the ``dataSets[0].series``
-structure to extract the rate value.
+structure to extract the rate value.  When no rate exists for a date
+(weekend / public holiday), the API returns HTTP 200 with an empty
+observations dict — the parser returns ``None`` in that case and the
+caller retries with an earlier date.
 """
 
 import datetime as dt
@@ -19,25 +22,23 @@ from decimal import Decimal, InvalidOperation
 import httpx
 
 from app.core.constants import (
-    FX_BUNDESBANK_FALLBACK_DAYS,
-    FX_BUNDESBANK_TIMEOUT_SECONDS,
+    FX_ECB_FALLBACK_DAYS,
+    FX_ECB_TIMEOUT_SECONDS,
 )
 
 logger = logging.getLogger(__name__)
 
-_BUNDESBANK_BASE_URL: str = (
-    "https://api.bundesbank.de/service/data/EXR/D.USD.EUR.SP00.A"
+_ECB_BASE_URL: str = (
+    "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A"
 )
 
-_SDMX_ACCEPT: str = "application/vnd.sdmx.data+json;version=1.0"
 
-
-async def fetch_bundesbank_rate(date: dt.date) -> Decimal | None:
-    """Fetch the official EUR/USD daily rate from the Deutsche Bundesbank.
+async def fetch_ecb_rate(date: dt.date) -> Decimal | None:
+    """Fetch the official EUR/USD daily rate from the ECB.
 
     Requests the EZB reference rate for *date*.  If no rate is available
     (weekend / public holiday), automatically retries up to
-    :data:`~app.core.constants.FX_BUNDESBANK_FALLBACK_DAYS` days earlier.
+    :data:`~app.core.constants.FX_ECB_FALLBACK_DAYS` days earlier.
 
     Args:
         date: The calendar date for which the rate is needed.
@@ -47,13 +48,13 @@ async def fetch_bundesbank_rate(date: dt.date) -> Decimal | None:
         (i.e. ``1 USD = <rate> EUR``), or ``None`` if the API is
         unreachable or returns no data within the fallback window.
     """
-    for delta in range(FX_BUNDESBANK_FALLBACK_DAYS + 1):
+    for delta in range(FX_ECB_FALLBACK_DAYS + 1):
         lookup_date = date - dt.timedelta(days=delta)
         rate = await _fetch_single_date(lookup_date)
         if rate is not None:
             if delta > 0:
                 logger.info(
-                    "No Bundesbank rate for %s — using rate from %s"
+                    "No ECB rate for %s — using rate from %s"
                     " (%d day(s) earlier).",
                     date,
                     lookup_date,
@@ -62,15 +63,15 @@ async def fetch_bundesbank_rate(date: dt.date) -> Decimal | None:
             return rate
 
     logger.warning(
-        "No Bundesbank EUR/USD rate found for %s or the %d preceding days.",
+        "No ECB EUR/USD rate found for %s or the %d preceding days.",
         date,
-        FX_BUNDESBANK_FALLBACK_DAYS,
+        FX_ECB_FALLBACK_DAYS,
     )
     return None
 
 
 async def _fetch_single_date(date: dt.date) -> Decimal | None:
-    """Fetch the Bundesbank rate for exactly one calendar date.
+    """Fetch the ECB rate for exactly one calendar date.
 
     Args:
         date: The calendar date to query.
@@ -86,41 +87,38 @@ async def _fetch_single_date(date: dt.date) -> Decimal | None:
         "endPeriod": date_str,
     }
     try:
-        async with httpx.AsyncClient(timeout=FX_BUNDESBANK_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=FX_ECB_TIMEOUT_SECONDS) as client:
             response = await client.get(
-                _BUNDESBANK_BASE_URL,
+                _ECB_BASE_URL,
                 params=params,
-                headers={"Accept": _SDMX_ACCEPT},
+                headers={"Accept": "application/json"},
             )
-        if response.status_code == 404:
-            # No data for this date (weekend / holiday).
-            return None
         response.raise_for_status()
         return _parse_sdmx_response(response.json(), date_str)
     except httpx.TimeoutException:
         logger.warning(
-            "Bundesbank API timed out after %.1fs for date %s.",
-            FX_BUNDESBANK_TIMEOUT_SECONDS,
+            "ECB API timed out after %.1fs for date %s.",
+            FX_ECB_TIMEOUT_SECONDS,
             date,
         )
         return None
     except httpx.HTTPStatusError as exc:
         logger.warning(
-            "Bundesbank API returned HTTP %d for date %s: %s",
+            "ECB API returned HTTP %d for date %s: %s",
             exc.response.status_code,
             date,
             exc.response.text[:200],
         )
         return None
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Bundesbank API unexpected error for date %s: %s", date, exc)
+        logger.warning("ECB API unexpected error for date %s: %s", date, exc)
         return None
 
 
 def _parse_sdmx_response(data: object, date_str: str) -> Decimal | None:
     """Extract the EUR/USD rate from an SDMX-JSON response payload.
 
-    The Bundesbank SDMX-JSON structure is::
+    The ECB SDMX-JSON structure is::
 
         {
           "dataSets": [
@@ -136,6 +134,10 @@ def _parse_sdmx_response(data: object, date_str: str) -> Decimal | None:
           ]
         }
 
+    When no rate exists for the requested date (weekend / public holiday),
+    the API returns HTTP 200 with an empty ``observations`` dict — this
+    function returns ``None`` in that case.
+
     Args:
         data: Parsed JSON response body (may be any type).
         date_str: ISO date string — used only for log messages.
@@ -146,7 +148,7 @@ def _parse_sdmx_response(data: object, date_str: str) -> Decimal | None:
     """
     try:
         if not isinstance(data, dict):
-            logger.warning("Bundesbank response for %s is not a dict.", date_str)
+            logger.warning("ECB response for %s is not a dict.", date_str)
             return None
 
         datasets = data.get("dataSets")
@@ -179,6 +181,6 @@ def _parse_sdmx_response(data: object, date_str: str) -> Decimal | None:
 
     except (InvalidOperation, KeyError, IndexError, TypeError) as exc:
         logger.warning(
-            "Failed to parse Bundesbank SDMX response for %s: %s", date_str, exc
+            "Failed to parse ECB SDMX response for %s: %s", date_str, exc
         )
         return None

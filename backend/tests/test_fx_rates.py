@@ -1,4 +1,4 @@
-"""Unit tests for the Bundesbank FX-rate utilities.
+"""Unit tests for the ECB FX-rate utilities.
 
 All tests are pure unit tests — no database access.
 HTTP calls are intercepted with ``pytest-httpx`` / ``unittest.mock``.
@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.utils.fx_rates import _parse_sdmx_response, fetch_bundesbank_rate
+from app.utils.fx_rates import _parse_sdmx_response, fetch_ecb_rate
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ def _sdmx_payload(rate: float) -> dict:
         rate: The rate value to embed.
 
     Returns:
-        A dict that matches the expected Bundesbank SDMX-JSON structure.
+        A dict that matches the expected ECB SDMX-JSON structure.
     """
     return {
         "dataSets": [
@@ -32,6 +32,28 @@ def _sdmx_payload(rate: float) -> dict:
                         "observations": {
                             "0": [rate],
                         }
+                    }
+                }
+            }
+        ]
+    }
+
+
+def _empty_sdmx_payload() -> dict:
+    """Build an SDMX-JSON payload with no observations (weekend / holiday).
+
+    The ECB API returns HTTP 200 with an empty observations dict when no
+    rate exists for the requested date.
+
+    Returns:
+        A dict with an empty observations section.
+    """
+    return {
+        "dataSets": [
+            {
+                "series": {
+                    "0:0:0:0:0": {
+                        "observations": {}
                     }
                 }
             }
@@ -69,7 +91,7 @@ class TestParseSdmxResponse:
         assert _parse_sdmx_response(payload, "2024-03-15") is None
 
     def test_returns_none_for_empty_observations(self) -> None:
-        """Returns None when the observations dict is empty."""
+        """Returns None when the observations dict is empty (weekend/holiday)."""
         payload = {"dataSets": [{"series": {"0:0:0:0:0": {"observations": {}}}}]}
         assert _parse_sdmx_response(payload, "2024-03-15") is None
 
@@ -90,11 +112,11 @@ class TestParseSdmxResponse:
         assert _parse_sdmx_response(payload, "2024-03-15") is None
 
 
-# ─── fetch_bundesbank_rate ─────────────────────────────────────────────────────
+# ─── fetch_ecb_rate ────────────────────────────────────────────────────────────
 
 
-class TestFetchBundesbankRate:
-    """Tests for fetch_bundesbank_rate with mocked HTTP calls."""
+class TestFetchEcbRate:
+    """Tests for fetch_ecb_rate with mocked HTTP calls."""
 
     @pytest.mark.asyncio
     async def test_returns_rate_for_weekday(self) -> None:
@@ -113,24 +135,28 @@ class TestFetchBundesbankRate:
         mock_client.get = AsyncMock(return_value=mock_response)
 
         with patch("app.utils.fx_rates.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_bundesbank_rate(date)
+            result = await fetch_ecb_rate(date)
 
         assert result == Decimal("0.92")
         mock_client.get.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_fallback_on_weekend(self) -> None:
-        """Returns rate from the previous Friday when Saturday returns 404."""
+        """Returns rate from the previous Friday when Saturday has no observations.
+
+        The ECB API returns HTTP 200 with an empty observations dict for
+        weekends and public holidays — no special status code.
+        """
         saturday = dt.date(2024, 3, 16)  # Saturday
         dt.date(2024, 3, 15)
 
         def _make_response(date: dt.date) -> MagicMock:
             resp = MagicMock()
             resp.raise_for_status = MagicMock()
+            resp.status_code = 200
             if date == saturday:
-                resp.status_code = 404
+                resp.json.return_value = _empty_sdmx_payload()
             else:
-                resp.status_code = 200
                 resp.json.return_value = _sdmx_payload(0.9150)
             return resp
 
@@ -154,18 +180,19 @@ class TestFetchBundesbankRate:
         mock_client.get = _fake_get
 
         with patch("app.utils.fx_rates.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_bundesbank_rate(saturday)
+            result = await fetch_ecb_rate(saturday)
 
         assert result == Decimal("0.915")
-        assert call_count == 2  # Saturday (404) + Friday (200)
+        assert call_count == 2  # Saturday (empty) + Friday (200 with data)
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_all_fallbacks_fail(self) -> None:
-        """Returns None when all fallback dates return 404."""
+    async def test_returns_none_when_all_fallbacks_empty(self) -> None:
+        """Returns None when all fallback dates return empty observations."""
         date = dt.date(2024, 1, 1)  # New Year's Day
 
         mock_response = MagicMock()
-        mock_response.status_code = 404
+        mock_response.status_code = 200
+        mock_response.json.return_value = _empty_sdmx_payload()
         mock_response.raise_for_status = MagicMock()
 
         mock_client = AsyncMock()
@@ -174,7 +201,7 @@ class TestFetchBundesbankRate:
         mock_client.get = AsyncMock(return_value=mock_response)
 
         with patch("app.utils.fx_rates.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_bundesbank_rate(date)
+            result = await fetch_ecb_rate(date)
 
         assert result is None
 
@@ -191,13 +218,13 @@ class TestFetchBundesbankRate:
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
         with patch("app.utils.fx_rates.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_bundesbank_rate(date)
+            result = await fetch_ecb_rate(date)
 
         assert result is None
 
     @pytest.mark.asyncio
     async def test_returns_none_on_http_error(self) -> None:
-        """Returns None when the API returns a non-404 HTTP error."""
+        """Returns None when the API returns an HTTP error."""
         import httpx
 
         date = dt.date(2024, 3, 15)
@@ -220,6 +247,6 @@ class TestFetchBundesbankRate:
         mock_client.get = AsyncMock(return_value=mock_response)
 
         with patch("app.utils.fx_rates.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_bundesbank_rate(date)
+            result = await fetch_ecb_rate(date)
 
         assert result is None

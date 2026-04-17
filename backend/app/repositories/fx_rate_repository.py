@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import FX_RATE_SOURCE_BUNDESBANK
+from app.core.constants import FX_RATE_SOURCE_ECB
 from app.models.fx_rate import FxRate
 
 
@@ -58,7 +58,7 @@ class FxRateRepository:
         base: str,
         quote: str,
         rate: Decimal,
-        source: str = FX_RATE_SOURCE_BUNDESBANK,
+        source: str = FX_RATE_SOURCE_ECB,
     ) -> None:
         """Insert or update an exchange rate entry (upsert by unique key).
 
@@ -71,7 +71,7 @@ class FxRateRepository:
             base: Base currency ISO-4217 code.
             quote: Quote currency ISO-4217 code.
             rate: Exchange rate value.
-            source: Origin identifier (defaults to ``"bundesbank"``).
+            source: Origin identifier (defaults to ``"ecb"``).
         """
         stmt = pg_insert(FxRate).values(
             date=date,

@@ -3,8 +3,8 @@
 Orchestrates the two-layer lookup:
 1. Check the ``fx_rates`` DB cache via
    :class:`~app.repositories.fx_rate_repository.FxRateRepository`.
-2. On cache miss, fetch from the Deutsche Bundesbank API via
-   :func:`~app.utils.fx_rates.fetch_bundesbank_rate`.
+2. On cache miss, fetch from the ECB API via
+   :func:`~app.utils.fx_rates.fetch_ecb_rate`.
 3. Persist the fetched rate to the cache (upsert).
 
 The service never commits the session — that is the caller's responsibility.
@@ -17,13 +17,13 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.fx_rate_repository import FxRateRepository
-from app.utils.fx_rates import fetch_bundesbank_rate
+from app.utils.fx_rates import fetch_ecb_rate
 
 logger = logging.getLogger(__name__)
 
 
 class FxRateService:
-    """Facade that combines DB caching and Bundesbank API fetching.
+    """Facade that combines DB caching and ECB API fetching.
 
     Attributes:
         _repo: The underlying
@@ -45,7 +45,7 @@ class FxRateService:
 
         Lookup order:
         1. DB cache (``fx_rates`` table) — instant, no network.
-        2. Bundesbank API (with fallback for weekends / holidays).
+        2. ECB API (with fallback for weekends / holidays).
         3. If the API is unreachable: returns ``None`` and logs a warning.
 
         When a fresh rate is fetched from the API it is written back to the
@@ -65,7 +65,7 @@ class FxRateService:
             return cached
 
         # 2. API fetch (includes weekend/holiday fallback internally).
-        rate = await fetch_bundesbank_rate(date)
+        rate = await fetch_ecb_rate(date)
         if rate is None:
             logger.warning(
                 "EUR/USD rate unavailable for %s — pnl_eur will be NULL.", date

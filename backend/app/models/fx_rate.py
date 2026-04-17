@@ -13,7 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.constants import (
     CURRENCY_LENGTH,
-    FX_RATE_SOURCE_BUNDESBANK,
+    FX_RATE_SOURCE_ECB,
     NUMERIC_PRECISION,
     NUMERIC_SCALE,
 )
@@ -29,7 +29,7 @@ class FxRate(Base):
         base: Base currency ISO-4217 code (e.g. ``"USD"``).
         quote: Quote currency ISO-4217 code (e.g. ``"EUR"``).
         rate: Exchange rate: ``1 base = rate quote``.
-        source: Origin of the rate (default ``"bundesbank"``).
+        source: Origin of the rate (default ``"ecb"``).
         created_at: Row-creation timestamp set by the database.
     """
 
@@ -59,8 +59,8 @@ class FxRate(Base):
     source: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        server_default=FX_RATE_SOURCE_BUNDESBANK,
-        comment="Source identifier for the rate (e.g. 'bundesbank').",
+        server_default=FX_RATE_SOURCE_ECB,
+        comment="Source identifier for the rate (e.g. 'ecb').",
     )
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),

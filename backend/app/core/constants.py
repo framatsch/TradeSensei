@@ -170,15 +170,15 @@ EMOTION_MAX_LENGTH: int = 50
 
 # ─── FX Rates ─────────────────────────────────────────────────────────────────
 
-FX_RATE_SOURCE_BUNDESBANK: str = "bundesbank"
-"""Source identifier for Bundesbank EZB reference rates."""
+FX_RATE_SOURCE_ECB: str = "ecb"
+"""Source identifier for ECB reference rates."""
 
-FX_BUNDESBANK_FALLBACK_DAYS: int = 3
+FX_ECB_FALLBACK_DAYS: int = 3
 """Number of calendar days to look back when no rate exists for a given date
 (accounts for weekends and public holidays)."""
 
-FX_BUNDESBANK_TIMEOUT_SECONDS: float = 5.0
-"""HTTP timeout in seconds for Bundesbank API calls."""
+FX_ECB_TIMEOUT_SECONDS: float = 5.0
+"""HTTP timeout in seconds for ECB API calls."""
 
 # ─── Fresh-Start Import ───────────────────────────────────────────────────────
 
