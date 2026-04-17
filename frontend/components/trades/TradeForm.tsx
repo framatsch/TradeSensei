@@ -53,7 +53,7 @@ const formSchema = z.object({
   playbook_id: z.string().optional(),
   notes: z.string().optional(),
   
-  isAdvancedMode: z.boolean().default(false),
+  isAdvancedMode: z.boolean(),
   executions: z.array(legSchema).optional(),
 });
 
