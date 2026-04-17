@@ -34,6 +34,7 @@ export function LoginForm() {
 
   const { data: authConfig } = useAuthConfig();
   const localAuthEnabled = authConfig?.local_auth_enabled ?? true;
+  const passwordResetEnabled = authConfig?.password_reset_enabled ?? false;
   const showDivider = localAuthEnabled && (authConfig?.google_enabled || authConfig?.oidc?.enabled);
 
   // Auto-redirect when local auth is disabled and exactly one provider is active.
@@ -72,12 +73,22 @@ export function LoginForm() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-muted-foreground mb-1"
-            >
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-muted-foreground"
+              >
+                Password
+              </label>
+              {passwordResetEnabled && (
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              )}
+            </div>
             <input
               id="password"
               type="password"

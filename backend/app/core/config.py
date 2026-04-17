@@ -114,6 +114,40 @@ class Settings(BaseSettings):
     Requires at least one external provider (Google or OIDC) to be configured;
     otherwise the flag is ignored and local auth remains available."""
 
+    # Email / SMTP (for password reset)
+    smtp_host: str | None = None
+    """SMTP server hostname, e.g. ``smtp.gmail.com``."""
+    smtp_port: int = 587
+    """SMTP server port. Defaults to 587 (STARTTLS)."""
+    smtp_user: str | None = None
+    """SMTP authentication username."""
+    smtp_password: str | None = None
+    """SMTP authentication password."""
+    email_from: str | None = None
+    """Sender address used in outgoing emails, e.g. ``noreply@example.com``."""
+    smtp_tls: bool = True
+    """Whether to use STARTTLS when connecting to the SMTP server."""
+
+    @property
+    def password_reset_enabled(self) -> bool:
+        """Return True when SMTP is fully configured and local auth is active.
+
+        Returns:
+            ``True`` if all required SMTP fields are set and local auth is
+            enabled; ``False`` otherwise.
+        """
+        smtp_ready = bool(
+            self.smtp_host
+            and self.smtp_user
+            and self.smtp_password
+            and self.email_from
+        )
+        google_enabled = bool(self.google_client_id and self.google_client_secret)
+        oidc_active = self.oidc_enabled and bool(self.oidc_configuration_url)
+        any_external = google_enabled or oidc_active
+        local_auth_on = not (self.local_auth_disabled and any_external)
+        return smtp_ready and local_auth_on
+
     # Generic OIDC
     oidc_enabled: bool = False
     oidc_provider_name: str = "OpenID Connect"

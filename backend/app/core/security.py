@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.core.constants import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ONE_TIME_TOKEN_EXPIRE_SECONDS,
+    PASSWORD_RESET_TOKEN_EXPIRE_SECONDS,
     REFRESH_TOKEN_EXPIRE_DAYS,
     TOKEN_ALGORITHM,
 )
@@ -293,6 +294,77 @@ async def consume_one_time_token(token: str, db: AsyncSession) -> uuid.UUID:
         raise
     except (JWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired one-time token.") from exc
+
+
+# ---------------------------------------------------------------------------
+# Password-reset tokens — DB-backed blocklist (reuses used_otts)
+# ---------------------------------------------------------------------------
+
+
+def create_password_reset_token(user_id: uuid.UUID) -> str:
+    """Create a one-hour password-reset token for the given user.
+
+    The token is a JWT with a unique ``jti`` claim and a ``pwreset: True``
+    marker.  After a single use (validated via
+    :func:`consume_password_reset_token`) the ``jti`` is stored in the
+    ``used_otts`` table so the link cannot be replayed.
+
+    Args:
+        user_id: UUID of the user requesting a password reset.
+
+    Returns:
+        A signed JWT string valid for
+        :data:`~app.core.constants.PASSWORD_RESET_TOKEN_EXPIRE_SECONDS`
+        seconds (1 hour).
+    """
+    jti = str(uuid.uuid4())
+    return _create_token(
+        user_id,
+        timedelta(seconds=PASSWORD_RESET_TOKEN_EXPIRE_SECONDS),
+        extra_claims={"jti": jti, "pwreset": True},
+    )
+
+
+async def consume_password_reset_token(token: str, db: AsyncSession) -> uuid.UUID:
+    """Decode and invalidate a password-reset token, returning the user UUID.
+
+    The token is validated for signature, expiry, and the ``pwreset`` claim.
+    On success the ``jti`` is stored in the database so the same token
+    cannot be replayed on any process.
+
+    Args:
+        token: A signed password-reset JWT string.
+        db: An open :class:`~sqlalchemy.ext.asyncio.AsyncSession`.
+
+    Returns:
+        The :class:`uuid.UUID` of the user whose password should be reset.
+
+    Raises:
+        :class:`~app.core.exceptions.InvalidTokenError`: If the token is
+            expired, already used, malformed, or missing required claims.
+    """
+    try:
+        raw: dict[str, Any] = jwt.decode(
+            token, settings.secret_key, algorithms=[TOKEN_ALGORITHM]
+        )
+        if not raw.get("pwreset"):
+            raise InvalidTokenError("Not a password-reset token.")
+        jti = raw.get("jti")
+        if not isinstance(jti, str):
+            raise InvalidTokenError("Password-reset token missing jti claim.")
+        exp = raw.get("exp")
+        if not isinstance(exp, (int, float)):
+            raise InvalidTokenError("Password-reset token missing exp claim.")
+        expires_at = datetime.fromtimestamp(float(exp), tz=UTC)
+        validated = TokenPayload.model_validate(raw)
+        fresh = await consume_ott_jti(jti, expires_at, db)
+        if not fresh:
+            raise InvalidTokenError("Password-reset token already used.")
+        return validated.sub
+    except InvalidTokenError:
+        raise
+    except (JWTError, ValueError) as exc:
+        raise InvalidTokenError("Invalid or expired password-reset token.") from exc
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 """Route handlers for the ``/api/v1/auth`` endpoints.
 
 Covers registration, OAuth2 password-flow token issuance,
-token refresh via httpOnly cookie, logout, and Google OAuth.
+token refresh via httpOnly cookie, logout, Google OAuth, and
+self-service password reset via email.
 """
 
 import contextlib
@@ -21,12 +22,20 @@ from app.core.config import settings
 from app.core.constants import REFRESH_TOKEN_EXPIRE_DAYS
 from app.core.database import get_session
 from app.core.deps import get_current_user
-from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
+from app.core.email import send_password_reset_email
+from app.core.exceptions import InvalidCredentialsError, InvalidTokenError, UserAlreadyExistsError
+from app.core.security import (
+    consume_password_reset_token,
+    create_password_reset_token,
+    hash_password,
+)
 from app.models.user import User
 from app.schemas.auth import (
     AuthConfigResponse,
+    ForgotPasswordRequest,
     OAuthExchangeRequest,
     OIDCConfig,
+    ResetPasswordRequest,
     TokenResponse,
 )
 from app.schemas.common import ResponseEnvelope
@@ -108,6 +117,7 @@ async def get_config() -> AuthConfigResponse:
             provider_name=settings.oidc_provider_name,
         ),
         local_auth_enabled=local_auth_enabled,
+        password_reset_enabled=settings.password_reset_enabled,
     )
 
 
@@ -518,6 +528,114 @@ async def google_exchange(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
     return TokenResponse(access_token=access_token)
+
+
+# ---------------------------------------------------------------------------
+# Password reset routes
+# ---------------------------------------------------------------------------
+
+_FORGOT_PASSWORD_RESPONSE = (
+    "If an account with that email exists, a reset link has been sent."
+)
+
+
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_200_OK,
+    summary="Request a Password Reset Email",
+    description=(
+        "Sends a password-reset link to the provided email address if a local "
+        "account with that email exists. Always returns 200 to prevent user "
+        "enumeration — callers cannot distinguish known from unknown addresses."
+    ),
+    responses={
+        200: {"description": "Request processed (email may have been sent)."},
+        503: {"description": "Password reset is not configured on this server."},
+    },
+)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    service: Annotated[AuthService, Depends(_get_service)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, str]:
+    """Trigger a password-reset email for the given address.
+
+    Always returns the same message regardless of whether the email is
+    registered, to avoid leaking account existence information.
+
+    Args:
+        payload: Request body containing the email address.
+        service: Injected auth service.
+        session: Injected async database session (for token replay check).
+
+    Returns:
+        A dict with a ``detail`` message.
+
+    Raises:
+        HTTPException: 503 if SMTP is not configured.
+    """
+    if not settings.password_reset_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password reset is not configured.",
+        )
+
+    user = await service.get_user_by_email(payload.email)
+    if user is not None and user.hashed_password is not None:
+        token = create_password_reset_token(user.id)
+        reset_url = (
+            f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
+        )
+        await send_password_reset_email(user.email, reset_url)
+
+    return {"detail": _FORGOT_PASSWORD_RESPONSE}
+
+
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_200_OK,
+    summary="Reset Password via Token",
+    description=(
+        "Validates the password-reset token from the email link, sets the new "
+        "password, and invalidates all existing sessions for the user."
+    ),
+    responses={
+        200: {"description": "Password updated successfully."},
+        401: {"description": "Token is invalid, expired, or already used."},
+        422: {"description": "Validation error (e.g. password too short)."},
+    },
+)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    service: Annotated[AuthService, Depends(_get_service)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, str]:
+    """Set a new password using a valid password-reset token.
+
+    Consumes the token (single-use), hashes the new password, persists it,
+    and increments ``refresh_token_version`` to invalidate all active sessions.
+
+    Args:
+        payload: Request body with the reset token and new password.
+        service: Injected auth service.
+        session: Injected async database session.
+
+    Returns:
+        A dict with a ``detail`` confirmation message.
+
+    Raises:
+        HTTPException: 401 if the token is invalid, expired, or already used.
+    """
+    try:
+        user_id = await consume_password_reset_token(payload.token, session)
+    except InvalidTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Reset link has expired or has already been used.",
+        ) from exc
+
+    await service.update_password(user_id, hash_password(payload.new_password))
+    return {"detail": "Password updated successfully."}
 
 
 # ---------------------------------------------------------------------------

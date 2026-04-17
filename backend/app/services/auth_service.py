@@ -6,6 +6,7 @@ converts them to HTTP responses.
 """
 
 import re
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -244,6 +245,33 @@ class AuthService:
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id, user.refresh_token_version)
         return access_token, refresh_token
+
+    async def get_user_by_email(self, email: str) -> User | None:
+        """Return the user with the given email address, or None.
+
+        Args:
+            email: Email address to look up.
+
+        Returns:
+            The matching :class:`~app.models.user.User`, or ``None``.
+        """
+        return await self._repo.get_by_email(email)
+
+    async def update_password(self, user_id: "uuid.UUID", hashed: str) -> None:
+        """Replace the stored password hash and invalidate all active sessions.
+
+        Increments ``refresh_token_version`` so every previously issued
+        refresh token is immediately rejected.
+
+        Args:
+            user_id: UUID of the user whose password should be updated.
+            hashed: New bcrypt hash to persist.
+        """
+        user = await self._repo.get_by_id(user_id)
+        if user is None:
+            return
+        user.hashed_password = hashed
+        user.refresh_token_version += 1
 
     async def _derive_unique_username(self, display_name: str) -> str:
         """Derive a unique username from a Google display name.

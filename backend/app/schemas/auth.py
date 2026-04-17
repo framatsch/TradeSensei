@@ -5,6 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.core.constants import PASSWORD_MIN_LENGTH
+
 
 class TokenResponse(BaseModel):
     """Response schema returned by the token and refresh endpoints.
@@ -89,6 +91,8 @@ class AuthConfigResponse(BaseModel):
         google_enabled: Whether Google OAuth is configured and enabled.
         oidc: Configuration for generic OIDC.
         local_auth_enabled: Whether the local username/password login is enabled.
+        password_reset_enabled: Whether self-service password reset via email is
+            available (requires SMTP to be configured and local auth to be active).
     """
 
     google_enabled: bool = Field(description="Whether Google OAuth is enabled.")
@@ -96,4 +100,44 @@ class AuthConfigResponse(BaseModel):
     local_auth_enabled: bool = Field(
         default=True,
         description="Whether the local username/password login form is enabled.",
+    )
+    password_reset_enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether self-service password reset via email is available. "
+            "Requires SMTP to be configured and local auth to be active."
+        ),
+    )
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Request body for the forgot-password endpoint.
+
+    Attributes:
+        email: Email address of the account to reset.
+    """
+
+    email: str = Field(
+        ...,
+        description="Email address associated with the account.",
+        examples=["user@example.com"],
+    )
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request body for the reset-password endpoint.
+
+    Attributes:
+        token: The password-reset JWT from the email link.
+        new_password: The new plain-text password to set.
+    """
+
+    token: str = Field(
+        ...,
+        description="Password-reset JWT received via email.",
+    )
+    new_password: str = Field(
+        ...,
+        min_length=PASSWORD_MIN_LENGTH,
+        description=f"New password (minimum {PASSWORD_MIN_LENGTH} characters).",
     )

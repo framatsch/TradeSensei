@@ -53,6 +53,9 @@ TOKEN_ALGORITHM: str = "HS256"
 ONE_TIME_TOKEN_EXPIRE_SECONDS: int = 60
 """Lifetime of a one-time OAuth exchange token in seconds."""
 
+PASSWORD_RESET_TOKEN_EXPIRE_SECONDS: int = 3_600
+"""Lifetime of a password-reset token in seconds (1 hour)."""
+
 # ─── User field sizes ─────────────────────────────────────────────────────────
 
 PASSWORD_MIN_LENGTH: int = 8

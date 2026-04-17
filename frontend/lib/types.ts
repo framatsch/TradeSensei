@@ -49,6 +49,7 @@ export interface AuthConfigResponse {
   google_enabled: boolean;
   oidc: OIDCConfig;
   local_auth_enabled: boolean;
+  password_reset_enabled: boolean;
 }
 
 // ─── User ─────────────────────────────────────────────────────────────────────

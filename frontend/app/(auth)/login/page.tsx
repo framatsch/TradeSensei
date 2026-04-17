@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { OAuthErrorBanner } from "@/components/auth/OAuthErrorBanner";
+import { PasswordResetSuccessBanner } from "@/components/auth/PasswordResetSuccessBanner";
 import { LoginHeader } from "@/components/auth/LoginHeader";
 
 export const metadata = {
@@ -15,6 +16,11 @@ export default function LoginPage() {
 
         {/* Form card */}
         <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
+          {/* Password reset success notice */}
+          <Suspense>
+            <PasswordResetSuccessBanner />
+          </Suspense>
+
           {/* OAuth error banner — shown when redirected back from a failed OAuth flow */}
           <Suspense>
             <OAuthErrorBanner />
