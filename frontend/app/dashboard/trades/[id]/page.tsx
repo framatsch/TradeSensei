@@ -377,11 +377,12 @@ export default function TradeDetailPage() {
   }
 
   const isLong = trade.direction === "LONG";
+  const isCombo = trade.is_combo;
   const isOpen = !trade.closed_at;
 
   // ── Performance calculations ──────────────────────────────────────────────
-  const qty = parseFloat(trade.quantity);
-  const entryP = parseFloat(trade.entry_price);
+  const qty = trade.quantity === null ? 0 : parseFloat(trade.quantity);
+  const entryP = trade.entry_price === null ? 0 : parseFloat(trade.entry_price);
   const exitP = trade.exit_price ? parseFloat(trade.exit_price) : null;
   const stopP = trade.stop_loss ? parseFloat(trade.stop_loss) : null;
   const takePP = trade.take_profit ? parseFloat(trade.take_profit) : null;
@@ -465,17 +466,23 @@ export default function TradeDetailPage() {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">{trade.symbol}</h1>
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium ${
-                isLong
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
-                  : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-800"
-              }`}
-            >
-              {trade.direction}
-            </span>
+            {isCombo ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium bg-muted text-foreground border border-border">
+                COMBO
+              </span>
+            ) : (
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium ${
+                  isLong
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                    : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-800"
+                }`}
+              >
+                {trade.direction}
+              </span>
+            )}
             <span className="inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium bg-secondary text-muted-foreground border border-border">
-              {trade.asset_class}
+              {isCombo ? "COMBO" : trade.asset_class}
             </span>
           </div>
           <div className="text-sm text-muted-foreground">
@@ -552,7 +559,7 @@ export default function TradeDetailPage() {
           <ExecutionSummaryCard trade={trade} executions={executions} />
 
           {/* Execution Legs Table */}
-          <ExecutionLegsTable tradeId={trade.id} />
+          <ExecutionLegsTable tradeId={trade.id} trade={trade} />
 
           {/* Journal & Notes */}
           <div className="bg-card rounded-xl border border-border p-5 shadow-sm">

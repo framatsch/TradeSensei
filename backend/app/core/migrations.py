@@ -67,22 +67,27 @@ def run_migrations() -> None:
     MIGRATION_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
     with MIGRATION_LOCK_FILE.open("w", encoding="utf-8") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-        
+
         old_rev = _get_current_revision()
-        
+
         logger.info("Running database migrations")
         subprocess.run(
             _build_migration_command(),
             cwd=PROJECT_ROOT,
             check=True,
         )
-        
+
         new_rev = _get_current_revision()
         if old_rev == new_rev:
-            logger.info("Database at revision %s (head) — no pending migrations", new_rev)
+            logger.info(
+                "Database at revision %s (head) — no pending migrations",
+                new_rev,
+            )
         else:
-            logger.info("Upgraded database from %s to %s (head)", old_rev, new_rev)
-            
+            logger.info(
+                "Upgraded database from %s to %s (head)", old_rev, new_rev
+            )
+
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 

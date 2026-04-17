@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass, LogicalExecutionCreate } from "@/lib/types";
@@ -36,7 +36,8 @@ const legSchema = z.object({
 const formSchema = z.object({
   symbol: z.string().min(1, "Symbol is required").transform(val => val.toUpperCase()),
   direction: z.enum(["LONG", "SHORT"]),
-  asset_class: z.enum(["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"]),
+  is_combo: z.boolean().optional(),
+  asset_class: z.enum(["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"]).optional(),
   currency: z.string().max(3).optional().refine(val => !val || val.length === 3, "Currency must be a 3-letter ISO code"),
   account_id: z.string().optional(),
   
@@ -58,10 +59,13 @@ const formSchema = z.object({
   executions: z.array(legSchema).optional(),
 });
 
-const createSchema = formSchema.refine(data => data.quantity && parseFloat(data.quantity) > 0, {
+const createSchema = formSchema.refine(data => (data.is_combo ? true : Boolean(data.asset_class)), {
+  message: "Asset class is required",
+  path: ["asset_class"]
+}).refine(data => (data.is_combo ? true : (data.quantity && parseFloat(data.quantity) > 0)), {
   message: "Quantity is required and must be > 0",
   path: ["quantity"]
-}).refine(data => data.entry_price && parseFloat(data.entry_price) > 0, {
+}).refine(data => (data.is_combo ? true : (data.entry_price && parseFloat(data.entry_price) > 0)), {
   message: "Entry price is required and must be > 0",
   path: ["entry_price"]
 }).refine(data => data.opened_at && data.opened_at.length > 0, {
@@ -106,7 +110,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
     defaultValues: isEditing ? {
       symbol: trade.symbol,
       direction: trade.direction,
-      asset_class: trade.asset_class,
+      is_combo: trade.is_combo,
+      asset_class: trade.asset_class ?? undefined,
       currency: trade.currency ?? "",
       account_id: trade.account_id ?? "",
       stop_loss: trade.stop_loss ?? "",
@@ -118,6 +123,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
     } : {
       symbol: "",
       direction: "LONG",
+      is_combo: false,
       asset_class: "EQUITY",
       currency: "",
       account_id: "",
@@ -128,7 +134,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       stop_loss: "",
       take_profit: "",
       commission: "0",
-      opened_at: "",
+      opened_at: toLocalDatetimeValue(new Date().toISOString()),
       closed_at: "",
       playbook_id: "",
       notes: "",
@@ -146,6 +152,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   const isAdvancedMode = formValues.isAdvancedMode;
   const executions = formValues.executions;
   const tradeDirection = formValues.direction;
+  const isCombo = formValues.is_combo === true;
   const openedAt = formValues.opened_at;
 
   // Sync executions with main fields when in advanced mode
@@ -225,13 +232,14 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
     return axiosErr.response?.data?.detail ?? mutError.message;
   })();
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit: SubmitHandler<FormValues> = (data) => {
     const payloadBase = {
       symbol: data.symbol,
       direction: data.direction,
-      asset_class: data.asset_class,
-      quantity: data.quantity!,
-      entry_price: data.entry_price!,
+      is_combo: Boolean(data.is_combo),
+      asset_class: data.is_combo ? undefined : (data.asset_class ?? null),
+      quantity: data.is_combo ? null : (data.quantity ?? null),
+      entry_price: data.is_combo ? null : (data.entry_price ?? null),
       exit_price: data.exit_price || null,
       stop_loss: data.stop_loss === "" ? null : data.stop_loss,
       take_profit: data.take_profit === "" ? null : data.take_profit,
@@ -338,6 +346,19 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             </select>
           </div>
 
+          {!isEditing && (
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <input
+                id="is_combo"
+                type="checkbox"
+                {...register("is_combo")}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              <label htmlFor="is_combo" className="text-sm text-foreground">COMBO position</label>
+            </div>
+          )}
+
+          {(!isCombo || isEditing) && (
           <div>
             <label className={labelCls}>Asset Class *</label>
             <select
@@ -349,6 +370,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               ))}
             </select>
           </div>
+          )}
 
           <div>
             <label className={labelCls}>Currency (ISO-4217)</label>

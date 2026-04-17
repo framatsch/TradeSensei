@@ -99,10 +99,16 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
         </Link>
       </td>
       <td className="px-4 py-3">
-        <DirectionBadge direction={trade.direction} />
+        {trade.is_combo ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-muted text-foreground border border-border">
+            COMBO
+          </span>
+        ) : (
+          <DirectionBadge direction={trade.direction} />
+        )}
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">
-        {trade.asset_class}
+        {trade.is_combo ? "COMBO" : trade.asset_class}
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">
         {formatQuantity(trade.quantity)}

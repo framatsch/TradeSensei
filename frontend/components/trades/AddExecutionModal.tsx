@@ -5,14 +5,17 @@
 "use client";
 
 import { useState } from "react";
-import type { Direction, LogicalExecutionCreate } from "@/lib/types";
+import type { AssetClass, Direction, LogicalExecutionCreate, Trade } from "@/lib/types";
 import { useCreateExecution } from "@/hooks/useExecutions";
 import type { AxiosError } from "axios";
 
 interface Props {
   tradeId: string;
+  trade: Trade;
   onClose: () => void;
 }
+
+const ASSET_CLASSES: AssetClass[] = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"];
 
 function toLocalDatetimeValue(isoString: string): string {
   const d = new Date(isoString);
@@ -24,13 +27,15 @@ function toISOString(localDatetime: string): string {
   return new Date(localDatetime).toISOString();
 }
 
-export function AddExecutionModal({ tradeId, onClose }: Props) {
+export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
   const [direction, setDirection] = useState<Direction>("LONG");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [executedAt, setExecutedAt] = useState(toLocalDatetimeValue(new Date().toISOString()));
   const [commission, setCommission] = useState("0");
   const [pnl, setPnl] = useState("");
+  const [assetClass, setAssetClass] = useState<AssetClass>(trade.asset_class ?? "EQUITY");
+  const [multiplier, setMultiplier] = useState(trade.multiplier.toString());
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const createExecution = useCreateExecution(tradeId);
@@ -75,6 +80,14 @@ export function AddExecutionModal({ tradeId, onClose }: Props) {
     const pnlNum = parseFloat(pnl);
     if (pnl.trim() !== "" && !isNaN(pnlNum)) {
       payload.pnl = pnlNum.toString();
+    }
+
+    if (trade.is_combo) {
+      payload.asset_class = assetClass;
+      const parsedMultiplier = parseInt(multiplier, 10);
+      if (!isNaN(parsedMultiplier) && parsedMultiplier > 0) {
+        payload.multiplier = parsedMultiplier;
+      }
     }
 
     createExecution.mutate(payload, {
@@ -192,6 +205,34 @@ export function AddExecutionModal({ tradeId, onClose }: Props) {
               placeholder="0.00"
             />
           </div>
+
+          {trade.is_combo && (
+            <>
+              <div>
+                <label className={labelCls}>Asset Class</label>
+                <select
+                  className={inputCls}
+                  value={assetClass}
+                  onChange={(e) => setAssetClass(e.target.value as AssetClass)}
+                >
+                  {ASSET_CLASSES.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Multiplier</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  className={inputCls}
+                  value={multiplier}
+                  onChange={(e) => setMultiplier(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button

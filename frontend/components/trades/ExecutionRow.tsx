@@ -12,12 +12,13 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2 } from "lucide-react";
-import type { LogicalExecution } from "@/lib/types";
+import type { LogicalExecution, Trade } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
 import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
 
 interface Props {
   execution: LogicalExecution;
+  trade: Trade;
   tradeId: string;
   onMoveToTrade?: (executionId: string) => void;
   onDetach?: (executionId: string) => void;
@@ -50,7 +51,7 @@ function fmtDate(value: string): string {
   });
 }
 
-export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSplit }: Props) {
+export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -172,6 +173,13 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
           </span>
         </td>
 
+        {trade.is_combo && (
+          <>
+            <td className="px-3 py-2 text-sm text-foreground">{execution.symbol}</td>
+            <td className="px-3 py-2 text-sm text-muted-foreground">{execution.asset_class}</td>
+          </>
+        )}
+
         <td className="px-3 py-2 text-sm text-right">{fmtQty(execution.quantity)}</td>
         <td className="px-3 py-2 text-sm text-right text-muted-foreground">
           {execution.multiplier === 1 ? "—" : execution.multiplier}
@@ -266,6 +274,13 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
             </span>
           )}
         </td>
+
+        {trade.is_combo && (
+          <>
+            <td className="px-3 py-2 text-sm text-foreground">{execution.symbol}</td>
+            <td className="px-3 py-2 text-sm text-muted-foreground">{execution.asset_class}</td>
+          </>
+        )}
 
         {/* Quantity */}
         <td className="px-3 py-2 text-sm text-right">
@@ -429,7 +444,7 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSp
 
       {showDeleteConfirm && (
         <tr>
-          <td colSpan={8} className="px-3 py-3 bg-muted/50 border-b border-border">
+          <td colSpan={trade.is_combo ? 11 : 9} className="px-3 py-3 bg-muted/50 border-b border-border">
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-foreground">
                 Delete this execution? This will re-aggregate the trade.

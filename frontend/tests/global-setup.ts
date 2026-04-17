@@ -266,6 +266,8 @@ export interface SeedState {
   editExecutionTestTradeId: string;
   /** ID of the dedicated option-test trade (AAPL OPTION, multiplier=100, 1 execution) */
   optionTestTradeId: string;
+  /** ID of dedicated COMBO trade for combo-position specs */
+  comboTestTradeId: string;
 }
 
 /**
@@ -375,6 +377,13 @@ const SEED_OPTION_TEST_TRADE = {
   entry_price: '10.50',
   multiplier: '100',
   opened_at: isoDate(45),
+};
+
+const SEED_COMBO_TEST_TRADE = {
+  symbol: 'AAPL',
+  direction: 'LONG',
+  is_combo: true,
+  opened_at: isoDate(40),
 };
 
 // ─── Main setup function ─────────────────────────────────────────────────────
@@ -728,6 +737,55 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     console.warn(`[global-setup] Option-test trade seed warning (${optionTradeRes.status})`);
   }
 
+  // 13. Seed dedicated COMBO test trade (AAPL COMBO)
+  let comboTestTradeId = '';
+  const comboTradeRes = await apiPost(
+    '/api/v1/trades',
+    SEED_COMBO_TEST_TRADE as unknown as Record<string, unknown>,
+    token
+  );
+  if (comboTradeRes.ok) {
+    const body = (await comboTradeRes.json()) as { data: { id: string } };
+    comboTestTradeId = body.data.id;
+    console.log(`[global-setup] Combo-test trade seeded: ${comboTestTradeId}`);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const comboEqRes = await apiPost(
+      `/api/v1/trades/${comboTestTradeId}/executions`,
+      {
+        direction: 'LONG',
+        asset_class: 'EQUITY',
+        multiplier: 1,
+        quantity: '100',
+        price: '150.00',
+        commission: '1.00',
+        pnl: '500',
+        executed_at: isoDate(40, 9, 30),
+      },
+      token
+    );
+    if (!comboEqRes.ok) console.warn(`[global-setup] Combo equity leg seed warning (${comboEqRes.status})`);
+
+    const comboOptRes = await apiPost(
+      `/api/v1/trades/${comboTestTradeId}/executions`,
+      {
+        direction: 'SHORT',
+        asset_class: 'OPTION',
+        multiplier: 100,
+        quantity: '2',
+        price: '5.00',
+        commission: '1.00',
+        pnl: '100',
+        executed_at: isoDate(40, 10, 30),
+      },
+      token
+    );
+    if (!comboOptRes.ok) console.warn(`[global-setup] Combo option leg seed warning (${comboOptRes.status})`);
+  } else {
+    console.warn(`[global-setup] Combo-test trade seed warning (${comboTradeRes.status})`);
+  }
+
   // Write seed state for use by tests
   fs.mkdirSync(path.dirname(SEED_STATE_FILE), { recursive: true });
   fs.writeFileSync(
@@ -739,7 +797,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       detachTestTradeId, 
       mergeTradeIds,
       editExecutionTestTradeId,
-      optionTestTradeId
+      optionTestTradeId,
+      comboTestTradeId
     })
   );
 

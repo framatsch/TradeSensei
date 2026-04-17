@@ -116,6 +116,26 @@ class TestCreateTrade:
         response = await client.post("/api/v1/trades", json=payload, headers=headers)
         assert response.status_code == 422
 
+    async def test_create_combo_trade_sets_null_vwap_fields(
+        self, client: AsyncClient
+    ) -> None:
+        """Creating a COMBO trade should keep asset_class/quantity/prices null."""
+        headers = await _get_auth_headers(client, "createcombo")
+        payload = {
+            "symbol": "AAPL",
+            "direction": "LONG",
+            "is_combo": True,
+            "opened_at": datetime(2025, 1, 15, 10, 0, tzinfo=UTC).isoformat(),
+        }
+        response = await client.post("/api/v1/trades", json=payload, headers=headers)
+        assert response.status_code == 201, response.text
+        data = response.json()["data"]
+        assert data["is_combo"] is True
+        assert data["asset_class"] is None
+        assert data["entry_price"] is None
+        assert data["exit_price"] is None
+        assert data["quantity"] is None
+
 
 @pytest.mark.integration
 class TestGetTrade:
@@ -196,6 +216,30 @@ class TestUpdateTrade:
             f"/api/v1/trades/{uuid.uuid4()}", json={"notes": "x"}, headers=headers
         )
         assert response.status_code == 404
+
+    async def test_patch_is_combo_is_ignored(self, client: AsyncClient) -> None:
+        """PATCH must not toggle is_combo once trade is created."""
+        headers = await _get_auth_headers(client, "patchcombo")
+        create_resp = await client.post(
+            "/api/v1/trades",
+            json={
+                "symbol": "AAPL",
+                "direction": "LONG",
+                "is_combo": True,
+                "opened_at": datetime(2025, 1, 15, 10, 0, tzinfo=UTC).isoformat(),
+            },
+            headers=headers,
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        trade_id = create_resp.json()["data"]["id"]
+
+        patch_resp = await client.patch(
+            f"/api/v1/trades/{trade_id}",
+            json={"is_combo": False, "notes": "still combo"},
+            headers=headers,
+        )
+        assert patch_resp.status_code == 200, patch_resp.text
+        assert patch_resp.json()["data"]["is_combo"] is True
 
 
 @pytest.mark.integration

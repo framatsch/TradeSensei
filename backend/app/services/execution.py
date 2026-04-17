@@ -96,17 +96,33 @@ class ExecutionService:
         if not trade:
             raise TradeNotFoundError("Trade not found.")
 
+        leg_asset_class = trade.asset_class
+        leg_multiplier = trade.multiplier
+        if trade.is_combo:
+            if data.asset_class is not None:
+                leg_asset_class = data.asset_class
+            if data.multiplier is not None:
+                leg_multiplier = data.multiplier
+        if leg_asset_class is None:
+            raise ExecutionValidationError(
+                "asset_class is required for execution legs on COMBO trades."
+            )
+
         # Create with origin=manual and copy instrument props from trade
+        payload = data.model_dump(
+            exclude_unset=True,
+            exclude={"asset_class", "multiplier"},
+        )
         execution = await self.execution_repo.create(
             user_id=user_id,
             account_id=trade.account_id,
             symbol=trade.symbol,
-            asset_class=trade.asset_class,
+            asset_class=leg_asset_class,
             currency=trade.currency,
-            multiplier=trade.multiplier,
+            multiplier=leg_multiplier,
             origin=EXECUTION_ORIGIN_MANUAL,
             trade_id=trade_id,
-            **data.model_dump(exclude_unset=True),
+            **payload,
         )
 
         await self._re_aggregate_trade(trade_id, user_id)
@@ -680,46 +696,74 @@ class ExecutionService:
                 if total_pnl is not None:
                     total_pnl += ex.pnl
 
-        # --- Compute derived fields ---
-        trade.quantity = entry_qty
-        trade.entry_price = entry_cost / entry_qty if entry_qty > 0 else Decimal(0)
-        trade.exit_price = exit_cost / exit_qty if exit_qty > 0 else None
-        trade.commission = total_commission
-
-        # opened_at = earliest entry execution
-        if entry_times:
-            trade.opened_at = min(entry_times)
-
-        # closed_at = latest exit execution, only if fully exited
-        if exit_qty >= entry_qty and entry_qty > 0 and exit_times:
-            trade.closed_at = max(exit_times)
-        else:
-            trade.closed_at = None
-
-        # PnL: prefer sum of broker-reported pnl, else compute from prices
-        # Round to 10 decimal places to avoid accumulating precision drift from
-        # repeating-decimal VWAP prices (e.g. 23000/150 = 153.333...).
         _PRECISION = Decimal("0.0000000001")
-        if exit_qty > 0 and trade.exit_price is not None:
+        if trade.is_combo:
+            trade.entry_price = None
+            trade.exit_price = None
+            trade.quantity = None
+            trade.commission = total_commission
+            if executions:
+                opened_values = [ex.executed_at for ex in executions]
+                trade.opened_at = min(opened_values)
+                trade.closed_at = max(opened_values)
+            else:
+                trade.closed_at = None
+
             if has_broker_pnl and total_pnl is not None:
                 trade.pnl = total_pnl.quantize(_PRECISION).normalize()
             else:
-                multiplier = Decimal(trade.multiplier)
-                if is_long:
-                    raw_pnl = (
-                        (trade.exit_price - trade.entry_price) * exit_qty * multiplier
-                    )
-                else:
-                    raw_pnl = (
-                        (trade.entry_price - trade.exit_price) * exit_qty * multiplier
-                    )
-                trade.pnl = raw_pnl.quantize(_PRECISION).normalize()
-            trade.net_pnl = (
-                (trade.pnl - total_commission).quantize(_PRECISION).normalize()
-            )
+                trade.pnl = None
+
+            if trade.pnl is not None:
+                trade.net_pnl = (
+                    (trade.pnl - total_commission).quantize(_PRECISION).normalize()
+                )
+            else:
+                trade.net_pnl = None
         else:
-            trade.pnl = None
-            trade.net_pnl = None
+            # --- Compute derived fields ---
+            trade.quantity = entry_qty
+            trade.entry_price = entry_cost / entry_qty if entry_qty > 0 else Decimal(0)
+            trade.exit_price = exit_cost / exit_qty if exit_qty > 0 else None
+            trade.commission = total_commission
+
+            # opened_at = earliest entry execution
+            if entry_times:
+                trade.opened_at = min(entry_times)
+
+            # closed_at = latest exit execution, only if fully exited
+            if exit_qty >= entry_qty and entry_qty > 0 and exit_times:
+                trade.closed_at = max(exit_times)
+            else:
+                trade.closed_at = None
+
+            # PnL: prefer sum of broker-reported pnl, else compute from prices
+            # Round to 10 decimal places to avoid accumulating precision drift from
+            # repeating-decimal VWAP prices (e.g. 23000/150 = 153.333...).
+            if exit_qty > 0 and trade.exit_price is not None:
+                if has_broker_pnl and total_pnl is not None:
+                    trade.pnl = total_pnl.quantize(_PRECISION).normalize()
+                else:
+                    multiplier = Decimal(trade.multiplier)
+                    if is_long:
+                        raw_pnl = (
+                            (trade.exit_price - trade.entry_price)
+                            * exit_qty
+                            * multiplier
+                        )
+                    else:
+                        raw_pnl = (
+                            (trade.entry_price - trade.exit_price)
+                            * exit_qty
+                            * multiplier
+                        )
+                    trade.pnl = raw_pnl.quantize(_PRECISION).normalize()
+                trade.net_pnl = (
+                    (trade.pnl - total_commission).quantize(_PRECISION).normalize()
+                )
+            else:
+                trade.pnl = None
+                trade.net_pnl = None
 
         trade.updated_at = datetime.now(UTC)
         await self.session.flush()

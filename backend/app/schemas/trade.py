@@ -98,30 +98,36 @@ class TradeCreate(BaseModel):
         ),
         examples=["LONG", "SHORT"],
     )
-    asset_class: AssetClass = Field(
-        ...,
+    asset_class: AssetClass | None = Field(
+        default=None,
         description=(
             "Asset class of the traded instrument. "
-            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO."
+            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO. "
+            "Null for COMBO trades."
         ),
-        examples=["EQUITY", "FOREX", "CRYPTO"],
+        examples=["EQUITY", "FOREX", "CRYPTO", None],
     )
-    quantity: Decimal = Field(
-        ...,
+    is_combo: bool = Field(
+        default=False,
+        description="True when this trade is a multi-instrument COMBO position.",
+        examples=[False, True],
+    )
+    quantity: Decimal | None = Field(
+        default=None,
         gt=Decimal("0"),
         description=(
             "Number of units, shares, or contracts traded. Must be greater than zero."
         ),
-        examples=["100", "1.5", "0.01"],
+        examples=["100", "1.5", "0.01", None],
     )
-    entry_price: Decimal = Field(
-        ...,
+    entry_price: Decimal | None = Field(
+        default=None,
         ge=Decimal("0"),
         description=(
             "Execution price at which the position was opened. "
             "Must be greater than zero."
         ),
-        examples=["150.25", "1.0823", "42350.00"],
+        examples=["150.25", "1.0823", "42350.00", None],
     )
     exit_price: Decimal | None = Field(
         default=None,
@@ -328,6 +334,13 @@ class TradeCreate(BaseModel):
         """
         if self.closed_at is not None and self.closed_at < self.opened_at:
             raise ValueError("closed_at must be after opened_at")
+        if not self.is_combo:
+            if self.asset_class is None:
+                raise ValueError("asset_class is required when is_combo is false")
+            if self.quantity is None:
+                raise ValueError("quantity is required when is_combo is false")
+            if self.entry_price is None:
+                raise ValueError("entry_price is required when is_combo is false")
         return self
 
 
@@ -382,30 +395,36 @@ class TradeCreateRequest(BaseModel):
         ),
         examples=["LONG", "SHORT"],
     )
-    asset_class: AssetClass = Field(
-        ...,
+    asset_class: AssetClass | None = Field(
+        default=None,
         description=(
             "Asset class of the traded instrument. "
-            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO."
+            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO. "
+            "Null for COMBO trades."
         ),
-        examples=["EQUITY", "FOREX", "CRYPTO"],
+        examples=["EQUITY", "FOREX", "CRYPTO", None],
     )
-    quantity: Decimal = Field(
-        ...,
+    is_combo: bool = Field(
+        default=False,
+        description="True when this trade is a multi-instrument COMBO position.",
+        examples=[False, True],
+    )
+    quantity: Decimal | None = Field(
+        default=None,
         gt=Decimal("0"),
         description=(
             "Number of units, shares, or contracts traded. Must be greater than zero."
         ),
-        examples=["100", "1.5", "0.01"],
+        examples=["100", "1.5", "0.01", None],
     )
-    entry_price: Decimal = Field(
-        ...,
+    entry_price: Decimal | None = Field(
+        default=None,
         ge=Decimal("0"),
         description=(
             "Execution price at which the position was opened. "
             "Must be greater than zero."
         ),
-        examples=["150.25", "1.0823", "42350.00"],
+        examples=["150.25", "1.0823", "42350.00", None],
     )
     exit_price: Decimal | None = Field(
         default=None,
@@ -578,6 +597,13 @@ class TradeCreateRequest(BaseModel):
         """
         if self.closed_at is not None and self.closed_at < self.opened_at:
             raise ValueError("closed_at must be after opened_at")
+        if not self.is_combo:
+            if self.asset_class is None:
+                raise ValueError("asset_class is required when is_combo is false")
+            if self.quantity is None:
+                raise ValueError("quantity is required when is_combo is false")
+            if self.entry_price is None:
+                raise ValueError("entry_price is required when is_combo is false")
         return self
 
     def to_trade_create(self, user_id: uuid.UUID) -> "TradeCreate":
@@ -757,20 +783,25 @@ class TradeRead(BaseModel):
         ),
         examples=["LONG", "SHORT"],
     )
-    asset_class: AssetClass = Field(
+    asset_class: AssetClass | None = Field(
         ...,
         description="Asset class of the traded instrument.",
-        examples=["EQUITY", "FOREX", "CRYPTO"],
+        examples=["EQUITY", "FOREX", "CRYPTO", None],
     )
-    quantity: Decimal = Field(
+    is_combo: bool = Field(
+        default=False,
+        description="True when this trade is a multi-instrument COMBO position.",
+        examples=[False, True],
+    )
+    quantity: Decimal | None = Field(
         ...,
         description="Number of units, shares, or contracts traded.",
-        examples=["100", "1.5", "0.01"],
+        examples=["100", "1.5", "0.01", None],
     )
-    entry_price: Decimal = Field(
+    entry_price: Decimal | None = Field(
         ...,
         description="Execution price at which the position was opened.",
-        examples=["150.25", "1.0823", "42350.00"],
+        examples=["150.25", "1.0823", "42350.00", None],
     )
     exit_price: Decimal | None = Field(
         ...,
@@ -935,6 +966,20 @@ class TradeRead(BaseModel):
         description="UTC timestamp of the most recent update to this record.",
         examples=["2024-03-15T15:45:02Z"],
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_is_combo(cls, data: Any) -> Any:
+        """Backfill missing/NULL is_combo values to False."""
+        if isinstance(data, dict):
+            if data.get("is_combo") is None:
+                data["is_combo"] = False
+            return data
+
+        if getattr(data, "is_combo", None) is None:
+            with contextlib.suppress(Exception):
+                data.__dict__["is_combo"] = False
+        return data
 
     @model_validator(mode="before")
     @classmethod

@@ -109,6 +109,14 @@ class TestTradeUpdate:
         assert "symbol" in dumped
         assert "direction" not in dumped
 
+    @pytest.mark.unit
+    def test_is_combo_not_patchable(self) -> None:
+        """TradeUpdate must ignore unexpected is_combo input."""
+        update = TradeUpdate.model_validate({"notes": "x", "is_combo": True})
+        dumped = update.model_dump(exclude_unset=True)
+        assert "notes" in dumped
+        assert "is_combo" not in dumped
+
 
 
 
@@ -127,6 +135,7 @@ class TestTradeRead:
         trade.symbol = "ES"
         trade.direction = Direction.SHORT
         trade.asset_class = AssetClass.FUTURE
+        trade.is_combo = False
         trade.quantity = Decimal("2")
         trade.entry_price = Decimal("5000")
         trade.exit_price = Decimal("4980")

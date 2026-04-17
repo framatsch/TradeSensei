@@ -168,10 +168,11 @@ export interface Trade {
   id: string;
   symbol: string;
   direction: Direction;
-  asset_class: AssetClass;
+  asset_class: AssetClass | null;
+  is_combo: boolean;
   multiplier: number;
-  quantity: string;
-  entry_price: string;
+  quantity: string | null;
+  entry_price: string | null;
   exit_price: string | null;
   stop_loss: string | null;
   take_profit: string | null;
@@ -202,9 +203,10 @@ export interface Trade {
 export interface TradeCreate {
   symbol: string;
   direction: Direction;
-  asset_class: AssetClass;
-  quantity: string;
-  entry_price: string;
+  asset_class?: AssetClass | null;
+  is_combo?: boolean;
+  quantity?: string | null;
+  entry_price?: string | null;
   exit_price?: string | null;
   stop_loss?: string | null;
   take_profit?: string | null;
@@ -600,6 +602,8 @@ export interface LogicalExecutionCreate {
   commission?: string;
   executed_at: string;
   pnl?: string | null;
+  asset_class?: AssetClass | null;
+  multiplier?: number;
 }
 
 export interface LogicalExecutionUpdate {

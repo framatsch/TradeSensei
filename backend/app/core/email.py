@@ -41,7 +41,8 @@ def _build_password_reset_message(to_address: str, reset_url: str) -> MIMEMultip
     html_body = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
-<body style="font-family: sans-serif; color: #111; max-width: 560px; margin: 0 auto; padding: 24px;">
+<body style="font-family: sans-serif; color: #111; max-width: 560px; 
+    margin: 0 auto; padding: 24px;">
   <h2 style="margin-bottom: 8px;">Reset your TradeSensei password</h2>
   <p>You requested a password reset for your TradeSensei account.</p>
   <p style="margin: 24px 0;">

@@ -28,9 +28,7 @@ from app.core.constants import (
 
 logger = logging.getLogger(__name__)
 
-_ECB_BASE_URL: str = (
-    "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A"
-)
+_ECB_BASE_URL: str = "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A"
 
 
 async def fetch_ecb_rate(date: dt.date) -> Decimal | None:
@@ -54,8 +52,7 @@ async def fetch_ecb_rate(date: dt.date) -> Decimal | None:
         if rate is not None:
             if delta > 0:
                 logger.info(
-                    "No ECB rate for %s — using rate from %s"
-                    " (%d day(s) earlier).",
+                    "No ECB rate for %s — using rate from %s (%d day(s) earlier).",
                     date,
                     lookup_date,
                     delta,
@@ -180,7 +177,5 @@ def _parse_sdmx_response(data: object, date_str: str) -> Decimal | None:
         return Decimal(str(raw_value))
 
     except (InvalidOperation, KeyError, IndexError, TypeError) as exc:
-        logger.warning(
-            "Failed to parse ECB SDMX response for %s: %s", date_str, exc
-        )
+        logger.warning("Failed to parse ECB SDMX response for %s: %s", date_str, exc)
         return None

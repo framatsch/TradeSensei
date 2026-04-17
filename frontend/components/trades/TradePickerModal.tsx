@@ -152,17 +152,19 @@ export function TradePickerModal({
                     <span className="font-medium text-foreground text-sm">{trade.symbol}</span>
                     <span
                       className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                        trade.direction === "LONG"
+                        trade.is_combo
+                          ? "bg-muted text-foreground border border-border"
+                          : trade.direction === "LONG"
                           ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
                           : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
                       }`}
                     >
-                      {trade.direction}
+                      {trade.is_combo ? "COMBO" : trade.direction}
                     </span>
-                    <span className="text-xs text-muted-foreground">{trade.asset_class}</span>
+                    <span className="text-xs text-muted-foreground">{trade.is_combo ? "COMBO" : (trade.asset_class ?? "—")}</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    Qty: {parseFloat(trade.quantity).toLocaleString()} · Opened: {fmtDate(trade.opened_at)}
+                    Qty: {trade.quantity === null ? "—" : parseFloat(trade.quantity).toLocaleString()} · Opened: {fmtDate(trade.opened_at)}
                     {trade.account_name && ` · ${trade.account_name}`}
                   </div>
                 </div>

@@ -220,3 +220,119 @@ class TestExecutionAPI:
         assert detach_res.status_code == 200
         new_trade_id = detach_res.json()["data"]["id"]
         assert new_trade_id != trade_id
+
+    async def test_combo_trade_reaggregation_sums_broker_pnl(
+        self, client: AsyncClient
+    ) -> None:
+        """COMBO trade keeps VWAP fields null and sums broker-reported leg PnL."""
+        headers = await _get_auth_headers(client, "combo_sum")
+        create_trade_res = await client.post(
+            "/api/v1/trades",
+            json={
+                "symbol": "AAPL",
+                "direction": "LONG",
+                "is_combo": True,
+                "opened_at": datetime.now(UTC).isoformat(),
+            },
+            headers=headers,
+        )
+        assert create_trade_res.status_code == 201, create_trade_res.text
+        trade_id = create_trade_res.json()["data"]["id"]
+
+        eq_leg = await client.post(
+            f"/api/v1/trades/{trade_id}/executions",
+            json={
+                "direction": "LONG",
+                "asset_class": "EQUITY",
+                "multiplier": 1,
+                "quantity": "100",
+                "price": "150.00",
+                "commission": "1.00",
+                "pnl": "500",
+                "executed_at": datetime.now(UTC).isoformat(),
+            },
+            headers=headers,
+        )
+        assert eq_leg.status_code == 201, eq_leg.text
+
+        opt_leg = await client.post(
+            f"/api/v1/trades/{trade_id}/executions",
+            json={
+                "direction": "SHORT",
+                "asset_class": "OPTION",
+                "multiplier": 100,
+                "quantity": "2",
+                "price": "5.00",
+                "commission": "1.00",
+                "pnl": "-200",
+                "executed_at": datetime.now(UTC).isoformat(),
+            },
+            headers=headers,
+        )
+        assert opt_leg.status_code == 201, opt_leg.text
+
+        trade_res = await client.get(f"/api/v1/trades/{trade_id}", headers=headers)
+        assert trade_res.status_code == 200, trade_res.text
+        trade = trade_res.json()["data"]
+
+        assert trade["entry_price"] is None
+        assert trade["exit_price"] is None
+        assert trade["quantity"] is None
+        assert Decimal(trade["pnl"]) == Decimal("300")
+
+    async def test_combo_trade_reaggregation_without_broker_pnl_keeps_null(
+        self, client: AsyncClient
+    ) -> None:
+        """COMBO trade leaves trade.pnl null when all leg pnl values are null."""
+        headers = await _get_auth_headers(client, "combo_null")
+        create_trade_res = await client.post(
+            "/api/v1/trades",
+            json={
+                "symbol": "AAPL",
+                "direction": "LONG",
+                "is_combo": True,
+                "opened_at": datetime.now(UTC).isoformat(),
+            },
+            headers=headers,
+        )
+        assert create_trade_res.status_code == 201, create_trade_res.text
+        trade_id = create_trade_res.json()["data"]["id"]
+
+        leg_a = await client.post(
+            f"/api/v1/trades/{trade_id}/executions",
+            json={
+                "direction": "LONG",
+                "asset_class": "EQUITY",
+                "multiplier": 1,
+                "quantity": "10",
+                "price": "10.00",
+                "commission": "0.50",
+                "executed_at": datetime.now(UTC).isoformat(),
+            },
+            headers=headers,
+        )
+        assert leg_a.status_code == 201, leg_a.text
+
+        leg_b = await client.post(
+            f"/api/v1/trades/{trade_id}/executions",
+            json={
+                "direction": "SHORT",
+                "asset_class": "OPTION",
+                "multiplier": 100,
+                "quantity": "1",
+                "price": "1.00",
+                "commission": "0.25",
+                "executed_at": datetime.now(UTC).isoformat(),
+            },
+            headers=headers,
+        )
+        assert leg_b.status_code == 201, leg_b.text
+
+        trade_res = await client.get(f"/api/v1/trades/{trade_id}", headers=headers)
+        assert trade_res.status_code == 200, trade_res.text
+        trade = trade_res.json()["data"]
+
+        assert trade["entry_price"] is None
+        assert trade["exit_price"] is None
+        assert trade["quantity"] is None
+        assert trade["pnl"] is None

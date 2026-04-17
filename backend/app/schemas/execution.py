@@ -48,7 +48,21 @@ class LogicalExecutionCreate(LogicalExecutionBase):
     it is not accepted from the API consumer.
     """
 
-    pass
+    asset_class: AssetClass | None = Field(
+        default=None,
+        description=(
+            "Optional per-leg asset class override for COMBO trades. "
+            "Ignored for non-COMBO parent trades."
+        ),
+    )
+    multiplier: int | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Optional per-leg multiplier override for COMBO trades. "
+            "Ignored for non-COMBO parent trades."
+        ),
+    )
 
 
 class LogicalExecutionUpdate(BaseModel):

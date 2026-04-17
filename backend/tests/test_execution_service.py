@@ -148,6 +148,40 @@ class TestExecutionService:
         with pytest.raises(TradeNotFoundError):
             await service.create_manual_execution(uuid.uuid4(), uuid.uuid4(), data)
 
+    async def test_create_manual_execution_combo_uses_leg_overrides(
+        self, service: ExecutionService, mock_session: AsyncMock
+    ) -> None:
+        """COMBO leg creation should use per-leg asset_class/multiplier overrides."""
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            asset_class=AssetClass.EQUITY,
+            multiplier=1,
+        )
+        trade.is_combo = True
+        service.trade_repo.get_by_id.return_value = trade
+
+        data = LogicalExecutionCreate(
+            direction=Direction.LONG,
+            quantity=Decimal("1"),
+            price=Decimal("5.00"),
+            executed_at=datetime.now(UTC),
+            asset_class=AssetClass.OPTION,
+            multiplier=100,
+        )
+
+        created = _make_execution(user_id=user_id, trade_id=trade.id)
+        service.execution_repo.create.return_value = created
+
+        result = await service.create_manual_execution(trade.id, user_id, data)
+
+        assert result == created
+        create_kwargs = service.execution_repo.create.call_args.kwargs
+        assert create_kwargs["asset_class"] == AssetClass.OPTION
+        assert create_kwargs["multiplier"] == 100
+        service._re_aggregate_trade.assert_called_once_with(trade.id, user_id)
+        mock_session.commit.assert_called_once()
+
     async def test_update_execution_success(
         self, service: ExecutionService, mock_session: AsyncMock
     ) -> None:

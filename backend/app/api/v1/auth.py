@@ -23,7 +23,11 @@ from app.core.constants import REFRESH_TOKEN_EXPIRE_DAYS
 from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.email import send_password_reset_email
-from app.core.exceptions import InvalidCredentialsError, InvalidTokenError, UserAlreadyExistsError
+from app.core.exceptions import (
+    InvalidCredentialsError,
+    InvalidTokenError,
+    UserAlreadyExistsError,
+)
 from app.core.security import (
     consume_password_reset_token,
     create_password_reset_token,
@@ -583,9 +587,7 @@ async def forgot_password(
     user = await service.get_user_by_email(payload.email)
     if user is not None and user.hashed_password is not None:
         token = create_password_reset_token(user.id)
-        reset_url = (
-            f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
-        )
+        reset_url = f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
         await send_password_reset_email(user.email, reset_url)
 
     return {"detail": _FORGOT_PASSWORD_RESPONSE}

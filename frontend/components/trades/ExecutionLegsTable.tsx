@@ -15,13 +15,14 @@ import { ExecutionRow } from "./ExecutionRow";
 import { AddExecutionModal } from "./AddExecutionModal";
 import { TradePickerModal } from "./TradePickerModal";
 import { SplitExecutionModal } from "./SplitExecutionModal";
-import type { LogicalExecution } from "@/lib/types";
+import type { LogicalExecution, Trade } from "@/lib/types";
 
 interface Props {
   tradeId: string;
+  trade: Trade;
 }
 
-export function ExecutionLegsTable({ tradeId }: Props) {
+export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -133,6 +134,12 @@ export function ExecutionLegsTable({ tradeId }: Props) {
                 <tr className="border-b border-border bg-muted/40">
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Side</th>
+                  {trade.is_combo && (
+                    <>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Symbol</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Asset Class</th>
+                    </>
+                  )}
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Mult.</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Price</th>
@@ -147,6 +154,7 @@ export function ExecutionLegsTable({ tradeId }: Props) {
                   <ExecutionRow
                     key={ex.id}
                     execution={ex}
+                    trade={trade}
                     tradeId={tradeId}
                     onMoveToTrade={handleMoveToTrade}
                     onDetach={handleDetach}
@@ -162,6 +170,7 @@ export function ExecutionLegsTable({ tradeId }: Props) {
       {addModalOpen && (
         <AddExecutionModal
           tradeId={tradeId}
+          trade={trade}
           onClose={() => setAddModalOpen(false)}
         />
       )}

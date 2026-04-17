@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import delete, func, nullslast, select
 from sqlalchemy import update as sa_update
@@ -118,7 +118,7 @@ def _get_sort_value(trade: Trade, sort_by: TradeSortField) -> str:
     if sort_by == TradeSortField.direction:
         return trade.direction.value
     if sort_by == TradeSortField.asset_class:
-        return trade.asset_class.value
+        return trade.asset_class.value if trade.asset_class is not None else ""
     if sort_by == TradeSortField.entry_price:
         return str(trade.entry_price)
     if sort_by == TradeSortField.quantity:
@@ -167,8 +167,8 @@ def _build_sort_column(
     expr = col.asc() if sort_dir == "asc" else col.desc()
 
     if sort_by in nullable_fields:
-        return nullslast(expr)
-    return expr
+        return cast(ColumnElement[object], nullslast(expr))
+    return cast(ColumnElement[object], expr)
 
 
 def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:

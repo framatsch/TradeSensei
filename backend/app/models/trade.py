@@ -129,17 +129,25 @@ class Trade(Base):
         Enum(Direction, name="direction_enum"),
         nullable=False,
     )
-    asset_class: Mapped[AssetClass] = mapped_column(
+    asset_class: Mapped[AssetClass | None] = mapped_column(
         Enum(AssetClass, name="asset_class_enum"),
-        nullable=False,
+        nullable=True,
+        comment="Asset class of the instrument. Null for COMBO trades.",
     )
-    quantity: Mapped[Decimal] = mapped_column(
-        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
+    is_combo: Mapped[bool] = mapped_column(
+        Boolean,
         nullable=False,
+        default=False,
+        server_default="false",
+        comment="True for multi-instrument COMBO positions.",
     )
-    entry_price: Mapped[Decimal] = mapped_column(
+    quantity: Mapped[Decimal | None] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
-        nullable=False,
+        nullable=True,
+    )
+    entry_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
+        nullable=True,
     )
     exit_price: Mapped[Decimal | None] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),

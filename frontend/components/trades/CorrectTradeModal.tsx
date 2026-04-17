@@ -19,7 +19,7 @@ const ASSET_CLASSES: AssetClass[] = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRY
 
 export function CorrectTradeModal({ trade, onClose }: Props) {
   const [symbol, setSymbol] = useState(trade.symbol);
-  const [assetClass, setAssetClass] = useState<AssetClass>(trade.asset_class);
+  const [assetClass, setAssetClass] = useState<AssetClass>(trade.asset_class ?? "EQUITY");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const updateTrade = useUpdateTrade(trade.id);

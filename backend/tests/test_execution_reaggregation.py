@@ -141,3 +141,107 @@ async def test_re_aggregate_trade_full_close():
     # PnL = (Entry - Exit) * Qty * Mult = (5.00 - 4.00) * 1 * 100 = 100
     assert trade.pnl == Decimal("100.00")
     assert trade.closed_at == exec2.executed_at
+
+
+@pytest.mark.asyncio
+async def test_re_aggregate_trade_combo_uses_broker_leg_pnl_only():
+    mock_session = AsyncMock()
+    service = ExecutionService(mock_session)
+    trade_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    trade = Trade()
+    trade.id = trade_id
+    trade.user_id = user_id
+    trade.direction = Direction.LONG
+    trade.multiplier = 1
+    trade.is_combo = True
+
+    service.trade_repo.get_by_id = AsyncMock(return_value=trade)
+
+    exec1 = LogicalExecution(
+        id=uuid.uuid4(),
+        trade_id=trade_id,
+        direction=Direction.LONG,
+        quantity=Decimal("100"),
+        price=Decimal("150.00"),
+        commission=Decimal("1.00"),
+        executed_at=datetime(2024, 1, 1, 9, 30, tzinfo=UTC),
+        pnl=Decimal("500.00"),
+        origin=EXECUTION_ORIGIN_MANUAL,
+    )
+    exec2 = LogicalExecution(
+        id=uuid.uuid4(),
+        trade_id=trade_id,
+        direction=Direction.SHORT,
+        quantity=Decimal("2"),
+        price=Decimal("5.00"),
+        commission=Decimal("1.00"),
+        executed_at=datetime(2024, 1, 1, 10, 30, tzinfo=UTC),
+        pnl=Decimal("-200.00"),
+        origin=EXECUTION_ORIGIN_MANUAL,
+    )
+
+    service.execution_repo.list_by_trade_id = AsyncMock(return_value=[exec1, exec2])
+
+    await service.re_aggregate_trade(trade_id, user_id)
+
+    assert trade.entry_price is None
+    assert trade.exit_price is None
+    assert trade.quantity is None
+    assert trade.commission == Decimal("2.00")
+    assert trade.pnl == Decimal("300")
+    assert trade.net_pnl == Decimal("298")
+    assert trade.opened_at == exec1.executed_at
+    assert trade.closed_at == exec2.executed_at
+
+
+@pytest.mark.asyncio
+async def test_re_aggregate_trade_combo_without_broker_pnl_sets_none():
+    mock_session = AsyncMock()
+    service = ExecutionService(mock_session)
+    trade_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    trade = Trade()
+    trade.id = trade_id
+    trade.user_id = user_id
+    trade.direction = Direction.LONG
+    trade.multiplier = 1
+    trade.is_combo = True
+
+    service.trade_repo.get_by_id = AsyncMock(return_value=trade)
+
+    exec1 = LogicalExecution(
+        id=uuid.uuid4(),
+        trade_id=trade_id,
+        direction=Direction.LONG,
+        quantity=Decimal("10"),
+        price=Decimal("10.00"),
+        commission=Decimal("0.50"),
+        executed_at=datetime(2024, 1, 1, 9, 30, tzinfo=UTC),
+        pnl=None,
+        origin=EXECUTION_ORIGIN_MANUAL,
+    )
+    exec2 = LogicalExecution(
+        id=uuid.uuid4(),
+        trade_id=trade_id,
+        direction=Direction.SHORT,
+        quantity=Decimal("1"),
+        price=Decimal("1.00"),
+        commission=Decimal("0.25"),
+        executed_at=datetime(2024, 1, 1, 10, 30, tzinfo=UTC),
+        pnl=None,
+        origin=EXECUTION_ORIGIN_MANUAL,
+    )
+
+    service.execution_repo.list_by_trade_id = AsyncMock(return_value=[exec1, exec2])
+
+    await service.re_aggregate_trade(trade_id, user_id)
+
+    assert trade.entry_price is None
+    assert trade.exit_price is None
+    assert trade.quantity is None
+    assert trade.pnl is None
+    assert trade.net_pnl is None
+    assert trade.commission == Decimal("0.75")

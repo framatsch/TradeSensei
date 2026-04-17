@@ -160,23 +160,37 @@ class TradeService:
         if data.executions:
             # Bypass auto-generation and create manual execution legs
             for leg in data.executions:
+                leg_asset_class = trade.asset_class
+                leg_multiplier = trade.multiplier
+                if trade.is_combo:
+                    if leg.asset_class is not None:
+                        leg_asset_class = leg.asset_class
+                    if leg.multiplier is not None:
+                        leg_multiplier = leg.multiplier
+                else:
+                    leg_asset_class = trade.asset_class
+                    leg_multiplier = trade.multiplier
+                if leg_asset_class is None:
+                    raise ValueError(
+                        "asset_class is required for execution legs on COMBO trades"
+                    )
                 await exec_repo.create(
                     user_id=trade.user_id,
                     account_id=trade.account_id,
                     symbol=trade.symbol,
-                    asset_class=trade.asset_class,
+                    asset_class=leg_asset_class,
                     direction=leg.direction,
                     quantity=leg.quantity,
                     price=leg.price,
                     commission=leg.commission,
                     executed_at=leg.executed_at,
-                    multiplier=trade.multiplier,
+                    multiplier=leg_multiplier,
                     currency=trade.currency,
                     origin=EXECUTION_ORIGIN_MANUAL,
                     trade_id=trade.id,
                     pnl=leg.pnl,
                 )
-        else:
+        elif not trade.is_combo:
             # Always create a synthetic entry execution.
             await exec_repo.create(
                 user_id=trade.user_id,
@@ -218,8 +232,9 @@ class TradeService:
         # Re-aggregate only for open/manual-entry trades. Closed trades created via
         # API can include explicit exit/PnL values that cannot be reconstructed from
         # a single synthetic execution.
-        should_reaggregate = (
-            trade.closed_at is None
+        should_reaggregate = bool(data.executions) or (
+            not trade.is_combo
+            and trade.closed_at is None
             and trade.exit_price is None
             and trade.pnl is None
             and trade.net_pnl is None
@@ -477,7 +492,11 @@ class TradeService:
             if (
                 t.symbol != ref_trade.symbol
                 or t.account_id != ref_trade.account_id
-                or t.asset_class != ref_trade.asset_class
+                or (
+                    not t.is_combo
+                    and not ref_trade.is_combo
+                    and t.asset_class != ref_trade.asset_class
+                )
             ):
                 raise ValueError(
                     "Trades must have the same symbol, account, "
@@ -559,6 +578,9 @@ class TradeService:
         if trade.closed_at is not None:
             raise ValueError("Cannot partially close a trade that is already closed.")
 
+        if trade.quantity is None:
+            raise ValueError("Cannot partially close a trade without quantity.")
+
         if request.quantity > trade.quantity:
             raise ValueError(
                 f"Close quantity ({request.quantity}) exceeds "
@@ -569,6 +591,7 @@ class TradeService:
         if request.quantity == trade.quantity:
             from app.models.trade import Direction
             from app.schemas.execution import LogicalExecutionCreate
+
             # Instead of updating TradeUpdate, we create an exit leg
             exit_direction = (
                 Direction.SHORT if trade.direction == Direction.LONG else Direction.LONG
@@ -583,6 +606,7 @@ class TradeService:
             # Add to trade.logical_executions
             # create the Execution object manually
             from app.models.logical_execution import LogicalExecution
+
             execution = LogicalExecution(
                 trade_id=trade.id,
                 user_id=trade.user_id,

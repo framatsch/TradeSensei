@@ -47,7 +47,7 @@ function TradeCard({ trade }: { trade: Trade }) {
         </span>
       </div>
       <div className="text-xs text-muted-foreground">
-        Qty: <span className="text-foreground">{parseFloat(trade.quantity).toLocaleString()}</span>
+        Qty: <span className="text-foreground">{trade.quantity === null ? "—" : parseFloat(trade.quantity).toLocaleString()}</span>
       </div>
       <div className="text-xs text-muted-foreground">
         Executions: <span className="text-foreground">{trade.trade_notes?.length ?? "—"}</span>
@@ -66,7 +66,7 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
   const mergeTrades = useMergeTrades();
 
   // Compute combined values for preview
-  const totalQty = trades.reduce((sum, t) => sum + parseFloat(t.quantity), 0);
+  const totalQty = trades.reduce((sum, t) => sum + (t.quantity === null ? 0 : parseFloat(t.quantity)), 0);
   const totalPnl = trades.reduce((sum, t) => sum + (t.pnl ? parseFloat(t.pnl) : 0), 0);
   const hasPnl = trades.some((t) => t.pnl !== null);
   const symbol = trades[0]?.symbol ?? "—";

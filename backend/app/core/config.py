@@ -137,10 +137,7 @@ class Settings(BaseSettings):
             enabled; ``False`` otherwise.
         """
         smtp_ready = bool(
-            self.smtp_host
-            and self.smtp_user
-            and self.smtp_password
-            and self.email_from
+            self.smtp_host and self.smtp_user and self.smtp_password and self.email_from
         )
         google_enabled = bool(self.google_client_id and self.google_client_secret)
         oidc_active = self.oidc_enabled and bool(self.oidc_configuration_url)
