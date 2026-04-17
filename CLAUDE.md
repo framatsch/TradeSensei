@@ -72,6 +72,7 @@ OpenSpec command wrappers: `.opencode/command/opsx-{propose,explore,apply,archiv
 
 ## Non-Negotiable Rules (abbreviated — full details in `AGENTS.md`)
 
+- **Engineering Rules:** §0 of `AGENTS.md` applies always — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution.
 - **OpenSpec:** Before implementing any OpenSpec task, run `/openspec-apply-change` (reads `.opencode/skills/openspec-apply-change/SKILL.md`) — do NOT start coding without it.
 - **Agent files:** Read the relevant agent file from the table above before writing any code for that domain.
 - **Language:** All code, comments, and text in English.

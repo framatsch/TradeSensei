@@ -1,69 +1,76 @@
 # AGENTS.md — Trade Sensei Platform
 
-This document is the primary context file for all agents and developers.
-Every agent reads this file first before writing code or making decisions.
+Primary context file — read this before writing any code or making decisions.
+
+---
+
+## 0. Engineering Rules
+
+These apply to every task, every agent, every change.
+
+### Think Before Coding
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### Simplicity First
+Minimum code that solves the problem. Nothing speculative.
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+### Surgical Changes
+Touch only what you must. Clean up only your own mess.
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- Remove imports/variables/functions that **your changes** made unused — not pre-existing dead code.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+### Goal-Driven Execution
+Define success criteria. Loop until verified.
+
+- Transform tasks into verifiable goals: "Add validation" → "Write tests for invalid inputs, then make them pass."
+- For multi-step tasks, state a brief plan with per-step verification before starting.
+- Strong success criteria let you loop independently. Weak criteria require constant clarification.
 
 ---
 
 ## 1. Project Goal
 
-Development of a **Trade Sensei Platform** for statistical analysis and
-visualization of trading data. Core features:
+**Trade Sensei Platform** — statistical analysis and visualization of trading data.
 
-- **Trade Senseiing**: Recording and managing all trading positions
-- **Performance Metrics**: Win rate, profit factor, max drawdown, expectancy, Sharpe ratio
-- **Playbook System**: Tracking setup types and strategies
-- **Psychological Analysis**: Error tagging, emotional notation, behavioral patterns
-- **Time-Series Visualization**: Equity curve, drawdown chart, return distribution
+Core features: trade journaling, performance metrics (win rate, profit factor, Sharpe ratio, drawdown), playbook system, psychological tagging, equity-curve visualization.
 
 ---
 
 ## 2. Technology Stack
 
-### Backend
-| Component        | Technology                               |
-|-----------------|------------------------------------------|
-| Language         | Python 3.12+                             |
-| Framework        | FastAPI (async-first)                    |
-| Validation       | Pydantic v2                              |
-| ORM              | SQLAlchemy 2.0 (async) + Alembic         |
-| Database         | TimescaleDB (PostgreSQL extension)       |
-| Package Manager  | uv                                       |
-| Tests            | pytest + pytest-asyncio + httpx          |
-| Linting/Format   | Ruff                                     |
-| Type Checking    | mypy (strict)                            |
-
-### Frontend
-| Component        | Technology                               |
-|-----------------|------------------------------------------|
-| Framework        | Next.js 14 (App Router)                  |
-| Language         | TypeScript (strict)                      |
-| Styling          | Tailwind CSS                             |
-| Charts           | Recharts (primary) + Chart.js (fallback) |
-| State Management | Zustand or React Query (TanStack)        |
-| API Client       | OpenAPI-generated client (openapi-ts)    |
-
-### Infrastructure
-| Component        | Technology                               |
-|-----------------|------------------------------------------|
-| Containerization | Docker + Docker Compose (Alpine images)  |
-| Registry         | GitHub Container Registry (ghcr.io)      |
-| Reverse Proxy    | Nginx (production)                       |
-| CI/CD            | GitHub Actions                           |
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.12+, FastAPI (async), Pydantic v2, SQLAlchemy 2.0 async, Alembic |
+| Database | TimescaleDB (PostgreSQL extension) |
+| Frontend | Next.js 14 App Router, TypeScript strict, Tailwind CSS, Recharts, TanStack Query |
+| API Client | OpenAPI-generated (`openapi-ts`) — never write raw `fetch()` to the backend |
+| Package mgmt | `uv` (backend), `npm` (frontend) |
+| Infrastructure | Docker + Docker Compose (Alpine), GitHub Actions CI, Nginx (prod) |
 
 ---
 
 ## 3. Architecture Principles
 
-- **API-First**: The backend is a standalone REST API. Frontend and backend
-  are fully decoupled.
-- **Layered Architecture**: Strict layer separation — no business logic in route
-  handlers, no DB queries in service classes.
-- **Async by Default**: All DB operations and external calls are async.
-- **Immutable DTOs**: Pydantic schemas for request/response; ORM models are
-  never exposed directly.
-- **Fail-Fast Validation**: Validation happens at the API boundary (Pydantic),
-  not deep inside the logic layer.
+- **API-First** — backend is a standalone REST API; frontend and backend are fully decoupled.
+- **Layered** — no business logic in route handlers; no DB queries in service classes.
+- **Async by Default** — all DB operations and external calls are async.
+- **Immutable DTOs** — Pydantic schemas for request/response; ORM models are never exposed directly.
+- **Fail-Fast Validation** — validation happens at the API boundary (Pydantic), not deep inside logic.
 
 ---
 
@@ -80,127 +87,50 @@ app/
 └── utils/        # Pure helper functions (no dependencies)
 ```
 
----
-
-## 5. Coding Guidelines
-
-### General
-- No code without type annotations (mypy strict mode).
-- Docstrings for all public functions and classes (Google style).
-- No magic numbers — constants go in `core/constants.py`.
-- Explicit error handling: no bare `except Exception` without re-raise or logging.
-- All code, comments, docstrings, and commit messages in **English**.
-
-### API Design
-- REST conventions: resources as plural nouns (`/trades`, `/playbooks`).
-- Use HTTP status codes correctly: 201 for Create, 422 for validation errors.
-- All endpoints return uniform response envelopes (see `schemas/common.py`).
-- Cursor-based pagination for all list endpoints.
-
-### Database
-- All schema changes via Alembic migrations — never `create_all()` in production.
-- TimescaleDB hypertables for all time-series tables (partition by `closed_at`).
-- Define indexes explicitly; make no implicit assumptions about query performance.
-- Manage transactions explicitly — services are responsible for commit/rollback.
-
-### Package Management
-- Use `uv` exclusively for dependency management and virtual environment creation.
-- Pin all dependencies via `uv.lock`.
-- Separate dependency groups: `[project]`, `[tool.uv.dev-dependencies]`.
-
-### Docker
-- All images use Alpine-based base images (`python:3.12-alpine`).
-- Multi-stage builds: `builder` stage installs deps, `runtime` stage is minimal.
-- No secrets in images; all configuration via environment variables.
-
-### Tests
-- Unit tests for services and utils: no DB access (mocks).
-- Integration tests for repositories: against real test DB (Docker service).
-- End-to-end tests for critical API paths via httpx AsyncClient.
-- Coverage target: >= 80% for services and schemas.
-
-### Frontend Design System — Light Mode Color Conventions
-The UI uses a dual-theme design system driven by CSS variables. For components that cannot use semantic tokens (e.g. chart canvas overlays), use these explicit light mode values with `dark:` overrides:
-
-| Role | Light Mode Value | Usage |
-|------|-----------------|-------|
-| Selected / active button background | `#6063dd` | `bg-[#6063dd] text-white` |
-| Selected / active button border | `#6063dd` at 80% | `border-[#6063dd]/80` |
-| **Primary filled button (CTA)** | `#6063dd` bg + white text | `bg-[#6063dd] text-white hover:opacity-90` |
-| Inactive / unselected button text | `#717174` | `text-[#717174]` |
-| Toolbar / pill container background | `#e9e9e9` | `bg-[#e9e9e9]` |
-| Toolbar container border | black at 5% | `border-black/5` |
-| Primary accent (text, border, tint) | `#6063dd` | `text-[#6063dd]`, `bg-[#6063dd]/10`, `border-[#6063dd]/20` |
-
-These explicit values are **only** used when semantic CSS variables are unavailable. For all other UI prefer semantic tokens (`bg-primary`, `text-foreground`, etc.).
+Detailed rules (anti-patterns, standards, DB conventions) live in the relevant agent files — see §6 below.
 
 ---
 
-## 6. CI/CD Pipelines
+## 5. Non-Negotiable Rules
 
-### Workflow: `ci.yml`
-Triggers: push to `main`, pull requests targeting `main`
-
-| Job              | Tool                  | Description                                          |
-|------------------|-----------------------|------------------------------------------------------|
-| `lint`           | ruff check + format   | Enforce code style and import order                  |
-| `typecheck`      | mypy --strict         | Static type analysis                                 |
-| `test`           | pytest                | Unit + integration tests (PostgreSQL service container) |
-| `migration-check`| alembic upgrade head  | Verify migrations apply cleanly against a fresh DB   |
-
-### Workflow: `docker.yml`
-Triggers: push to `main`, tags matching `v*.*.*`
-
-| Job              | Description                                                |
-|------------------|------------------------------------------------------------|
-| `build-push`     | Multi-arch build (amd64/arm64), push to `ghcr.io`         |
-
-Image naming: `ghcr.io/<owner>/tradesensei-backend:<tag>`
-Tags: `latest` (main), `v1.2.3` (release tag), `sha-<commit>` (all builds)
+- **Language** — all code, comments, and commit messages in English.
+- **Types** — `mypy --strict` must pass with zero errors.
+- **Money** — use `Decimal` for all monetary values, never `float`.
+- **Time** — all timestamps are timezone-aware UTC.
+- **DB** — schema changes via Alembic only; never `create_all()` in production.
+- **Packages** — `uv add` only; never `pip install` or edit `pyproject.toml` manually.
+- **Frontend** — no `dark:` modifiers; use semantic tokens (`bg-background`, `text-foreground`, …).
+- **OpenSpec** — before implementing any OpenSpec task, run `/openspec-apply-change` first.
 
 ---
 
-## 7. Iteration Overview
+## 6. Iteration Status
 
-| Iteration | Focus                                               | Status      |
-|-----------|-----------------------------------------------------|-------------|
-| 1         | Data model, Pydantic schemas, base API + DB         | Complete    |
-| 2         | User model, Account model, JWT auth (multi-user)    | Complete    |
-| 3         | Performance metrics, statistical aggregation         | Complete    |
-| 4         | Broker import: IBKR + Schwab (file upload + parser) | Complete    |
-| 5         | Time-series endpoints, initial frontend              | Complete    |
-| 6         | Playbook, tagging, psychological notes              | Complete    |
-| 7         | Simplified execution model (origin/deleted/restore) | Complete    |
-| 8         | Live broker API connections (IBKR TWS, Schwab API)  | Stretch     |
-
----
-
-## 8. Environment Variables (Reference)
-
-```
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tradesensei
-SECRET_KEY=<random-256-bit-key>
-ENVIRONMENT=development|production
-LOG_LEVEL=INFO
-CORS_ORIGINS=http://localhost:3000
-```
-
-### Authentication
-
-| Variable | Default | Description |
-|---|---|---|
-| `GOOGLE_CLIENT_ID` | — | Google OAuth client ID (leave empty to disable Google login) |
-| `GOOGLE_CLIENT_SECRET` | — | Google OAuth client secret |
-| `OIDC_ENABLED` | `false` | Enable generic OIDC provider (Authentik, Keycloak, etc.) |
-| `OIDC_PROVIDER_NAME` | `OpenID Connect` | Label shown on the login button |
-| `OIDC_CONFIGURATION_URL` | — | OIDC discovery URL (`.well-known/openid-configuration`) |
-| `OIDC_CLIENT_ID` | — | OIDC client ID |
-| `OIDC_CLIENT_SECRET` | — | OIDC client secret |
-| `LOCAL_AUTH_DISABLED` | `false` | Set `true` to hide the username/password form. **Safety guard:** ignored if no external provider is configured (prevents lockout). |
+| Iteration | Focus | Status |
+|-----------|-------|--------|
+| 1 | Data model, Pydantic schemas, base API + DB | Complete |
+| 2 | User model, Account model, JWT auth (multi-user) | Complete |
+| 3 | Performance metrics, statistical aggregation | Complete |
+| 4 | Broker import: IBKR + Schwab (file upload + parser) | Complete |
+| 5 | Time-series endpoints, initial frontend | Complete |
+| 6 | Playbook, tagging, psychological notes | Complete |
+| 7 | Simplified execution model (origin/deleted/restore) | Complete |
+| 8 | Live broker API connections (IBKR TWS, Schwab API) | Stretch |
 
 ---
 
-## 9. Agent Strategy
+## 7. Reference Docs
+
+| Topic | Location |
+|-------|---------|
+| Environment variables | `docs/dev-guide.md` |
+| CI/CD pipelines | `.github/workflows/` |
+| DB migration workflow | `.opencode/skills/db-migration/SKILL.md` |
+| Local dev setup | `docs/dev-guide.md` |
+
+---
+
+## 8. Agent Strategy
 
 Custom subagents are defined in `.opencode/agents/`. The primary `build` agent
 invokes them via the Task tool. Subagents can also be called manually with `@<name>`.
@@ -257,7 +187,7 @@ For frontend-only changes: skip step 1 `backend-engineer` and step 3 `openapi-do
 
 > **Maintenance note — OCR managed block:** `ocr init` appends the `<!-- OCR:START/END -->` block wherever it runs. In **CLAUDE.md** the block must stay at the **top** (Claude Code loads it fully, but editors should not push it down as the file grows). In **AGENTS.md** the block is intentionally at the bottom because agents are always told to read this file explicitly — truncation is not a risk. If CLAUDE.md ever exceeds ~200 lines and context loading becomes a concern, keep the OCR block as the first section.
 
-*Last updated: Iteration 7 — Simplified execution model (origin/deleted/restore/split/fresh-start) complete*
+*Last updated: Iteration 7 — Consolidated context; engineering rules added; details delegated to agent/skill files*
 
 <!-- OCR:START -->
 ## Open Code Review Instructions
