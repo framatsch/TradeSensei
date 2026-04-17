@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [backend] Reformatted 7 backend files with ruff and restored `type: ignore[import-untyped]` for `authlib` import in `auth.py` (CI uses `mypy --strict`, which requires the annotation).
+
 ## [0.16.0] - 2026-04-18
 
 ### Fixed
