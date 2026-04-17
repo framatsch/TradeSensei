@@ -242,6 +242,8 @@ For frontend-only changes: skip step 1 `backend-engineer` and step 3 `openapi-do
 
 ---
 
+> **Maintenance note — OCR managed block:** `ocr init` appends the `<!-- OCR:START/END -->` block wherever it runs. In **CLAUDE.md** the block must stay at the **top** (Claude Code loads it fully, but editors should not push it down as the file grows). In **AGENTS.md** the block is intentionally at the bottom because agents are always told to read this file explicitly — truncation is not a risk. If CLAUDE.md ever exceeds ~200 lines and context loading becomes a concern, keep the OCR block as the first section.
+
 *Last updated: Iteration 7 — Simplified execution model (origin/deleted/restore/split/fresh-start) complete*
 
 <!-- OCR:START -->
