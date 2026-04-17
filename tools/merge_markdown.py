@@ -1,66 +1,83 @@
+#!/usr/bin/env python3
+"""
+mdmerge.py — Merge markdown files from directories and/or individual files into one.
+
+Usage:
+    python mdmerge.py -d ./openspec ./docs -o merged.md
+    python mdmerge.py -d ./openspec -f extra.md notes.md -o merged.md
+    python mdmerge.py -f file1.md file2.md -o merged.md
+
+Options:
+    -d  One or more directories to scan recursively for .md files
+    -f  One or more individual .md files to include (appended after directories)
+    -o  Output file (default: merged.md)
+"""
+
 import argparse
-import sys
 from pathlib import Path
 
-def merge_markdown_files(input_dirs, output_filename):
-    output_path = Path(output_filename)
 
-    # Sicherstellen, dass die Ausgabedatei nicht als Eingabedatei gelesen wird
-    abs_output_path = output_path.absolute()
+def collect_from_dirs(dirs: list[str]) -> list[Path]:
+    files = []
+    for d in dirs:
+        path = Path(d)
+        if not path.is_dir():
+            print(f"  ⚠️  Not a directory, skipping: {d}")
+            continue
+        found = sorted(path.rglob("*.md"))
+        print(f"  📂 {d}: {len(found)} .md files")
+        files.extend(found)
+    return files
 
-    try:
-        with open(output_path, 'w', encoding='utf-8') as outfile:
-            for directory in input_dirs:
-                dir_path = Path(directory)
 
-                if not dir_path.is_dir():
-                    print(f"Error: Path is not a directory: {directory}", file=sys.stderr)
-                    continue
+def collect_from_files(file_args: list[str]) -> list[Path]:
+    files = []
+    for f in file_args:
+        path = Path(f)
+        if not path.is_file():
+            print(f"  ⚠️  File not found, skipping: {f}")
+            continue
+        if path.suffix.lower() != ".md":
+            print(f"  ⚠️  Not a .md file, skipping: {f}")
+            continue
+        files.append(path)
+    return files
 
-                # Rekursive Suche nach .md Dateien
-                for file_path in dir_path.rglob('*.md'):
-                    if file_path.absolute() == abs_output_path:
-                        continue
 
-                    print("Concatenating file:", file_path)
-                    # Visueller Separator
-                    separator = (
-                        f"\n\n{'=' * 80}\n"
-                        f"SOURCE: {file_path.absolute()}\n"
-                        f"{'=' * 80}\n\n"
-                    )
-                    outfile.write(separator)
+def merge(files: list[Path], output: Path):
+    output.parent.mkdir(parents=True, exist_ok=True)
+    print()
+    with open(output, "w", encoding="utf-8") as out:
+        for i, f in enumerate(files, 1):
+            print(f"  [{i}/{len(files)}] {f}")
+            out.write(f"#########################\n# {f}\n#########################\n\n")
+            out.write(f.read_text(encoding="utf-8").strip())
+            out.write("\n\n---\n\n")
 
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as infile:
-                            outfile.write(infile.read())
-                    except Exception as e:
-                        outfile.write(f"\n[Error reading file {file_path}: {e}]\n")
+    size_kb = output.stat().st_size / 1024
+    print(f"\n  ✅ {output} ({len(files)} files, {size_kb:.1f} KB)")
 
-        print(f"Process completed. Combined file saved as: {abs_output_path}")
-
-    except PermissionError:
-        print(f"Error: Permission denied when writing to {output_filename}", file=sys.stderr)
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}", file=sys.stderr)
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Recursively merge Markdown files from multiple directories into one file."
-    )
-    parser.add_argument(
-        "-d", "--directories",
-        nargs="+",
-        help="One or more directories to search for Markdown files."
-    )
-    parser.add_argument(
-        "-o", "--output",
-        default="out.md",
-        help="The name of the output file (default: out.md)."
-    )
-
+    parser = argparse.ArgumentParser(description="Merge markdown files into one")
+    parser.add_argument("-d", nargs="+", metavar="DIR",  default=[],  help="Directories to scan recursively")
+    parser.add_argument("-f", nargs="+", metavar="FILE", default=[],  help="Individual .md files to include")
+    parser.add_argument("-o", metavar="OUTPUT", default="merged.md",  help="Output file (default: merged.md)")
     args = parser.parse_args()
-    merge_markdown_files(args.directories, args.output)
+
+    if not args.d and not args.f:
+        parser.print_help()
+        return
+
+    print()
+    files = collect_from_dirs(args.d) + collect_from_files(args.f)
+
+    if not files:
+        print("  ❌ No .md files found.")
+        return
+
+    merge(files, Path(args.o))
+
 
 if __name__ == "__main__":
     main()
