@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] `merge_trades` service now correctly re-aggregates the survivor after reassigning executions by expiring the session-cached collections via `session.refresh` before deleting non-survivor trades.
 - [backend] `delete_execution` for manual executions now cascade-deletes the parent trade when it has no remaining active executions.
 
+### Renamed
+- Application renamed from **Trade Journal** to **Trade Sensei** across the full stack: package names (`tradesensei-backend`), Docker/K8s resources, database name, API title, session cookie, frontend UI strings, CI/CD image tags, and all documentation.
+
 ## [0.10.0] - 2026-04-03
 
 ### Added
