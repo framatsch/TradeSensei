@@ -1,6 +1,6 @@
 {
   "name": "tradesensei",
-  "version": "0.15.0",
+  "version": "0.16.0.dev0",
   "description": "A self-hosted platform for statistical analysis and visualization of your trading activity.",
   "main": "index.js",
   "directories": {
