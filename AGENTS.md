@@ -102,6 +102,45 @@ Detailed rules (anti-patterns, standards, DB conventions) live in the relevant a
 - **Frontend** — no `dark:` modifiers; use semantic tokens (`bg-background`, `text-foreground`, …).
 - **OpenSpec** — before implementing any OpenSpec task, run `/openspec-apply-change` first.
 
+### Audit Logging Policy
+
+All backend changes must follow the audit logging policy. Audit logs are emitted by
+middleware for standard CRUD endpoints, while complex operations require manual
+audit events with safe metadata only.
+
+Coverage
+- POST/PUT/PATCH/DELETE endpoints are automatically logged by middleware.
+- GET requests are logged only when `LOG_LEVEL=DEBUG`.
+- Manual audit events are required for complex operations (bulk actions, imports,
+  merges, restores) when you need to log additional metadata such as counts.
+
+Sensitive data exclusion
+- Never log: P&L, commissions, prices, quantities, strategy notes, playbook names,
+  tag names, passwords, tokens, API secrets.
+- Log only safe identifiers (user_id, resource_id) and hashed email (`email_hash`).
+
+Action naming
+- Use `<resource>.<verb>` format (e.g., `trade.created`, `account.deleted`).
+- Standard verbs: created, updated, deleted, merged, split, restored, completed,
+  failed.
+
+Error logging
+- Wrap critical operations in try/except where needed and log with `logger.error()`.
+- Log validation failures with field names and error messages (no sensitive values).
+
+Examples
+- Middleware auto-logging: `backend/app/core/audit_middleware.py`
+- Manual audit event pattern: `backend/app/services/audit_service.py`
+- Error logging pattern: `backend/app/core/audit_middleware.py`
+
+Agent instructions
+- backend-engineer: verify audit logging coverage for new endpoints; add manual
+  audit events for complex operations.
+- frontend-engineer: confirm backend endpoints have audit logging (middleware or
+  manual) and document expected actions in PRs.
+- code-reviewer: check audit coverage, sensitive data exclusion, error logging,
+  and action naming conventions.
+
 ---
 
 ## 6. Iteration Status

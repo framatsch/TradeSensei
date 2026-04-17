@@ -84,9 +84,7 @@ def run_migrations() -> None:
                 new_rev,
             )
         else:
-            logger.info(
-                "Upgraded database from %s to %s (head)", old_rev, new_rev
-            )
+            logger.info("Upgraded database from %s to %s (head)", old_rev, new_rev)
 
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 

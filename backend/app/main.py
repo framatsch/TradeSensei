@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.router import router as v1_router
+from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
 from app.core.logging import configure_uvicorn_logging
 from app.core.migrations import run_migrations_on_startup
@@ -77,6 +78,9 @@ def create_app() -> FastAPI:
         max_age=3600,  # 1 hour is plenty for OAuth flows
         same_site="lax",
     )
+
+    # ── Audit logging ───────────────────────────────────────────────────────
+    application.add_middleware(AuditMiddleware)
 
     # ── Health endpoint ───────────────────────────────────────────────────────
     @application.get("/health", tags=["health"], summary="Health check")

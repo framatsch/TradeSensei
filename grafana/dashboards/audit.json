@@ -1,0 +1,131 @@
+{
+  "uid": "audit-logging",
+  "title": "Audit Logging",
+  "tags": ["audit", "security"],
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"],
+    "time_options": ["15m", "1h", "6h", "24h", "7d", "30d"]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "user_id",
+        "type": "query",
+        "datasource": "Loki",
+        "query": "label_values({logger=\"audit\"}, user_id)",
+        "includeAll": true
+      },
+      {
+        "name": "action",
+        "type": "query",
+        "datasource": "Loki",
+        "query": "label_values({logger=\"audit\"}, action)",
+        "includeAll": true
+      },
+      {
+        "name": "ip_address",
+        "type": "query",
+        "datasource": "Loki",
+        "query": "label_values({logger=\"audit\"}, ip_address)",
+        "includeAll": true
+      },
+      {
+        "name": "email_hash",
+        "type": "query",
+        "datasource": "Loki",
+        "query": "label_values({logger=\"audit\"}, email_hash)",
+        "includeAll": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Logins by User",
+      "targets": [
+        {
+          "expr": "sum by (user_id) (count_over_time({logger=\"audit\", action=\"auth.login\"}[$__interval]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Failed Login Attempts",
+      "targets": [
+        {
+          "expr": "sum by (ip_address) (count_over_time({logger=\"audit\", action=\"auth.failed\"}[$__interval]))"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Actions by Type",
+      "targets": [
+        {
+          "expr": "sum by (action) (count_over_time({logger=\"audit\"}[$__interval]))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Actions by IP Address",
+      "targets": [
+        {
+          "expr": "sum by (ip_address) (count_over_time({logger=\"audit\"}[$__interval]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Resource Operations Timeline",
+      "targets": [
+        {
+          "expr": "sum by (resource_type, action) (count_over_time({logger=\"audit\", action=~\".*\\.(created|updated|deleted)\"}[$__interval]))"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Import Activity",
+      "targets": [
+        {
+          "expr": "sum by (action) (count_over_time({logger=\"audit\", action=~\"import\\..*\"}[$__interval]))"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Raw Log Viewer",
+      "targets": [
+        {
+          "expr": "{logger=\"audit\"}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate",
+      "targets": [
+        {
+          "expr": "sum by (action) (count_over_time({logger=\"audit\", action=~\"error\\..*\"}[$__interval]))"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Top Errors",
+      "targets": [
+        {
+          "expr": "topk(10, sum by (action) (count_over_time({logger=\"audit\", action=~\"error\\..*\"}[1h])))"
+        }
+      ]
+    }
+  ]
+}

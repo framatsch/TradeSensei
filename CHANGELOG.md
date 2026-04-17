@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Structured audit logging middleware and audit event service with JSON output and sensitive-field filtering.
+- [infra] Grafana audit dashboard definition and documentation for audit log fields and dashboard usage.
+
 ## [0.21.0] - 2026-04-18
 
 ### Added
