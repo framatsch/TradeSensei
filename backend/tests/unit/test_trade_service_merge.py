@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.core.exceptions import TradeNotFoundError
-from app.models.logical_execution import ExecutionStatus, LogicalExecution
+from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL, LogicalExecution
 from app.models.trade import AssetClass, Direction, Trade
 from app.services.trade_service import TradeService
 
@@ -60,7 +60,7 @@ def _make_execution(id: uuid.UUID, trade_id: uuid.UUID) -> LogicalExecution:
         price=Decimal("100"),
         commission=Decimal("0"),
         executed_at=datetime.now(UTC),
-        status=ExecutionStatus.MANUAL,
+        origin=EXECUTION_ORIGIN_MANUAL,
         trade_id=trade_id,
         multiplier=1,
     )
@@ -135,7 +135,9 @@ async def test_merge_trades_validation_failures(service):
         opened_at=datetime(2024, 1, 3, tzinfo=UTC),
     )
 
-    service._repo.get_by_id = AsyncMock(side_effect=[owned_trade, unowned_trade])
+    # The real repository returns None when the trade doesn't belong to user_id
+    # (ownership enforced at the SQL layer with WHERE user_id = :uid).
+    service._repo.get_by_id = AsyncMock(side_effect=[owned_trade, None])
     with pytest.raises(TradeNotFoundError):
         await service.merge_trades([owned_trade.id, unowned_trade.id], user_id)
 

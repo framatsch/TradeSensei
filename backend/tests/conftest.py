@@ -10,6 +10,7 @@ is imported, so unit tests can run without a real database.
 """
 
 import os
+import uuid as _uuid
 
 # Seed required env vars before any app module is imported.
 # CI overrides DATABASE_URL via the workflow env block.
@@ -21,6 +22,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32ch
 os.environ.setdefault("UPLOAD_DIR", "./uploads")
 
 from collections.abc import AsyncGenerator  # noqa: E402
+from typing import Any  # noqa: E402
 from unittest.mock import AsyncMock, MagicMock  # noqa: E402
 
 import pytest  # noqa: E402
@@ -180,3 +182,239 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     ) as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Ownership test helpers
+# ---------------------------------------------------------------------------
+
+_REGISTER_URL = "/api/v1/auth/register"
+_TOKEN_URL = "/api/v1/auth/token"
+
+
+async def _register_and_login(
+    client: AsyncClient, *, username: str, email: str, password: str
+) -> dict[str, Any]:
+    """Register a user and return a dict with ``headers`` and ``user_id``.
+
+    Args:
+        client: The test HTTP client.
+        username: Unique username.
+        email: Unique email.
+        password: Plain-text password.
+
+    Returns:
+        Dict with ``headers`` (Bearer auth) and ``user_id`` (str UUID).
+    """
+    reg = await client.post(
+        _REGISTER_URL,
+        json={"username": username, "email": email, "password": password},
+    )
+    assert reg.status_code == 201, reg.text
+    user_id: str = reg.json()["data"]["id"]
+
+    tok = await client.post(
+        _TOKEN_URL,
+        data={"username": username, "password": password},
+    )
+    assert tok.status_code == 200, tok.text
+    access_token: str = tok.json()["access_token"]
+    return {"headers": {"Authorization": f"Bearer {access_token}"}, "user_id": user_id}
+
+
+@pytest_asyncio.fixture()
+async def primary_user(client: AsyncClient) -> dict[str, Any]:
+    """Register + login a primary test user; return headers + user_id.
+
+    Used by ownership tests as the resource owner.
+
+    Returns:
+        Dict with ``headers`` (Bearer auth header dict) and ``user_id`` (str).
+    """
+    uid = str(_uuid.uuid4())[:8]
+    return await _register_and_login(
+        client,
+        username=f"owner_{uid}",
+        email=f"owner_{uid}@example.com",
+        password="OwnerP@ss99!",
+    )
+
+
+@pytest_asyncio.fixture()
+async def other_user(client: AsyncClient) -> dict[str, Any]:
+    """Register + login a second test user; return headers + user_id.
+
+    Used by ownership tests as the attacker / unauthorised requester.
+
+    Returns:
+        Dict with ``headers`` (Bearer auth header dict) and ``user_id`` (str).
+    """
+    uid = str(_uuid.uuid4())[:8]
+    return await _register_and_login(
+        client,
+        username=f"other_{uid}",
+        email=f"other_{uid}@example.com",
+        password="OtherP@ss99!",
+    )
+
+
+@pytest_asyncio.fixture()
+async def other_users_account(
+    client: AsyncClient, other_user: dict[str, Any]
+) -> dict[str, Any]:
+    """Create an account owned by ``other_user``; return its data dict.
+
+    Args:
+        client: The test HTTP client.
+        other_user: The other_user fixture dict.
+
+    Returns:
+        The account ``data`` dict from the 201 response.
+    """
+    resp = await client.post(
+        "/api/v1/accounts",
+        json={"name": "Other Account", "type": "manual", "currency": "USD"},
+        headers=other_user["headers"],
+    )
+    assert resp.status_code == 201, resp.text
+    return dict(resp.json()["data"])
+
+
+@pytest_asyncio.fixture()
+async def other_users_trade(
+    client: AsyncClient,
+    other_user: dict[str, Any],
+    other_users_account: dict[str, Any],
+) -> dict[str, Any]:
+    """Create a trade owned by ``other_user``; return its data dict.
+
+    Args:
+        client: The test HTTP client.
+        other_user: The other_user fixture dict.
+        other_users_account: Account belonging to other_user.
+
+    Returns:
+        The trade ``data`` dict from the 201 response.
+    """
+    resp = await client.post(
+        "/api/v1/trades",
+        json={
+            "account_id": other_users_account["id"],
+            "symbol": "OTH",
+            "direction": "LONG",
+            "asset_class": "EQUITY",
+            "quantity": "1",
+            "entry_price": "10",
+            "opened_at": "2024-01-15T10:00:00Z",
+            "currency": "USD",
+        },
+        headers=other_user["headers"],
+    )
+    assert resp.status_code == 201, resp.text
+    return dict(resp.json()["data"])
+
+
+@pytest_asyncio.fixture()
+async def other_users_playbook(
+    client: AsyncClient, other_user: dict[str, Any]
+) -> dict[str, Any]:
+    """Create a playbook owned by ``other_user``; return its data dict.
+
+    Args:
+        client: The test HTTP client.
+        other_user: The other_user fixture dict.
+
+    Returns:
+        The playbook ``data`` dict from the 201 response.
+    """
+    resp = await client.post(
+        "/api/v1/playbooks",
+        json={"name": "Other Playbook", "description": "attacker playbook"},
+        headers=other_user["headers"],
+    )
+    assert resp.status_code == 201, resp.text
+    return dict(resp.json()["data"])
+
+
+@pytest_asyncio.fixture()
+async def other_users_tag(
+    client: AsyncClient, other_user: dict[str, Any]
+) -> dict[str, Any]:
+    """Create a tag owned by ``other_user``; return its data dict.
+
+    Args:
+        client: The test HTTP client.
+        other_user: The other_user fixture dict.
+
+    Returns:
+        The tag ``data`` dict from the 201 response.
+    """
+    resp = await client.post(
+        "/api/v1/tags",
+        json={"name": "other-tag", "color": "#FF0000"},
+        headers=other_user["headers"],
+    )
+    assert resp.status_code == 201, resp.text
+    return dict(resp.json()["data"])
+
+
+@pytest_asyncio.fixture()
+async def other_users_note(
+    client: AsyncClient,
+    other_user: dict[str, Any],
+    other_users_trade: dict[str, Any],
+) -> dict[str, Any]:
+    """Create a trade note owned by ``other_user``; return its data dict.
+
+    Args:
+        client: The test HTTP client.
+        other_user: The other_user fixture dict.
+        other_users_trade: Trade belonging to other_user.
+
+    Returns:
+        The note ``data`` dict from the 201 response.
+    """
+    trade_id = other_users_trade["id"]
+    resp = await client.post(
+        f"/api/v1/trades/{trade_id}/notes",
+        json={"content": "attacker note"},
+        headers=other_user["headers"],
+    )
+    assert resp.status_code == 201, resp.text
+    return dict(resp.json()["data"])
+
+
+@pytest_asyncio.fixture()
+async def other_users_execution(
+    client: AsyncClient,
+    other_user: dict[str, Any],
+    other_users_trade: dict[str, Any],
+) -> dict[str, Any]:
+    """Create a manual execution owned by ``other_user``; return its data dict.
+
+    Adds a manual execution leg to other_user's trade so that ownership
+    tests for the execution endpoints can assert cross-user access is
+    rejected.
+
+    Args:
+        client: The test HTTP client.
+        other_user: The other_user fixture dict.
+        other_users_trade: Trade belonging to other_user.
+
+    Returns:
+        The execution ``data`` dict from the 201 response.
+    """
+    trade_id = other_users_trade["id"]
+    resp = await client.post(
+        f"/api/v1/trades/{trade_id}/executions",
+        json={
+            "quantity": "1",
+            "price": "10",
+            "executed_at": "2024-01-16T10:00:00Z",
+            "direction": "LONG",
+            "commission": "0",
+        },
+        headers=other_user["headers"],
+    )
+    assert resp.status_code == 201, resp.text
+    return dict(resp.json()["data"])

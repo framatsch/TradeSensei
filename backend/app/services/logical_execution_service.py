@@ -2,13 +2,10 @@
 
 This service implements the raw-to-logical translation layer:
 
-1. For every new :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`
-   that was just inserted, it creates a corresponding
-   :class:`~app.models.logical_execution.LogicalExecution` with
-   ``status = ExecutionStatus.IMPORTED`` (1:1 mapping).
-2. It links the two records via a
-   :class:`~app.models.transaction_execution_mapping.TransactionExecutionMapping`
-   row.
+For every new :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`
+that was just inserted, it creates a corresponding
+:class:`~app.models.logical_execution.LogicalExecution` with
+``origin = 'imported'`` (1:1 mapping).
 
 No business logic beyond the 1:1 translation lives here.  Merging, splitting,
 and manual creation of logical executions will be separate operations.
@@ -20,12 +17,11 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.broker_raw_transaction import BrokerRawTransaction
-from app.models.logical_execution import ExecutionStatus, LogicalExecution
-from app.models.transaction_execution_mapping import TransactionExecutionMapping
-from app.repositories.execution import ExecutionRepository
-from app.repositories.transaction_execution_mapping_repository import (
-    TransactionExecutionMappingRepository,
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_IMPORTED,
+    LogicalExecution,
 )
+from app.repositories.execution import ExecutionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +42,6 @@ class LogicalExecutionService:
         """
         self._session = session
         self._execution_repo = ExecutionRepository(session)
-        self._mapping_repo = TransactionExecutionMappingRepository(session)
 
     async def create_from_raw(
         self,
@@ -55,13 +50,15 @@ class LogicalExecutionService:
         """Create a logical execution from a single raw transaction.
 
         Produces a 1:1 :class:`~app.models.logical_execution.LogicalExecution`
-        with ``status = imported`` and a corresponding
-        :class:`~app.models.transaction_execution_mapping.TransactionExecutionMapping`
-        linking the two records.
+        with ``origin = 'imported'``.
 
-        If a logical execution already exists for this raw transaction (i.e.
-        re-import scenario where the raw row was already there but no logical
-        execution was created), the method skips creation and returns ``None``.
+        Import deduplication checks:
+        1. If ``raw.suppressed`` is True, skip unconditionally.
+
+        Deduplication against already-imported BRTs is handled upstream by
+        :meth:`~app.services.import_service.ImportService`: only newly inserted
+        BRT rows (returned by the bulk upsert) are passed to this method, so
+        no extra mapping lookup is needed.
 
         The session is **not** flushed or committed here — the caller controls
         the transaction boundary.
@@ -72,14 +69,14 @@ class LogicalExecutionService:
                 row.
 
         Returns:
-            The newly created :class:`~app.models.logical_execution.LogicalExecution`,
-            or ``None`` if a logical execution already exists for this raw
-            transaction.
+            The newly created
+            :class:`~app.models.logical_execution.LogicalExecution`,
+            or ``None`` if skipped (suppressed BRT).
         """
-        # Check if a mapping already exists for this raw transaction.
-        if await self._mapping_repo.exists_for_raw_transaction(raw.id):
+        # Check 1: suppressed BRT — skip unconditionally
+        if raw.suppressed:
             logger.debug(
-                "Logical execution already exists for raw transaction %s — skipping.",
+                "Skipping suppressed raw transaction %s.",
                 raw.id,
             )
             return None
@@ -97,21 +94,13 @@ class LogicalExecutionService:
             executed_at=raw.executed_at,
             pnl=raw.pnl,
             currency=raw.currency,
-            status=ExecutionStatus.IMPORTED,
+            origin=EXECUTION_ORIGIN_IMPORTED,
             multiplier=raw.multiplier,
         )
         self._session.add(logical)
-        await self._session.flush()  # get the server-generated UUID
-
-        mapping = TransactionExecutionMapping(
-            raw_transaction_id=raw.id,
-            logical_execution_id=logical.id,
-        )
-        self._session.add(mapping)
 
         logger.debug(
-            "Created logical execution %s from raw transaction %s.",
-            logical.id,
+            "Created logical execution for raw transaction %s.",
             raw.id,
         )
         return logical
@@ -119,12 +108,11 @@ class LogicalExecutionService:
     async def bulk_create_from_raw(
         self,
         raw_transactions: list[BrokerRawTransaction],
-    ) -> list[LogicalExecution]:
+    ) -> tuple[list[LogicalExecution], int]:
         """Create logical executions for a batch of raw transactions.
 
         Calls :meth:`create_from_raw` for each record in ``raw_transactions``.
-        Records for which a logical execution already exists are silently
-        skipped.
+        Records that are suppressed are silently skipped.
 
         The session is **not** committed here — the caller controls the
         transaction boundary.
@@ -135,51 +123,61 @@ class LogicalExecutionService:
                 rows.
 
         Returns:
-            List of newly created
-            :class:`~app.models.logical_execution.LogicalExecution` instances
-            (excludes skipped duplicates).
+            A tuple of:
+            - List of newly created
+              :class:`~app.models.logical_execution.LogicalExecution` instances.
+            - Count of suppressed BRTs that were skipped.
         """
         created: list[LogicalExecution] = []
+        suppressed_skipped = 0
         for raw in raw_transactions:
+            if raw.suppressed:
+                suppressed_skipped += 1
+                continue
             logical = await self.create_from_raw(raw)
             if logical is not None:
                 created.append(logical)
 
         logger.info(
             "bulk_create_from_raw: created %d logical executions "
-            "from %d raw transactions (%d skipped as duplicates).",
+            "from %d raw transactions (%d suppressed skipped).",
             len(created),
             len(raw_transactions),
-            len(raw_transactions) - len(created),
+            suppressed_skipped,
         )
-        return created
+        return created, suppressed_skipped
 
     async def get_logical_for_raw(self, raw_id: str) -> list[LogicalExecution]:
         """Return all logical executions linked to a raw transaction.
+
+        Note: This method is a compatibility shim — with the simplified
+        execution model, BRT-to-execution linkage is tracked by the BRT's
+        ``suppressed`` flag rather than via a mapping table.  This method
+        returns an empty list for now.
 
         Args:
             raw_id: Primary key of the
                 :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`.
 
         Returns:
-            List of linked :class:`~app.models.logical_execution.LogicalExecution`
-            instances (usually one for ``imported`` status).
+            Empty list (mapping table no longer populated).
         """
-        execution_ids = await self._mapping_repo.list_execution_ids_for_raw(raw_id)
-        return await self._execution_repo.list_by_ids(execution_ids)
+        return []
 
     async def list_by_user(
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
-        status: ExecutionStatus | None = None,
+        origin: str | None = None,
+        include_deleted: bool = False,
     ) -> list[LogicalExecution]:
         """Return all logical executions for a user.
 
         Args:
             user_id: UUID of the owning user.
             account_id: Optional account filter.
-            status: Optional status filter.
+            origin: Optional origin filter (imported|manual|merged|split).
+            include_deleted: When False (default), excludes soft-deleted executions.
 
         Returns:
             List of :class:`~app.models.logical_execution.LogicalExecution`
@@ -188,5 +186,6 @@ class LogicalExecutionService:
         return await self._execution_repo.list_by_user(
             user_id=user_id,
             account_id=account_id,
-            status=status,
+            origin=origin,
+            include_deleted=include_deleted,
         )

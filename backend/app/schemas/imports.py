@@ -5,6 +5,36 @@ import uuid
 from pydantic import BaseModel, Field
 
 
+class FreshStartResult(BaseModel):
+    """Result of a fresh-start import operation.
+
+    Attributes:
+        account_id: The account that was reset.
+        executions_deleted: Number of LogicalExecution rows deleted.
+        trades_deleted: Number of Trade rows deleted.
+        import_result: The result of the import that followed the reset.
+    """
+
+    account_id: uuid.UUID = Field(
+        ...,
+        description="UUID of the account that was reset.",
+    )
+    executions_deleted: int = Field(
+        ...,
+        ge=0,
+        description="Number of LogicalExecution rows deleted during reset.",
+    )
+    trades_deleted: int = Field(
+        ...,
+        ge=0,
+        description="Number of Trade rows deleted during reset.",
+    )
+    import_result: "ImportResult" = Field(
+        ...,
+        description="Import result from the file processed after the reset.",
+    )
+
+
 class ImportResult(BaseModel):
     """Result of a broker file import operation.
 
@@ -16,6 +46,11 @@ class ImportResult(BaseModel):
         trades_created: Number of trades actually persisted to the database.
         trades_skipped: Number of rows that were skipped due to parse
             errors or other non-fatal issues.
+        raw_suppressed_skipped: Number of BrokerRawTransaction records
+            skipped because their ``suppressed`` flag is ``True``.
+        raw_deleted_skipped: Number of BrokerRawTransaction records skipped
+            because their linked execution has ``deleted=True`` (user intent
+            preserved — execution was previously deleted by the user).
         warnings: Human-readable descriptions of each skipped row.
     """
 
@@ -75,6 +110,26 @@ class ImportResult(BaseModel):
             "non-fatal parse errors."
         ),
         examples=[0],
+    )
+    raw_suppressed_skipped: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Number of raw broker transactions skipped because their "
+            "``suppressed`` flag is ``True``. These records are permanently "
+            "excluded from all imports."
+        ),
+        examples=[0, 3],
+    )
+    raw_deleted_skipped: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Number of raw broker transactions skipped because their linked "
+            "execution was previously deleted by the user (``deleted=True``). "
+            "Re-import will not recreate these executions."
+        ),
+        examples=[0, 1],
     )
     warnings: list[str] = Field(
         default_factory=list,

@@ -104,10 +104,6 @@ class Trade(Base):
             :class:`~app.models.trade_note.TradeNote` objects.
         is_manually_edited: When ``True``, this trade was manually corrected
             and will not be overwritten on subsequent broker re-imports.
-        has_conflict: When ``True``, the aggregated position does not
-            reconcile with the broker's ``<OpenPosition>`` block.  The trade
-            is flagged for manual review instead of being force-closed with
-            zero P&L.
         created_at: Row-creation timestamp set by the database.
         updated_at: Row-update timestamp maintained by the database.
     """
@@ -212,16 +208,6 @@ class Trade(Base):
             "skipped on subsequent broker re-imports."
         ),
     )
-    has_conflict: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        server_default="false",
-        comment=(
-            "When True, the aggregated position does not reconcile with the "
-            "broker's <OpenPosition> block.  The trade is flagged for manual "
-            "review instead of being force-closed."
-        ),
-    )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
         nullable=True,
@@ -312,6 +298,7 @@ class Trade(Base):
         "LogicalExecution",
         back_populates="trade",
         lazy="select",
+        passive_deletes=True,
     )
 
     def __repr__(self) -> str:

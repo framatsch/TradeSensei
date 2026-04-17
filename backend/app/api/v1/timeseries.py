@@ -15,8 +15,7 @@ from app.core.constants import (
     ROLLING_WINRATE_MAX_WINDOW,
     ROLLING_WINRATE_MIN_WINDOW,
 )
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.timeseries import (
@@ -34,7 +33,7 @@ router = APIRouter(prefix="/timeseries", tags=["timeseries"])
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> TimeSeriesService:
     """FastAPI dependency that constructs a :class:`TimeSeriesService`.
 

@@ -11,7 +11,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -70,6 +70,8 @@ class BrokerRawTransaction(Base):
         currency: ISO-4217 currency code (e.g. ``"USD"``).
         multiplier: Contract multiplier (default 1 for equities).
         raw_data: Full dict of raw XML/CSV attributes as a JSONB blob.
+        suppressed: When ``True``, this raw transaction is permanently excluded
+            from all future imports (including fresh-start imports).
         logical_executions: Many-to-many relationship to
             :class:`~app.models.logical_execution.LogicalExecution` via the
             ``transaction_execution_mappings`` junction table.
@@ -163,6 +165,15 @@ class BrokerRawTransaction(Base):
         server_default="{}",
         comment="Full raw attribute dictionary from the broker source file.",
     )
+    suppressed: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        server_default="false",
+        comment=(
+            "When True, this raw transaction is permanently excluded from "
+            "all future imports (including fresh-start imports)."
+        ),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -176,6 +187,7 @@ class BrokerRawTransaction(Base):
         Index("ix_brt_executed_at", "executed_at"),
         Index("ix_brt_conid", "conid"),
         Index("ix_brt_broker_type", "broker_type"),
+        Index("ix_brt_suppressed", "suppressed"),
     )
 
     # Relationships

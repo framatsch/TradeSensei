@@ -9,24 +9,25 @@ endpoint backed by :class:`~app.services.flex_import_service.FlexImportService`.
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, status
 from fastapi import Form as FastAPIForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.constants import IMPORT_MAX_FILE_SIZE_MB, IMPORT_SUPPORTED_FORMATS
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import (
     AccountNotFoundError,
+    BrokerRawTransactionNotFoundError,
     FlexAPIError,
     ImportParseError,
     RateLimitError,
     UnsupportedBrokerError,
 )
 from app.models.user import User
+from app.schemas.broker_raw_transaction import BrokerRawTransactionRead
 from app.schemas.common import ResponseEnvelope
-from app.schemas.imports import FlexImportRequest, ImportResult
+from app.schemas.imports import FlexImportRequest, FreshStartResult, ImportResult
 from app.services.flex_import_service import FlexImportService
 from app.services.import_service import ImportService
 from app.utils.parsers.factory import BrokerType
@@ -38,7 +39,7 @@ _BYTES_PER_MB: int = 1024 * 1024
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> ImportService:
     """FastAPI dependency that constructs an :class:`ImportService`.
 
@@ -52,7 +53,7 @@ def _get_service(
 
 
 def _get_flex_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> FlexImportService:
     """FastAPI dependency that constructs a :class:`FlexImportService`.
 
@@ -207,6 +208,197 @@ async def upload_import(
         ) from exc
 
     return ResponseEnvelope[ImportResult](data=result)
+
+
+@router.post(
+    "/{account_id}/fresh-start",
+    response_model=ResponseEnvelope[FreshStartResult],
+    status_code=status.HTTP_200_OK,
+    summary="Fresh-start: reset account and re-import from scratch",
+    description=(
+        "Destructive operation — deletes ALL ``LogicalExecution`` and ``Trade`` rows "
+        "for the specified account, then processes the uploaded file. "
+        "BrokerRawTransactions are never deleted. "
+        "Suppressed BRTs remain suppressed and are skipped during re-import. "
+        "The entire operation runs in a single DB transaction — any error rolls "
+        "back all changes."
+    ),
+    responses={
+        200: {"description": "Fresh-start completed. Check import_result for details."},
+        400: {"description": "File format not supported or parse error."},
+        401: {"description": "Authentication required."},
+        404: {"description": "Account not found or not owned by the current user."},
+        413: {"description": "File exceeds the maximum allowed size."},
+    },
+)
+async def fresh_start_import(
+    account_id: uuid.UUID,
+    service: Annotated[ImportService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    broker: Annotated[
+        BrokerType,
+        FastAPIForm(description="Broker type: 'ibkr' or 'schwab'."),
+    ],
+    file: UploadFile,
+    acknowledged: Annotated[
+        bool,
+        FastAPIForm(
+            description=(
+                "Must be true to confirm that all trades and executions "
+                "for this account will be deleted before re-importing."
+            )
+        ),
+    ] = False,
+) -> ResponseEnvelope[FreshStartResult]:
+    """Reset an account and re-import all trades from a broker file.
+
+    Args:
+        account_id: UUID of the account to reset.
+        service: Injected import service.
+        current_user: The authenticated user.
+        broker: The broker type that determines which parser to use.
+        file: The uploaded broker export file.
+        acknowledged: Must be True to confirm the destructive action.
+
+    Returns:
+        A fresh-start result with delete counts and the import result.
+
+    Raises:
+        HTTPException: 400 if ``acknowledged`` is False or the file cannot be parsed.
+        HTTPException: 404 if the account is not found.
+        HTTPException: 413 if the file is too large.
+    """
+    if not acknowledged:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Please set acknowledged=true to confirm that all trades and "
+                "executions for this account will be deleted before re-importing."
+            ),
+        )
+
+    # --- Validate file extension ---
+    filename = file.filename or "upload"
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if extension not in IMPORT_SUPPORTED_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Unsupported file format '.{extension}'. "
+                f"Accepted formats: {', '.join(IMPORT_SUPPORTED_FORMATS)}."
+            ),
+        )
+
+    effective_broker = broker
+    if extension == "xml" and broker == BrokerType.IBKR:
+        effective_broker = BrokerType.IBKR_FLEX
+
+    # --- Read file with size guard ---
+    max_bytes = IMPORT_MAX_FILE_SIZE_MB * _BYTES_PER_MB
+    content = await file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                f"File exceeds the maximum allowed size of "
+                f"{IMPORT_MAX_FILE_SIZE_MB} MB."
+            ),
+        )
+
+    # --- Apply statement_timeout guard (task 5.4) ---
+    # Configurable via FRESH_START_TIMEOUT env var (default: 60 s).
+    # SET LOCAL is transaction-scoped and resets automatically on commit/rollback.
+    timeout_seconds = settings.fresh_start_timeout
+    await service.set_statement_timeout(timeout_seconds)
+
+    try:
+        result = await service.fresh_start_import(
+            content=content,
+            filename=filename,
+            broker=effective_broker,
+            account_id=account_id,
+            user_id=current_user.id,
+        )
+    except AccountNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except (ImportParseError, UnsupportedBrokerError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return ResponseEnvelope[FreshStartResult](data=result)
+
+
+@router.patch(
+    "/broker-raw-transactions/{raw_id}/suppress",
+    response_model=ResponseEnvelope[BrokerRawTransactionRead],
+    status_code=status.HTTP_200_OK,
+    summary="Suppress or un-suppress a broker raw transaction",
+    description=(
+        "Toggle the ``suppressed`` flag on a BrokerRawTransaction. "
+        "When ``suppressed=true``, the raw transaction is permanently excluded "
+        "from all future imports (including fresh-start). "
+        "To un-suppress, set ``suppressed=false``."
+    ),
+    responses={
+        200: {"description": "Suppressed flag updated."},
+        401: {"description": "Authentication required."},
+        404: {"description": "BrokerRawTransaction not found."},
+    },
+)
+async def suppress_raw_transaction(
+    raw_id: str,
+    service: Annotated[ImportService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    suppressed: Annotated[
+        bool,
+        Query(
+            description=(
+                "New value for the suppressed flag. "
+                "True to suppress, False to restore."
+            )
+        ),
+    ] = True,
+) -> ResponseEnvelope[BrokerRawTransactionRead]:
+    """Toggle the suppressed flag on a broker raw transaction.
+
+    Args:
+        raw_id: The composite ID of the raw transaction.
+        service: Injected import service.
+        current_user: The authenticated user.
+        suppressed: When True, suppress the BRT. When False, un-suppress it.
+
+    Returns:
+        The updated BrokerRawTransaction.
+
+    Raises:
+        HTTPException: 404 if the raw transaction is not found.
+    """
+    try:
+        await service.suppress_raw_transaction(
+            raw_id=raw_id,
+            user_id=current_user.id,
+            suppressed=suppressed,
+        )
+    except BrokerRawTransactionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    # Reload and return updated BRT
+    raw = await service._raw_repo.get_by_id(raw_id)
+    if raw is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"BrokerRawTransaction {raw_id} not found.",
+        )
+
+    return ResponseEnvelope(data=BrokerRawTransactionRead.model_validate(raw))
 
 
 @router.post(

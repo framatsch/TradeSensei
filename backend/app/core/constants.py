@@ -179,3 +179,12 @@ FX_BUNDESBANK_FALLBACK_DAYS: int = 3
 
 FX_BUNDESBANK_TIMEOUT_SECONDS: float = 5.0
 """HTTP timeout in seconds for Bundesbank API calls."""
+
+# ─── Fresh-Start Import ───────────────────────────────────────────────────────
+
+FRESH_START_STATEMENT_TIMEOUT_SECONDS: int = 60
+"""Maximum wall-clock time (seconds) allowed for the fresh-start DB transaction.
+
+Passed to PostgreSQL as ``SET LOCAL statement_timeout`` so that an
+unexpectedly large account cannot hang the server indefinitely.  Configurable
+via the ``FRESH_START_TIMEOUT`` environment variable (integer seconds)."""

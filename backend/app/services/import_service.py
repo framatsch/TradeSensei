@@ -11,10 +11,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import cast
 
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AccountNotFoundError
-from app.models.logical_execution import ExecutionStatus
+from app.models.logical_execution import EXECUTION_ORIGIN_IMPORTED
 from app.models.trade import Direction as TradeDirection
 from app.repositories.account_repository import AccountRepository
 from app.repositories.broker_raw_transaction_repository import (
@@ -26,7 +27,7 @@ from app.repositories.execution import ExecutionRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.cash_transaction import CashTransactionCreateRequest
-from app.schemas.imports import ImportResult
+from app.schemas.imports import FreshStartResult, ImportResult
 from app.services.cash_transaction_service import CashTransactionService
 from app.services.logical_execution_service import LogicalExecutionService
 from app.utils.parsers.aggregator import (
@@ -83,6 +84,22 @@ class ImportService:
         self._raw_repo = BrokerRawTransactionRepository(session)
         self._logical_svc = LogicalExecutionService(session)
         self._exec_repo = ExecutionRepository(session)
+
+    async def set_statement_timeout(self, timeout_seconds: int) -> None:
+        """Set the PostgreSQL ``statement_timeout`` for the current transaction.
+
+        Uses ``SET LOCAL`` so the timeout is automatically reverted on
+        ``COMMIT`` or ``ROLLBACK``.  A value of ``0`` disables the timeout
+        (no guard applied).
+
+        Args:
+            timeout_seconds: Maximum execution time in seconds.  Pass ``0``
+                to disable the timeout.
+        """
+        if timeout_seconds > 0:
+            await self._session.execute(
+                sa_text(f"SET LOCAL statement_timeout = '{timeout_seconds}s'")
+            )
 
     async def import_file(
         self,
@@ -185,6 +202,7 @@ class ImportService:
 
         parser_warnings: list[str] = []
         parsed_cash_txs: list[CashTransactionCreateRequest] = []
+        suppressed_count: int = 0
 
         # ── Raw-data pipeline (preferred) ────────────────────────────────────
         # Use parse_raw() when the parser supports it.  This persists each
@@ -265,7 +283,9 @@ class ImportService:
                 if orm_raw is not None:
                     new_orm_raws.append(orm_raw)
 
-            await self._logical_svc.bulk_create_from_raw(new_orm_raws)
+            _, suppressed_count = await self._logical_svc.bulk_create_from_raw(
+                new_orm_raws
+            )
             await self._session.flush()
 
             # Load ALL logical executions for this user/account (including those
@@ -404,7 +424,7 @@ class ImportService:
                                     executed_at=trade_data.opened_at,
                                     multiplier=trade_data.multiplier or 1,
                                     currency=trade_data.currency,
-                                    status=ExecutionStatus.IMPORTED,
+                                    origin=EXECUTION_ORIGIN_IMPORTED,
                                     trade_id=db_trade_id,
                                 )
                             else:
@@ -438,7 +458,7 @@ class ImportService:
                                 executed_at=trade_data.closed_at,
                                 multiplier=trade_data.multiplier or 1,
                                 currency=trade_data.currency,
-                                status=ExecutionStatus.IMPORTED,
+                                origin=EXECUTION_ORIGIN_IMPORTED,
                                 trade_id=db_trade_id,
                                 pnl=trade_data.pnl,
                             )
@@ -616,7 +636,7 @@ class ImportService:
                     executed_at=created_trade.opened_at,
                     multiplier=created_trade.multiplier,
                     currency=created_trade.currency,
-                    status=ExecutionStatus.IMPORTED,
+                    origin=EXECUTION_ORIGIN_IMPORTED,
                     trade_id=created_trade.id,
                 )
                 if (
@@ -635,7 +655,7 @@ class ImportService:
                         executed_at=created_trade.closed_at,
                         multiplier=created_trade.multiplier,
                         currency=created_trade.currency,
-                        status=ExecutionStatus.IMPORTED,
+                        origin=EXECUTION_ORIGIN_IMPORTED,
                         trade_id=created_trade.id,
                         pnl=created_trade.pnl,
                     )
@@ -683,7 +703,7 @@ class ImportService:
                     logger.warning(msg)
                     create_warnings.append(msg)
 
-        all_warnings = parser_warnings + create_warnings
+        all_warnings: list[str] = parser_warnings + create_warnings
 
         # Trades parsed = all aggregated trades minus seed-only open lots
         # (seed lots that stayed open are returned by the aggregator but have
@@ -707,5 +727,112 @@ class ImportService:
             cash_transactions_parsed=len(parsed_cash_txs),
             cash_transactions_created=cash_txs_created,
             cash_transactions_skipped=cash_txs_skipped,
+            raw_suppressed_skipped=suppressed_count,
+            raw_deleted_skipped=0,
             warnings=all_warnings,
         )
+
+    async def fresh_start_import(
+        self,
+        content: bytes,
+        filename: str,
+        broker: BrokerType,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> FreshStartResult:
+        """Reset an account and re-import from scratch (Decision 6).
+
+        Runs in a single DB transaction (managed by the caller/session dependency):
+        1. Delete all ``LogicalExecution`` rows for the account (hard-delete ALL).
+        2. Delete all ``Trade`` rows for the account.
+        3. Process the uploaded import file normally.
+        4. Commit — or roll back entirely on any error.
+
+        BRTs are never touched — only their linked logical executions are removed.
+        Suppressed BRTs remain suppressed and will still be skipped during the
+        re-import.
+
+        Args:
+            content: Raw file bytes from the upload.
+            filename: Original filename (used by the parser for format detection).
+            broker: The broker type that identifies which parser to use.
+            account_id: UUID of the account to reset and re-import.
+            user_id: UUID of the authenticated user — used to verify account
+                ownership.
+
+        Returns:
+            A :class:`FreshStartResult` with counts of deleted rows and the
+            import result.
+
+        Raises:
+            AccountNotFoundError: If the account does not exist or does not
+                belong to ``user_id``.
+        """
+        account = await self._account_repo.get_by_id(account_id, user_id)
+        if account is None:
+            raise AccountNotFoundError(
+                f"Account {account_id} not found for user {user_id}."
+            )
+
+        # Step 1: Delete all logical executions for this account
+        exec_deleted = await self._exec_repo.delete_all_for_account(
+            user_id=user_id,
+            account_id=account_id,
+        )
+
+        # Step 2: Delete all trades for this account (including manually-edited)
+        trades_deleted = await self._trade_repo.delete_by_user_account(
+            user_id=user_id,
+            account_id=account_id,
+            include_manually_edited=True,
+        )
+
+        logger.info(
+            "fresh_start_import: deleted %d executions and %d trades for account %s",
+            exec_deleted,
+            trades_deleted,
+            account_id,
+        )
+
+        # Step 3: Process the import file
+        import_result = await self.import_file(
+            content=content,
+            filename=filename,
+            broker=broker,
+            account_id=account_id,
+            user_id=user_id,
+            overwrite_manually_edited=True,
+        )
+
+        return FreshStartResult(
+            account_id=account_id,
+            executions_deleted=exec_deleted,
+            trades_deleted=trades_deleted,
+            import_result=import_result,
+        )
+
+    async def suppress_raw_transaction(
+        self,
+        raw_id: str,
+        user_id: uuid.UUID,
+        suppressed: bool = True,
+    ) -> None:
+        """Toggle the suppressed flag on a BrokerRawTransaction.
+
+        Args:
+            raw_id: The composite ID of the raw transaction.
+            user_id: The authenticated user's ID (for ownership check).
+            suppressed: New value for the suppressed flag.
+
+        Raises:
+            AccountNotFoundError: If the raw transaction is not found or
+                does not belong to ``user_id``.
+        """
+        raw = await self._raw_repo.get_by_id(raw_id)
+        if raw is None or raw.user_id != user_id:
+            from app.core.exceptions import BrokerRawTransactionNotFoundError
+
+            raise BrokerRawTransactionNotFoundError(
+                f"BrokerRawTransaction {raw_id} not found."
+            )
+        await self._raw_repo.set_suppressed(raw_id, suppressed)

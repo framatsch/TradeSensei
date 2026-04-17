@@ -177,18 +177,3 @@ export function useBulkAssignPlaybook() {
   });
 }
 
-// ─── useConflictTradeCount ────────────────────────────────────────────────────
-
-/** Returns the total count of trades with has_conflict=true. */
-export function useConflictTradeCount() {
-  return useQuery<number | null, Error>({
-    queryKey: ["trades-conflict-count"],
-    queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(
-        "/api/v1/trades?has_conflict=true&limit=1"
-      );
-      return res.data.data.total ?? null;
-    },
-    staleTime: 60 * 1000,
-  });
-}

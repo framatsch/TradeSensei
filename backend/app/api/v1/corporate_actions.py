@@ -13,8 +13,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import CorporateActionNotFoundError
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
@@ -29,7 +28,7 @@ router = APIRouter(prefix="/corporate-actions", tags=["corporate-actions"])
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> CorporateActionService:
     """FastAPI dependency that constructs a :class:`CorporateActionService`.
 

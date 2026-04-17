@@ -313,3 +313,33 @@ class TestDecodeToken:
 
         with pytest.raises(InvalidTokenError):
             decode_token(forged_token)
+
+
+# ---------------------------------------------------------------------------
+# Exception handling — Section 5.4
+# ---------------------------------------------------------------------------
+
+
+class TestUnexpectedExceptionPropagates:
+    """Task 5.4: Unexpected exceptions must NOT be swallowed by the auth handler.
+
+    ``decode_token`` catches only ``(JWTError, ValueError)``.  An ``AttributeError``
+    or other unexpected exception must propagate to the caller (→ 500), not be
+    silently converted into a 401.
+    """
+
+    @pytest.mark.unit
+    def test_unexpected_exception_propagates(self) -> None:
+        """Mock jwt.decode to raise AttributeError; verify it is not caught.
+
+        If the exception were silently swallowed, the test would fail because
+        ``decode_token`` would raise ``InvalidTokenError`` instead of letting
+        the ``AttributeError`` propagate.
+        """
+        from unittest.mock import patch
+
+        with (
+            patch("app.core.security.jwt.decode", side_effect=AttributeError("boom")),
+            pytest.raises(AttributeError, match="boom"),
+        ):
+            decode_token("any.jwt.token")

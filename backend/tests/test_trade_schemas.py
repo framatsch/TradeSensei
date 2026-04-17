@@ -7,7 +7,10 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.models.logical_execution import ExecutionStatus
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_IMPORTED,
+    EXECUTION_ORIGIN_MANUAL,
+)
 from app.models.trade import AssetClass, Direction
 from app.schemas.execution import (
     LogicalExecutionCreate,
@@ -273,7 +276,10 @@ class TestLogicalExecutionRead:
         execution.price = Decimal("150.50")  # type: ignore[assignment]
         execution.commission = Decimal("2.50")  # type: ignore[assignment]
         execution.executed_at = datetime(2025, 1, 15, 10, 0, tzinfo=UTC)  # type: ignore[assignment]
-        execution.status = ExecutionStatus.MANUAL  # type: ignore[assignment]
+        execution.origin = EXECUTION_ORIGIN_MANUAL  # type: ignore[assignment]
+        execution.deleted = False  # type: ignore[assignment]
+        execution.user_modified = False  # type: ignore[assignment]
+        execution.parent_id = None  # type: ignore[assignment]
         execution.multiplier = 1  # type: ignore[assignment]
         execution.currency = "USD"  # type: ignore[assignment]
         execution.created_at = datetime(2025, 1, 15, 10, 0, tzinfo=UTC)  # type: ignore[assignment]
@@ -283,7 +289,7 @@ class TestLogicalExecutionRead:
         assert read.id == exec_id
         assert read.symbol == "AAPL"
         assert read.quantity == Decimal("100")
-        assert read.status == ExecutionStatus.MANUAL
+        assert read.origin == EXECUTION_ORIGIN_MANUAL
 
 
 class TestMergeTradesRequest:
@@ -347,7 +353,10 @@ class TestLogicalExecutionReadFieldCompleteness:
         - pnl_eur: Decimal | None
         - multiplier: int
         - currency: str | None
-        - status: ExecutionStatus
+        - origin: str (imported | manual | merged | split)
+        - deleted: bool
+        - user_modified: bool
+        - parent_id: UUID | None
         - trade_id: UUID | None
         - created_at: datetime
         - updated_at: datetime
@@ -377,7 +386,10 @@ class TestLogicalExecutionReadFieldCompleteness:
         execution.pnl_eur = Decimal("450.00")  # type: ignore[assignment]
         execution.multiplier = 1  # type: ignore[assignment]
         execution.currency = "USD"  # type: ignore[assignment]
-        execution.status = ExecutionStatus.MANUAL  # type: ignore[assignment]
+        execution.origin = EXECUTION_ORIGIN_MANUAL  # type: ignore[assignment]
+        execution.deleted = False  # type: ignore[assignment]
+        execution.user_modified = False  # type: ignore[assignment]
+        execution.parent_id = None  # type: ignore[assignment]
         execution.created_at = now  # type: ignore[assignment]
         execution.updated_at = now  # type: ignore[assignment]
 
@@ -412,7 +424,10 @@ class TestLogicalExecutionReadFieldCompleteness:
         assert read.multiplier == 1
         assert isinstance(read.currency, str)
         assert read.currency == "USD"
-        assert read.status == ExecutionStatus.MANUAL
+        assert read.origin == EXECUTION_ORIGIN_MANUAL
+        assert read.deleted is False
+        assert read.user_modified is False
+        assert read.parent_id is None
         assert isinstance(read.trade_id, uuid.UUID)
         assert read.trade_id == trade_id
         assert isinstance(read.created_at, datetime)
@@ -446,7 +461,10 @@ class TestLogicalExecutionReadFieldCompleteness:
         execution.pnl_eur = None  # type: ignore[assignment]
         execution.multiplier = 1  # type: ignore[assignment]
         execution.currency = None  # type: ignore[assignment]
-        execution.status = ExecutionStatus.IMPORTED  # type: ignore[assignment]
+        execution.origin = EXECUTION_ORIGIN_IMPORTED  # type: ignore[assignment]
+        execution.deleted = False  # type: ignore[assignment]
+        execution.user_modified = False  # type: ignore[assignment]
+        execution.parent_id = None  # type: ignore[assignment]
         execution.created_at = now  # type: ignore[assignment]
         execution.updated_at = now  # type: ignore[assignment]
 

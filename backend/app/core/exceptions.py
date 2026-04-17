@@ -81,6 +81,10 @@ class CorporateActionNotFoundError(Exception):
     """Raised when a corporate action cannot be found for the requesting user."""
 
 
+class BrokerRawTransactionNotFoundError(Exception):
+    """Raised when a BrokerRawTransaction cannot be found."""
+
+
 class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
 

@@ -1,5 +1,9 @@
 /**
  * ExecutionLegsTable — collapsible table showing all execution legs for a trade.
+ *
+ * Task 8.4: hide deleted executions by default; add "Show deleted" toggle.
+ * Deleted rows render at 50% opacity with a [Restore] button (ExecutionRow).
+ * Task 8.9: open SplitExecutionModal from the ExecutionRow context menu.
  */
 
 "use client";
@@ -10,6 +14,8 @@ import { useTradeExecutions, useReassignExecution, useDetachExecution } from "@/
 import { ExecutionRow } from "./ExecutionRow";
 import { AddExecutionModal } from "./AddExecutionModal";
 import { TradePickerModal } from "./TradePickerModal";
+import { SplitExecutionModal } from "./SplitExecutionModal";
+import type { LogicalExecution } from "@/lib/types";
 
 interface Props {
   tradeId: string;
@@ -17,15 +23,21 @@ interface Props {
 
 export function ExecutionLegsTable({ tradeId }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [moveExecutionId, setMoveExecutionId] = useState<string | null>(null);
   const [detachExecutionId, setDetachExecutionId] = useState<string | null>(null);
+  const [splitExecution, setSplitExecution] = useState<LogicalExecution | null>(null);
 
-  const { data: executions, isLoading, isError } = useTradeExecutions(tradeId);
+  // Fetch with include_deleted=true when the toggle is on so we can show them
+  const { data: executions, isLoading, isError } = useTradeExecutions(tradeId, showDeleted);
   const reassignExecution = useReassignExecution();
   const detachExecution = useDetachExecution();
 
-  const count = executions?.length ?? 0;
+  // Count only non-deleted for the header badge
+  const activeCount = executions?.filter((e: LogicalExecution) => !e.deleted).length ?? 0;
+  const deletedCount = executions?.filter((e: LogicalExecution) => e.deleted).length ?? 0;
+  const totalCount = executions?.length ?? 0;
 
   const handleMoveToTrade = (executionId: string) => {
     setMoveExecutionId(executionId);
@@ -55,17 +67,34 @@ export function ExecutionLegsTable({ tradeId }: Props) {
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
           Execution Legs
-          {count > 0 && (
-            <span className="text-xs font-normal text-muted-foreground">({count})</span>
+          {activeCount > 0 && (
+            <span className="text-xs font-normal text-muted-foreground">({activeCount})</span>
           )}
         </button>
-        <button
-          onClick={() => setAddModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#6063dd] text-white hover:opacity-90 transition-opacity"
-        >
-          <Plus size={13} />
-          Add Execution
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* Show deleted toggle — only visible when there are deleted executions */}
+          {(deletedCount > 0 || showDeleted) && (
+            <button
+              onClick={() => setShowDeleted(!showDeleted)}
+              className={`text-xs px-2 py-1 rounded border transition-colors ${
+                showDeleted
+                  ? "bg-muted text-foreground border-border"
+                  : "text-muted-foreground border-border hover:bg-muted/50"
+              }`}
+            >
+              {showDeleted ? `Hide deleted (${deletedCount})` : `Show deleted (${deletedCount})`}
+            </button>
+          )}
+
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#6063dd] text-white hover:opacity-90 transition-opacity"
+          >
+            <Plus size={13} />
+            Add Execution
+          </button>
+        </div>
       </div>
 
       {/* Table body */}
@@ -82,12 +111,17 @@ export function ExecutionLegsTable({ tradeId }: Props) {
               Failed to load executions.
             </div>
           )}
-          {!isLoading && !isError && count === 0 && (
+          {!isLoading && !isError && activeCount === 0 && !showDeleted && (
             <div className="px-4 py-6 text-sm text-muted-foreground text-center">
               No execution legs yet. Click &quot;+ Add Execution&quot; to add one.
             </div>
           )}
-          {!isLoading && !isError && count > 0 && (
+          {!isLoading && !isError && totalCount === 0 && showDeleted && (
+            <div className="px-4 py-6 text-sm text-muted-foreground text-center">
+              No execution legs found.
+            </div>
+          )}
+          {!isLoading && !isError && totalCount > 0 && (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
@@ -102,13 +136,14 @@ export function ExecutionLegsTable({ tradeId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {executions?.map((ex) => (
+                {executions?.map((ex: LogicalExecution) => (
                   <ExecutionRow
                     key={ex.id}
                     execution={ex}
                     tradeId={tradeId}
                     onMoveToTrade={handleMoveToTrade}
                     onDetach={handleDetach}
+                    onSplit={setSplitExecution}
                   />
                 ))}
               </tbody>
@@ -168,6 +203,15 @@ export function ExecutionLegsTable({ tradeId }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Split Execution Modal (task 8.9) */}
+      {splitExecution && (
+        <SplitExecutionModal
+          execution={splitExecution}
+          tradeId={tradeId}
+          onClose={() => setSplitExecution(null)}
+        />
       )}
     </div>
   );

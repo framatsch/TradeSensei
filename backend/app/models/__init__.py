@@ -12,7 +12,18 @@ from app.models.broker_raw_transaction import (
 from app.models.cash_transaction import CashTransaction as CashTransaction
 from app.models.corporate_action import CorporateAction as CorporateAction
 from app.models.fx_rate import FxRate as FxRate
-from app.models.logical_execution import ExecutionStatus as ExecutionStatus
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_IMPORTED as EXECUTION_ORIGIN_IMPORTED,
+)
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_MANUAL as EXECUTION_ORIGIN_MANUAL,
+)
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_MERGED as EXECUTION_ORIGIN_MERGED,
+)
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_SPLIT as EXECUTION_ORIGIN_SPLIT,
+)
 from app.models.logical_execution import LogicalExecution as LogicalExecution
 from app.models.ohlc_price import OhlcPrice as OhlcPrice
 from app.models.playbook import Playbook as Playbook
@@ -25,5 +36,6 @@ from app.models.trade_tag import TradeTag as TradeTag
 from app.models.transaction_execution_mapping import (
     TransactionExecutionMapping as TransactionExecutionMapping,
 )
+from app.models.used_ott import UsedOtt as UsedOtt
 from app.models.user import User as User
 from app.models.user_setting import UserSetting as UserSetting

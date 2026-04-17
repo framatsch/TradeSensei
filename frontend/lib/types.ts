@@ -193,7 +193,6 @@ export interface Trade {
   tradingview_link?: string | null;
   screenshots?: string[];
   is_manually_edited: boolean;
-  has_conflict?: boolean;
 }
 
 export interface TradeCreate {
@@ -291,7 +290,17 @@ export interface ImportResult {
   cash_transactions_parsed: number;
   cash_transactions_created: number;
   cash_transactions_skipped: number;
+  raw_suppressed_skipped?: number;
+  raw_deleted_skipped?: number;
   warnings: string[];
+}
+
+/** Result returned by POST /imports/{account_id}/fresh-start (task 8.6). */
+export interface FreshStartResult {
+  account_id: string;
+  executions_deleted: number;
+  trades_deleted: number;
+  import_result: ImportResult;
 }
 
 // ─── Daily / Monthly PnL ─────────────────────────────────────────────────────
@@ -549,7 +558,13 @@ export interface TradePartialCloseRequest {
 
 // ─── Executions ──────────────────────────────────────────────────────────────
 
-export type ExecutionStatus = 'imported' | 'manual' | 'merged' | 'split';
+/** Origin type for a logical execution (task 8.1). */
+export type ExecutionOrigin = 'imported' | 'manual' | 'merged' | 'split';
+
+/**
+ * @deprecated Use ExecutionOrigin instead. Kept for backward compatibility.
+ */
+export type ExecutionStatus = ExecutionOrigin;
 
 export interface LogicalExecution {
   id: string;
@@ -564,7 +579,16 @@ export interface LogicalExecution {
   commission: string;
   pnl: string | null;
   executed_at: string;
-  status: ExecutionStatus;
+  /** @deprecated Use `origin` instead. */
+  status?: ExecutionOrigin;
+  /** Origin of this execution: how it was created (task 8.2). */
+  origin: ExecutionOrigin;
+  /** When true, this execution has been soft-deleted (task 8.2). */
+  deleted: boolean;
+  /** When true, this imported execution has been manually edited (task 8.2). */
+  user_modified: boolean;
+  /** ID of the parent execution when origin is 'split' or 'merged' (task 8.2). */
+  parent_id: string | null;
   currency: string | null;
   multiplier: number;
   created_at: string;
@@ -591,6 +615,23 @@ export interface LogicalExecutionUpdate {
 
 export interface ReassignExecutionRequest {
   target_trade_id: string;
+}
+
+// ─── Split Execution (task 8.9) ───────────────────────────────────────────────
+
+export interface SplitExecutionRequest {
+  quantity_a: string;
+  quantity_b: string;
+  price_a?: string | null;
+  price_b?: string | null;
+  executed_at_a?: string | null;
+  executed_at_b?: string | null;
+}
+
+export interface SplitExecutionResponse {
+  execution_a: LogicalExecution;
+  execution_b: LogicalExecution;
+  original: LogicalExecution;
 }
 
 // ─── Merge ────────────────────────────────────────────────────────────────────

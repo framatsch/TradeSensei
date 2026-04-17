@@ -10,7 +10,7 @@ from app.models.trade import AssetClass, Direction, Trade
 
 
 async def _register_and_get_token(client: AsyncClient, email: str) -> str:
-    res1 = await client.post(
+    await client.post(
         "/api/v1/auth/register",
         json={"email": email, "username": email[:40], "password": "password123!"},
     )
@@ -83,7 +83,8 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
         quantity=Decimal("100"),
         price=Decimal("150"),
         executed_at=datetime.now(UTC),
-        asset_class=AssetClass.EQUITY
+        asset_class=AssetClass.EQUITY,
+        origin="imported",
     )
     # Add mapping!
     lexec.raw_transactions.append(raw)

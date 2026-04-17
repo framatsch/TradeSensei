@@ -273,12 +273,9 @@ class TestGoogleExchangeInvalidToken:
 
         The first exchange must succeed (200); the second with the identical
         token must be rejected (401), demonstrating replay prevention.
+        The DB-backed blocklist persists the JTI so replay is detected by
+        IntegrityError on INSERT.
         """
-        import app.core.security as sec
-
-        # Clean blocklist so this test is not affected by earlier runs
-        sec._used_ott_jti.clear()
-
         user_data = await _register_user(
             client,
             username="replayuser",
@@ -322,10 +319,6 @@ class TestGoogleExchangeInvalidToken:
         :meth:`~app.services.auth_service.AuthService.exchange_one_time_token`
         returns ``None``, so the endpoint must return 401.
         """
-        import app.core.security as sec
-
-        sec._used_ott_jti.clear()
-
         # Mint a valid OTT for a UUID that will never be in the DB
         ghost_user_id = uuid.uuid4()
         ott = create_one_time_token(ghost_user_id)
@@ -346,10 +339,6 @@ class TestGoogleExchangeInvalidToken:
         Access tokens do not carry the ``ott`` claim; attempting to use one
         for the exchange must be rejected with 401.
         """
-        import app.core.security as sec
-
-        sec._used_ott_jti.clear()
-
         user_data = await _register_user(
             client,
             username="badottuser",

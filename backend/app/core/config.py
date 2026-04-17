@@ -132,6 +132,13 @@ class Settings(BaseSettings):
     market_data_hub_url: str | None = None
     """Base URL of the Market Data Hub (LSEG provider), e.g. https://market-data-hub.example.com"""
 
+    # Fresh-Start Import
+    fresh_start_timeout: int = 60
+    """Wall-clock statement timeout (seconds) for the fresh-start DB transaction.
+
+    Mapped to ``FRESH_START_TIMEOUT`` env var.  Defaults to 60 s.  Set to 0
+    to disable the timeout (not recommended in production)."""
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(

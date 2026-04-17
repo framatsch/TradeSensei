@@ -1,15 +1,21 @@
-"""Password hashing and JWT utility functions.
+"""Password hashing, JWT utility functions, cursor signing, and OTT blocklist.
 
 All cryptographic operations used across the auth layer live here so
 they can be tested and imported without pulling in any HTTP concerns.
 """
 
+import base64
+import hashlib
+import hmac
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any  # JWT payload values are heterogeneous (str, int, float)
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.constants import (
@@ -182,20 +188,17 @@ def decode_refresh_token(token: str) -> tuple[uuid.UUID, int]:
 
 
 # ---------------------------------------------------------------------------
-# One-time OAuth exchange tokens
+# One-time OAuth exchange tokens — DB-backed blocklist
 # ---------------------------------------------------------------------------
-
-# In-memory store: jti → expiry. Works only per-process; in multi-process
-# production deployments this must be replaced with shared state (e.g. Redis).
-_used_ott_jti: set[str] = set()
 
 
 def create_one_time_token(user_id: uuid.UUID) -> str:
     """Create a short-lived one-time token for the OAuth callback exchange.
 
     The token is a JWT with a unique ``jti`` claim.  After a single use
-    (validated via :func:`consume_one_time_token`) the ``jti`` is added to
-    an in-memory blocklist so it cannot be replayed.
+    (validated via :func:`consume_one_time_token`) the ``jti`` is stored in
+    the ``used_otts`` database table so it cannot be replayed across any
+    process.
 
     Args:
         user_id: UUID of the authenticated user.
@@ -212,15 +215,57 @@ def create_one_time_token(user_id: uuid.UUID) -> str:
     )
 
 
-def consume_one_time_token(token: str) -> uuid.UUID:
+async def consume_ott_jti(
+    jti: str, expires_at: datetime, db: AsyncSession
+) -> bool:
+    """Atomically consume a one-time token JTI, recording it in the database.
+
+    Inserts the ``jti`` into ``used_otts``.  On a duplicate-key
+    :class:`~sqlalchemy.exc.IntegrityError` (i.e. the JTI was already used),
+    rolls back the nested savepoint and returns ``False``.
+
+    Also prunes expired rows on every call so the table stays bounded without
+    a separate cron job.
+
+    Args:
+        jti: The JWT ID claim of the one-time token.
+        expires_at: When the token expires (UTC).  Used for future pruning.
+        db: An open :class:`~sqlalchemy.ext.asyncio.AsyncSession`.
+
+    Returns:
+        ``True`` if the JTI was fresh (inserted successfully).
+        ``False`` if the JTI was already present (replay detected).
+    """
+    # Deferred import to break circular dependency: models -> database
+    from sqlalchemy import delete
+
+    from app.models.used_ott import UsedOtt
+
+    # Prune expired rows before inserting (best-effort — table stays small).
+    now = datetime.now(UTC)
+    await db.execute(
+        delete(UsedOtt).where(UsedOtt.expires_at < now)
+    )
+
+    try:
+        db.add(UsedOtt(jti=jti, expires_at=expires_at))
+        await db.flush()
+        return True
+    except IntegrityError:
+        await db.rollback()
+        return False
+
+
+async def consume_one_time_token(token: str, db: AsyncSession) -> uuid.UUID:
     """Decode and invalidate a one-time token, returning the user UUID.
 
     The token is validated for signature, expiry, and the ``ott`` claim.
-    On success the ``jti`` is added to the blocklist so the same token
-    cannot be used again.
+    On success the ``jti`` is stored in the database so the same token
+    cannot be replayed on any process.
 
     Args:
         token: A signed one-time JWT string.
+        db: An open :class:`~sqlalchemy.ext.asyncio.AsyncSession`.
 
     Returns:
         The :class:`uuid.UUID` of the authenticated user.
@@ -238,13 +283,76 @@ def consume_one_time_token(token: str) -> uuid.UUID:
         jti = raw.get("jti")
         if not isinstance(jti, str):
             raise InvalidTokenError("One-time token missing jti claim.")
-        if jti in _used_ott_jti:
-            raise InvalidTokenError("One-time token already used.")
+        exp = raw.get("exp")
+        if not isinstance(exp, (int, float)):
+            raise InvalidTokenError("One-time token missing exp claim.")
+        expires_at = datetime.fromtimestamp(float(exp), tz=UTC)
         validated = TokenPayload.model_validate(raw)
-        # Mark as used
-        _used_ott_jti.add(jti)
+        # Atomically insert jti — returns False if already consumed (replay).
+        fresh = await consume_ott_jti(jti, expires_at, db)
+        if not fresh:
+            raise InvalidTokenError("One-time token already used.")
         return validated.sub
     except InvalidTokenError:
         raise
     except (JWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired one-time token.") from exc
+
+
+# ---------------------------------------------------------------------------
+# Cursor signing (HMAC-SHA256)
+# ---------------------------------------------------------------------------
+
+
+def encode_cursor(payload: dict[str, Any], secret: str) -> str:
+    """Encode a pagination cursor payload as an HMAC-SHA256 signed, base64url token.
+
+    The payload is serialised to compact JSON, then the HMAC-SHA256 hex
+    digest is appended with a ``"."`` separator before the whole string is
+    base64url-encoded.  This lets :func:`decode_cursor` verify that the
+    cursor was produced by this application and has not been tampered with.
+
+    Args:
+        payload: Arbitrary JSON-serialisable dict (e.g. cursor keyset values).
+        secret: Application secret used to sign the cursor.
+
+    Returns:
+        A URL-safe base64-encoded cursor token string.
+    """
+    data = json.dumps(payload, separators=(",", ":"))
+    sig = hmac.new(secret.encode(), data.encode(), hashlib.sha256).hexdigest()
+    raw = f"{data}.{sig}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def decode_cursor(token: str, secret: str) -> dict[str, Any]:
+    """Decode and verify an HMAC-signed cursor token.
+
+    Decodes the base64url token, splits on the last ``"."`` to separate the
+    JSON payload from the HMAC signature, and verifies the signature using
+    :func:`hmac.compare_digest` (constant-time comparison).
+
+    Args:
+        token: A cursor token previously produced by :func:`encode_cursor`.
+        secret: Application secret used to verify the signature.
+
+    Returns:
+        The decoded payload dict.
+
+    Raises:
+        ValueError: If the token cannot be decoded, is malformed, or the
+            signature does not match.
+    """
+    try:
+        raw = base64.urlsafe_b64decode(token.encode()).decode()
+        data, sig = raw.rsplit(".", 1)
+        expected = hmac.new(secret.encode(), data.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            raise ValueError("Invalid cursor signature")
+        result: dict[str, Any] = json.loads(data)
+        return result
+    except (ValueError, Exception) as exc:
+        # Re-raise ValueError for signature mismatch; wrap everything else.
+        if isinstance(exc, ValueError):
+            raise
+        raise ValueError(f"Malformed cursor token: {exc}") from exc

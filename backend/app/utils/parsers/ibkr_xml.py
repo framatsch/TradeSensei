@@ -411,10 +411,6 @@ class IBKRXMLParser(BrokerParser):
             seed_orphaned_lots=seed_orphaned_lots if seed_orphaned_lots else None,
         )
 
-        # NOTE: Conflict detection (has_conflict flag) is applied post-import in the
-        # service layer when trades are persisted to the database, not during parsing.
-        # This ensures the flag can only be set on actual Trade ORM instances.
-
         logger.info(
             "Parsed %d executions, aggregated into %d trades and parsed %d "
             "cash transactions from IBKR Flex XML.",

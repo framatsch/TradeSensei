@@ -1,10 +1,16 @@
+"""Repository for the ``logical_executions`` table."""
+
 import uuid
 from collections.abc import Sequence
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.logical_execution import ExecutionStatus, LogicalExecution
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_IMPORTED,
+    EXECUTION_ORIGIN_MANUAL,
+    LogicalExecution,
+)
 
 
 class ExecutionRepository:
@@ -18,11 +24,16 @@ class ExecutionRepository:
         """
         self.session = session
 
-    async def list_by_trade_id(self, trade_id: uuid.UUID) -> Sequence[LogicalExecution]:
-        """Fetch all executions belonging to a specific trade.
+    async def list_by_trade_id(
+        self,
+        trade_id: uuid.UUID,
+        include_deleted: bool = False,
+    ) -> Sequence[LogicalExecution]:
+        """Fetch executions belonging to a specific trade.
 
         Args:
             trade_id: The ID of the trade.
+            include_deleted: When False (default), excludes soft-deleted executions.
 
         Returns:
             A sequence of execution models ordered by execution time.
@@ -30,21 +41,33 @@ class ExecutionRepository:
         stmt = (
             select(LogicalExecution)
             .where(LogicalExecution.trade_id == trade_id)
-            .order_by(LogicalExecution.executed_at.asc())
         )
+        if not include_deleted:
+            stmt = stmt.where(LogicalExecution.deleted.is_(False))
+        stmt = stmt.order_by(LogicalExecution.executed_at.asc())
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_by_id(self, execution_id: uuid.UUID) -> LogicalExecution | None:
-        """Fetch an execution by its primary key.
+    async def get_by_id(
+        self,
+        execution_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
+    ) -> LogicalExecution | None:
+        """Fetch an execution by its primary key, optionally scoped to a user.
 
         Args:
             execution_id: The ID of the execution.
+            user_id: When provided, restricts the lookup to this user's
+                executions — returns None if the execution belongs to a
+                different user.
 
         Returns:
-            The execution model if found, otherwise None.
+            The execution model if found (and owned by user when specified),
+            otherwise None.
         """
         stmt = select(LogicalExecution).where(LogicalExecution.id == execution_id)
+        if user_id is not None:
+            stmt = stmt.where(LogicalExecution.user_id == user_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -70,14 +93,16 @@ class ExecutionRepository:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
-        status: ExecutionStatus | None = None,
+        origin: str | None = None,
+        include_deleted: bool = False,
     ) -> list[LogicalExecution]:
         """Return executions for a user with optional filters.
 
         Args:
             user_id: Owning user UUID.
             account_id: Optional account UUID filter.
-            status: Optional execution status filter.
+            origin: Optional origin filter (imported|manual|merged|split).
+            include_deleted: When False (default), excludes soft-deleted executions.
 
         Returns:
             Matching executions ordered by execution time.
@@ -85,8 +110,10 @@ class ExecutionRepository:
         stmt = select(LogicalExecution).where(LogicalExecution.user_id == user_id)
         if account_id is not None:
             stmt = stmt.where(LogicalExecution.account_id == account_id)
-        if status is not None:
-            stmt = stmt.where(LogicalExecution.status == status)
+        if origin is not None:
+            stmt = stmt.where(LogicalExecution.origin == origin)
+        if not include_deleted:
+            stmt = stmt.where(LogicalExecution.deleted.is_(False))
         stmt = stmt.order_by(LogicalExecution.executed_at.asc())
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
@@ -124,8 +151,44 @@ class ExecutionRepository:
         await self.session.flush()
         return execution
 
+    async def soft_delete(self, execution_id: uuid.UUID) -> bool:
+        """Soft-delete an execution by setting deleted=True.
+
+        Args:
+            execution_id: The ID of the execution to soft-delete.
+
+        Returns:
+            True if the execution was found and soft-deleted, False otherwise.
+        """
+        stmt = (
+            update(LogicalExecution)
+            .where(LogicalExecution.id == execution_id)
+            .values(deleted=True)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return bool(getattr(result, "rowcount", 0) > 0)
+
+    async def restore(self, execution_id: uuid.UUID) -> bool:
+        """Restore a soft-deleted execution by setting deleted=False.
+
+        Args:
+            execution_id: The ID of the execution to restore.
+
+        Returns:
+            True if the execution was found and restored, False otherwise.
+        """
+        stmt = (
+            update(LogicalExecution)
+            .where(LogicalExecution.id == execution_id)
+            .values(deleted=False)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return bool(getattr(result, "rowcount", 0) > 0)
+
     async def delete(self, execution_id: uuid.UUID) -> bool:
-        """Delete an execution by ID.
+        """Hard-delete an execution by ID (used for manual executions only).
 
         Args:
             execution_id: The ID of the execution to delete.
@@ -162,4 +225,37 @@ class ExecutionRepository:
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
+        # Expire any session-cached execution instances so that subsequent
+        # queries for the new trade_id see the updated data.
+        for instance in list(self.session.identity_map.values()):
+            if isinstance(instance, LogicalExecution) and instance.id in execution_ids:
+                self.session.expire(instance)
         return int(getattr(result, "rowcount", 0))
+
+    async def delete_all_for_account(
+        self, user_id: uuid.UUID, account_id: uuid.UUID
+    ) -> int:
+        """Hard-delete all executions for a user+account (used in fresh-start).
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Account UUID whose executions are deleted.
+
+        Returns:
+            Number of rows deleted.
+        """
+        stmt = delete(LogicalExecution).where(
+            LogicalExecution.user_id == user_id,
+            LogicalExecution.account_id == account_id,
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return int(getattr(result, "rowcount", 0))
+
+
+# Expose origin constants for callers that just need the string values
+__all__ = [
+    "ExecutionRepository",
+    "EXECUTION_ORIGIN_IMPORTED",
+    "EXECUTION_ORIGIN_MANUAL",
+]

@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.constants import SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
+from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
 from app.models.trade import Trade
+from app.repositories.execution import ExecutionRepository
 from app.repositories.playbook_repository import PlaybookRepository
 from app.repositories.tag_repository import TagRepository
 from app.repositories.trade_repository import TradeRepository
@@ -47,6 +49,7 @@ class TradeService:
         """
         self._session = session
         self._repo = TradeRepository(session)
+        self._exec_repo = ExecutionRepository(session)
         self._tag_repo = TagRepository(session)
         self._playbook_repo = PlaybookRepository(session)
 
@@ -103,9 +106,7 @@ class TradeService:
             dest.unlink(missing_ok=True)
             raise
 
-    async def _re_aggregate_trade(
-        self, trade_id: uuid.UUID, skip_conflict_auto_clear: bool = False
-    ) -> None:
+    async def _re_aggregate_trade(self, trade_id: uuid.UUID) -> None:
         """Re-aggregate a trade from its logical executions.
 
         Delegates to :class:`ExecutionService._re_aggregate_trade` using the
@@ -114,17 +115,22 @@ class TradeService:
         Args:
             trade_id: UUID of the trade to re-aggregate.
         """
-        # Deferred import to break circular dependency: execution -> trade
+        # Deferred imports to break circular dependency: execution -> trade
+        from sqlalchemy import select as _select  # noqa: PLC0415
+
         from app.services.execution import ExecutionService
 
-        trade = await self._repo.get_by_id(trade_id)
+        # Use a temporary lookup without user_id scoping (internal re-aggregate path).
+        # This is safe because _re_aggregate_trade is only called from within service
+        # methods that have already verified ownership upstream.
+        _stmt = _select(Trade).where(Trade.id == trade_id)
+        _result = await self._session.execute(_stmt)
+        trade = _result.scalar_one_or_none()
         if not trade or trade.user_id is None:
             return
 
         exec_service = ExecutionService(self._session)
-        await exec_service._re_aggregate_trade(
-            trade_id, trade.user_id, skip_conflict_auto_clear=skip_conflict_auto_clear
-        )
+        await exec_service._re_aggregate_trade(trade_id, trade.user_id)
 
     async def create_trade(self, data: TradeCreate) -> TradeRead:
         """Create a new trade record.
@@ -138,7 +144,7 @@ class TradeService:
         trade: Trade = await self._repo.create(data)
 
         # Deferred import to break circular dependency: execution -> trade
-        from app.models.logical_execution import ExecutionStatus
+        from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
         from app.models.trade import Direction as TradeDirection
         from app.repositories.execution import ExecutionRepository
 
@@ -166,7 +172,7 @@ class TradeService:
                     executed_at=leg.executed_at,
                     multiplier=trade.multiplier,
                     currency=trade.currency,
-                    status=ExecutionStatus.MANUAL,
+                    origin=EXECUTION_ORIGIN_MANUAL,
                     trade_id=trade.id,
                     pnl=leg.pnl,
                 )
@@ -184,7 +190,7 @@ class TradeService:
                 executed_at=trade.opened_at,
                 multiplier=trade.multiplier,
                 currency=trade.currency,
-                status=ExecutionStatus.MANUAL,
+                origin=EXECUTION_ORIGIN_MANUAL,
                 trade_id=trade.id,
             )
 
@@ -204,7 +210,7 @@ class TradeService:
                     executed_at=trade.closed_at,
                     multiplier=trade.multiplier,
                     currency=trade.currency,
-                    status=ExecutionStatus.MANUAL,
+                    origin=EXECUTION_ORIGIN_MANUAL,
                     trade_id=trade.id,
                     pnl=trade.pnl,
                 )
@@ -221,7 +227,9 @@ class TradeService:
         if should_reaggregate:
             await self._re_aggregate_trade(trade.id)
 
-        trade_reloaded = await self._repo.get_by_id(trade.id)
+        if trade.user_id is None:
+            raise TradeNotFoundError(f"Trade {trade.id} has no owner.")
+        trade_reloaded = await self._repo.get_by_id(trade.id, trade.user_id)
 
         return TradeRead.model_validate(trade_reloaded)
 
@@ -238,8 +246,8 @@ class TradeService:
         Raises:
             TradeNotFoundError: If no trade with the given ID exists.
         """
-        trade = await self._repo.get_by_id(trade_id)
-        if trade is None or trade.user_id != user_id:
+        trade = await self._repo.get_by_id(trade_id, user_id)
+        if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         return TradeRead.model_validate(trade)
 
@@ -314,8 +322,8 @@ class TradeService:
         Raises:
             TradeNotFoundError: If no trade with the given ID exists.
         """
-        trade = await self._repo.get_by_id(trade_id)
-        if trade is None or trade.user_id != user_id:
+        trade = await self._repo.get_by_id(trade_id, user_id)
+        if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         updated = await self._repo.update(trade, data)
         reaggregate_fields = {
@@ -329,22 +337,22 @@ class TradeService:
             "pnl",
             "net_pnl",
             "multiplier",
-            "has_conflict",
         }
         should_reaggregate = bool(reaggregate_fields & data.model_fields_set)
         if should_reaggregate:
-            skip_clear = False
-            if "has_conflict" in data.model_fields_set and data.has_conflict is True:
-                skip_clear = True
-            await self._re_aggregate_trade(
-                trade_id,
-                skip_conflict_auto_clear=skip_clear,
-            )
+            await self._re_aggregate_trade(trade_id)
         await self._session.commit()
         return TradeRead.model_validate(updated)
 
     async def delete_trade(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> None:
-        """Delete a trade by its UUID.
+        """Delete a trade and its child executions.
+
+        For each child :class:`~app.models.logical_execution.LogicalExecution`:
+        - If ``origin`` is ``'manual'``, hard-delete (row removed).
+        - Otherwise (``'imported'``, ``'merged'``, ``'split'``), soft-delete
+          (``deleted=True``).
+
+        The :class:`~app.models.trade.Trade` row itself is always hard-deleted.
 
         Args:
             trade_id: UUID of the trade to delete.
@@ -353,9 +361,20 @@ class TradeService:
         Raises:
             TradeNotFoundError: If no trade with the given ID exists.
         """
-        trade = await self._repo.get_by_id(trade_id)
-        if trade is None or trade.user_id != user_id:
+        trade = await self._repo.get_by_id(trade_id, user_id)
+        if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
+
+        # Process child executions before deleting the parent trade
+        executions = await self._exec_repo.list_by_trade_id(
+            trade_id, include_deleted=True
+        )
+        for ex in executions:
+            if ex.origin == EXECUTION_ORIGIN_MANUAL:
+                await self._exec_repo.delete(ex.id)
+            else:
+                await self._exec_repo.soft_delete(ex.id)
+
         await self._repo.delete(trade)
 
     async def bulk_delete_trades(
@@ -453,8 +472,8 @@ class TradeService:
         """
         trades = []
         for tid in set(trade_ids):
-            t = await self._repo.get_by_id(tid)
-            if not t or t.user_id != user_id:
+            t = await self._repo.get_by_id(tid, user_id)
+            if not t:
                 raise TradeNotFoundError(f"Trade {tid} not found or not owned.")
             trades.append(t)
 
@@ -502,6 +521,11 @@ class TradeService:
                 if tag not in survivor.tags:
                     survivor.tags.append(tag)
 
+            # Clear the ORM-level logical_executions collection before deleting
+            # so that SQLAlchemy doesn't attempt to null-out the trade_id FK on
+            # in-memory execution instances (they were already reassigned above).
+            await self._session.refresh(t, attribute_names=["logical_executions"])
+
             # Delete empty trades
             await self._repo.delete(t)
 
@@ -509,7 +533,7 @@ class TradeService:
         await self._re_aggregate_trade(survivor.id)
 
         # Reload survivor
-        survivor_reloaded = await self._repo.get_by_id(survivor.id)
+        survivor_reloaded = await self._repo.get_by_id(survivor.id, user_id)
         return TradeRead.model_validate(survivor_reloaded)
 
     async def partial_close_trade(
@@ -536,8 +560,8 @@ class TradeService:
             TradeNotFoundError: If the trade is not found or owned by another user.
             ValueError: If the trade is already closed or quantity is invalid.
         """
-        trade = await self._repo.get_by_id(trade_id)
-        if trade is None or trade.user_id != user_id:
+        trade = await self._repo.get_by_id(trade_id, user_id)
+        if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
 
         if trade.closed_at is not None:
@@ -601,7 +625,7 @@ class TradeService:
 
         # Explicitly reload new_trade using the repository get_by_id method
         # which uses eager loading for everything.
-        new_trade_orm = await self._repo.get_by_id(new_trade.id)
+        new_trade_orm = await self._repo.get_by_id(new_trade.id, user_id)
         if new_trade_orm is None:
             raise ValueError("Failed to retrieve created trade.")
 

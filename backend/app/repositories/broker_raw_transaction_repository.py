@@ -6,7 +6,7 @@ return SQLAlchemy ORM instances.  No business logic lives here.
 
 import uuid
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -151,6 +151,25 @@ class BrokerRawTransactionRepository:
             stmt = stmt.where(BrokerRawTransaction.account_id == account_id)
         result = await self._session.execute(stmt)
         return set(result.scalars().all())
+
+    async def set_suppressed(self, raw_id: str, suppressed: bool) -> bool:
+        """Toggle the suppressed flag on a raw transaction.
+
+        Args:
+            raw_id: Primary key of the raw transaction.
+            suppressed: New value for the suppressed flag.
+
+        Returns:
+            True if the row was found and updated, False otherwise.
+        """
+        stmt = (
+            update(BrokerRawTransaction)
+            .where(BrokerRawTransaction.id == raw_id)
+            .values(suppressed=suppressed)
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return bool(getattr(result, "rowcount", 0) > 0)
 
     async def delete_by_user_account(
         self,

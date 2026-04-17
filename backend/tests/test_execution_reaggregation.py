@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.models.logical_execution import ExecutionStatus, LogicalExecution
+from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL, LogicalExecution
 from app.models.trade import Direction, Trade
 from app.services.execution import ExecutionService
 
@@ -25,8 +25,6 @@ async def test_re_aggregate_trade_vwap_logic():
     trade.user_id = user_id
     trade.direction = Direction.LONG
     trade.multiplier = 1
-    trade.has_conflict = True
-    
     service.trade_repo.get_by_id = AsyncMock(return_value=trade)
     
     # Mock executions: 
@@ -43,7 +41,7 @@ async def test_re_aggregate_trade_vwap_logic():
         price=Decimal("150.00"),
         commission=Decimal("1.00"),
         executed_at=datetime(2024, 1, 1, 10, 0, tzinfo=UTC),
-        status=ExecutionStatus.MANUAL
+        origin=EXECUTION_ORIGIN_MANUAL
     )
     exec2 = LogicalExecution(
         id=uuid.uuid4(),
@@ -53,7 +51,7 @@ async def test_re_aggregate_trade_vwap_logic():
         price=Decimal("160.00"),
         commission=Decimal("0.50"),
         executed_at=datetime(2024, 1, 1, 11, 0, tzinfo=UTC),
-        status=ExecutionStatus.MANUAL
+        origin=EXECUTION_ORIGIN_MANUAL
     )
     exec3 = LogicalExecution(
         id=uuid.uuid4(),
@@ -63,7 +61,7 @@ async def test_re_aggregate_trade_vwap_logic():
         price=Decimal("170.00"),
         commission=Decimal("1.50"),
         executed_at=datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
-        status=ExecutionStatus.MANUAL
+        origin=EXECUTION_ORIGIN_MANUAL
     )
     
     service.execution_repo.list_by_trade_id = AsyncMock(return_value=[exec1, exec2, exec3])
@@ -96,9 +94,6 @@ async def test_re_aggregate_trade_vwap_logic():
     
     # closed_at = None (since exit_qty < entry_qty)
     assert trade.closed_at is None
-    
-    # has_conflict cleared
-    assert trade.has_conflict is False
 
 @pytest.mark.asyncio
 async def test_re_aggregate_trade_full_close():

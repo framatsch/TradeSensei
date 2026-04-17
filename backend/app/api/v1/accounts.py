@@ -10,8 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import AccountNotFoundError
 from app.models.user import User
 from app.schemas.account import (
@@ -27,7 +26,7 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> AccountService:
     """FastAPI dependency that constructs an :class:`AccountService`.
 

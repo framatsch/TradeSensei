@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Introduced `simplified-execution-model`: `LogicalExecution` now tracks `origin` (`imported|manual|merged|split`), `deleted` (soft-delete flag), `user_modified`, and `parent_id` fields instead of the former `status` enum.
+- [backend] Soft-delete for imported/merged/split executions: `DELETE /executions/{id}` returns 200 with body; manual executions are hard-deleted (204 No Content).
+- [backend] `POST /executions/{id}/restore` endpoint: un-deletes a soft-deleted execution and re-aggregates the parent trade.
+- [backend] `POST /executions/{id}/split` endpoint: splits one execution into two child executions with `origin='split'` and the original soft-deleted.
+- [backend] `POST /imports/{account_id}/fresh-start` endpoint: deletes all executions and trades for an account within a single transaction, then re-imports from the provided file.
+- [backend] `GET /trades/{id}/executions` and `GET /executions` support `?include_deleted=true` to show soft-deleted rows.
+- [backend] `PATCH /broker-raw-transactions/{id}/suppress` endpoint to toggle the `suppressed` flag on raw transactions, preventing re-import.
+- [backend] Configurable `statement_timeout` guard (default 60 s) on the fresh-start endpoint via `FRESH_START_TIMEOUT` env var.
+- [backend] Alembic migration to drop the deprecated `has_conflict` column from the `trades` table.
+- [backend] Alembic migration to add `deleted`, `user_modified`, `parent_id`, `origin` columns and supporting indexes to `logical_executions`.
+- [frontend] `ExecutionStatusBadge` component derives its color from `origin` + `deleted` + `user_modified` (Imported=blue, Edited=amber, Manual=violet, Merged=orange, Split=cyan, Deleted=gray).
+- [frontend] `ExecutionLegsTable` "Show deleted" toggle; deleted rows rendered at 50% opacity with a Restore button.
+- [frontend] `SplitExecutionModal` for splitting a single execution into two, with qty/price/timestamp fields and a live preview.
+- [frontend] Fresh Start section in the Import dialog, gated behind an explicit acknowledgement checkbox.
+- [frontend] `useRestoreExecution`, `useSplitExecution`, and updated `useTradeExecutions` React Query hooks.
+
+### Changed
+- [backend] `_re_aggregate_trade` now filters to `deleted=False` executions only (Decision 5 of the spec).
+- [backend] Merge-trades service uses `passive_deletes=True` on the `logical_executions` relationship and refreshes the ORM collection before deleting non-survivor trades, preventing FK-cascade data loss.
+- [backend] `LogicalExecution` SQLAlchemy model uses `Enum(AssetClass/Direction, create_type=False)` to match the pre-existing PostgreSQL enum types.
+- [frontend] Removed `has_conflict` badge from `TradeRow` and conflict count badge from the sidebar.
+- [frontend] Removed `ConflictBanner` component from the trade detail page.
+- [frontend] `ExecutionRow` uses `origin`/`deleted`/`user_modified` fields instead of deprecated `status`.
+
+### Removed
+- [backend] `has_conflict` field removed from `Trade` model, `TradeUpdate`/`TradeFilters` schemas, and all repository/API filter logic.
+- [backend] `?has_conflict` query parameter removed from `GET /api/v1/trades`.
+- [frontend] `useConflictTradeCount` hook removed from `useTrades.ts`.
+
+### Fixed
+- [backend] `merge_trades` service now correctly re-aggregates the survivor after reassigning executions by expiring the session-cached collections via `session.refresh` before deleting non-survivor trades.
+- [backend] `delete_execution` for manual executions now cascade-deletes the parent trade when it has no remaining active executions.
+
 ## [0.10.0] - 2026-04-03
 
 ### Added

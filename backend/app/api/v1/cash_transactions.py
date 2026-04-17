@@ -10,8 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import CashTransactionNotFoundError
 from app.models.user import User
 from app.schemas.cash_transaction import (
@@ -29,7 +28,7 @@ router = APIRouter(
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> CashTransactionService:
     """Build a cash transaction service bound to the request session."""
     return CashTransactionService(session)

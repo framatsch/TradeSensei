@@ -45,6 +45,7 @@ class AuthService:
         Args:
             session: The session to use for all operations.
         """
+        self._session = session
         self._repo = UserRepository(session)
 
     async def register(self, data: UserCreate) -> User:
@@ -234,7 +235,7 @@ class AuthService:
                 token is invalid, expired, or already used.
         """
         try:
-            user_id = consume_one_time_token(ott)
+            user_id = await consume_one_time_token(ott, self._session)
         except InvalidTokenError as exc:
             raise InvalidCredentialsError("Invalid or expired one-time token.") from exc
         user = await self._repo.get_by_id(user_id)

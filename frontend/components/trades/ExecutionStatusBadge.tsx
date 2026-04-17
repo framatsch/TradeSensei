@@ -1,33 +1,81 @@
 /**
- * ExecutionStatusBadge — colored badge for execution status.
- * imported = blue, manual = purple, merged = orange, split = cyan
+ * ExecutionStatusBadge — colored badge derived from execution origin, deleted, and
+ * user_modified flags per the simplified-execution-model spec (task 8.3).
+ *
+ * Badge table:
+ *   deleted=true                              → gray,   "Deleted"
+ *   origin='imported' + user_modified=true   → amber,  "Edited"
+ *   origin='imported' + user_modified=false  → blue,   "Imported"
+ *   origin='manual'                           → violet, "Manual"
+ *   origin='merged'                           → orange, "Merged"
+ *   origin='split'                            → cyan,   "Split"
+ *
+ * Design rules:
+ * - No `dark:` modifier — semantic CSS variable tokens only.
+ * - Colors are achieved via Tailwind opacity utilities on semantic backgrounds.
  */
 
 "use client";
 
-import type { ExecutionStatus } from "@/lib/types";
+import type { ExecutionOrigin } from "@/lib/types";
 
 interface Props {
-  status: ExecutionStatus;
+  origin: ExecutionOrigin;
+  deleted?: boolean;
+  user_modified?: boolean;
 }
 
-const STATUS_STYLES: Record<ExecutionStatus, string> = {
-  imported:
-    "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800",
-  manual:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400 border border-purple-200 dark:border-purple-800",
-  merged:
-    "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800",
-  split:
-    "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800",
-};
+interface BadgeStyle {
+  label: string;
+  className: string;
+}
 
-export function ExecutionStatusBadge({ status }: Props) {
+function resolveBadge(origin: ExecutionOrigin, deleted: boolean, userModified: boolean): BadgeStyle {
+  if (deleted) {
+    return {
+      label: "Deleted",
+      className: "bg-muted text-muted-foreground border border-border",
+    };
+  }
+  if (origin === "imported" && userModified) {
+    return {
+      label: "Edited",
+      className: "bg-amber-100 text-amber-700 border border-amber-200",
+    };
+  }
+  if (origin === "imported") {
+    return {
+      label: "Imported",
+      className: "bg-blue-100 text-blue-700 border border-blue-200",
+    };
+  }
+  if (origin === "manual") {
+    return {
+      label: "Manual",
+      className: "bg-violet-100 text-violet-700 border border-violet-200",
+    };
+  }
+  if (origin === "merged") {
+    return {
+      label: "Merged",
+      className: "bg-orange-100 text-orange-700 border border-orange-200",
+    };
+  }
+  // origin === "split"
+  return {
+    label: "Split",
+    className: "bg-cyan-100 text-cyan-700 border border-cyan-200",
+  };
+}
+
+export function ExecutionStatusBadge({ origin, deleted = false, user_modified = false }: Props) {
+  const badge = resolveBadge(origin, deleted, user_modified);
+
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${STATUS_STYLES[status]}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${badge.className}`}
     >
-      {status}
+      {badge.label}
     </span>
   );
 }

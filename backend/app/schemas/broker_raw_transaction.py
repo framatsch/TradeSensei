@@ -136,3 +136,49 @@ class BrokerRawTransactionCreate(BaseModel):
         """Check if this raw execution was a mixed execution (position flip)."""
         raw_ind = self.raw_data.get("openCloseIndicator", "")
         return isinstance(raw_ind, str) and ("C;O" in raw_ind or "O;C" in raw_ind)
+
+
+class BrokerRawTransactionRead(BaseModel):
+    """Schema for reading a BrokerRawTransaction.
+
+    Attributes:
+        id: Composite broker execution ID.
+        user_id: UUID of the owning user.
+        account_id: Optional UUID of the associated account.
+        broker_type: Short broker identifier.
+        symbol: Ticker symbol.
+        conid: Broker contract identifier, or None.
+        asset_class: Asset class of the instrument.
+        direction: Buy (LONG) or sell (SHORT) side.
+        quantity: Absolute execution quantity.
+        price: Execution price per unit.
+        commission: Absolute commission charged.
+        executed_at: Timestamp of the execution (UTC).
+        pnl: Broker-reported realised P&L, or None.
+        currency: ISO-4217 currency code, or None.
+        multiplier: Contract multiplier.
+        suppressed: When True, permanently excluded from all future imports.
+        created_at: Row-creation timestamp.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: uuid.UUID
+    account_id: uuid.UUID | None = None
+    broker_type: str
+    symbol: str
+    conid: str | None = None
+    asset_class: AssetClass
+    direction: Direction
+    quantity: Decimal
+    price: Decimal
+    commission: Decimal
+    executed_at: datetime
+    pnl: Decimal | None = None
+    currency: str | None = None
+    multiplier: int
+    suppressed: bool = Field(
+        description="When True, permanently excluded from all future imports."
+    )
+    created_at: datetime

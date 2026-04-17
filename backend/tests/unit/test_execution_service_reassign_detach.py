@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.core.exceptions import ExecutionValidationError
-from app.models.logical_execution import ExecutionStatus, LogicalExecution
+from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL, LogicalExecution
 from app.models.trade import AssetClass, Direction, Trade
 from app.services.execution import ExecutionService
 
@@ -48,7 +48,7 @@ def _make_execution(
         price=Decimal("100"),
         commission=Decimal("0"),
         executed_at=datetime.now(UTC),
-        status=ExecutionStatus.MANUAL,
+        origin=EXECUTION_ORIGIN_MANUAL,
         trade_id=trade_id,
         multiplier=1,
     )

@@ -17,7 +17,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { FileQueue, FileQueueSummary } from "@/components/imports/FileQueue";
 import { DateRangeVisualizer } from "@/components/imports/DateRangeVisualizer";
 import type { QueuedFile } from "@/components/imports/FileQueue";
-import type { ImportResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
+import type { ImportResult, FreshStartResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
 import type { AxiosError } from "axios";
 
 // Type badge helper
@@ -64,6 +64,15 @@ export function ImportForm() {
   // ── Overwrite manually-edited trades flag ──
   const [overwriteManuallyEdited, setOverwriteManuallyEdited] = useState(false);
 
+  // ── Fresh Start state (task 8.6) ──
+  const [showFreshStart, setShowFreshStart] = useState(false);
+  const [freshStartAcknowledged, setFreshStartAcknowledged] = useState(false);
+  const [freshStartFile, setFreshStartFile] = useState<File | null>(null);
+  const [freshStartResult, setFreshStartResult] = useState<FreshStartResult | null>(null);
+  const [freshStartError, setFreshStartError] = useState<string | null>(null);
+  const [isFreshStartRunning, setIsFreshStartRunning] = useState(false);
+  const freshStartFileRef = useRef<HTMLInputElement>(null);
+
   // ── Flex date-range state ──
   const [flexPreset, setFlexPreset] = useState<FlexFromDatePreset>("ytd");
   const [flexCustomDate, setFlexCustomDate] = useState<string>(getYTDFromDate());
@@ -83,6 +92,11 @@ export function ImportForm() {
     setSyncResult(null);
     setShowFileUpload(false);
     setOverwriteManuallyEdited(false);
+    setShowFreshStart(false);
+    setFreshStartAcknowledged(false);
+    setFreshStartFile(null);
+    setFreshStartResult(null);
+    setFreshStartError(null);
     abortRef.current = false;
 
     const acc = accounts?.find((a) => a.id === id);
@@ -202,6 +216,41 @@ export function ImportForm() {
     setCurrentIndex(0);
     abortRef.current = false;
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // ── Fresh Start handler (task 8.6) ───────────────────────────────────────
+  const handleFreshStart = async () => {
+    if (!freshStartFile || !accountType || !accountId || !freshStartAcknowledged) return;
+    setIsFreshStartRunning(true);
+    setFreshStartError(null);
+    setFreshStartResult(null);
+
+    try {
+      const broker = accountType === "schwab" ? "schwab" : "ibkr";
+      const formData = new FormData();
+      formData.append("broker", broker);
+      formData.append("acknowledged", "true");
+      formData.append("file", freshStartFile);
+
+      const res = await apiClient.post<ResponseEnvelope<FreshStartResult>>(
+        `/api/v1/imports/${accountId}/fresh-start`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      setFreshStartResult(res.data.data);
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
+      void qc.invalidateQueries({ queryKey: ["stats"] });
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+    } catch (err) {
+      const axiosErr = err as import("axios").AxiosError<{ detail?: string }>;
+      setFreshStartError(
+        axiosErr.response?.data?.detail ?? (err instanceof Error ? err.message : "Fresh start failed.")
+      );
+    } finally {
+      setIsFreshStartRunning(false);
+    }
   };
 
   // ── API Sync mutation ─────────────────────────────────────────────────────
@@ -383,6 +432,110 @@ export function ImportForm() {
                   {isSyncing && <Spinner size="sm" />}
                   {isSyncing ? "Syncing…" : `Sync ${TYPE_LABEL[accountType]} Trades`}
                 </button>
+              )}
+            </div>
+          )}
+
+          {/* Fresh Start (task 8.6) — only for ibkr/schwab accounts */}
+          {(accountType === "schwab" || accountType === "ibkr") && (
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowFreshStart((v) => !v)}
+                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/30 transition-colors"
+              >
+                <span className="text-sm font-medium text-red-600">
+                  Fresh Start (destructive)
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {showFreshStart ? "▲ Hide" : "▼ Show"}
+                </span>
+              </button>
+
+              {showFreshStart && (
+                <div className="px-6 py-4 space-y-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground">
+                    Deletes <strong>all</strong> trades and executions for this account, then re-imports
+                    from the selected file. BrokerRawTransactions and suppressed records are preserved.
+                    <br />
+                    <strong className="text-red-600">This action cannot be undone.</strong>
+                  </p>
+
+                  {/* File input */}
+                  {!freshStartResult && (
+                    <>
+                      <input
+                        ref={freshStartFileRef}
+                        type="file"
+                        accept=".csv,.xlsx,.xls,.xml"
+                        onChange={(e) => setFreshStartFile(e.target.files?.[0] ?? null)}
+                        className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-muted file:text-foreground file:cursor-pointer file:font-medium"
+                      />
+
+                      {/* Acknowledgement checkbox */}
+                      <label className="flex items-start gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={freshStartAcknowledged}
+                          onChange={(e) => setFreshStartAcknowledged(e.target.checked)}
+                          disabled={isFreshStartRunning}
+                          className="mt-0.5 w-4 h-4 rounded border-border accent-red-600 flex-shrink-0"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          I understand that all trades and executions for this account will be
+                          permanently deleted before the re-import.
+                        </span>
+                      </label>
+
+                      {freshStartError && (
+                        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                          {freshStartError}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleFreshStart}
+                        disabled={!freshStartFile || !freshStartAcknowledged || isFreshStartRunning}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                      >
+                        {isFreshStartRunning ? (
+                          <>
+                            <Spinner size="sm" />
+                            Running Fresh Start…
+                          </>
+                        ) : (
+                          "Run Fresh Start"
+                        )}
+                      </button>
+                    </>
+                  )}
+
+                  {freshStartResult && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-4">
+                        <StatBox label="Deleted exec." value={freshStartResult.executions_deleted} color="text-red-500" />
+                        <StatBox label="Deleted trades" value={freshStartResult.trades_deleted} color="text-red-500" />
+                        <StatBox label="Imported" value={freshStartResult.import_result.trades_created} color="text-emerald-500" />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Fresh start complete. {freshStartResult.import_result.trades_skipped} rows skipped.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFreshStartResult(null);
+                          setFreshStartAcknowledged(false);
+                          setFreshStartFile(null);
+                          if (freshStartFileRef.current) freshStartFileRef.current.value = "";
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground underline"
+                      >
+                        Run again
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}

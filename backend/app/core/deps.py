@@ -3,12 +3,19 @@
 The :func:`get_current_user` dependency validates the Bearer token and
 returns the active :class:`~app.models.user.User` ORM instance, raising
 HTTP 401 when the token is invalid or the user is inactive.
+
+The :func:`get_session_with_rls` dependency builds on top of
+:func:`get_current_user` to set ``app.current_user_id`` via
+``SET LOCAL`` so PostgreSQL Row-Level Security policies can filter rows
+automatically for the authenticated user.
 """
 
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -59,3 +66,38 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+async def get_session_with_rls(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AsyncGenerator[AsyncSession]:
+    """Yield a session with PostgreSQL RLS context set for the current user.
+
+    Executes ``SET LOCAL app.current_user_id = :uid`` within the current
+    transaction so that all RLS policies keyed on
+    ``current_setting('app.current_user_id', true)::uuid`` automatically
+    filter rows to the authenticated user only.
+
+    ``SET LOCAL`` is transaction-scoped: the setting is cleared automatically
+    when the transaction ends and the connection is returned to the pool,
+    preventing cross-request context leakage.
+
+    This dependency **replaces** :func:`app.core.database.get_session` on all
+    authenticated routes.  Public routes (auth, health) continue to use
+    :func:`~app.core.database.get_session` directly.
+
+    Args:
+        current_user: The authenticated user (validated by Bearer token).
+        session: The active database session from :func:`get_session`.
+
+    Yields:
+        The same :class:`AsyncSession` after setting the RLS context variable.
+    """
+    # asyncpg does not support parameterised SET statements; the UUID is safe
+    # to embed directly because it comes from the validated JWT / ORM model.
+    uid = str(current_user.id)
+    await session.execute(
+        text(f"SET LOCAL app.current_user_id = '{uid}'")  # noqa: S608
+    )
+    yield session

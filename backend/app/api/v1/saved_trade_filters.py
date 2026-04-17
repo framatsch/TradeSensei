@@ -5,8 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import (
     SavedTradeFilterNotFoundError,
     SavedTradeFilterPermissionError,
@@ -26,7 +25,7 @@ router = APIRouter()
 
 
 def get_saved_trade_filter_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> SavedTradeFilterService:
     """Dependency injection for the saved trade filter service."""
     repository = SavedTradeFilterRepository(session)

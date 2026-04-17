@@ -4,8 +4,6 @@ All methods receive an :class:`AsyncSession` from the service layer and
 return SQLAlchemy ORM instances.  No business logic lives here.
 """
 
-import base64
-import binascii
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -21,6 +19,8 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import Select
 
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
+from app.core.security import decode_cursor as _decode_signed_cursor
+from app.core.security import encode_cursor as _encode_signed_cursor
 from app.models.trade import Trade
 from app.models.trade_tag import TradeTag
 from app.schemas.trade import (
@@ -33,12 +33,27 @@ from app.schemas.trade import (
 )
 
 
-def _encode_cursor(sort_value: str, trade_id: uuid.UUID) -> str:
-    """Encode a sort-aware pagination cursor as a URL-safe base-64 string.
+def _get_cursor_secret() -> str:
+    """Return the application secret for cursor signing.
 
-    The cursor encodes the current sort field value and the trade ``id``
-    so the query can use a composite keyset condition, ensuring stable
-    ordering even when multiple trades share the same sort value.
+    Uses a deferred import to avoid circular imports between
+    ``security`` → ``config`` → ``database``.
+
+    Returns:
+        The ``SECRET_KEY`` from application settings.
+    """
+    # Deferred import to break circular dependency: security -> config
+    from app.core.config import settings
+
+    return str(settings.secret_key)
+
+
+def _encode_cursor_payload(sort_value: str, trade_id: uuid.UUID) -> str:
+    """Encode a sort-aware pagination cursor as an HMAC-signed token.
+
+    Delegates to :func:`~app.core.security.encode_cursor` so the cursor
+    is tamper-evident.  A manipulated cursor will fail signature verification
+    before the SQL query runs.
 
     Args:
         sort_value: Serialised string representation of the sort field's
@@ -46,31 +61,31 @@ def _encode_cursor(sort_value: str, trade_id: uuid.UUID) -> str:
         trade_id: The ``id`` of the last item on the page.
 
     Returns:
-        A URL-safe base-64 encoded cursor string.
+        An HMAC-signed, base64url-encoded cursor string.
     """
-    raw = f"{sort_value}|{trade_id}"
-    return base64.urlsafe_b64encode(raw.encode()).decode()
+    payload = {"sv": sort_value, "id": str(trade_id)}
+    return _encode_signed_cursor(payload, _get_cursor_secret())
 
 
-def _decode_cursor(cursor: str) -> tuple[str, uuid.UUID]:
-    """Decode a sort-aware pagination cursor produced by :func:`_encode_cursor`.
+def _decode_cursor_payload(cursor: str) -> tuple[str, uuid.UUID]:
+    """Decode a sort-aware pagination cursor produced by :func:`_encode_cursor_payload`.
+
+    Verifies the HMAC signature before returning the payload.
 
     Args:
-        cursor: URL-safe base-64 encoded cursor string.
+        cursor: HMAC-signed, base64url-encoded cursor string.
 
     Returns:
         A tuple of ``(sort_val, trade_id)`` where ``sort_val`` is the
         raw string representation of the sort field value.
 
     Raises:
-        ValueError: If the cursor cannot be decoded or has an invalid format.
+        ValueError: If the cursor cannot be decoded, has an invalid format,
+            or the signature does not match.
     """
-    try:
-        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
-        sort_val, id_part = raw.split("|", 1)
-        trade_id = uuid.UUID(id_part)
-    except (ValueError, binascii.Error) as exc:
-        raise ValueError(f"Invalid pagination cursor: {cursor!r}") from exc
+    payload = _decode_signed_cursor(cursor, _get_cursor_secret())
+    sort_val = str(payload.get("sv", ""))
+    trade_id = uuid.UUID(str(payload["id"]))
     return sort_val, trade_id
 
 
@@ -260,9 +275,6 @@ def _apply_filters(
             func.extract("dow", Trade.opened_at) == (filters.day_of_week + 1) % 7
         )
 
-    if filters.has_conflict is not None:
-        stmt = stmt.where(Trade.has_conflict == filters.has_conflict)
-
     return stmt
 
 
@@ -405,18 +417,26 @@ class TradeRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
 
-    async def get_by_id(self, trade_id: uuid.UUID) -> Trade | None:
-        """Retrieve a single trade by its primary key.
+    async def get_by_id(
+        self, trade_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Trade | None:
+        """Retrieve a single trade by its primary key, scoped to a user.
 
-        Eagerly loads ``tags`` and ``trade_notes`` relationships.
+        Eagerly loads ``tags``, ``trade_notes``, ``playbook``, ``account``,
+        and ``logical_executions`` relationships.
 
         Args:
             trade_id: UUID of the trade to fetch.
+            user_id: UUID of the requesting user — enforces ownership.
 
         Returns:
-            The matching :class:`Trade`, or ``None`` if not found.
+            The matching :class:`Trade`, or ``None`` if not found or not
+            owned by the given user.
         """
-        stmt = _trade_query_with_eager_loads().where(Trade.id == trade_id)
+        stmt = _trade_query_with_eager_loads().where(
+            Trade.id == trade_id,
+            Trade.user_id == user_id,
+        )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -497,7 +517,7 @@ class TradeRepository:
 
         # ── Cursor keyset condition ───────────────────────────────────────────
         if cursor is not None:
-            sort_val_str, cursor_id = _decode_cursor(cursor)
+            sort_val_str, cursor_id = _decode_cursor_payload(cursor)
 
             # When sort_val is empty (NULL-valued sort field at cursor position),
             # skip the keyset condition — the client resets the cursor when
@@ -556,7 +576,7 @@ class TradeRepository:
         if has_more and items:
             last = items[-1]
             sort_val = _get_sort_value(last, effective_sort_by)
-            next_cursor = _encode_cursor(sort_val, last.id)
+            next_cursor = _encode_cursor_payload(sort_val, last.id)
 
         # ── Optional total count ──────────────────────────────────────────────
         total: int | None = None

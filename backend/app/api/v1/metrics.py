@@ -8,8 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.metrics import DrawdownPoint, EquityCurvePoint, MetricsSummary
@@ -19,7 +18,7 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> MetricsService:
     """FastAPI dependency that constructs a :class:`MetricsService`.
 

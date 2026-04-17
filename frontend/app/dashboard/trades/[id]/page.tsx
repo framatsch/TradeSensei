@@ -16,7 +16,6 @@ import { ExecutionSummaryCard } from "@/components/trades/ExecutionSummaryCard";
 import { ExecutionLegsTable } from "@/components/trades/ExecutionLegsTable";
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import { CorrectTradeModal } from "@/components/trades/CorrectTradeModal";
-import { ConflictBanner } from "@/components/trades/ConflictBanner";
 import { TradePickerModal } from "@/components/trades/TradePickerModal";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 import type { Tag } from "@/lib/types";
@@ -541,9 +540,6 @@ export default function TradeDetailPage() {
           </div>
         </div>
       </div>
-
-      {/* Conflict Banner */}
-      {trade.has_conflict && <ConflictBanner />}
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

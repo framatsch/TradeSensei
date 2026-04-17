@@ -11,8 +11,7 @@ from app.core.constants import (
     PAGINATION_MAX_LIMIT,
     PAGINATION_MIN_LIMIT,
 )
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
@@ -48,7 +47,7 @@ def _raise_not_found() -> NoReturn:
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> TradeService:
     """FastAPI dependency that constructs a :class:`TradeService`.
 
@@ -327,13 +326,6 @@ async def list_trades(
             )
         ),
     ] = None,
-    has_conflict: Annotated[
-        bool | None,
-        Query(
-            description="Filter trades by conflict status (True = has conflict)",
-            alias="has_conflict",
-        ),
-    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 
@@ -360,8 +352,6 @@ async def list_trades(
     # so tag_ids is declared separately and merged here.
     if tag_ids is not None:
         filters.tag_ids = tag_ids
-    if has_conflict is not None:
-        filters.has_conflict = has_conflict
     try:
         page = await service.list_trades(
             limit=limit,

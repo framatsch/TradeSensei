@@ -22,7 +22,6 @@ import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
 import type { SavedTradeFilterRead } from "@/lib/types";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
 import FeatureGatedNavItems from "@/components/dashboard/FeatureGatedNavItems";
-import { useConflictTradeCount } from "@/hooks/useTrades";
 
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
@@ -252,7 +251,6 @@ function ViewItem({
   onClick: () => void;
 }) {
   const isActive = activeViewId === view.id;
-  const { data: conflictCount } = useConflictTradeCount();
 
   return (
     <button
@@ -277,21 +275,6 @@ function ViewItem({
       </span>
 
       <span className="truncate flex-1">{view.name}</span>
-
-      {/* Count badge for Needs Review system filter */}
-      {view.needs_review && conflictCount != null && conflictCount > 0 && (
-        <span className="ml-auto flex-shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-          {conflictCount > 99 ? "99+" : conflictCount}
-        </span>
-      )}
-
-      {view.needs_review && (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5 shrink-0 text-amber-500">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      )}
 
       {/* Unsaved-changes indicator — shown when active view filters have been modified */}
       {isActive && isModified && (

@@ -14,8 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.constants import BYTES_PER_MB, SCREENSHOT_MAX_FILE_SIZE_MB
-from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import TradeNotFoundError
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
@@ -29,7 +28,7 @@ MAX_FILE_SIZE = SCREENSHOT_MAX_FILE_SIZE_MB * BYTES_PER_MB
 
 
 def _get_service(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> TradeService:
     return TradeService(session)
 

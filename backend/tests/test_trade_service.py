@@ -1,4 +1,3 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 """Unit tests for TradeService — no database access (all DB calls mocked)."""
 
 import uuid
@@ -166,7 +165,7 @@ class TestCreateTrade:
         self, service: TradeService, mock_session: AsyncMock
     ) -> None:
         """create_trade should automatically create a LogicalExecution."""
-        from app.models.logical_execution import ExecutionStatus
+        from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
 
         trade = _make_trade(
             id=uuid.uuid4(),
@@ -216,7 +215,7 @@ class TestCreateTrade:
             executed_at=trade.opened_at,
             multiplier=trade.multiplier,
             currency=trade.currency,
-            status=ExecutionStatus.MANUAL,
+            origin=EXECUTION_ORIGIN_MANUAL,
             trade_id=trade.id,
         )
 
@@ -226,19 +225,22 @@ class TestCreateTrade:
     async def test_create_trade_with_manual_executions(
         self, service: TradeService, mock_session: AsyncMock
     ) -> None:
-        from app.schemas.execution import LogicalExecutionCreate
-        from app.models.logical_execution import ExecutionStatus
-        from app.models.trade import Direction, AssetClass
-        from app.schemas.trade import TradeCreate
         import uuid
+        from datetime import UTC, datetime
         from decimal import Decimal
-        from datetime import datetime, UTC
+
+        from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
+        from app.models.trade import AssetClass, Direction
+        from app.schemas.execution import LogicalExecutionCreate
+        from app.schemas.trade import TradeCreate
 
         trade_id = uuid.uuid4()
         user_id = uuid.uuid4()
         opened_at = datetime.now(UTC)
 
-        trade = _make_trade(id=trade_id, user_id=user_id, symbol="MANUAL_EXEC", direction=Direction.LONG)
+        trade = _make_trade(
+            id=trade_id, user_id=user_id, symbol="MANUAL_EXEC", direction=Direction.LONG
+        )
         
         leg = LogicalExecutionCreate(
             direction=Direction.LONG,
@@ -296,7 +298,7 @@ class TestCreateTrade:
                 executed_at=opened_at,
                 multiplier=trade.multiplier,
                 currency=trade.currency,
-                status=ExecutionStatus.MANUAL,
+                origin=EXECUTION_ORIGIN_MANUAL,
                 trade_id=trade_id,
                 pnl=None,
             )
@@ -305,8 +307,8 @@ class TestCreateTrade:
     async def test_create_closed_trade_creates_entry_and_exit_executions(
         self, service: TradeService, mock_session: AsyncMock
     ) -> None:
-        """create_trade with exit_price+closed_at should create both entry and exit executions."""
-        from app.models.logical_execution import ExecutionStatus
+        """create_trade with exit_price+closed_at creates entry and exit executions."""
+        from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
 
         now = datetime.now(tz=UTC)
         closed = datetime.now(tz=UTC)
@@ -366,11 +368,11 @@ class TestCreateTrade:
         exit_kwargs = calls[1].kwargs
         assert entry_kwargs["direction"] == Direction.LONG
         assert entry_kwargs["price"] == Decimal("150.00")
-        assert entry_kwargs["status"] == ExecutionStatus.MANUAL
+        assert entry_kwargs["origin"] == EXECUTION_ORIGIN_MANUAL
         assert exit_kwargs["direction"] == Direction.SHORT
         assert exit_kwargs["price"] == Decimal("160.00")
         assert exit_kwargs["pnl"] == Decimal("100.00")
-        assert exit_kwargs["status"] == ExecutionStatus.MANUAL
+        assert exit_kwargs["origin"] == EXECUTION_ORIGIN_MANUAL
         # Re-aggregation must NOT run for an already-closed trade.
         mock_reaggregate.assert_not_awaited()
 
@@ -596,6 +598,11 @@ class TestDeleteTrade:
             patch(
                 "app.services.trade_service.TradeRepository.delete",
                 new=mock_delete,
+            ),
+            patch(
+                "app.services.trade_service.ExecutionRepository.list_by_trade_id",
+                new_callable=AsyncMock,
+                return_value=[],
             ),
         ):
             await service.delete_trade(trade.id, trade.user_id)  # type: ignore[arg-type]

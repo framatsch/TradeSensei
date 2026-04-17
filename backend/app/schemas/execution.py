@@ -3,11 +3,14 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.logical_execution import ExecutionStatus
 from app.models.trade import AssetClass, Direction
+
+# Valid origin values for type annotation
+ExecutionOrigin = Literal["imported", "manual", "merged", "split"]
 
 
 class LogicalExecutionBase(BaseModel):
@@ -39,13 +42,22 @@ class LogicalExecutionBase(BaseModel):
 
 
 class LogicalExecutionCreate(LogicalExecutionBase):
-    """Schema for creating a manual LogicalExecution."""
+    """Schema for creating a manual LogicalExecution.
+
+    Note: ``origin`` is always set to ``'manual'`` by the service layer —
+    it is not accepted from the API consumer.
+    """
 
     pass
 
 
 class LogicalExecutionUpdate(BaseModel):
-    """Schema for updating a LogicalExecution."""
+    """Schema for updating a LogicalExecution.
+
+    Note: ``origin``, ``deleted``, and ``user_modified`` are not patchable
+    by the API consumer.  ``user_modified`` is set automatically by the
+    service when patching an imported execution.
+    """
 
     direction: Direction | None = None
     quantity: Decimal | None = Field(default=None, gt=0)
@@ -76,6 +88,131 @@ class ReassignExecutionResponse(BaseModel):
     message: str
 
 
+class SplitExecutionRequest(BaseModel):
+    """Request payload for splitting one execution into two.
+
+    Both resulting executions share the same ``trade_id`` and ``origin='split'``.
+    The original execution is soft-deleted (``deleted=true``).
+
+    Attributes:
+        quantity_a: Quantity of the first resulting execution.
+        quantity_b: Quantity of the second resulting execution.
+            Must sum to the original execution's quantity.
+        price_a: Price for the first execution (defaults to original price).
+        price_b: Price for the second execution (defaults to original price).
+        executed_at_a: Timestamp for the first execution (defaults to original).
+        executed_at_b: Timestamp for the second execution (defaults to original).
+    """
+
+    quantity_a: Decimal = Field(
+        gt=0, description="Quantity of the first resulting execution"
+    )
+    quantity_b: Decimal = Field(
+        gt=0, description="Quantity of the second resulting execution"
+    )
+    price_a: Decimal | None = Field(
+        default=None, ge=0, description="Price for the first execution"
+    )
+    price_b: Decimal | None = Field(
+        default=None, ge=0, description="Price for the second execution"
+    )
+    executed_at_a: datetime | None = Field(
+        default=None, description="Timestamp for the first execution (UTC)"
+    )
+    executed_at_b: datetime | None = Field(
+        default=None, description="Timestamp for the second execution (UTC)"
+    )
+
+    @field_validator("executed_at_a", "executed_at_b", mode="after")
+    @classmethod
+    def require_timezone(cls, value: datetime | None) -> datetime | None:
+        """Reject naive datetimes when timestamps are provided."""
+        if value is not None and value.tzinfo is None:
+            raise ValueError("executed_at must be timezone-aware (include UTC offset).")
+        return value
+
+
+class SplitExecutionResponse(BaseModel):
+    """Response payload returned after splitting an execution.
+
+    Attributes:
+        execution_a: First resulting split execution.
+        execution_b: Second resulting split execution.
+        original: The original execution (now soft-deleted).
+    """
+
+    execution_a: "LogicalExecutionRead"
+    execution_b: "LogicalExecutionRead"
+    original: "LogicalExecutionRead"
+
+
+class MergeExecutionsRequest(BaseModel):
+    """Request payload for merging two or more executions into one.
+
+    All source executions must belong to the same trade, have the same
+    direction and symbol, and must not already be deleted.
+
+    The primary execution (``primary_id``) sets the ``parent_id`` for the
+    merged result.
+
+    Attributes:
+        execution_ids: IDs of all executions to merge (must include at
+            least 2 entries; ``primary_id`` must be one of them).
+        primary_id: The execution whose metadata (price, executed_at) will
+            be used as the base for the merged result.
+        price: Override price for the merged execution.  Defaults to the
+            weighted-average price of the source executions.
+        executed_at: Override timestamp for the merged execution.  Defaults
+            to the timestamp of the primary execution.
+    """
+
+    execution_ids: list[uuid.UUID] = Field(
+        min_length=2,
+        description="IDs of all executions to merge (at least 2 required).",
+    )
+    primary_id: uuid.UUID = Field(
+        description=(
+            "The execution whose metadata is used as the base. "
+            "Must be included in execution_ids."
+        )
+    )
+    price: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Override price for the merged execution. "
+            "When omitted, the weighted-average price is used."
+        ),
+    )
+    executed_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Override timestamp for the merged execution (UTC). "
+            "When omitted, the primary execution's timestamp is used."
+        ),
+    )
+
+    @field_validator("executed_at", mode="after")
+    @classmethod
+    def require_timezone(cls, value: datetime | None) -> datetime | None:
+        """Reject naive datetimes when executed_at is provided."""
+        if value is not None and value.tzinfo is None:
+            raise ValueError("executed_at must be timezone-aware (include UTC offset).")
+        return value
+
+
+class MergeExecutionsResponse(BaseModel):
+    """Response payload returned after merging executions.
+
+    Attributes:
+        merged: The newly created merged execution.
+        sources: The original executions (now soft-deleted).
+    """
+
+    merged: "LogicalExecutionRead"
+    sources: list["LogicalExecutionRead"]
+
+
 class LogicalExecutionRead(LogicalExecutionBase):
     """Schema for reading a LogicalExecution."""
 
@@ -90,7 +227,19 @@ class LogicalExecutionRead(LogicalExecutionBase):
     pnl_eur: Decimal | None = None
     multiplier: int
     currency: str | None = None
-    status: ExecutionStatus
+    origin: ExecutionOrigin = Field(
+        description="Immutable provenance: imported | manual | merged | split"
+    )
+    deleted: bool = Field(
+        description="True when this execution has been soft-deleted"
+    )
+    user_modified: bool = Field(
+        description="True when the user has patched an imported execution"
+    )
+    parent_id: uuid.UUID | None = Field(
+        default=None,
+        description="FK to original execution for split/merge lineage",
+    )
     trade_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime

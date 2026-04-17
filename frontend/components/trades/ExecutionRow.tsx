@@ -1,21 +1,27 @@
 /**
  * ExecutionRow — a single execution leg with inline edit and overflow menu.
+ *
+ * Implements task 8.4 / 8.5:
+ * - Deleted rows rendered at 50% opacity with a [Restore] button.
+ * - Non-deleted rows get the normal edit + menu actions.
+ * - "Split" option in the overflow menu for non-deleted imported/manual executions.
  */
 
 "use client";
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, ArrowUp, ArrowDown, Check, X } from "lucide-react";
+import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2 } from "lucide-react";
 import type { LogicalExecution } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
-import { useUpdateExecution, useDeleteExecution } from "@/hooks/useExecutions";
+import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
 
 interface Props {
   execution: LogicalExecution;
   tradeId: string;
   onMoveToTrade?: (executionId: string) => void;
   onDetach?: (executionId: string) => void;
+  onSplit?: (execution: LogicalExecution) => void;
 }
 
 function fmt(value: string | null): string {
@@ -44,7 +50,7 @@ function fmtDate(value: string): string {
   });
 }
 
-export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Props) {
+export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach, onSplit }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -57,12 +63,17 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
 
   const updateExecution = useUpdateExecution();
   const deleteExecution = useDeleteExecution();
+  const restoreExecution = useRestoreExecution();
 
   const isLong = execution.direction === "LONG";
+  const isDeleted = execution.deleted === true;
+
+  // Determine if this execution can be split (non-deleted, imported or manual origin)
+  const canSplit = !isDeleted && (execution.origin === "imported" || execution.origin === "manual");
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && 
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
           buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
@@ -115,6 +126,59 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
     );
   }
 
+  function handleRestore() {
+    restoreExecution.mutate({ executionId: execution.id, tradeId });
+  }
+
+  // Deleted rows: 50% opacity, Restore button only
+  if (isDeleted) {
+    return (
+      <tr className="border-b border-border opacity-50">
+        {/* Date */}
+        <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
+          {fmtDate(execution.executed_at)}
+        </td>
+
+        {/* Side badge */}
+        <td className="px-3 py-2">
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+              isLong
+                ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                : "bg-red-100 text-red-700 border border-red-200"
+            }`}
+          >
+            {isLong ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />}
+            {execution.direction}
+          </span>
+        </td>
+
+        <td className="px-3 py-2 text-sm text-right">{fmtQty(execution.quantity)}</td>
+        <td className="px-3 py-2 text-sm text-right">{fmt(execution.price)}</td>
+        <td className="px-3 py-2 text-sm text-right text-muted-foreground">{fmt(execution.commission)}</td>
+        <td className="px-3 py-2 text-sm text-right">{fmtPnl(execution.pnl)}</td>
+
+        {/* Status badge — shows "Deleted" */}
+        <td className="px-3 py-2">
+          <ExecutionStatusBadge origin={execution.origin} deleted={true} user_modified={execution.user_modified} />
+        </td>
+
+        {/* Restore action */}
+        <td className="px-3 py-2 text-right">
+          <button
+            onClick={handleRestore}
+            disabled={restoreExecution.isPending}
+            title="Restore this execution"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <Undo2 size={12} />
+            Restore
+          </button>
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <>
       <tr className="border-b border-border hover:bg-muted/30 transition-colors">
@@ -128,8 +192,8 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
               isLong
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
-                : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800"
+                ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                : "bg-red-100 text-red-700 border border-red-200"
             }`}
           >
             {isLong ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />}
@@ -186,7 +250,11 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
 
         {/* Status badge */}
         <td className="px-3 py-2">
-          <ExecutionStatusBadge status={execution.status} />
+          <ExecutionStatusBadge
+            origin={execution.origin}
+            deleted={execution.deleted}
+            user_modified={execution.user_modified}
+          />
         </td>
 
          {/* Actions */}
@@ -196,7 +264,7 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
                <button
                  onClick={handleSave}
                  disabled={updateExecution.isPending}
-                 className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                 className="p-1 rounded hover:bg-emerald-100 text-emerald-600"
                  title="Save"
                >
                  <Check size={14} />
@@ -233,6 +301,14 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
                    >
                      Edit
                    </button>
+                   {canSplit && onSplit && (
+                     <button
+                       onClick={() => { setMenuOpen(false); onSplit(execution); }}
+                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
+                     >
+                       Split
+                     </button>
+                   )}
                    {onMoveToTrade && (
                      <button
                        onClick={() => { setMenuOpen(false); onMoveToTrade(execution.id); }}
@@ -251,7 +327,7 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
                    )}
                    <button
                      onClick={handleDelete}
-                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-red-600"
                    >
                      Delete
                    </button>
@@ -265,7 +341,7 @@ export function ExecutionRow({ execution, tradeId, onMoveToTrade, onDetach }: Pr
 
       {showDeleteConfirm && (
         <tr>
-          <td colSpan={8} className="px-3 py-3 bg-red-50/70 dark:bg-red-900/20 border-b border-border">
+          <td colSpan={8} className="px-3 py-3 bg-muted/50 border-b border-border">
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-foreground">
                 Delete this execution? This will re-aggregate the trade.

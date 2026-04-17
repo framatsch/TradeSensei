@@ -170,7 +170,8 @@ Tags: `latest` (main), `v1.2.3` (release tag), `sha-<commit>` (all builds)
 | 4         | Broker import: IBKR + Schwab (file upload + parser) | Complete    |
 | 5         | Time-series endpoints, initial frontend              | Complete    |
 | 6         | Playbook, tagging, psychological notes              | Complete    |
-| 7         | Live broker API connections (IBKR TWS, Schwab API)  | Stretch     |
+| 7         | Simplified execution model (origin/deleted/restore) | Complete    |
+| 8         | Live broker API connections (IBKR TWS, Schwab API)  | Stretch     |
 
 ---
 
@@ -241,7 +242,7 @@ For frontend-only changes: skip step 1 `backend-engineer` and step 3 `openapi-do
 
 ---
 
-*Last updated: Iteration 6 — Playbook, tagging, and psychological notes complete*
+*Last updated: Iteration 7 — Simplified execution model (origin/deleted/restore/split/fresh-start) complete*
 
 <!-- OCR:START -->
 ## Open Code Review Instructions
