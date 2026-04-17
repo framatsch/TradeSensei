@@ -63,6 +63,12 @@ in `backend/` (it is gitignored) or export them in your shell.
 | `GOOGLE_CLIENT_ID` | `str` | — | No | OAuth 2.0 client ID from Google Cloud Console; required to enable Google login |
 | `GOOGLE_CLIENT_SECRET` | `str` | — | No | OAuth 2.0 client secret from Google Cloud Console; required to enable Google login |
 | `GOOGLE_REDIRECT_URI` | `str` | — | No | Redirect URI registered in Google Cloud Console (e.g. `http://localhost:8000/api/v1/auth/google/callback`) |
+| `SMTP_HOST` | `str` | — | No | SMTP server hostname (e.g. `smtp.gmail.com`); required to enable password reset |
+| `SMTP_PORT` | `int` | `587` | No | SMTP server port. Defaults to 587 (STARTTLS). |
+| `SMTP_USER` | `str` | — | No | SMTP authentication username; required to enable password reset |
+| `SMTP_PASSWORD` | `str` | — | No | SMTP authentication password; required to enable password reset |
+| `EMAIL_FROM` | `str` | — | No | Sender email address used in password reset emails (e.g. `noreply@example.com`); required to enable password reset |
+| `SMTP_TLS` | `bool` | `true` | No | Whether to use STARTTLS when connecting to the SMTP server |
 
 Example `.env` for local development:
 
@@ -77,6 +83,14 @@ CORS_ORIGINS=http://localhost:3000
 # GOOGLE_CLIENT_ID=
 # GOOGLE_CLIENT_SECRET=
 # GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+
+# Optional — Email / SMTP (all four fields required for password reset to work)
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASSWORD=your-app-password
+# EMAIL_FROM=your-email@gmail.com
+# SMTP_TLS=true
 ```
 
 ---
@@ -112,6 +126,59 @@ NEXTAUTH_URL=http://localhost:3000
 **Behavior without Google credentials**
 
 If `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` is not set, `GET /api/v1/auth/google` returns `503 Service Unavailable`. The "Continue with Google" button is still rendered in the UI but the redirect will fail. Password-based login continues to work normally.
+
+---
+
+## Email / SMTP setup (Password Reset)
+
+To enable password reset functionality, configure SMTP. **All four fields must be set**:
+- `SMTP_HOST`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `EMAIL_FROM`
+
+Without all four, the "Forgot password?" link is hidden from the login form.
+
+### Using Gmail
+
+1. Enable **2-Step Verification** on your Google account.
+2. Generate an [App Password](https://myaccount.google.com/apppasswords) (select "Mail" and "Windows Computer").
+3. Copy the generated 16-character password and add to `.env`:
+
+```dotenv
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-16-char-app-password
+EMAIL_FROM=your-email@gmail.com
+SMTP_TLS=true
+```
+
+### Using other SMTP providers
+
+Replace `SMTP_HOST` and credentials with your provider's details. For example, SendGrid:
+
+```dotenv
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USER=apikey
+SMTP_PASSWORD=SG.your-sendgrid-api-key
+EMAIL_FROM=noreply@example.com
+SMTP_TLS=true
+```
+
+### Testing password reset locally
+
+1. Set all SMTP variables above.
+2. Restart the backend: `docker compose restart backend`
+3. Navigate to `/login` and click "Forgot password?"
+4. Enter your email and submit the form.
+5. Check your inbox for the password reset link (valid for 1 hour).
+
+If emails are not arriving:
+- Check backend logs: `docker compose logs backend | grep -i email`
+- Verify SMTP credentials are correct
+- Some providers block connections from Docker — add the Docker container IP to your SMTP whitelist if needed
 
 ---
 

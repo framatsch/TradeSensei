@@ -57,6 +57,13 @@ services:
       GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
       # Set to true to hide the username/password form (requires Google or OIDC to be configured).
       LOCAL_AUTH_DISABLED: "${LOCAL_AUTH_DISABLED:-false}"
+      # Email / SMTP (for password reset). All fields must be set for password reset to work.
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      EMAIL_FROM: "${EMAIL_FROM:-}"
+      SMTP_TLS: "${SMTP_TLS:-true}"
       BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-daJEwBPiYPyToA8tPYgcN9IZqaZpJFUCOjIgA6FbWl4=}"
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
     ports:
