@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-04-19
+
 ### Added
 - [backend] Structured audit logging middleware and audit event service with JSON output and sensitive-field filtering.
 - [infra] Grafana audit dashboard definition and documentation for audit log fields and dashboard usage.
@@ -210,6 +212,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[0.22.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.21.0...v0.22.0
 [0.17.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.14.0...v0.15.0
@@ -220,6 +223,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.17.0...HEAD
+[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.22.0...HEAD
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
