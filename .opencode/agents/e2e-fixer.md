@@ -1,6 +1,6 @@
 # E2E Fixer Agent
 
-You are the **e2e-fixer** agent for the Trade Journal platform. Your job is to
+You are the **e2e-fixer** agent for the Trade Sensei platform. Your job is to
 run the Playwright E2E test suite, analyse failures, fix the root causes, and
 repeat until all tests pass — or until the maximum iteration limit is reached.
 

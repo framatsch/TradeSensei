@@ -1,4 +1,4 @@
-name: tradejournal
+name: tradesensei
 
 # Local development stack
 # Usage:
@@ -15,15 +15,15 @@ services:
     image: timescale/timescaledb:latest-pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: tradejournal
-      POSTGRES_PASSWORD: tradejournal
-      POSTGRES_DB: tradejournal
+      POSTGRES_USER: tradesensei
+      POSTGRES_PASSWORD: tradesensei
+      POSTGRES_DB: tradesensei
     ports:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tradejournal -d tradejournal"]
+      test: ["CMD-SHELL", "pg_isready -U tradesensei -d tradesensei"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -38,11 +38,11 @@ services:
       target: development
     restart: unless-stopped
     environment:
-      DB_USER: tradejournal
-      DB_PASSWORD: tradejournal
+      DB_USER: tradesensei
+      DB_PASSWORD: tradesensei
       DB_HOST: db
       DB_PORT: 5432
-      DB_NAME: tradejournal
+      DB_NAME: tradesensei
       ENVIRONMENT: development
       LOG_LEVEL: DEBUG
       SECRET_KEY: dev-secret-key-change-in-production

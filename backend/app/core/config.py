@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     db_password: str | None = None
     db_host: str = "db"
     db_port: int = 5432
-    db_name: str = "tradejournal"
+    db_name: str = "tradesensei"
 
     @property
     def async_database_url(self) -> str:

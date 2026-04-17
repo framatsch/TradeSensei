@@ -1,6 +1,6 @@
 ---
 name: lint-check
-description: Run ruff and mypy on the tradejournal backend to catch style, import, and type errors before committing or opening a PR
+description: Run ruff and mypy on the tradesensei backend to catch style, import, and type errors before committing or opening a PR
 license: MIT
 compatibility: opencode
 metadata:

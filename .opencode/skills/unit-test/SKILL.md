@@ -40,7 +40,7 @@ docker compose -f docker-compose.test.yml ps
 
 Set the test database URL:
 ```bash
-export DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@localhost:5433/tradejournal_test
+export DATABASE_URL=postgresql+asyncpg://tradesensei:tradesensei@localhost:5433/tradesensei_test
 ```
 
 ## How to run

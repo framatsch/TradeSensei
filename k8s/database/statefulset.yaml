@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: timescaledb
-  namespace: tradejournal
+  namespace: tradesensei
   labels:
     app.kubernetes.io/name: timescaledb
     app.kubernetes.io/component: database
@@ -36,7 +36,7 @@ spec:
                   name: db-credentials
                   key: password
             - name: POSTGRES_DB
-              value: tradejournal
+              value: tradesensei
           readinessProbe:
             exec:
               command:
@@ -44,7 +44,7 @@ spec:
                 - -U
                 - $(POSTGRES_USER)
                 - -d
-                - tradejournal
+                - tradesensei
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 10

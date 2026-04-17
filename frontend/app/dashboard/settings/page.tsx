@@ -11,7 +11,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { SettingsPageClient } from "./SettingsPageClient";
 
 export const metadata = {
-  title: "Settings — Trade Journal",
+  title: "Settings — Trade Sensei",
 };
 
 export default function SettingsPage() {

@@ -16,10 +16,10 @@ if not os.getenv("SECRET_KEY"):
 if not os.getenv("DATABASE_URL") and not os.getenv("DB_USER"):
     print("Warnung: DATABASE_URL oder DB_USER nicht in Umgebungsvariablen gefunden.")
     print(
-        "Versuche lokal (postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/tradejournal) zu verbinden..."
+        "Versuche lokal (postgresql+asyncpg://tradesensei:tradesensei@localhost:5432/tradesensei) zu verbinden..."
     )
     os.environ["DATABASE_URL"] = (
-        "postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/tradejournal"
+        "postgresql+asyncpg://tradesensei:tradesensei@localhost:5432/tradesensei"
     )
 
 # Workaround für passlib Issue mit bcrypt >= 4.0.0

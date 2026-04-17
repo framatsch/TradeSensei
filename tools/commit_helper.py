@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Commit Helper — Generate and validate commits for the tradejournal project.
+"""Commit Helper — Generate and validate commits for the tradesensei project.
 
 Analyzes git diff to suggest appropriate commit categories, validates messages,
 and provides guided interactive commit creation.
@@ -245,10 +245,10 @@ def commit_with_message(message: str, add_all: bool = False) -> bool:
 )
 @click.option("--add-all", is_flag=True, help="Run 'git add -A' before committing")
 def main(validate: bool, auto: bool, preview: bool, add_all: bool) -> None:
-    """Trading Journal — Commit Helper."""
+    """Trade Sensei — Commit Helper."""
     console.print(
         Panel.fit(
-            "[bold cyan]Trading Journal — Commit Helper[/bold cyan]\n"
+            "[bold cyan]Trade Sensei — Commit Helper[/bold cyan]\n"
             "Consistent commits following Keep a Changelog categories",
             border_style="cyan",
         )

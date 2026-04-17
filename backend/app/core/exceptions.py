@@ -1,4 +1,4 @@
-"""Domain-level exceptions for the Trading Journal application."""
+"""Domain-level exceptions for the Trade Sensei application."""
 
 
 class TradeNotFoundError(Exception):

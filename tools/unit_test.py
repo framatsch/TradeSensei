@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit and integration test runner for the tradejournal backend.
+"""Unit and integration test runner for the tradesensei backend.
 
 Runs pytest via uv against the backend test suite with proper
 coverage reporting.
@@ -53,14 +53,14 @@ def run_pytest(args: List[str], env_overrides: dict | None = None) -> int:
     "--ci", is_flag=True, help="CI mode: XML coverage output, exit 1 on failure"
 )
 def main(unit: bool, integration: bool, coverage: bool, ci: bool) -> None:
-    """Run the tradejournal backend test suite."""
+    """Run the tradesensei backend test suite."""
     if not BACKEND_DIR.exists():
         console.print(f"[red]Backend directory not found: {BACKEND_DIR}[/red]")
         sys.exit(1)
 
     console.print(
         Panel.fit(
-            "[bold magenta]Trading Journal — Test Runner[/bold magenta]\n"
+            "[bold magenta]Trade Sensei — Test Runner[/bold magenta]\n"
             f"Backend: {BACKEND_DIR}",
             border_style="magenta",
         )

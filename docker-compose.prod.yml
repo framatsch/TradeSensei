@@ -1,4 +1,4 @@
-name: tradejournal-prod
+name: tradesensei-prod
 
 # Production-like stack with Nginx reverse proxy.
 # All secrets are injected via environment variables — no secrets in images.
@@ -22,11 +22,11 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:?DB_USER is required}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      POSTGRES_DB: ${DB_NAME:-tradejournal}
+      POSTGRES_DB: ${DB_NAME:-tradesensei}
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME:-tradejournal}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME:-tradesensei}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -37,14 +37,14 @@ services:
   # FastAPI Backend
   # ─────────────────────────────────────────────
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/tradejournal-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/tradesensei-backend:${IMAGE_TAG:-latest}
     restart: always
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       ENVIRONMENT: production
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://tradejournal.example.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://tradesensei.example.com}
     depends_on:
       db:
         condition: service_healthy
@@ -61,10 +61,10 @@ services:
   # Next.js Frontend (added in Iteration 5)
   # ─────────────────────────────────────────────
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/tradejournal-frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/tradesensei-frontend:${IMAGE_TAG:-latest}
     restart: always
     environment:
-      NEXT_PUBLIC_API_URL: ${API_URL:-https://api.tradejournal.example.com}
+      NEXT_PUBLIC_API_URL: ${API_URL:-https://api.tradesensei.example.com}
     depends_on:
       backend:
         condition: service_healthy

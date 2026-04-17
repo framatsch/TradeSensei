@@ -1,6 +1,6 @@
 # Developer guide
 
-This guide covers everything you need to get the Trading Journal backend
+This guide covers everything you need to get the Trade Sensei backend
 running locally, run the test suite, and add new features.
 
 ---
@@ -23,8 +23,8 @@ All Python dependency management uses `uv` exclusively. Do not use `pip` or
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<org>/tradejournal.git
-cd tradejournal
+git clone https://github.com/<org>/tradesensei.git
+cd tradesensei
 
 # 2. Start the database
 docker compose up -d db
@@ -67,7 +67,7 @@ in `backend/` (it is gitignored) or export them in your shell.
 Example `.env` for local development:
 
 ```dotenv
-DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/tradejournal
+DATABASE_URL=postgresql+asyncpg://tradesensei:tradesensei@localhost:5432/tradesensei
 SECRET_KEY=change-me-to-a-long-random-string
 ENVIRONMENT=development
 LOG_LEVEL=DEBUG
@@ -121,15 +121,15 @@ The project uses TimescaleDB (a PostgreSQL extension). The `docker-compose.yml`
 at the project root defines the `db` service.
 
 ```bash
-# From the project root (tradejournal/)
+# From the project root (tradesensei/)
 docker compose up -d db
 ```
 
 The database is reachable at `localhost:5432` with:
 
-- **User**: `tradejournal`
-- **Password**: `tradejournal`
-- **Database**: `tradejournal`
+- **User**: `tradesensei`
+- **Password**: `tradesensei`
+- **Database**: `tradesensei`
 
 To reset the database completely (destroys all data):
 
@@ -249,13 +249,13 @@ The `backend/Dockerfile` uses multi-stage builds with three named targets.
 
 ```bash
 # From the backend/ directory
-docker build --target development -t tradejournal-backend:dev .
+docker build --target development -t tradesensei-backend:dev .
 ```
 
 ### Production image (minimal, non-root)
 
 ```bash
-docker build --target production -t tradejournal-backend:latest .
+docker build --target production -t tradesensei-backend:latest .
 ```
 
 To run the full stack with Docker Compose (backend + DB, frontend optional):

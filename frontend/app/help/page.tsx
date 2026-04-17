@@ -1,5 +1,5 @@
 /**
- * Help page — Metric glossary for the Trading Journal.
+ * Help page — Metric glossary for the Trade Sensei.
  * Each section has an id anchor so MetricHelpLink can jump directly to it.
  * Layout: sticky TOC on the left, scrollable content on the right.
  */
@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { HelpClient } from "./HelpClient";
 
 export const metadata: Metadata = {
-  title: "Metric Reference — Trade Journal",
+  title: "Metric Reference — Trade Sensei",
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────

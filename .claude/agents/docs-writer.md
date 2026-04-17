@@ -1,0 +1,1 @@
+../../.opencode/agents/docs-writer.md

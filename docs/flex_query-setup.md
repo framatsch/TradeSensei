@@ -1,4 +1,4 @@
-# IBKR Flex Query Setup - Trading Journal
+# IBKR Flex Query Setup - Trade Sensei
 
 **How to create and configure the IBKR Flex Query for trade imports**
 

@@ -68,7 +68,7 @@
 
 - [x] 8.1 Create Alembic migration: `ENABLE ROW LEVEL SECURITY` on `trades`, `logical_executions`, `broker_raw_transactions`, `accounts`, `playbooks`, `tags`, `trade_notes`, `corporate_actions`, `user_settings`. (migration: 3bbca280b48e_add_rls_user_isolation.py; no screenshots table — stored as JSONB in trades)
 - [x] 8.2 In same migration: create `user_isolation` policy on each table: `USING (user_id = current_setting('app.current_user_id', true)::uuid)`. (UUID type — not int, confirmed from models)
-- [x] 8.3 Grant `BYPASSRLS` to the Alembic migration DB role. (tradejournal role already has BYPASSRLS as Superuser; documented in migration file)
+- [x] 8.3 Grant `BYPASSRLS` to the Alembic migration DB role. (tradesensei role already has BYPASSRLS as Superuser; documented in migration file)
 - [x] 8.4 Replace `get_db` dependency with `get_session_with_rls` on all authenticated routes: adds `SET LOCAL app.current_user_id = '{uid}'` at transaction start. (implemented in app/core/deps.py; applied to all 14 authenticated API routers)
 - [x] 8.5 Update `reset_password.py`: add `SET row_security = off` before password update query. (reset_password.py updated)
 - [x] 8.6 Verify Alembic migrations run cleanly with `BYPASSRLS` role. (downgrade -1 and upgrade head both succeeded)

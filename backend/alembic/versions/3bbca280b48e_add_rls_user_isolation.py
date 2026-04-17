@@ -5,7 +5,7 @@ Each table gets a ``user_isolation`` policy that filters rows by
 ``current_setting('app.current_user_id', true)::uuid``, which is SET per
 request by the ``get_session_with_rls`` FastAPI dependency.
 
-The Alembic role (``tradejournal``) already has BYPASSRLS so migrations
+The Alembic role (``tradesensei``) already has BYPASSRLS so migrations
 run without restriction.  If running as a different role without BYPASSRLS,
 execute ``ALTER ROLE <role> BYPASSRLS;`` as superuser first.
 

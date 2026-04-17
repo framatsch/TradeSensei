@@ -20,8 +20,8 @@ test.describe('Login', () => {
   });
 
   test('TC-001 shows login form with all elements', async ({ page }) => {
-    await expect(page).toHaveTitle(/Trade Journal/);
-    await expect(page.getByRole('heading', { name: 'Trade Journal' })).toBeVisible();
+    await expect(page).toHaveTitle(/Trade Sensei/);
+    await expect(page.getByRole('heading', { name: 'Trade Sensei' })).toBeVisible();
     await expect(page.getByLabel('Username or Email')).toBeVisible();
     await expect(page.getByLabel('Password')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
@@ -96,8 +96,8 @@ test.describe('Register', () => {
   });
 
   test('TC-010 shows registration form with all elements', async ({ page }) => {
-    await expect(page).toHaveTitle(/Trade Journal/);
-    await expect(page.getByRole('heading', { name: 'Trade Journal' })).toBeVisible();
+    await expect(page).toHaveTitle(/Trade Sensei/);
+    await expect(page.getByRole('heading', { name: 'Trade Sensei' })).toBeVisible();
     await expect(page.getByLabel('Username')).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
     await expect(page.getByLabel('Password')).toBeVisible();

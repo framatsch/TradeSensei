@@ -7,7 +7,7 @@ import { TradesPageClient } from "./TradesPageClient";
 import { Spinner } from "@/components/ui/Spinner";
 
 export const metadata = {
-  title: "Trades — Trade Journal",
+  title: "Trades — Trade Sensei",
 };
 
 export default function TradesPage() {

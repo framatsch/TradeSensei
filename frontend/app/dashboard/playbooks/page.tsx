@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PlaybookList } from "@/components/playbooks/PlaybookList";
 
 export const metadata = {
-  title: "Playbooks — Trade Journal",
+  title: "Playbooks — Trade Sensei",
 };
 
 export default function PlaybooksPage() {

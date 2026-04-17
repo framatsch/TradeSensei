@@ -1,4 +1,4 @@
-# AGENTS.md — Trading Journal Platform
+# AGENTS.md — Trade Sensei Platform
 
 This document is the primary context file for all agents and developers.
 Every agent reads this file first before writing code or making decisions.
@@ -7,10 +7,10 @@ Every agent reads this file first before writing code or making decisions.
 
 ## 1. Project Goal
 
-Development of a **Trading Journal Platform** for statistical analysis and
+Development of a **Trade Sensei Platform** for statistical analysis and
 visualization of trading data. Core features:
 
-- **Trade Journaling**: Recording and managing all trading positions
+- **Trade Senseiing**: Recording and managing all trading positions
 - **Performance Metrics**: Win rate, profit factor, max drawdown, expectancy, Sharpe ratio
 - **Playbook System**: Tracking setup types and strategies
 - **Psychological Analysis**: Error tagging, emotional notation, behavioral patterns
@@ -155,7 +155,7 @@ Triggers: push to `main`, tags matching `v*.*.*`
 |------------------|------------------------------------------------------------|
 | `build-push`     | Multi-arch build (amd64/arm64), push to `ghcr.io`         |
 
-Image naming: `ghcr.io/<owner>/tradejournal-backend:<tag>`
+Image naming: `ghcr.io/<owner>/tradesensei-backend:<tag>`
 Tags: `latest` (main), `v1.2.3` (release tag), `sha-<commit>` (all builds)
 
 ---
@@ -178,7 +178,7 @@ Tags: `latest` (main), `v1.2.3` (release tag), `sha-<commit>` (all builds)
 ## 8. Environment Variables (Reference)
 
 ```
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tradejournal
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tradesensei
 SECRET_KEY=<random-256-bit-key>
 ENVIRONMENT=development|production
 LOG_LEVEL=INFO

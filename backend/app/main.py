@@ -45,9 +45,9 @@ def create_app() -> FastAPI:
         A fully configured :class:`FastAPI` instance ready to be served.
     """
     application = FastAPI(
-        title="Trading Journal API",
+        title="Trade Sensei API",
         description=(
-            "REST API for the Trading Journal Platform — "
+            "REST API for the Trade Sensei Platform — "
             "trade recording, performance metrics, and analysis."
         ),
         version="0.1.0",
@@ -69,7 +69,7 @@ def create_app() -> FastAPI:
     application.add_middleware(
         SessionMiddleware,
         secret_key=settings.secret_key,
-        session_cookie="tradejournal_session",
+        session_cookie="tradesensei_session",
         max_age=3600,  # 1 hour is plenty for OAuth flows
         same_site="lax",
     )

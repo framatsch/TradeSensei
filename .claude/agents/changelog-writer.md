@@ -1,0 +1,1 @@
+../../.opencode/agents/changelog-writer.md

@@ -8,7 +8,7 @@
  *
  * Path mapping:
  *   Browser   →  /api/proxy/v1/auth/register
- *   Proxy     →  http://backend.tradejournal.svc.cluster.local:8000/api/v1/auth/register
+ *   Proxy     →  http://backend.tradesensei.svc.cluster.local:8000/api/v1/auth/register
  */
 
 import { type NextRequest, NextResponse } from "next/server";

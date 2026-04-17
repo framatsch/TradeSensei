@@ -17,7 +17,7 @@ const POPUP_FEATURES =
 export function MetricHelpLink({ anchor }: MetricHelpLinkProps) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    window.open(`/help#${anchor}`, "tradejournal-help", POPUP_FEATURES);
+    window.open(`/help#${anchor}`, "tradesensei-help", POPUP_FEATURES);
   };
 
   return (

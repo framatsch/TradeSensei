@@ -1,0 +1,1 @@
+../../.opencode/agents/deployment-diagnoser.md

@@ -2,9 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: backend
-  namespace: tradejournal
+  namespace: tradesensei
   labels:
-    app.kubernetes.io/name: tradejournal-backend
+    app.kubernetes.io/name: tradesensei-backend
     app.kubernetes.io/component: backend
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -12,7 +12,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: api.tradejournal.example.com
+    - host: api.tradesensei.example.com
       http:
         paths:
           - path: /
@@ -24,5 +24,5 @@ spec:
                   name: http
   tls:
     - hosts:
-        - api.tradejournal.example.com
+        - api.tradesensei.example.com
       secretName: tls-backend

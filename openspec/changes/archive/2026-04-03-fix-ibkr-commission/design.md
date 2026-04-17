@@ -1,6 +1,6 @@
 ## Context
 
-The IBKR XML parser in the `tradejournal` backend currently extracts the commission from either the `ibCommission` or `commission` attribute. The code uses a logical OR: `elem.get("ibCommission") or elem.get("commission")`. In Python, the string `"0"` is truthy, meaning if IBKR sets `ibCommission="0"` and puts the actual fees in `commission="-1.50"`, the parser returns `"0"` and ignores the actual commission. This causes zero commissions to be imported when fees actually exist.
+The IBKR XML parser in the `tradesensei` backend currently extracts the commission from either the `ibCommission` or `commission` attribute. The code uses a logical OR: `elem.get("ibCommission") or elem.get("commission")`. In Python, the string `"0"` is truthy, meaning if IBKR sets `ibCommission="0"` and puts the actual fees in `commission="-1.50"`, the parser returns `"0"` and ignores the actual commission. This causes zero commissions to be imported when fees actually exist.
 
 ## Goals / Non-Goals
 

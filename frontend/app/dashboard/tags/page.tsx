@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { TagList } from "@/components/tags/TagList";
 
 export const metadata = {
-  title: "Tags — Trade Journal",
+  title: "Tags — Trade Sensei",
 };
 
 export default function TagsPage() {

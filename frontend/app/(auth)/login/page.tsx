@@ -5,7 +5,7 @@ import { OAuthErrorBanner } from "@/components/auth/OAuthErrorBanner";
 import { LoginHeader } from "@/components/auth/LoginHeader";
 
 export const metadata = {
-  title: "Sign In — Trade Journal",
+  title: "Sign In — Trade Sensei",
 };
 
 export default function LoginPage() {

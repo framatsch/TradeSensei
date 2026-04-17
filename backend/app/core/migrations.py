@@ -8,7 +8,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-MIGRATION_LOCK_FILE = Path("/tmp/tradejournal-alembic.lock")
+MIGRATION_LOCK_FILE = Path("/tmp/tradesensei-alembic.lock")
 """Lock file used to serialize startup migrations across local processes."""
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

@@ -1,6 +1,6 @@
 ## Why
 
-Currently, the Trade Journal only stores the gross PnL (`pnl`) and commissions separately. To accurately reflect a trader's performance, the Net PnL (gross PnL minus commissions) is the most critical metric. In the analysis views (like "Performance -> Time"), this net view is missing, and the table structure is currently flat, making it hard to read and compare gross vs. net performance at a glance.
+Currently, the Trade Sensei only stores the gross PnL (`pnl`) and commissions separately. To accurately reflect a trader's performance, the Net PnL (gross PnL minus commissions) is the most critical metric. In the analysis views (like "Performance -> Time"), this net view is missing, and the table structure is currently flat, making it hard to read and compare gross vs. net performance at a glance.
 
 ## What Changes
 

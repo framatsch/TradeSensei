@@ -91,7 +91,7 @@ export function GeneralSettings() {
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-foreground">Theme</h3>
           <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
-            Choose how Trade Journal looks. "System" follows your OS preference.
+            Choose how Trade Sensei looks. "System" follows your OS preference.
           </p>
         </div>
 

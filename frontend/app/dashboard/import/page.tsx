@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ImportForm } from "@/components/imports/ImportForm";
 
 export const metadata = {
-  title: "Import — Trade Journal",
+  title: "Import — Trade Sensei",
 };
 
 export default function ImportPage() {

@@ -1,6 +1,6 @@
 # Playwright Test Plan (English)
 
-This document describes how to run the Playwright E2E test suite for the Trade Journal frontend, the recommended environment, and useful commands for running subsets of tests.
+This document describes how to run the Playwright E2E test suite for the Trade Sensei frontend, the recommended environment, and useful commands for running subsets of tests.
 
 Prerequisites
 - Node.js (v18+) and npm installed

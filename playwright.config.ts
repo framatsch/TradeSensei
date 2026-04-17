@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright E2E configuration for Trade Journal integration tests.
+ * Playwright E2E configuration for Trade Sensei integration tests.
  *
  * Requires the full stack to be running locally:
  *   docker compose up -d

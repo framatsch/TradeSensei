@@ -16,7 +16,7 @@ import uuid as _uuid
 # CI overrides DATABASE_URL via the workflow env block.
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/test_tradejournal",
+    "postgresql+asyncpg://tradesensei:tradesensei@localhost:5432/test_tradesensei",
 )
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32chars")
 os.environ.setdefault("UPLOAD_DIR", "./uploads")

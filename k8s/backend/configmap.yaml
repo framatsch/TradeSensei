@@ -2,14 +2,14 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: backend-config
-  namespace: tradejournal
+  namespace: tradesensei
   labels:
-    app.kubernetes.io/name: tradejournal-backend
+    app.kubernetes.io/name: tradesensei-backend
     app.kubernetes.io/component: backend
 data:
   DB_HOST: "timescaledb"
   DB_PORT: "5432"
-  DB_NAME: "tradejournal"
+  DB_NAME: "tradesensei"
   ENVIRONMENT: "production"
   LOG_LEVEL: "INFO"
-  CORS_ORIGINS: "https://tradejournal.example.com"
+  CORS_ORIGINS: "https://tradesensei.example.com"

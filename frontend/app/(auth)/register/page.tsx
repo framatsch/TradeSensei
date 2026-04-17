@@ -3,7 +3,7 @@ import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export const metadata = {
-  title: "Create Account — Trade Journal",
+  title: "Create Account — Trade Sensei",
 };
 
 export default function RegisterPage() {
@@ -14,14 +14,14 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center mb-8">
           <Image
             src="/logo.svg"
-            alt="Trade Journal logo"
+            alt="Trade Sensei logo"
             width={512}
             height={512}
             priority
             className="rounded-xl mb-4"
             style={{ width: "auto", maxWidth: "100%", height: "auto", maxHeight: "10rem" }}
           />
-          <h1 className="text-2xl font-bold text-foreground mb-1 tracking-tight">Trade Journal</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-1 tracking-tight">Trade Sensei</h1>
           <p className="text-muted-foreground text-sm">
             Create your account
           </p>

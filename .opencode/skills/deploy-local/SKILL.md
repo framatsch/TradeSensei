@@ -1,6 +1,6 @@
 ---
 name: deploy-local
-description: Start, stop, and reset the tradejournal local development stack using Docker Compose including proper service startup order and health checks
+description: Start, stop, and reset the tradesensei local development stack using Docker Compose including proper service startup order and health checks
 license: MIT
 compatibility: opencode
 metadata:
@@ -55,7 +55,7 @@ docker compose logs -f backend
 docker compose logs -f db
 
 # Check DB is accepting connections
-docker compose exec db pg_isready -U tradejournal
+docker compose exec db pg_isready -U tradesensei
 ```
 
 ## Stop the stack
@@ -86,7 +86,7 @@ cd backend && uv run alembic upgrade head
 ```bash
 docker compose down -v           # Remove containers + volumes
 docker compose up -d db          # Start only DB
-docker compose exec db psql -U tradejournal -c "\l"  # Verify DB is empty
+docker compose exec db psql -U tradesensei -c "\l"  # Verify DB is empty
 docker compose up -d             # Start full stack
 # Migrations run automatically
 ```
@@ -101,7 +101,7 @@ docker compose up -d db
 
 # Run backend locally
 cd backend/
-export DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/tradejournal
+export DATABASE_URL=postgresql+asyncpg://tradesensei:tradesensei@localhost:5432/tradesensei
 uv run uvicorn app.main:app --reload --port 8000
 ```
 

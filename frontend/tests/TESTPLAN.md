@@ -1,8 +1,8 @@
-# Playwright Testplan - Trade Journal Basis-Funktionalität
+# Playwright Testplan - Trade Sensei Basis-Funktionalität
 
 ## Übersicht
 
-Dieser Testplan deckt die Basis-Funktionalität der Trade Journal Anwendung ab. Die Tests werden mit Playwright ausgeführt und sollen als End-to-End-Tests die kritischen User Flows verifizieren.
+Dieser Testplan deckt die Basis-Funktionalität der Trade Sensei Anwendung ab. Die Tests werden mit Playwright ausgeführt und sollen als End-to-End-Tests die kritischen User Flows verifizieren.
 
 ## Voraussetzungen
 
@@ -286,7 +286,7 @@ Dieser Testplan deckt die Basis-Funktionalität der Trade Journal Anwendung ab. 
 
 ```bash
 # Dev-Server starten (in separatem Terminal)
-cd /home/scheffold/work/tradejournal
+cd /home/scheffold/work/tradesensei
 docker compose up -d
 
 # Tests ausführen

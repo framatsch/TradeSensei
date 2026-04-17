@@ -38,7 +38,7 @@ if not hasattr(bcrypt, "__about__"):
 # Must happen BEFORE importing app.core.config so pydantic-settings picks
 # up the env vars when the Settings object is constructed at import time.
 
-_DEFAULT_DB_URL = "postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/tradejournal"
+_DEFAULT_DB_URL = "postgresql+asyncpg://tradesensei:tradesensei@localhost:5432/tradesensei"
 
 if not os.environ.get("SECRET_KEY"):
     # Password hashing does not require the real secret key; only JWT

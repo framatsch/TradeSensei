@@ -1,6 +1,6 @@
 ---
 name: commit-helper
-description: Create consistent git commits for the tradejournal project using the project's emoji+category format and Keep a Changelog conventions
+description: Create consistent git commits for the tradesensei project using the project's emoji+category format and Keep a Changelog conventions
 license: MIT
 compatibility: opencode
 metadata:

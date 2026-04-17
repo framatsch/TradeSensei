@@ -1,7 +1,8 @@
 {
   "configuredTools": [
+    "claude",
     "opencode"
   ],
-  "lastUpdated": "2026-04-11T21:37:48.680Z",
+  "lastUpdated": "2026-04-18T06:51:26.660Z",
   "cliVersion": "1.10.4"
 }

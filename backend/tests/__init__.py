@@ -1,1 +1,1 @@
-"""Test package for the tradejournal backend."""
+"""Test package for the tradesensei backend."""

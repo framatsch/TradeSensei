@@ -1,0 +1,1 @@
+../../.opencode/prompts/playwright-test-healer.md

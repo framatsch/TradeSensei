@@ -1,6 +1,6 @@
 ---
 name: docker-build
-description: Build and tag the tradejournal backend Docker image locally, mirroring the CI workflow for testing before pushing
+description: Build and tag the tradesensei backend Docker image locally, mirroring the CI workflow for testing before pushing
 license: MIT
 compatibility: opencode
 metadata:
@@ -19,7 +19,7 @@ what CI would produce, before any code is pushed.
 | Base image | `python:3.12-alpine` |
 | Build stages | `builder` (gcc + uv install) → `runtime` (minimal) |
 | Expected size | ~80–100 MB |
-| Registry | `ghcr.io/<owner>/tradejournal-backend` |
+| Registry | `ghcr.io/<owner>/tradesensei-backend` |
 | Platforms | `linux/amd64`, `linux/arm64` |
 
 ## Quick local build (current platform only)
@@ -27,7 +27,7 @@ what CI would produce, before any code is pushed.
 ```bash
 # Build for current machine arch (fastest, for local testing)
 docker build \
-  --tag tradejournal-backend:local \
+  --tag tradesensei-backend:local \
   --file backend/Dockerfile \
   backend/
 ```
@@ -44,7 +44,7 @@ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 # Build for both platforms (does not push, loads locally)
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag tradejournal-backend:local \
+  --tag tradesensei-backend:local \
   --file backend/Dockerfile \
   backend/ \
   --load
@@ -57,15 +57,15 @@ Note: `--load` only works for single-platform builds. For multi-arch, use
 
 ```bash
 # Check image size
-docker images tradejournal-backend:local
+docker images tradesensei-backend:local
 
 # Run the container locally
 docker run --rm -it \
-  --env DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@host.docker.internal:5432/tradejournal \
+  --env DATABASE_URL=postgresql+asyncpg://tradesensei:tradesensei@host.docker.internal:5432/tradesensei \
   --env SECRET_KEY=local-dev-secret \
   --env ENVIRONMENT=development \
   -p 8000:8000 \
-  tradejournal-backend:local
+  tradesensei-backend:local
 
 # Test the health endpoint
 curl http://localhost:8000/health
@@ -75,22 +75,22 @@ curl http://localhost:8000/health
 
 ```bash
 # Tagging for ghcr.io (replace <owner> with GitHub username/org)
-docker tag tradejournal-backend:local ghcr.io/<owner>/tradejournal-backend:latest
-docker tag tradejournal-backend:local ghcr.io/<owner>/tradejournal-backend:dev
+docker tag tradesensei-backend:local ghcr.io/<owner>/tradesensei-backend:latest
+docker tag tradesensei-backend:local ghcr.io/<owner>/tradesensei-backend:dev
 
 # Push (requires docker login to ghcr.io first)
 echo $GITHUB_TOKEN | docker login ghcr.io -u <username> --password-stdin
-docker push ghcr.io/<owner>/tradejournal-backend:dev
+docker push ghcr.io/<owner>/tradesensei-backend:dev
 ```
 
 ## Inspect layers
 
 ```bash
 # See layer sizes (identify fat layers)
-docker history tradejournal-backend:local
+docker history tradesensei-backend:local
 
 # Dive tool for interactive layer inspection (if installed)
-dive tradejournal-backend:local
+dive tradesensei-backend:local
 ```
 
 ## What CI does differently

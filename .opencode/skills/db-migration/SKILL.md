@@ -1,6 +1,6 @@
 ---
 name: db-migration
-description: Create, review, and apply Alembic database migrations for the tradejournal backend including TimescaleDB hypertable setup
+description: Create, review, and apply Alembic database migrations for the tradesensei backend including TimescaleDB hypertable setup
 license: MIT
 compatibility: opencode
 metadata:
@@ -25,7 +25,7 @@ with special handling for TimescaleDB hypertables and indexes.
 docker compose up -d db
 
 # Ensure .env is set
-DATABASE_URL=postgresql+asyncpg://tradejournal:tradejournal@localhost:5432/tradejournal
+DATABASE_URL=postgresql+asyncpg://tradesensei:tradesensei@localhost:5432/tradesensei
 ```
 
 ## Step-by-step workflow
@@ -80,7 +80,7 @@ uv run alembic current
 uv run alembic history --verbose
 
 # Verify hypertable was created (TimescaleDB)
-docker compose exec db psql -U tradejournal -d tradejournal \
+docker compose exec db psql -U tradesensei -d tradesensei \
   -c "SELECT * FROM timescaledb_information.hypertables;"
 ```
 

@@ -146,7 +146,7 @@ async def run(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Capture full-page screenshots of the Trade Journal.",
+        description="Capture full-page screenshots of the Trade Sensei.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"Available pages: {', '.join(ALL_PAGES)}\n\nUse --pages all to capture everything.",
     )

@@ -15,7 +15,7 @@
 export default {
   name: "compaction-context",
   description:
-    "Injects Trading Journal iteration status and task flow into compacted sessions",
+    "Injects Trade Sensei iteration status and task flow into compacted sessions",
 
   /**
    * Hook: onCompaction
@@ -28,7 +28,7 @@ export default {
   onCompaction() {
     return `
 ---
-## Trading Journal — Active Project Context (injected by compaction-context plugin)
+## Trade Sensei — Active Project Context (injected by compaction-context plugin)
 
 ### Iteration Status
 | Iteration | Focus                                                | Status      |

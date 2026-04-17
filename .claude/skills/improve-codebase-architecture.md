@@ -1,0 +1,1 @@
+../../.opencode/skills/improve-codebase-architecture//SKILL.md

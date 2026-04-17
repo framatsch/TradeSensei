@@ -1,13 +1,13 @@
 <div align="center">
 
-![Trading Journal Logo](logo.svg)
+![Trade Sensei Logo](logo.svg)
 </div>
 
-# Trading Journal
+# Trade Sensei
 
 A self-hosted platform for statistical analysis and visualization of your trading activity.
 
-Trading Journal lets you record every trade, import activity from your broker, and measure your performance with statistics like win rate, profit factor, and Sharpe ratio — all in a private instance you control. It supports multiple users, a full REST API, and a chart-driven dashboard built with Next.js and Recharts.
+Trade Sensei lets you record every trade, import activity from your broker, and measure your performance with statistics like win rate, profit factor, and Sharpe ratio — all in a private instance you control. It supports multiple users, a full REST API, and a chart-driven dashboard built with Next.js and Recharts.
 
 ---
 
@@ -44,7 +44,7 @@ The fastest way to run the full stack locally is with Docker Compose.
 
 ```bash
 git clone <repo-url>
-cd tradejournal
+cd tradesensei
 ```
 
 **2. Create your `.env` file**
@@ -60,11 +60,11 @@ The complete set of variables:
 ```dotenv
 # Database connection (either DATABASE_URL OR the DB_* variables)
 DATABASE_URL=                      # optional, e.g. postgresql+asyncpg://user:pass@db:5432/db
-DB_USER=tradejournal               # required if DATABASE_URL is empty
-DB_PASSWORD=tradejournal           # required if DATABASE_URL is empty
+DB_USER=tradesensei               # required if DATABASE_URL is empty
+DB_PASSWORD=tradesensei           # required if DATABASE_URL is empty
 DB_HOST=db                         # defaults to 'db'
 DB_PORT=5432                       # defaults to 5432
-DB_NAME=tradejournal               # defaults to 'tradejournal'
+DB_NAME=tradesensei               # defaults to 'tradesensei'
 
 # Required
 SECRET_KEY=                        # generate: python -c "import secrets; print(secrets.token_hex(32))"
@@ -117,14 +117,14 @@ DB_USER=user
 DB_PASSWORD=pass
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=tradejournal
+DB_NAME=tradesensei
 SECRET_KEY=<your-secret-key>
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 CORS_ORIGINS=http://localhost:3000
 ```
 
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tradejournal
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tradesensei
 SECRET_KEY=<your-secret-key>
 BROKER_ENCRYPTION_KEY=<your-encryption-key>
 ENVIRONMENT=development
@@ -194,7 +194,7 @@ To add Authentik or another OIDC provider, configure the following environment v
 ```dotenv
 OIDC_ENABLED=true
 OIDC_PROVIDER_NAME=Authentik
-OIDC_CONFIGURATION_URL=https://auth.example.com/application/o/tradejournal/.well-known/openid-configuration
+OIDC_CONFIGURATION_URL=https://auth.example.com/application/o/tradesensei/.well-known/openid-configuration
 OIDC_CLIENT_ID=your-client-id
 OIDC_CLIENT_SECRET=your-client-secret
 ```
@@ -303,7 +303,7 @@ See [`docs/dev-guide.md`](docs/dev-guide.md) for the full developer guide, inclu
 ## Project structure
 
 ```
-tradejournal/
+tradesensei/
 ├── backend/      # FastAPI application (Python)
 ├── frontend/     # Next.js application (TypeScript)
 ├── k8s/          # Kubernetes manifests

@@ -16,7 +16,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Trade Journal",
+  title: "Trade Sensei",
   description: "Statistical analysis and visualization of trading data",
 };
 

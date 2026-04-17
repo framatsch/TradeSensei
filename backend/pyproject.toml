@@ -1,5 +1,5 @@
 [project]
-name = "tradejournal-backend"
+name = "tradesensei-backend"
 version = "0.14.0.dev0"
 requires-python = ">=3.13"
 dependencies = [

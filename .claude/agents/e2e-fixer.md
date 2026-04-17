@@ -1,0 +1,1 @@
+../../.opencode/agents/e2e-fixer.md

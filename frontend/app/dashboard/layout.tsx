@@ -630,7 +630,7 @@ export default function DashboardLayout({ children }: Props) {
               onClick={() => setAboutOpen(true)}
             >
               <Logo size={28} className="group-hover:scale-105 transition-transform duration-200" />
-              <span className="font-semibold text-foreground text-sm truncate">Trade Journal</span>
+              <span className="font-semibold text-foreground text-sm truncate">Trade Sensei</span>
             </div>
             <button
               onClick={toggleDesktopSidebar}
@@ -702,7 +702,7 @@ export default function DashboardLayout({ children }: Props) {
             onClick={() =>
               window.open(
                 "/help",
-                "tradejournal-help",
+                "tradesensei-help",
                 "width=1120,height=760,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no"
               )
             }
@@ -765,7 +765,7 @@ export default function DashboardLayout({ children }: Props) {
             onClick={() => setAboutOpen(true)}
           >
             <Logo size={24} />
-            <span className="font-semibold text-foreground">Trade Journal</span>
+            <span className="font-semibold text-foreground">Trade Sensei</span>
           </div>
         </header>
 

@@ -7,7 +7,7 @@ import { CashPageClient } from "./CashPageClient";
 import { Spinner } from "@/components/ui/Spinner";
 
 export const metadata = {
-  title: "Cash & Dividends — Trade Journal",
+  title: "Cash & Dividends — Trade Sensei",
 };
 
 export default function CashPage() {

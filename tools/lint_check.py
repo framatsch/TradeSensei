@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Linting and type-check runner for the tradejournal backend.
+"""Linting and type-check runner for the tradesensei backend.
 
 Runs ruff and mypy on the backend application via uv.
 
@@ -103,14 +103,14 @@ def print_summary(results: List[CheckResult]) -> None:
 @click.option("--fix", is_flag=True, help="Auto-fix ruff issues")
 @click.option("--ci", is_flag=True, help="Exit 1 if any check fails (for CI)")
 def main(ruff_only: bool, mypy_only: bool, fix: bool, ci: bool) -> None:
-    """Run linting and type checks on the tradejournal backend."""
+    """Run linting and type checks on the tradesensei backend."""
     if not BACKEND_DIR.exists():
         console.print(f"[red]Backend directory not found: {BACKEND_DIR}[/red]")
         sys.exit(1)
 
     console.print(
         Panel.fit(
-            "[bold blue]Trading Journal — Lint & Type Check[/bold blue]\n"
+            "[bold blue]Trade Sensei — Lint & Type Check[/bold blue]\n"
             f"Backend: {BACKEND_DIR}",
             border_style="blue",
         )

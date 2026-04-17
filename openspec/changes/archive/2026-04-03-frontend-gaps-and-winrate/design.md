@@ -1,6 +1,6 @@
 ## Context
 
-The tradejournal backend exposes a comprehensive REST API (accounts CRUD, trade
+The tradesensei backend exposes a comprehensive REST API (accounts CRUD, trade
 CRUD with filtering/sorting/bulk ops, multiple timeseries endpoints, metrics
 summary). The frontend currently uses only a subset of these endpoints:
 dashboard overview, trade list (no filter/sort), trade detail (read-only), import,

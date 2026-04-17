@@ -14,7 +14,7 @@ export function AboutModal({
   isOpen,
   onClose,
   version = "1.0.0",
-  appName = "Trade Journal",
+  appName = "Trade Sensei",
   license = "MIT License",
 }: AboutModalProps) {
   if (!isOpen) return null;

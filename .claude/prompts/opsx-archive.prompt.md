@@ -1,0 +1,1 @@
+../../.opencode/prompts/opsx-archive.prompt.md

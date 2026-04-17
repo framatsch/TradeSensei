@@ -4,7 +4,7 @@ Secrets are **never stored in this repository**.
 
 ## Required Secrets
 
-Create these secrets manually in the `tradejournal` namespace before deploying.
+Create these secrets manually in the `tradesensei` namespace before deploying.
 
 ### `backend-secrets`
 
@@ -12,8 +12,8 @@ Contains sensitive backend configuration:
 
 ```bash
 kubectl create secret generic backend-secrets \
-  --namespace tradejournal \
-  --from-literal=DB_USER='tradejournal' \
+  --namespace tradesensei \
+  --from-literal=DB_USER='tradesensei' \
   --from-literal=DB_PASSWORD='<strong-password>' \
   --from-literal=SECRET_KEY='<random-256-bit-key>'
 ```
@@ -22,8 +22,8 @@ Optional alternative:
 
 ```bash
 kubectl create secret generic backend-secrets \
-  --namespace tradejournal \
-  --from-literal=DATABASE_URL='postgresql+asyncpg://user:pass@timescaledb:5432/tradejournal' \
+  --namespace tradesensei \
+  --from-literal=DATABASE_URL='postgresql+asyncpg://user:pass@timescaledb:5432/tradesensei' \
   --from-literal=SECRET_KEY='<random-256-bit-key>'
 ```
 
@@ -33,7 +33,7 @@ Contains sensitive frontend runtime configuration:
 
 ```bash
 kubectl create secret generic frontend-secrets \
-  --namespace tradejournal \
+  --namespace tradesensei \
   --from-literal=NEXTAUTH_SECRET='<random-32-byte-secret>' \
   --from-literal=NEXT_PUBLIC_GOOGLE_CLIENT_ID=''
 ```
@@ -44,8 +44,8 @@ PostgreSQL superuser credentials used by the TimescaleDB StatefulSet:
 
 ```bash
 kubectl create secret generic db-credentials \
-  --namespace tradejournal \
-  --from-literal=username='tradejournal' \
+  --namespace tradesensei \
+  --from-literal=username='tradesensei' \
   --from-literal=password='<strong-password>'
 ```
 
@@ -55,7 +55,7 @@ Docker pull secret for the GitHub Container Registry:
 
 ```bash
 kubectl create secret docker-registry ghcr-credentials \
-  --namespace tradejournal \
+  --namespace tradesensei \
   --docker-server=ghcr.io \
   --docker-username=<github-username> \
   --docker-password=<github-pat> \
@@ -64,23 +64,23 @@ kubectl create secret docker-registry ghcr-credentials \
 
 ### `tls-backend`
 
-TLS certificate for the backend Ingress (`api.tradejournal.example.com`).
+TLS certificate for the backend Ingress (`api.tradesensei.example.com`).
 Managed by cert-manager if installed, or created manually:
 
 ```bash
 kubectl create secret tls tls-backend \
-  --namespace tradejournal \
+  --namespace tradesensei \
   --cert=path/to/tls.crt \
   --key=path/to/tls.key
 ```
 
 ### `tls-frontend`
 
-TLS certificate for the frontend Ingress (`tradejournal.example.com`):
+TLS certificate for the frontend Ingress (`tradesensei.example.com`):
 
 ```bash
 kubectl create secret tls tls-frontend \
-  --namespace tradejournal \
+  --namespace tradesensei \
   --cert=path/to/tls.crt \
   --key=path/to/tls.key
 ```

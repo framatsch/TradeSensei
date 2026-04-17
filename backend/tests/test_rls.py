@@ -7,7 +7,7 @@ filter rows automatically.
 
 Test DB notes
 -------------
-The ``tradejournal`` superuser role has ``BYPASSRLS``, so raw SQL run directly
+The ``tradesensei`` superuser role has ``BYPASSRLS``, so raw SQL run directly
 by the test session (e.g. ``db_session.execute(select(Trade))``) bypasses RLS
 automatically.  This is correct behaviour — admin/migration sessions must see
 all rows.

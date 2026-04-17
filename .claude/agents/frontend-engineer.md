@@ -1,0 +1,1 @@
+../../.opencode/agents/frontend-engineer.md

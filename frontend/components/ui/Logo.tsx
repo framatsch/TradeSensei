@@ -21,7 +21,7 @@ export function Logo({ size = 32, className = "" }: LogoProps) {
     >
       <Image
         src="/logo.svg"
-        alt="Trade Journal logo"
+        alt="Trade Sensei logo"
         width={size}
         height={size}
         priority

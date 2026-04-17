@@ -1,0 +1,1 @@
+../../.opencode/prompts/opsx-propose.prompt.md

@@ -13,7 +13,7 @@
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal/backend && grep -n \"pnl:\" app/models/logical_execution.py",
+  "command": "cd /home/scheffold/work/tradesensei/backend && grep -n \"pnl:\" app/models/logical_execution.py",
   "description": "Find pnl field in LogicalExecution"
 }
 ```
@@ -34,7 +34,7 @@
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py",
   "offset": 159,
   "limit": 15
 }
@@ -42,7 +42,7 @@
 
 **Output:**
 ```
-<path>/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py</path>
+<path>/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py</path>
 <type>file</type>
 <content>
 159:     pnl: Mapped[Decimal | None] = mapped_column(
@@ -107,7 +107,7 @@ Du hast völlig recht! Das ist die zentrale Frage. Lass mich in den Specs nachsc
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && find . -name \"*.md\" -o -name \"*.txt\" | xargs grep -l \"imported\\|status\\|execution.*edit\" 2>/dev/null | head -10",
+  "command": "cd /home/scheffold/work/tradesensei && find . -name \"*.md\" -o -name \"*.txt\" | xargs grep -l \"imported\\|status\\|execution.*edit\" 2>/dev/null | head -10",
   "description": "Find specification files about execution status"
 }
 ```
@@ -136,7 +136,7 @@ Du hast völlig recht! Das ist die zentrale Frage. Lass mich in den Specs nachsc
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && find . -path \"./backend/alembic\" -prune -o -name \"*.md\" -type f -print | xargs grep -l \"execution\\|status\" 2>/dev/null | grep -v \".next\\|node_modules\\|.opencode\" | head -10",
+  "command": "cd /home/scheffold/work/tradesensei && find . -path \"./backend/alembic\" -prune -o -name \"*.md\" -type f -print | xargs grep -l \"execution\\|status\" 2>/dev/null | grep -v \".next\\|node_modules\\|.opencode\" | head -10",
   "description": "Find docs about execution status"
 }
 ```
@@ -165,7 +165,7 @@ Du hast völlig recht! Das ist die zentrale Frage. Lass mich in den Specs nachsc
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && find . -name \"*.md\" -path \"*/docs/*\" -type f 2>/dev/null | head -20",
+  "command": "cd /home/scheffold/work/tradesensei && find . -name \"*.md\" -path \"*/docs/*\" -type f 2>/dev/null | head -20",
   "description": "Find documentation files"
 }
 ```
@@ -204,7 +204,7 @@ Du hast völlig recht! Das ist die zentrale Frage. Lass mich in den Specs nachsc
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && grep -r \"imported\\|edited\\|manual\\|merged\" docs/architecture/TRADE_AGGREGATION_RULES.md 2>/dev/null | head -20",
+  "command": "cd /home/scheffold/work/tradesensei && grep -r \"imported\\|edited\\|manual\\|merged\" docs/architecture/TRADE_AGGREGATION_RULES.md 2>/dev/null | head -20",
   "description": "Find execution status in architecture docs"
 }
 ```
@@ -218,7 +218,7 @@ Du hast völlig recht! Das ist die zentrale Frage. Lass mich in den Specs nachsc
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/docs/architecture/TRADE_AGGREGATION_RULES.md",
+  "filePath": "/home/scheffold/work/tradesensei/docs/architecture/TRADE_AGGREGATION_RULES.md",
   "offset": 1,
   "limit": 100
 }
@@ -226,7 +226,7 @@ Du hast völlig recht! Das ist die zentrale Frage. Lass mich in den Specs nachsc
 
 **Output:**
 ```
-<path>/home/scheffold/work/tradejournal/docs/architecture/TRADE_AGGREGATION_RULES.md</path>
+<path>/home/scheffold/work/tradesensei/docs/architecture/TRADE_AGGREGATION_RULES.md</path>
 <type>file</type>
 <content>
 1: # Trade Aggregation & DB Import - Source of Truth
@@ -317,7 +317,7 @@ Das dokumentiert die **Aggregations-Regeln**, nicht den Status! Lass mich nach e
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && grep -rn \"status.*imported\\|IMPORTED\\|EDITED\\|status.*enum\" backend/app/models/logical_execution.py | head -20",
+  "command": "cd /home/scheffold/work/tradesensei && grep -rn \"status.*imported\\|IMPORTED\\|EDITED\\|status.*enum\" backend/app/models/logical_execution.py | head -20",
   "description": "Find execution status enum"
 }
 ```
@@ -343,7 +343,7 @@ Das dokumentiert die **Aggregations-Regeln**, nicht den Status! Lass mich nach e
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py",
   "offset": [
     44,
     62
@@ -377,7 +377,7 @@ Please rewrite the input so it satisfies the expected schema.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py",
   "offset": 44,
   "limit": 20
 }
@@ -385,7 +385,7 @@ Please rewrite the input so it satisfies the expected schema.
 
 **Output:**
 ```
-<path>/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py</path>
+<path>/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py</path>
 <type>file</type>
 <content>
 44: 
@@ -468,7 +468,7 @@ Fangen wir an:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py",
   "offset": [
     40,
     62
@@ -502,7 +502,7 @@ Please rewrite the input so it satisfies the expected schema.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py",
   "offset": 40,
   "limit": 25
 }
@@ -510,7 +510,7 @@ Please rewrite the input so it satisfies the expected schema.
 
 **Output:**
 ```
-<path>/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py</path>
+<path>/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py</path>
 <type>file</type>
 <content>
 40: 
@@ -552,7 +552,7 @@ Please rewrite the input so it satisfies the expected schema.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/models/logical_execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/models/logical_execution.py",
   "oldString": "class ExecutionStatus(StrEnum):\n    \"\"\"Lineage status of a :class:`LogicalExecution`.\n\n    Attributes:\n        IMPORTED: The execution was created directly from a broker raw\n            transaction (1:1 mapping, unmodified).\n        MANUAL: The execution was created by the user without a corresponding\n            raw broker transaction.\n        MERGED: The execution was produced by merging two or more raw\n            transactions into a single logical record.\n        SPLIT: The execution was produced by splitting a single raw transaction\n            into multiple logical records.\n    \"\"\"\n\n    IMPORTED = \"imported\"\n    MANUAL = \"manual\"\n    MERGED = \"merged\"\n    SPLIT = \"split\"",
   "newString": "class ExecutionStatus(StrEnum):\n    \"\"\"Lineage status of a :class:`LogicalExecution`.\n\n    Attributes:\n        IMPORTED: The execution was created directly from a broker raw\n            transaction (1:1 mapping, unmodified).\n        EDITED: The execution was created from a broker import but has been\n            modified by the user (price, quantity, commission, etc.).\n            Protected from re-import overwrite.\n        MANUAL: The execution was created by the user without a corresponding\n            raw broker transaction.\n        MERGED: The execution was produced by merging two or more raw\n            transactions into a single logical record.\n        SPLIT: The execution was produced by splitting a single raw transaction\n            into multiple logical records.\n    \"\"\"\n\n    IMPORTED = \"imported\"\n    EDITED = \"edited\"\n    MANUAL = \"manual\"\n    MERGED = \"merged\"\n    SPLIT = \"split\""
 }
@@ -574,7 +574,7 @@ Super! Jetzt muss die Status-Änderung in der `update_execution` Methode auch de
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/services/execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/services/execution.py",
   "offset": [
     116,
     129
@@ -608,7 +608,7 @@ Please rewrite the input so it satisfies the expected schema.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/services/execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/services/execution.py",
   "offset": 116,
   "limit": 15
 }
@@ -616,7 +616,7 @@ Please rewrite the input so it satisfies the expected schema.
 
 **Output:**
 ```
-<path>/home/scheffold/work/tradejournal/backend/app/services/execution.py</path>
+<path>/home/scheffold/work/tradesensei/backend/app/services/execution.py</path>
 <type>file</type>
 <content>
 116:         # If execution was imported and is now being edited, change status to "edited"
@@ -650,7 +650,7 @@ Ah, ich habe einen Fehler gemacht! Zeile 117 importiert aus `app.models.executio
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/backend/app/services/execution.py",
+  "filePath": "/home/scheffold/work/tradesensei/backend/app/services/execution.py",
   "oldString": "         # If execution was imported and is now being edited, change status to \"edited\"\n         from app.models.execution import ExecutionStatus\n\n         update_data = data.model_dump(exclude_unset=True)\n         if execution.status == ExecutionStatus.IMPORTED:\n             update_data[\"status\"] = ExecutionStatus.EDITED",
   "newString": "         # If execution was imported and is now being edited, change status to \"edited\"\n         from app.models.logical_execution import ExecutionStatus\n\n         update_data = data.model_dump(exclude_unset=True)\n         if execution.status == ExecutionStatus.IMPORTED:\n             update_data[\"status\"] = ExecutionStatus.EDITED"
 }
@@ -674,7 +674,7 @@ Das ist in der `ImportService`. Lass mich das überprüfen:
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal/backend && grep -n \"overwrite\\|skip.*imported\\|IMPORTED\" app/services/import_service.py | head -20",
+  "command": "cd /home/scheffold/work/tradesensei/backend && grep -n \"overwrite\\|skip.*imported\\|IMPORTED\" app/services/import_service.py | head -20",
   "description": "Find import overwrite logic"
 }
 ```
@@ -706,7 +706,7 @@ Lass mich schauen, wie das für Executions funktioniert:
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal/backend && grep -n \"include_manually_edited\\|ExecutionStatus\" app/repositories/logical_execution_repository.py | head -30",
+  "command": "cd /home/scheffold/work/tradesensei/backend && grep -n \"include_manually_edited\\|ExecutionStatus\" app/repositories/logical_execution_repository.py | head -30",
   "description": "Find execution repository filtering logic"
 }
 ```
@@ -726,7 +726,7 @@ grep: app/repositories/logical_execution_repository.py: Datei oder Verzeichnis n
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal/backend && find . -name \"*execution*repository*\" -type f",
+  "command": "cd /home/scheffold/work/tradesensei/backend && find . -name \"*execution*repository*\" -type f",
   "description": "Find execution repository file"
 }
 ```
@@ -1118,7 +1118,7 @@ Perfect! Lass uns die OpenSpec Change erstellen mit allen Details:
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec new change \"execution-status-and-pnl-calculation\"",
+  "command": "cd /home/scheffold/work/tradesensei && openspec new change \"execution-status-and-pnl-calculation\"",
   "description": "Create new OpenSpec change for execution status and P&L"
 }
 ```
@@ -1139,7 +1139,7 @@ Perfect! Lass uns die OpenSpec Change erstellen mit allen Details:
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec status --change \"execution-status-and-pnl-calculation\" --json",
+  "command": "cd /home/scheffold/work/tradesensei && openspec status --change \"execution-status-and-pnl-calculation\" --json",
   "description": "Get change status and artifact order"
 }
 ```
@@ -1259,7 +1259,7 @@ Perfect! Lass uns die OpenSpec Change erstellen mit allen Details:
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec instructions proposal --change \"execution-status-and-pnl-calculation\" --json",
+  "command": "cd /home/scheffold/work/tradesensei && openspec instructions proposal --change \"execution-status-and-pnl-calculation\" --json",
   "description": "Get proposal artifact instructions"
 }
 ```
@@ -1271,7 +1271,7 @@ Perfect! Lass uns die OpenSpec Change erstellen mit allen Details:
   "changeName": "execution-status-and-pnl-calculation",
   "artifactId": "proposal",
   "schemaName": "spec-driven",
-  "changeDir": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation",
+  "changeDir": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation",
   "outputPath": "proposal.md",
   "description": "Initial proposal document outlining the change",
   "instruction": "Create the proposal document that establishes WHY this change is needed.\n\nSections:\n- **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?\n- **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.\n- **Capabilities**: Identify which specs will be created or modified:\n  - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).\n  - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.\n- **Impact**: Affected code, APIs, dependencies, or systems.\n\nIMPORTANT: The Capabilities section is critical. It creates the contract between\nproposal and specs phases. Research existing specs before filling this in.\nEach capability listed here will need a corresponding spec file.\n\nKeep it concise (1-2 pages). Focus on the \"why\" not the \"how\" -\nimplementation details belong in design.md.\n\nThis is the foundation - specs, design, and tasks all build on this.\n",
@@ -1294,7 +1294,7 @@ Perfect! Lass uns die OpenSpec Change erstellen mit allen Details:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/proposal.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/proposal.md",
   "content": "## Why\n\nWhen users edit imported executions (change price, quantity, commission), the system currently doesn't track that they've been modified. This creates two critical problems: (1) Re-importing with overwrite would silently erase user edits, causing data loss, and (2) P&L calculations become inconsistent because execution-level P&L from the broker is no longer accurate after edits.\n\n## What Changes\n\n- Add new execution status `EDITED` to distinguish modified imported executions from pristine broker data\n- Automatically set status to `EDITED` when an imported execution is modified\n- Protect `EDITED` executions from overwrite during re-import (with optional override checkbox)\n- Clarify P&L calculation rules: execution P&L only for broker data, trade P&L as source of truth for edited/manual executions\n- Standardize decimal precision for execution fields (4 decimals for price, 2 for quantity/commission/P&L)\n- Update frontend to display execution status badges and handle P&L display based on status\n\n## Capabilities\n\n### New Capabilities\n- `execution-edit-tracking`: Track and protect user modifications to imported executions\n- `pnl-calculation-rules`: Consistent P&L calculation logic for executions and trades based on data source\n\n### Modified Capabilities\n- `execution-management`: Add EDITED status to existing execution lifecycle\n- `broker-import`: Add protection for edited executions during re-import with overwrite\n\n## Impact\n\n**Backend:**\n- `app/models/logical_execution.py` - Add EDITED enum value\n- `app/services/execution.py` - Update `update_execution()` to set EDITED status\n- `app/services/import_service.py` - Filter out EDITED executions during overwrite (unless explicitly allowed)\n- Database migration - Add \"edited\" to execution_status_enum\n\n**Frontend:**\n- `components/trades/ExecutionRow.tsx` - Display status badge, conditional P&L display\n- `components/trades/ExecutionStatusBadge.tsx` - Add EDITED status styling\n- `hooks/useExecutions.ts` - Already refactored to force refetch\n- Import dialog - Add \"Overwrite edited executions\" checkbox\n\n**API:**\n- No breaking changes - PATCH /api/v1/executions/{id} behavior enhanced but backward compatible\n"
 }
 ```
@@ -1373,7 +1373,7 @@ Wrote file successfully.
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec instructions design --change \"execution-status-and-pnl-calculation\" --json",
+  "command": "cd /home/scheffold/work/tradesensei && openspec instructions design --change \"execution-status-and-pnl-calculation\" --json",
   "description": "Get design artifact instructions"
 }
 ```
@@ -1385,7 +1385,7 @@ Wrote file successfully.
   "changeName": "execution-status-and-pnl-calculation",
   "artifactId": "design",
   "schemaName": "spec-driven",
-  "changeDir": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation",
+  "changeDir": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation",
   "outputPath": "design.md",
   "description": "Technical design document with implementation details",
   "instruction": "Create the design document that explains HOW to implement the change.\n\nWhen to include design.md (create only if any apply):\n- Cross-cutting change (multiple services/modules) or new architectural pattern\n- New external dependency or significant data model changes\n- Security, performance, or migration complexity\n- Ambiguity that benefits from technical decisions before coding\n\nSections:\n- **Context**: Background, current state, constraints, stakeholders\n- **Goals / Non-Goals**: What this design achieves and explicitly excludes\n- **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.\n- **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation\n- **Migration Plan**: Steps to deploy, rollback strategy (if applicable)\n- **Open Questions**: Outstanding decisions or unknowns to resolve\n\nFocus on architecture and approach, not line-by-line implementation.\nReference the proposal for motivation and specs for requirements.\n\nGood design docs explain the \"why\" behind technical decisions.\n",
@@ -1414,13 +1414,13 @@ Wrote file successfully.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/proposal.md"
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/proposal.md"
 }
 ```
 
 **Output:**
 ```
-<path>/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/proposal.md</path>
+<path>/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/proposal.md</path>
 <type>file</type>
 <content>
 1: ## Why
@@ -1476,7 +1476,7 @@ Wrote file successfully.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/design.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/design.md",
   "content": "## Context\n\nCurrently, `LogicalExecution` has four status values: `IMPORTED`, `MANUAL`, `MERGED`, `SPLIT`. When a user edits an imported execution's price, quantity, or commission, the status remains `IMPORTED` even though the data no longer matches broker records. This creates:\n\n1. **Data integrity risk**: Re-import with overwrite silently discards user edits\n2. **P&L inconsistency**: Execution P&L field contains broker-reported value that's now wrong\n3. **No audit trail**: Can't distinguish modified executions from pristine broker data\n\nThe system already has the infrastructure (`_re_aggregate_trade` in `execution.py`) to recalculate trade P&L, but execution-level P&L handling is inconsistent.\n\n## Goals / Non-Goals\n\n**Goals:**\n- Track execution edit history through status field\n- Prevent accidental data loss during re-import\n- Establish clear P&L calculation rules based on data source\n- Enforce consistent decimal precision for user input\n\n**Non-Goals:**\n- Full audit log of what changed (just track that it changed)\n- Automatic P&L recalculation on execution level (trade P&L is source of truth)\n- Migration of existing data (existing executions keep their current status)\n\n## Decisions\n\n### Decision 1: Add EDITED status to ExecutionStatus enum\n\n**Rationale:** Adding a new status value is cleaner than adding a boolean flag because:\n- Status already tracks data lineage (`IMPORTED` = broker, `MANUAL` = user-created)\n- `EDITED` = broker origin but user-modified fits the same pattern\n- Frontend can render status badges consistently\n- Import logic can filter by status directly\n\n**Alternative considered:** Add `is_modified: bool` field\n- Rejected: Duplicates information that status already conveys\n- Rejected: Requires more complex queries (status + flag)\n\n### Decision 2: Auto-transition IMPORTED → EDITED on update\n\n**Implementation:** In `ExecutionService.update_execution()`:\n```python\nif execution.status == ExecutionStatus.IMPORTED:\n    update_data[\"status\"] = ExecutionStatus.EDITED\n```\n\n**Rationale:** \n- Automatic = zero user friction, can't forget to set it\n- Only applies to IMPORTED (MANUAL/MERGED/SPLIT stay unchanged)\n- Irreversible by design (once edited, can't un-edit)\n\n**Alternative considered:** Require explicit status in update payload\n- Rejected: Too easy to forget, API clients must know internal rules\n\n### Decision 3: Execution P&L display rules\n\n**Rule:**\n```\nif execution.status == IMPORTED AND execution.pnl != null:\n    Display: execution.pnl (broker truth)\nelse:\n    Display: \"—\" (calculated at trade level)\n```\n\n**Rationale:**\n- Execution P&L only meaningful for pristine broker data\n- Edited/manual executions: can't recalculate execution P&L without full FIFO context\n- Trade P&L (aggregated) is always the source of truth\n\n**Alternative considered:** Recalculate execution P&L on edit\n- Rejected: Execution might partially close multiple opening legs (FIFO)\n- Rejected: Can't replicate broker's exact matching logic\n\n### Decision 4: Decimal precision standards\n\n**Rule:**\n- **Price**: 4 decimals (options, penny stocks need precision)\n- **Quantity**: 2 decimals (fractional shares)\n- **Commission**: 2 decimals (currency precision)\n- **P&L**: 2 decimals (currency precision)\n\n**Rationale:**\n- Matches broker data precision (IBKR Flex Query provides 4 decimals for price)\n- 4 decimals for price: `$1.2375` for options, `$0.0025` for penny stocks\n- 2 decimals for quantity: `50.25` shares (fractional trading)\n\n**Implementation:**\n- Frontend: `<input type=\"number\" step=\"0.0001\">` for price, `step=\"0.01\"` for others\n- Backend: Already `Numeric(20, 10)` - validation ensures max 4/2 decimals\n- Display: `.toFixed(4)` for price, `.toFixed(2)` for others\n\n### Decision 5: Re-import overwrite protection\n\n**Default behavior:** Skip EDITED executions during overwrite\n\n**UI:** Import dialog checkbox: \"Overwrite edited executions\" (unchecked by default)\n\n**Rationale:**\n- Safe by default (protect user data)\n- Explicit opt-in to overwrite (user knows what they're doing)\n- Prevents accidental data loss\n\n**Implementation:**\n```python\n# ImportService._clear_existing_data()\nif not overwrite_edited:\n    query = query.where(LogicalExecution.status != ExecutionStatus.EDITED)\n```\n\n**Alternative considered:** Always protect EDITED (no override)\n- Rejected: User may genuinely want to reset to broker data\n- Rejected: Forces manual deletion if user wants fresh import\n\n## Risks / Trade-offs\n\n### Risk 1: Execution P&L shows \"—\" confuses users\n**Mitigation:** Add tooltip on \"—\" explaining \"P&L calculated at trade level\"\n\n### Risk 2: User edits execution then re-imports, forgets about edits\n**Mitigation:** \n- Import summary shows \"X edited executions skipped\"\n- Status badge in ExecutionRow is visually distinct\n\n### Risk 3: Database migration fails on enum constraint\n**Mitigation:** \n- Alembic migration adds enum value without data migration\n- Existing rows keep current status (no UPDATE needed)\n- Test migration on staging first\n\n### Risk 4: Frontend number input allows arbitrary precision\n**Mitigation:**\n- HTML5 `step` attribute enforces client-side\n- Backend validation rejects excess decimals\n- Display formatting normalizes on save\n\n## Migration Plan\n\n**Database:**\n1. Create Alembic migration: `ALTER TYPE execution_status_enum ADD VALUE 'edited'`\n2. No data migration needed (existing executions unchanged)\n3. Deploy migration before code (backward compatible)\n\n**Backend:**\n1. Deploy new ExecutionStatus enum value\n2. Deploy update_execution logic (auto-transition)\n3. Deploy import service protection (default skip EDITED)\n\n**Frontend:**\n1. Deploy ExecutionStatusBadge with EDITED styling\n2. Deploy ExecutionRow P&L display logic\n3. Deploy import dialog checkbox (later - not blocking)\n\n**Rollback:**\n- Backend: Can't remove enum value (PostgreSQL limitation)\n- Mitigation: Leave EDITED in enum, code ignores it\n\n## Open Questions\n\nNone - all design decisions resolved.\n"
 }
 ```
@@ -1567,7 +1567,7 @@ Verstanden! Ich werde in die Specs Playwright E2E-Tests und Unit-Tests als Defin
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec instructions specs --change \"execution-status-and-pnl-calculation\" --json",
+  "command": "cd /home/scheffold/work/tradesensei && openspec instructions specs --change \"execution-status-and-pnl-calculation\" --json",
   "description": "Get specs artifact instructions"
 }
 ```
@@ -1579,7 +1579,7 @@ Verstanden! Ich werde in die Specs Playwright E2E-Tests und Unit-Tests als Defin
   "changeName": "execution-status-and-pnl-calculation",
   "artifactId": "specs",
   "schemaName": "spec-driven",
-  "changeDir": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation",
+  "changeDir": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation",
   "outputPath": "specs/**/*.md",
   "description": "Detailed specifications for the change",
   "instruction": "Create specification files that define WHAT the system should do.\n\nCreate one spec file per capability listed in the proposal's Capabilities section.\n- New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).\n- Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.\n\nDelta operations (use ## headers):\n- **ADDED Requirements**: New capabilities\n- **MODIFIED Requirements**: Changed behavior - MUST include full updated content\n- **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**\n- **RENAMED Requirements**: Name changes only - use FROM:/TO: format\n\nFormat requirements:\n- Each requirement: `### Requirement: <name>` followed by description\n- Use SHALL/MUST for normative requirements (avoid should/may)\n- Each scenario: `#### Scenario: <name>` with WHEN/THEN format\n- **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.\n- Every requirement MUST have at least one scenario.\n\nMODIFIED requirements workflow:\n1. Locate the existing requirement in openspec/specs/<capability>/spec.md\n2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)\n3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior\n4. Ensure header text matches exactly (whitespace-insensitive)\n\nCommon pitfall: Using MODIFIED with partial content loses detail at archive time.\nIf adding new concerns without changing existing behavior, use ADDED instead.\n\nExample:\n```\n## ADDED Requirements\n\n### Requirement: User can export data\nThe system SHALL allow users to export their data in CSV format.\n\n#### Scenario: Successful export\n- **WHEN** user clicks \"Export\" button\n- **THEN** system downloads a CSV file with all user data\n\n## REMOVED Requirements\n\n### Requirement: Legacy export\n**Reason**: Replaced by new export system\n**Migration**: Use new export endpoint at /api/v2/export\n```\n\nSpecs should be testable - each scenario is a potential test case.\n",
@@ -1608,7 +1608,7 @@ Verstanden! Ich werde in die Specs Playwright E2E-Tests und Unit-Tests als Defin
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && mkdir -p openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking",
+  "command": "cd /home/scheffold/work/tradesensei && mkdir -p openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking",
   "description": "Create spec directory for execution-edit-tracking"
 }
 ```
@@ -1627,7 +1627,7 @@ The user has specified a rule which prevents you from using this specific tool c
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "content": "## ADDED Requirements\n\n### Requirement: Execution status tracks edit history\n\nThe system SHALL automatically mark imported executions as EDITED when any field (price, quantity, commission) is modified by the user.\n\n#### Scenario: User edits imported execution price\n- **WHEN** user updates price field on an execution with status IMPORTED\n- **THEN** execution status changes to EDITED\n- **AND** execution remains linked to original broker transaction\n\n#### Scenario: User edits imported execution quantity\n- **WHEN** user updates quantity field on an execution with status IMPORTED\n- **THEN** execution status changes to EDITED\n\n#### Scenario: User edits imported execution commission\n- **WHEN** user updates commission field on an execution with status IMPORTED\n- **THEN** execution status changes to EDITED\n\n#### Scenario: User edits manual execution\n- **WHEN** user updates any field on an execution with status MANUAL\n- **THEN** execution status remains MANUAL\n- **AND** changes are saved normally\n\n#### Scenario: Status transition is irreversible\n- **WHEN** execution status is EDITED\n- **THEN** user cannot manually change status back to IMPORTED\n- **AND** re-importing same broker data does not overwrite it (default behavior)\n\n### Requirement: Edited executions are protected during re-import\n\nThe system SHALL skip executions with status EDITED during broker re-import with overwrite mode, unless user explicitly opts in to overwrite edited data.\n\n#### Scenario: Re-import skips edited executions by default\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** database contains executions with status EDITED\n- **THEN** EDITED executions are not deleted or modified\n- **AND** import summary shows \"X edited executions skipped\"\n\n#### Scenario: Re-import overwrites edited executions when opted in\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** user checks \"Overwrite edited executions\" checkbox in import dialog\n- **THEN** EDITED executions are deleted and replaced with fresh broker data\n- **AND** new executions have status IMPORTED\n\n#### Scenario: Re-import without overwrite mode\n- **WHEN** user imports broker data without overwrite mode\n- **THEN** all existing executions (including EDITED) are preserved\n- **AND** only new executions are created\n\n### Requirement: Execution status is visually distinct\n\nThe system SHALL display execution status with color-coded badges in the execution legs table.\n\n#### Scenario: Imported execution badge\n- **WHEN** execution status is IMPORTED\n- **THEN** badge displays \"imported\" in neutral color (gray)\n\n#### Scenario: Edited execution badge\n- **WHEN** execution status is EDITED\n- **THEN** badge displays \"edited\" in warning color (amber/orange)\n- **AND** badge is visually distinct from imported\n\n#### Scenario: Manual execution badge\n- **WHEN** execution status is MANUAL\n- **THEN** badge displays \"manual\" in info color (blue)\n\n#### Scenario: Merged/Split execution badges\n- **WHEN** execution status is MERGED or SPLIT\n- **THEN** badge displays appropriate label in secondary color\n\n### Requirement: Input precision is enforced\n\nThe system SHALL enforce decimal precision limits for execution field inputs: 4 decimals for price, 2 decimals for quantity/commission/P&L.\n\n#### Scenario: Price input allows 4 decimals\n- **WHEN** user enters price with up to 4 decimal places (e.g., 155.4275)\n- **THEN** value is accepted and saved\n- **AND** display shows all 4 decimals\n\n#### Scenario: Price input rejects excess decimals\n- **WHEN** user enters price with more than 4 decimals (e.g., 155.42759)\n- **THEN** backend validation rejects the value\n- **AND** error message explains maximum precision\n\n#### Scenario: Quantity input allows 2 decimals\n- **WHEN** user enters quantity with up to 2 decimals (e.g., 50.25)\n- **THEN** value is accepted and saved\n\n#### Scenario: Commission input allows 2 decimals\n- **WHEN** user enters commission with up to 2 decimals (e.g., 2.50)\n- **THEN** value is accepted and saved\n\n#### Scenario: Display formatting is consistent\n- **WHEN** execution is displayed in UI\n- **THEN** price shows exactly 4 decimals (e.g., 155.4275)\n- **AND** quantity shows up to 2 decimals (e.g., 50.25, not 50.2500)\n- **AND** commission shows exactly 2 decimals (e.g., 2.50)\n\n## Definition of Done\n\n### Unit Tests (Backend)\n\n**File:** `backend/tests/unit/test_execution_service.py`\n\n- Test: `test_update_execution_changes_imported_to_edited()`\n  - Verify IMPORTED → EDITED transition on update\n- Test: `test_update_execution_preserves_manual_status()`\n  - Verify MANUAL status unchanged on update\n- Test: `test_update_execution_preserves_merged_status()`\n  - Verify MERGED status unchanged on update\n\n**File:** `backend/tests/unit/test_import_service.py`\n\n- Test: `test_import_overwrite_skips_edited_executions_by_default()`\n  - Verify EDITED executions not deleted during overwrite\n- Test: `test_import_overwrite_includes_edited_when_opted_in()`\n  - Verify EDITED executions deleted when flag=true\n\n**File:** `backend/tests/unit/test_execution_validation.py`\n\n- Test: `test_price_validation_accepts_4_decimals()`\n- Test: `test_price_validation_rejects_5_decimals()`\n- Test: `test_quantity_validation_accepts_2_decimals()`\n- Test: `test_quantity_validation_rejects_3_decimals()`\n- Test: `test_commission_validation_accepts_2_decimals()`\n\n### Integration Tests (Backend)\n\n**File:** `backend/tests/integration/test_execution_update_api.py`\n\n- Test: `test_patch_execution_returns_edited_status()`\n  - PATCH /api/v1/executions/{id} returns status=\"edited\"\n- Test: `test_patch_execution_refetches_trade_pnl()`\n  - Verify trade P&L recalculated after execution edit\n\n### E2E Tests (Playwright)\n\n**File:** `frontend/tests/e2e/execution-edit-status.spec.ts`\n\n- Test: `should mark imported execution as edited after price change`\n  - Navigate to trade details with imported executions\n  - Edit execution price\n  - Verify status badge changes to \"edited\"\n- Test: `should display edited badge with amber color`\n  - Verify badge styling for EDITED status\n- Test: `should enforce 4 decimal precision on price input`\n  - Attempt to enter 5 decimals in price field\n  - Verify validation error or auto-truncation\n\n**File:** `frontend/tests/e2e/re-import-protection.spec.ts`\n\n- Test: `should skip edited executions during re-import by default`\n  - Create trade with executions\n  - Edit one execution (becomes EDITED)\n  - Re-import same data with overwrite\n  - Verify EDITED execution still exists\n  - Verify import summary shows skip message\n- Test: `should overwrite edited executions when checkbox enabled`\n  - Setup edited execution\n  - Re-import with \"Overwrite edited\" checkbox checked\n  - Verify edited execution replaced with fresh import\n\n**File:** `frontend/tests/e2e/execution-pnl-display.spec.ts`\n\n- Test: `should show broker P&L for imported executions`\n  - Verify P&L column displays value for IMPORTED status\n- Test: `should show dash for edited execution P&L`\n  - Edit execution\n  - Verify P&L column shows \"—\"\n  - Verify tooltip explains \"Calculated at trade level\"\n\n### Coverage Requirements\n\n- Unit tests: ≥80% coverage for execution service and import service changes\n- E2E tests: All acceptance criteria from scenarios above must have corresponding test\n- All tests must pass before merge\n"
 }
 ```
@@ -1646,7 +1646,7 @@ Wrote file successfully.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/pnl-calculation-rules/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/pnl-calculation-rules/spec.md",
   "content": "## ADDED Requirements\n\n### Requirement: Execution P&L is broker truth only\n\nThe system SHALL only display execution-level P&L when the execution has status IMPORTED and contains broker-reported P&L. For all other cases, execution P&L SHALL display \"—\" to indicate calculation happens at trade level.\n\n#### Scenario: Imported execution with broker P&L\n- **WHEN** execution status is IMPORTED\n- **AND** execution.pnl field is not null\n- **THEN** UI displays the broker-reported P&L value\n- **AND** value is formatted to 2 decimal places\n\n#### Scenario: Imported execution without broker P&L\n- **WHEN** execution status is IMPORTED\n- **AND** execution.pnl field is null (opening leg)\n- **THEN** UI displays \"—\"\n\n#### Scenario: Edited execution P&L display\n- **WHEN** execution status is EDITED\n- **THEN** UI displays \"—\" regardless of pnl field value\n- **AND** tooltip explains \"P&L calculated at trade level\"\n\n#### Scenario: Manual execution P&L display\n- **WHEN** execution status is MANUAL\n- **THEN** UI displays \"—\"\n- **AND** tooltip explains \"P&L calculated at trade level\"\n\n### Requirement: Trade P&L is source of truth\n\nThe system SHALL calculate trade P&L using broker-reported execution P&L only when ALL executions have status IMPORTED. Otherwise, trade P&L SHALL be calculated from VWAP entry/exit prices.\n\n#### Scenario: All executions imported with broker P&L\n- **WHEN** all trade executions have status IMPORTED\n- **AND** all closing executions have non-null pnl field\n- **THEN** trade.pnl = sum of execution.pnl values\n- **AND** trade P&L is displayed in trade details\n\n#### Scenario: At least one execution is edited\n- **WHEN** trade has at least one execution with status EDITED\n- **THEN** trade.pnl is calculated from prices: (exit_price - entry_price) * quantity * multiplier\n- **AND** broker-reported execution P&L is ignored\n\n#### Scenario: Manual execution in trade\n- **WHEN** trade contains at least one MANUAL execution\n- **THEN** trade.pnl is calculated from prices\n- **AND** broker-reported execution P&L is ignored\n\n#### Scenario: Trade P&L updates after execution edit\n- **WHEN** user edits execution price/quantity/commission\n- **THEN** trade P&L is immediately recalculated\n- **AND** frontend refetches updated trade data\n- **AND** new P&L is displayed within 2 seconds\n\n### Requirement: P&L calculation uses FIFO aggregation\n\nThe system SHALL maintain FIFO (First-In-First-Out) aggregation logic in _re_aggregate_trade when calculating trade P&L from prices.\n\n#### Scenario: LONG trade P&L calculation\n- **WHEN** trade direction is LONG\n- **THEN** raw_pnl = (exit_price - entry_price) * exit_quantity * multiplier\n- **AND** trade.pnl = raw_pnl rounded to 10 decimal places\n- **AND** trade.net_pnl = trade.pnl - total_commission\n\n#### Scenario: SHORT trade P&L calculation\n- **WHEN** trade direction is SHORT\n- **THEN** raw_pnl = (entry_price - exit_price) * exit_quantity * multiplier\n- **AND** trade.pnl = raw_pnl rounded to 10 decimal places\n- **AND** trade.net_pnl = trade.pnl - total_commission\n\n#### Scenario: Partial exit P&L\n- **WHEN** trade has partial exit (exit_qty < entry_qty)\n- **THEN** P&L is calculated only for exited quantity\n- **AND** trade.closed_at remains null until fully exited\n\n#### Scenario: Trade without exit executions\n- **WHEN** trade has only entry executions (exit_qty = 0)\n- **THEN** trade.pnl = null\n- **AND** trade.net_pnl = null\n- **AND** UI displays \"—\" for P&L\n\n### Requirement: P&L precision is consistent\n\nThe system SHALL display all P&L values (execution and trade level) with exactly 2 decimal places in the UI.\n\n#### Scenario: Positive P&L formatting\n- **WHEN** P&L value is positive (e.g., 237.4567)\n- **THEN** UI displays \"+$237.46\" in green color\n- **AND** value is rounded to 2 decimals\n\n#### Scenario: Negative P&L formatting\n- **WHEN** P&L value is negative (e.g., -123.4567)\n- **THEN** UI displays \"-$123.46\" in red color\n\n#### Scenario: Zero P&L formatting\n- **WHEN** P&L value is exactly 0.00\n- **THEN** UI displays \"$0.00\" in neutral color\n\n#### Scenario: Null P&L display\n- **WHEN** P&L is null (not yet calculated)\n- **THEN** UI displays \"—\" in muted color\n\n## Definition of Done\n\n### Unit Tests (Backend)\n\n**File:** `backend/tests/unit/test_trade_pnl_calculation.py`\n\n- Test: `test_trade_pnl_uses_broker_when_all_imported()`\n  - Verify sum of execution P&L when all IMPORTED\n- Test: `test_trade_pnl_calculates_from_prices_when_edited()`\n  - Verify price-based calculation when EDITED execution exists\n- Test: `test_trade_pnl_long_calculation()`\n  - Verify (exit - entry) * qty * multiplier for LONG\n- Test: `test_trade_pnl_short_calculation()`\n  - Verify (entry - exit) * qty * multiplier for SHORT\n- Test: `test_trade_pnl_partial_exit()`\n  - Verify P&L calculated only for exited quantity\n- Test: `test_trade_pnl_no_exit_returns_null()`\n  - Verify null when no exit executions\n\n**File:** `backend/tests/unit/test_execution_pnl_display.py`\n\n- Test: `test_execution_pnl_null_for_edited()`\n  - Verify execution.pnl handling when status=EDITED\n\n### Integration Tests (Backend)\n\n**File:** `backend/tests/integration/test_trade_aggregation.py`\n\n- Test: `test_re_aggregate_updates_pnl_after_execution_edit()`\n  - Edit execution price\n  - Verify trade P&L recalculated\n  - Verify new P&L different from broker sum\n\n### E2E Tests (Playwright)\n\n**File:** `frontend/tests/e2e/trade-pnl-calculation.spec.ts`\n\n- Test: `should display trade P&L in details panel`\n  - Navigate to closed trade\n  - Verify P&L displayed with 2 decimals\n  - Verify color coding (green=profit, red=loss)\n- Test: `should update trade P&L after execution edit`\n  - Edit execution price\n  - Wait for refetch (max 2s)\n  - Verify trade P&L updated\n  - Verify execution P&L shows \"—\"\n- Test: `should show tooltip on execution P&L dash`\n  - Hover over \"—\" in execution P&L column\n  - Verify tooltip: \"P&L calculated at trade level\"\n\n**File:** `frontend/tests/e2e/pnl-display-formatting.spec.ts`\n\n- Test: `should format positive P&L with plus sign and green`\n  - Verify profit trades show \"+$XXX.XX\" in green\n- Test: `should format negative P&L with minus sign and red`\n  - Verify loss trades show \"-$XXX.XX\" in red\n- Test: `should show dash for open positions`\n  - Open trade (no exit) shows \"—\" for P&L\n\n### Regression Tests\n\n**File:** `backend/tests/integration/test_pnl_regression.py`\n\n- Existing test: `test_pnl_regression_cross_year_trades()`\n  - Must continue to pass (verify FIFO logic unchanged)\n- Existing test: `test_pnl_regression_options_multiplier()`\n  - Must continue to pass (verify multiplier handling)\n\n### Coverage Requirements\n\n- Unit tests: ≥80% coverage for _re_aggregate_trade function\n- E2E tests: All P&L display scenarios covered\n- Regression tests: All existing P&L tests must pass\n"
 }
 ```
@@ -1667,7 +1667,7 @@ Jetzt erstelle ich die Tasks:
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec status --change \"execution-status-and-pnl-calculation\" --json",
+  "command": "cd /home/scheffold/work/tradesensei && openspec status --change \"execution-status-and-pnl-calculation\" --json",
   "description": "Check if specs are complete"
 }
 ```
@@ -1717,7 +1717,7 @@ Jetzt erstelle ich die Tasks:
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec instructions tasks --change \"execution-status-and-pnl-calculation\" --json",
+  "command": "cd /home/scheffold/work/tradesensei && openspec instructions tasks --change \"execution-status-and-pnl-calculation\" --json",
   "description": "Get tasks artifact instructions"
 }
 ```
@@ -1729,7 +1729,7 @@ Jetzt erstelle ich die Tasks:
   "changeName": "execution-status-and-pnl-calculation",
   "artifactId": "tasks",
   "schemaName": "spec-driven",
-  "changeDir": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation",
+  "changeDir": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation",
   "outputPath": "tasks.md",
   "description": "Implementation checklist with trackable tasks",
   "instruction": "Create the task list that breaks down the implementation work.\n\n**IMPORTANT: Follow the template below exactly.** The apply phase parses\ncheckbox format to track progress. Tasks not using `- [ ]` won't be tracked.\n\nGuidelines:\n- Group related tasks under ## numbered headings\n- Each task MUST be a checkbox: `- [ ] X.Y Task description`\n- Tasks should be small enough to complete in one session\n- Order tasks by dependency (what must be done first?)\n\nExample:\n```\n## 1. Setup\n\n- [ ] 1.1 Create new module structure\n- [ ] 1.2 Add dependencies to package.json\n\n## 2. Core Implementation\n\n- [ ] 2.1 Implement data export function\n- [ ] 2.2 Add CSV formatting utilities\n```\n\nReference specs for what needs to be built, design for how to build it.\nEach task should be verifiable - you know when it's done.\n",
@@ -1762,7 +1762,7 @@ Jetzt erstelle ich die Tasks:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/tasks.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/tasks.md",
   "content": "## 1. Database Schema\n\n- [ ] 1.1 Create Alembic migration to add 'edited' to execution_status_enum\n- [ ] 1.2 Test migration on local database (up and down)\n- [ ] 1.3 Verify existing executions preserve their current status\n\n## 2. Backend Model & Validation\n\n- [ ] 2.1 Add ExecutionStatus.EDITED to logical_execution.py enum with docstring\n- [ ] 2.2 Add decimal precision validation to LogicalExecutionUpdate schema (4 for price, 2 for qty/commission)\n- [ ] 2.3 Write unit tests for decimal validation (accept 4/2, reject 5/3)\n\n## 3. Backend Service Logic\n\n- [ ] 3.1 Update ExecutionService.update_execution() to set EDITED status when modifying IMPORTED execution\n- [ ] 3.2 Add unit test: test_update_execution_changes_imported_to_edited()\n- [ ] 3.3 Add unit test: test_update_execution_preserves_manual_status()\n- [ ] 3.4 Add unit test: test_update_execution_preserves_merged_status()\n- [ ] 3.5 Verify _re_aggregate_trade() recalculates trade P&L correctly after edit\n\n## 4. Import Service Protection\n\n- [ ] 4.1 Update ImportService._clear_existing_data() to filter out EDITED executions by default\n- [ ] 4.2 Add overwrite_edited_executions parameter to import endpoint\n- [ ] 4.3 Add unit test: test_import_overwrite_skips_edited_executions_by_default()\n- [ ] 4.4 Add unit test: test_import_overwrite_includes_edited_when_opted_in()\n\n## 5. Backend Integration Tests\n\n- [ ] 5.1 Test PATCH /api/v1/executions/{id} returns status=\"edited\" in response\n- [ ] 5.2 Test trade P&L refetch after execution edit via API\n- [ ] 5.3 Verify existing test_pnl_regression.py still passes (FIFO logic unchanged)\n\n## 6. Frontend Status Badge\n\n- [ ] 6.1 Add EDITED case to ExecutionStatusBadge.tsx with amber/orange styling\n- [ ] 6.2 Verify badge displays correctly for all statuses (imported, edited, manual, merged, split)\n- [ ] 6.3 Add visual regression test or screenshot for badge styles\n\n## 7. Frontend P&L Display Logic\n\n- [ ] 7.1 Update ExecutionRow.tsx P&L display: show value only for IMPORTED with non-null pnl, else \"—\"\n- [ ] 7.2 Add tooltip to \"—\" explaining \"P&L calculated at trade level\"\n- [ ] 7.3 Verify trade P&L in TradeDetails always displays (refetch works)\n- [ ] 7.4 Update fmtPnl() to handle null case with \"—\"\n\n## 8. Frontend Input Precision\n\n- [ ] 8.1 Add step=\"0.0001\" to price input field in ExecutionRow\n- [ ] 8.2 Add step=\"0.01\" to quantity and commission input fields\n- [ ] 8.3 Update display formatting: price.toFixed(4), qty.toFixed(2), commission.toFixed(2)\n- [ ] 8.4 Add client-side validation error messages for excess decimals\n\n## 9. Import Dialog Enhancement\n\n- [ ] 9.1 Add \"Overwrite edited executions\" checkbox to import dialog (unchecked by default)\n- [ ] 9.2 Wire checkbox to overwrite_edited_executions API parameter\n- [ ] 9.3 Display import summary: \"X edited executions skipped\" or \"X edited executions overwritten\"\n\n## 10. Backend Unit Tests\n\n- [ ] 10.1 Write test_trade_pnl_uses_broker_when_all_imported() in test_trade_pnl_calculation.py\n- [ ] 10.2 Write test_trade_pnl_calculates_from_prices_when_edited()\n- [ ] 10.3 Write test_trade_pnl_long_calculation() and test_trade_pnl_short_calculation()\n- [ ] 10.4 Write test_trade_pnl_partial_exit() and test_trade_pnl_no_exit_returns_null()\n- [ ] 10.5 Verify ≥80% coverage for execution service and import service changes\n\n## 11. E2E Tests - Execution Edit Status\n\n- [ ] 11.1 Create frontend/tests/e2e/execution-edit-status.spec.ts\n- [ ] 11.2 Test: should mark imported execution as edited after price change\n- [ ] 11.3 Test: should display edited badge with amber color\n- [ ] 11.4 Test: should enforce 4 decimal precision on price input\n\n## 12. E2E Tests - Re-import Protection\n\n- [ ] 12.1 Create frontend/tests/e2e/re-import-protection.spec.ts\n- [ ] 12.2 Test: should skip edited executions during re-import by default\n- [ ] 12.3 Test: should overwrite edited executions when checkbox enabled\n\n## 13. E2E Tests - P&L Display\n\n- [ ] 13.1 Create frontend/tests/e2e/execution-pnl-display.spec.ts\n- [ ] 13.2 Test: should show broker P&L for imported executions\n- [ ] 13.3 Test: should show dash for edited execution P&L\n- [ ] 13.4 Test: should show tooltip on execution P&L dash\n\n## 14. E2E Tests - Trade P&L\n\n- [ ] 14.1 Create frontend/tests/e2e/trade-pnl-calculation.spec.ts\n- [ ] 14.2 Test: should display trade P&L in details panel\n- [ ] 14.3 Test: should update trade P&L after execution edit (max 2s wait)\n- [ ] 14.4 Create frontend/tests/e2e/pnl-display-formatting.spec.ts\n- [ ] 14.5 Test: positive/negative/zero P&L formatting with correct colors\n\n## 15. Documentation & Review\n\n- [ ] 15.1 Update AGENTS.md if new patterns introduced\n- [ ] 15.2 Update CHANGELOG.md with feature addition\n- [ ] 15.3 Run full test suite (backend + frontend)\n- [ ] 15.4 Manual QA: Edit execution, re-import, verify P&L\n- [ ] 15.5 Code review: Verify all acceptance criteria met\n"
 }
 ```
@@ -1841,7 +1841,7 @@ Wrote file successfully.
 **Input:**
 ```json
 {
-  "command": "cd /home/scheffold/work/tradejournal && openspec status --change \"execution-status-and-pnl-calculation\"",
+  "command": "cd /home/scheffold/work/tradesensei && openspec status --change \"execution-status-and-pnl-calculation\"",
   "description": "Show final change status"
 }
 ```
@@ -1957,7 +1957,7 @@ Lass mich das in die Spec aufnehmen:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "offset": 35,
   "limit": 30
 }
@@ -1965,7 +1965,7 @@ Lass mich das in die Spec aufnehmen:
 
 **Output:**
 ```
-<path>/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md</path>
+<path>/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md</path>
 <type>file</type>
 <content>
 35: - **WHEN** user imports broker data with overwrite enabled
@@ -2012,7 +2012,7 @@ Lass mich das in die Spec aufnehmen:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "#### Scenario: Re-import skips edited executions by default\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** database contains executions with status EDITED\n- **THEN** EDITED executions are not deleted or modified\n- **AND** import summary shows \"X edited executions skipped\"",
   "newString": "#### Scenario: Re-import skips edited executions by default\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** database contains executions with status EDITED\n- **THEN** EDITED executions are not deleted or modified\n- **AND** corresponding broker transactions are skipped (not imported as duplicates)\n- **AND** import summary shows \"X edited executions skipped\""
 }
@@ -2034,7 +2034,7 @@ Jetzt füge ich ein neues Requirement hinzu für die Duplicate-Prevention:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "#### Scenario: Re-import without overwrite mode\n- **WHEN** user imports broker data without overwrite mode\n- **THEN** all existing executions (including EDITED) are preserved\n- **AND** only new executions are created\n\n### Requirement: Execution status is visually distinct",
   "newString": "#### Scenario: Re-import without overwrite mode\n- **WHEN** user imports broker data without overwrite mode\n- **THEN** all existing executions (including EDITED) are preserved\n- **AND** only new executions are created\n\n### Requirement: Edited executions prevent duplicate imports\n\nThe system SHALL prevent importing broker transactions that correspond to existing EDITED executions, to avoid duplicate executions in the same trade.\n\n#### Scenario: Edited execution blocks corresponding broker transaction\n- **WHEN** user imports broker data with overwrite disabled\n- **AND** database contains execution with status EDITED linked to raw transaction ID \"TX123\"\n- **AND** import file contains same transaction ID \"TX123\"\n- **THEN** transaction \"TX123\" is skipped (not imported)\n- **AND** EDITED execution remains unchanged\n- **AND** trade does not gain duplicate execution\n\n#### Scenario: Overwrite mode replaces edited with fresh broker data\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** \"Overwrite edited executions\" checkbox is checked\n- **AND** EDITED execution is linked to raw transaction ID \"TX123\"\n- **THEN** EDITED execution is deleted\n- **AND** transaction \"TX123\" is imported as new IMPORTED execution\n- **AND** trade has only one execution for this transaction\n\n#### Scenario: No duplicate detection for manual executions\n- **WHEN** execution has status MANUAL (no linked raw transaction)\n- **AND** broker import contains similar data (same symbol, date, quantity)\n- **THEN** both executions coexist (no automatic duplicate detection)\n- **AND** user must manually resolve if desired\n\n### Requirement: Execution status is visually distinct"
 }
@@ -2056,7 +2056,7 @@ Jetzt füge ich Tests dafür hinzu in der Definition of Done:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "**File:** `backend/tests/unit/test_import_service.py`\n\n- Test: `test_import_overwrite_skips_edited_executions_by_default()`\n  - Verify EDITED executions not deleted during overwrite\n- Test: `test_import_overwrite_includes_edited_when_opted_in()`\n  - Verify EDITED executions deleted when flag=true",
   "newString": "**File:** `backend/tests/unit/test_import_service.py`\n\n- Test: `test_import_overwrite_skips_edited_executions_by_default()`\n  - Verify EDITED executions not deleted during overwrite\n- Test: `test_import_overwrite_includes_edited_when_opted_in()`\n  - Verify EDITED executions deleted when flag=true\n- Test: `test_import_skips_broker_transactions_linked_to_edited_executions()`\n  - Verify broker transaction not re-imported if EDITED execution exists\n- Test: `test_import_prevents_duplicate_execution_in_trade()`\n  - Verify trade does not gain duplicate execution when EDITED exists"
 }
@@ -2076,7 +2076,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "**File:** `frontend/tests/e2e/re-import-protection.spec.ts`\n\n- Test: `should skip edited executions during re-import by default`\n  - Create trade with executions\n  - Edit one execution (becomes EDITED)\n  - Re-import same data with overwrite\n  - Verify EDITED execution still exists\n  - Verify import summary shows skip message\n- Test: `should overwrite edited executions when checkbox enabled`\n  - Setup edited execution\n  - Re-import with \"Overwrite edited\" checkbox checked\n  - Verify edited execution replaced with fresh import",
   "newString": "**File:** `frontend/tests/e2e/re-import-protection.spec.ts`\n\n- Test: `should skip edited executions during re-import by default`\n  - Create trade with executions\n  - Edit one execution (becomes EDITED)\n  - Re-import same data with overwrite\n  - Verify EDITED execution still exists\n  - Verify import summary shows skip message\n- Test: `should not create duplicate execution for edited execution`\n  - Edit execution (becomes EDITED)\n  - Re-import same broker file with overwrite disabled\n  - Verify trade has same number of executions (no duplicate)\n  - Verify EDITED execution unchanged\n- Test: `should overwrite edited executions when checkbox enabled`\n  - Setup edited execution\n  - Re-import with \"Overwrite edited\" checkbox checked\n  - Verify edited execution replaced with fresh import\n  - Verify no duplicate execution created"
 }
@@ -2098,7 +2098,7 @@ Jetzt aktualisiere ich die Tasks:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/tasks.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/tasks.md",
   "oldString": "## 4. Import Service Protection\n\n- [ ] 4.1 Update ImportService._clear_existing_data() to filter out EDITED executions by default\n- [ ] 4.2 Add overwrite_edited_executions parameter to import endpoint\n- [ ] 4.3 Add unit test: test_import_overwrite_skips_edited_executions_by_default()\n- [ ] 4.4 Add unit test: test_import_overwrite_includes_edited_when_opted_in()",
   "newString": "## 4. Import Service Protection\n\n- [ ] 4.1 Update ImportService._clear_existing_data() to filter out EDITED executions by default\n- [ ] 4.2 Add overwrite_edited_executions parameter to import endpoint\n- [ ] 4.3 Update import logic to skip broker transactions linked to EDITED executions (prevent duplicates)\n- [ ] 4.4 Add unit test: test_import_overwrite_skips_edited_executions_by_default()\n- [ ] 4.5 Add unit test: test_import_overwrite_includes_edited_when_opted_in()\n- [ ] 4.6 Add unit test: test_import_skips_broker_transactions_linked_to_edited_executions()\n- [ ] 4.7 Add unit test: test_import_prevents_duplicate_execution_in_trade()"
 }
@@ -2118,7 +2118,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/tasks.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/tasks.md",
   "oldString": "## 12. E2E Tests - Re-import Protection\n\n- [ ] 12.1 Create frontend/tests/e2e/re-import-protection.spec.ts\n- [ ] 12.2 Test: should skip edited executions during re-import by default\n- [ ] 12.3 Test: should overwrite edited executions when checkbox enabled",
   "newString": "## 12. E2E Tests - Re-import Protection\n\n- [ ] 12.1 Create frontend/tests/e2e/re-import-protection.spec.ts\n- [ ] 12.2 Test: should skip edited executions during re-import by default\n- [ ] 12.3 Test: should not create duplicate execution for edited execution\n- [ ] 12.4 Test: should overwrite edited executions when checkbox enabled"
 }
@@ -2140,7 +2140,7 @@ Und jetzt update ich das Design-Dokument mit dieser wichtigen Entscheidung:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/design.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/design.md",
   "oldString": "### Decision 5: Re-import overwrite protection\n\n**Default behavior:** Skip EDITED executions during overwrite\n\n**UI:** Import dialog checkbox: \"Overwrite edited executions\" (unchecked by default)\n\n**Rationale:**\n- Safe by default (protect user data)\n- Explicit opt-in to overwrite (user knows what they're doing)\n- Prevents accidental data loss\n\n**Implementation:**\n```python\n# ImportService._clear_existing_data()\nif not overwrite_edited:\n    query = query.where(LogicalExecution.status != ExecutionStatus.EDITED)\n```\n\n**Alternative considered:** Always protect EDITED (no override)\n- Rejected: User may genuinely want to reset to broker data\n- Rejected: Forces manual deletion if user wants fresh import",
   "newString": "### Decision 5: Re-import overwrite protection with duplicate prevention\n\n**Default behavior:** Skip EDITED executions during overwrite AND skip corresponding broker transactions\n\n**UI:** Import dialog checkbox: \"Overwrite edited executions\" (unchecked by default)\n\n**Rationale:**\n- Safe by default (protect user data)\n- Prevents duplicate executions: if we skip EDITED but re-import its broker transaction, we'd have TWO executions for the same data\n- Explicit opt-in to overwrite (user knows what they're doing)\n\n**Implementation:**\n```python\n# ImportService._clear_existing_data()\nif not overwrite_edited:\n    query = query.where(LogicalExecution.status != ExecutionStatus.EDITED)\n\n# ImportService._process_broker_transaction()\n# Check if transaction already linked to EDITED execution\nedited_executions = session.query(LogicalExecution).join(\n    transaction_execution_mappings\n).filter(\n    transaction_execution_mappings.c.transaction_id == broker_tx.id,\n    LogicalExecution.status == ExecutionStatus.EDITED\n).all()\n\nif edited_executions and not overwrite_edited:\n    # Skip this transaction (already represented by EDITED execution)\n    continue\n```\n\n**Alternative considered:** Always protect EDITED (no override)\n- Rejected: User may genuinely want to reset to broker data\n- Rejected: Forces manual deletion if user wants fresh import\n\n**Alternative considered:** Only skip EDITED, allow duplicate imports\n- Rejected: Creates duplicate executions in trade\n- Rejected: P&L would be double-counted\n- Rejected: User must manually clean up duplicates"
 }
@@ -2286,7 +2286,7 @@ Lass mich das in die Spec integrieren:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "### Requirement: Edited executions prevent duplicate imports\n\nThe system SHALL prevent importing broker transactions that correspond to existing EDITED executions, to avoid duplicate executions in the same trade.",
   "newString": "### Requirement: User-modified executions prevent duplicate imports\n\nThe system SHALL prevent importing broker transactions that correspond to existing user-modified executions (EDITED, SPLIT, MERGED), to avoid duplicate executions in the same trade."
 }
@@ -2306,7 +2306,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "#### Scenario: Edited execution blocks corresponding broker transaction\n- **WHEN** user imports broker data with overwrite disabled\n- **AND** database contains execution with status EDITED linked to raw transaction ID \"TX123\"\n- **AND** import file contains same transaction ID \"TX123\"\n- **THEN** transaction \"TX123\" is skipped (not imported)\n- **AND** EDITED execution remains unchanged\n- **AND** trade does not gain duplicate execution\n\n#### Scenario: Overwrite mode replaces edited with fresh broker data\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** \"Overwrite edited executions\" checkbox is checked\n- **AND** EDITED execution is linked to raw transaction ID \"TX123\"\n- **THEN** EDITED execution is deleted\n- **AND** transaction \"TX123\" is imported as new IMPORTED execution\n- **AND** trade has only one execution for this transaction\n\n#### Scenario: No duplicate detection for manual executions\n- **WHEN** execution has status MANUAL (no linked raw transaction)\n- **AND** broker import contains similar data (same symbol, date, quantity)\n- **THEN** both executions coexist (no automatic duplicate detection)\n- **AND** user must manually resolve if desired",
   "newString": "#### Scenario: Edited execution blocks corresponding broker transaction\n- **WHEN** user imports broker data with overwrite disabled\n- **AND** database contains execution with status EDITED linked to raw transaction ID \"TX123\"\n- **AND** import file contains same transaction ID \"TX123\"\n- **THEN** transaction \"TX123\" is skipped (not imported)\n- **AND** EDITED execution remains unchanged\n- **AND** trade does not gain duplicate execution\n\n#### Scenario: Split executions block corresponding broker transaction\n- **WHEN** user has split execution into two parts (status SPLIT)\n- **AND** both SPLIT executions are linked to original raw transaction ID \"TX123\"\n- **AND** user imports broker data with overwrite disabled\n- **AND** import file contains transaction ID \"TX123\"\n- **THEN** transaction \"TX123\" is skipped (not imported)\n- **AND** both SPLIT executions remain unchanged\n- **AND** trade does not gain duplicate execution (original 100 shares would conflict with split 50+50)\n\n#### Scenario: Merged execution blocks corresponding broker transactions\n- **WHEN** user has merged multiple executions into one (status MERGED)\n- **AND** MERGED execution is linked to raw transaction IDs \"TX123\" and \"TX124\"\n- **AND** user imports broker data with overwrite disabled\n- **AND** import file contains transactions \"TX123\" and \"TX124\"\n- **THEN** both transactions are skipped (not imported)\n- **AND** MERGED execution remains unchanged\n- **AND** trade does not gain duplicate executions\n\n#### Scenario: Overwrite mode with user modifications checkbox\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** user checks \"Overwrite user modifications\" checkbox\n- **AND** database contains EDITED, SPLIT, or MERGED executions\n- **THEN** all user-modified executions are deleted\n- **AND** original broker transactions are imported as fresh IMPORTED executions\n- **AND** trade returns to pristine broker state\n\n#### Scenario: Manual execution without transaction link\n- **WHEN** user deletes imported execution and creates new MANUAL execution\n- **AND** MANUAL execution has no linked raw transaction (user created from scratch)\n- **AND** broker import contains transaction that was originally linked to deleted execution\n- **THEN** transaction is imported as new IMPORTED execution\n- **AND** trade has both MANUAL and IMPORTED executions (duplicate)\n- **AND** import summary warns \"X potential duplicates with manual executions\"\n\n#### Scenario: User resolves manual duplicate before import\n- **WHEN** import detects potential duplicate with MANUAL execution\n- **AND** user views import preview/summary\n- **THEN** warning shows \"Manual execution on 2026-03-10 for AAPL 100 shares conflicts with TX123\"\n- **AND** user can choose to delete MANUAL execution before proceeding with import"
 }
@@ -2328,7 +2328,7 @@ Jetzt füge ich ein neues Requirement für die Checkbox-Umbenennung hinzu:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "### Requirement: Edited executions are protected during re-import\n\nThe system SHALL skip executions with status EDITED during broker re-import with overwrite mode, unless user explicitly opts in to overwrite edited data.",
   "newString": "### Requirement: User-modified executions are protected during re-import\n\nThe system SHALL skip executions with status EDITED, SPLIT, or MERGED during broker re-import with overwrite mode, unless user explicitly opts in to overwrite user modifications."
 }
@@ -2348,7 +2348,7 @@ Edit applied successfully.
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "#### Scenario: Re-import skips edited executions by default\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** database contains executions with status EDITED\n- **THEN** EDITED executions are not deleted or modified\n- **AND** corresponding broker transactions are skipped (not imported as duplicates)\n- **AND** import summary shows \"X edited executions skipped\"\n\n#### Scenario: Re-import overwrites edited executions when opted in\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** user checks \"Overwrite edited executions\" checkbox in import dialog\n- **THEN** EDITED executions are deleted and replaced with fresh broker data\n- **AND** new executions have status IMPORTED\n\n#### Scenario: Re-import without overwrite mode\n- **WHEN** user imports broker data without overwrite mode\n- **THEN** all existing executions (including EDITED) are preserved\n- **AND** only new executions are created",
   "newString": "#### Scenario: Re-import skips user-modified executions by default\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** database contains executions with status EDITED, SPLIT, or MERGED\n- **THEN** user-modified executions are not deleted or modified\n- **AND** corresponding broker transactions are skipped (not imported as duplicates)\n- **AND** import summary shows \"X user-modified executions skipped\"\n\n#### Scenario: Re-import overwrites user modifications when opted in\n- **WHEN** user imports broker data with overwrite enabled\n- **AND** user checks \"Overwrite user modifications\" checkbox in import dialog\n- **THEN** EDITED, SPLIT, and MERGED executions are deleted and replaced with fresh broker data\n- **AND** new executions have status IMPORTED\n- **AND** user confirms action with warning dialog\n\n#### Scenario: Re-import without overwrite mode\n- **WHEN** user imports broker data without overwrite mode\n- **THEN** all existing executions (including EDITED, SPLIT, MERGED) are preserved\n- **AND** only new executions are created\n- **AND** duplicate detection still applies (skip transactions linked to user-modified executions)"
 }
@@ -2370,7 +2370,7 @@ Jetzt erweitere ich die Tests in der DoD:
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "**File:** `backend/tests/unit/test_import_service.py`\n\n- Test: `test_import_overwrite_skips_edited_executions_by_default()`\n  - Verify EDITED executions not deleted during overwrite\n- Test: `test_import_overwrite_includes_edited_when_opted_in()`\n  - Verify EDITED executions deleted when flag=true\n- Test: `test_import_skips_broker_transactions_linked_to_edited_executions()`\n  - Verify broker transaction not re-imported if EDITED execution exists\n- Test: `test_import_prevents_duplicate_execution_in_trade()`\n  - Verify trade does not gain duplicate execution when EDITED exists",
   "newString": "**File:** `backend/tests/unit/test_import_service.py`\n\n- Test: `test_import_overwrite_skips_edited_executions_by_default()`\n  - Verify EDITED executions not deleted during overwrite\n- Test: `test_import_overwrite_skips_split_executions_by_default()`\n  - Verify SPLIT executions not deleted during overwrite\n- Test: `test_import_overwrite_skips_merged_executions_by_default()`\n  - Verify MERGED executions not deleted during overwrite\n- Test: `test_import_overwrite_includes_user_modifications_when_opted_in()`\n  - Verify EDITED, SPLIT, MERGED executions deleted when flag=true\n- Test: `test_import_skips_broker_transactions_linked_to_edited_executions()`\n  - Verify broker transaction not re-imported if EDITED execution exists\n- Test: `test_import_skips_broker_transactions_linked_to_split_executions()`\n  - Verify original transaction not re-imported if SPLIT executions exist\n- Test: `test_import_skips_broker_transactions_linked_to_merged_execution()`\n  - Verify multiple transactions not re-imported if MERGED execution exists\n- Test: `test_import_prevents_duplicate_execution_in_trade()`\n  - Verify trade does not gain duplicate execution when user-modified exists\n- Test: `test_import_warns_on_manual_execution_duplicate()`\n  - Verify import summary warns about potential duplicates with MANUAL executions\n- Test: `test_import_creates_duplicate_when_manual_has_no_transaction_link()`\n  - Verify MANUAL execution without transaction link allows duplicate import"
 }
@@ -2402,7 +2402,7 @@ Lass mich das in die Spec integrieren - wenn Re-Import Duplikate mit MANUAL erze
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
+  "filePath": "/home/scheffold/work/tradesensei/openspec/changes/execution-status-and-pnl-calculation/specs/execution-edit-tracking/spec.md",
   "oldString": "#### Scenario: Manual execution without transaction link\n- **WHEN** user deletes imported execution and creates new MANUAL execution\n- **AND** MANUAL execution has no linked raw transaction (user created from scratch)\n- **AND** broker import contains transaction that was originally linked to deleted execution\n- **THEN** transaction is imported as new IMPORTED execution\n- **AND** trade has both MANUAL and IMPORTED executions (duplicate)\n- **AND** import summary warns \"X potential duplicates with manual executions\"\n\n#### Scenario: User resolves manual duplicate before import\n- **WHEN** import detects potential duplicate with MANUAL execution\n- **AND** user views import preview/summary\n- **THEN** warning shows \"Manual execution on 2026-03-10 for AAPL 100 shares conflicts with TX123\"\n- **AND** user can choose to delete MANUAL execution before proceeding with import",
   "newString": "#### Scenario: Manual execution without transaction link creates duplicate\n- **WHEN** user deletes imported execution and creates new MANUAL execution\n- **AND** MANUAL execution has no linked raw transaction (user created from scratch)\n- **AND** broker import contains transaction that was originally linked to deleted execution\n- **THEN** transaction is imported as new IMPORTED execution\n- **AND** trade has both MANUAL and IMPORTED executions (duplicate)\n- **AND** trade.has_conflict is set to true (inconsistent position)\n- **AND** import summary warns \"X trades flagged with conflicts due to manual duplicates\"\n\n#### Scenario: Trade conflict banner shows after manual duplicate import\n- **WHEN** trade has duplicate executions (MANUAL + IMPORTED for same data)\n- **AND** trade.has_conflict is true\n- **THEN** trade details page shows conflict banner\n- **AND** banner message: \"This trade has inconsistent executions. Review execution legs.\"\n- **AND** user can manually delete duplicate or adjust executions\n\n#### Scenario: User resolves conflict manually\n- **WHEN** trade.has_conflict is true due to duplicate executions\n- **AND** user deletes duplicate MANUAL or IMPORTED execution\n- **THEN** system re-aggregates trade\n- **AND** if position is now consistent, trade.has_conflict is cleared to false\n- **AND** conflict banner disappears"
 }
@@ -2673,7 +2673,7 @@ schreib mir mal diese problem stellen in deine datei raus so als summary unsere 
 **Input:**
 ```json
 {
-  "filePath": "/home/scheffold/work/tradejournal/docs/execution-status-brainstorming.md",
+  "filePath": "/home/scheffold/work/tradesensei/docs/execution-status-brainstorming.md",
   "content": "# Execution Status & Re-Import Edge Cases - Brainstorming\n\nDieses Dokument sammelt alle identifizierten Edge Cases und Problemstellungen rund um Execution Status (EDITED, SPLIT, MERGED, MANUAL) und deren Verhalten beim Re-Import mit/ohne Overwrite.\n\n---\n\n## Problem-Übersicht\n\nWenn User importierte Executions modifizieren (editieren, splitten, mergen, löschen+neu anlegen), entstehen komplexe Situationen beim Re-Import derselben Broker-Daten. Die zentrale Frage:\n\n**\"Welche Executions sollen geschützt werden, welche überschrieben, und wie verhindern wir Duplikate?\"**\n\n---\n\n## Edge Case 1: User editiert importierte Execution\n\n### Ausgangslage\n- Trade hat IMPORTED Execution für TX123 (100 shares AAPL @ $150)\n- User ändert Preis auf $155 → Status wird EDITED\n- Transaction-Link zu TX123 bleibt erhalten\n\n### Szenario A: Re-Import ohne Overwrite\n```\nVorher:  EDITED (100 shares, gelinkt zu TX123)\nImport:  TX123 gefunden in Broker-Datei\nCheck:   TX123 ist bereits gelinkt zu EDITED Execution\nAktion:  SKIP TX123 (nicht importieren)\nNachher: EDITED (100 shares) - unverändert\n```\n✅ **Funktioniert perfekt** - keine Duplikate, User-Änderungen bleiben\n\n### Szenario B: Re-Import mit Overwrite (ohne Checkbox)\n```\nVorher:  EDITED (100 shares, gelinkt zu TX123)\nStep 1:  Lösche nur IMPORTED Executions (EDITED wird NICHT gelöscht)\nStep 2:  TX123 importieren?\nCheck:   TX123 ist gelinkt zu EDITED → SKIP\nNachher: EDITED (100 shares) - unverändert\n```\n✅ **Funktioniert perfekt** - EDITED geschützt, keine Duplikate\n\n### Szenario C: Re-Import mit Overwrite + \"Overwrite user modifications\" Checkbox\n```\nVorher:  EDITED (100 shares, gelinkt zu TX123)\nStep 1:  Lösche EDITED (User hat explizit zugestimmt)\nStep 2:  TX123 importieren → wird importiert\nNachher: IMPORTED TX123 (100 shares @ $150) - zurück zu Broker-Daten\n```\n✅ **Funktioniert wie gewünscht** - User kann zu Original zurückkehren\n\n### Fazit Edge Case 1\n**Status: GELÖST** ✅  \nTransaction-Link macht Duplicate-Prevention möglich.\n\n---\n\n## Edge Case 2: User splittet importierte Execution\n\n### Ausgangslage\n- Trade hat IMPORTED Execution für TX123 (100 shares)\n- User splittet in zwei Executions:\n  - SPLIT #1: 50 shares (gelinkt zu TX123)\n  - SPLIT #2: 50 shares (gelinkt zu TX123)\n- Beide behalten Transaction-Link\n\n### Szenario A: Re-Import ohne Overwrite\n```\nVorher:  SPLIT #1 (50), SPLIT #2 (50) - beide gelinkt zu TX123\nImport:  TX123 gefunden (100 shares)\nCheck:   TX123 ist bereits gelinkt zu SPLIT Executions\nAktion:  SKIP TX123\nNachher: SPLIT #1 (50), SPLIT #2 (50) - unverändert\n```\n✅ **Funktioniert** - keine Duplikate\n\n### Szenario B: Re-Import mit Overwrite (ohne Checkbox)\n```\nVorher:  SPLIT #1 (50), SPLIT #2 (50)\nStep 1:  Lösche nur IMPORTED (SPLIT wird NICHT gelöscht)\nStep 2:  TX123 importieren?\nCheck:   TX123 ist gelinkt zu SPLIT → SKIP\nNachher: SPLIT #1 (50), SPLIT #2 (50) - unverändert\n```\n✅ **Funktioniert** - SPLIT geschützt\n\n### Szenario C: Re-Import mit Overwrite + Checkbox\n```\nVorher:  SPLIT #1 (50), SPLIT #2 (50)\nStep 1:  Lösche beide SPLIT Executions\nStep 2:  TX123 importieren → wird importiert\nNachher: IMPORTED TX123 (100 shares) - zurück zu Original\n```\n✅ **Funktioniert** - User kann Split rückgängig machen\n\n### Fazit Edge Case 2\n**Status: GELÖST** ✅  \nSPLIT sollte wie EDITED behandelt werden (gleiche Schutz-Logik).\n\n---\n\n## Edge Case 3: User merged mehrere Executions\n\n### Ausgangslage\n- Trade hatte zwei IMPORTED Executions:\n  - TX123: 50 shares\n  - TX124: 50 shares\n- User merged zu einer Execution:\n  - MERGED: 100 shares (gelinkt zu TX123 + TX124)\n\n### Szenario A: Re-Import ohne Overwrite\n```\nVorher:  MERGED (100 shares, gelinkt zu TX123 + TX124)\nImport:  TX123 und TX124 gefunden\nCheck:   Beide sind gelinkt zu MERGED\nAktion:  SKIP beide Transactions\nNachher: MERGED (100 shares) - unverändert\n```\n✅ **Funktioniert** - keine Duplikate\n\n### Szenario B: Re-Import mit Overwrite + Checkbox\n```\nVorher:  MERGED (100 shares, gelinkt zu TX123 + TX124)\nStep 1:  Lösche MERGED\nStep 2:  TX123 und TX124 importieren\nNachher: IMPORTED TX123 (50), IMPORTED TX124 (50) - zurück zu Original\n```\n✅ **Funktioniert** - User kann Merge rückgängig machen\n\n### Fazit Edge Case 3\n**Status: GELÖST** ✅  \nMERGED sollte wie EDITED behandelt werden.\n\n---\n\n## Edge Case 4: User löscht IMPORTED und erstellt MANUAL (KRITISCH!)\n\n### Ausgangslage\n- Trade hatte IMPORTED Execution für TX123 (100 shares)\n- User löscht diese Execution\n- User erstellt neue MANUAL Execution (100 shares)\n- **WICHTIG:** MANUAL hat KEINEN Transaction-Link zu TX123!\n\n### Szenario A: Re-Import ohne Overwrite\n```\nVorher:  MANUAL (100 shares, KEIN TX-Link)\nImport:  TX123 gefunden\nCheck:   TX123 ist NICHT in DB (wurde ja gelöscht)\nAktion:  Importiere TX123 als neue IMPORTED Execution\nNachher: MANUAL (100) + IMPORTED TX123 (100) = DUPLICATE!\n```\n❌ **Problem:** Duplicate entsteht\n\n### Szenario B: Re-Import mit Overwrite (ohne Checkbox)\n```\nVorher:  MANUAL (100 shares, KEIN TX-Link)\nStep 1:  Lösche alle IMPORTED (MANUAL bleibt!)\nStep 2:  TX123 importieren → wird importiert\nNachher: MANUAL (100) + IMPORTED TX123 (100) = DUPLICATE!\n```\n❌ **Problem:** Duplicate entsteht auch hier\n\n### Szenario C: Wiederholter Import (Monat 2, 3, 4...)\n```\nMonat 1: User erstellt MANUAL\nMonat 2: Import → TX123 wird importiert → MANUAL + IMPORTED (Duplicate)\nMonat 3: Import → TX123 bereits in DB → SKIP (idempotent)\nMonat 4: Import → TX123 bereits in DB → SKIP\n```\n⚠️ **Duplicate bleibt dauerhaft bestehen!**\n\n### Problem-Analyse\n\n**Warum passiert das?**\n- MANUAL hat keinen Transaction-Link\n- System kann nicht wissen, dass MANUAL und TX123 \"die gleiche\" Execution sind\n- Duplicate-Detection via Transaction-ID funktioniert nicht\n\n**Mögliche Lösungen:**\n\n#### Lösung 4A: Automatisch `has_conflict = true` setzen\n```python\nif manual_execution_matches_imported(date, symbol, qty):\n    trade.has_conflict = true\n    log_warning(\"Potential duplicate: MANUAL + IMPORTED\")\n```\n\n**Vorteile:**\n- User sieht sofort Conflict-Banner im Trade\n- Klare Indication: \"Hier stimmt was nicht\"\n- Zwingt User zum manuellen Review\n\n**Nachteile:**\n- Flag bleibt gesetzt bis User manuell aufräumt\n- Bei jedem Monat-Import bleibt Flag (nervt User?)\n- Keine automatische Resolution\n\n**User-Workflow:**\n1. Import → Conflict-Flag gesetzt\n2. User öffnet Trade → sieht Banner \"Inconsistent executions\"\n3. User muss manuell MANUAL oder IMPORTED löschen\n4. System re-aggregiert → `has_conflict = false` (wenn Position jetzt stimmt)\n\n#### Lösung 4B: Heuristische Duplicate-Detection\n```python\n# Fuzzy Match: gleicher Tag, Symbol, Qty (±5%)\nif similar_manual_exists(tx.date, tx.symbol, tx.qty):\n    ask_user(\"MANUAL Execution gefunden - verknüpfen statt importieren?\")\n```\n\n**Vorteile:**\n- Verhindert Duplicate proaktiv\n- User kann entscheiden: verknüpfen oder duplicate erlauben\n\n**Nachteile:**\n- Komplexe Heuristik (wann ist es \"ähnlich genug\"?)\n- Kann false positives haben (zwei echte Executions am selben Tag)\n- Unterbricht Import-Flow mit Dialogen\n\n#### Lösung 4C: Import-Preview mit Warnings\n```\nImport Summary (before execution):\n✓ 10 new executions\n⚠️ 2 potential duplicates detected:\n  - TX123 matches existing MANUAL execution (AAPL, 100 shares, 2026-03-10)\n  - TX456 matches existing MANUAL execution (TSLA, 50 shares, 2026-03-12)\n\n[ ] Automatically link matching MANUALs to transactions (recommended)\n[ ] Import as duplicates (set has_conflict flag)\n```\n\n**Vorteile:**\n- User hat volle Kontrolle\n- Transparente Entscheidung vor Import\n- Kann Auto-Link aktivieren\n\n**Nachteile:**\n- Komplexe UI\n- Unterbricht Flex Query Auto-Import\n- User könnte falsche Wahl treffen\n\n#### Lösung 4D: Nur Warning, kein Auto-Flag\n```\nImport Summary (after execution):\n✓ 12 executions imported\n⚠️ 2 trades may have duplicates - review manually\n```\n\n**Vorteile:**\n- Einfach zu implementieren\n- Stört automatische Imports nicht\n\n**Nachteile:**\n- User könnte Warning übersehen\n- Keine visuelle Indication im Trade selbst\n- Duplicates bleiben unbemerkt\n\n### Offene Fragen Edge Case 4\n\n1. **Ist Auto-Conflict-Flag akzeptabel?**\n   - Auch wenn es bei jedem Import bleibt?\n   - Muss User bei jedem Monat manuell clearen?\n\n2. **Sollen wir Heuristik implementieren?**\n   - Wie genau muss Match sein? (gleicher Tag? gleiche Qty?)\n   - Was bei echten Duplikaten (2x kaufen am selben Tag)?\n\n3. **Import-Preview vs. Post-Import Warning?**\n   - Unterbricht Preview automatische Imports?\n   - Reicht Post-Import Summary?\n\n4. **Alternative: MANUAL mit Transaction verknüpfen lassen?**\n   - UI-Feature: \"Link this MANUAL to broker transaction TX123\"\n   - Dann funktioniert Duplicate-Detection\n\n### Fazit Edge Case 4\n**Status: UNGEKLÄRT** ⚠️  \nMehrere Lösungen möglich, jede mit Trade-offs. **Entscheidung nötig!**\n\n---\n\n## Edge Case 5: Wiederholte Flex Query Imports (Idempotenz)\n\n### Ausgangslage\n- Flex Query läuft monatlich automatisch\n- Import enthält immer die gleichen Historical Transactions\n\n### Szenario: Gleiche Daten mehrfach importieren\n```\nMonat 1: TX123 importiert → IMPORTED Execution erstellt\nMonat 2: TX123 wieder in Datei → was passiert?\n```\n\n### Erwünschtes Verhalten (Idempotenz)\n```\nCheck: Ist TX123 bereits als Execution in DB?\n  → Ja (als IMPORTED, EDITED, SPLIT, oder MERGED)\n  → SKIP TX123\n  → Keine Duplicate\n```\n\n### Implementierung\n```python\n# Check if transaction already represented\nexisting = session.query(LogicalExecution).join(\n    transaction_execution_mappings\n).filter(\n    transaction_execution_mappings.c.transaction_id == tx.id\n).first()\n\nif existing:\n    skip_transaction()  # Already imported (any status)\n```\n\n### Fazit Edge Case 5\n**Status: GELÖST** ✅  \nTransaction-ID Duplicate-Check verhindert Triples/Quadruples.\n\n---\n\n## Zusammenfassung der Schutz-Regeln\n\n### Executions die geschützt werden sollten (Default)\n```\nEDITED  → User hat Preis/Qty/Commission geändert\nSPLIT   → User hat Execution aufgeteilt\nMERGED  → User hat mehrere Executions zusammengefasst\n```\n\n**Mechanismus:**\n- Bei Overwrite: Diese Executions NICHT löschen\n- Bei Import: Linked Transactions NICHT importieren (Duplicate-Prevention)\n\n### Executions die NICHT geschützt werden (Default)\n```\nIMPORTED → Pristine Broker-Daten, können überschrieben werden\nMANUAL   → Keine Transaction-Link, können nicht via Transaction-ID geschützt werden\n```\n\n### Override-Checkbox\n```\n\"Overwrite user modifications\" (unchecked by default)\n\nWenn aktiviert:\n  → EDITED, SPLIT, MERGED werden gelöscht\n  → Transactions werden neu importiert\n  → Trade kehrt zu Broker-Original zurück\n```\n\n---\n\n## Offene Entscheidungen\n\n### 1. MANUAL Duplicate-Handling (Edge Case 4)\n**Optionen:**\n- A) Auto-Flag `has_conflict = true`\n- B) Heuristische Duplicate-Detection mit User-Prompt\n- C) Import-Preview mit Manual-Link-Option\n- D) Nur Warning, kein Auto-Flag\n\n**Empfehlung:** ?\n\n### 2. Conflict-Flag Persistenz\n**Frage:** Wenn `has_conflict = true` wegen MANUAL Duplicate gesetzt wird:\n- Bleibt Flag bei jedem Re-Import gesetzt?\n- Nervt das den User?\n- Oder ist das gewünscht (erzwingt Cleanup)?\n\n### 3. Transaction-Link für MANUAL nachrüsten\n**Option:** UI-Feature hinzufügen:\n```\n\"Link this MANUAL execution to broker transaction TX123\"\n```\n- User kann manuell verknüpfen\n- Dann funktioniert Duplicate-Prevention\n- Komplexer, aber mächtiger\n\n### 4. Checkbox-Naming\n**Aktuell:** \"Overwrite user modifications\"  \n**Alternative:** \"Reset to broker data (delete all edits/splits/merges)\"\n\nKlarer für User?\n\n---\n\n## Nächste Schritte\n\n1. **Entscheidung treffen** für MANUAL Duplicate-Handling\n2. **Spec finalisieren** mit gewählter Lösung\n3. **Tests definieren** für alle Edge Cases\n4. **Implementierung** in Tasks aufteilen\n\n---\n\n## Anhang: Zustandsübergänge\n\n```\nIMPORTED → EDITED (via User-Edit)\nIMPORTED → SPLIT  (via User-Split)\nIMPORTED → SPLIT  (via User-Split, beide Teile werden SPLIT)\nIMPORTED → gelöscht → MANUAL erstellt (KEIN automatischer Übergang, User-Aktion)\n\nIMPORTED + IMPORTED → MERGED (via User-Merge)\n\nEDITED → gelöscht (nur via \"Overwrite user modifications\")\nSPLIT  → gelöscht (nur via \"Overwrite user modifications\")\nMERGED → gelöscht (nur via \"Overwrite user modifications\")\n\nMANUAL → ? (keine Zustandsübergänge, bleibt MANUAL)\n```\n\n### Irreversible Übergänge\n```\nIMPORTED → EDITED (kann nicht zurück zu IMPORTED ohne Re-Import)\nIMPORTED → SPLIT  (kann nicht zurück ohne Re-Import + Overwrite)\n```\n\n### Reversible via Re-Import + Overwrite Checkbox\n```\nEDITED → gelöscht → IMPORTED (frisch)\nSPLIT  → gelöscht → IMPORTED (Original)\nMERGED → gelöscht → IMPORTED (getrennt)\n```\n"
 }
 ```
@@ -2847,7 +2847,7 @@ The user asked for a comprehensive analysis document (`docs/execution-status-bra
 
 **Output:**
 ```
-Session summary saved for project "opentradejournal"
+Session summary saved for project "opentradesensei"
 ```
 
 ---
@@ -2875,17 +2875,17 @@ I'll continue by recovering the memory context and then proceeding with the next
 ## Memory from Previous Sessions
 
 ### Recent Sessions
-- **opentradejournal** (2026-04-02 18:59:21): Fixed the PnL discrepancy for VST in 2025 by adding the `is_mixed_execution` property to the `BrokerRawTransactionCreate` DTO. This ensures the Ground Truth pipeline (which bypasses the DB) handles "C... [49 observations]
-- **opentradejournal** (2026-04-14 19:59:07) [0 observations]
-- **opentradejournal** (2026-04-14 19:31:11) [0 observations]
-- **opentradejournal** (2026-04-14 19:03:09) [0 observations]
-- **opentradejournal** (2026-04-14 18:38:10) [0 observations]
+- **opentradesensei** (2026-04-02 18:59:21): Fixed the PnL discrepancy for VST in 2025 by adding the `is_mixed_execution` property to the `BrokerRawTransactionCreate` DTO. This ensures the Ground Truth pipeline (which bypasses the DB) handles "C... [49 observations]
+- **opentradesensei** (2026-04-14 19:59:07) [0 observations]
+- **opentradesensei** (2026-04-14 19:31:11) [0 observations]
+- **opentradesensei** (2026-04-14 19:03:09) [0 observations]
+- **opentradesensei** (2026-04-14 18:38:10) [0 observations]
 
 ### Recent User Prompts
 - 2026-04-14 20:42:46: <available-skills>
 Use the use_skill, read_skill_file, run_skill_script, and get_available_skills tools to work with skills.
 
-- commit-helper: Create consistent git commits for the tradejournal projec...
+- commit-helper: Create consistent git commits for the tradesensei projec...
 - 2026-04-14 20:40:33: schreib mir mal diese problem stellen in deine datei raus so als summary unsere diskussion. Nenne alle edge cases und die schwierigkeiten bei jeder lösung. Ich möchte mir das nochmal in aller ruhe dur...
 - 2026-04-14 20:38:21: bei 1. was passiert dann beim 2. import
 - 2026-04-14 20:36:51: das problem ist halt wenn das irgendwann über flex query läuft muss er das dann jedes mal machen. Andereseits werden die ja jedes mal dann paralell mit dazu erzeugt oder?
@@ -2899,12 +2899,12 @@ backend-1  |                       ~~~~~~~~~~...
 - 2026-04-14 20:27:42: ja - weil das muss ja dann gepfrüft werdem insbesonders für - weil da haben wir ja dann schon nen workflow richtig?
 
 ### Recent Observations
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Design and specify a complete solution for execution status tracking and P&L calculation when users edit imported broker executions, including protection against data loss during re-import and handling of complex edge cases (split, merge, manual recreate).
 
 ## Instructions
 - Create an OpenSp...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Implement fixes for critical issues identified in an Open Code Review (OCR) of the `feature/execution-driven-trade-ui` branch and finalize the `openspec-code-review` task list.
 
 ## Instructions
@@ -2913,17 +2913,17 @@ Implement fixes for critical issues identified in an Open Code Review (OCR) of t
 **Why**: OCR identified placeholder tests (`pass`) as blocker-level quality risk and service ...
 - [bugfix] **Updated execution and security tests for envelope refactor**: **What**: Fixed failing backend tests by updating execution API assertions to read `ResponseEnvelope.data`, removing stale commit expectation from market-data service test, and changing OTT decode-failure patch to raise `JWTError`.
 **Why**: Refactors in API response wrapping, transaction handling, a...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Implement the OpenSpec change `openspec-code-review` by working through the task list in `openspec/changes/openspec-code-review/tasks.md`, applying architecture/code-quality fixes across backend layers, and updating task checkboxes as work is completed.
 
 ## Instructions
 - Use OpenSpec apply ...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Abschluss der Implementierung und Qualitätssicherung des Features **"Execution-driven Trade UI"**. Das Ziel ist die Umstellung der Trade-Logik auf eine "Execution"-basierte Struktur (VWAP-Aggregation), um komplexe Handelsmanöver korrekt abzubilden.
 
 ## Instructions
 - Alle verbleibenden Tasks...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Abschluss der Implementierung und Qualitätssicherung des Features **"Execution-driven Trade UI"**. Das Ziel ist die Umstellung der Trade-Logik von einer flachen Struktur auf eine auf "Executions" basierende Struktur, um komplexe Trades besser abzubilden.
 
 ## Instructions
@@ -2934,7 +2934,7 @@ Abschluss der Implementierung und Qualitätssicherung des Features **"Execution-
 **Why**: User asked for a spec documenting the trade pipeline architecture (BrokerRawTransaction -> LogicalExecution -> Trade) and how the recent fixes fit in.
 **Where**: `docs/spec/trade_pipeline_architecture.md`
 **Learned**: Documented t...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Document the recently fixed `is_mixed_execution` (C;O, O;C flags) behavior in the German IBKR parser specification.
 
 ## Accomplished
@@ -2943,31 +2943,31 @@ Document the recently fixed `is_mixed_execution` (C;O, O;C flags) behavior in th
 **Why**: User asked to document the parser fix we just implemented
 **Where**: `docs/spec/ibkr_parser_rules.md`
 **Learned**: Kept the German language rulebook aligned with the English codebase behavior.
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Fix the final integration test (`test_pnl_regression.py`) failure to ensure the DB sequential import Net P&L perfectly matches the in-memory ground truth. Specifically, debug and resolve a `~0.1824` PnL mismatch for the symbol `VST` in the year 2025.
 
 ## Instructions
 - Identify why DB aggreg...
 - [bugfix] **Fixed GT vs DB aggregation mismatch on mixed C;O executions**: **What**: Fixed the PnL aggregation regression mismatch for VST by adding an `is_mixed_execution` property to `BrokerRawTransactionCreate`.
 **Why**: The DB pipeline creates `TradeCreate` via `LogicalExecution`, which had the property `is_mixed_execution` (used to properly allocate flipped position r...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 
 Fix the final integration test (`test_pnl_regression.py`) failure to ensure the DB sequential import Net P&L perfectly matches the in-memory ground truth. Specifically, debug and resolve a `~0.1824` PnL mismatch for the symbol `VST` in the year 2025.
 
 ## Instructions
 
 - Identify why DB aggr...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Fix the final integration test (`test_pnl_regression.py`) failure to ensure the DB sequential import Net P&L perfectly matches the in-memory ground truth. Specifically, debug and resolve a `~0.1824` PnL mismatch for the symbol `VST` in the year 2025.
 
 ## Instructions
 - Identify why DB aggreg...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 Finalize the isolated raw-layer architecture refactoring by cleaning up the workspace, ensuring all integration tests (specifically ground-truth vs DB sequential import) pass perfectly, and making a clean git commit.
 
 ## Instructions
 - Fix all test failures before running `commit-helper` or ...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 
 Document the immutable rules for cross-year trade aggregation to prevent future regressions, implement an executable specification for "10000% safety," and clean up the repository by removing all temporary debugging scripts before committing the recent fixes.
 
@@ -2978,13 +2978,13 @@ Document the immutable rules for cross-year trade aggregation to prevent future 
 **Why**: The user wanted "10000% certainty" that future refactorings would not break the complex cross-year FIFO aggregation logic (specifically related to miss...
 - [bugfix] **Fixed OTLK split Net P&L aggregation bug**: **What**: Fixed the cross-period corporate action bug in the DB import pipeline by ensuring newly-parsed corporate actions are appended to `ca_for_parser` before running FIFO aggregation.
 **Why**: The 2024 OTLK split was successfully parsed and saved to the DB, but it was not passed to `aggregate_ex...
-- [session_summary] **Session summary: opentradejournal**: ## Goal
+- [session_summary] **Session summary: opentradesensei**: ## Goal
 
 Investigate and fix a persistent Net P&L aggregation discrepancy for 2023 and 2024 imported data. The database/frontend shows a Total Net P&L of -$157.77, while the `flex_query_aggregation.py` ground-truth script expects -$1,488.28. The user suspects this is related to a stock split for the...
 
 
 ---
-Memory stats: 93 sessions, 226 observations across projects: opentradejournal, OpenTradeJournal, k3s-deploy
+Memory stats: 93 sessions, 226 observations across projects: opentradesensei, OpenTradeJournal, k3s-deploy
 ```
 
 ---

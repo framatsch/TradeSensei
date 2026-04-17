@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: tradejournal
+  name: tradesensei
   labels:
-    app.kubernetes.io/name: tradejournal
+    app.kubernetes.io/name: tradesensei
     app.kubernetes.io/managed-by: kubectl
