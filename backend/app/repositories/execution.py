@@ -38,10 +38,7 @@ class ExecutionRepository:
         Returns:
             A sequence of execution models ordered by execution time.
         """
-        stmt = (
-            select(LogicalExecution)
-            .where(LogicalExecution.trade_id == trade_id)
-        )
+        stmt = select(LogicalExecution).where(LogicalExecution.trade_id == trade_id)
         if not include_deleted:
             stmt = stmt.where(LogicalExecution.deleted.is_(False))
         stmt = stmt.order_by(LogicalExecution.executed_at.asc())

@@ -405,9 +405,7 @@ class ExecutionService:
         for ex_id in data.execution_ids:
             ex = await self.execution_repo.get_by_id(ex_id, user_id)
             if ex is None:
-                raise ExecutionNotFoundError(
-                    f"Execution {ex_id} not found."
-                )
+                raise ExecutionNotFoundError(f"Execution {ex_id} not found.")
             if ex.deleted:
                 raise ExecutionValidationError(
                     f"Execution {ex_id} is already deleted and cannot be merged."
@@ -435,23 +433,17 @@ class ExecutionService:
                 )
 
         # Compute merged quantity (sum) and weighted-average price
-        total_quantity = sum(
-            (ex.quantity for ex in sources), Decimal("0")
-        )
+        total_quantity = sum((ex.quantity for ex in sources), Decimal("0"))
         if data.price is not None:
             merged_price = data.price
         else:
-            total_value = sum(
-                (ex.quantity * ex.price for ex in sources), Decimal("0")
-            )
+            total_value = sum((ex.quantity * ex.price for ex in sources), Decimal("0"))
             merged_price = (
                 total_value / total_quantity
                 if total_quantity > Decimal("0")
                 else primary.price
             )
-        merged_commission = sum(
-            (ex.commission for ex in sources), Decimal("0")
-        )
+        merged_commission = sum((ex.commission for ex in sources), Decimal("0"))
         merged_executed_at = (
             data.executed_at if data.executed_at is not None else primary.executed_at
         )

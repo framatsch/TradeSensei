@@ -7,7 +7,7 @@ token refresh via httpOnly cookie, logout, and Google OAuth.
 import contextlib
 from typing import Annotated
 
-from authlib.integrations.starlette_client import (  # type: ignore[import-untyped]  # authlib has no type stubs
+from authlib.integrations.starlette_client import (
     OAuth,
     OAuthError,
 )

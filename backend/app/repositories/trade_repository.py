@@ -417,9 +417,7 @@ class TradeRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
 
-    async def get_by_id(
-        self, trade_id: uuid.UUID, user_id: uuid.UUID
-    ) -> Trade | None:
+    async def get_by_id(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> Trade | None:
         """Retrieve a single trade by its primary key, scoped to a user.
 
         Eagerly loads ``tags``, ``trade_notes``, ``playbook``, ``account``,

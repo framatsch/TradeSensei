@@ -785,6 +785,7 @@ class TradeUpdate(BaseModel):
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], [], None],
     )
+
     @field_validator("opened_at", "closed_at", mode="before")
     @classmethod
     def require_timezone(cls, value: object) -> object:

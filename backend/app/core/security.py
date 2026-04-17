@@ -215,9 +215,7 @@ def create_one_time_token(user_id: uuid.UUID) -> str:
     )
 
 
-async def consume_ott_jti(
-    jti: str, expires_at: datetime, db: AsyncSession
-) -> bool:
+async def consume_ott_jti(jti: str, expires_at: datetime, db: AsyncSession) -> bool:
     """Atomically consume a one-time token JTI, recording it in the database.
 
     Inserts the ``jti`` into ``used_otts``.  On a duplicate-key
@@ -243,9 +241,7 @@ async def consume_ott_jti(
 
     # Prune expired rows before inserting (best-effort — table stays small).
     now = datetime.now(UTC)
-    await db.execute(
-        delete(UsedOtt).where(UsedOtt.expires_at < now)
-    )
+    await db.execute(delete(UsedOtt).where(UsedOtt.expires_at < now))
 
     try:
         db.add(UsedOtt(jti=jti, expires_at=expires_at))

@@ -358,8 +358,7 @@ async def suppress_raw_transaction(
         bool,
         Query(
             description=(
-                "New value for the suppressed flag. "
-                "True to suppress, False to restore."
+                "New value for the suppressed flag. True to suppress, False to restore."
             )
         ),
     ] = True,

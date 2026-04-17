@@ -230,9 +230,7 @@ class LogicalExecutionRead(LogicalExecutionBase):
     origin: ExecutionOrigin = Field(
         description="Immutable provenance: imported | manual | merged | split"
     )
-    deleted: bool = Field(
-        description="True when this execution has been soft-deleted"
-    )
+    deleted: bool = Field(description="True when this execution has been soft-deleted")
     user_modified: bool = Field(
         description="True when the user has patched an imported execution"
     )
