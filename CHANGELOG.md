@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Resolved TypeScript build error in `TradeForm`: removed `.transform()` from the optional `currency` Zod field (caused output/input type mismatch with `zodResolver`) and moved `.toUpperCase()` into `onSubmit`.
+
 ## [0.15.0] - 2026-04-18
 
 ### Fixed
