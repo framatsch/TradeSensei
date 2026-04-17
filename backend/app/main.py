@@ -16,6 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
+from app.core.logging import configure_uvicorn_logging
 from app.core.migrations import run_migrations_on_startup
 from app.schemas.common import ResponseEnvelope
 
@@ -27,6 +28,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     Yields:
         Control back to FastAPI after startup work completes.
     """
+    # Configure logging filters (suppress /health access logs)
+    configure_uvicorn_logging()
+
     await run_migrations_on_startup()
     application.state.market_data_http_client = httpx.AsyncClient(
         timeout=15.0,
