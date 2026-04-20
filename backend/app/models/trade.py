@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -125,6 +126,14 @@ class Trade(Base):
         String(SYMBOL_MAX_LENGTH),
         nullable=False,
     )
+    position_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        server_default=func.gen_random_uuid(),
+        comment=(
+            "Stable business-position identifier shared by split-derived trades."
+        ),
+    )
     direction: Mapped[Direction] = mapped_column(
         Enum(Direction, name="direction_enum"),
         nullable=False,
@@ -185,6 +194,10 @@ class Trade(Base):
     notes: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+    user_rating: Mapped[int | None] = mapped_column(
+        nullable=True,
+        comment="Optional user rating for this trade (1-5).",
     )
     tradingview_link: Mapped[str | None] = mapped_column(
         String,
@@ -267,7 +280,10 @@ class Trade(Base):
     )
 
     __table_args__ = (
+        CheckConstraint("user_rating IS NULL OR (user_rating BETWEEN 1 AND 5)"),
         Index("ix_trades_symbol", "symbol"),
+        Index("ix_trades_position_id", "position_id"),
+        Index("ix_trades_user_position", "user_id", "position_id"),
         Index("ix_trades_opened_at", "opened_at"),
         Index("ix_trades_closed_at", "closed_at"),
         Index("ix_trades_user_id", "user_id"),

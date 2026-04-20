@@ -36,6 +36,10 @@ class UvicornReloaderFilter(logging.Filter):
     messages that are normal behavior during hot reload in development.
     """
 
+    def __init__(self, *, enabled: bool = True) -> None:
+        super().__init__()
+        self.enabled = enabled
+
     def filter(self, record: logging.LogRecord) -> bool:
         """Return False to suppress uvicorn reloader noise.
 
@@ -45,6 +49,9 @@ class UvicornReloaderFilter(logging.Filter):
         Returns:
             False if this is a reloader process message, True otherwise.
         """
+        if not self.enabled:
+            return True
+
         message = record.getMessage()
         # Filter out reloader process startup messages
         return not any(
@@ -57,7 +64,7 @@ class UvicornReloaderFilter(logging.Filter):
         )
 
 
-def configure_uvicorn_logging() -> None:
+def configure_uvicorn_logging(*, suppress_reloader: bool = True) -> None:
     """Apply custom filters to uvicorn's loggers.
 
     This function should be called during application startup to
@@ -69,4 +76,4 @@ def configure_uvicorn_logging() -> None:
 
     # Filter out reloader process messages in development
     error_logger = logging.getLogger("uvicorn.error")
-    error_logger.addFilter(UvicornReloaderFilter())
+    error_logger.addFilter(UvicornReloaderFilter(enabled=suppress_reloader))

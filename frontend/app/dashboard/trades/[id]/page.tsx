@@ -441,7 +441,7 @@ export default function TradeDetailPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Back link */}
       <div>
         <Link

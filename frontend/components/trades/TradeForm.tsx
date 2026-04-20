@@ -54,6 +54,7 @@ const formSchema = z.object({
   
   playbook_id: z.string().optional(),
   notes: z.string().optional(),
+  user_rating: z.string().optional(),
   
   isAdvancedMode: z.boolean().optional(),
   executions: z.array(legSchema).optional(),
@@ -118,6 +119,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       take_profit: trade.take_profit ?? "",
       playbook_id: trade.playbook_id ?? "",
       notes: trade.notes ?? "",
+      user_rating: trade.user_rating != null ? String(trade.user_rating) : "",
       isAdvancedMode: false,
       executions: [],
     } : {
@@ -138,6 +140,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       closed_at: "",
       playbook_id: "",
       notes: "",
+      user_rating: "",
       isAdvancedMode: false,
       executions: [],
     }
@@ -249,6 +252,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       commission: data.commission || "0",
       currency: data.currency?.toUpperCase() || null,
       notes: data.notes || null,
+      user_rating: data.user_rating ? Number(data.user_rating) : null,
       playbook_id: data.playbook_id || null,
       tag_ids: selectedTagIds,
     };
@@ -272,6 +276,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         stop_loss: data.stop_loss === "" ? null : data.stop_loss,
         take_profit: data.take_profit === "" ? null : data.take_profit,
         notes: data.notes || null,
+        user_rating: data.user_rating ? Number(data.user_rating) : null,
         playbook_id: data.playbook_id || null,
         tag_ids: selectedTagIds,
       };
@@ -707,6 +712,18 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       {/* ── Section 5: Notes ──────────────────────────────────────────────── */}
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Notes</h3>
+        <div className="mb-4 max-w-xs">
+          <label className={labelCls}>User Rating (1-5)</label>
+          <input
+            type="number"
+            min="1"
+            max="5"
+            step="1"
+            {...register("user_rating")}
+            className={inputCls}
+            placeholder="Optional"
+          />
+        </div>
         <textarea
           {...register("notes")}
           rows={4}

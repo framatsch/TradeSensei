@@ -90,6 +90,34 @@ class TestTradeCreate:
                 commission=Decimal("-1"),
             )
 
+    @pytest.mark.unit
+    def test_user_rating_in_range_accepted(self) -> None:
+        """User rating between 1 and 5 should validate."""
+        payload = TradeCreate(
+            symbol="AAPL",
+            direction=Direction.LONG,
+            asset_class=AssetClass.EQUITY,
+            quantity=Decimal("10"),
+            entry_price=Decimal("150"),
+            opened_at=datetime(2025, 1, 1, tzinfo=UTC),
+            user_rating=5,
+        )
+        assert payload.user_rating == 5
+
+    @pytest.mark.unit
+    def test_user_rating_out_of_range_rejected(self) -> None:
+        """User rating must be within 1..5."""
+        with pytest.raises(ValidationError):
+            TradeCreate(
+                symbol="AAPL",
+                direction=Direction.LONG,
+                asset_class=AssetClass.EQUITY,
+                quantity=Decimal("10"),
+                entry_price=Decimal("150"),
+                opened_at=datetime(2025, 1, 1, tzinfo=UTC),
+                user_rating=6,
+            )
+
 
 class TestTradeUpdate:
     """Validation tests for :class:`TradeUpdate`."""
@@ -117,6 +145,14 @@ class TestTradeUpdate:
         assert "notes" in dumped
         assert "is_combo" not in dumped
 
+    @pytest.mark.unit
+    def test_user_rating_patch_supported(self) -> None:
+        """TradeUpdate should accept user_rating and include explicit null."""
+        payload = TradeUpdate(user_rating=None)
+        dumped = payload.model_dump(exclude_unset=True)
+        assert "user_rating" in dumped
+        assert dumped["user_rating"] is None
+
 
 
 
@@ -132,6 +168,7 @@ class TestTradeRead:
 
         trade = Trade()
         trade.id = uuid.uuid4()
+        trade.position_id = uuid.uuid4()
         trade.symbol = "ES"
         trade.direction = Direction.SHORT
         trade.asset_class = AssetClass.FUTURE
@@ -147,6 +184,7 @@ class TestTradeRead:
         trade.commission = Decimal("4.20")
         trade.multiplier = 100
         trade.notes = "Good trade"
+        trade.user_rating = 4
         trade.created_at = datetime(2025, 6, 1, tzinfo=UTC)
         trade.updated_at = datetime(2025, 6, 2, tzinfo=UTC)
         trade.screenshots = []
@@ -157,6 +195,8 @@ class TestTradeRead:
         read = TradeRead.model_validate(trade)
         assert read.symbol == "ES"
         assert read.pnl == Decimal("1000")
+        assert read.position_id == trade.position_id
+        assert read.user_rating == 4
 
 
 class TestLogicalExecutionCreate:

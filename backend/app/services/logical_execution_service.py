@@ -170,6 +170,8 @@ class LogicalExecutionService:
         account_id: uuid.UUID | None = None,
         origin: str | None = None,
         include_deleted: bool = False,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[LogicalExecution]:
         """Return all logical executions for a user.
 
@@ -178,6 +180,8 @@ class LogicalExecutionService:
             account_id: Optional account filter.
             origin: Optional origin filter (imported|manual|merged|split).
             include_deleted: When False (default), excludes soft-deleted executions.
+            limit: Optional max row count.
+            offset: Number of rows to skip before reading.
 
         Returns:
             List of :class:`~app.models.logical_execution.LogicalExecution`
@@ -188,4 +192,6 @@ class LogicalExecutionService:
             account_id=account_id,
             origin=origin,
             include_deleted=include_deleted,
+            limit=limit,
+            offset=offset,
         )

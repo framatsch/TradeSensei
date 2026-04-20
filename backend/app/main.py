@@ -30,7 +30,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         Control back to FastAPI after startup work completes.
     """
     # Configure logging filters (suppress /health access logs)
-    configure_uvicorn_logging()
+    configure_uvicorn_logging(suppress_reloader=not settings.uvicorn_reloader_logs)
 
     await run_migrations_on_startup()
     application.state.market_data_http_client = httpx.AsyncClient(

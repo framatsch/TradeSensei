@@ -1,11 +1,12 @@
 """Repository for the ``logical_executions`` table."""
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import IMPORT_EXECUTIONS_BATCH_SIZE
 from app.models.logical_execution import (
     EXECUTION_ORIGIN_IMPORTED,
     EXECUTION_ORIGIN_MANUAL,
@@ -92,6 +93,8 @@ class ExecutionRepository:
         account_id: uuid.UUID | None = None,
         origin: str | None = None,
         include_deleted: bool = False,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[LogicalExecution]:
         """Return executions for a user with optional filters.
 
@@ -100,6 +103,8 @@ class ExecutionRepository:
             account_id: Optional account UUID filter.
             origin: Optional origin filter (imported|manual|merged|split).
             include_deleted: When False (default), excludes soft-deleted executions.
+            limit: Optional max row count.
+            offset: Number of rows to skip before reading.
 
         Returns:
             Matching executions ordered by execution time.
@@ -112,6 +117,10 @@ class ExecutionRepository:
         if not include_deleted:
             stmt = stmt.where(LogicalExecution.deleted.is_(False))
         stmt = stmt.order_by(LogicalExecution.executed_at.asc())
+        if offset > 0:
+            stmt = stmt.offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -229,6 +238,119 @@ class ExecutionRepository:
                 self.session.expire(instance)
         return int(getattr(result, "rowcount", 0))
 
+    async def update_trade_id(
+        self, execution_id: uuid.UUID, trade_id: uuid.UUID
+    ) -> bool:
+        """Update trade_id for a single execution (used in split-aware linking).
+
+        Args:
+            execution_id: The ID of the execution to update.
+            trade_id: The target trade ID to assign.
+
+        Returns:
+            True if the execution was found and updated, False otherwise.
+        """
+        stmt = (
+            update(LogicalExecution)
+            .where(LogicalExecution.id == execution_id)
+            .values(trade_id=trade_id)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return bool(getattr(result, "rowcount", 0) > 0)
+
+    async def get_by_parent_id(self, parent_id: uuid.UUID) -> list[LogicalExecution]:
+        """Query split children by their parent_id (used in split-aware linking).
+
+        Args:
+            parent_id: The parent execution ID to find children for.
+
+        Returns:
+            List of child executions with the specified parent_id.
+        """
+        stmt = (
+            select(LogicalExecution)
+            .where(LogicalExecution.parent_id == parent_id)
+            .order_by(LogicalExecution.executed_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def find_orphaned_children(
+        self, user_id: uuid.UUID, account_id: uuid.UUID
+    ) -> list[LogicalExecution]:
+        """Find execution children with trade_id=NULL after import (cleanup helper).
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Account UUID to search within.
+
+        Returns:
+            List of orphaned child executions that need trade assignment.
+        """
+        from app.models.logical_execution import EXECUTION_ORIGIN_SPLIT
+
+        stmt = (
+            select(LogicalExecution)
+            .where(
+                LogicalExecution.user_id == user_id,
+                LogicalExecution.account_id == account_id,
+                LogicalExecution.origin == EXECUTION_ORIGIN_SPLIT,
+                LogicalExecution.trade_id.is_(None),
+                LogicalExecution.deleted.is_(False),
+            )
+            .order_by(LogicalExecution.executed_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def bulk_update_trade_ids(
+        self, execution_trade_pairs: list[tuple[uuid.UUID, uuid.UUID]]
+    ) -> int:
+        """Bulk update trade_ids for multiple executions for performance.
+
+        Args:
+            execution_trade_pairs: List of (execution_id, trade_id) tuples.
+
+        Returns:
+            Total number of executions updated.
+        """
+        if not execution_trade_pairs:
+            return 0
+
+        total_updated = 0
+
+        # Group by trade_id to minimize the number of queries
+        trade_groups: dict[uuid.UUID, list[uuid.UUID]] = {}
+        for execution_id, trade_id in execution_trade_pairs:
+            if trade_id not in trade_groups:
+                trade_groups[trade_id] = []
+            trade_groups[trade_id].append(execution_id)
+
+        # Execute updates in batched chunks per trade_id.
+        for trade_id, execution_ids in trade_groups.items():
+            for execution_id_batch in self.iter_batches(execution_ids):
+                stmt = (
+                    update(LogicalExecution)
+                    .where(LogicalExecution.id.in_(execution_id_batch))
+                    .values(trade_id=trade_id)
+                )
+                result = await self.session.execute(stmt)
+                total_updated += getattr(result, "rowcount", 0)
+
+        await self.session.flush()
+
+        # Expire cached instances
+        all_execution_ids = [pair[0] for pair in execution_trade_pairs]
+        for instance in list(self.session.identity_map.values()):
+            if (
+                isinstance(instance, LogicalExecution)
+                and instance.id in all_execution_ids
+            ):
+                self.session.expire(instance)
+
+        return total_updated
+
     async def delete_all_for_account(
         self, user_id: uuid.UUID, account_id: uuid.UUID
     ) -> int:
@@ -248,6 +370,25 @@ class ExecutionRepository:
         result = await self.session.execute(stmt)
         await self.session.flush()
         return int(getattr(result, "rowcount", 0))
+
+    @staticmethod
+    def iter_batches(
+        execution_ids: Sequence[uuid.UUID],
+        batch_size: int = IMPORT_EXECUTIONS_BATCH_SIZE,
+    ) -> Iterator[list[uuid.UUID]]:
+        """Yield execution IDs in fixed-size batches.
+
+        Args:
+            execution_ids: Execution UUIDs to process.
+            batch_size: Maximum IDs per batch.
+
+        Yields:
+            Lists of execution UUIDs with size ``<= batch_size``.
+        """
+        if batch_size <= 0:
+            raise ValueError("batch_size must be > 0")
+        for offset in range(0, len(execution_ids), batch_size):
+            yield list(execution_ids[offset : offset + batch_size])
 
 
 # Expose origin constants for callers that just need the string values

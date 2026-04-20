@@ -77,6 +77,14 @@ class TradeCreate(BaseModel):
     """
 
     user_id: uuid.UUID | None = None
+    position_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Stable business-position identifier shared across split-derived trades. "
+            "When omitted, a new position is created."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
     broker_conid: str | None = Field(
         default=None, description="Broker contract identifier."
     )
@@ -205,6 +213,16 @@ class TradeCreate(BaseModel):
         ),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
     )
+    user_rating: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description=(
+            "Optional user rating for this trade on a 1-5 scale. "
+            "Null if no rating was set."
+        ),
+        examples=[1, 3, 5, None],
+    )
     tradingview_link: str | None = Field(
         default=None,
         description="Optional link to a TradingView chart for this trade.",
@@ -301,6 +319,24 @@ class TradeCreate(BaseModel):
         description=(
             "Internal flag — set when IBKR openCloseIndicator='C;O'. "
             "Tells the aggregator this execution flips the position."
+        ),
+    )
+    source_execution_id: uuid.UUID | None = Field(
+        default=None,
+        exclude=True,
+        description=(
+            "Internal field — set during aggregation to track which "
+            "LogicalExecution this TradeCreate originated from. "
+            "Used for split-aware execution linking."
+        ),
+    )
+    closing_execution_id: uuid.UUID | None = Field(
+        default=None,
+        exclude=True,
+        description=(
+            "Internal field — set during FIFO aggregation to track which "
+            "LogicalExecution closed this round-trip trade. "
+            "Used for split-aware execution linking of exit legs."
         ),
     )
 
@@ -501,6 +537,13 @@ class TradeCreateRequest(BaseModel):
             "emotional state, or post-trade review."
         ),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
+    )
+    user_rating: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description="Optional user rating for this trade on a 1-5 scale.",
+        examples=[1, 3, 5, None],
     )
     tradingview_link: str | None = Field(
         default=None,
@@ -703,6 +746,16 @@ class TradeUpdate(BaseModel):
         ),
         examples=["Revised entry — slippage on open.", None],
     )
+    user_rating: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description=(
+            "Updated user rating on a 1-5 scale. "
+            "Set to null to clear existing rating. Omit to leave unchanged."
+        ),
+        examples=[1, 3, 5, None],
+    )
     tradingview_link: str | None = Field(
         default=None,
         description=(
@@ -769,6 +822,11 @@ class TradeRead(BaseModel):
         description=(
             "Unique identifier (UUID v4) assigned to this trade by the database."
         ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    )
+    position_id: uuid.UUID | None = Field(
+        default=None,
+        description="Stable business-position identifier shared by related trades.",
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
     )
     symbol: str = Field(
@@ -861,6 +919,11 @@ class TradeRead(BaseModel):
             "Free-text notes attached to this trade. Null if no notes were added."
         ),
         examples=["Breakout above 50-day MA.", None],
+    )
+    user_rating: int | None = Field(
+        default=None,
+        description="Optional user rating for this trade on a 1-5 scale.",
+        examples=[1, 3, 5, None],
     )
     tradingview_link: str | None = Field(
         default=None,
@@ -1081,6 +1144,10 @@ class TradeFilterParams(BaseModel):
     playbook_id: uuid.UUID | None = Field(
         default=None,
         description="Filter by playbook UUID",
+    )
+    position_id: uuid.UUID | None = Field(
+        default=None,
+        description="Filter by shared business-position UUID.",
     )
     opened_at_from: datetime | None = Field(
         default=None,

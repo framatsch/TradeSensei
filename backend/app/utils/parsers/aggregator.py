@@ -21,15 +21,46 @@ of an INSERT.
 import logging
 import uuid
 from collections import deque
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from app.models.trade import AssetClass, Direction
 from app.schemas.trade import TradeCreate
 
+if TYPE_CHECKING:
+    from app.models.trade import Trade
+
 logger = logging.getLogger(__name__)
+
+
+@dataclass(slots=True)
+class ExecutionAllocation:
+    """Track execution quantity/commission consumed by a trade during FIFO aggregation.
+
+    Used by split-aware execution linking to determine when executions need to be
+    split across multiple trades and how to allocate quantities proportionally.
+    """
+
+    execution_id: uuid.UUID  # Source LogicalExecution ID
+    quantity_used: Decimal  # Portion allocated to this trade
+    commission_used: Decimal  # Proportional commission
+    entry_price: Decimal  # Execution price
+
+
+@dataclass(slots=True)
+class TradeCreateWithSources:
+    """Enhanced TradeCreate that tracks its source executions for split-aware linking.
+
+    Used to carry execution allocation information from FIFO aggregation through
+    to the import service for proper trade_id backfilling.
+    """
+
+    trade_create: TradeCreate
+    source_executions: list[ExecutionAllocation]
+    created_trade: "Trade | None" = None  # Set after DB insert
 
 
 class CorporateActionLike(Protocol):
@@ -74,6 +105,7 @@ class ExecutionLike(Protocol):
     this type via :func:`logical_executions_to_trade_creates`.
     """
 
+    id: uuid.UUID  # Added for split-aware execution linking
     symbol: str
     conid: str | None
     asset_class: AssetClass | str  # AssetClass StrEnum or its string value
@@ -119,17 +151,30 @@ def logical_executions_to_trade_creates(
         List of :class:`~app.schemas.trade.TradeCreate` ready for
         :func:`aggregate_executions_fifo`.
     """
+    return list(iter_logical_executions_to_trade_creates(executions))
+
+
+def iter_logical_executions_to_trade_creates(
+    executions: Iterable[ExecutionLike],
+) -> Iterator[TradeCreate]:
+    """Yield :class:`TradeCreate` rows from logical execution objects.
+
+    Args:
+        executions: Iterable of objects satisfying :class:`ExecutionLike`.
+
+    Yields:
+        Converted :class:`TradeCreate` instances in input order.
+    """
     from datetime import timedelta
 
     from app.models.trade import AssetClass
 
-    result: list[TradeCreate] = []
     for ex in executions:
         opened_at = ex.executed_at
         if opened_at.tzinfo is None:
             opened_at = opened_at.replace(tzinfo=UTC)
         closed_at = opened_at + timedelta(seconds=1) if ex.pnl is not None else None
-        tc = TradeCreate(
+        yield TradeCreate(
             symbol=ex.symbol,
             direction=Direction(ex.direction),
             asset_class=AssetClass(ex.asset_class),
@@ -142,9 +187,8 @@ def logical_executions_to_trade_creates(
             broker_conid=ex.conid,
             multiplier=ex.multiplier,
             is_mixed_execution=getattr(ex, "is_mixed_execution", False),
+            source_execution_id=ex.id,
         )
-        result.append(tc)
-    return result
 
 
 def aggregate_executions_fifo(
@@ -476,6 +520,9 @@ def aggregate_executions_fifo(
                     "pnl_eur": matched_pnl_eur,
                     "net_pnl": matched_net_pnl,
                     "net_pnl_eur": matched_net_pnl_eur,
+                    # Track the closing execution ID separately so the import
+                    # service can link both legs to the trade.
+                    "closing_execution_id": exec_trade.source_execution_id,
                 }
             )
             completed_trades.append(closed_trade)
@@ -738,3 +785,107 @@ def _apply_split_event(
         else:
             open_lots[new_key] = existing_queue
         logger.debug("Re-keyed open lots queue from %s → %s.", old_key, new_key)
+
+
+def aggregate_executions_fifo_with_sources(
+    executions: list[TradeCreate],
+    symbol_map: dict[str, str] | None = None,
+    conid_map: dict[str, str] | None = None,
+    corporate_actions: Sequence[CorporateActionLike] | None = None,
+    seed_open_lots: Sequence[SeedLotLike] | None = None,
+    seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
+) -> list[TradeCreateWithSources]:
+    """Enhanced aggregation that tracks source executions for split-aware linking.
+
+    This function wraps the existing aggregate_executions_fifo() and analyzes
+    which source executions contributed to each trade to enable split detection.
+
+    Split Detection Logic:
+    - An execution needs splitting when it contributes to MULTIPLE trades
+    - This happens when a large entry/exit execution is matched against
+      multiple smaller counter-executions in FIFO order
+
+    Args:
+        Same as aggregate_executions_fifo().
+
+    Returns:
+        List of TradeCreateWithSources objects that track which executions
+        contributed to each aggregated trade, with proper allocation tracking.
+    """
+    # Call the existing aggregation function
+    aggregated_trades = aggregate_executions_fifo(
+        executions=executions,
+        symbol_map=symbol_map,
+        conid_map=conid_map,
+        corporate_actions=corporate_actions,
+        seed_open_lots=seed_open_lots,
+        seed_orphaned_lots=seed_orphaned_lots,
+    )
+
+    # Build usage counts per execution for split detection in O(n).
+    # Both opening (source_execution_id) and closing (closing_execution_id)
+    # executions are tracked so splits on either leg are detected correctly.
+    execution_usage_count: dict[uuid.UUID, int] = {}
+
+    for trade in aggregated_trades:
+        for exec_id in (trade.source_execution_id, trade.closing_execution_id):
+            if exec_id is None:
+                continue
+            execution_usage_count[exec_id] = execution_usage_count.get(exec_id, 0) + 1
+
+    # Create TradeCreateWithSources wrappers with proper allocation tracking.
+    # Each closed trade contributes two allocations: one for the opening execution
+    # and one for the closing execution.  Open (unclosed) trades contribute only
+    # the opening execution allocation.
+    trades_with_sources: list[TradeCreateWithSources] = []
+
+    for trade in aggregated_trades:
+        source_allocations: list[ExecutionAllocation] = []
+        quantity_for_this_trade = trade.quantity or Decimal("0")
+
+        if trade.source_execution_id:
+            source_allocations.append(
+                ExecutionAllocation(
+                    execution_id=trade.source_execution_id,
+                    quantity_used=quantity_for_this_trade,
+                    commission_used=trade.commission,
+                    entry_price=trade.entry_price or Decimal("0"),
+                )
+            )
+
+        if trade.closing_execution_id:
+            source_allocations.append(
+                ExecutionAllocation(
+                    execution_id=trade.closing_execution_id,
+                    quantity_used=quantity_for_this_trade,
+                    commission_used=trade.commission,
+                    entry_price=trade.exit_price or Decimal("0"),
+                )
+            )
+
+        trade_with_sources = TradeCreateWithSources(
+            trade_create=trade,
+            source_executions=source_allocations,
+        )
+        trades_with_sources.append(trade_with_sources)
+
+    # Log split detection summary
+    executions_needing_split = {
+        exec_id
+        for exec_id, usage_count in execution_usage_count.items()
+        if usage_count > 1
+    }
+
+    if executions_needing_split:
+        logger.info(
+            "Split detection: %d executions will be split across multiple trades",
+            len(executions_needing_split),
+        )
+        for exec_id in executions_needing_split:
+            logger.debug(
+                "Execution %s used by %d trades",
+                exec_id,
+                execution_usage_count[exec_id],
+            )
+
+    return trades_with_sources

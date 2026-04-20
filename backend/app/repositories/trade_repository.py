@@ -239,6 +239,9 @@ def _apply_filters(
     if filters.playbook_id is not None:
         stmt = stmt.where(Trade.playbook_id == filters.playbook_id)
 
+    if filters.position_id is not None:
+        stmt = stmt.where(Trade.position_id == filters.position_id)
+
     if filters.opened_at_from is not None:
         stmt = stmt.where(Trade.opened_at >= filters.opened_at_from)
 
@@ -338,6 +341,8 @@ class TradeRepository:
             ``trade_notes``).
         """
         create_dict = data.model_dump(exclude={"tag_ids", "executions"})
+        if create_dict.get("position_id") is None:
+            create_dict.pop("position_id", None)
         trade = Trade(**create_dict)
         self._session.add(trade)
         await self._session.flush()
@@ -364,6 +369,8 @@ class TradeRepository:
 
         for trade_data in trades:
             create_dict = trade_data.model_dump(exclude={"tag_ids", "executions"})
+            if create_dict.get("position_id") is None:
+                create_dict.pop("position_id", None)
             self._session.add(Trade(**create_dict))
 
         await self._session.flush()
@@ -784,6 +791,143 @@ class TradeRepository:
         updated = list(result.scalars().all())
         await self._session.flush()
         return len(updated)
+
+    async def list_open_by_position(
+        self,
+        user_id: uuid.UUID,
+        position_id: uuid.UUID,
+    ) -> list[Trade]:
+        """Return open trades for a user-position group.
+
+        Args:
+            user_id: UUID of the owning user.
+            position_id: Shared business position UUID.
+
+        Returns:
+            Open trades in that position group.
+        """
+        stmt = _trade_query_with_eager_loads().where(
+            Trade.user_id == user_id,
+            Trade.position_id == position_id,
+            Trade.closed_at.is_(None),
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update_position_id(
+        self,
+        trade_ids: Sequence[uuid.UUID],
+        position_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> int:
+        """Assign a shared position_id to a set of trades.
+
+        Args:
+            trade_ids: Target trade IDs.
+            position_id: Position UUID to assign.
+            user_id: UUID of the owning user.
+
+        Returns:
+            Number of rows updated.
+        """
+        if not trade_ids:
+            return 0
+        stmt = (
+            sa_update(Trade)
+            .where(Trade.id.in_(trade_ids), Trade.user_id == user_id)
+            .values(position_id=position_id)
+            .returning(Trade.id)
+        )
+        result = await self._session.execute(stmt)
+        updated = list(result.scalars().all())
+        await self._session.flush()
+        return len(updated)
+
+    async def propagate_metadata_to_open_position_group(
+        self,
+        *,
+        source_trade: Trade,
+        data: TradeUpdate,
+        user_id: uuid.UUID,
+        compare_updated_at: datetime | None = None,
+    ) -> int:
+        """Propagate selected metadata fields to open siblings in a position.
+
+        Uses a last-write-wins strategy: siblings that were updated *after* the
+        source trade (i.e. ``sibling.updated_at > source_trade.updated_at``) are
+        not overwritten.  This provides deterministic conflict resolution — the
+        most recently edited trade wins on a field-by-field basis.
+
+        The guard is applied at the SQL level so the comparison is atomic and not
+        subject to Python-level race conditions.
+
+        Args:
+            source_trade: Trade that was explicitly updated by the user.
+            data: Update payload used on the source trade.
+            user_id: UUID of the owning user.
+
+        Returns:
+            Number of sibling trades actually updated (may be less than total
+            siblings when some siblings were updated more recently).
+        """
+        if source_trade.position_id is None:
+            return 0
+
+        # Build scalar column updates only for fields present in the payload.
+        scalar_values: dict[str, Any] = {}
+        if "playbook_id" in data.model_fields_set:
+            scalar_values["playbook_id"] = data.playbook_id
+        if "notes" in data.model_fields_set:
+            scalar_values["notes"] = data.notes
+        if "user_rating" in data.model_fields_set:
+            scalar_values["user_rating"] = data.user_rating
+
+        updated_count = 0
+
+        # Use caller-provided timestamp as conflict baseline when available.
+        # This allows services to compare siblings against the source trade's
+        # pre-update timestamp (strictly preserving newer independent sibling
+        # edits during subsequent source updates).
+        compare_time = compare_updated_at or source_trade.updated_at
+
+        if scalar_values:
+            # Bulk UPDATE with last-write-wins guard: only touch siblings whose
+            # updated_at is older than (or equal to) the source's updated_at.
+            stmt = (
+                sa_update(Trade)
+                .where(
+                    Trade.user_id == user_id,
+                    Trade.position_id == source_trade.position_id,
+                    Trade.id != source_trade.id,
+                    Trade.closed_at.is_(None),
+                    Trade.updated_at <= compare_time,
+                )
+                .values(**scalar_values)
+                .execution_options(synchronize_session="fetch")
+            )
+            result = await self._session.execute(stmt)
+            updated_count = int(getattr(result, "rowcount", 0))
+
+        if "tag_ids" in data.model_fields_set and data.tag_ids is not None:
+            # For tags we must respect the same last-write-wins boundary.  Fetch
+            # siblings that would have been eligible (updated_at <= source).
+            siblings = await self.list_open_by_position(
+                user_id, source_trade.position_id
+            )
+            eligible = [
+                s
+                for s in siblings
+                if s.id != source_trade.id
+                and s.updated_at <= compare_time
+            ]
+            for sibling in eligible:
+                await self._set_tags(sibling, data.tag_ids)
+            await self._session.flush()
+            # If scalar_values was empty (only tags changed), set count from eligible.
+            if not scalar_values:
+                updated_count = len(eligible)
+
+        return updated_count
 
     async def list_existing_entry_keys(
         self,

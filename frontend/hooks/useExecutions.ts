@@ -6,6 +6,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
+import {
+  listTradeExecutionsApiV1TradesTradeIdExecutionsGet,
+  type LogicalExecutionRead as GeneratedLogicalExecutionRead,
+} from "@/lib/api/index";
 import type {
   LogicalExecution,
   LogicalExecutionCreate,
@@ -17,6 +21,31 @@ import type {
   Trade,
 } from "@/lib/types";
 
+function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead): LogicalExecution {
+  return {
+    id: execution.id,
+    trade_id: execution.trade_id ?? null,
+    user_id: execution.user_id,
+    account_id: execution.account_id ?? null,
+    symbol: execution.symbol,
+    asset_class: execution.asset_class,
+    direction: execution.direction,
+    quantity: execution.quantity,
+    price: execution.price,
+    commission: execution.commission ?? "0",
+    pnl: execution.pnl ?? null,
+    executed_at: execution.executed_at,
+    origin: execution.origin,
+    deleted: execution.deleted,
+    user_modified: execution.user_modified,
+    parent_id: execution.parent_id ?? null,
+    currency: execution.currency ?? null,
+    multiplier: execution.multiplier,
+    created_at: execution.created_at,
+    updated_at: execution.updated_at,
+  };
+}
+
 /**
  * Fetch executions for a trade.
  *
@@ -27,9 +56,17 @@ export function useTradeExecutions(tradeId: string, includeDeleted = false) {
   return useQuery<LogicalExecution[], Error>({
     queryKey: ["executions", tradeId, { includeDeleted }],
     queryFn: async () => {
-      const url = `/api/v1/trades/${tradeId}/executions${includeDeleted ? "?include_deleted=true" : ""}`;
-      const res = await apiClient.get<ResponseEnvelope<LogicalExecution[]>>(url);
-      return res.data.data;
+      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+      const envelope = await listTradeExecutionsApiV1TradesTradeIdExecutionsGet<true>({
+        path: { trade_id: tradeId },
+        query: includeDeleted ? { include_deleted: true } : undefined,
+        baseUrl: "/api/proxy",
+        auth: token ?? undefined,
+        throwOnError: true,
+        responseStyle: "data",
+      });
+
+      return envelope.data.map(mapGeneratedExecution);
     },
     staleTime: 5 * 1000, // 5 seconds to ensure fresh data after updates
     enabled: Boolean(tradeId),

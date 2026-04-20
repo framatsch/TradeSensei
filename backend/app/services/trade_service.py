@@ -4,6 +4,7 @@ This layer orchestrates the repository and owns transaction semantics.
 No HTTP concepts (``Request``, ``Response``, status codes) appear here.
 """
 
+import logging
 import uuid
 from pathlib import Path
 
@@ -28,6 +29,8 @@ from app.schemas.trade import (
     TradeSortParams,
     TradeUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TradeService:
@@ -340,7 +343,34 @@ class TradeService:
         trade = await self._repo.get_by_id(trade_id, user_id)
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
+        pre_update_updated_at = trade.updated_at
         updated = await self._repo.update(trade, data)
+
+        propagation_fields = {"playbook_id", "tag_ids", "notes", "user_rating"}
+        should_propagate = bool(propagation_fields & data.model_fields_set)
+        propagated_count = 0
+        if should_propagate:
+            propagated_count = (
+                await self._repo.propagate_metadata_to_open_position_group(
+                    source_trade=updated,
+                    data=data,
+                    user_id=user_id,
+                    compare_updated_at=pre_update_updated_at,
+                )
+            )
+            if propagated_count > 0:
+                logger.info(
+                    (
+                        "trade_metadata.propagated user_id=%s trade_id=%s "
+                        "position_id=%s fields=%s siblings=%d"
+                    ),
+                    user_id,
+                    trade_id,
+                    updated.position_id,
+                    sorted(propagation_fields & data.model_fields_set),
+                    propagated_count,
+                )
+
         reaggregate_fields = {
             "direction",
             "multiplier",
@@ -653,6 +683,7 @@ class TradeService:
         # Create new closed trade.
         new_trade_data = TradeCreate(
             user_id=user_id,
+            position_id=trade.position_id,
             symbol=trade.symbol,
             direction=trade.direction,
             asset_class=trade.asset_class,
@@ -666,6 +697,7 @@ class TradeService:
             playbook_id=trade.playbook_id,
             tag_ids=tag_ids,
             notes=trade.notes,
+            user_rating=trade.user_rating,
             currency=trade.currency,
             broker_conid=trade.broker_conid,
             is_manually_edited=True,

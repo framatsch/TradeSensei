@@ -39,6 +39,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const activeCount = executions?.filter((e: LogicalExecution) => !e.deleted).length ?? 0;
   const deletedCount = executions?.filter((e: LogicalExecution) => e.deleted).length ?? 0;
   const totalCount = executions?.length ?? 0;
+  const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
 
   const handleMoveToTrade = (executionId: string) => {
     setMoveExecutionId(executionId);
@@ -62,16 +63,33 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
     <div className="bg-card rounded-xl border border-border overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary transition-colors"
-        >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-          Execution Legs
-          {activeCount > 0 && (
-            <span className="text-xs font-normal text-muted-foreground">({activeCount})</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary transition-colors"
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+            Execution Legs
+            {activeCount > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">({activeCount})</span>
+            )}
+          </button>
+
+          {trade.position_id && (
+            <span
+              className="inline-flex items-center rounded border border-border bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+              title={`Position group: ${trade.position_id}`}
+            >
+              Position {trade.position_id.slice(0, 8)}
+            </span>
           )}
-        </button>
+
+          {hasSplitExecutions && trade.position_id && (
+            <span className="inline-flex items-center rounded border border-cyan-200 bg-cyan-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-cyan-700">
+              Metadata inherited
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           {/* Show deleted toggle — only visible when there are deleted executions */}
@@ -145,6 +163,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Price</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Commission</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P&amp;L</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Lineage</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Status</th>
                   <th className="px-3 py-2" />
                 </tr>

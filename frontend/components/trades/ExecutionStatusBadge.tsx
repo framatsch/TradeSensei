@@ -23,6 +23,7 @@ interface Props {
   origin: ExecutionOrigin;
   deleted?: boolean;
   user_modified?: boolean;
+  parent_id?: string | null;
 }
 
 interface BadgeStyle {
@@ -30,7 +31,12 @@ interface BadgeStyle {
   className: string;
 }
 
-function resolveBadge(origin: ExecutionOrigin, deleted: boolean, userModified: boolean): BadgeStyle {
+function resolveBadge(
+  origin: ExecutionOrigin,
+  deleted: boolean,
+  userModified: boolean,
+  parentId: string | null
+): BadgeStyle {
   if (deleted) {
     return {
       label: "Deleted",
@@ -63,13 +69,13 @@ function resolveBadge(origin: ExecutionOrigin, deleted: boolean, userModified: b
   }
   // origin === "split"
   return {
-    label: "Split",
+    label: parentId ? "Split Child" : "Split",
     className: "bg-cyan-100 text-cyan-700 border border-cyan-200",
   };
 }
 
-export function ExecutionStatusBadge({ origin, deleted = false, user_modified = false }: Props) {
-  const badge = resolveBadge(origin, deleted, user_modified);
+export function ExecutionStatusBadge({ origin, deleted = false, user_modified = false, parent_id = null }: Props) {
+  const badge = resolveBadge(origin, deleted, user_modified, parent_id);
 
   return (
     <span

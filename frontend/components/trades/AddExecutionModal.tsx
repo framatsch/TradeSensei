@@ -35,7 +35,7 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
   const [commission, setCommission] = useState("0");
   const [pnl, setPnl] = useState("");
   const [assetClass, setAssetClass] = useState<AssetClass>(trade.asset_class ?? "EQUITY");
-  const [multiplier, setMultiplier] = useState(trade.multiplier.toString());
+  const [multiplier, setMultiplier] = useState(String(trade.multiplier ?? 1));
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const createExecution = useCreateExecution(tradeId);

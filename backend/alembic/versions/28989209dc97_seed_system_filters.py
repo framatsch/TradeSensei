@@ -48,18 +48,6 @@ def upgrade() -> None:
             "needs_review": False
         },
         {
-            "name": "Equities Only",
-            "scope": "SYSTEM",
-            "definition": json.dumps({"asset_class": "EQUITY"}),
-            "needs_review": False
-        },
-        {
-            "name": "Options Only",
-            "scope": "SYSTEM",
-            "definition": json.dumps({"asset_class": "OPTION"}),
-            "needs_review": False
-        },
-        {
             "name": "Open Trades",
             "scope": "SYSTEM",
             "definition": json.dumps({"status": "open"}),

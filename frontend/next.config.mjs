@@ -6,7 +6,7 @@ import { execSync } from "child_process";
 // Falls back to the version in package.json if git is unavailable.
 function resolveAppVersion() {
   try {
-    const tag = execSync("git describe --tags --abbrev=0", { encoding: "utf8" }).trim();
+    const tag = execSync("git describe --tags --abbrev=0 2>/dev/null", { encoding: "utf8" }).trim();
     // Strip leading "v" if present (v0.3.0 → 0.3.0)
     return tag.replace(/^v/, "");
   } catch {

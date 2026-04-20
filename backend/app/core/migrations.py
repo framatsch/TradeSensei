@@ -71,11 +71,21 @@ def run_migrations() -> None:
         old_rev = _get_current_revision()
 
         logger.info("Running database migrations")
-        subprocess.run(
-            _build_migration_command(),
-            cwd=PROJECT_ROOT,
-            check=True,
-        )
+        try:
+            subprocess.run(
+                _build_migration_command(),
+                cwd=PROJECT_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            logger.error("Database migrations failed (exit code %s)", exc.returncode)
+            if exc.stdout:
+                logger.error("Alembic stdout:\n%s", exc.stdout.strip())
+            if exc.stderr:
+                logger.error("Alembic stderr:\n%s", exc.stderr.strip())
+            raise
 
         new_rev = _get_current_revision()
         if old_rev == new_rev:

@@ -4,18 +4,40 @@ Orchestrates broker file parsing and bulk trade creation for a given
 account.  No HTTP concepts appear in this layer.
 """
 
+import asyncio
 import logging
+import tracemalloc
 import uuid
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from datetime import datetime
 from decimal import Decimal
+from functools import lru_cache
+from time import perf_counter
 from typing import cast
 
+from sqlalchemy import event
 from sqlalchemy import text as sa_text
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import AccountNotFoundError
-from app.models.logical_execution import EXECUTION_ORIGIN_IMPORTED
+from app.core.constants import (
+    IMPORT_EXECUTIONS_BATCH_SIZE,
+    IMPORT_MEMORY_ALERT_THRESHOLD_BYTES,
+    IMPORT_RETRY_BASE_DELAY_SECONDS,
+    IMPORT_RETRY_MAX_ATTEMPTS,
+    MILLISECONDS_PER_SECOND,
+)
+from app.core.exceptions import (
+    AccountNotFoundError,
+    ExecutionNotFoundError,
+    ExecutionValidationError,
+    TradeNotFoundError,
+)
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_IMPORTED,
+    EXECUTION_ORIGIN_SPLIT,
+    LogicalExecution,
+)
 from app.models.trade import Direction as TradeDirection
 from app.repositories.account_repository import AccountRepository
 from app.repositories.broker_raw_transaction_repository import (
@@ -28,13 +50,16 @@ from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.imports import FreshStartResult, ImportResult
+from app.schemas.trade import TradeCreate
 from app.services.cash_transaction_service import CashTransactionService
 from app.services.logical_execution_service import LogicalExecutionService
 from app.utils.parsers.aggregator import (
     CorporateActionLike,
+    ExecutionAllocation,
     ExecutionLike,
     SeedLotLike,
-    aggregate_executions_fifo,
+    TradeCreateWithSources,
+    aggregate_executions_fifo_with_sources,
     logical_executions_to_trade_creates,
 )
 from app.utils.parsers.base import BrokerParser
@@ -288,25 +313,26 @@ class ImportService:
             )
             await self._session.flush()
 
-            # Load ALL logical executions for this user/account (including those
-            # from previous imports) so the aggregator can match cross-period
-            # positions.
-            all_logical = await self._logical_svc.list_by_user(
-                user_id, account_id=account_id
-            )
-            parsed_trades = logical_executions_to_trade_creates(
-                cast(list[ExecutionLike], all_logical)
+            # Load logical executions in batches to cap peak memory during import.
+            parsed_trades = await self._collect_trade_creates_from_logical_batches(
+                user_id=user_id,
+                account_id=account_id,
             )
 
             # Run FIFO aggregation from the logical layer only.
             # Do not seed with existing trades in DB; for raw-pipeline imports we
             # rebuild the trade projection from logical executions.
-            parsed_trades = aggregate_executions_fifo(
+            # Use the enhanced aggregation to track source executions
+            # for split-aware linking.
+            trades_with_sources = aggregate_executions_fifo_with_sources(
                 parsed_trades,
                 corporate_actions=ca_for_parser,
                 seed_open_lots=None,
                 seed_orphaned_lots=None,
             )
+
+            # Extract plain TradeCreate objects for the existing trade processing logic
+            parsed_trades = [tws.trade_create for tws in trades_with_sources]
         else:
             # ── Legacy pipeline (fallback) ────────────────────────────────────
             parsed_trades, parsed_cash_txs = parser.parse(
@@ -344,8 +370,48 @@ class ImportService:
         # INSERTs (new rows for the partial-close slices).
         already_updated_ids: set[uuid.UUID] = set()
 
+        # For raw pipeline with source tracking, store created trades for backfilling
+        if raw_projection_rebuild and use_raw_pipeline:
+            for i, trade_data in enumerate(parsed_trades):
+                match_key = (trade_data.broker_conid, trade_data.opened_at)
+                if match_key in manually_edited_keys:
+                    trades_skipped_manually_edited += 1
+                    continue
+
+                trade_with_owner = trade_data.model_copy(
+                    update={
+                        "account_id": account_id,
+                        "user_id": user_id,
+                        "db_trade_id": None,
+                    }
+                )
+                try:
+                    created_trade = await self._trade_repo.create(trade_with_owner)
+                    # Store the created trade in the TradeCreateWithSources object
+                    if i < len(trades_with_sources):
+                        trades_with_sources[i].created_trade = created_trade
+                    trades_created += 1
+                except Exception as exc:  # noqa: BLE001
+                    msg = (
+                        f"Failed to persist trade {trade_data.symbol} "
+                        f"opened at {trade_data.opened_at}: {exc}"
+                    )
+                    logger.warning(msg)
+                    create_warnings.append(msg)
+
+            # Backfill trade_id in logical executions using split-aware linking
+            if use_raw_pipeline:
+                await self._backfill_execution_trade_links(trades_with_sources, user_id)
+                await self._assign_position_ids_from_sources(
+                    trades_with_sources=trades_with_sources,
+                    user_id=user_id,
+                )
+
         for trade_data in parsed_trades:
-            if raw_projection_rebuild:
+            if raw_projection_rebuild and use_raw_pipeline:
+                # Already processed above in the source-tracking path
+                continue
+            elif raw_projection_rebuild:
                 match_key = (trade_data.broker_conid, trade_data.opened_at)
                 if match_key in manually_edited_keys:
                     trades_skipped_manually_edited += 1
@@ -790,6 +856,13 @@ class ImportService:
             account_id=account_id,
         )
 
+        # Step 1.5: Delete all raw transactions for this account so that
+        # re-import can recreate logical executions from raw records.
+        raw_deleted = await self._raw_repo.delete_by_user_account(
+            user_id=user_id,
+            account_id=account_id,
+        )
+
         # Step 2: Delete all trades for this account (including manually-edited)
         trades_deleted = await self._trade_repo.delete_by_user_account(
             user_id=user_id,
@@ -798,7 +871,9 @@ class ImportService:
         )
 
         logger.info(
-            "fresh_start_import: deleted %d executions and %d trades for account %s",
+            "fresh_start_import: deleted %d raw transactions, %d executions "
+            "and %d trades for account %s",
+            raw_deleted,
             exec_deleted,
             trades_deleted,
             account_id,
@@ -846,3 +921,925 @@ class ImportService:
                 f"BrokerRawTransaction {raw_id} not found."
             )
         await self._raw_repo.set_suppressed(raw_id, suppressed)
+
+    async def _backfill_execution_trade_links(
+        self,
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> None:
+        """Backfill execution ``trade_id`` links with split-aware validation.
+
+        The method builds an execution usage map from aggregated trades, validates
+        ownership and quantity/commission constraints, then applies links using a
+        bulk path for direct assignments and savepoint-protected split operations
+        for multi-trade executions.
+
+        Args:
+            trades_with_sources: Aggregated trades with source allocation metadata.
+            user_id: Authenticated user ID.
+
+        Raises:
+            TradeNotFoundError: If a referenced trade does not exist for the user.
+            ExecutionNotFoundError: If a referenced execution does not exist.
+            ExecutionValidationError: If quantity/commission or consistency checks fail.
+        """
+        if not trades_with_sources:
+            return
+
+        started_at = perf_counter()
+        query_count = 0
+        memory_peak_bytes = 0
+
+        bind = None
+        if isinstance(self._session, AsyncSession):
+            bind = self._session.get_bind()
+        sync_engine = getattr(bind, "sync_engine", None)
+
+        def _before_cursor_execute(
+            conn: object,
+            cursor: object,
+            statement: object,
+            parameters: object,
+            context: object,
+            executemany: object,
+        ) -> None:
+            del conn, cursor, statement, parameters, context, executemany
+            nonlocal query_count
+            query_count += 1
+
+        query_listener_installed = False
+        if sync_engine is not None and hasattr(sync_engine, "dispatch"):
+            event.listen(sync_engine, "before_cursor_execute", _before_cursor_execute)
+            query_listener_installed = True
+        tracemalloc_started = False
+        if not tracemalloc.is_tracing():
+            tracemalloc.start()
+            tracemalloc_started = True
+        processed_trade_ids: set[uuid.UUID] = set()
+        execution_usage_map: dict[
+            uuid.UUID, list[tuple[uuid.UUID, ExecutionAllocation]]
+        ] = {}
+
+        try:
+            for trade_source in trades_with_sources:
+                trade = trade_source.created_trade
+                if trade is None:
+                    continue
+                processed_trade_ids.add(trade.id)
+
+                for allocation in trade_source.source_executions:
+                    execution_usage_map.setdefault(allocation.execution_id, []).append(
+                        (trade.id, allocation)
+                    )
+
+            for trade_id in processed_trade_ids:
+                db_trade = await self._trade_repo.get_by_id(trade_id, user_id)
+                if db_trade is None:
+                    raise TradeNotFoundError(
+                        f"Trade {trade_id} not found for split-aware backfill."
+                    )
+
+            direct_pairs: list[tuple[uuid.UUID, uuid.UUID]] = []
+            split_inputs: dict[
+                uuid.UUID,
+                tuple[LogicalExecution, list[tuple[uuid.UUID, ExecutionAllocation]]],
+            ] = {}
+
+            execution_ids = list(execution_usage_map.keys())
+            if execution_ids:
+                fetched_executions = await self._list_executions_for_backfill(
+                    execution_ids=execution_ids,
+                    user_id=user_id,
+                )
+                execution_by_id = {
+                    execution.id: execution for execution in fetched_executions
+                }
+
+                for execution_id, usage_list in execution_usage_map.items():
+                    execution = execution_by_id.get(execution_id)
+                    if execution is None:
+                        raise ExecutionNotFoundError(
+                            "Execution "
+                            f"{execution_id} not found for split-aware backfill."
+                        )
+
+                    # Recompute commission_used proportionally from the original
+                    # execution's commission.  The aggregator stores the full
+                    # round-trip trade commission in allocation.commission_used,
+                    # which includes contributions from both the entry and exit
+                    # execution legs.  For split validation and child-execution
+                    # creation we only want the portion of the *entry* execution's
+                    # commission that corresponds to this trade's quantity share.
+                    exec_qty = execution.quantity
+                    exec_comm = execution.commission
+                    corrected_usage_list: list[tuple[uuid.UUID, ExecutionAllocation]] = []
+                    for trade_id, alloc in usage_list:
+                        if exec_qty > Decimal("0"):
+                            proportional_comm = (
+                                exec_comm * alloc.quantity_used / exec_qty
+                            )
+                        else:
+                            proportional_comm = Decimal("0")
+                        corrected_usage_list.append(
+                            (
+                                trade_id,
+                                ExecutionAllocation(
+                                    execution_id=alloc.execution_id,
+                                    quantity_used=alloc.quantity_used,
+                                    commission_used=proportional_comm,
+                                    entry_price=alloc.entry_price,
+                                ),
+                            )
+                        )
+                    usage_list = corrected_usage_list
+
+                    allocations = [allocation for _, allocation in usage_list]
+                    self._validate_split_quantities(execution.quantity, allocations)
+                    self._validate_split_commissions(execution.commission, allocations)
+
+                    if len(usage_list) == 1:
+                        direct_pairs.append((execution_id, usage_list[0][0]))
+                    else:
+                        split_inputs[execution_id] = (execution, usage_list)
+
+            direct_updated = 0
+            if direct_pairs:
+                async with self._session.begin_nested():
+                    direct_updated = await self._exec_repo.bulk_update_trade_ids(
+                        direct_pairs
+                    )
+
+            split_children_created = 0
+            split_errors = 0
+            for execution_id, (execution, usage_list) in split_inputs.items():
+                operation = self._split_operation_callable(
+                    execution=execution,
+                    usage_list=usage_list,
+                    user_id=user_id,
+                )
+                try:
+                    async with self._session.begin_nested():
+                        split_children_created += await self._with_retry(
+                            operation_name="process_execution_split",
+                            operation=operation,
+                        )
+                except (ExecutionNotFoundError, ExecutionValidationError) as exc:
+                    split_errors += 1
+                    logger.error(
+                        "split_backfill_failed execution_id=%s user_id=%s error=%s",
+                        execution_id,
+                        user_id,
+                        str(exc),
+                        exc_info=True,
+                    )
+
+            if split_inputs:
+                await self._validate_split_backfill_consistency(split_inputs)
+
+            orphaned_children = await self._find_orphaned_children_for_trades(
+                trades_with_sources=trades_with_sources,
+                user_id=user_id,
+            )
+            if orphaned_children > 0:
+                orphaned_children = await self._resolve_orphaned_children_for_trades(
+                    trades_with_sources=trades_with_sources,
+                    user_id=user_id,
+                )
+
+            _, memory_peak_bytes = tracemalloc.get_traced_memory()
+            elapsed_ms = (perf_counter() - started_at) * MILLISECONDS_PER_SECOND
+            logger.info(
+                "split_backfill_complete user_id=%s trades=%d executions=%d "
+                "direct_updated=%d split_parents=%d split_children_created=%d "
+                "split_errors=%d orphaned_children=%d query_count=%d "
+                "memory_peak_bytes=%d duration_ms=%.2f",
+                user_id,
+                len(processed_trade_ids),
+                len(execution_usage_map),
+                direct_updated,
+                len(split_inputs),
+                split_children_created,
+                split_errors,
+                orphaned_children,
+                query_count,
+                memory_peak_bytes,
+                elapsed_ms,
+            )
+            if memory_peak_bytes >= IMPORT_MEMORY_ALERT_THRESHOLD_BYTES:
+                logger.warning(
+                    "split_backfill_memory_threshold_exceeded "
+                    "user_id=%s peak_bytes=%d threshold_bytes=%d",
+                    user_id,
+                    memory_peak_bytes,
+                    IMPORT_MEMORY_ALERT_THRESHOLD_BYTES,
+                )
+        finally:
+            if query_listener_installed:
+                event.remove(
+                    sync_engine,
+                    "before_cursor_execute",
+                    _before_cursor_execute,
+                )
+            if tracemalloc_started:
+                tracemalloc.stop()
+
+    async def _assign_position_ids_from_sources(
+        self,
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> None:
+        """Assign shared position IDs for split-derived trade groups.
+
+        Trades that originate from the same source execution are treated as one
+        business position and receive a shared ``position_id``.
+
+        Args:
+            trades_with_sources: Created trades with source execution allocations.
+            user_id: Owning user UUID.
+        """
+        execution_to_trade_ids: dict[uuid.UUID, set[uuid.UUID]] = {}
+        trade_by_id: dict[uuid.UUID, object] = {}
+
+        for trade_source in trades_with_sources:
+            created_trade = trade_source.created_trade
+            if created_trade is None:
+                continue
+            trade_by_id[created_trade.id] = created_trade
+            for allocation in trade_source.source_executions:
+                trade_ids = execution_to_trade_ids.setdefault(
+                    allocation.execution_id,
+                    set(),
+                )
+                trade_ids.add(created_trade.id)
+
+        for trade_ids in execution_to_trade_ids.values():
+            if len(trade_ids) < 2:
+                continue
+
+            canonical_position_id = None
+            for trade_id in trade_ids:
+                trade_obj = trade_by_id.get(trade_id)
+                trade_position_id = getattr(trade_obj, "position_id", None)
+                if trade_position_id is not None:
+                    canonical_position_id = trade_position_id
+                    break
+
+            if canonical_position_id is None:
+                canonical_position_id = uuid.uuid4()
+
+            await self._trade_repo.update_position_id(
+                trade_ids=list(trade_ids),
+                position_id=canonical_position_id,
+                user_id=user_id,
+            )
+
+    async def _list_executions_for_backfill(
+        self,
+        execution_ids: list[uuid.UUID],
+        user_id: uuid.UUID,
+    ) -> list[LogicalExecution]:
+        """Load executions for backfill in bounded batches.
+
+        Args:
+            execution_ids: IDs referenced by split-aware allocation usage.
+            user_id: Owning user UUID for ownership filtering.
+
+        Returns:
+            Execution rows for the provided IDs that belong to ``user_id``.
+        """
+        loaded: list[LogicalExecution] = []
+        for execution_id_batch in self._exec_repo.iter_batches(
+            execution_ids,
+            batch_size=IMPORT_EXECUTIONS_BATCH_SIZE,
+        ):
+            batch_rows = await self._exec_repo.list_by_ids(execution_id_batch)
+            loaded.extend(row for row in batch_rows if row.user_id == user_id)
+        return loaded
+
+    async def _collect_trade_creates_from_logical_batches(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+    ) -> list[TradeCreate]:
+        """Collect converted TradeCreate rows from paged logical executions.
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Optional account UUID filter.
+
+        Returns:
+            Converted trades in execution-time order.
+        """
+        collected: list[TradeCreate] = []
+        async for trade_batch in self._iter_trade_creates_from_logical_batches(
+            user_id=user_id,
+            account_id=account_id,
+        ):
+            collected.extend(trade_batch)
+        return collected
+
+    async def _iter_trade_creates_from_logical_batches(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+    ) -> AsyncIterator[list[TradeCreate]]:
+        """Yield converted TradeCreate rows in bounded batches.
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Optional account UUID filter.
+
+        Yields:
+            Lists of converted :class:`TradeCreate` rows.
+        """
+        offset = 0
+        while True:
+            logical_batch = await self._logical_svc.list_by_user(
+                user_id=user_id,
+                account_id=account_id,
+                limit=IMPORT_EXECUTIONS_BATCH_SIZE,
+                offset=offset,
+            )
+            if not logical_batch:
+                return
+            trade_batch = logical_executions_to_trade_creates(
+                cast(list[ExecutionLike], logical_batch)
+            )
+            yield trade_batch
+            if len(logical_batch) < IMPORT_EXECUTIONS_BATCH_SIZE:
+                return
+            offset += IMPORT_EXECUTIONS_BATCH_SIZE
+
+    @staticmethod
+    @lru_cache(maxsize=16)
+    def _retry_delays(max_attempts: int) -> tuple[float, ...]:
+        """Return exponential retry delays for transient DB operations.
+
+        Args:
+            max_attempts: Maximum operation attempts.
+
+        Returns:
+            Tuple of delays (seconds) between attempts.
+        """
+        if max_attempts <= 1:
+            return ()
+        return tuple(
+            IMPORT_RETRY_BASE_DELAY_SECONDS * (2**attempt)
+            for attempt in range(max_attempts - 1)
+        )
+
+    async def _with_retry(
+        self,
+        operation_name: str,
+        operation: Callable[[], Awaitable[int]],
+    ) -> int:
+        """Run an async DB operation with transient-error retries.
+
+        Args:
+            operation_name: Name used in retry logs.
+            operation: Zero-argument callable returning an awaitable operation.
+
+        Returns:
+            Result of the successful operation.
+
+        Raises:
+            OperationalError: When all retry attempts are exhausted.
+            DBAPIError: When all retry attempts are exhausted.
+        """
+        delays = self._retry_delays(IMPORT_RETRY_MAX_ATTEMPTS)
+        attempt = 1
+        while True:
+            try:
+                return await operation()
+            except (OperationalError, DBAPIError):
+                if attempt >= IMPORT_RETRY_MAX_ATTEMPTS:
+                    raise
+                delay = delays[attempt - 1]
+                logger.warning(
+                    "import_retry operation=%s attempt=%d/%d delay=%.3fs",
+                    operation_name,
+                    attempt,
+                    IMPORT_RETRY_MAX_ATTEMPTS,
+                    delay,
+                    exc_info=True,
+                )
+                await asyncio.sleep(delay)
+                attempt += 1
+
+    def _split_operation_callable(
+        self,
+        execution: LogicalExecution,
+        usage_list: list[tuple[uuid.UUID, ExecutionAllocation]],
+        user_id: uuid.UUID,
+    ) -> Callable[[], Awaitable[int]]:
+        """Create a bound callable for retrying split processing safely.
+
+        Args:
+            execution: Parent execution row to split.
+            usage_list: Target allocations for the split children.
+            user_id: Owning user UUID.
+
+        Returns:
+            Zero-arg async callable suitable for :meth:`_with_retry`.
+        """
+
+        async def _operation() -> int:
+            return await self._process_execution_split(
+                execution=execution,
+                usage_list=usage_list,
+                user_id=user_id,
+            )
+
+        return _operation
+
+    async def _process_execution_split(
+        self,
+        execution: "LogicalExecution",
+        usage_list: list[tuple[uuid.UUID, ExecutionAllocation]],
+        user_id: uuid.UUID,
+    ) -> int:
+        """Process a multi-trade execution split.
+
+        Creates split children for each trade that uses this execution,
+        following the simplified-execution-model conventions.
+
+        Args:
+            execution: The execution ORM row to split.
+            usage_list: List of (trade_id, allocation) pairs showing how this
+                execution is divided across trades.
+            user_id: User ID for validation.
+
+        Returns:
+            Number of child executions created.
+
+        Raises:
+            ExecutionNotFoundError: If soft-delete cannot locate the parent row.
+            ExecutionValidationError: If validation fails before split.
+        """
+        execution_id = execution.id
+        if execution.user_id != user_id:
+            raise ExecutionValidationError(
+                f"Execution {execution_id} does not belong to user {user_id}."
+            )
+
+        allocations = [allocation for _, allocation in usage_list]
+        self._validate_split_quantities(execution.quantity, allocations)
+        self._validate_split_commissions(execution.commission, allocations)
+
+        parent_deleted = await self._exec_repo.soft_delete(execution_id)
+        if not parent_deleted:
+            raise ExecutionNotFoundError(
+                f"Execution {execution_id} not found during split soft-delete."
+            )
+
+        created_children = 0
+        for trade_id, allocation in usage_list:
+            await self._exec_repo.create(
+                user_id=execution.user_id,
+                account_id=execution.account_id,
+                symbol=execution.symbol,
+                conid=execution.conid,
+                asset_class=execution.asset_class,
+                direction=execution.direction,
+                quantity=allocation.quantity_used,
+                price=execution.price,
+                commission=allocation.commission_used,
+                executed_at=execution.executed_at,
+                pnl=execution.pnl if trade_id == usage_list[0][0] else None,
+                currency=execution.currency,
+                multiplier=execution.multiplier,
+                origin=EXECUTION_ORIGIN_SPLIT,
+                parent_id=execution.id,
+                trade_id=trade_id,
+            )
+            created_children += 1
+
+        logger.debug(
+            "split_execution_created execution_id=%s children=%d quantities=%s",
+            execution_id,
+            len(usage_list),
+            [allocation.quantity_used for _, allocation in usage_list],
+        )
+
+        return created_children
+
+    async def _split_execution_for_trade(
+        self,
+        execution_id: uuid.UUID,
+        quantity_for_trade: Decimal,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> "LogicalExecution":
+        """Split an execution using simplified-execution-model split logic.
+
+        Following the simplified-execution-model conventions:
+        1. Soft-delete the original execution (deleted=true)
+        2. Create child execution for the specific trade with origin='split'
+        3. Create remainder child for future allocation (if quantity remains)
+        4. Set parent_id on both children to original execution ID
+
+        Args:
+            execution_id: ID of the original execution to split.
+            quantity_for_trade: Portion allocated to the specified trade.
+            trade_id: Target trade ID for the allocated portion.
+            user_id: User ID for validation and record creation.
+
+        Returns:
+            The child execution assigned to the trade.
+
+        Raises:
+            ValueError: If quantity_for_trade exceeds original execution quantity.
+        """
+        db_trade = await self._trade_repo.get_by_id(trade_id, user_id)
+        if db_trade is None:
+            raise TradeNotFoundError(f"Trade {trade_id} not found for user {user_id}.")
+
+        # 1. Load original execution
+        original = await self._exec_repo.get_by_id(execution_id, user_id=user_id)
+        if not original:
+            raise ExecutionNotFoundError(f"Execution {execution_id} not found.")
+
+        self._validate_split_quantities(
+            original.quantity,
+            [
+                ExecutionAllocation(
+                    execution_id=execution_id,
+                    quantity_used=quantity_for_trade,
+                    commission_used=Decimal("0"),
+                    entry_price=original.price,
+                )
+            ],
+        )
+
+        # 2. Calculate proportional commission
+        commission_for_trade = (
+            (original.commission * quantity_for_trade) / original.quantity
+            if original.quantity > 0
+            else Decimal("0")
+        )
+
+        self._validate_split_commissions(
+            original.commission,
+            [
+                ExecutionAllocation(
+                    execution_id=execution_id,
+                    quantity_used=quantity_for_trade,
+                    commission_used=commission_for_trade,
+                    entry_price=original.price,
+                )
+            ],
+        )
+
+        # 3. Soft-delete original (preserves BRT link)
+        await self._exec_repo.soft_delete(execution_id)
+
+        # 4. Create child for this specific trade
+        child_for_trade = await self._exec_repo.create(
+            user_id=original.user_id,
+            account_id=original.account_id,
+            symbol=original.symbol,
+            conid=original.conid,
+            asset_class=original.asset_class,
+            direction=original.direction,
+            quantity=quantity_for_trade,
+            price=original.price,
+            commission=commission_for_trade,
+            executed_at=original.executed_at,
+            pnl=original.pnl,  # Note: pnl stays with first split
+            currency=original.currency,
+            multiplier=original.multiplier,
+            origin=EXECUTION_ORIGIN_SPLIT,
+            parent_id=original.id,
+            trade_id=trade_id,
+        )
+
+        # 5. Create remainder child (for other trades or future allocation)
+        remainder_qty = original.quantity - quantity_for_trade
+        if remainder_qty > 0:
+            remainder_commission = original.commission - commission_for_trade
+
+            await self._exec_repo.create(
+                user_id=original.user_id,
+                account_id=original.account_id,
+                symbol=original.symbol,
+                conid=original.conid,
+                asset_class=original.asset_class,
+                direction=original.direction,
+                quantity=remainder_qty,
+                price=original.price,
+                commission=remainder_commission,
+                executed_at=original.executed_at,
+                pnl=None,  # Remainder gets no pnl
+                currency=original.currency,
+                multiplier=original.multiplier,
+                origin=EXECUTION_ORIGIN_SPLIT,
+                parent_id=original.id,
+                trade_id=None,  # Will be assigned by subsequent trades
+            )
+
+        logger.debug(
+            "Split execution %s: %s → trade %s, remainder: %s",
+            execution_id,
+            quantity_for_trade,
+            trade_id,
+            remainder_qty,
+        )
+
+        return child_for_trade
+
+    async def _assign_execution_to_trade(
+        self,
+        execution_id: uuid.UUID,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> bool:
+        """Directly assign an execution to a trade (no splitting required).
+
+        Args:
+            execution_id: ID of the execution to assign.
+            trade_id: Target trade ID.
+            user_id: Authenticated user ID used for ownership validation.
+
+        Returns:
+            True if the assignment was successful, False otherwise.
+
+        Raises:
+            TradeNotFoundError: If the trade does not exist for the user.
+            ExecutionNotFoundError: If the execution does not exist for the user.
+        """
+        db_trade = await self._trade_repo.get_by_id(trade_id, user_id)
+        if db_trade is None:
+            raise TradeNotFoundError(f"Trade {trade_id} not found for user {user_id}.")
+
+        execution = await self._exec_repo.get_by_id(execution_id, user_id=user_id)
+        if execution is None:
+            raise ExecutionNotFoundError(
+                f"Execution {execution_id} not found for user {user_id}."
+            )
+
+        success = await self._exec_repo.update_trade_id(execution_id, trade_id)
+
+        if success:
+            logger.debug(
+                "execution_assigned_to_trade execution_id=%s trade_id=%s user_id=%s",
+                execution_id,
+                trade_id,
+                user_id,
+            )
+        else:
+            raise ExecutionNotFoundError(
+                f"Execution {execution_id} not found during trade assignment."
+            )
+
+        return success
+
+    def _validate_split_quantities(
+        self,
+        original_qty: Decimal,
+        allocations: list[ExecutionAllocation],
+    ) -> None:
+        """Validate that allocation quantities don't exceed the original execution.
+
+        Args:
+            original_qty: Original execution quantity.
+            allocations: List of execution allocations.
+
+        Raises:
+            ExecutionValidationError: If allocation quantities exceed original quantity.
+        """
+        total_used = sum(alloc.quantity_used for alloc in allocations)
+        if total_used > original_qty:
+            raise ExecutionValidationError(
+                "Allocation overflow: "
+                f"total used {total_used} > original {original_qty}"
+            )
+
+    def _validate_split_commissions(
+        self,
+        original_commission: Decimal,
+        allocations: list[ExecutionAllocation],
+    ) -> None:
+        """Validate that allocation commissions don't exceed the original execution.
+
+        Args:
+            original_commission: Original execution commission.
+            allocations: List of execution allocations.
+
+        Raises:
+            ExecutionValidationError: If allocation commissions exceed
+                original commission.
+        """
+        total_used = sum(alloc.commission_used for alloc in allocations)
+        if total_used > original_commission:
+            raise ExecutionValidationError(
+                "Commission overflow: "
+                f"total used {total_used} > original {original_commission}"
+            )
+
+    async def _validate_split_backfill_consistency(
+        self,
+        split_inputs: dict[
+            uuid.UUID,
+            tuple[LogicalExecution, list[tuple[uuid.UUID, ExecutionAllocation]]],
+        ],
+    ) -> None:
+        """Validate split consistency and conservation after backfill writes.
+
+        Args:
+            split_inputs: Split parents mapped to original execution and expected
+                trade/allocation usage.
+
+        Raises:
+            ExecutionValidationError: If any consistency check fails.
+        """
+        for parent_id, (parent, usage_list) in split_inputs.items():
+            children = await self._exec_repo.get_by_parent_id(parent_id)
+            if not children:
+                raise ExecutionValidationError(
+                    f"Split consistency failed: no children found for {parent_id}."
+                )
+
+            expected_trade_ids = {trade_id for trade_id, _ in usage_list}
+            child_trade_ids = {
+                child.trade_id for child in children if child.trade_id is not None
+            }
+
+            if child_trade_ids != expected_trade_ids:
+                raise ExecutionValidationError(
+                    "Split assignment completeness failed for "
+                    f"{parent_id}: expected={len(expected_trade_ids)} "
+                    f"actual={len(child_trade_ids)}"
+                )
+
+            if any(child.parent_id != parent_id for child in children):
+                raise ExecutionValidationError(
+                    f"Split lineage integrity failed for {parent_id}."
+                )
+
+            if any(child.origin != EXECUTION_ORIGIN_SPLIT for child in children):
+                raise ExecutionValidationError(
+                    f"Split integrity failed: non-split child found for {parent_id}."
+                )
+
+            if any(child.trade_id is None for child in children):
+                raise ExecutionValidationError(
+                    f"Split assignment completeness failed for {parent_id}."
+                )
+
+            expected_quantity = sum(
+                allocation.quantity_used for _, allocation in usage_list
+            )
+            expected_commission = sum(
+                allocation.commission_used for _, allocation in usage_list
+            )
+
+            children_quantity = sum(child.quantity for child in children)
+            children_commission = sum(child.commission for child in children)
+
+            if children_quantity != expected_quantity:
+                raise ExecutionValidationError(
+                    "Split quantity conservation failed for "
+                    f"{parent_id}: expected={expected_quantity} "
+                    f"actual={children_quantity}"
+                )
+
+            if children_commission != expected_commission:
+                raise ExecutionValidationError(
+                    "Split commission conservation failed for "
+                    f"{parent_id}: expected={expected_commission} "
+                    f"actual={children_commission}"
+                )
+
+            self._validate_split_quantities(parent.quantity, [a for _, a in usage_list])
+            self._validate_split_commissions(
+                parent.commission, [a for _, a in usage_list]
+            )
+
+    async def _find_orphaned_children_for_trades(
+        self,
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> int:
+        """Detect orphaned split children for accounts involved in this import.
+
+        Args:
+            trades_with_sources: Trades processed by backfill.
+            user_id: Owning user UUID.
+
+        Returns:
+            Number of orphaned split children found.
+        """
+        account_ids = {
+            trade_source.created_trade.account_id
+            for trade_source in trades_with_sources
+            if trade_source.created_trade is not None
+            and trade_source.created_trade.account_id is not None
+        }
+
+        orphaned_count = 0
+        for account_id in account_ids:
+            orphaned = await self._exec_repo.find_orphaned_children(user_id, account_id)
+            orphaned_count += len(orphaned)
+
+        if orphaned_count > 0:
+            logger.warning(
+                "split_backfill_orphaned_children_detected "
+                "user_id=%s accounts=%d count=%d",
+                user_id,
+                len(account_ids),
+                orphaned_count,
+            )
+
+        return orphaned_count
+
+    async def _resolve_orphaned_children_for_trades(
+        self,
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> int:
+        """Resolve orphaned split children by assigning expected trade IDs.
+
+        Args:
+            trades_with_sources: Trades processed by backfill.
+            user_id: Owning user UUID.
+
+        Returns:
+            Number of resolved orphaned child rows.
+        """
+        expected_trade_ids_by_parent: dict[uuid.UUID, list[uuid.UUID]] = {}
+        for trade_source in trades_with_sources:
+            created_trade = trade_source.created_trade
+            if created_trade is None:
+                continue
+            for allocation in trade_source.source_executions:
+                expected_trade_ids_by_parent.setdefault(
+                    allocation.execution_id,
+                    [],
+                ).append(created_trade.id)
+
+        siblings_by_parent: dict[uuid.UUID, list[LogicalExecution]] = {}
+        unresolved_trade_ids_by_parent: dict[uuid.UUID, list[uuid.UUID]] = {}
+
+        account_ids = {
+            trade_source.created_trade.account_id
+            for trade_source in trades_with_sources
+            if trade_source.created_trade is not None
+            and trade_source.created_trade.account_id is not None
+        }
+
+        resolved_count = 0
+        for account_id in account_ids:
+            orphaned_children = await self._exec_repo.find_orphaned_children(
+                user_id,
+                account_id,
+            )
+            for orphan in orphaned_children:
+                if orphan.parent_id is None:
+                    continue
+                expected_trade_ids = expected_trade_ids_by_parent.get(
+                    orphan.parent_id,
+                    [],
+                )
+                if not expected_trade_ids:
+                    continue
+                sibling_children = siblings_by_parent.get(orphan.parent_id)
+                if sibling_children is None:
+                    sibling_children = await self._exec_repo.get_by_parent_id(
+                        orphan.parent_id
+                    )
+                    siblings_by_parent[orphan.parent_id] = sibling_children
+
+                unresolved_trade_ids = unresolved_trade_ids_by_parent.get(
+                    orphan.parent_id
+                )
+                if unresolved_trade_ids is None:
+                    assigned_trade_ids = {
+                        child.trade_id
+                        for child in sibling_children
+                        if child.trade_id is not None
+                    }
+                    unresolved_trade_ids = [
+                        trade_id
+                        for trade_id in expected_trade_ids
+                        if trade_id not in assigned_trade_ids
+                    ]
+                    unresolved_trade_ids_by_parent[orphan.parent_id] = (
+                        unresolved_trade_ids
+                    )
+                if not unresolved_trade_ids:
+                    continue
+                target_trade_id = unresolved_trade_ids.pop(0)
+                assigned = await self._exec_repo.update_trade_id(
+                    orphan.id,
+                    target_trade_id,
+                )
+                if assigned:
+                    resolved_count += 1
+
+        if resolved_count > 0:
+            logger.warning(
+                "split_backfill_orphaned_children_resolved user_id=%s resolved=%d",
+                user_id,
+                resolved_count,
+            )
+        return resolved_count

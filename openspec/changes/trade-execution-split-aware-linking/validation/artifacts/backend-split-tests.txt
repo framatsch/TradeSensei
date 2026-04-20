@@ -1,0 +1,282 @@
+.............FF.......                                                   [100%]
+=================================== FAILURES ===================================
+_______________ test_backfill_direct_assignment_for_single_usage _______________
+
+    @pytest.mark.unit
+    async def test_backfill_direct_assignment_for_single_usage() -> None:
+        service = _service()
+        service._assign_execution_to_trade = AsyncMock(return_value=True)
+        service._process_execution_split = AsyncMock()
+        service._validate_split_backfill_consistency = AsyncMock()
+        service._find_orphaned_children_for_trades = AsyncMock(return_value=0)
+        service._trade_repo.get_by_id = AsyncMock()
+    
+        trade = MagicMock()
+        trade.id = uuid.uuid4()
+        trade.account_id = uuid.uuid4()
+        allocation = ExecutionAllocation(
+            execution_id=uuid.uuid4(),
+            quantity_used=Decimal("10"),
+            commission_used=Decimal("0.2"),
+            entry_price=Decimal("100"),
+        )
+        tws = TradeCreateWithSources(
+            trade_create=MagicMock(), source_executions=[allocation]
+        )
+        tws.created_trade = trade
+        execution = MagicMock(
+            quantity=Decimal("10"),
+            commission=Decimal("0.2"),
+        )
+        service._exec_repo.get_by_id = AsyncMock(return_value=execution)
+        service._exec_repo.bulk_update_trade_ids = AsyncMock(return_value=1)
+    
+>       await service._backfill_execution_trade_links([tws], uuid.uuid4())
+
+tests/test_split_aware_import_service.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.import_service.ImportService object at 0x7f17c1a2fa10>
+trades_with_sources = [TradeCreateWithSources(trade_create=<MagicMock id='139740009976160'>, source_executions=[ExecutionAllocation(executio...l('10'), commission_used=Decimal('0.2'), entry_price=Decimal('100'))], created_trade=<MagicMock id='139740009975824'>)]
+user_id = UUID('cb92b94a-07d7-4a5c-b9a3-bd3a7ebc0cdd')
+
+    async def _backfill_execution_trade_links(
+        self,
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> None:
+        """Backfill execution ``trade_id`` links with split-aware validation.
+    
+        The method builds an execution usage map from aggregated trades, validates
+        ownership and quantity/commission constraints, then applies links using a
+        bulk path for direct assignments and savepoint-protected split operations
+        for multi-trade executions.
+    
+        Args:
+            trades_with_sources: Aggregated trades with source allocation metadata.
+            user_id: Authenticated user ID.
+    
+        Raises:
+            TradeNotFoundError: If a referenced trade does not exist for the user.
+            ExecutionNotFoundError: If a referenced execution does not exist.
+            ExecutionValidationError: If quantity/commission or consistency checks fail.
+        """
+        if not trades_with_sources:
+            return
+    
+        started_at = perf_counter()
+        processed_trade_ids: set[uuid.UUID] = set()
+        execution_usage_map: dict[
+            uuid.UUID, list[tuple[uuid.UUID, ExecutionAllocation]]
+        ] = {}
+    
+        for trade_source in trades_with_sources:
+            trade = trade_source.created_trade
+            if trade is None:
+                continue
+            processed_trade_ids.add(trade.id)
+    
+            for allocation in trade_source.source_executions:
+                execution_usage_map.setdefault(allocation.execution_id, []).append(
+                    (trade.id, allocation)
+                )
+    
+        for trade_id in processed_trade_ids:
+            db_trade = await self._trade_repo.get_by_id(trade_id, user_id)
+            if db_trade is None:
+                raise TradeNotFoundError(
+                    f"Trade {trade_id} not found for split-aware backfill."
+                )
+    
+        direct_pairs: list[tuple[uuid.UUID, uuid.UUID]] = []
+        split_inputs: dict[
+            uuid.UUID,
+            tuple[LogicalExecution, list[tuple[uuid.UUID, ExecutionAllocation]]],
+        ] = {}
+    
+        for execution_id, usage_list in execution_usage_map.items():
+            execution = await self._exec_repo.get_by_id(execution_id, user_id=user_id)
+            if execution is None:
+                raise ExecutionNotFoundError(
+                    f"Execution {execution_id} not found for split-aware backfill."
+                )
+    
+            allocations = [allocation for _, allocation in usage_list]
+            self._validate_split_quantities(execution.quantity, allocations)
+            self._validate_split_commissions(execution.commission, allocations)
+    
+            if len(usage_list) == 1:
+                direct_pairs.append((execution_id, usage_list[0][0]))
+            else:
+                split_inputs[execution_id] = (execution, usage_list)
+    
+        direct_updated = 0
+        if direct_pairs:
+>           async with self._session.begin_nested():
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: 'coroutine' object does not support the asynchronous context manager protocol (missed __aexit__ method)
+
+app/services/import_service.py:978: TypeError
+________________ test_backfill_uses_split_for_multi_trade_usage ________________
+
+    @pytest.mark.unit
+    async def test_backfill_uses_split_for_multi_trade_usage() -> None:
+        service = _service()
+        service._assign_execution_to_trade = AsyncMock(return_value=True)
+        service._process_execution_split = AsyncMock(return_value=2)
+        service._validate_split_backfill_consistency = AsyncMock()
+        service._find_orphaned_children_for_trades = AsyncMock(return_value=0)
+        service._trade_repo.get_by_id = AsyncMock()
+    
+        shared_exec = uuid.uuid4()
+        trade1 = MagicMock(id=uuid.uuid4())
+        trade2 = MagicMock(id=uuid.uuid4())
+        trade1.account_id = uuid.uuid4()
+        trade2.account_id = trade1.account_id
+    
+        tws1 = TradeCreateWithSources(
+            trade_create=MagicMock(),
+            source_executions=[
+                ExecutionAllocation(
+                    execution_id=shared_exec,
+                    quantity_used=Decimal("60"),
+                    commission_used=Decimal("0.6"),
+                    entry_price=Decimal("100"),
+                )
+            ],
+        )
+        tws1.created_trade = trade1
+    
+        tws2 = TradeCreateWithSources(
+            trade_create=MagicMock(),
+            source_executions=[
+                ExecutionAllocation(
+                    execution_id=shared_exec,
+                    quantity_used=Decimal("40"),
+                    commission_used=Decimal("0.4"),
+                    entry_price=Decimal("100"),
+                )
+            ],
+        )
+        tws2.created_trade = trade2
+    
+        execution = MagicMock(
+            quantity=Decimal("100"),
+            commission=Decimal("1.0"),
+        )
+        service._exec_repo.get_by_id = AsyncMock(return_value=execution)
+        service._exec_repo.bulk_update_trade_ids = AsyncMock(return_value=0)
+    
+>       await service._backfill_execution_trade_links([tws1, tws2], uuid.uuid4())
+
+tests/test_split_aware_import_service.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.import_service.ImportService object at 0x7f17c1b53b10>
+trades_with_sources = [TradeCreateWithSources(trade_create=<MagicMock id='139740008808528'>, source_executions=[ExecutionAllocation(executio...l('40'), commission_used=Decimal('0.4'), entry_price=Decimal('100'))], created_trade=<MagicMock id='139740009987584'>)]
+user_id = UUID('1bccb452-33bf-476a-99a7-a2b10b52e81e')
+
+    async def _backfill_execution_trade_links(
+        self,
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> None:
+        """Backfill execution ``trade_id`` links with split-aware validation.
+    
+        The method builds an execution usage map from aggregated trades, validates
+        ownership and quantity/commission constraints, then applies links using a
+        bulk path for direct assignments and savepoint-protected split operations
+        for multi-trade executions.
+    
+        Args:
+            trades_with_sources: Aggregated trades with source allocation metadata.
+            user_id: Authenticated user ID.
+    
+        Raises:
+            TradeNotFoundError: If a referenced trade does not exist for the user.
+            ExecutionNotFoundError: If a referenced execution does not exist.
+            ExecutionValidationError: If quantity/commission or consistency checks fail.
+        """
+        if not trades_with_sources:
+            return
+    
+        started_at = perf_counter()
+        processed_trade_ids: set[uuid.UUID] = set()
+        execution_usage_map: dict[
+            uuid.UUID, list[tuple[uuid.UUID, ExecutionAllocation]]
+        ] = {}
+    
+        for trade_source in trades_with_sources:
+            trade = trade_source.created_trade
+            if trade is None:
+                continue
+            processed_trade_ids.add(trade.id)
+    
+            for allocation in trade_source.source_executions:
+                execution_usage_map.setdefault(allocation.execution_id, []).append(
+                    (trade.id, allocation)
+                )
+    
+        for trade_id in processed_trade_ids:
+            db_trade = await self._trade_repo.get_by_id(trade_id, user_id)
+            if db_trade is None:
+                raise TradeNotFoundError(
+                    f"Trade {trade_id} not found for split-aware backfill."
+                )
+    
+        direct_pairs: list[tuple[uuid.UUID, uuid.UUID]] = []
+        split_inputs: dict[
+            uuid.UUID,
+            tuple[LogicalExecution, list[tuple[uuid.UUID, ExecutionAllocation]]],
+        ] = {}
+    
+        for execution_id, usage_list in execution_usage_map.items():
+            execution = await self._exec_repo.get_by_id(execution_id, user_id=user_id)
+            if execution is None:
+                raise ExecutionNotFoundError(
+                    f"Execution {execution_id} not found for split-aware backfill."
+                )
+    
+            allocations = [allocation for _, allocation in usage_list]
+            self._validate_split_quantities(execution.quantity, allocations)
+            self._validate_split_commissions(execution.commission, allocations)
+    
+            if len(usage_list) == 1:
+                direct_pairs.append((execution_id, usage_list[0][0]))
+            else:
+                split_inputs[execution_id] = (execution, usage_list)
+    
+        direct_updated = 0
+        if direct_pairs:
+            async with self._session.begin_nested():
+                direct_updated = await self._exec_repo.bulk_update_trade_ids(
+                    direct_pairs
+                )
+    
+        split_children_created = 0
+        split_errors = 0
+        for execution_id, (execution, usage_list) in split_inputs.items():
+            try:
+>               async with self._session.begin_nested():
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TypeError: 'coroutine' object does not support the asynchronous context manager protocol (missed __aexit__ method)
+
+app/services/import_service.py:987: TypeError
+=============================== warnings summary ===============================
+tests/test_split_aware_import_service.py::test_backfill_direct_assignment_for_single_usage
+  /home/scheffold/work/tradejournal/backend/app/services/import_service.py:978: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async with self._session.begin_nested():
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_split_aware_import_service.py::test_backfill_uses_split_for_multi_trade_usage
+  /home/scheffold/work/tradejournal/backend/app/services/import_service.py:987: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async with self._session.begin_nested():
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_split_aware_import_service.py::test_backfill_direct_assignment_for_single_usage
+FAILED tests/test_split_aware_import_service.py::test_backfill_uses_split_for_multi_trade_usage
+2 failed, 20 passed, 2 warnings in 0.20s

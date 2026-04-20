@@ -279,22 +279,28 @@ test.describe('Trade Detail', () => {
 });
 
 test.describe('Add Execution Modal', () => {
+  async function openAddExecutionModal(page: import('@playwright/test').Page) {
+    const addExecutionButton = page.getByRole('button', { name: 'Add Execution' }).first();
+    await expect(addExecutionButton).toBeVisible({ timeout: 15_000 });
+    await addExecutionButton.click();
+    await expect(page.locator('#add-execution-form')).toBeVisible({ timeout: 10_000 });
+  }
+
   // ── TC-070: Add Execution modal opens with BUY/SELL toggles ──
   test('TC-070 add execution modal opens with toggle and datetime input', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
     await page.waitForLoadState('networkidle');
 
-    // Click the Add Execution button to open modal
-    await page.getByRole('button', { name: 'Add Execution' }).click();
+    await openAddExecutionModal(page);
 
     // Assert modal heading visible
-    await expect(page.getByRole('heading', { name: 'Add Execution' })).toBeVisible();
+    await expect(page.locator('#add-execution-form').getByRole('button', { name: 'BUY' })).toBeVisible();
     // Assert BUY toggle visible
-    await expect(page.getByRole('button', { name: 'BUY' })).toBeVisible();
+    await expect(page.locator('#add-execution-form').getByRole('button', { name: 'BUY' })).toBeVisible();
     // Assert SELL toggle visible
-    await expect(page.getByRole('button', { name: 'SELL' })).toBeVisible();
+    await expect(page.locator('#add-execution-form').getByRole('button', { name: 'SELL' })).toBeVisible();
     // Assert datetime-local input visible
-    await expect(page.locator('input[type="datetime-local"]')).toBeVisible();
+    await expect(page.locator('#add-execution-form input[type="datetime-local"]')).toBeVisible();
   });
 
   // ── TC-071: Successfully add execution increases table row count ──
@@ -315,11 +321,7 @@ test.describe('Add Execution Modal', () => {
     // Assert we have exactly 3 rows: 1 auto-created + 2 manual from seeding
     expect(initialCount).toBe(3);
 
-    // Click Add Execution button
-    await page.getByRole('button', { name: 'Add Execution' }).click();
-
-    // Wait for modal to appear
-    await expect(page.getByRole('heading', { name: 'Add Execution' })).toBeVisible({ timeout: 10_000 });
+    await openAddExecutionModal(page);
 
     // Fill in quantity and price using positional index within the form
     const form = page.locator('#add-execution-form');
@@ -328,10 +330,10 @@ test.describe('Add Execution Modal', () => {
     await numberInputs.nth(1).fill('410.00');  // Price
 
     // Click submit button in modal
-    await page.getByRole('button', { name: 'Add Execution' }).last().click();
+    await form.getByRole('button', { name: 'Add Execution' }).click();
 
     // Wait for modal to close
-    await expect(page.getByRole('heading', { name: 'Add Execution' })).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('#add-execution-form')).not.toBeVisible({ timeout: 10_000 });
 
     // Assert row count increased by 1
     await expect(page.locator('table tbody tr')).toHaveCount(initialCount + 1, { timeout: 15_000 });
@@ -348,11 +350,7 @@ test.describe('Add Execution Modal', () => {
     // Wait for execution table to load
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
 
-    // Click Add Execution button
-    await page.getByRole('button', { name: 'Add Execution' }).click();
-
-    // Wait for modal to appear
-    await expect(page.getByRole('heading', { name: 'Add Execution' })).toBeVisible({ timeout: 10_000 });
+    await openAddExecutionModal(page);
 
     // Set quantity to 0 — scoped to the modal form
     const quantityInput = page.locator('#add-execution-form input[type="number"]').first();
@@ -362,10 +360,10 @@ test.describe('Add Execution Modal', () => {
     const initialCount = await page.locator('table tbody tr').count();
 
     // Click submit button
-    await page.getByRole('button', { name: 'Add Execution' }).last().click();
+    await page.locator('#add-execution-form').getByRole('button', { name: 'Add Execution' }).click();
 
     // For invalid quantity, modal stays open and no new execution is added
-    await expect(page.getByRole('heading', { name: 'Add Execution' })).toBeVisible();
+    await expect(page.locator('#add-execution-form')).toBeVisible();
     await expect(page.locator('table tbody tr')).toHaveCount(initialCount);
   });
 });
@@ -457,7 +455,8 @@ test.describe('Merge Workflow', () => {
 
   // ── TC-080: Select two trades and Merge button appears ──
   test('TC-080 selecting two trades shows merge button in toolbar', async ({ page }) => {
-    await page.goto('/dashboard/trades');
+    // Show all rows and narrow to AAPL so seeded merge trades are visible
+    await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
     await page.waitForLoadState('networkidle');
 
     // Wait for table rows to load
@@ -488,7 +487,8 @@ test.describe('Merge Workflow', () => {
 
   // ── TC-081: Merge button opens preview modal ──
   test('TC-081 merge button opens preview modal with combined info', async ({ page }) => {
-    await page.goto('/dashboard/trades');
+    // Show all rows and narrow to AAPL so seeded merge trades are visible
+    await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
     await page.waitForLoadState('networkidle');
 
     // Wait for table rows to load
@@ -523,7 +523,8 @@ test.describe('Merge Workflow', () => {
 
   // ── TC-082: Confirm merge navigates to survivor trade ──
   test('TC-082 confirming merge navigates to survivor trade detail', async ({ page }) => {
-    await page.goto('/dashboard/trades');
+    // Show all rows and narrow to AAPL so seeded merge trades are visible
+    await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
     await page.waitForLoadState('networkidle');
 
     // Wait for table rows to load

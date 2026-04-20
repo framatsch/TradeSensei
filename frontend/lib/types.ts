@@ -166,6 +166,7 @@ export interface TradeNoteUpdate {
 
 export interface Trade {
   id: string;
+  position_id: string | null;
   symbol: string;
   direction: Direction;
   asset_class: AssetClass | null;
@@ -182,6 +183,7 @@ export interface Trade {
   net_pnl: string | null;
   commission: string;
   notes: string | null;
+  user_rating: number | null;
   currency: string | null;
   pnl_eur: string | null;
   net_pnl_eur: string | null;
@@ -231,6 +233,7 @@ export interface TradeUpdate {
   pnl?: string | null;
   commission?: string | null;
   notes?: string | null;
+  user_rating?: number | null;
   tradingview_link?: string | null;
   playbook_id?: string | null;
   tag_ids?: string[] | null;
@@ -568,7 +571,7 @@ export type ExecutionStatus = ExecutionOrigin;
 
 export interface LogicalExecution {
   id: string;
-  trade_id: string;
+  trade_id: string | null;
   user_id: string;
   account_id: string | null;
   symbol: string;
@@ -587,7 +590,7 @@ export interface LogicalExecution {
   deleted: boolean;
   /** When true, this imported execution has been manually edited (task 8.2). */
   user_modified: boolean;
-  /** ID of the parent execution when origin is 'split' or 'merged' (task 8.2). */
+  /** ID of the parent execution when origin is 'split' or 'merged' (lineage). */
   parent_id: string | null;
   currency: string | null;
   multiplier: number;

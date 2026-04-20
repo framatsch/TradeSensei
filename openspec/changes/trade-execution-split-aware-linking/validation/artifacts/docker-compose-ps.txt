@@ -1,0 +1,4 @@
+NAME                     IMAGE                  COMMAND                  SERVICE    CREATED             STATUS                           PORTS
+tradesensei-backend-1    tradesensei-backend    "uvicorn app.main:ap…"   backend    About an hour ago   Up 1 second (health: starting)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+tradesensei-db-1         postgres:18            "docker-entrypoint.s…"   db         About an hour ago   Up About an hour (healthy)       0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+tradesensei-frontend-1   tradesensei-frontend   "/entrypoint.sh"         frontend   About an hour ago   Up About an hour                 0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp

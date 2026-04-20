@@ -241,6 +241,22 @@ class TestUpdateTrade:
         assert patch_resp.status_code == 200, patch_resp.text
         assert patch_resp.json()["data"]["is_combo"] is True
 
+    async def test_patch_user_rating_field(self, client: AsyncClient) -> None:
+        """PATCH should accept user_rating updates."""
+        headers = await _get_auth_headers(client, "patchrating")
+        create_resp = await client.post(
+            "/api/v1/trades", json=_trade_payload(), headers=headers
+        )
+        trade_id = create_resp.json()["data"]["id"]
+
+        response = await client.patch(
+            f"/api/v1/trades/{trade_id}",
+            json={"user_rating": 5},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["user_rating"] == 5
+
 
 @pytest.mark.integration
 class TestDeleteTrade:

@@ -31,11 +31,21 @@ export interface ParsedOccSymbol {
   strikeFormatted: string | null;
 }
 
-/** OCC symbol length is exactly 21 characters (6 + 6 + 1 + 8) */
-const OCC_LENGTH = 21;
+/**
+ * OCC suffix length: YYMMDD(6) + C/P(1) + strike×1000(8) = 15 characters.
+ * IBKR uses this suffix regardless of underlying length, so any symbol with
+ * ≥ 16 characters and a valid suffix may be an option (e.g. 21-char standard
+ * symbols use a 6-char padded underlying, but longer underlyings like
+ * "COMBO_TEST  260320C00100000" work identically with a variable prefix length).
+ */
+const OCC_SUFFIX_LENGTH = 15; // YYMMDD + C/P + 8-digit strike
+const OCC_MIN_LENGTH = 1 + OCC_SUFFIX_LENGTH; // at least 1-char underlying
 
 /**
  * Parse an OCC-format option symbol.
+ *
+ * Supports both the standard 21-character OCC format (6-char padded underlying)
+ * and IBKR's extended format where the underlying may be longer than 6 characters.
  *
  * @param symbol - The raw symbol string from the trade record.
  * @returns Parsed fields, or a minimal stub with `isOption: false` for equities/indices.
@@ -43,8 +53,8 @@ const OCC_LENGTH = 21;
 export function parseOccSymbol(symbol: string): ParsedOccSymbol {
   const trimmed = symbol.trim();
 
-  // OCC symbols are exactly 21 chars; shorter ones are plain equity/index tickers
-  if (trimmed.length !== OCC_LENGTH) {
+  // Too short to contain a valid OCC suffix
+  if (trimmed.length < OCC_MIN_LENGTH) {
     return {
       raw: symbol,
       isOption: false,
@@ -57,11 +67,12 @@ export function parseOccSymbol(symbol: string): ParsedOccSymbol {
     };
   }
 
-  // Field positions according to OCC standard
-  const underlyingRaw = trimmed.substring(0, 6);
-  const expiryRaw = trimmed.substring(6, 12);   // YYMMDD
-  const typeChar = trimmed.substring(12, 13);    // C or P
-  const strikeRaw = trimmed.substring(13, 21);   // 8-digit integer, strike × 1000
+  // The suffix is always the last 15 characters; the underlying is everything before.
+  const suffixStart = trimmed.length - OCC_SUFFIX_LENGTH;
+  const underlyingRaw = trimmed.substring(0, suffixStart);
+  const expiryRaw = trimmed.substring(suffixStart, suffixStart + 6);   // YYMMDD
+  const typeChar = trimmed.substring(suffixStart + 6, suffixStart + 7); // C or P
+  const strikeRaw = trimmed.substring(suffixStart + 7, suffixStart + 15); // 8 digits
 
   const underlying = underlyingRaw.trim();
 
@@ -92,8 +103,9 @@ export function parseOccSymbol(symbol: string): ParsedOccSymbol {
         })}`
       : null;
 
-  // Validate that it really looks like an OCC symbol
-  if (!underlying || !optionType || strike === null) {
+  // Validate that it really looks like an OCC symbol:
+  // expiry must be 6 digits, type must be C/P, strike must be numeric, underlying non-empty
+  if (!underlying || !optionType || strike === null || !/^\d{6}$/.test(expiryRaw) || !/^\d{8}$/.test(strikeRaw)) {
     return {
       raw: symbol,
       isOption: false,

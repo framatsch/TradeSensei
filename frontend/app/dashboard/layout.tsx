@@ -308,8 +308,25 @@ function TradesNavItem({
   const [viewsOpen, setViewsOpen] = useState(true);
 
   const { data: views } = useSavedTradeFilters();
+  const SYSTEM_VIEW_ORDER = [
+    "Open Trades",
+    "All Winners",
+    "All Losers",
+    "Long Trades",
+    "Short Trades",
+    "Needs Review",
+  ];
+  const systemViews = (views?.filter((v) => v.scope === "SYSTEM") ?? []).sort(
+    (a, b) => {
+      const ai = SYSTEM_VIEW_ORDER.indexOf(a.name);
+      const bi = SYSTEM_VIEW_ORDER.indexOf(b.name);
+      const aIdx = ai === -1 ? SYSTEM_VIEW_ORDER.length : ai;
+      const bIdx = bi === -1 ? SYSTEM_VIEW_ORDER.length : bi;
+      return aIdx - bIdx;
+    },
+  );
   const sortedViews = [
-    ...(views?.filter((v) => v.scope === "SYSTEM") ?? []),
+    ...systemViews,
     ...(views?.filter((v) => v.scope === "USER") ?? []),
   ];
   const hasViews = sortedViews.length > 0;

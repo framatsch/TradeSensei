@@ -8,9 +8,10 @@
  *
  * Execution markers:
  *   - When `executions` prop is provided, per-execution markers are rendered.
- *   - Entry executions (direction === trade direction) → arrowUp belowBar (#00d2ff cyan).
- *   - Exit executions (opposite direction) → arrowDown aboveBar (#f0abfc fuchsia).
- *   - Multiple same-side executions on the same candle are merged into one marker.
+ *   - Entry executions → arrowUp  belowBar  cyan   (#00d2ff) — always below the candle.
+ *   - Exit  executions → arrowDown aboveBar orange (#f97316) — always above the candle.
+ *   - "Entry" = execution whose direction matches the trade direction (BUY for LONG, SELL for SHORT).
+ *   - Multiple same-role executions on the same candle are merged into one marker.
  *   - Fallback: if executions is empty/undefined, uses trade-level opened_at/closed_at.
  *
  * Special cases:
@@ -291,27 +292,26 @@ interface MarkerGroup {
   text: string;
 }
 
+/** Marker style for an entry execution: cyan arrow ↑ below the bar. */
+const ENTRY_STYLE = { position: "belowBar" as const, shape: "arrowUp"   as const, color: "#00d2ff" };
+/** Marker style for an exit execution:  orange arrow ↓ above the bar. */
+const EXIT_STYLE  = { position: "aboveBar" as const, shape: "arrowDown" as const, color: "#f97316" };
+
 /**
- * Determine whether an execution is an "entry" (opening) or "exit" (closing)
- * relative to the trade direction.
- * - LONG trade: BUY = entry, SELL = exit
- * - SHORT trade: SELL = entry, BUY = exit
+ * Return true when `exec` is an opening (entry) execution for the given trade
+ * direction.
+ *   LONG  trade: entry = LONG/BUY execution
+ *   SHORT trade: entry = SHORT/SELL execution
  */
-function isEntryExecution(
-  exec: LogicalExecution,
-  tradeDirection: string,
-): boolean {
+function isEntryExecution(exec: LogicalExecution, tradeDirection: string): boolean {
   const td = tradeDirection.toUpperCase();
   const ed = exec.direction.toUpperCase();
-  if (td === "LONG") return ed === "BUY";
-  if (td === "SHORT") return ed === "SELL";
-  // Default: first direction encountered is entry
-  return ed === "BUY";
+  return td === "LONG" ? (ed === "LONG" || ed === "BUY") : (ed === "SHORT" || ed === "SELL");
 }
 
 /**
  * Build SeriesMarkers from a list of LogicalExecutions.
- * Executions on the same candle time and same side are merged into one marker.
+ * Executions on the same candle time and same role (entry/exit) are merged.
  */
 function buildExecutionMarkers(
   executions: LogicalExecution[],
@@ -321,7 +321,7 @@ function buildExecutionMarkers(
 ): SeriesMarker<Time>[] {
   if (executions.length === 0) return [];
 
-  // Group by snapped candle time + side (entry/exit)
+  // Group by snapped candle time + role (entry vs exit)
   const groups = new Map<string, { isEntry: boolean; qtys: string[]; prices: string[]; time: Time }>();
 
   for (const exec of executions) {
@@ -346,24 +346,26 @@ function buildExecutionMarkers(
 
   const markers: SeriesMarker<Time>[] = [];
 
-   for (const [, group] of groups) {
-     // Hover label with quantity and price details (shown only on hover)
-     const detailedLabel =
-       group.qtys.length === 1
-         ? `${Number(group.qtys[0]).toFixed(2)} @ $${Number(group.prices[0]).toFixed(2)}`
-         : group.qtys
-             .map((q, i) => `${Number(q).toFixed(2)} @ $${Number(group.prices[i]).toFixed(2)}`)
-             .join(", ");
+  for (const [, group] of groups) {
+    // Hover label with quantity and price details
+    const detailedLabel =
+      group.qtys.length === 1
+        ? `${Number(group.qtys[0]).toFixed(2)} @ $${Number(group.prices[0]).toFixed(2)}`
+        : group.qtys
+            .map((q, i) => `${Number(q).toFixed(2)} @ $${Number(group.prices[i]).toFixed(2)}`)
+            .join(", ");
 
-      markers.push({
-        time: group.time,
-        position: group.isEntry ? "belowBar" : "aboveBar",
-        color: group.isEntry ? "#00d2ff" : "#f0abfc",
-        shape: group.isEntry ? "arrowUp" : "arrowDown",
-        text: detailedLabel,
-        size: 2,
-      });
-   }
+    const style = group.isEntry ? ENTRY_STYLE : EXIT_STYLE;
+
+    markers.push({
+      time: group.time,
+      position: style.position,
+      color: style.color,
+      shape: style.shape,
+      text: detailedLabel,
+      size: 2,
+    });
+  }
 
   // Sort markers by time (required by lightweight-charts)
   markers.sort((a, b) => (a.time as number) - (b.time as number));
@@ -384,34 +386,20 @@ function buildExecutionMarkers(
 
 /**
  * Fallback markers using trade-level opened_at / closed_at timestamps.
+ * Entry always cyan ↑ below, exit always orange ↓ above.
  */
 function buildFallbackMarkers(
   entryTs: number,
   exitTs: number | null,
+  _tradeDirection: string,
   snap: (target: number) => Time,
 ): SeriesMarker<Time>[] {
   const markers: SeriesMarker<Time>[] = [
-    {
-      time: snap(entryTs),
-      position: "belowBar",
-      color: "#00d2ff",
-      shape: "arrowUp",
-      text: "ENTRY",
-      size: 2,
-    },
+    { time: snap(entryTs), ...ENTRY_STYLE, text: "ENTRY", size: 2 },
   ];
-
   if (exitTs !== null) {
-    markers.push({
-      time: snap(exitTs),
-      position: "aboveBar",
-      color: "#f0abfc",
-      shape: "arrowDown",
-      text: "EXIT",
-      size: 2,
-    });
+    markers.push({ time: snap(exitTs), ...EXIT_STYLE, text: "EXIT", size: 2 });
   }
-
   return markers;
 }
 
@@ -467,21 +455,65 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
         if (rawBars.length === 0) throw new Error("No data returned");
 
-        const candles = mapBars(rawBars);
+        let candles = mapBars(rawBars);
 
         if (seriesRef.current) {
-          seriesRef.current.setData(candles);
-
-          // ── Markers ──────────────────────────────────────────────────────
+          // ── Marker timestamps ─────────────────────────────────────────────
           const entryTs = Math.floor(entryDate.getTime() / 1000);
           const exitTs = exitDate ? Math.floor(exitDate.getTime() / 1000) : null;
 
-          // Snap to nearest available bar time for the marker
+          // Collect all execution timestamps that need markers
+          const markerTimestamps: number[] = executions && executions.length > 0
+            ? executions.map(e => Math.floor(new Date(e.executed_at).getTime() / 1000))
+            : [entryTs, ...(exitTs !== null ? [exitTs] : [])];
+
+          // For 1d charts, normalise timestamps to midnight UTC so they align
+          // with daily bars (LSEG bars always open at 00:00 UTC).
+          const SECS_PER_DAY = 86400;
+          const normalise = (ts: number): number =>
+            interval === "1d" ? Math.floor(ts / SECS_PER_DAY) * SECS_PER_DAY : ts;
+
+          const candleSet = new Set(candles.map(c => c.time as number));
+
+          // Insert synthetic flat candles for any marker timestamp not covered
+          // by an existing bar.  This guarantees the marker is rendered at the
+          // correct chronological position even when the LSEG hub has a data gap
+          // (e.g. the trade occurred weeks before the hub's earliest available bar).
+          const synthetics: ChartCandle[] = [];
+          for (const raw of markerTimestamps) {
+            const ts = normalise(raw);
+            if (!candleSet.has(ts)) {
+              // Use the price from the nearest real candle as the synthetic close
+              let nearest = candles[0];
+              let bestDiff = Math.abs((candles[0].time as number) - ts);
+              for (const c of candles) {
+                const d = Math.abs((c.time as number) - ts);
+                if (d < bestDiff) { nearest = c; bestDiff = d; }
+              }
+              const p = nearest.close;
+              synthetics.push({ time: ts as Time, open: p, high: p, low: p, close: p });
+              candleSet.add(ts);
+            }
+          }
+
+          if (synthetics.length > 0) {
+            candles = [...candles, ...synthetics].sort(
+              (a, b) => (a.time as number) - (b.time as number),
+            );
+          }
+
+          seriesRef.current.setData(candles);
+
+          // Snap: map an exact timestamp to the closest available bar time.
+          // Because we injected synthetic bars above, execution timestamps will
+          // always find an exact or very close match.
           const snap = (target: number): Time => {
+            const norm = normalise(target);
+            if (candleSet.has(norm)) return norm as Time;
             let best = candles[0].time as number;
-            let bestDiff = Math.abs(target - best);
+            let bestDiff = Math.abs(norm - best);
             for (const c of candles) {
-              const d = Math.abs(target - (c.time as number));
+              const d = Math.abs(norm - (c.time as number));
               if (d < bestDiff) { best = c.time as number; bestDiff = d; }
             }
             return best as Time;
@@ -491,7 +523,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           const markers: SeriesMarker<Time>[] =
             executions && executions.length > 0
               ? buildExecutionMarkers(executions, trade.direction, candles, snap)
-              : buildFallbackMarkers(entryTs, exitTs, snap);
+              : buildFallbackMarkers(entryTs, exitTs, trade.direction, snap);
 
           // Spacing and overall marker styling
           seriesRef.current.applyOptions({

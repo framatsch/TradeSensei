@@ -126,6 +126,18 @@ BYTES_PER_MB: int = 1024 * 1024
 IMPORT_MAX_FILE_SIZE_MB: int = 10
 """Maximum file size in megabytes allowed for broker import uploads."""
 
+IMPORT_EXECUTIONS_BATCH_SIZE: int = 500
+"""Default batch size for logical execution reads/updates during imports."""
+
+IMPORT_RETRY_MAX_ATTEMPTS: int = 3
+"""Maximum retry attempts for transient database errors in import hot paths."""
+
+IMPORT_RETRY_BASE_DELAY_SECONDS: float = 0.05
+"""Base delay in seconds for exponential backoff between import retries."""
+
+IMPORT_MEMORY_ALERT_THRESHOLD_BYTES: int = 128 * BYTES_PER_MB
+"""Peak-memory alert threshold (bytes) for import processing telemetry."""
+
 IMPORT_SUPPORTED_FORMATS: list[str] = ["csv", "xlsx", "xml"]
 """File extensions accepted by the broker import endpoint."""
 
@@ -182,6 +194,9 @@ FX_ECB_FALLBACK_DAYS: int = 3
 
 FX_ECB_TIMEOUT_SECONDS: float = 5.0
 """HTTP timeout in seconds for ECB API calls."""
+
+MILLISECONDS_PER_SECOND: int = 1000
+"""Number of milliseconds in one second."""
 
 # ─── Fresh-Start Import ───────────────────────────────────────────────────────
 

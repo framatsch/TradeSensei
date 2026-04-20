@@ -17,6 +17,8 @@ def _make_trade(
     id: uuid.UUID | None = None,
     user_id: uuid.UUID | None = None,
     account_id: uuid.UUID | None = None,
+    position_id: uuid.UUID | None = None,
+    playbook_id: uuid.UUID | None = None,
     symbol: str = "AAPL",
     direction: Direction = Direction.LONG,
     asset_class: AssetClass = AssetClass.EQUITY,
@@ -32,6 +34,7 @@ def _make_trade(
     multiplier: int = 1,
     currency: str | None = None,
     notes: str | None = None,
+    user_rating: int | None = None,
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
 ) -> Trade:
@@ -72,6 +75,10 @@ def _make_trade(
     trade.id = id if id is not None else uuid.uuid4()  # type: ignore[assignment]
     trade.user_id = user_id if user_id is not None else uuid.uuid4()  # type: ignore[assignment]
     trade.account_id = account_id  # type: ignore[assignment]
+    trade.position_id = (
+        position_id if position_id is not None else uuid.uuid4()
+    )  # type: ignore[assignment]
+    trade.playbook_id = playbook_id  # type: ignore[assignment]
     trade.symbol = symbol  # type: ignore[assignment]
     trade.direction = direction  # type: ignore[assignment]
     trade.asset_class = asset_class  # type: ignore[assignment]
@@ -87,6 +94,7 @@ def _make_trade(
     trade.multiplier = multiplier  # type: ignore[assignment]
     trade.currency = currency  # type: ignore[assignment]
     trade.notes = notes  # type: ignore[assignment]
+    trade.user_rating = user_rating  # type: ignore[assignment]
     trade.created_at = created_at if created_at is not None else now  # type: ignore[assignment]
     trade.updated_at = updated_at if updated_at is not None else now  # type: ignore[assignment]
     trade.screenshots = []  # type: ignore[assignment]
@@ -490,6 +498,48 @@ class TestUpdateTrade:
                 uuid.uuid4(),
             )
 
+    @pytest.mark.unit
+    async def test_propagates_metadata_to_open_position_siblings(
+        self, service: TradeService
+    ) -> None:
+        """update_trade should propagate metadata fields to open siblings."""
+        position_id = uuid.uuid4()
+        trade = _make_trade(position_id=position_id)
+        updated = _make_trade(position_id=position_id)
+        user_id = trade.user_id
+        assert user_id is not None
+
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.update",
+                new_callable=AsyncMock,
+                return_value=updated,
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.propagate_metadata_to_open_position_group",
+                new_callable=AsyncMock,
+                return_value=2,
+            ) as mock_propagate,
+        ):
+            result = await service.update_trade(
+                trade.id,  # type: ignore[arg-type]
+                TradeUpdate(notes="updated", user_rating=4),
+                user_id,
+            )
+
+        assert isinstance(result, TradeRead)
+        mock_propagate.assert_awaited_once_with(
+            source_trade=updated,
+            data=TradeUpdate(notes="updated", user_rating=4),
+            user_id=user_id,
+            compare_updated_at=trade.updated_at,
+        )
+
 
 class TestTradeUpdateNullableSentinel:
     """Tests verifying the nullable sentinel behaviour of :class:`TradeUpdate`.
@@ -621,5 +671,3 @@ class TestDeleteTrade:
             pytest.raises(TradeNotFoundError),
         ):
             await service.delete_trade(uuid.uuid4(), uuid.uuid4())
-
-

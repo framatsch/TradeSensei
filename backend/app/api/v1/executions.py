@@ -45,6 +45,9 @@ def _get_service(
     summary="List executions for a trade",
     description=(
         "Retrieve all logical execution legs for a specific trade. "
+        "Each execution includes split-aware lineage fields (``origin`` and "
+        "``parent_id``) so clients can identify child executions derived from "
+        "a shared parent fill. "
         "By default, soft-deleted executions are excluded. "
         "Pass ``include_deleted=true`` to include them "
         "(they will show ``deleted=true``)."
@@ -59,7 +62,9 @@ async def list_trade_executions(
         Query(
             description=(
                 "When true, include soft-deleted executions in the response. "
-                "Defaults to false."
+                "Defaults to false. This is useful to inspect split lineage, "
+                "because original parent executions are soft-deleted after "
+                "split allocation."
             )
         ),
     ] = False,

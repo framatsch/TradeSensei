@@ -195,9 +195,28 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
         <td className="px-3 py-2 text-sm text-right text-muted-foreground">{fmt(execution.commission)}</td>
         <td className="px-3 py-2 text-sm text-right">{fmtPnl(execution.pnl)}</td>
 
+        {/* Lineage */}
+        <td className="px-3 py-2 text-xs text-muted-foreground">
+          {execution.parent_id ? (
+            <span
+              className="inline-flex items-center rounded border border-border bg-muted px-2 py-0.5 font-mono"
+              title={`Parent execution: ${execution.parent_id}`}
+            >
+              {`↳ ${execution.parent_id.slice(0, 8)}`}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+
         {/* Status badge — shows "Deleted" */}
         <td className="px-3 py-2">
-          <ExecutionStatusBadge origin={execution.origin} deleted={true} user_modified={execution.user_modified} />
+          <ExecutionStatusBadge
+            origin={execution.origin}
+            deleted={true}
+            user_modified={execution.user_modified}
+            parent_id={execution.parent_id}
+          />
         </td>
 
         {/* Restore action */}
@@ -292,7 +311,17 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               className="w-20 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right"
             />
           ) : (
-            <span className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmtQty(execution.quantity)}</span>
+            <div className="inline-flex items-center justify-end gap-1.5">
+              <span className="cursor-pointer font-mono" onClick={() => setIsEditing(true)}>{fmtQty(execution.quantity)}</span>
+              {execution.origin === "split" && execution.parent_id && (
+                <span
+                  className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+                  title={`Proportionally allocated quantity from parent execution ${execution.parent_id}`}
+                >
+                  Allocated
+                </span>
+              )}
+            </div>
           )}
         </td>
 
@@ -351,12 +380,27 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
           )}
         </td>
 
+        {/* Lineage */}
+        <td className="px-3 py-2 text-xs text-muted-foreground">
+          {execution.parent_id ? (
+            <span
+              className="inline-flex items-center rounded border border-border bg-muted px-2 py-0.5 font-mono"
+              title={`Parent execution: ${execution.parent_id}`}
+            >
+              {`↳ ${execution.parent_id.slice(0, 8)}`}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+
         {/* Status badge */}
         <td className="px-3 py-2">
           <ExecutionStatusBadge
             origin={execution.origin}
             deleted={execution.deleted}
             user_modified={execution.user_modified}
+            parent_id={execution.parent_id}
           />
         </td>
 
@@ -444,7 +488,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
       {showDeleteConfirm && (
         <tr>
-          <td colSpan={trade.is_combo ? 11 : 9} className="px-3 py-3 bg-muted/50 border-b border-border">
+          <td colSpan={trade.is_combo ? 12 : 10} className="px-3 py-3 bg-muted/50 border-b border-border">
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-foreground">
                 Delete this execution? This will re-aggregate the trade.
