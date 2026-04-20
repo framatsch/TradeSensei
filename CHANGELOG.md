@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-04-20
+
+### Added
+- [backend] Split-aware execution linking with FIFO aggregator to correctly track position costs across partial closes and splits.
+- [backend] Automatic underlying symbol extraction from OCC strings for IBKR XML imports (options trades).
+- [frontend] TradeChart improvements: cyan (buy) and orange (sell) markers for executions; synthetic candles to bridge data gaps in low-volume assets.
+- [backend] New test modules for execution linking, FIFO aggregation, and OCC string parsing.
+- [db] Migrations for `position_id` on executions, `user_rating` on trades, and optimized indexes for split-tracking.
+
+### Fixed
+- [backend] Proportional commission validation logic to allow zero commissions on free trades while maintaining strict upper bounds.
+- [frontend] `ExecutionRow` column alignment and trade detail layout fixes for improved readability on mobile devices.
+
+### Changed
+- [infra] Stabilized 36 Playwright E2E tests by adding robust locators and retry logic for flaky network requests.
+
 ## [0.22.0] - 2026-04-19
 
 ### Added
@@ -212,6 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[0.24.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.22.0...v0.24.0
 [0.22.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.21.0...v0.22.0
 [0.17.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.15.0...v0.16.0
@@ -223,6 +240,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.22.0...HEAD
+[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.24.0...HEAD
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
