@@ -581,7 +581,7 @@ def aggregate_executions_fifo(
                 # Flipped position -> new open lot
                 # IMPORTANT: Only carry over source_execution_id if it's not already
                 # matched as a closing leg for a preceding match in this same loop.
-                # However, for a flip, the exec_trade IS the opening leg of the 
+                # However, for a flip, the exec_trade IS the opening leg of the
                 # new lot, so carrying it over is correct.
                 flipped_lot = exec_trade.model_copy(
                     update={
@@ -761,7 +761,7 @@ def _apply_split_event(
             # CorporateActions are applied in the same day (rare but possible).
             # The aggregator loop handles this by applying CAs in sequence
             # before each execution.
-            
+
             # Use a threshold check to see if this CA was already applied to this lot.
             # Each CA has a unique date/ratio/symbol.
             # We can use the lot's metadata or just trust the sequential processing.
@@ -781,8 +781,8 @@ def _apply_split_event(
             # Scale source_commission proportionally if it was set
             if lot.source_commission is not None:
                 lot.source_commission = lot.source_commission * ca.ratio
-            
-            # Note: We do NOT scale commission_used_open here because it's only 
+
+            # Note: We do NOT scale commission_used_open here because it's only
             # set when a lot is matched and moved to completed_trades.
             # Open lots only have 'commission'.
             if lot.commission is not None:
@@ -893,7 +893,7 @@ def aggregate_executions_fifo_with_sources(
             # use a simplified approach for now: the aggregator already
             # calculates lot_comm (commission portion for the match).
             # Let's use that.
-            
+
             source_allocations.append(
                 ExecutionAllocation(
                     execution_id=trade.source_execution_id,
@@ -912,8 +912,8 @@ def aggregate_executions_fifo_with_sources(
             # For closing executions, the split factor is already applied
             # to the execution quantity before it enters the aggregator, so we
             # don't need to divide by source_qty_factor here.
-            
-            # CRITICAL: Verify if this closing execution was already used as the 
+
+            # CRITICAL: Verify if this closing execution was already used as the
             # opening leg for the SAME trade (happens in position flips).
             if trade.closing_execution_id in seen_execution_ids:
                 # Deduplicate within the same trade: the same execution ID appearing

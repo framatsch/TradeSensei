@@ -69,9 +69,9 @@ def _extract_occ_underlying(symbol: str) -> str:
     if len(symbol) <= _OCC_SUFFIX_LEN:
         return symbol
     suffix_start = len(symbol) - _OCC_SUFFIX_LEN
-    expiry = symbol[suffix_start: suffix_start + 6]
+    expiry = symbol[suffix_start : suffix_start + 6]
     type_char = symbol[suffix_start + 6]
-    strike = symbol[suffix_start + 7:]
+    strike = symbol[suffix_start + 7 :]
     if expiry.isdigit() and type_char in ("C", "P") and strike.isdigit():
         return symbol[:suffix_start].strip()
     return symbol

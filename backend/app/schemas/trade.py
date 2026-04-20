@@ -321,22 +321,52 @@ class TradeCreate(BaseModel):
             "Tells the aggregator this execution flips the position."
         ),
     )
-    source_execution_id: uuid.UUID | None = Field(
+    source_execution_id: uuid.UUID | str | None = Field(
         default=None,
         exclude=True,
         description=(
             "Internal field — set during aggregation to track which "
             "LogicalExecution this TradeCreate originated from. "
-            "Used for split-aware execution linking."
+            "Used for split-aware execution linking. "
+            "Accepts UUID for database-backed executions or string for "
+            "raw/transient executions (e.g. during Ground Truth aggregation)."
         ),
     )
-    closing_execution_id: uuid.UUID | None = Field(
+    closing_execution_id: uuid.UUID | str | None = Field(
         default=None,
         exclude=True,
         description=(
             "Internal field — set during FIFO aggregation to track which "
             "LogicalExecution closed this round-trip trade. "
-            "Used for split-aware execution linking of exit legs."
+            "Used for split-aware execution linking of exit legs. "
+            "Accepts UUID for database-backed executions or string for "
+            "raw/transient executions."
+        ),
+    )
+    source_qty_factor: Decimal = Field(
+        default=Decimal("1"),
+        exclude=True,
+        description=(
+            "Internal multiplier for quantity matching. "
+            "Accounts for stock splits during FIFO aggregation."
+        ),
+    )
+    commission_used_open: Decimal | None = Field(
+        default=None,
+        exclude=True,
+        description="Internal field — portion of opening commission for this match.",
+    )
+    commission_used_close: Decimal | None = Field(
+        default=None,
+        exclude=True,
+        description="Internal field — portion of closing commission for this match.",
+    )
+    source_commission: Decimal | None = Field(
+        default=None,
+        exclude=True,
+        description=(
+            "Internal field — original execution commission before aggregation. "
+            "Used to proportionally allocate commission during split-linking."
         ),
     )
 

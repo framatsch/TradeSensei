@@ -1076,7 +1076,7 @@ class ImportService:
                             )
                         else:
                             proportional_comm = Decimal("0")
-                        
+
                         corrected_alloc = ExecutionAllocation(
                             execution_id=alloc.execution_id,
                             quantity_used=alloc.quantity_used,
@@ -1085,7 +1085,7 @@ class ImportService:
                         )
                         trade_allocation_map[trade_id] = corrected_alloc
                         corrected_usage_list.append((trade_id, corrected_alloc))
-                    
+
                     usage_list = corrected_usage_list
                     execution_usage_map[execution_id] = usage_list
 

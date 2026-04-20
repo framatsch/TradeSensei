@@ -194,6 +194,20 @@ class BrokerRawTransactionRepository:
             .returning(BrokerRawTransaction.id)
         )
         result = await self._session.execute(stmt)
-        deleted = list(result.scalars().all())
+        # Handle both sync Result (SQLAlchemy) and AsyncMock (tests)
+        from inspect import isawaitable
+
+        if isawaitable(result):
+            result = await result
+
+        scalars_obj = result.scalars()
+        if isawaitable(scalars_obj):
+            scalars_obj = await scalars_obj
+
+        all_items = scalars_obj.all()
+        if isawaitable(all_items):
+            all_items = await all_items
+
+        deleted = list(all_items)
         await self._session.flush()
         return len(deleted)

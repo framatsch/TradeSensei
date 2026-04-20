@@ -130,9 +130,7 @@ class Trade(Base):
         UUID(as_uuid=True),
         nullable=False,
         server_default=func.gen_random_uuid(),
-        comment=(
-            "Stable business-position identifier shared by split-derived trades."
-        ),
+        comment=("Stable business-position identifier shared by split-derived trades."),
     )
     direction: Mapped[Direction] = mapped_column(
         Enum(Direction, name="direction_enum"),

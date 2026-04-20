@@ -917,8 +917,7 @@ class TradeRepository:
             eligible = [
                 s
                 for s in siblings
-                if s.id != source_trade.id
-                and s.updated_at <= compare_time
+                if s.id != source_trade.id and s.updated_at <= compare_time
             ]
             for sibling in eligible:
                 await self._set_tags(sibling, data.tag_ids)
