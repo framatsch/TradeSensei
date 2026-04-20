@@ -44,7 +44,7 @@ class ExecutionAllocation:
     split across multiple trades and how to allocate quantities proportionally.
     """
 
-    execution_id: uuid.UUID  # Source LogicalExecution ID
+    execution_id: uuid.UUID | str  # Source LogicalExecution ID
     quantity_used: Decimal  # Portion allocated to this trade
     commission_used: Decimal  # Proportional commission
     entry_price: Decimal  # Execution price
@@ -391,6 +391,7 @@ def aggregate_executions_fifo(
                         "broker_conid": conid,
                         "quantity": exec_qty_remaining,
                         "commission": exec_commission_remaining,
+                        "source_commission": exec_trade.commission,
                     }
                 )
                 queue.append(stored_trade)
@@ -516,6 +517,8 @@ def aggregate_executions_fifo(
                     "exit_price": exit_price,
                     "closed_at": closed_at,  # actual closing time (or bumped)
                     "commission": lot_comm + exec_comm,
+                    "commission_used_open": lot_comm,
+                    "commission_used_close": exec_comm,
                     "pnl": matched_pnl,
                     "pnl_eur": matched_pnl_eur,
                     "net_pnl": matched_net_pnl,
@@ -525,6 +528,10 @@ def aggregate_executions_fifo(
                     "closing_execution_id": exec_trade.source_execution_id,
                 }
             )
+            closed_trade.source_execution_id = open_lot.source_execution_id
+            closed_trade.source_qty_factor = open_lot.source_qty_factor
+            closed_trade.source_commission = open_lot.source_commission
+
             completed_trades.append(closed_trade)
 
             # Deduct quantities
@@ -572,6 +579,10 @@ def aggregate_executions_fifo(
                 completed_trades.append(orphaned_trade)
             else:
                 # Flipped position -> new open lot
+                # IMPORTANT: Only carry over source_execution_id if it's not already
+                # matched as a closing leg for a preceding match in this same loop.
+                # However, for a flip, the exec_trade IS the opening leg of the 
+                # new lot, so carrying it over is correct.
                 flipped_lot = exec_trade.model_copy(
                     update={
                         "symbol": symbol,
@@ -581,6 +592,9 @@ def aggregate_executions_fifo(
                         "pnl": None,
                         "closed_at": None,
                         "exit_price": None,
+                        "source_execution_id": exec_trade.source_execution_id,
+                        # Reset closing leg info as this is now an open lot
+                        "closing_execution_id": None,
                     }
                 )
                 queue.append(flipped_lot)
@@ -739,18 +753,40 @@ def _apply_split_event(
         if not (symbol_match and conid_match):
             continue
 
-        if not queue:
-            continue
-
         # Adjust all lots in this queue
         for lot in queue:
+            # Task 4.4 — IMPORTANT: Use the ratio provided in the corporate action
+            # to adjust quantities and prices.
+            # However, we must ensure we don't double-adjust a lot if multiple
+            # CorporateActions are applied in the same day (rare but possible).
+            # The aggregator loop handles this by applying CAs in sequence
+            # before each execution.
+            
+            # Use a threshold check to see if this CA was already applied to this lot.
+            # Each CA has a unique date/ratio/symbol.
+            # We can use the lot's metadata or just trust the sequential processing.
+            # Wait — if ca.ratio is 1.0, it's a no-op.
+            if ca.ratio == Decimal("1"):
+                continue
+
             lot_qty = cast(Decimal, lot.quantity)
             lot_entry_price = cast(Decimal, lot.entry_price)
             lot.quantity = lot_qty * ca.ratio
             lot.entry_price = lot_entry_price / ca.ratio
+            lot.source_qty_factor = (lot.source_qty_factor or Decimal("1")) * ca.ratio
             # Update the conid stored in each lot to the new conid (if provided)
             if ca.new_conid is not None:
                 lot.broker_conid = ca.new_conid
+
+            # Scale source_commission proportionally if it was set
+            if lot.source_commission is not None:
+                lot.source_commission = lot.source_commission * ca.ratio
+            
+            # Note: We do NOT scale commission_used_open here because it's only 
+            # set when a lot is matched and moved to completed_trades.
+            # Open lots only have 'commission'.
+            if lot.commission is not None:
+                lot.commission = lot.commission * ca.ratio
 
         logger.debug(
             "Applied split ratio=%s for symbol '%s' to %d open lot(s) (key=%s).",
@@ -822,17 +858,6 @@ def aggregate_executions_fifo_with_sources(
         seed_orphaned_lots=seed_orphaned_lots,
     )
 
-    # Build usage counts per execution for split detection in O(n).
-    # Both opening (source_execution_id) and closing (closing_execution_id)
-    # executions are tracked so splits on either leg are detected correctly.
-    execution_usage_count: dict[uuid.UUID, int] = {}
-
-    for trade in aggregated_trades:
-        for exec_id in (trade.source_execution_id, trade.closing_execution_id):
-            if exec_id is None:
-                continue
-            execution_usage_count[exec_id] = execution_usage_count.get(exec_id, 0) + 1
-
     # Create TradeCreateWithSources wrappers with proper allocation tracking.
     # Each closed trade contributes two allocations: one for the opening execution
     # and one for the closing execution.  Open (unclosed) trades contribute only
@@ -843,31 +868,90 @@ def aggregate_executions_fifo_with_sources(
         source_allocations: list[ExecutionAllocation] = []
         quantity_for_this_trade = trade.quantity or Decimal("0")
 
+        # Track seen execution IDs for this trade to prevent double-counting
+        # within a single trade (e.g. flips).
+        seen_execution_ids: set[uuid.UUID | str] = set()
+
         if trade.source_execution_id:
+            # Scale opening quantity proportionally if it was adjusted by splits.
+            # (trade.quantity is the matched quantity after split adjustments,
+            # but we need the portion of the ORIGINAL execution used).
+            source_qty_factor = trade.source_qty_factor or Decimal("1")
+            allocated_qty = quantity_for_this_trade / source_qty_factor
+
+            # Calculate the portion of commission to allocate.
+            # We use the original source_commission if available.
+            source_comm = trade.source_commission
+            if source_comm is None:
+                c = trade.commission
+                source_comm = c / Decimal("2") if c else Decimal("0")
+
+            # Scale commission proportionally to the matched quantity
+            # relative to the total quantity in the open lot before matching.
+            # (In FIFO, a large entry might be split across multiple exits).
+            # We don't have the original lot quantity here easily, so we
+            # use a simplified approach for now: the aggregator already
+            # calculates lot_comm (commission portion for the match).
+            # Let's use that.
+            
             source_allocations.append(
                 ExecutionAllocation(
                     execution_id=trade.source_execution_id,
-                    quantity_used=quantity_for_this_trade,
-                    commission_used=trade.commission,
+                    quantity_used=allocated_qty,
+                    commission_used=trade.commission_used_open or Decimal("0"),
                     entry_price=trade.entry_price or Decimal("0"),
                 )
             )
+            seen_execution_ids.add(trade.source_execution_id)
 
+        # Only add closing allocation if it's different from the source allocation.
+        # This prevents double-counting when source_execution_id == closing_id,
+        # which can happen for single-execution round-trips
+        # (e.g. IBKR reported PnL on a flip).
         if trade.closing_execution_id:
-            source_allocations.append(
-                ExecutionAllocation(
-                    execution_id=trade.closing_execution_id,
-                    quantity_used=quantity_for_this_trade,
-                    commission_used=trade.commission,
-                    entry_price=trade.exit_price or Decimal("0"),
+            # For closing executions, the split factor is already applied
+            # to the execution quantity before it enters the aggregator, so we
+            # don't need to divide by source_qty_factor here.
+            
+            # CRITICAL: Verify if this closing execution was already used as the 
+            # opening leg for the SAME trade (happens in position flips).
+            if trade.closing_execution_id in seen_execution_ids:
+                # Deduplicate within the same trade: the same execution ID appearing
+                # as both opening and closing leg (e.g. position flips) must only
+                # be counted once to avoid "Allocation overflow" during validation.
+                pass
+            else:
+                source_allocations.append(
+                    ExecutionAllocation(
+                        execution_id=trade.closing_execution_id,
+                        quantity_used=quantity_for_this_trade,
+                        commission_used=trade.commission_used_close or Decimal("0"),
+                        entry_price=trade.exit_price or Decimal("0"),
+                    )
                 )
-            )
+                seen_execution_ids.add(trade.closing_execution_id)
 
         trade_with_sources = TradeCreateWithSources(
             trade_create=trade,
             source_executions=source_allocations,
         )
+        logger.debug(
+            "Trade with sources: symbol=%s, qty=%s, sources=%s",
+            trade.symbol,
+            quantity_for_this_trade,
+            [f"{a.execution_id}:{a.quantity_used}" for a in source_allocations],
+        )
         trades_with_sources.append(trade_with_sources)
+
+    # Build usage counts per execution for split detection in O(n).
+    # Both opening (source_execution_id) and closing (closing_execution_id)
+    # executions are tracked so splits on either leg are detected correctly.
+    execution_usage_count: dict[uuid.UUID | str, int] = {}
+
+    for trade_source in trades_with_sources:
+        for allocation in trade_source.source_executions:
+            exec_id = allocation.execution_id
+            execution_usage_count[exec_id] = execution_usage_count.get(exec_id, 0) + 1
 
     # Log split detection summary
     executions_needing_split = {

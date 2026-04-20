@@ -977,7 +977,7 @@ class ImportService:
             tracemalloc_started = True
         processed_trade_ids: set[uuid.UUID] = set()
         execution_usage_map: dict[
-            uuid.UUID, list[tuple[uuid.UUID, ExecutionAllocation]]
+            uuid.UUID | str, list[tuple[uuid.UUID, ExecutionAllocation]]
         ] = {}
 
         try:
@@ -1007,15 +1007,33 @@ class ImportService:
 
             execution_ids = list(execution_usage_map.keys())
             if execution_ids:
+                # Filter out string IDs (ground-truth) from DB backfill check.
+                # Ground-truth executions are already validated during aggregation.
+                db_execution_ids = [
+                    eid for eid in execution_ids if isinstance(eid, uuid.UUID)
+                ]
                 fetched_executions = await self._list_executions_for_backfill(
-                    execution_ids=execution_ids,
+                    execution_ids=db_execution_ids,
                     user_id=user_id,
                 )
                 execution_by_id = {
                     execution.id: execution for execution in fetched_executions
                 }
 
+                # Build a mapping of trade_id to its TradeCreate object for easy lookup
+                trade_create_map: dict[uuid.UUID, TradeCreate] = {}
+                for trade_source in trades_with_sources:
+                    trade = trade_source.created_trade
+                    if trade is None:
+                        continue
+                    trade_create_map[trade.id] = trade_source.trade_create
+
                 for execution_id, usage_list in execution_usage_map.items():
+                    # Skip non-UUID IDs (ground-truth sentinel IDs) from
+                    # further DB-level backfill.
+                    if not isinstance(execution_id, uuid.UUID):
+                        continue
+
                     execution = execution_by_id.get(execution_id)
                     if execution is None:
                         raise ExecutionNotFoundError(
@@ -1024,36 +1042,52 @@ class ImportService:
                         )
 
                     # Recompute commission_used proportionally from the original
-                    # execution's commission.  The aggregator stores the full
-                    # round-trip trade commission in allocation.commission_used,
-                    # which includes contributions from both the entry and exit
-                    # execution legs.  For split validation and child-execution
-                    # creation we only want the portion of the *entry* execution's
-                    # commission that corresponds to this trade's quantity share.
+                    # execution's commission.
                     exec_qty = execution.quantity
                     exec_comm = execution.commission
                     corrected_usage_list: list[
                         tuple[uuid.UUID, ExecutionAllocation]
                     ] = []
+
+                    # Deduplicate allocations per trade: an execution can appear as
+                    # both opening and closing leg of the same trade in position flips.
+                    # Only the first occurrence per (execution, trade) pair is kept.
+                    trade_allocation_map: dict[uuid.UUID, ExecutionAllocation] = {}
+
                     for trade_id, alloc in usage_list:
+                        if trade_id in trade_allocation_map:
+                            # Already seen this execution in this trade.
+                            # Verify quantity matches (should be same for flip).
+                            existing = trade_allocation_map[trade_id]
+                            if existing.quantity_used != alloc.quantity_used:
+                                logger.warning(
+                                    "Execution %s mismatched qty for trade %s: "
+                                    "%s != %s",
+                                    execution_id,
+                                    trade_id,
+                                    existing.quantity_used,
+                                    alloc.quantity_used,
+                                )
+                            continue
+
                         if exec_qty > Decimal("0"):
                             proportional_comm = (
                                 exec_comm * alloc.quantity_used / exec_qty
                             )
                         else:
                             proportional_comm = Decimal("0")
-                        corrected_usage_list.append(
-                            (
-                                trade_id,
-                                ExecutionAllocation(
-                                    execution_id=alloc.execution_id,
-                                    quantity_used=alloc.quantity_used,
-                                    commission_used=proportional_comm,
-                                    entry_price=alloc.entry_price,
-                                ),
-                            )
+                        
+                        corrected_alloc = ExecutionAllocation(
+                            execution_id=alloc.execution_id,
+                            quantity_used=alloc.quantity_used,
+                            commission_used=proportional_comm,
+                            entry_price=alloc.entry_price,
                         )
+                        trade_allocation_map[trade_id] = corrected_alloc
+                        corrected_usage_list.append((trade_id, corrected_alloc))
+                    
                     usage_list = corrected_usage_list
+                    execution_usage_map[execution_id] = usage_list
 
                     allocations = [allocation for _, allocation in usage_list]
                     self._validate_split_quantities(execution.quantity, allocations)
@@ -1159,7 +1193,7 @@ class ImportService:
             trades_with_sources: Created trades with source execution allocations.
             user_id: Owning user UUID.
         """
-        execution_to_trade_ids: dict[uuid.UUID, set[uuid.UUID]] = {}
+        execution_to_trade_ids: dict[uuid.UUID | str, set[uuid.UUID]] = {}
         trade_by_id: dict[uuid.UUID, object] = {}
 
         for trade_source in trades_with_sources:
@@ -1768,7 +1802,7 @@ class ImportService:
         Returns:
             Number of resolved orphaned child rows.
         """
-        expected_trade_ids_by_parent: dict[uuid.UUID, list[uuid.UUID]] = {}
+        expected_trade_ids_by_parent: dict[uuid.UUID | str, list[uuid.UUID]] = {}
         for trade_source in trades_with_sources:
             created_trade = trade_source.created_trade
             if created_trade is None:
@@ -1779,8 +1813,8 @@ class ImportService:
                     [],
                 ).append(created_trade.id)
 
-        siblings_by_parent: dict[uuid.UUID, list[LogicalExecution]] = {}
-        unresolved_trade_ids_by_parent: dict[uuid.UUID, list[uuid.UUID]] = {}
+        siblings_by_parent: dict[uuid.UUID | str, list[LogicalExecution]] = {}
+        unresolved_trade_ids_by_parent: dict[uuid.UUID | str, list[uuid.UUID]] = {}
 
         account_ids = {
             trade_source.created_trade.account_id

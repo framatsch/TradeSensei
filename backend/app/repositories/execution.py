@@ -116,7 +116,10 @@ class ExecutionRepository:
             stmt = stmt.where(LogicalExecution.origin == origin)
         if not include_deleted:
             stmt = stmt.where(LogicalExecution.deleted.is_(False))
-        stmt = stmt.order_by(LogicalExecution.executed_at.asc())
+        stmt = stmt.order_by(
+            LogicalExecution.executed_at.asc(),
+            LogicalExecution.id.asc(),  # Stable tie-breaker for pagination
+        )
         if offset > 0:
             stmt = stmt.offset(offset)
         if limit is not None:
