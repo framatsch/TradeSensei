@@ -1032,7 +1032,9 @@ class ImportService:
                     # commission that corresponds to this trade's quantity share.
                     exec_qty = execution.quantity
                     exec_comm = execution.commission
-                    corrected_usage_list: list[tuple[uuid.UUID, ExecutionAllocation]] = []
+                    corrected_usage_list: list[
+                        tuple[uuid.UUID, ExecutionAllocation]
+                    ] = []
                     for trade_id, alloc in usage_list:
                         if exec_qty > Decimal("0"):
                             proportional_comm = (
