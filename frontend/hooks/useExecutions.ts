@@ -66,7 +66,7 @@ export function useTradeExecutions(tradeId: string, includeDeleted = false) {
         responseStyle: "data",
       });
 
-      return envelope.data.map(mapGeneratedExecution);
+      return (envelope as unknown as { data: GeneratedLogicalExecutionRead[] }).data.map(mapGeneratedExecution);
     },
     staleTime: 5 * 1000, // 5 seconds to ensure fresh data after updates
     enabled: Boolean(tradeId),

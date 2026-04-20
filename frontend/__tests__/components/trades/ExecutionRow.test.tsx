@@ -41,6 +41,8 @@ const baseTrade: Trade = {
   updated_at: "2024-01-01T00:00:00Z",
   is_manually_edited: false,
   tags: [],
+  position_id: "pos-1",
+  user_rating: 0,
   trade_notes: [],
 };
 
