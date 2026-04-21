@@ -20,11 +20,14 @@ from app.core.exceptions import (
     AccountNotFoundError,
     BrokerRawTransactionNotFoundError,
     FlexAPIError,
+    ImportNotAllowedError,
     ImportParseError,
     RateLimitError,
     UnsupportedBrokerError,
 )
+from app.models.account import AccountType
 from app.models.user import User
+from app.repositories.account_repository import AccountRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionRead
 from app.schemas.common import ResponseEnvelope
 from app.schemas.imports import FlexImportRequest, FreshStartResult, ImportResult
@@ -36,6 +39,18 @@ router = APIRouter(prefix="/imports", tags=["imports"])
 
 # 1 MB in bytes.
 _BYTES_PER_MB: int = 1024 * 1024
+
+# Allowed file extensions per broker type.
+_BROKER_ALLOWED_EXTENSIONS: dict[BrokerType, frozenset[str]] = {
+    BrokerType.IBKR: frozenset({"xml"}),
+    BrokerType.SCHWAB: frozenset({"csv"}),
+}
+
+# Allowed broker types per account type (manual accounts cannot import files).
+_ACCOUNT_TYPE_BROKER: dict[AccountType, BrokerType] = {
+    AccountType.IBKR: BrokerType.IBKR,
+    AccountType.SCHWAB: BrokerType.SCHWAB,
+}
 
 
 def _get_service(
@@ -78,19 +93,61 @@ def _get_flex_service(
     return FlexImportService(session, flex_token=token)
 
 
+async def _validate_account_import(
+    account_id: uuid.UUID,
+    user_id: uuid.UUID,
+    extension: str,
+    session: AsyncSession,
+) -> BrokerType:
+    """Verify the account exists, is not manual, and the file extension matches.
+
+    Args:
+        account_id: UUID of the target account.
+        user_id: UUID of the authenticated user.
+        extension: Lowercase file extension (without leading dot).
+        session: Database session for the account lookup.
+
+    Returns:
+        The :class:`BrokerType` to use for parsing.
+
+    Raises:
+        ImportNotAllowedError: If the account is manual, or the file extension
+            does not match the expected format for the account type.
+        AccountNotFoundError: If the account does not exist or is not owned by
+            the user.
+    """
+    account = await AccountRepository(session).get_by_id(account_id, user_id)
+    if account is None:
+        raise AccountNotFoundError(
+            f"Account {account_id} not found for user {user_id}."
+        )
+    broker = _ACCOUNT_TYPE_BROKER.get(account.type)
+    if broker is None:
+        raise ImportNotAllowedError(
+            f"Account '{account.name}' is a manual account. "
+            "File import is not supported for manual accounts."
+        )
+    allowed = _BROKER_ALLOWED_EXTENSIONS[broker]
+    if extension not in allowed:
+        raise ImportNotAllowedError(
+            f"Account '{account.name}' ({account.type.upper()}) only accepts "
+            f"{', '.join(f'.{e}' for e in sorted(allowed))} files. "
+            f"Received: .{extension}"
+        )
+    return broker
+
+
 @router.post(
     "/upload",
     response_model=ResponseEnvelope[ImportResult],
     status_code=status.HTTP_200_OK,
     summary="Upload a broker export file and import trades",
     description=(
-        "Parse a broker export file (CSV, XLSX, or XML) and bulk-create the "
-        "contained trades for the specified account. "
-        "Supported brokers: `ibkr` (Interactive Brokers Activity Statement CSV "
-        "or Flex Query XML), "
-        "`schwab` (Charles Schwab trade history CSV). "
-        f"Maximum file size: {IMPORT_MAX_FILE_SIZE_MB} MB. "
-        f"Accepted formats: {', '.join(IMPORT_SUPPORTED_FORMATS)}."
+        "Parse a broker export file and bulk-create the contained trades for "
+        "the specified account. The accepted file format is determined by the "
+        "account type: IBKR accounts accept XML (Flex Query), Schwab accounts "
+        "accept CSV. Manual accounts do not support file import. "
+        f"Maximum file size: {IMPORT_MAX_FILE_SIZE_MB} MB."
     ),
     response_description=(
         "A summary of the import operation wrapped in a response envelope, "
@@ -102,23 +159,20 @@ def _get_flex_service(
         401: {"description": "Authentication required."},
         404: {"description": "Account not found or not owned by the current user."},
         413: {"description": "File exceeds the maximum allowed size."},
-        422: {"description": "Form parameter validation error."},
+        422: {"description": "File type not allowed for this account type."},
     },
 )
 async def upload_import(
     service: Annotated[ImportService, Depends(_get_service)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
     current_user: Annotated[User, Depends(get_current_user)],
-    broker: Annotated[
-        BrokerType,
-        FastAPIForm(description="Broker type: 'ibkr' or 'schwab'."),
-    ],
     file: UploadFile,
     account_id: Annotated[
-        uuid.UUID | None,
+        uuid.UUID,
         FastAPIForm(
-            description="UUID of the account to import trades into (optional)."
+            description="UUID of the account to import trades into."
         ),
-    ] = None,
+    ],
     overwrite_manually_edited: Annotated[
         bool,
         FastAPIForm(
@@ -132,13 +186,16 @@ async def upload_import(
 ) -> ResponseEnvelope[ImportResult]:
     """Upload a broker export file and import the trades it contains.
 
+    The broker parser is determined automatically from the account type:
+    IBKR accounts use the XML (Flex Query) parser, Schwab accounts use the
+    CSV parser. Manual accounts are rejected with HTTP 422.
+
     Args:
         service: Injected import service.
-        current_user: The authenticated user (account ownership is
-            validated inside the service).
-        broker: The broker type that determines which parser to use.
+        session: Database session used for the account type lookup.
+        current_user: The authenticated user.
+        file: The uploaded file.
         account_id: UUID of the target broker account.
-        file: The uploaded file (CSV, XLSX, or XML).
         overwrite_manually_edited: When ``True``, manually-edited trades
             are overwritten instead of skipped.
 
@@ -148,31 +205,34 @@ async def upload_import(
         any non-fatal warnings.
 
     Raises:
-        HTTPException: 400 if the file extension is not supported or the
-            file cannot be parsed.
+        HTTPException: 400 if the file cannot be parsed.
         HTTPException: 404 if the account is not found or not owned by
             the current user.
         HTTPException: 413 if the uploaded file exceeds the size limit.
+        HTTPException: 422 if the file type does not match the account type,
+            or if the account is manual.
     """
-    # --- Validate file extension -------------------------------------------
     filename = file.filename or "upload"
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if extension not in IMPORT_SUPPORTED_FORMATS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Unsupported file format '.{extension}'. "
-                f"Accepted formats: {', '.join(IMPORT_SUPPORTED_FORMATS)}."
-            ),
-        )
 
-    # --- Route XML uploads for IBKR to the Flex/XML parser -----------------
-    # IBKR Activity Flex Query exports are XML files.  The user selects
-    # broker="ibkr" in the UI; we transparently switch to ibkr_flex so the
-    # IBKRXMLParser handles the file instead of the CSV parser.
-    effective_broker = broker
-    if extension == "xml" and broker == BrokerType.IBKR:
-        effective_broker = BrokerType.IBKR_FLEX
+    # --- Validate account type and file extension --------------------------
+    try:
+        broker = await _validate_account_import(
+            account_id=account_id,
+            user_id=current_user.id,
+            extension=extension,
+            session=session,
+        )
+    except AccountNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ImportNotAllowedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
     # --- Read file content with size guard ---------------------------------
     max_bytes = IMPORT_MAX_FILE_SIZE_MB * _BYTES_PER_MB
@@ -191,7 +251,7 @@ async def upload_import(
         result = await service.import_file(
             content=content,
             filename=filename,
-            broker=effective_broker,
+            broker=broker,
             account_id=account_id,
             user_id=current_user.id,
             overwrite_manually_edited=overwrite_manually_edited,
@@ -221,7 +281,9 @@ async def upload_import(
         "BrokerRawTransactions are never deleted. "
         "Suppressed BRTs remain suppressed and are skipped during re-import. "
         "The entire operation runs in a single DB transaction — any error rolls "
-        "back all changes."
+        "back all changes. "
+        "The accepted file format is determined by the account type: IBKR accepts "
+        "XML (Flex Query), Schwab accepts CSV."
     ),
     responses={
         200: {"description": "Fresh-start completed. Check import_result for details."},
@@ -229,16 +291,14 @@ async def upload_import(
         401: {"description": "Authentication required."},
         404: {"description": "Account not found or not owned by the current user."},
         413: {"description": "File exceeds the maximum allowed size."},
+        422: {"description": "File type not allowed for this account type."},
     },
 )
 async def fresh_start_import(
     account_id: uuid.UUID,
     service: Annotated[ImportService, Depends(_get_service)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
     current_user: Annotated[User, Depends(get_current_user)],
-    broker: Annotated[
-        BrokerType,
-        FastAPIForm(description="Broker type: 'ibkr' or 'schwab'."),
-    ],
     file: UploadFile,
     acknowledged: Annotated[
         bool,
@@ -252,11 +312,13 @@ async def fresh_start_import(
 ) -> ResponseEnvelope[FreshStartResult]:
     """Reset an account and re-import all trades from a broker file.
 
+    The broker parser is determined automatically from the account type.
+
     Args:
         account_id: UUID of the account to reset.
         service: Injected import service.
+        session: Database session used for the account type lookup.
         current_user: The authenticated user.
-        broker: The broker type that determines which parser to use.
         file: The uploaded broker export file.
         acknowledged: Must be True to confirm the destructive action.
 
@@ -267,6 +329,7 @@ async def fresh_start_import(
         HTTPException: 400 if ``acknowledged`` is False or the file cannot be parsed.
         HTTPException: 404 if the account is not found.
         HTTPException: 413 if the file is too large.
+        HTTPException: 422 if the file type does not match the account type.
     """
     if not acknowledged:
         raise HTTPException(
@@ -277,21 +340,27 @@ async def fresh_start_import(
             ),
         )
 
-    # --- Validate file extension ---
     filename = file.filename or "upload"
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if extension not in IMPORT_SUPPORTED_FORMATS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Unsupported file format '.{extension}'. "
-                f"Accepted formats: {', '.join(IMPORT_SUPPORTED_FORMATS)}."
-            ),
-        )
 
-    effective_broker = broker
-    if extension == "xml" and broker == BrokerType.IBKR:
-        effective_broker = BrokerType.IBKR_FLEX
+    # --- Validate account type and file extension --------------------------
+    try:
+        broker = await _validate_account_import(
+            account_id=account_id,
+            user_id=current_user.id,
+            extension=extension,
+            session=session,
+        )
+    except AccountNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ImportNotAllowedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
     # --- Read file with size guard ---
     max_bytes = IMPORT_MAX_FILE_SIZE_MB * _BYTES_PER_MB
@@ -305,9 +374,7 @@ async def fresh_start_import(
             ),
         )
 
-    # --- Apply statement_timeout guard (task 5.4) ---
-    # Configurable via FRESH_START_TIMEOUT env var (default: 60 s).
-    # SET LOCAL is transaction-scoped and resets automatically on commit/rollback.
+    # --- Apply statement_timeout guard ---
     timeout_seconds = settings.fresh_start_timeout
     await service.set_statement_timeout(timeout_seconds)
 
@@ -315,7 +382,7 @@ async def fresh_start_import(
         result = await service.fresh_start_import(
             content=content,
             filename=filename,
-            broker=effective_broker,
+            broker=broker,
             account_id=account_id,
             user_id=current_user.id,
         )

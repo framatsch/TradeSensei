@@ -348,7 +348,7 @@ class ImportService:
         # Enrich pnl_eur — base class provides a no-op default so this is always safe.
         await parser.enrich_pnl_eur(parsed_trades, self._session)
 
-        # Collect parser warnings (IBKRParser / SchwabParser expose .warnings).
+        # Collect parser warnings (IBKRXMLParser / SchwabParser expose .warnings).
         parser_warnings += getattr(parser, "warnings", [])
 
         trades_created = 0

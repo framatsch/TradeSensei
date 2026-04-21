@@ -95,7 +95,7 @@ async def test_sequential_import_matches_in_memory_ground_truth(
         await service.import_file(
             content=p.read_bytes(),
             filename=p.name,
-            broker=BrokerType.IBKR_FLEX,
+            broker=BrokerType.IBKR,
             account_id=account_id,
             user_id=user_id,
         )

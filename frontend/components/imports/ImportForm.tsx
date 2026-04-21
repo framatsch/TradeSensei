@@ -27,6 +27,20 @@ const TYPE_LABEL: Record<AccountType, string> = {
   ibkr: "IBKR",
 };
 
+// Accepted file extensions per account type
+const ACCOUNT_ACCEPT: Record<AccountType, string> = {
+  ibkr: ".xml",
+  schwab: ".csv",
+  manual: "",
+};
+
+// Human-readable format hint per account type
+const ACCOUNT_FORMAT_HINT: Record<AccountType, string> = {
+  ibkr: "XML (IBKR Flex Query)",
+  schwab: "CSV (Schwab Trade History)",
+  manual: "",
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getTodayYYYYMMDD(): string {
@@ -133,7 +147,7 @@ export function ImportForm() {
 
   // ── Sequential file upload queue ──────────────────────────────────────────
   const runQueue = useCallback(
-    async (files: QueuedFile[], broker: string, overwrite: boolean) => {
+    async (files: QueuedFile[], overwrite: boolean) => {
       setIsQueueRunning(true);
       abortRef.current = false;
 
@@ -148,7 +162,6 @@ export function ImportForm() {
         const qf = files[i];
         try {
           const formData = new FormData();
-          formData.append("broker", broker);
           formData.append("account_id", accountId);
           formData.append("file", qf.file);
           if (overwrite) formData.append("overwrite_manually_edited", "true");
@@ -202,8 +215,7 @@ export function ImportForm() {
 
   const handleStartUpload = () => {
     if (!queuedFiles.length || !accountType) return;
-    const broker = accountType === "schwab" ? "schwab" : "ibkr";
-    runQueue(queuedFiles, broker, overwriteManuallyEdited);
+    runQueue(queuedFiles, overwriteManuallyEdited);
   };
 
   const handleAbort = () => {
@@ -226,9 +238,7 @@ export function ImportForm() {
     setFreshStartResult(null);
 
     try {
-      const broker = accountType === "schwab" ? "schwab" : "ibkr";
       const formData = new FormData();
-      formData.append("broker", broker);
       formData.append("acknowledged", "true");
       formData.append("file", freshStartFile);
 
@@ -467,7 +477,7 @@ export function ImportForm() {
                       <input
                         ref={freshStartFileRef}
                         type="file"
-                        accept=".csv,.xlsx,.xls,.xml"
+                        accept={accountType ? ACCOUNT_ACCEPT[accountType] : ""}
                         onChange={(e) => setFreshStartFile(e.target.files?.[0] ?? null)}
                         className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-muted file:text-foreground file:cursor-pointer file:font-medium"
                       />
@@ -540,10 +550,9 @@ export function ImportForm() {
             </div>
           )}
 
-          {/* File Upload */}
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            {/* Collapsible header for API accounts */}
-            {accountType !== "manual" ? (
+          {/* File Upload — only for broker accounts (ibkr/schwab) */}
+          {(accountType === "ibkr" || accountType === "schwab") && (
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowFileUpload((v) => !v)}
@@ -552,101 +561,95 @@ export function ImportForm() {
               >
                 <span className="text-sm font-medium text-muted-foreground">
                   Or upload files manually
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">
+                    ({accountType ? ACCOUNT_FORMAT_HINT[accountType] : ""})
+                  </span>
                 </span>
                 <span className="text-muted-foreground text-xs">
                   {showFileUpload ? "▲ Hide" : "▼ Show"}
                 </span>
               </button>
-            ) : (
-              <div className="px-6 pt-5 pb-0">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Upload Trade Files
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Select one or more files. Supported: CSV, XLSX, XML
-                </p>
-              </div>
-            )}
 
-            {(accountType === "manual" || showFileUpload) && (
-              <div className="px-6 py-4 space-y-4">
-                {/* File input — multi */}
-                {!isQueueRunning && !queueDone && (
-                  <div className="space-y-2">
-                    <input
-                      ref={fileInputRef}
-                      id="file"
-                      type="file"
-                      multiple
-                      accept=".csv,.xlsx,.xls,.xml"
-                      onChange={handleFileChange}
-                      className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-secondary file:text-foreground file:cursor-pointer hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700 file:font-medium"
-                    />
-                    {hasFiles && (
-                      <p className="text-xs text-muted-foreground dark:text-zinc-400">
-                        {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""} selected
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Queue progress (while running) */}
-                {(isQueueRunning || (hasFiles && !queueDone)) && !allFilesDone && (
-                  <FileQueue files={queuedFiles} currentIndex={currentIndex} />
-                )}
-
-                {/* Running: abort button */}
-                {isQueueRunning && (
-                  <button
-                    type="button"
-                    onClick={handleAbort}
-                    className="text-xs text-red-400 hover:text-red-300 underline"
-                  >
-                    Cancel remaining files
-                  </button>
-                )}
-
-                {/* Done: summary + reset */}
-                {queueDone && (
-                  <div className="space-y-3">
-                    <FileQueue files={queuedFiles} currentIndex={currentIndex} />
-                    <FileQueueSummary files={queuedFiles} />
-                    <button
-                      type="button"
-                      onClick={handleReset}
-                      className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
-                    >
-                      Import more files
-                    </button>
-                  </div>
-                )}
-
-                {/* Start button */}
-                {canStartUpload && (
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
+              {showFileUpload && (
+                <div className="px-6 py-4 space-y-4 border-t border-border">
+                  {/* File input — multi */}
+                  {!isQueueRunning && !queueDone && (
+                    <div className="space-y-2">
                       <input
-                        type="checkbox"
-                        checked={overwriteManuallyEdited}
-                        onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
-                        className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
+                        ref={fileInputRef}
+                        id="file"
+                        type="file"
+                        multiple
+                        accept={ACCOUNT_ACCEPT[accountType]}
+                        onChange={handleFileChange}
+                        className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-secondary file:text-foreground file:cursor-pointer hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700 file:font-medium"
                       />
-                      <span className="text-xs text-muted-foreground dark:text-zinc-400">
-                        Overwrite manually-edited trades
-                      </span>
-                    </label>
+                      {hasFiles && (
+                        <p className="text-xs text-muted-foreground dark:text-zinc-400">
+                          {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""} selected
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Queue progress (while running) */}
+                  {(isQueueRunning || (hasFiles && !queueDone)) && !allFilesDone && (
+                    <FileQueue files={queuedFiles} currentIndex={currentIndex} />
+                  )}
+
+                  {/* Running: abort button */}
+                  {isQueueRunning && (
                     <button
                       type="button"
-                      onClick={handleStartUpload}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                      onClick={handleAbort}
+                      className="text-xs text-red-400 hover:text-red-300 underline"
                     >
-                      Import {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""}
+                      Cancel remaining files
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  )}
+
+                  {/* Done: summary + reset */}
+                  {queueDone && (
+                    <div className="space-y-3">
+                      <FileQueue files={queuedFiles} currentIndex={currentIndex} />
+                      <FileQueueSummary files={queuedFiles} />
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
+                      >
+                        Import more files
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Start button */}
+                  {canStartUpload && (
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={overwriteManuallyEdited}
+                          onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
+                          className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
+                        />
+                        <span className="text-xs text-muted-foreground dark:text-zinc-400">
+                          Overwrite manually-edited trades
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleStartUpload}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                      >
+                        Import {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

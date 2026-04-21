@@ -85,6 +85,10 @@ class BrokerRawTransactionNotFoundError(Exception):
     """Raised when a BrokerRawTransaction cannot be found."""
 
 
+class ImportNotAllowedError(ValueError):
+    """Raised when a file import is not permitted for the given account type."""
+
+
 class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
 

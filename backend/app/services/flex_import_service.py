@@ -224,7 +224,7 @@ class FlexImportService:
         all_warnings = parser_warnings + create_warnings
 
         return ImportResult(
-            broker="ibkr_flex",
+            broker="ibkr",
             filename=f"flex_query_{query_id}.xml",
             trades_parsed=len(parsed_trades),
             trades_created=trades_created,

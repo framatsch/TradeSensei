@@ -65,7 +65,7 @@ async def main() -> None:
             import_result = await svc.import_file(
                 content=xml_bytes,
                 filename=xml_file.name,
-                broker="ibkr_flex",
+                broker="ibkr",
                 account_id=account_id,
                 user_id=user.id,
             )
