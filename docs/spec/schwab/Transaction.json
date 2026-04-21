@@ -1,0 +1,969 @@
+{
+  "components": {
+    "schemas": {
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "activityId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "cdDomainId": {
+                "type": "string"
+              },
+              "login": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ADVISOR_USER",
+                  "BROKER_USER",
+                  "CLIENT_USER",
+                  "SYSTEM_USER",
+                  "UNKNOWN"
+                ]
+              },
+              "userId": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "systemUserName": {
+                "type": "string"
+              },
+              "firstName": {
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "brokerRepCode": {
+                "type": "string"
+              }
+            },
+            "discriminator": {
+              "propertyName": "activityType"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "accountNumber": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TRADE",
+              "RECEIVE_AND_DELIVER",
+              "DIVIDEND_OR_INTEREST",
+              "ACH_RECEIPT",
+              "ACH_DISBURSEMENT",
+              "CASH_RECEIPT",
+              "CASH_DISBURSEMENT",
+              "ELECTRONIC_FUND",
+              "WIRE_OUT",
+              "WIRE_IN",
+              "JOURNAL",
+              "MEMORANDUM",
+              "MARGIN_CALL",
+              "MONEY_MARKET",
+              "SMA_ADJUSTMENT"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "VALID",
+              "INVALID",
+              "PENDING",
+              "UNKNOWN"
+            ]
+          },
+          "subAccount": {
+            "type": "string",
+            "enum": [
+              "CASH",
+              "MARGIN",
+              "SHORT",
+              "DIV",
+              "INCOME",
+              "UNKNOWN"
+            ]
+          },
+          "tradeDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "settlementDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "positionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "netAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "activityType": {
+            "type": "string",
+            "enum": [
+              "ACTIVITY_CORRECTION",
+              "EXECUTION",
+              "ORDER_ACTION",
+              "TRANSFER",
+              "UNKNOWN"
+            ]
+          },
+          "transferItems": {
+            "type": "array",
+            "xml": {
+              "name": "transferItems",
+              "wrapped": true
+            },
+            "items": {
+              "type": "object",
+              "properties": {
+                "instrument": {
+                  "oneOf": [
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "SWEEP_VEHICLE",
+                            "SAVINGS",
+                            "MONEY_MARKET_FUND",
+                            "UNKNOWN"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "UNIT_INVESTMENT_TRUST",
+                            "EXCHANGE_TRADED_FUND",
+                            "CLOSED_END_FUND",
+                            "INDEX",
+                            "UNITS"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "COMMON_STOCK",
+                            "PREFERRED_STOCK",
+                            "DEPOSITORY_RECEIPT",
+                            "PREFERRED_DEPOSITORY_RECEIPT",
+                            "RESTRICTED_STOCK",
+                            "COMPONENT_UNIT",
+                            "RIGHT",
+                            "WARRANT",
+                            "CONVERTIBLE_PREFERRED_STOCK",
+                            "CONVERTIBLE_STOCK",
+                            "LIMITED_PARTNERSHIP",
+                            "WHEN_ISSUED",
+                            "UNKNOWN"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "BOND_UNIT",
+                            "CERTIFICATE_OF_DEPOSIT",
+                            "CONVERTIBLE_BOND",
+                            "COLLATERALIZED_MORTGAGE_OBLIGATION",
+                            "CORPORATE_BOND",
+                            "GOVERNMENT_MORTGAGE",
+                            "GNMA_BONDS",
+                            "MUNICIPAL_ASSESSMENT_DISTRICT",
+                            "MUNICIPAL_BOND",
+                            "OTHER_GOVERNMENT",
+                            "SHORT_TERM_PAPER",
+                            "US_TREASURY_BOND",
+                            "US_TREASURY_BILL",
+                            "US_TREASURY_NOTE",
+                            "US_TREASURY_ZERO_COUPON",
+                            "AGENCY_BOND",
+                            "WHEN_AS_AND_IF_ISSUED_BOND",
+                            "ASSET_BACKED_SECURITY",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "maturityDate": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "factor": {
+                          "type": "number",
+                          "format": "double"
+                        },
+                        "multiplier": {
+                          "type": "number",
+                          "format": "double"
+                        },
+                        "variableRate": {
+                          "type": "number",
+                          "format": "double"
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "STANDARD",
+                            "NBBO",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "baseCurrency": {
+                          "allOf": [
+                            {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "assetType"
+                              ],
+                              "properties": {
+                                "assetType": {
+                                  "type": "string",
+                                  "enum": [
+                                    "EQUITY",
+                                    "OPTION",
+                                    "INDEX",
+                                    "MUTUAL_FUND",
+                                    "CASH_EQUIVALENT",
+                                    "FIXED_INCOME",
+                                    "CURRENCY",
+                                    "COLLECTIVE_INVESTMENT"
+                                  ]
+                                },
+                                "cusip": {
+                                  "type": "string"
+                                },
+                                "symbol": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "instrumentId": {
+                                  "type": "integer",
+                                  "format": "int64"
+                                },
+                                "netChange": {
+                                  "type": "number",
+                                  "format": "double"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "counterCurrency": {
+                          "allOf": [
+                            {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "assetType"
+                              ],
+                              "properties": {
+                                "assetType": {
+                                  "type": "string",
+                                  "enum": [
+                                    "EQUITY",
+                                    "OPTION",
+                                    "INDEX",
+                                    "MUTUAL_FUND",
+                                    "CASH_EQUIVALENT",
+                                    "FIXED_INCOME",
+                                    "CURRENCY",
+                                    "COLLECTIVE_INVESTMENT"
+                                  ]
+                                },
+                                "cusip": {
+                                  "type": "string"
+                                },
+                                "symbol": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "instrumentId": {
+                                  "type": "integer",
+                                  "format": "int64"
+                                },
+                                "netChange": {
+                                  "type": "number",
+                                  "format": "double"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/TransactionInstrument"
+                        }
+                      ],
+                      "properties": {
+                        "activeContract": {
+                          "type": "boolean",
+                          "default": false
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "STANDARD",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "expirationDate": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "lastTradingDate": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "firstNoticeDate": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "multiplier": {
+                          "type": "number",
+                          "format": "double"
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/TransactionInstrument"
+                        }
+                      ],
+                      "properties": {
+                        "activeContract": {
+                          "type": "boolean",
+                          "default": false
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "BROAD_BASED",
+                            "NARROW_BASED",
+                            "UNKNOWN"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "fundFamilyName": {
+                          "type": "string"
+                        },
+                        "fundFamilySymbol": {
+                          "type": "string"
+                        },
+                        "fundGroup": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_APPLICABLE",
+                            "OPEN_END_NON_TAXABLE",
+                            "OPEN_END_TAXABLE",
+                            "NO_LOAD_NON_TAXABLE",
+                            "NO_LOAD_TAXABLE",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "exchangeCutoffTime": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "purchaseCutoffTime": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "redemptionCutoffTime": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "expirationDate": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "optionDeliverables": {
+                          "type": "array",
+                          "xml": {
+                            "name": "optionDeliverables",
+                            "wrapped": true
+                          },
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "rootSymbol": {
+                                "type": "string"
+                              },
+                              "strikePercent": {
+                                "type": "integer",
+                                "format": "int64"
+                              },
+                              "deliverableNumber": {
+                                "type": "integer",
+                                "format": "int64"
+                              },
+                              "deliverableUnits": {
+                                "type": "number",
+                                "format": "double"
+                              },
+                              "deliverable": {
+                                "$ref": "#/components/schemas/TransactionInstrument"
+                              },
+                              "assetType": {
+                                "type": "string",
+                                "enum": [
+                                  "EQUITY",
+                                  "MUTUAL_FUND",
+                                  "OPTION",
+                                  "FUTURE",
+                                  "FOREX",
+                                  "INDEX",
+                                  "CASH_EQUIVALENT",
+                                  "FIXED_INCOME",
+                                  "PRODUCT",
+                                  "CURRENCY",
+                                  "COLLECTIVE_INVESTMENT"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "optionPremiumMultiplier": {
+                          "type": "integer",
+                          "format": "int64"
+                        },
+                        "putCall": {
+                          "type": "string",
+                          "enum": [
+                            "PUT",
+                            "CALL",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "strikePrice": {
+                          "type": "number",
+                          "format": "double"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "VANILLA",
+                            "BINARY",
+                            "BARRIER",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "underlyingSymbol": {
+                          "type": "string"
+                        },
+                        "underlyingCusip": {
+                          "type": "string"
+                        },
+                        "deliverable": {
+                          "$ref": "#/components/schemas/TransactionInstrument"
+                        }
+                      }
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "assetType"
+                          ],
+                          "properties": {
+                            "assetType": {
+                              "type": "string",
+                              "enum": [
+                                "EQUITY",
+                                "OPTION",
+                                "INDEX",
+                                "MUTUAL_FUND",
+                                "CASH_EQUIVALENT",
+                                "FIXED_INCOME",
+                                "CURRENCY",
+                                "COLLECTIVE_INVESTMENT"
+                              ]
+                            },
+                            "cusip": {
+                              "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "instrumentId": {
+                              "type": "integer",
+                              "format": "int64"
+                            },
+                            "netChange": {
+                              "type": "number",
+                              "format": "double"
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "TBD",
+                            "UNKNOWN"
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "assetType",
+                    "mapping": {
+                      "CASH_EQUIVALENT": "#/components/schemas/TransactionCashEquivalent",
+                      "COLLECTIVE_INVESTMENT": "#/components/schemas/CollectiveInvestment",
+                      "CURRENCY": "#/components/schemas/Currency",
+                      "EQUITY": "#/components/schemas/TransactionEquity",
+                      "FIXED_INCOME": "#/components/schemas/TransactionFixedIncome",
+                      "FOREX": "#/components/schemas/Forex",
+                      "FUTURE": "#/components/schemas/Future",
+                      "INDEX": "#/components/schemas/Index",
+                      "MUTUAL_FUND": "#/components/schemas/TransactionMutualFund",
+                      "OPTION": "#/components/schemas/TransactionOption",
+                      "PRODUCT": "#/components/schemas/Product"
+                    }
+                  }
+                },
+                "amount": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "cost": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "price": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "feeType": {
+                  "type": "string",
+                  "enum": [
+                    "COMMISSION",
+                    "SEC_FEE",
+                    "STR_FEE",
+                    "R_FEE",
+                    "CDSC_FEE",
+                    "OPT_REG_FEE",
+                    "ADDITIONAL_FEE",
+                    "MISCELLANEOUS_FEE",
+                    "FUTURES_EXCHANGE_FEE",
+                    "LOW_PROCEEDS_COMMISSION",
+                    "BASE_CHARGE",
+                    "GENERAL_CHARGE",
+                    "GST_FEE",
+                    "TAF_FEE",
+                    "INDEX_OPTION_FEE",
+                    "UNKNOWN"
+                  ]
+                },
+                "positionEffect": {
+                  "type": "string",
+                  "enum": [
+                    "OPENING",
+                    "CLOSING",
+                    "AUTOMATIC",
+                    "UNKNOWN"
+                  ]
+                }
+              },
+              "discriminator": {
+                "propertyName": "activityType"
+              }
+            }
+          }
+        },
+        "discriminator": {
+          "propertyName": "activityType"
+        }
+      }
+    }
+  }
+}
