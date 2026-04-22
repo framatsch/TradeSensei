@@ -9,7 +9,7 @@ from enum import StrEnum
 from app.core.exceptions import UnsupportedBrokerError
 from app.utils.parsers.base import BrokerParser
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
-from app.utils.parsers.schwab import SchwabParser
+from app.utils.parsers.schwab_json import SchwabJSONParser
 
 
 class BrokerType(StrEnum):
@@ -34,7 +34,7 @@ def get_parser(broker: BrokerType) -> BrokerParser:
     """
     parsers: dict[BrokerType, BrokerParser] = {
         BrokerType.IBKR: IBKRXMLParser(),
-        BrokerType.SCHWAB: SchwabParser(),
+        BrokerType.SCHWAB: SchwabJSONParser(),
     }
     parser = parsers.get(broker)
     if parser is None:

@@ -6,6 +6,7 @@ persisting trades.  Also exposes an IBKR Flex Query automatic import
 endpoint backed by :class:`~app.services.flex_import_service.FlexImportService`.
 """
 
+import json
 import uuid
 from typing import Annotated
 
@@ -14,7 +15,7 @@ from fastapi import Form as FastAPIForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.constants import IMPORT_MAX_FILE_SIZE_MB, IMPORT_SUPPORTED_FORMATS
+from app.core.constants import IMPORT_MAX_FILE_SIZE_MB
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import (
     AccountNotFoundError,
@@ -43,7 +44,7 @@ _BYTES_PER_MB: int = 1024 * 1024
 # Allowed file extensions per broker type.
 _BROKER_ALLOWED_EXTENSIONS: dict[BrokerType, frozenset[str]] = {
     BrokerType.IBKR: frozenset({"xml"}),
-    BrokerType.SCHWAB: frozenset({"csv"}),
+    BrokerType.SCHWAB: frozenset({"json"}),
 }
 
 # Allowed broker types per account type (manual accounts cannot import files).
@@ -123,12 +124,14 @@ async def _validate_account_import(
         )
     broker = _ACCOUNT_TYPE_BROKER.get(account.type)
     if broker is None:
-        raise ImportNotAllowedError(
-            f"Account '{account.name}' is a manual account. "
-            "File import is not supported for manual accounts."
-        )
+        raise ImportNotAllowedError("File import is not supported for manual accounts")
     allowed = _BROKER_ALLOWED_EXTENSIONS[broker]
     if extension not in allowed:
+        if account.type == AccountType.SCHWAB and extension == "csv":
+            raise ImportNotAllowedError(
+                "Schwab accounts require JSON format (.json). "
+                "CSV import is no longer supported."
+            )
         raise ImportNotAllowedError(
             f"Account '{account.name}' ({account.type.upper()}) only accepts "
             f"{', '.join(f'.{e}' for e in sorted(allowed))} files. "
@@ -146,7 +149,7 @@ async def _validate_account_import(
         "Parse a broker export file and bulk-create the contained trades for "
         "the specified account. The accepted file format is determined by the "
         "account type: IBKR accounts accept XML (Flex Query), Schwab accounts "
-        "accept CSV. Manual accounts do not support file import. "
+        "accept JSON. Manual accounts do not support file import. "
         f"Maximum file size: {IMPORT_MAX_FILE_SIZE_MB} MB."
     ),
     response_description=(
@@ -169,9 +172,7 @@ async def upload_import(
     file: UploadFile,
     account_id: Annotated[
         uuid.UUID,
-        FastAPIForm(
-            description="UUID of the account to import trades into."
-        ),
+        FastAPIForm(description="UUID of the account to import trades into."),
     ],
     overwrite_manually_edited: Annotated[
         bool,
@@ -188,7 +189,7 @@ async def upload_import(
 
     The broker parser is determined automatically from the account type:
     IBKR accounts use the XML (Flex Query) parser, Schwab accounts use the
-    CSV parser. Manual accounts are rejected with HTTP 422.
+    JSON parser. Manual accounts are rejected with HTTP 422.
 
     Args:
         service: Injected import service.
@@ -230,7 +231,7 @@ async def upload_import(
         ) from exc
     except ImportNotAllowedError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
 
@@ -283,7 +284,7 @@ async def upload_import(
         "The entire operation runs in a single DB transaction — any error rolls "
         "back all changes. "
         "The accepted file format is determined by the account type: IBKR accepts "
-        "XML (Flex Query), Schwab accepts CSV."
+        "XML (Flex Query), Schwab accepts JSON."
     ),
     responses={
         200: {"description": "Fresh-start completed. Check import_result for details."},
@@ -358,7 +359,7 @@ async def fresh_start_import(
         ) from exc
     except ImportNotAllowedError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
 
@@ -398,6 +399,64 @@ async def fresh_start_import(
         ) from exc
 
     return ResponseEnvelope[FreshStartResult](data=result)
+
+
+@router.post(
+    "/schwab-json",
+    response_model=ResponseEnvelope[ImportResult],
+    status_code=status.HTTP_200_OK,
+    summary="Import Schwab transactions from JSON body",
+    description=(
+        "Import Schwab transactions from a JSON array body using the raw-data "
+        "pipeline. The target account must be a SCHWAB account."
+    ),
+    responses={
+        200: {"description": "Import completed."},
+        400: {"description": "Import payload is invalid or cannot be parsed."},
+        401: {"description": "Authentication required."},
+        404: {"description": "Account not found or not owned by the current user."},
+        422: {"description": "Account type is not SCHWAB."},
+    },
+)
+async def import_schwab_json(
+    service: Annotated[ImportService, Depends(_get_service)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    account_id: Annotated[
+        uuid.UUID,
+        Query(description="UUID of the Schwab account to import into."),
+    ],
+    body: Annotated[list[dict[str, object]], Body()],
+) -> ResponseEnvelope[ImportResult]:
+    """Import Schwab transaction JSON directly from request body."""
+    account = await AccountRepository(session).get_by_id(account_id, current_user.id)
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Account {account_id} not found for user {current_user.id}.",
+        )
+    if account.type != AccountType.SCHWAB:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Account type must be SCHWAB for this endpoint",
+        )
+
+    try:
+        content = json.dumps(body).encode("utf-8")
+        result = await service.import_file(
+            content=content,
+            filename="schwab_transactions.json",
+            broker=BrokerType.SCHWAB,
+            account_id=account_id,
+            user_id=current_user.id,
+        )
+    except (ImportParseError, UnsupportedBrokerError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return ResponseEnvelope[ImportResult](data=result)
 
 
 @router.patch(

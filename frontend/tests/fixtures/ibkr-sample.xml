@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexQueryResponse queryName="E2E-Sample" type="AF">
+  <FlexStatements count="1">
+    <FlexStatement accountId="U0000001" fromDate="20260101" toDate="20260131" whenGenerated="20260131;120000">
+      <Trades>
+        <Trade assetCategory="STK" symbol="AAPL" tradeDate="20260110" dateTime="20260110;101500" quantity="10" tradePrice="185.25" ibCommission="-1.00" currency="USD" transactionID="E2E-T0001" />
+        <Trade assetCategory="STK" symbol="MSFT" tradeDate="20260111" dateTime="20260111;111500" quantity="5" tradePrice="410.10" ibCommission="-1.00" currency="USD" transactionID="E2E-T0002" />
+        <Trade assetCategory="STK" symbol="NVDA" tradeDate="20260112" dateTime="20260112;121500" quantity="2" tradePrice="700.50" ibCommission="-1.00" currency="USD" transactionID="E2E-T0003" />
+        <Trade assetCategory="STK" symbol="AAPL" tradeDate="20260113" dateTime="20260113;131500" quantity="-10" tradePrice="187.00" ibCommission="-1.00" currency="USD" transactionID="E2E-T0004" fifoPnlRealized="17.50" />
+        <Trade assetCategory="STK" symbol="MSFT" tradeDate="20260114" dateTime="20260114;141500" quantity="-5" tradePrice="412.00" ibCommission="-1.00" currency="USD" transactionID="E2E-T0005" fifoPnlRealized="9.50" />
+      </Trades>
+    </FlexStatement>
+  </FlexStatements>
+</FlexQueryResponse>

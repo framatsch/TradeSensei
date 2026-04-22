@@ -803,6 +803,7 @@ class ImportService:
             cash_transactions_parsed=len(parsed_cash_txs),
             cash_transactions_created=cash_txs_created,
             cash_transactions_skipped=cash_txs_skipped,
+            raw_transactions_created=len(inserted_raw_ids) if use_raw_pipeline else 0,
             raw_suppressed_skipped=suppressed_count,
             raw_deleted_skipped=0,
             warnings=all_warnings,

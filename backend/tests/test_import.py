@@ -213,9 +213,9 @@ class TestGetParser:
 
     @pytest.mark.unit
     def test_returns_schwab_parser(self) -> None:
-        """get_parser(SCHWAB) should return a SchwabParser instance."""
+        """get_parser(SCHWAB) should return the Schwab JSON parser."""
         parser = get_parser(BrokerType.SCHWAB)
-        assert isinstance(parser, SchwabParser)
+        assert type(parser).__name__ == "SchwabJSONParser"
 
 
 # ─── ImportService unit tests ─────────────────────────────────────────────────

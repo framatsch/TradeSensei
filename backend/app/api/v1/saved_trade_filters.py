@@ -108,7 +108,7 @@ async def update_saved_trade_filter(
         ) from exc
     except SavedTradeFilterValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     return ResponseEnvelope(data=SavedTradeFilterRead.model_validate(db_filter))

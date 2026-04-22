@@ -248,12 +248,19 @@ const SEED_ACCOUNT = {
   currency: 'USD',
 };
 
+const SEED_SCHWAB_ACCOUNT = {
+  name: 'E2E Schwab Account',
+  type: 'schwab',
+  currency: 'USD',
+};
+
 // ─── Exported seed state (for use in tests) ──────────────────────────────────
 // Stored in a temp file so tests can read the seeded account ID.
 export const SEED_STATE_FILE = path.join(__dirname, '.auth', 'seed-state.json');
 
 export interface SeedState {
   accountId: string;
+  schwabAccountId: string;
   /** ID of the E2E execution-test trade (MSFT LONG, 2 executions) - for TC-061, TC-062, TC-063 */
   executionTradeId: string;
   /** ID of the dedicated add-execution-test trade (AMZN LONG, 2 executions) - for TC-071 */
@@ -456,6 +463,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   // 5. Seed account (IBKR type — needed for import tests)
   let accountId = '';
+  let schwabAccountId = '';
   const accRes = await apiPost('/api/v1/accounts', SEED_ACCOUNT as unknown as Record<string, unknown>, token);
   if (accRes.ok) {
     const accBody = (await accRes.json()) as { data: { id: string } };
@@ -463,6 +471,19 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     console.log(`[global-setup] Account seeded: ${accountId}`);
   } else {
     console.warn(`[global-setup] Account seed warning (${accRes.status})`);
+  }
+
+  const schwabAccRes = await apiPost(
+    '/api/v1/accounts',
+    SEED_SCHWAB_ACCOUNT as unknown as Record<string, unknown>,
+    token
+  );
+  if (schwabAccRes.ok) {
+    const schwabAccBody = (await schwabAccRes.json()) as { data: { id: string } };
+    schwabAccountId = schwabAccBody.data.id;
+    console.log(`[global-setup] Schwab account seeded: ${schwabAccountId}`);
+  } else {
+    console.warn(`[global-setup] Schwab account seed warning (${schwabAccRes.status})`);
   }
 
   // 6. Seed trades
@@ -792,6 +813,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     SEED_STATE_FILE,
     JSON.stringify({ 
       accountId, 
+      schwabAccountId,
       executionTradeId, 
       addExecutionTestTradeId,
       detachTestTradeId, 

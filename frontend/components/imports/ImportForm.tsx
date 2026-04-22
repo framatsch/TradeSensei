@@ -30,14 +30,14 @@ const TYPE_LABEL: Record<AccountType, string> = {
 // Accepted file extensions per account type
 const ACCOUNT_ACCEPT: Record<AccountType, string> = {
   ibkr: ".xml",
-  schwab: ".csv",
+  schwab: ".json",
   manual: "",
 };
 
 // Human-readable format hint per account type
 const ACCOUNT_FORMAT_HINT: Record<AccountType, string> = {
   ibkr: "XML (IBKR Flex Query)",
-  schwab: "CSV (Schwab Trade History)",
+  schwab: "JSON files (Schwab Transactions)",
   manual: "",
 };
 
@@ -702,4 +702,3 @@ function StatBox({ label, value, color }: { label: string; value: number; color:
 }
 
 // Helper referenced in handleAccountChange — alias kept for compatibility
-

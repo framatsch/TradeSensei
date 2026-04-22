@@ -5,7 +5,7 @@
  *  Step 1 — Select an account
  *  Step 2 — Choose import method (file upload or API sync)
  *
- * global-setup seeds an IBKR account; its ID is read from .auth/seed-state.json.
+ * global-setup seeds IBKR and Schwab accounts; IDs are read from .auth/seed-state.json.
  *
  * Tests:
  *  - Page renders heading and step 1 account selector
@@ -14,7 +14,7 @@
  *  - File upload section is reachable
  *  - Upload button disabled without files; enabled after file selection
  *  - Successful IBKR import shows per-file result in the queue
- *  - Successful Schwab import (account type mismatch shows error or result)
+ *  - Successful Schwab import on a Schwab account
  *
  * All tests run as the seeded E2E user.
  */
@@ -23,16 +23,34 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 
-const IBKR_FIXTURE = path.join(__dirname, '../fixtures/ibkr-sample.csv');
-const SCHWAB_FIXTURE = path.join(__dirname, '../fixtures/schwab-sample.csv');
+const IBKR_FIXTURE = path.join(
+  __dirname,
+  '../fixtures/ibkr-sample.xml'
+);
+const SCHWAB_FIXTURE = path.join(
+  __dirname,
+  '../fixtures/schwab-sample.json'
+);
 const SEED_STATE_FILE = path.join(__dirname, '../.auth/seed-state.json');
+const IMPORT_RESULT_TIMEOUT_MS = 30_000;
 
-function getSeedState(): { accountId: string } {
+function getSeedState(): { accountId: string; schwabAccountId: string } {
   try {
-    return JSON.parse(fs.readFileSync(SEED_STATE_FILE, 'utf-8')) as { accountId: string };
+    return JSON.parse(fs.readFileSync(SEED_STATE_FILE, 'utf-8')) as {
+      accountId: string;
+      schwabAccountId: string;
+    };
   } catch {
-    return { accountId: '' };
+    return { accountId: '', schwabAccountId: '' };
   }
+}
+
+async function expectImportQueueFinished(page: import('@playwright/test').Page): Promise<void> {
+  // In full-suite runs imports can take noticeably longer than isolated runs.
+  // Wait for the queue summary state instead of short-lived per-row text.
+  await expect(page.getByText(/Import complete — \d+ file/i)).toBeVisible({
+    timeout: IMPORT_RESULT_TIMEOUT_MS,
+  });
 }
 
 test.describe('Import Page', () => {
@@ -141,8 +159,29 @@ test.describe('Import Page', () => {
     await uploadBtn.click();
 
     // Wait for result to appear: "created", "skipped", "Import complete", or an error message
-    await expect(
-      page.getByText(/created|skipped|Import complete|Files with Errors/i).first()
-    ).toBeVisible({ timeout: 20_000 });
+    await expectImportQueueFinished(page);
+  });
+
+  test('TC-077 successful Schwab import shows result per file', async ({ page }) => {
+    const { schwabAccountId } = getSeedState();
+    test.skip(!schwabAccountId, 'No seeded Schwab account ID found — skipping');
+
+    await page.getByRole('combobox').selectOption({ value: schwabAccountId });
+    await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
+
+    const toggleBtn = page.getByRole('button', { name: /Or upload files manually/i });
+    await expect(toggleBtn).toBeVisible({ timeout: 5_000 });
+    await toggleBtn.click();
+
+    const fileInput = page.locator('input[type="file"]');
+    await expect(fileInput).toBeVisible({ timeout: 5_000 });
+    await fileInput.setInputFiles(SCHWAB_FIXTURE);
+
+    const uploadBtn = page.getByRole('button', { name: /^Import \d+ file/i });
+    await expect(uploadBtn).toBeVisible({ timeout: 5_000 });
+    await expect(uploadBtn).toBeEnabled();
+    await uploadBtn.click();
+
+    await expectImportQueueFinished(page);
   });
 });

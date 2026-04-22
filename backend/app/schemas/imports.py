@@ -111,6 +111,15 @@ class ImportResult(BaseModel):
         ),
         examples=[0],
     )
+    raw_transactions_created: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Number of broker raw transactions newly inserted during this import. "
+            "Re-importing identical files should produce 0."
+        ),
+        examples=[339, 0],
+    )
     raw_suppressed_skipped: int = Field(
         default=0,
         ge=0,

@@ -1,0 +1,77 @@
+[
+  {
+    "activityId": "E2E-S0001",
+    "type": "TRADE",
+    "status": "COMPLETED",
+    "transactionDate": "2026-01-10T15:30:00Z",
+    "transactionItem": {
+      "instruction": "BUY",
+      "amount": 10,
+      "price": 185.25,
+      "instrument": {
+        "symbol": "AAPL",
+        "assetType": "EQUITY"
+      }
+    }
+  },
+  {
+    "activityId": "E2E-S0002",
+    "type": "TRADE",
+    "status": "COMPLETED",
+    "transactionDate": "2026-01-11T15:30:00Z",
+    "transactionItem": {
+      "instruction": "BUY",
+      "amount": 5,
+      "price": 410.1,
+      "instrument": {
+        "symbol": "MSFT",
+        "assetType": "EQUITY"
+      }
+    }
+  },
+  {
+    "activityId": "E2E-S0003",
+    "type": "TRADE",
+    "status": "COMPLETED",
+    "transactionDate": "2026-01-12T15:30:00Z",
+    "transactionItem": {
+      "instruction": "BUY",
+      "amount": 2,
+      "price": 700.5,
+      "instrument": {
+        "symbol": "NVDA",
+        "assetType": "EQUITY"
+      }
+    }
+  },
+  {
+    "activityId": "E2E-S0004",
+    "type": "TRADE",
+    "status": "COMPLETED",
+    "transactionDate": "2026-01-13T15:30:00Z",
+    "transactionItem": {
+      "instruction": "SELL",
+      "amount": 10,
+      "price": 187.0,
+      "instrument": {
+        "symbol": "AAPL",
+        "assetType": "EQUITY"
+      }
+    }
+  },
+  {
+    "activityId": "E2E-S0005",
+    "type": "TRADE",
+    "status": "COMPLETED",
+    "transactionDate": "2026-01-14T15:30:00Z",
+    "transactionItem": {
+      "instruction": "SELL",
+      "amount": 5,
+      "price": 412.0,
+      "instrument": {
+        "symbol": "MSFT",
+        "assetType": "EQUITY"
+      }
+    }
+  }
+]
