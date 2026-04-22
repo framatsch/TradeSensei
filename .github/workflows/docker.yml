@@ -61,6 +61,12 @@ jobs:
           build-args: |
             GITHUB_REPOSITORY=${{ github.repository }}
 
+      - name: Generate release docker-compose
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION=${{ steps.meta.outputs.version }}
+          sed "s|{{IMAGE_TAG}}|$VERSION|g" docker-compose.release.yml.template > docker-compose.release.yml
+
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -71,8 +77,9 @@ jobs:
             - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend:${{ steps.meta.outputs.version }}`
             - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend:${{ steps.meta.outputs.version }}`
           files: |
-            backend/pyproject.toml
-            frontend/package.json
+            docker-compose.release.yml
+            env.example
+            README.md
 
   build-push-frontend:
     name: Build & push frontend image

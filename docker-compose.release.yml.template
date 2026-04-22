@@ -1,0 +1,54 @@
+# Production TradeSensei stack
+#
+# Usage:
+# 1. cp env.example .env
+# 2. Edit .env (at least set DB_PASSWORD, SECRET_KEY)
+# 3. docker compose -f docker-compose.release.yml up -d
+
+services:
+  db:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-tradesensei}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-tradesensei}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  backend:
+    image: ghcr.io/scheffold/tradesensei-backend:{{IMAGE_TAG}}
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ENVIRONMENT: production
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # ... (rest of configuration)
+    depends_on:
+      - db
+    networks:
+      - internal
+
+  frontend:
+    image: ghcr.io/scheffold/tradesensei-frontend:{{IMAGE_TAG}}
+    restart: always
+    environment:
+      API_URL: ${API_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    networks:
+      - internal
+    ports:
+      - "3000:3000"
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  db_data:
