@@ -84,7 +84,9 @@ def main():
 
     version = args.version
     if args.snapshot:
-        version += ".dev0"
+        # PEP 440: only append .dev0 if the version doesn't already end with it
+        if not version.endswith(".dev0"):
+            version += ".dev0"
 
     # Files to update
     json_files = ["package.json", "frontend/package.json"]
