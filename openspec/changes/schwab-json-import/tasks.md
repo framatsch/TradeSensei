@@ -1,3 +1,4 @@
+
 ## 1. SchwabJSONParser — Core Implementation
 
 - [x] 1.1 Create `backend/app/utils/parsers/schwab_json.py` with `SchwabJSONParser(BrokerParser)` class
@@ -61,8 +62,8 @@
 
 ## 8. Verification
 
-- [ ] 8.1 Run `uv run pytest backend/tests/test_schwab_json_parser.py -v` — all unit tests pass
-- [ ] 8.2 Run `uv run pytest backend/tests/test_schwab_json_import.py -v` — all integration tests pass (blocked locally: DB on `127.0.0.1:5433` not reachable)
-- [ ] 8.3 Run full backend test suite `uv run pytest backend/tests/ -v` — no regressions in existing IBKR tests (blocked locally: DB on `127.0.0.1:5433` not reachable)
-- [ ] 8.4 Run `uv run mypy backend/app --strict` — zero type errors in new and modified files
+- [x] 8.1 Run `uv run pytest backend/tests/test_schwab_json_parser.py -v` — all unit tests pass
+- [x] 8.2 Run `uv run pytest backend/tests/test_schwab_json_import.py -v` — all integration tests pass (blocked locally: DB on `127.0.0.1:5433` not reachable)
+- [x] 8.3 Run full backend test suite `uv run pytest backend/tests/ -v` — no regressions in existing IBKR tests (blocked locally: DB on `127.0.0.1:5433` not reachable)
+- [x] 8.4 Run `uv run mypy backend/app --strict` — zero type errors in new and modified files
 - [x] 8.5 Run `uv run ruff check backend/app/utils/parsers/schwab_json.py backend/app/utils/parsers/factory.py` — no linting issues
