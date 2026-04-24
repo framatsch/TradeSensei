@@ -4,25 +4,28 @@
 - [ ] 0.2 Confirm Spec 2 (`app-state-topbar-navigation`) is applied: `useActivePortfolio` hook is importable and `activePortfolioId` is in the Zustand store
 - [ ] 0.3 Run `openapi-sync` skill to ensure the generated TypeScript client is current (needed for portfolio API calls in new components)
 
-## 1. Backend — Chart Display Settings & Default Portfolio
+## 1. Backend — Chart Display Settings, Default Portfolio & Home Route
 
-- [ ] 1.1 Add four new typed fields to `UserSettingsRead` in `backend/app/schemas/user.py`:
+- [ ] 1.1 Add five new typed fields to `UserSettingsRead` in `backend/app/schemas/user.py`:
   - `chart_candles_before: int = Field(default=20, ge=1)`
   - `chart_candles_after: int = Field(default=10, ge=1)`
   - `chart_show_post_exit: bool = Field(default=False)`
   - `default_portfolio_id: UUID | None = Field(default=None)`
-- [ ] 1.2 Add the same four fields (all optional, `| None`, default `None`) to `UserSettingsUpdate`; int fields keep `ge=1` validator
-- [ ] 1.3 Update the settings reader in `backend/app/api/v1/users.py` (`GET /me/settings`) to pull all four new keys from `user_settings` rows; return defaults when keys are absent
-- [ ] 1.4 Update the settings writer in `backend/app/api/v1/users.py` (`PUT /me/settings`) to upsert the four new keys when present in the request body
+  - `home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] = Field(default="/dashboard")`
+- [ ] 1.2 Add the same five fields (all optional, `| None`, default `None`) to `UserSettingsUpdate`; int fields keep `ge=1` validator; `home_route` field keeps the same `Literal` allowlist
+- [ ] 1.3 Update the settings reader in `backend/app/api/v1/users.py` (`GET /me/settings`) to pull all five new keys from `user_settings` rows; return defaults when keys are absent; if the stored `home_route` value is not in the allowlist treat it as `"/dashboard"`
+- [ ] 1.4 Update the settings writer in `backend/app/api/v1/users.py` (`PUT /me/settings`) to upsert the five new keys when present in the request body
 - [ ] 1.5 Run `lint-check` skill and fix any ruff / mypy errors introduced in steps 1.1–1.4
 
 ## 2. Backend — Tests
 
-- [ ] 2.1 `GET /me/settings`: verify missing keys return defaults `20`, `10`, `false`, `null`
-- [ ] 2.2 `PUT /me/settings`: write all four fields; read back; verify values match
-- [ ] 2.3 Partial update (only `chart_candles_before`) does not clobber the other three keys
+- [ ] 2.1 `GET /me/settings`: verify missing keys return defaults `20`, `10`, `false`, `null`, `"/dashboard"`
+- [ ] 2.2 `PUT /me/settings`: write all five fields; read back; verify values match
+- [ ] 2.3 Partial update (only `chart_candles_before`) does not clobber the other four keys
 - [ ] 2.4 `chart_candles_before = 0` or negative rejected with HTTP 422
 - [ ] 2.5 `default_portfolio_id` set to a valid UUID string; read back; verify stored correctly
+- [ ] 2.6 `home_route` set to `"/dashboard/trades"`; read back correctly
+- [ ] 2.7 `home_route` with an invalid value (e.g. `"/dashboard/invalid"`) rejected with HTTP 422
 
 ## 3. Frontend — Settings Page: New Tabs
 
@@ -67,8 +70,9 @@ No `PlaybooksTagsSettings.tsx` component is created in this spec.
   - Number input "Candles before entry" bound to `chart_candles_before` (min 1, integer only)
   - Number input "Candles after exit" bound to `chart_candles_after` (min 1, integer only)
   - Toggle/switch "Show post-exit candles by default" bound to `chart_show_post_exit`
-- [ ] 6.3 Implement client-side validation: inputs ≤ 0 or non-integer show inline error "Must be a positive whole number"; Save button disabled while invalid
-- [ ] 6.4 On save call `useUpdateSettings()` mutation with the three fields; show success toast on resolve; on reject show error toast and revert form state to last saved values
+  - Select "Default Home Page" bound to `home_route` with three options: "Portfolio Overview" → `"/dashboard"`, "Journal" → `"/dashboard/trades"`, "Strategy & Tags" → `"/dashboard/library"`
+- [ ] 6.3 Implement client-side validation: number inputs ≤ 0 or non-integer show inline error "Must be a positive whole number"; Save button disabled while invalid
+- [ ] 6.4 On save call `useUpdateSettings()` mutation with all four fields (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`, `home_route`); show success toast on resolve; on reject show error toast and revert form state to last saved values; invalidate `["users","me","settings"]` cache so the TopBar wordmark link updates immediately
 - [ ] 6.5 Show a skeleton / disabled form while the initial settings fetch is loading
 
 ## 7. Frontend — AccountSettings: Scope to Active Portfolio

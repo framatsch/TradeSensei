@@ -45,3 +45,59 @@ display defaults.
 #### Scenario: Save fails — network error
 - **WHEN** the PUT request fails
 - **THEN** an error toast is shown and the form values revert to the last saved state
+
+---
+
+### Requirement: Home page preference stored in user settings
+The backend `UserSettingsRead` schema SHALL expose a `home_route` field
+(`str`, default `"/dashboard"`). `UserSettingsUpdate` SHALL accept it as an
+optional field. The backend service SHALL read and write it using the key
+`"home_route"` in `user_settings`. Valid values are exactly:
+`"/dashboard"` (Portfolio Overview), `"/dashboard/trades"` (Journal),
+`"/dashboard/library"` (Strategy & Tags). Any other stored value SHALL be
+treated as `"/dashboard"` at read time.
+
+#### Scenario: Read default when no value stored
+- **WHEN** `GET /api/v1/users/me/settings` is called and `"home_route"` does not exist in `user_settings`
+- **THEN** the response includes `home_route: "/dashboard"`
+
+#### Scenario: Write and read back a custom home route
+- **WHEN** `PUT /api/v1/users/me/settings` is called with `{"home_route": "/dashboard/trades"}`
+- **THEN** the key is upserted and a subsequent `GET` returns `home_route: "/dashboard/trades"`
+
+#### Scenario: Invalid stored value falls back to default
+- **WHEN** `user_settings` contains `home_route = "/dashboard/invalid"`
+- **THEN** `GET /api/v1/users/me/settings` returns `home_route: "/dashboard"`
+
+### Requirement: Look & Feel tab exposes home page preference
+The **Look & Feel** settings tab SHALL include a "Default Home Page" select
+field with three options: "Portfolio Overview" (`/dashboard`), "Journal"
+(`/dashboard/trades`), "Strategy & Tags" (`/dashboard/library`).
+
+```
++-------------------------------------------------------+
+|  Look & Feel                                          |
+|  ─────────────────────────────────────────────────    |
+|  Candles before entry:  [ 20 ]                        |
+|  Candles after exit:    [ 10 ]                        |
+|  Show post-exit candles by default:  ( Off )          |
+|                                                       |
+|  Default Home Page:                                   |
+|  [ Portfolio Overview           ▼ ]                   |
+|    ○ Portfolio Overview                               |
+|    ○ Journal                                          |
+|    ○ Strategy & Tags                                  |
++-------------------------------------------------------+
+```
+
+#### Scenario: Select renders current value
+- **WHEN** the user opens the Look & Feel tab and `home_route` is `"/dashboard/trades"`
+- **THEN** the "Default Home Page" select shows "Journal" as the selected option
+
+#### Scenario: User changes home page and saves
+- **WHEN** the user selects "Strategy & Tags" and clicks Save
+- **THEN** `PUT /api/v1/users/me/settings` is called with `{"home_route": "/dashboard/library"}` and a success toast is shown
+
+#### Scenario: TopBar wordmark reflects saved home route immediately
+- **WHEN** the user saves a new `home_route` value
+- **THEN** the TanStack Query `["users","me","settings"]` cache is invalidated so the wordmark link target updates on next render without a page reload
