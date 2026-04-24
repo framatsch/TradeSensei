@@ -56,12 +56,19 @@ arithmetic is deferred to a later spec.
 ### D1: Portfolio as a new top-level entity (not a tag/group on Account)
 
 **Chosen**: New `portfolios` table with `id`, `user_id`, `name`, `base_currency`,
-`is_paper`, `color_hex`, `created_at`, `updated_at`.
+`color_hex`, `created_at`, `updated_at`.
+
+**`is_paper` removed**: Originally proposed as a live/paper flag on the Portfolio.
+Removed because the existing Account model has no `is_paper` field and the backend
+enforces no separation between live and paper trades anywhere. Adding `is_paper`
+as a pure UI label with no technical enforcement would be misleading — it would
+suggest a guarantee the system cannot provide. If live/paper isolation is needed
+in the future it should be designed properly (Account-level flag + enforcement).
 
 **Alternatives considered**:
-- *Add `is_paper` + `base_currency` directly to Account* — rejected: does not
-  solve aggregate grouping; two accounts in the same portfolio would have to
-  duplicate the currency setting with no enforcement.
+- *Add `base_currency` directly to Account* — rejected: does not solve aggregate
+  grouping; two accounts in the same portfolio would have to duplicate the
+  currency setting with no enforcement.
 - *Use a JSON settings blob on Account* — rejected: untyped, no FK integrity,
   no clean query path for isolation.
 
@@ -83,10 +90,9 @@ arithmetic is deferred to a later spec.
 handles every existing account by assigning it to a default portfolio, so
 there is no legitimate null case post-migration.
 
-**Risk**: If the migration fails mid-way (e.g., a user has no accounts), a
-partial state can leave the `portfolio_id` column added but not yet populated.
-Mitigation: migration runs in a single transaction; if it fails, the column
-addition rolls back with it.
+**Risk**: If the migration fails mid-way, a partial state can leave the
+`portfolio_id` column added but not yet populated. Mitigation: migration runs
+in a single transaction; if it fails, the column addition rolls back with it.
 
 ---
 
@@ -104,7 +110,8 @@ that user's accounts to it.
   after migration.
 
 **Rationale**: Safest, least-disruptive option. `base_currency` can be changed
-by the user until the first trade is present (see D5).
+by the user until the first trade is present (see D5). `is_paper` is not set
+in the migration because the field has been removed from the model.
 
 ---
 
@@ -228,31 +235,32 @@ Alembic `downgrade` reverses in order:
 
 ---
 
-## Open Questions
+## Resolved Decisions
 
-1. **Default portfolio naming convention**: Should the migration use the user's
-   username (`"<username>'s Portfolio"`) instead of the generic
-   `"Default Portfolio"`? Both are safe; the former is more personal but
-   exposes the username in the UI immediately.
+All open questions are now resolved. No open questions remain.
 
-2. **`base_currency` validation**: Should the backend validate that
-   `base_currency` is an ISO 4217 code from a fixed allowlist (e.g., USD, EUR,
-   GBP, CHF, JPY, AUD, CAD), or accept any 3-letter string? A fixed allowlist
-   is safer but requires maintenance as we expand.
+1. **Default portfolio naming** — **`"Default Portfolio"`** (generic, neutral).
+   Username exposure in the UI is avoided. User can rename immediately after
+   first login.
 
-3. **Portfolio deletion semantics**: What happens to a portfolio that still has
-   accounts? Options: (a) block deletion with `HTTP 409 Conflict`, (b) cascade
-   delete all accounts/trades. Option (a) is strongly preferred for safety, but
-   should the cascade option exist as an explicit `force=true` query param?
+2. **`base_currency` validation** — **Fixed allowlist**: `USD`, `EUR`, `GBP`,
+   `CHF`, `JPY`, `AUD`, `CAD`. Validated in `PortfolioCreate` and
+   `PortfolioUpdate` Pydantic schemas via `Literal` or `Enum`. Backend returns
+   HTTP 422 for values outside the allowlist. Allowlist extended in code (no
+   migration) when new currencies are needed.
 
-4. **is_paper immutability**: Like `base_currency`, should `is_paper` be
-   immutable once trades exist? Changing live → paper retroactively would
-   corrupt analytics. Recommendation: make it immutable with the same guard as
-   `base_currency`.
+3. **Portfolio deletion semantics** — **Block only, no `force` param**.
+   `DELETE /portfolios/{id}` returns HTTP 409 if any accounts are linked.
+   There is no cascade or `force=true` option. User must move or delete all
+   accounts first. This prevents any accidental data loss via a single API call.
 
-5. **RLS extension**: The current RLS policy at migration
-   `3bbca280b48e_add_rls_user_isolation.py` sets `app.current_user_id`. Should
-   portfolio isolation be enforced purely in the application layer (repository
-   JOINs) or should a second RLS variable `app.current_portfolio_id` be added?
-   Application-layer enforcement (D6) is the chosen approach, but this should
-   be explicitly confirmed before implementation begins.
+4. **`is_paper` immutability** — **Resolved**: `is_paper` removed from the
+   model entirely. No flag, no badge, no enforcement. If live/paper separation
+   is needed in the future it must be designed at the Account level with proper
+   enforcement.
+
+5. **RLS extension** — **Application-layer only** (D6 confirmed). Repository
+   JOINs enforce `portfolio.user_id = current_user_id` on every query. No second
+   RLS variable `app.current_portfolio_id` is added — the double-check at the
+   repository layer is sufficient and avoids TimescaleDB hypertable RLS
+   interaction risks.

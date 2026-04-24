@@ -71,16 +71,62 @@ matches the backend constraint without adding a separate client-side guard.
 **Alternatives:** Always editable with a warning (rejected — silent P&L inconsistency).
 Unlockable after deleting all trades (rejected — increases UI complexity for a rare edge case).
 
-### D3 — Playbook/Tag pages become redirects, not removed outright
+### D3 — Playbook/Tag pages redirect to Library context, not Settings
 
 **Decision:** `/dashboard/playbooks/page.tsx` and `/dashboard/tags/page.tsx` are replaced with
-`redirect('/dashboard/settings?tab=playbooks-tags')` instead of being deleted. This preserves
-any bookmarks or direct links without a 404.
+`redirect('/dashboard/library/playbooks')` and `redirect('/dashboard/library/tags')` respectively
+(handled in Spec 2 tasks). Playbooks and Tags are **not** a Settings tab — they are managed in
+the Global Library application context introduced by Spec 2.
 
-**Why not delete:** Any external link (user bookmark, notification deep-link) would break with a
-404. A permanent redirect is low-cost and safe.
+**Why not Settings:** Spec 2 establishes the Global Library as a first-class application context
+(accessible via BentoMenu). Putting Playbooks/Tags in Settings would contradict that architecture
+and force users to leave the operational flow to manage strategic entities.
 
-### D4 — Danger Zone uses existing account-level fresh start
+**Implication for this spec:** `SettingsPageClient` does NOT gain a `playbooks-tags` tab. The
+`PlaybooksTagsSettings` component is not created. Tab count remains at 6 (General, Integrations,
+Corporate Actions, Features, Portfolios, Look & Feel).
+
+### D4 — Portfolio colour uses chip picker (same pattern as Tag colours)
+
+**Decision:** The portfolio `color_hex` field in the create/edit form is presented as a row of
+colour chip buttons (small filled circles), identical in interaction to the Tag colour picker
+already in the codebase. The user clicks a chip to select the colour; the chip becomes visually
+active (ring/border). No free-form hex input is shown to the user.
+
+**Colour set:** A fixed palette of 12 colours is defined in a shared constant
+`PORTFOLIO_COLORS: string[]`. The migration default `'#6366f1'` (indigo) is included.
+
+**Why chip picker, not free-form hex:** Consistency with Tags; colour validation is trivially
+satisfied server-side because only palette values can be submitted; no `^#[0-9A-Fa-f]{6}$`
+regex validation needed on the frontend.
+
+---
+
+### D5 — Default portfolio stored in `user_settings`, not on the Portfolio model
+
+**Decision:** The concept of "default portfolio" (the one auto-selected when entering Portfolio
+Workspace via BentoMenu if no prior selection is stored) is stored as a new key
+`"default_portfolio_id"` (UUID string) in the existing `user_settings` key-value table. The
+`Portfolio` model itself gains no `is_default` column.
+
+**Alternatives considered:**
+- *`is_default` boolean on Portfolio model* — requires a migration; enforcing single-default
+  across rows needs a DB-level constraint or application guard; also leaks UI preference into
+  the data model. Rejected.
+- *Infer from `created_at` order* — already the fallback in Spec 2's stale-ID recovery. The
+  user-configured default overrides this fallback.
+
+**UX in Settings:** Each portfolio card in the Portfolios tab has a "Set as default" action
+(star icon or radio button). The currently configured default is visually indicated. Setting a
+new default updates `user_settings.default_portfolio_id` via `PUT /api/v1/users/me/settings`.
+
+**Stale reference guard:** If `default_portfolio_id` points to a portfolio that no longer exists,
+`useActivePortfolio` ignores the stored value and falls back to `portfolios[0].id` (as per Spec
+2 D10).
+
+---
+
+### D6 — Danger Zone uses existing account-level fresh start
 
 **Decision:** The Portfolios tab Danger Zone iterates over all accounts belonging to a portfolio
 and calls `POST /api/v1/imports/{account_id}/fresh-start` for each, client-side, with a
@@ -101,11 +147,11 @@ added when needed.
 (Spec 2) and passes it to `useAccounts(portfolioId)`. If Spec 2 is not yet applied, the tab
 falls back gracefully by showing all accounts (the hook's `portfolioId` param is optional).
 
-### D6 — Tab union type extended, not replaced
+### D7 — Tab union type extended, not replaced
 
-**Decision:** `Tab` type in `SettingsPageClient.tsx` is extended from a 4-value to a 7-value
-union. The `TABS` constant array gains three entries. URL deep-linking via `?tab=` is extended to
-handle the three new ids (`portfolios`, `playbooks-tags`, `look-and-feel`).
+**Decision:** `Tab` type in `SettingsPageClient.tsx` is extended from a 4-value to a 6-value
+union (adding `portfolios` and `look-and-feel`; NOT adding `playbooks-tags`). The `TABS`
+constant array gains two entries. URL deep-linking via `?tab=` handles the two new ids.
 
 ## Risks / Trade-offs
 
@@ -114,18 +160,22 @@ handle the three new ids (`portfolios`, `playbooks-tags`, `look-and-feel`).
 | Spec 1 / Spec 2 not merged when Spec 3 lands | Portfolio tab calls `usePortfolios()` — if the hook returns empty/error it shows a "prerequisite not available" banner instead of crashing. |
 | Partial portfolio wipe (user navigates away) | Confirmation dialog requires portfolio name; success/error toast shown per account; UI state reflects which accounts were wiped. |
 | `chart_candles_before` / `chart_candles_after` used before Spec 6 | Keys are ignored by the Journal until Spec 6. Safe to write early — reads that encounter missing keys fall back to defaults. |
-| Sidebar items removed before user learns about Settings | `EmptyPortfolioGate` CTA (Spec 2) already links to `/dashboard/settings?tab=portfolios`. Redirect from old routes handles muscle-memory navigation. |
+| `default_portfolio_id` points to deleted portfolio | `useActivePortfolio` (Spec 2) ignores stale value and falls back to `portfolios[0].id`. No crash. |
+| Colour palette insufficient for users with many portfolios | Fixed palette of 12 colours allows repetition; visual differentiation relies on name + colour combined. Acceptable for MVP. |
 
 ## Migration Plan
 
-1. **Backend** (no migration): Add three fields to `UserSettingsRead` / `UserSettingsUpdate`
-   schemas with typed defaults. Update `users.py` route handler to read/write the new keys.
-2. **Frontend** (Settings page): Extend `SettingsPageClient`, add three new component files,
-   update `AccountSettings` to accept `portfolioId`.
-3. **Sidebar**: Remove `playbooks` and `tags` nav links.
-4. **Route redirects**: Replace page bodies of `/dashboard/playbooks` and `/dashboard/tags`.
-5. **Rollback**: Revert the four files changed in steps 2–4; the backend schema addition is
-   additive and harmless if left in place (ignored by the frontend).
+1. **Backend** (no migration): Add four fields to `UserSettingsRead` / `UserSettingsUpdate`
+   schemas (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`,
+   `default_portfolio_id`) with typed defaults. Update `users.py` route handler to read/write
+   the new keys.
+2. **Frontend** (Settings page): Extend `SettingsPageClient` with 2 new tabs; add component
+   files `PortfolioSettings.tsx` and `ChartDisplaySettings.tsx`; update `AccountSettings` to
+   accept `portfolioId`. Do NOT add `PlaybooksTagsSettings.tsx`.
+3. **Route redirects**: `/dashboard/playbooks` → `/dashboard/library/playbooks`;
+   `/dashboard/tags` → `/dashboard/library/tags` (handled by Spec 2 task 7.5/7.6).
+4. **Rollback**: Revert the component files changed in step 2; the backend schema additions are
+   additive and harmless if left in place.
 
 ## Open Questions
 

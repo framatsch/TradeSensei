@@ -1,5 +1,20 @@
 ## ADDED Requirements
 
+### Requirement: Application context stored in global state
+The system SHALL maintain a single `activeContext` value (`'portfolio' |
+'library' | 'checkin'`) in a Zustand store (`appContextStore`). This value
+SHALL be the sole source of truth for which application mode is active.
+
+#### Scenario: Initial hydration reads localStorage
+- **WHEN** the application first mounts on the client
+- **THEN** `appContextStore.hydrate()` reads `localStorage.getItem("active_app_context")`; if absent or invalid defaults to `'portfolio'`; sets `hydrated = true`
+
+#### Scenario: Context persisted on change
+- **WHEN** `setActiveContext(ctx)` is called
+- **THEN** `activeContext` in the store is updated AND `localStorage.setItem("active_app_context", ctx)` is called
+
+---
+
 ### Requirement: Active portfolio stored in global state
 The system SHALL maintain a single `activePortfolioId` value (UUID string or
 null) in a Zustand store (`portfolioStore`). This value SHALL be the sole

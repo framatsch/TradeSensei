@@ -2,10 +2,23 @@
 
 The backend (Spec 1) introduces a mandatory `portfolio_id` on every data
 endpoint. The current frontend has no awareness of portfolios: account filtering
-is local `useState` on individual pages, the dashboard overview has no account
-scope at all, and the sidebar houses the only sign-out control. This design
-establishes the global state layer and the persistent top-bar that must exist
-before any page can correctly call the new portfolio-scoped API.
+is local `useState` on individual pages, the dashboard has no account scope at
+all, and the sidebar houses the only sign-out control. This design establishes
+the global state layer and the persistent top-bar that must exist before any
+page can correctly call the new portfolio-scoped API.
+
+Beyond portfolio context, the app requires a clear **multi-mode navigation
+structure**. The three application modes are:
+
+- **Portfolio Workspace** (Ebene A) — operational, portfolio-scoped. Sidebar:
+  Dashboard, Journal, Reports, Quick Import. PortfolioSwitcher visible.
+- **Global Library** (Ebene B) — strategic, portfolio-agnostic. Sidebar:
+  Playbooks, Tags. PortfolioSwitcher hidden to signal global scope.
+- **Market Check-in** (Ebene C) — chronological macro/psychological entries.
+  Sidebar: Timeline. Deferred to a future spec; placeholder only in this spec.
+
+Mode switching happens exclusively via a **BentoMenu** (nine-dot grid) in the
+top-left of the TopBar.
 
 **Current state at a glance:**
 - State: one Zustand store (`authStore`) — token + user + hydrated flag only
@@ -15,6 +28,7 @@ before any page can correctly call the new portfolio-scoped API.
   `AccountFilter` component
 - Sign-out: sidebar bottom link only
 - Mobile top bar: hamburger + logo, hidden on `lg+`
+- Playbooks/Tags: standalone sidebar pages, no separation from operational data
 
 ---
 
@@ -22,28 +36,33 @@ before any page can correctly call the new portfolio-scoped API.
 
 **Goals:**
 
+- Define a `appContextStore` Zustand slice for `activeContext` ('portfolio' |
+  'library' | 'checkin'); persist to localStorage.
 - Define a `portfolioStore` Zustand slice that is the single source of truth for
-  `activePortfolioId` across the app.
-- Persist `activePortfolioId` to `localStorage` so it survives full page refreshes
-  and Next.js navigation.
-- Implement `TopBar` — a persistent desktop-and-mobile header above the page
-  content; house the `PortfolioSwitcher` and `UserBadge` there.
+  `activePortfolioId` across the app; persist to localStorage.
+- Implement `BentoMenu` — nine-dot button in top-left; popover listing the three
+  contexts; switches `activeContext` and navigates to context root route.
+- Implement `TopBar` — persistent desktop-and-mobile header; left: BentoMenu +
+  wordmark; center: context-aware `PortfolioSwitcher`; right: `UserBadge`.
+- Make `PortfolioSwitcher` visible only in Portfolio Workspace context.
+- Make the sidebar render context-appropriate nav-items (same shell, different
+  items per context).
 - Handle the post-login cold-start case: if the user has no portfolios, show a
   gate that prompts creation instead of silently rendering a broken dashboard.
 - Handle stale-ID recovery: if the persisted `activePortfolioId` no longer
-  exists (portfolio deleted), fall back gracefully to the first available
-  portfolio without crashing.
+  exists (portfolio deleted), fall back gracefully.
 - Define the contract (`useActivePortfolio` hook) that all dashboard pages use
-  to retrieve `activePortfolioId` — so no page imports from Zustand directly.
+  to retrieve `activePortfolioId`.
 
 **Non-Goals:**
 
-- Creating or editing portfolios (Portfolio CRUD UI is a separate spec).
-- Embedding `portfolioId` in the URL path (see D1).
+- Creating or editing portfolios (Portfolio CRUD UI is Spec 3).
+- Embedding `portfolioId` or `activeContext` in the URL path (see D1).
 - Updating dashboard page internals to call new portfolio-scoped endpoints;
-  this spec defines the contract; page-level migration is tracked in tasks but
-  treated as mechanical find-replace work.
+  this spec defines the contract; page-level migration is tracked in tasks.
 - Backend changes — this spec is frontend-only.
+- Full Market Check-in implementation (DailyCheckin entity, Timeline UI) —
+  deferred to a future spec; BentoMenu entry and placeholder page only.
 - Multi-portfolio comparison views.
 
 ---
@@ -150,69 +169,135 @@ user to "create a portfolio" they already have.
 
 ---
 
-### D5: `TopBar` replaces both the existing mobile-only bar and sidebar brand area
+### D5: `TopBar` layout — BentoMenu left, context-aware center, UserBadge right
 
 **Chosen**: The new `TopBar` is a full-width `<header>` rendered above both
 sidebar and main content inside `app/dashboard/layout.tsx`. The existing
-mobile hamburger+logo bar is removed (replaced). The sidebar loses its top
-brand area and relies on the `TopBar` for branding.
+mobile hamburger+logo bar is removed (replaced).
 
 **Layout structure after this change:**
 
 ```
-┌────────────────────────────────────────────────────────┐
-│  TopBar (h-14, full width, sticky)                      │
-│  Logo | PortfolioSwitcher (center) | UserBadge (right) │
-├──────────────┬─────────────────────────────────────────┤
-│  Sidebar     │  <main> page content                    │
-│  (nav only)  │                                         │
-└──────────────┴─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  TopBar (h-14, full width, sticky)                           │
+│  [⠿] Trade Sensei │ [PortfolioSwitcher*] │        [ JD ▼ ] │
+│  * hidden in Library and Check-in contexts                   │
+├──────────────┬──────────────────────────────────────────────┤
+│  Sidebar     │  <main> page content                         │
+│  (context-   │                                              │
+│  specific    │                                              │
+│  nav items)  │                                              │
+└──────────────┴──────────────────────────────────────────────┘
 ```
 
-**Sidebar changes:**
+**Sidebar nav-items by context:**
+
+| Context | Nav items |
+|---|---|
+| `portfolio` | Dashboard, Journal, Reports, Quick Import |
+| `library` | Playbooks, Tags |
+| `checkin` | Timeline (placeholder) |
+
+**Other sidebar changes:**
 - Remove sign-out link from sidebar bottom (UserBadge dropdown handles it).
-- Remove any "Accounts" navigation links (Settings tab handles account management).
+- Remove any standalone "Accounts" navigation links.
 - Remove mobile hamburger top bar (TopBar handles this globally).
 - Keep sidebar collapsible (Cmd/Ctrl+B) behaviour unchanged.
 
 ---
 
-### D6: `PortfolioSwitcher` dropdown — render portfolio list via `usePortfolios` hook
+### D6: `BentoMenu` — nine-dot popover for context switching
 
-**Chosen**: `PortfolioSwitcher` calls a `usePortfolios()` hook backed by TanStack
-Query (key `["portfolios"]`, staleTime 60 s). Selecting a portfolio calls
-`setActivePortfolio(id)` from `useActivePortfolio`.
+**Chosen**: A `BentoMenu` button (nine-dot grid icon, `Grid3x3` or equivalent)
+sits at the top-left of the TopBar, to the left of the wordmark. Clicking it
+opens a Radix UI `Popover` listing the three application contexts.
 
-**Dropdown content per portfolio row:**
-- `color_hex` dot (12 px circle, `background-color: portfolio.color_hex`)
-- Portfolio name
-- `is_paper` badge: `PAPER` (amber) or `LIVE` (green)
-- Checkmark on the currently active entry
+**Popover entry layout per context:**
+- Icon (distinct per context)
+- Label: "Portfolio Workspace" / "Global Library" / "Market Check-in"
+- Active indicator (e.g. filled dot or bold label) when `activeContext` matches
+- Clicking a context entry: sets `appContextStore.setActiveContext(ctx)`, closes
+  popover, navigates to context root route
 
-**Accessibility**: The dropdown MUST be keyboard-navigable (arrow keys, Enter,
-Escape) using Radix UI `DropdownMenu` (already used elsewhere in the codebase).
+**Context root routes:**
+
+| Context | Root route |
+|---|---|
+| `portfolio` | `/dashboard` |
+| `library` | `/dashboard/library` |
+| `checkin` | `/dashboard/checkin` |
+
+**Market Check-in entry**: visible in BentoMenu but navigates to a placeholder
+page reading "Market Check-in — Coming Soon". No backend entity in this spec.
 
 ---
 
-### D7: `UserBadge` — initials avatar, not a real avatar image
+### D7: `appContextStore` — separate Zustand slice for application context
+
+**Chosen**: Create `stores/appContextStore.ts` as a Zustand store separate from
+both `authStore` and `portfolioStore`.
+
+**Interface:**
+```ts
+type AppContext = 'portfolio' | 'library' | 'checkin'
+
+interface AppContextState {
+  activeContext: AppContext
+  hydrated: boolean
+  setActiveContext: (ctx: AppContext) => void
+  hydrate: () => void
+}
+```
+
+**Persistence**: `localStorage` key `"active_app_context"`. Default value when
+key is absent: `'portfolio'`.
+
+**Rationale**: `appContextStore` models top-level navigation mode; `portfolioStore`
+models which portfolio is selected within portfolio mode. Mixing them would
+couple two orthogonal concerns.
+
+---
+
+### D8: `PortfolioSwitcher` — context-aware visibility
+
+**Chosen**: `PortfolioSwitcher` is rendered in the TopBar center slot only when
+`activeContext === 'portfolio'`. In `library` and `checkin` contexts the center
+slot is empty (or shows a context label if desired in a future iteration).
+
+**Rationale**: The PortfolioSwitcher is meaningless and misleading in global
+contexts — showing it suggests that Playbook or Check-in data is scoped to the
+selected portfolio, which is incorrect.
+
+**Implementation**: TopBar reads `activeContext` from `useAppContext()` (wraps
+`appContextStore`) and conditionally renders `<PortfolioSwitcher />` or `null`.
+
+**Dropdown content per portfolio row:**
+- `color_hex` chip (12 px circle, `background-color: portfolio.color_hex`)
+- Portfolio name
+- Checkmark on the currently active entry
+
+**Accessibility**: Keyboard-navigable (arrow keys, Enter, Escape) using Radix UI
+`DropdownMenu`.
+
+---
+
+### D9: `UserBadge` — initials avatar, not a real avatar image
 
 **Chosen**: Display a `<div>` with the user's initials (first char of `first_name`
 + first char of `last_name`, or first two chars of `email` as fallback).
 Background colour is derived deterministically from the user's `id` (HSL hash).
-
-**Rationale**: No avatar upload feature exists. A colour-coded initials badge is
-consistent with the existing design language (Tags use `color_hex` chips).
 
 **Dropdown items**: Settings (`/dashboard/settings`) and Sign Out (calls the
 existing `useLogout()` mutation already used in the sidebar).
 
 ---
 
-### D8: Stale `activePortfolioId` recovery
+### D10: Stale `activePortfolioId` recovery
 
-If the stored ID is not in the fetched portfolio list (deleted/renamed scenario):
-1. Silently set `activePortfolioId` to `portfolios[0].id` (the first returned by
-   the API — sorted by `created_at asc` on the backend).
+If the stored ID is not in the fetched portfolio list (deleted scenario):
+1. Silently set `activePortfolioId` to the user's **default portfolio** if one
+   is configured in `user_settings` (`default_portfolio_id` key); otherwise fall
+   back to `portfolios[0].id` (sorted by `created_at asc`).
 2. Persist the new ID to localStorage.
 3. Do NOT show an error to the user.
 
@@ -220,15 +305,13 @@ If `portfolios` is empty, clear `activePortfolioId` to `null` and show the gate.
 
 ---
 
-### D9: `usePortfolios` — wraps the regenerated OpenAPI client
+### D11: `usePortfolios` — wraps the regenerated OpenAPI client
 
 **Chosen**: Create `hooks/usePortfolios.ts` that wraps the generated
-`listPortfoliosApiV1PortfoliosGet` function. This mirrors the existing pattern
-(e.g., `hooks/useAccounts.ts`).
+`listPortfoliosApiV1PortfoliosGet` function. TanStack Query key `["portfolios"]`,
+staleTime 60 s. Mirrors the existing pattern (e.g., `hooks/useAccounts.ts`).
 
-**Note**: This hook has a hard dependency on Spec 1 being merged and the
-`openapi-sync` skill having been run. The tasks file marks this dependency
-explicitly.
+**Note**: Hard dependency on Spec 1 being merged and `openapi-sync` having run.
 
 ---
 
@@ -236,12 +319,13 @@ explicitly.
 
 | Risk | Mitigation |
 |------|-----------|
-| Spec 1 not merged when work begins | `usePortfolios` has a mock fallback in local dev; tasks are ordered so the store/hook can be stubbed first and wired later. |
-| localStorage unavailable (SSR / incognito) | `portfolioStore.hydrate()` wraps `localStorage.getItem` in a `try/catch`; silently falls back to `null`. Next.js does not SSR dashboard pages (they are client-gated behind auth). |
-| Hydration flash — active portfolio ID not yet known on first render | `isLoading: true` until both `portfolioStore.hydrated` and TanStack Query resolve; layout renders skeleton during this window. |
-| Portfolio fetch error shows empty gate falsely | D4 mitigation: only show gate when fetch _succeeds_ and returns empty array; show error banner on failure. |
-| Sidebar `useSettings()` still called without portfolio context | `useSettings()` calls a user-level settings endpoint (`/api/v1/users/me/settings`) which is not portfolio-scoped — no change needed. |
-| Playwright E2E tests break due to removed sidebar account links | Tests that locate sidebar account-filter elements will fail; tasks include an explicit test update step. |
+| Spec 1 not merged when work begins | `usePortfolios` has a mock fallback in local dev; store/hook can be stubbed first and wired later. |
+| localStorage unavailable (SSR / incognito) | Both stores wrap `localStorage` access in `try/catch`; silently fall back to defaults. Next.js does not SSR dashboard pages. |
+| Hydration flash — active context or portfolio ID not yet known | `isLoading: true` until both stores are `hydrated` and TanStack Query resolves; layout renders skeleton. |
+| Portfolio fetch error shows empty gate falsely | D4 mitigation: only show gate when fetch _succeeds_ with empty array; show error banner on failure. |
+| BentoMenu popover traps keyboard focus from TopBar | Use Radix `Popover` with `modal={false}` to keep sidebar accessible when popover is open. |
+| Sidebar `useSettings()` still called without portfolio context | `useSettings()` is user-level, not portfolio-scoped — no change needed. |
+| Playwright E2E tests break due to removed sidebar account links | Explicit test update step in tasks. |
 
 ---
 
@@ -254,54 +338,54 @@ No database changes. No backend changes. Frontend-only.
 - `openapi-sync` run (TypeScript client regenerated with portfolio endpoints)
 
 **Step 2 — State layer**
+- `stores/appContextStore.ts` created
 - `stores/portfolioStore.ts` created
+- `hooks/useAppContext.ts` created
 - `hooks/usePortfolios.ts` created
 - `hooks/useActivePortfolio.ts` created
 
 **Step 3 — Components**
 - `components/layout/TopBar.tsx`
+- `components/layout/BentoMenu.tsx`
 - `components/layout/PortfolioSwitcher.tsx`
 - `components/layout/UserBadge.tsx`
 - `components/layout/EmptyPortfolioGate.tsx`
 
-**Step 4 — Layout integration**
-- `app/dashboard/layout.tsx` modified: integrate TopBar, remove old mobile bar,
-  remove sidebar account/sign-out links, add EmptyPortfolioGate
+**Step 4 — Library context routes**
+- `app/dashboard/library/page.tsx` (redirect to `/dashboard/library/playbooks`)
+- `app/dashboard/library/playbooks/page.tsx`
+- `app/dashboard/library/tags/page.tsx`
+- `app/dashboard/checkin/page.tsx` (placeholder)
+- Old `/dashboard/playbooks` and `/dashboard/tags` redirected to library routes
 
-**Step 5 — Page migrations** (can run in parallel per page)
+**Step 5 — Layout integration**
+- `app/dashboard/layout.tsx` modified: integrate TopBar, context-aware sidebar
+  nav, remove old mobile bar, remove sidebar account/sign-out links, add
+  EmptyPortfolioGate
+
+**Step 6 — Page migrations** (can run in parallel per page)
 - Remove per-page `accountId` state and `AccountFilter` usage
 - Read `activePortfolioId` via `useActivePortfolio`
 - Pass `portfolioId` to relevant hooks
 
-**Step 6 — Cleanup**
-- Remove or deprecate `AccountFilter` component (if no longer used anywhere)
+**Step 7 — Cleanup**
+- Deprecate `AccountFilter` component if unused
 - Update/add Playwright E2E tests
 
 **Rollback**: Pure frontend change; reverting the commit set is sufficient.
-No data is mutated by this spec.
 
 ---
 
 ## Open Questions
 
-1. **Portfolio create flow**: When `EmptyPortfolioGate` is shown, where does the
-   CTA link? Spec 1 adds backend CRUD but the frontend Portfolio Settings UI is
-   not yet implemented. Options: (a) link to a modal in the gate itself with a
-   minimal create form, (b) link to a `/dashboard/settings?tab=portfolios` stub
-   page that will be fleshed out in a later spec. Recommendation: (b) — keeps
-   this spec focused.
+1. ~~Portfolio create flow~~ — **Resolved**: CTA links to
+   `/dashboard/settings?tab=portfolios` (implemented in Spec 3).
 
-2. **TopBar height and sidebar offset**: Current sidebar uses `top-0` with
-   `h-screen`. Adding a 56 px (h-14) TopBar requires the sidebar to start at
-   `top-14`. Should we use a CSS variable (`--topbar-height`) or hardcode?
-   Recommendation: CSS variable — easier to adjust later.
+2. **TopBar height and sidebar offset**: Use CSS variable `--topbar-height: 3.5rem`
+   — easier to adjust later than a hardcoded `top-14`.
 
-3. **PortfolioSwitcher placement on mobile**: On `< lg` screens the sidebar is
-   hidden. Should the `PortfolioSwitcher` remain in the TopBar (all sizes) or
-   collapse into the sidebar on mobile? Recommendation: always in TopBar —
-   simpler, avoids dual implementations.
+3. **PortfolioSwitcher on mobile**: Always in TopBar on all screen sizes.
+   Simpler; avoids dual implementations.
 
-4. **Colour of initials badge background**: Deterministic HSL from user ID keeps
-   avatars stable across sessions. Should we instead use a fixed set of brand
-   colours (e.g., the same set as portfolio colour options) for a more consistent
-   look? This is a visual preference — no functional impact.
+4. **Initials badge background colour**: Deterministic HSL from user ID.
+   Keeps avatars stable across sessions.

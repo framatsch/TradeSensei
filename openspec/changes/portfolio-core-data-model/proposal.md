@@ -1,16 +1,22 @@
+> **Execution order: Spec 1 of 3**
+> Depends on: nothing — implement this first.
+> See `openspec/changes/PORTFOLIO-EXECUTION-ORDER.md` for the full chain.
+
+---
+
 ## Why
 
-The current data model lacks an isolation boundary between real-money and paper
-trades, and has no concept of a home currency per logical grouping of accounts.
-Introducing a **Portfolio** entity as the top-level owner of accounts provides
-strict data separation, enables portfolio-level currency configuration, and
-makes future multi-currency aggregation tractable without full trade history
-re-computation.
+The current data model has no concept of a home currency per logical grouping of
+accounts and no named boundary for grouping multiple accounts together.
+Introducing a **Portfolio** entity as the top-level owner of accounts enables
+portfolio-level currency configuration, makes future multi-currency aggregation
+tractable without full trade history re-computation, and gives users a named,
+colour-coded workspace per logical group of accounts.
 
 ## What Changes
 
 - **NEW** `Portfolio` model and `portfolios` table — owned by a user; carries
-  `base_currency`, `is_paper`, `color_hex`, and `name`.
+  `name`, `base_currency`, and `color_hex`.
 - **BREAKING** `Account.portfolio_id` (non-nullable FK) — every account must
   belong to exactly one portfolio.
 - **NEW** full CRUD API for portfolios: `GET/POST /portfolios`,

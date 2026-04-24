@@ -2,9 +2,9 @@
 
 ### Requirement: Portfolio creation
 The system SHALL allow an authenticated user to create a portfolio by providing
-a `name`, `base_currency` (ISO 4217, 3-letter), `is_paper` (boolean), and an
-optional `color_hex` (`#RRGGBB`). The portfolio MUST be owned by the
-requesting user. Portfolio `name` MUST be unique per user.
+a `name`, `base_currency` (ISO 4217, 3-letter), and an optional `color_hex`
+(`#RRGGBB`). The portfolio MUST be owned by the requesting user. Portfolio
+`name` MUST be unique per user.
 
 #### Scenario: Create a valid portfolio
 - **WHEN** a user submits `POST /api/v1/portfolios` with valid fields
@@ -23,7 +23,7 @@ requesting user. Portfolio `name` MUST be unique per user.
 
 #### Scenario: Invalid base_currency rejected
 - **WHEN** a user submits `POST /api/v1/portfolios` with a `base_currency`
-  value not in the accepted ISO 4217 allowlist
+  value not in `['USD', 'EUR', 'GBP', 'CHF', 'JPY', 'AUD', 'CAD']`
 - **THEN** the system SHALL return HTTP 422 Unprocessable Entity
 
 ---
@@ -61,8 +61,8 @@ its `id` via `GET /api/v1/portfolios/{portfolio_id}`.
 ---
 
 ### Requirement: Portfolio update
-The system SHALL allow an authenticated user to update a portfolio's `name`,
-`color_hex`, and `is_paper` via `PATCH /api/v1/portfolios/{portfolio_id}`.
+The system SHALL allow an authenticated user to update a portfolio's `name`
+and `color_hex` via `PATCH /api/v1/portfolios/{portfolio_id}`.
 The system SHALL allow updating `base_currency` only when the portfolio has
 no associated trades.
 
@@ -71,7 +71,7 @@ no associated trades.
 - **THEN** the system SHALL persist the change and return the updated resource
 
 #### Scenario: Change base_currency with no trades
-- **WHEN** a user patches `base_currency` on a portfolio with zero trades
+- **WHEN** a user patches `base_currency` to a value in the allowlist on a portfolio with zero trades
 - **THEN** the system SHALL persist the new currency
 
 #### Scenario: Change base_currency with existing trades rejected
@@ -84,12 +84,17 @@ no associated trades.
   name for that user
 - **THEN** the system SHALL return HTTP 409 Conflict
 
+#### Scenario: base_currency outside allowlist rejected on update
+- **WHEN** a user patches `base_currency` with a value not in `['USD', 'EUR', 'GBP', 'CHF', 'JPY', 'AUD', 'CAD']`
+- **THEN** the system SHALL return HTTP 422 Unprocessable Entity
+
 ---
 
 ### Requirement: Portfolio deletion
 The system SHALL allow an authenticated user to delete a portfolio via
 `DELETE /api/v1/portfolios/{portfolio_id}` only if the portfolio has no
-linked accounts.
+linked accounts. There is no `force` or cascade option — accounts must be
+removed first.
 
 #### Scenario: Delete portfolio with no accounts
 - **WHEN** a user calls `DELETE /api/v1/portfolios/{portfolio_id}` on a
@@ -99,8 +104,13 @@ linked accounts.
 #### Scenario: Delete portfolio with linked accounts rejected
 - **WHEN** a user calls `DELETE /api/v1/portfolios/{portfolio_id}` on a
   portfolio that has one or more linked accounts
-- **THEN** the system SHALL return HTTP 409 Conflict with a message listing
-  the number of blocking accounts
+- **THEN** the system SHALL return HTTP 409 Conflict with a message stating
+  the number of blocking accounts (e.g. "Portfolio has 3 linked accounts")
+
+#### Scenario: No cascade or force option exists
+- **WHEN** a user calls `DELETE /api/v1/portfolios/{portfolio_id}?force=true`
+- **THEN** the system SHALL return HTTP 400 Bad Request (unknown query param)
+  or ignore the param and still enforce the 409 if accounts exist
 
 ---
 

@@ -4,52 +4,61 @@
 - [ ] 0.2 Confirm Spec 2 (`app-state-topbar-navigation`) is applied: `useActivePortfolio` hook is importable and `activePortfolioId` is in the Zustand store
 - [ ] 0.3 Run `openapi-sync` skill to ensure the generated TypeScript client is current (needed for portfolio API calls in new components)
 
-## 1. Backend — Chart Display Settings
+## 1. Backend — Chart Display Settings & Default Portfolio
 
-- [ ] 1.1 Add three new typed fields to `UserSettingsRead` in `backend/app/schemas/user.py`:
+- [ ] 1.1 Add four new typed fields to `UserSettingsRead` in `backend/app/schemas/user.py`:
   - `chart_candles_before: int = Field(default=20, ge=1)`
   - `chart_candles_after: int = Field(default=10, ge=1)`
   - `chart_show_post_exit: bool = Field(default=False)`
-- [ ] 1.2 Add the same three fields (all `| None`, default `None`) to `UserSettingsUpdate` in `backend/app/schemas/user.py` with the same `ge=1` validator on the int fields
-- [ ] 1.3 Update the settings reader in `backend/app/api/v1/users.py` (the `GET /me/settings` handler) to pull `"chart_candles_before"`, `"chart_candles_after"`, `"chart_show_post_exit"` from `user_settings` rows and include them in the `UserSettingsRead` response with their defaults when the keys are absent
-- [ ] 1.4 Update the settings writer in `backend/app/api/v1/users.py` (the `PUT /me/settings` handler) to upsert the three new keys when they are present in the request body
+  - `default_portfolio_id: UUID | None = Field(default=None)`
+- [ ] 1.2 Add the same four fields (all optional, `| None`, default `None`) to `UserSettingsUpdate`; int fields keep `ge=1` validator
+- [ ] 1.3 Update the settings reader in `backend/app/api/v1/users.py` (`GET /me/settings`) to pull all four new keys from `user_settings` rows; return defaults when keys are absent
+- [ ] 1.4 Update the settings writer in `backend/app/api/v1/users.py` (`PUT /me/settings`) to upsert the four new keys when present in the request body
 - [ ] 1.5 Run `lint-check` skill and fix any ruff / mypy errors introduced in steps 1.1–1.4
 
 ## 2. Backend — Tests
 
-- [ ] 2.1 Add unit tests for the `GET /me/settings` endpoint: verify that missing keys return default values `20`, `10`, `false` respectively
-- [ ] 2.2 Add unit tests for the `PUT /me/settings` endpoint: write all three fields; read them back; verify values match
-- [ ] 2.3 Add unit test: partial update (only `chart_candles_before`) does not clobber the other two keys
-- [ ] 2.4 Add unit test: `chart_candles_before = 0` or negative value is rejected with HTTP 422
+- [ ] 2.1 `GET /me/settings`: verify missing keys return defaults `20`, `10`, `false`, `null`
+- [ ] 2.2 `PUT /me/settings`: write all four fields; read back; verify values match
+- [ ] 2.3 Partial update (only `chart_candles_before`) does not clobber the other three keys
+- [ ] 2.4 `chart_candles_before = 0` or negative rejected with HTTP 422
+- [ ] 2.5 `default_portfolio_id` set to a valid UUID string; read back; verify stored correctly
 
 ## 3. Frontend — Settings Page: New Tabs
 
 - [ ] 3.1 Read `frontend/app/dashboard/settings/SettingsPageClient.tsx` in full before editing
-- [ ] 3.2 Extend `Tab` type to `"general" | "integrations" | "corporate-actions" | "features" | "portfolios" | "playbooks-tags" | "look-and-feel"`
-- [ ] 3.3 Add three entries to the `TABS` array: `{ id: "portfolios", label: "Portfolios" }`, `{ id: "playbooks-tags", label: "Playbooks & Tags" }`, `{ id: "look-and-feel", label: "Look & Feel" }`
-- [ ] 3.4 Extend the `useEffect` that reads `?tab=` query param to handle `"portfolios"`, `"playbooks-tags"`, and `"look-and-feel"` values
-- [ ] 3.5 Import and render `<PortfolioSettings />`, `<PlaybooksTagsSettings />`, `<ChartDisplaySettings />` in the tab content section
+- [ ] 3.2 Extend `Tab` type to `"general" | "integrations" | "corporate-actions" | "features" | "portfolios" | "look-and-feel"` (no `"playbooks-tags"` — Playbooks/Tags are in Library context)
+- [ ] 3.3 Add two entries to the `TABS` array: `{ id: "portfolios", label: "Portfolios" }`, `{ id: "look-and-feel", label: "Look & Feel" }`
+- [ ] 3.4 Extend the `useEffect` that reads `?tab=` query param to handle `"portfolios"` and `"look-and-feel"` values
+- [ ] 3.5 Import and render `<PortfolioSettings />` and `<ChartDisplaySettings />` in the tab content section (NOT `<PlaybooksTagsSettings />`)
 
 ## 4. Frontend — PortfolioSettings Component
 
-- [ ] 4.1 Create `frontend/components/settings/PortfolioSettings.tsx` — client component; use `usePortfolios()` (Spec 2) to load the list
-- [ ] 4.2 Render a list of portfolio cards: show name, currency, live/paper badge, and colour dot; add Edit and Delete buttons per card
-- [ ] 4.3 Implement inline Create form (name input, currency select with allowlist: USD/EUR/GBP/JPY/CHF/CAD/AUD, is_paper toggle, colour picker); on submit call `createPortfolioApiV1PortfoliosPost` from generated client
-- [ ] 4.4 Implement inline Edit form: same fields as Create; `base_currency` select is disabled with a tooltip when `has_trades` is true (call `GET /api/v1/portfolios/{id}` to check, or derive from whether the portfolio has accounts with trade count); on submit call `updatePortfolioApiV1PortfoliosPortfolioIdPatch`
-- [ ] 4.5 Implement Delete confirmation: show a small confirm popover; on confirm call `deletePortfolioApiV1PortfoliosPortfolioIdDelete`; show inline error if backend returns 409 ("Remove all accounts first")
-- [ ] 4.6 Implement **Danger Zone** section at the bottom of the component:
-  - "Wipe Portfolio Data" button opens a modal dialog
-  - Modal shows warning copy and a text input labelled "Type portfolio name to confirm"
-  - Confirm button is disabled until the typed value exactly matches the portfolio name (case-sensitive)
-  - On confirm: iterate `activePortfolio.accounts` (loaded via `useAccounts(portfolioId)`), call `freshStartImport` for each account sequentially, show per-account progress indicator and final summary toast
-- [ ] 4.7 Handle loading and error states: skeleton cards while fetching; error banner if portfolio list fetch fails
-- [ ] 4.8 Invalidate `["portfolios"]` React Query cache after create/update/delete operations
+- [ ] 4.1 Create `frontend/components/settings/PortfolioSettings.tsx` — client component; use `usePortfolios()` (Spec 2) and `useSettings()` to load list and `default_portfolio_id`
+- [ ] 4.2 Render portfolio cards: show colour chip, name, currency, default indicator (filled star if `id === default_portfolio_id`), Edit and Delete buttons
+- [ ] 4.3 Define `PORTFOLIO_COLORS: string[]` constant (12 hex values including `'#6366f1'`) in `frontend/lib/constants/portfolioColors.ts`; reuse in both create and edit forms
+- [ ] 4.4 Implement inline Create form:
+  - Name input (required)
+  - Currency select (allowlist: USD/EUR/GBP/CHF/JPY/AUD/CAD)
+  - Colour chip picker: row of 12 `<button>` elements, each a filled circle (20 px); active chip shows a ring; clicking sets `color_hex`; default pre-selected chip is `'#6366f1'`
+  - On submit: call `createPortfolioApiV1PortfoliosPost`
+- [ ] 4.5 Implement inline Edit form: same fields as Create; `base_currency` select disabled with tooltip when `has_trades` is true; on submit call `updatePortfolioApiV1PortfoliosPortfolioIdPatch`
+- [ ] 4.6 Implement "Set as default" action per portfolio card:
+  - Star icon button (unfilled = not default, filled = default)
+  - On click: call `PUT /api/v1/users/me/settings` with `{ default_portfolio_id: portfolio.id }`; invalidate `["settings"]` cache; update star states in the list optimistically
+- [ ] 4.7 Implement Delete confirmation: confirm popover; on confirm call `deletePortfolioApiV1PortfoliosPortfolioIdDelete`; inline 409 error "Remove all accounts before deleting this portfolio"
+- [ ] 4.8 Implement **Danger Zone** section at the bottom:
+  - "Wipe Portfolio Data" button opens modal dialog
+  - Modal: warning copy + text input "Type portfolio name to confirm"
+  - Confirm button disabled until typed name matches exactly (case-sensitive)
+  - On confirm: iterate accounts via `useAccounts(portfolioId)`, call `freshStartImport` per account sequentially, show per-account progress + final summary toast
+- [ ] 4.9 Handle loading / error states: skeleton cards while fetching; error banner on failure
+- [ ] 4.10 Invalidate `["portfolios"]` React Query cache after create/update/delete
 
 ## 5. Frontend — PlaybooksTagsSettings Component
 
-- [ ] 5.1 Create `frontend/components/settings/PlaybooksTagsSettings.tsx` — client component
-- [ ] 5.2 Render a two-section layout: "Playbooks" section containing `<PlaybookList />`, "Tags" section containing `<TagList />`; no changes to the existing components needed
-- [ ] 5.3 Add a brief explanatory header per section (e.g. "Strategies you can attach to trades" / "Labels for categorising trades")
+**SKIPPED** — Playbooks and Tags are managed in the Global Library context (Spec 2 tasks 7.1–7.3).
+No `PlaybooksTagsSettings.tsx` component is created in this spec.
 
 ## 6. Frontend — ChartDisplaySettings Component
 
@@ -70,12 +79,14 @@
 - [ ] 7.4 Update `AccountForm` default values: when `activePortfolioId` is set, pre-populate `portfolio_id` with it
 - [ ] 7.5 In fallback mode (no `activePortfolioId`): render a notice "Showing all accounts — select a portfolio to filter" above the account list; each row shows its portfolio name
 
-## 8. Frontend — Remove Standalone Sidebar Pages and Nav Links
+## 8. Frontend — Route Redirects (handled by Spec 2)
 
-- [ ] 8.1 Replace `frontend/app/dashboard/playbooks/page.tsx` body with `redirect('/dashboard/settings?tab=playbooks-tags')` using Next.js `redirect()` from `'next/navigation'`
-- [ ] 8.2 Replace `frontend/app/dashboard/tags/page.tsx` body with `redirect('/dashboard/settings?tab=playbooks-tags')` using Next.js `redirect()` from `'next/navigation'`
-- [ ] 8.3 Read `frontend/app/dashboard/layout.tsx` in full; locate the "Playbooks" and "Tags" sidebar nav items and remove them
-- [ ] 8.4 Verify no other component imports from the removed page files (run `rg "dashboard/playbooks" frontend/` and `rg "dashboard/tags" frontend/` — redirects and any remaining references should be valid)
+These tasks are owned by Spec 2 (`app-state-topbar-navigation`) task list items 7.5 and 7.6.
+They are listed here for cross-reference only — do NOT duplicate them.
+
+- Spec 2 task 7.5: `/dashboard/playbooks` → `redirect('/dashboard/library/playbooks')`
+- Spec 2 task 7.6: `/dashboard/tags` → `redirect('/dashboard/library/tags')`
+- Spec 2 task 8.7: Sidebar Playbooks/Tags nav items removed from portfolio sidebar
 
 ## 9. Frontend — TypeScript Build Verification
 
@@ -83,12 +94,21 @@
 
 ## 10. Tests
 
-- [ ] 10.1 Update any existing unit tests that reference the `Tab` type or `TABS` array in `SettingsPageClient.tsx`
-- [ ] 10.2 Write unit test for `ChartDisplaySettings`: renders saved values; shows validation error on ≤ 0 input; calls `useUpdateSettings` on valid save
-- [ ] 10.3 Write unit test for `PortfolioSettings`: renders portfolio list; create form calls API; delete confirmation blocks with 409 error message
-- [ ] 10.4 Write unit test for `PlaybooksTagsSettings`: renders both sections; `PlaybookList` and `TagList` are present in the DOM
-- [ ] 10.5 Update any Playwright E2E tests that previously navigated to `/dashboard/playbooks` or `/dashboard/tags` — update them to navigate to `/dashboard/settings?tab=playbooks-tags`
-- [ ] 10.6 Add Playwright E2E test: navigate to `/dashboard/playbooks` → verify redirect to Settings → verify Playbooks & Tags tab is active
+- [ ] 10.1 Update any existing unit tests that reference the `Tab` type or `TABS` array in `SettingsPageClient.tsx` (now 6 tabs, not 7)
+- [ ] 10.2 Unit test `ChartDisplaySettings`: renders saved values; validation error on ≤ 0 input; calls `useUpdateSettings` on valid save
+- [ ] 10.3 Unit test `PortfolioSettings`:
+  - renders portfolio list with colour chips and default indicator
+  - create form submits with selected colour chip `color_hex`
+  - delete confirmation blocks with 409 error message
+  - "Set as default" star click calls `PUT /me/settings` with `default_portfolio_id`
+  - default indicator appears on correct portfolio card
+- [ ] 10.4 Unit test: colour chip picker — only one chip active at a time; clicking new chip deselects previous
+- [ ] 10.5 Playwright: `frontend/tests/specs/portfolio-settings.spec.ts` — **ALREADY WRITTEN** (TC-130–TC-170); covers:
+  - Portfolio CRUD (create, duplicate name error, edit rename, delete 409)
+  - Colour chip picker (12 chips shown, one active at a time, hex submitted)
+  - Default portfolio selector (star toggle, mutual exclusion, user_settings updated, used as fallback)
+  - Danger Zone (exact name match required, case-sensitive, Confirm stays disabled until match)
+  - base_currency immutability (field disabled + tooltip when has_trades)
 
 ## 11. OpenAPI Sync & Lint
 
@@ -99,9 +119,8 @@
 ## 12. Documentation & Changelog
 
 - [ ] 12.1 Append to `CHANGELOG.md` under `[Unreleased]`:
+  - Added: Portfolios tab in Settings — full CRUD for portfolios with colour chip picker, default portfolio selector, and Danger Zone (data wipe)
   - Added: Look & Feel settings tab — chart display defaults (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`) stored in user settings
-  - Added: Portfolios tab in Settings — full CRUD for portfolios with Danger Zone (data wipe)
-  - Added: Playbooks & Tags tab in Settings — consolidated management; standalone sidebar pages removed
   - Changed: Accounts & Integrations tab scoped to active portfolio (Spec 2 prerequisite)
-  - Changed: `/dashboard/playbooks` and `/dashboard/tags` now redirect to `/dashboard/settings?tab=playbooks-tags`
-  - Changed: `UserSettingsRead` / `UserSettingsUpdate` schemas gain three new chart display fields
+  - Changed: `UserSettingsRead` / `UserSettingsUpdate` schemas gain four new fields (3 chart display + `default_portfolio_id`)
+  - Note: Playbooks & Tags management moved to Global Library context (Spec 2) — no Settings tab
