@@ -381,11 +381,14 @@ No database changes. No backend changes. Frontend-only.
 1. ~~Portfolio create flow~~ — **Resolved**: CTA links to
    `/dashboard/settings?tab=portfolios` (implemented in Spec 3).
 
-2. **TopBar height and sidebar offset**: Use CSS variable `--topbar-height: 3.5rem`
-   — easier to adjust later than a hardcoded `top-14`.
+2. ~~TopBar height and sidebar offset~~ — **Resolved**: CSS variable
+   `--topbar-height: 3.5rem` used throughout; sidebar offset and main content
+   padding both reference this variable (tasks 8.2, 8.11).
 
-3. **PortfolioSwitcher on mobile**: Always in TopBar on all screen sizes.
-   Simpler; avoids dual implementations.
+3. ~~PortfolioSwitcher on mobile~~ — **Resolved**: Always in TopBar on all
+   screen sizes. The SidebarToggle handles sidebar visibility on mobile; no
+   second PortfolioSwitcher implementation needed.
 
-4. **Initials badge background colour**: Deterministic HSL from user ID.
-   Keeps avatars stable across sessions.
+4. ~~Initials badge background colour~~ — **Resolved**: Deterministic HSL hash
+   from `user.id` (string → sum of char codes → `hsl(N % 360, 65%, 48%)`).
+   Keeps avatars stable across sessions and devices.
