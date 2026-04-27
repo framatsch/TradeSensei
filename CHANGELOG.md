@@ -9,9 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - [backend] Introduced the `Portfolio` entity with `id`, `name`, `base_currency`, and `color_hex`, plus user-scoped CRUD endpoints at `/api/v1/portfolios`.
+- [frontend] Added `appContextStore` Zustand slice — Portfolio Workspace / Global Library / Market Check-in mode, persisted to localStorage
+- [frontend] Added `portfolioStore` Zustand slice — persists `activePortfolioId` to localStorage
+- [frontend] Added `TopBar` with `BentoMenu` (nine-dot context switcher), context-aware `PortfolioSwitcher` (colour chip + name), and `UserBadge`
+- [frontend] Added `EmptyPortfolioGate` for first-time users with no portfolios
+- [frontend] Added Global Library context at `/dashboard/library` (Playbooks, Tags)
+- [frontend] Added Market Check-in placeholder at `/dashboard/checkin`
 
 ### Changed
 - [backend] Scoped trades, metrics, timeseries, imports, accounts, executions, and cash-transactions under `/api/v1/portfolios/{portfolio_id}/...`; legacy unscoped endpoints now return HTTP 410.
+- [frontend] All dashboard pages read `activePortfolioId` from global context; per-page `AccountFilter` state removed
+- [frontend] Sidebar nav-items are context-specific; Playbooks/Tags moved to Library context
+- [frontend] Sidebar cleaned of sign-out and standalone account-management links
 
 ### Migration
 - [db] Added portfolio migration that creates a default portfolio per existing user and links all existing accounts automatically.
