@@ -1,23 +1,13 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
-import "./globals.css";
+import { ThemeProvider } from "next-themes";
 import { Providers } from "./providers";
+import { Toaster } from "react-hot-toast";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Trade Sensei",
-  description: "Statistical analysis and visualization of trading data",
+  description: "Advanced statistical analysis for your trades",
 };
 
 export default function RootLayout({
@@ -27,13 +17,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Runtime environment config — values injected by docker-entrypoint.sh */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/env.js" />
-      </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans bg-background text-foreground antialiased min-h-screen`} suppressHydrationWarning>
-        <Providers>{children}</Providers>
+      <body className="antialiased min-h-screen bg-background text-foreground">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <Providers>
+            {children}
+            <Toaster position="bottom-right" />
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

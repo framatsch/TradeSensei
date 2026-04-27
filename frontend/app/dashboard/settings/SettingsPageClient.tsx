@@ -14,14 +14,18 @@ import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
 import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
 import FeaturesSettings from "@/components/settings/FeaturesSettings";
+import { PortfolioSettings } from "@/components/settings/PortfolioSettings";
+import { ChartDisplaySettings } from "@/components/settings/ChartDisplaySettings";
 
-type Tab = "general" | "integrations" | "corporate-actions" | "features";
+type Tab = "general" | "integrations" | "corporate-actions" | "features" | "portfolios" | "look-and-feel";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "integrations", label: "Accounts & Integrations" },
   { id: "corporate-actions", label: "Corporate Actions" },
   { id: "features", label: "Features" },
+  { id: "portfolios", label: "Portfolios" },
+  { id: "look-and-feel", label: "Look & Feel" },
 ];
 
 export function SettingsPageClient() {
@@ -37,6 +41,10 @@ export function SettingsPageClient() {
       setActiveTab("corporate-actions");
     } else if (tabParam === "features") {
       setActiveTab("features");
+    } else if (tabParam === "portfolios") {
+      setActiveTab("portfolios");
+    } else if (tabParam === "look-and-feel") {
+      setActiveTab("look-and-feel");
     }
   }, [searchParams]);
 
@@ -74,6 +82,8 @@ export function SettingsPageClient() {
         {activeTab === "integrations" && <AccountSettings />}
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
         {activeTab === "features" && <FeaturesSettings />}
+        {activeTab === "portfolios" && <PortfolioSettings />}
+        {activeTab === "look-and-feel" && <ChartDisplaySettings />}
       </div>
     </div>
   );

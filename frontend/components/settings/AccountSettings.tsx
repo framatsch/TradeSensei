@@ -7,11 +7,13 @@
 "use client";
 
 import { useAccounts } from "@/hooks/useAccounts";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { AccountList } from "@/components/accounts/AccountList";
 import { Spinner } from "@/components/ui/Spinner";
 
 export function AccountSettings() {
-  const { data: accounts, isLoading, isError, error, refetch } = useAccounts();
+  const { activePortfolioId } = useActivePortfolio();
+  const { data: accounts, isLoading, isError, error, refetch } = useAccounts(activePortfolioId || undefined);
 
   return (
     <div className="space-y-8">
@@ -25,6 +27,12 @@ export function AccountSettings() {
             Manage your trading accounts. Set the account type and optionally store API credentials for automatic sync.
           </p>
         </div>
+
+        {!activePortfolioId && (
+          <div className="bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400 p-3 rounded-md mb-4 text-sm border border-amber-200 dark:border-amber-500/20">
+            Showing all accounts — select a portfolio to filter
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center h-32">

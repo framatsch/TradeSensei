@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { Spinner } from "@/components/ui/Spinner";
 import type { Account, AccountType, FlexFromDatePreset } from "@/lib/types";
 import type { AxiosError } from "axios";
@@ -38,12 +39,14 @@ const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; l
 };
 
 export function AccountForm({ account, onSave, onCancel }: Props) {
-  const isEditing = account !== undefined;
+  const isEditing = !!account;
+  const { activePortfolioId } = useActivePortfolio();
 
   const [name, setName] = useState(account?.name ?? "");
   const [accountNumber, setAccountNumber] = useState(account?.account_number ?? "");
   const [type, setType] = useState<AccountType>(account?.type ?? "manual");
   const [currency, setCurrency] = useState(account?.currency ?? "USD");
+  const [portfolioId, setPortfolioId] = useState<string | null>(account?.portfolio_id ?? activePortfolioId ?? null);
   const [credentials, setCredentials] = useState<Record<string, string>>({});
 
   // Sync settings
@@ -81,6 +84,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
       type,
       currency: currency.trim() || "USD",
       properties,
+      portfolio_id: portfolioId,
       settings: {
         sync_days: syncDays,
         flex_from_date_preset: flexPreset,

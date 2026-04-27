@@ -1,39 +1,39 @@
 ## 0. Prerequisites (blocking — verify before starting)
 
-- [ ] 0.1 Confirm Spec 1 (`portfolio-core-data-model`) is applied: `GET /api/v1/portfolios` returns HTTP 200
-- [ ] 0.2 Confirm Spec 2 (`app-state-topbar-navigation`) is applied: `useActivePortfolio` hook is importable and `activePortfolioId` is in the Zustand store
-- [ ] 0.3 Run `openapi-sync` skill to ensure the generated TypeScript client is current (needed for portfolio API calls in new components)
+- [x] 0.1 Confirm Spec 1 (`portfolio-core-data-model`) is applied: `GET /api/v1/portfolios` returns HTTP 200
+- [x] 0.2 Confirm Spec 2 (`app-state-topbar-navigation`) is applied: `useActivePortfolio` hook is importable and `activePortfolioId` is in the Zustand store
+- [x] 0.3 Run `openapi-sync` skill to ensure the generated TypeScript client is current (needed for portfolio API calls in new components)
 
 ## 1. Backend — Chart Display Settings, Default Portfolio & Home Route
 
-- [ ] 1.1 Add five new typed fields to `UserSettingsRead` in `backend/app/schemas/user.py`:
+- [x] 1.1 Add five new typed fields to `UserSettingsRead` in `backend/app/schemas/user.py`:
   - `chart_candles_before: int = Field(default=20, ge=1)`
   - `chart_candles_after: int = Field(default=10, ge=1)`
   - `chart_show_post_exit: bool = Field(default=False)`
   - `default_portfolio_id: UUID | None = Field(default=None)`
   - `home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] = Field(default="/dashboard")`
-- [ ] 1.2 Add the same five fields (all optional, `| None`, default `None`) to `UserSettingsUpdate`; int fields keep `ge=1` validator; `home_route` field keeps the same `Literal` allowlist
-- [ ] 1.3 Update the settings reader in `backend/app/api/v1/users.py` (`GET /me/settings`) to pull all five new keys from `user_settings` rows; return defaults when keys are absent; if the stored `home_route` value is not in the allowlist treat it as `"/dashboard"`
-- [ ] 1.4 Update the settings writer in `backend/app/api/v1/users.py` (`PUT /me/settings`) to upsert the five new keys when present in the request body
-- [ ] 1.5 Run `lint-check` skill and fix any ruff / mypy errors introduced in steps 1.1–1.4
+- [x] 1.2 Add the same five fields (all optional, `| None`, default `None`) to `UserSettingsUpdate`; int fields keep `ge=1` validator; `home_route` field keeps the same `Literal` allowlist
+- [x] 1.3 Update the settings reader in `backend/app/api/v1/users.py` (`GET /me/settings`) to pull all five new keys from `user_settings` rows; return defaults when keys are absent; if the stored `home_route` value is not in the allowlist treat it as `"/dashboard"`
+- [x] 1.4 Update the settings writer in `backend/app/api/v1/users.py` (`PUT /me/settings`) to upsert the five new keys when present in the request body
+- [x] 1.5 Run `lint-check` skill and fix any ruff / mypy errors introduced in steps 1.1–1.4
 
 ## 2. Backend — Tests
 
-- [ ] 2.1 `GET /me/settings`: verify missing keys return defaults `20`, `10`, `false`, `null`, `"/dashboard"`
-- [ ] 2.2 `PUT /me/settings`: write all five fields; read back; verify values match
-- [ ] 2.3 Partial update (only `chart_candles_before`) does not clobber the other four keys
-- [ ] 2.4 `chart_candles_before = 0` or negative rejected with HTTP 422
-- [ ] 2.5 `default_portfolio_id` set to a valid UUID string; read back; verify stored correctly
-- [ ] 2.6 `home_route` set to `"/dashboard/trades"`; read back correctly
-- [ ] 2.7 `home_route` with an invalid value (e.g. `"/dashboard/invalid"`) rejected with HTTP 422
+- [x] 2.1 `GET /me/settings`: verify missing keys return defaults `20`, `10`, `false`, `null`, `"/dashboard"`
+- [x] 2.2 `PUT /me/settings`: write all five fields; read back; verify values match
+- [x] 2.3 Partial update (only `chart_candles_before`) does not clobber the other four keys
+- [x] 2.4 `chart_candles_before = 0` or negative rejected with HTTP 422
+- [x] 2.5 `default_portfolio_id` set to a valid UUID string; read back; verify stored correctly
+- [x] 2.6 `home_route` set to `"/dashboard/trades"`; read back correctly
+- [x] 2.7 `home_route` with an invalid value (e.g. `"/dashboard/invalid"`) rejected with HTTP 422
 
 ## 3. Frontend — Settings Page: New Tabs
 
-- [ ] 3.1 Read `frontend/app/dashboard/settings/SettingsPageClient.tsx` in full before editing
-- [ ] 3.2 Extend `Tab` type to `"general" | "integrations" | "corporate-actions" | "features" | "portfolios" | "look-and-feel"` (no `"playbooks-tags"` — Playbooks/Tags are in Library context)
-- [ ] 3.3 Add two entries to the `TABS` array: `{ id: "portfolios", label: "Portfolios" }`, `{ id: "look-and-feel", label: "Look & Feel" }`
-- [ ] 3.4 Extend the `useEffect` that reads `?tab=` query param to handle `"portfolios"` and `"look-and-feel"` values
-- [ ] 3.5 Import and render `<PortfolioSettings />` and `<ChartDisplaySettings />` in the tab content section (NOT `<PlaybooksTagsSettings />`)
+- [x] 3.1 Read `frontend/app/dashboard/settings/SettingsPageClient.tsx` in full before editing
+- [x] 3.2 Extend `Tab` type to `"general" | "integrations" | "corporate-actions" | "features" | "portfolios" | "look-and-feel"` (no `"playbooks-tags"` — Playbooks/Tags are in Library context)
+- [x] 3.3 Add two entries to the `TABS` array: `{ id: "portfolios", label: "Portfolios" }`, `{ id: "look-and-feel", label: "Look & Feel" }`
+- [x] 3.4 Extend the `useEffect` that reads `?tab=` query param to handle `"portfolios"` and `"look-and-feel"` values
+- [x] 3.5 Import and render `<PortfolioSettings />` and `<ChartDisplaySettings />` in the tab content section (NOT `<PlaybooksTagsSettings />`)
 
 ## 4. Frontend — PortfolioSettings Component
 
@@ -65,15 +65,15 @@ No `PlaybooksTagsSettings.tsx` component is created in this spec.
 
 ## 6. Frontend — ChartDisplaySettings Component
 
-- [ ] 6.1 Create `frontend/components/settings/ChartDisplaySettings.tsx` — client component; call `useSettings()` to load current values
-- [ ] 6.2 Render a form with:
+- [x] 6.1 Create `frontend/components/settings/ChartDisplaySettings.tsx` — client component; call `useSettings()` to load current values
+- [x] 6.2 Render a form with:
   - Number input "Candles before entry" bound to `chart_candles_before` (min 1, integer only)
   - Number input "Candles after exit" bound to `chart_candles_after` (min 1, integer only)
   - Toggle/switch "Show post-exit candles by default" bound to `chart_show_post_exit`
   - Select "Default Home Page" bound to `home_route` with three options: "Portfolio Overview" → `"/dashboard"`, "Journal" → `"/dashboard/trades"`, "Strategy & Tags" → `"/dashboard/library"`
-- [ ] 6.3 Implement client-side validation: number inputs ≤ 0 or non-integer show inline error "Must be a positive whole number"; Save button disabled while invalid
-- [ ] 6.4 On save call `useUpdateSettings()` mutation with all four fields (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`, `home_route`); show success toast on resolve; on reject show error toast and revert form state to last saved values; invalidate `["users","me","settings"]` cache so the TopBar wordmark link updates immediately
-- [ ] 6.5 Show a skeleton / disabled form while the initial settings fetch is loading
+- [x] 6.3 Implement client-side validation: number inputs ≤ 0 or non-integer show inline error "Must be a positive whole number"; Save button disabled while invalid
+- [x] 6.4 On save call `useUpdateSettings()` mutation with all four fields (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`, `home_route`); show success toast on resolve; on reject show error toast and revert form state to last saved values; invalidate `["users","me","settings"]` cache so the TopBar wordmark link updates immediately
+- [x] 6.5 Show a skeleton / disabled form while the initial settings fetch is loading
 
 ## 7. Frontend — AccountSettings: Scope to Active Portfolio
 

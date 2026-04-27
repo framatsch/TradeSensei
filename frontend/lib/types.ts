@@ -83,6 +83,7 @@ export interface AccountSettings {
 export interface Account {
   id: string;
   user_id: string;
+  portfolio_id: string | null;
   name: string;
   account_number: string | null;
   type: AccountType;
@@ -95,6 +96,7 @@ export interface Account {
 
 export interface AccountCreate {
   name: string;
+  portfolio_id?: string | null;
   account_number?: string | null;
   type?: AccountType;
   currency?: string;
@@ -348,6 +350,7 @@ export interface ReturnDistribution {
 
 export interface AccountUpdate {
   name?: string;
+  portfolio_id?: string | null;
   account_number?: string | null;
   type?: AccountType;
   currency?: string;
@@ -420,12 +423,22 @@ export interface UserSettings {
   theme: Theme;
   default_date_range: DefaultDateRange;
   features: Record<string, boolean>;
+  chart_candles_before?: number;
+  chart_candles_after?: number;
+  chart_show_post_exit?: boolean;
+  default_portfolio_id?: string | null;
+  home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library";
 }
 
 export interface UserSettingsUpdate {
   theme?: Theme;
   default_date_range?: DefaultDateRange;
   features?: Record<string, boolean> | null;
+  chart_candles_before?: number;
+  chart_candles_after?: number;
+  chart_show_post_exit?: boolean;
+  default_portfolio_id?: string | null;
+  home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library";
 }
 
 // ─── Cash Transactions ────────────────────────────────────────────────────────
