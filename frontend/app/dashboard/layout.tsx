@@ -22,6 +22,11 @@ import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
 import type { SavedTradeFilterRead } from "@/lib/types";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
 import FeatureGatedNavItems from "@/components/dashboard/FeatureGatedNavItems";
+import { TopBar } from "@/components/layout/TopBar";
+import { useAppContext } from "@/hooks/useAppContext";
+import type { AppContext } from "@/stores/appContextStore";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { EmptyPortfolioGate } from "@/components/layout/EmptyPortfolioGate";
 
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
@@ -32,6 +37,7 @@ interface NavLeaf {
   href: string;
   label: string;
   icon?: React.ReactNode;
+  disabled?: boolean;
 }
 
 interface NavGroup {
@@ -150,73 +156,71 @@ const Icons = {
   ),
 };
 
-// ─── Build nav items (respects feature flags) ─────────────────────────────────
+// ─── Build nav items (respects feature flags and context) ─────────────────────
 
-function buildNavItems(): NavItem[] {
-  const items: NavItem[] = [
-    // ── Dashboard ─────────────────────────────────────────────────────────────
-    {
-      kind: "group",
-      label: "DASHBOARD",
-      defaultOpen: true,
-      children: [
-        { kind: "leaf", href: "/dashboard", label: "Overview", icon: Icons.dashboard },
-        { kind: "leaf", href: "/dashboard/reports/calendar", label: "Calendar", icon: Icons.calendar },
-      ],
-    },
-
-    // ── Analytics Hub — rendered as AnalyticsNavSection in the loop ───────────
-    { kind: "leaf", href: "/dashboard/analytics", label: "Analytics", icon: Icons.analytics },
-
-    // ── Trading Log ───────────────────────────────────────────────────────────
-    {
-      kind: "group",
-      label: "TRADING LOG",
-      defaultOpen: true,
-      children: [
-        { kind: "leaf", href: "/dashboard/trades", label: "Trades", icon: Icons.trades },
-        { kind: "leaf", href: "/dashboard/playbooks", label: "Playbooks", icon: Icons.playbooks },
-        { kind: "leaf", href: "/dashboard/tags", label: "Tags", icon: Icons.tags },
-        { kind: "leaf", href: "/dashboard/import", label: "Import", icon: Icons.import },
-      ],
-    },
-  ];
-
-  // ── Conditionally-enabled modules (hidden unless flag is true) ──────────────
-  // Cash & Dividends and Cash Report are per-user feature flags injected
-  // by FeatureGatedNavItems, driven by DashboardLayout's useSettings subscription.
-
-  return items;
+function buildNavItems(context: AppContext): NavItem[] {
+  if (context === "portfolio") {
+    return [
+      {
+        kind: "group",
+        label: "DASHBOARD",
+        defaultOpen: true,
+        children: [
+          { kind: "leaf", href: "/dashboard", label: "Overview", icon: Icons.dashboard },
+          { kind: "leaf", href: "/dashboard/reports/calendar", label: "Calendar", icon: Icons.calendar },
+        ],
+      },
+      { kind: "leaf", href: "/dashboard/analytics", label: "Analytics", icon: Icons.analytics },
+      {
+        kind: "group",
+        label: "TRADING LOG",
+        defaultOpen: true,
+        children: [
+          { kind: "leaf", href: "/dashboard/trades", label: "Trades", icon: Icons.trades },
+          { kind: "leaf", href: "/dashboard/import", label: "Quick Import", icon: Icons.import },
+        ],
+      },
+    ];
+  }
+  
+  if (context === "library") {
+    return [
+      {
+        kind: "group",
+        label: "LIBRARY",
+        defaultOpen: true,
+        children: [
+          { kind: "leaf", href: "/dashboard/library/playbooks", label: "Playbooks", icon: Icons.playbooks },
+          { kind: "leaf", href: "/dashboard/library/tags", label: "Tags", icon: Icons.tags },
+        ],
+      }
+    ];
+  }
+  
+  if (context === "checkin") {
+    return [
+      { kind: "leaf", href: "/dashboard/checkin", label: "Timeline", icon: Icons.clock, disabled: true }
+    ];
+  }
+  
+  return [];
 }
-
-const NAV_ITEMS = buildNavItems();
 
 // ─── Shared class constants ───────────────────────────────────────────────────
 
-/**
- * Section header — static text label, no interactivity.
- * mt-8 on all except the first child (first:mt-0).
- */
 const SECTION_HEADER_CLASS =
   "px-4 pt-1 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-slate-500 select-none mt-8 first:mt-0";
 
-/** L1 nav item — inactive */
 const L1_INACTIVE =
   "rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60";
 
-/** L2 nav item — inactive */
 const L2_INACTIVE =
   "rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60";
 
 // ─── Trades sidebar views ─────────────────────────────────────────────────────
 
-/** Query params that are not part of the filter definition (ignored when diffing). */
 const META_PARAMS = new Set(["view_id", "sort_by", "sort_dir", "limit", "cursor"]);
 
-/**
- * Returns true when the current URL filter params differ from the saved view definition.
- * Used to show a "modified" indicator on the active view in the sidebar.
- */
 function isViewModified(
   view: SavedTradeFilterRead,
   searchParams: URLSearchParams
@@ -235,10 +239,6 @@ function isViewModified(
   );
 }
 
-/**
- * L2 view entry under the Trades accordion.
- * Lock icon = SYSTEM view, User icon = USER view.
- */
 function ViewItem({
   view,
   activeViewId,
@@ -259,7 +259,6 @@ function ViewItem({
         isActive ? "nav-active font-medium" : L2_INACTIVE
       }`}
     >
-      {/* Lock (SYSTEM) or User (USER) icon */}
       <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>
         {view.scope === "SYSTEM" ? (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
@@ -276,7 +275,6 @@ function ViewItem({
 
       <span className="truncate flex-1">{view.name}</span>
 
-      {/* Unsaved-changes indicator — shown when active view filters have been modified */}
       {isActive && isModified && (
         <span
           title="Unsaved changes"
@@ -287,10 +285,6 @@ function ViewItem({
   );
 }
 
-/**
- * Special nav item for "Trades" — includes an expand/collapse chevron for
- * the saved-filter views list beneath it.
- */
 function TradesNavItem({
   tradeLeaf,
   pathname,
@@ -347,7 +341,6 @@ function TradesNavItem({
 
   return (
     <div>
-      {/* "Trades" main row + expand chevron */}
       <div className="flex items-center">
         <button
           onClick={handleMainClick}
@@ -380,7 +373,6 @@ function TradesNavItem({
         )}
       </div>
 
-      {/* Saved views list */}
       {viewsOpen && hasViews && (
         <div className="mt-1 space-y-0.5">
           {sortedViews.map((view) => (
@@ -410,10 +402,6 @@ const ANALYTICS_TABS = [
   { id: "behavior", label: "Behavior", icon: Icons.behavior },
 ] as const;
 
-/**
- * PERFORMANCE section — static header + L2 sub-tab links.
- * Header does NOT navigate and has no collapse behaviour.
- */
 function AnalyticsNavSection({
   pathname,
   onClick,
@@ -438,10 +426,8 @@ function AnalyticsNavSection({
 
   return (
     <div>
-      {/* Static section header */}
       <div className={SECTION_HEADER_CLASS}>Performance</div>
 
-      {/* Sub-tab links */}
       <div className="space-y-0.5">
         {visibleTabs.map((tab) => {
           const isActive = isOnAnalyticsPage && activeTab === tab.id;
@@ -481,6 +467,15 @@ function NavLeafItem({
       ? pathname === "/dashboard"
       : pathname.startsWith(item.href);
 
+  if (item.disabled) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-2 text-sm font-normal opacity-50 cursor-not-allowed">
+        {item.icon && <span className="shrink-0">{item.icon}</span>}
+        {item.label}
+      </div>
+    );
+  }
+
   return (
     <Link
       href={item.href}
@@ -499,9 +494,6 @@ function NavLeafItem({
   );
 }
 
-/**
- * Section group — static header (no collapse), children always visible.
- */
 function NavGroupItem({
   item,
   pathname,
@@ -513,7 +505,6 @@ function NavGroupItem({
 }) {
   return (
     <div>
-      {/* Static section header */}
       <div className={SECTION_HEADER_CLASS}>{item.label}</div>
 
       <div className="space-y-0.5">
@@ -557,13 +548,16 @@ export default function DashboardLayout({ children }: Props) {
     }
     return true;
   });
-  const [aboutOpen, setAboutOpen] = useState(false);
+  
   const pathname = usePathname();
   const router = useRouter();
-  const { mutate: logout } = useLogout();
+  
   const hydrate = useAuthStore((s) => s.hydrate);
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s.hydrated);
+
+  const { activeContext } = useAppContext();
+  const { portfolios, isLoading: isPortfolioLoading, isError: isPortfolioError } = useActivePortfolio();
 
   const toggleDesktopSidebar = () => {
     setDesktopSidebarOpen((prev) => {
@@ -573,7 +567,6 @@ export default function DashboardLayout({ children }: Props) {
     });
   };
 
-  // Keyboard shortcut (Cmd/Ctrl + B)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeTag = document.activeElement?.tagName.toLowerCase();
@@ -589,8 +582,6 @@ export default function DashboardLayout({ children }: Props) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Per-user feature flags — subscription lives here so FeatureGatedNavItems
-  // re-renders immediately when the cache updates (no dynamic/lazy timing issues).
   const { data: settings } = useSettings();
   const features = (settings?.features ?? {}) as Record<string, boolean>;
   const showCash = features["cash_and_dividends"] ?? false;
@@ -617,183 +608,115 @@ export default function DashboardLayout({ children }: Props) {
     );
   }
 
-  return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/60 lg:hidden"
-          onClick={closeSidebar}
-        />
-      )}
+  const NAV_ITEMS = buildNavItems(activeContext);
+  
+  const getContextLabel = () => {
+    if (activeContext === 'portfolio') return "— WORKSPACE —";
+    if (activeContext === 'library') return "— LIBRARY —";
+    return "— CHECK-IN —";
+  };
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col bg-sidebar border-border transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
-          sidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
-        } ${
-          desktopSidebarOpen
-            ? "lg:w-56 lg:border-r lg:opacity-100 lg:visible"
-            : "lg:w-0 lg:border-r-0 lg:opacity-0 lg:invisible"
-        }`}
-      >
-        <div className="w-56 h-full flex flex-col">
-          {/* Logo */}
-          <div
-            className="flex items-center justify-between px-4 py-4 border-b border-border"
-          >
-            <div 
-              className="flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors group"
-              onClick={() => setAboutOpen(true)}
-            >
-              <Logo size={28} className="group-hover:scale-105 transition-transform duration-200" />
-              <span className="font-semibold text-foreground text-sm truncate">Trade Sensei</span>
+  const renderContent = () => {
+    if (activeContext === 'portfolio') {
+      if (isPortfolioError) {
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md">
+              Failed to load portfolios — please refresh
             </div>
-            <button
-              onClick={toggleDesktopSidebar}
-              className="hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              title="Close sidebar (Cmd/Ctrl+B)"
-            >
-              <PanelLeftClose size={18} />
-            </button>
           </div>
+        );
+      }
+      if (isPortfolioLoading) {
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        );
+      }
+      if (portfolios.length === 0) {
+        return <EmptyPortfolioGate />;
+      }
+    }
+    return children;
+  };
 
-          {/* Nav */}
-          <nav className="flex-1 py-3 overflow-y-auto">
-          {NAV_ITEMS.map((item, i) => {
-            if (item.kind === "group") {
-              return (
-                <NavGroupItem
-                  key={i}
-                  item={item}
-                  pathname={pathname}
-                  onClick={closeSidebar}
-                />
-              );
-            }
-            if (item.kind === "leaf" && item.href === "/dashboard/analytics") {
-              return (
-                <AnalyticsNavSection
-                  key={item.href}
-                  pathname={pathname}
-                  onClick={closeSidebar}
-                  showRisk={showRisk}
-                />
-              );
-            }
-            if (item.kind === "leaf") {
-              return (
-                <NavLeafItem
-                  key={item.href}
-                  item={item}
-                  pathname={pathname}
-                  onClick={closeSidebar}
-                />
-              );
-            }
-            return null;
-          })}
-          {/* Client-side injected per-user feature nav items (Cash / Tax) */}
-          {/* Driven by DashboardLayout's useSettings subscription — no lazy timing window */}
-          <FeatureGatedNavItems showCash={showCash} showTax={showTax} />
-        </nav>
-
-        {/* Settings + Help + Sign out */}
-        <div className="px-2 py-3 border-t border-border flex flex-col gap-0.5">
-          <Link
-            href="/dashboard/settings"
+  return (
+    <div className="flex flex-col h-screen bg-background overflow-hidden" style={{ "--topbar-height": "3.5rem" } as React.CSSProperties}>
+      <TopBar onToggleSidebar={() => setDesktopSidebarOpen(!desktopSidebarOpen)} />
+      
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-black/60 lg:hidden"
             onClick={closeSidebar}
-            className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-normal transition-colors ${
-              pathname.startsWith("/dashboard/settings")
-                ? "nav-active"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            }`}
-          >
-            <span className={`shrink-0 ${pathname.startsWith("/dashboard/settings") ? "opacity-100" : "opacity-50"}`}>
-              {Icons.settings}
-            </span>
-            Settings
-          </Link>
-          <button
-            type="button"
-            onClick={() =>
-              window.open(
-                "/help",
-                "tradesensei-help",
-                "width=1120,height=760,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no"
-              )
-            }
-            className="flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-normal text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
-          >
-            <span className="shrink-0 opacity-50">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-[18px] h-[18px]">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </span>
-            Help
-          </button>
-          <button
-            onClick={() => logout()}
-            className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm font-normal text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
-          >
-            <span className="shrink-0 opacity-50">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-[18px] h-[18px]">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </span>
-            Sign Out
-          </button>
-        </div>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Floating open button for desktop when sidebar is closed */}
-        {!desktopSidebarOpen && (
-          <button
-            onClick={toggleDesktopSidebar}
-            className="hidden lg:flex absolute top-4 left-4 z-40 p-2 bg-zinc-100/50 dark:bg-zinc-900/50 backdrop-blur-md border border-border shadow-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all group"
-            title="Open sidebar (Cmd/Ctrl+B)"
-          >
-            <PanelLeftOpen size={18} className="group-hover:scale-110 transition-transform" />
-          </button>
+          />
         )}
 
-        {/* Mobile top bar */}
-        <header className="flex items-center gap-4 px-4 py-3 bg-sidebar border-b border-border lg:hidden">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-            aria-label="Open navigation"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-          <div
-            className="flex items-center gap-2 cursor-pointer hover:bg-muted/30 px-2 py-1 rounded-lg transition-colors"
-            onClick={() => setAboutOpen(true)}
-          >
-            <Logo size={24} />
-            <span className="font-semibold text-foreground">Trade Sensei</span>
+        {/* Sidebar */}
+        <aside
+          className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 flex flex-col bg-sidebar border-border transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
+            sidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
+          } ${
+            desktopSidebarOpen
+              ? "lg:w-56 lg:border-r lg:opacity-100 lg:visible"
+              : "lg:w-0 lg:border-r-0 lg:opacity-0 lg:invisible"
+          }`}
+        >
+          <div className="w-56 h-full flex flex-col">
+            {/* Nav */}
+            <nav className="flex-1 py-3 overflow-y-auto">
+              <div className="px-4 pt-3 pb-1 text-xs text-muted-foreground uppercase tracking-widest select-none">
+                {getContextLabel()}
+              </div>
+              {NAV_ITEMS.map((item, i) => {
+                if (item.kind === "group") {
+                  return (
+                    <NavGroupItem
+                      key={i}
+                      item={item}
+                      pathname={pathname}
+                      onClick={closeSidebar}
+                    />
+                  );
+                }
+                if (item.kind === "leaf" && item.href === "/dashboard/analytics") {
+                  return (
+                    <AnalyticsNavSection
+                      key={item.href}
+                      pathname={pathname}
+                      onClick={closeSidebar}
+                      showRisk={showRisk}
+                    />
+                  );
+                }
+                if (item.kind === "leaf") {
+                  return (
+                    <NavLeafItem
+                      key={item.href}
+                      item={item}
+                      pathname={pathname}
+                      onClick={closeSidebar}
+                    />
+                  );
+                }
+                return null;
+              })}
+              {/* Client-side injected per-user feature nav items (Cash / Tax) */}
+              {activeContext === 'portfolio' && (
+                <FeatureGatedNavItems showCash={showCash} showTax={showTax} />
+              )}
+            </nav>
           </div>
-        </header>
+        </aside>
 
-        <main className="flex-1 overflow-y-auto p-6 bg-background text-foreground">{children}</main>
-
-        {/* About Modal */}
-        <AboutModal
-          isOpen={aboutOpen}
-          onClose={() => setAboutOpen(false)}
-          version={process.env.NEXT_PUBLIC_APP_VERSION}
-        />
+        {/* Main content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          <main className="flex-1 overflow-y-auto p-6 pt-14 bg-background text-foreground">
+            {renderContent()}
+          </main>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,9 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAppContextStore } from "@/stores/appContextStore";
+import { usePortfolioStore } from "@/stores/portfolioStore";
 
 interface Props {
   children: React.ReactNode;
@@ -20,6 +22,11 @@ export function Providers({ children }: Props) {
         },
       })
   );
+
+  useEffect(() => {
+    useAppContextStore.getState().hydrate();
+    usePortfolioStore.getState().hydrate();
+  }, []);
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
