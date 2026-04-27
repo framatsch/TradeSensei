@@ -12,12 +12,14 @@ from app.api.v1 import (
     broker,
     cash_transactions,
     corporate_actions,
+    deprecated,
     executions,
     imports,
     market_data,
     metrics,
     notes,
     playbooks,
+    portfolios,
     saved_trade_filters,
     screenshots,
     tags,
@@ -31,6 +33,7 @@ router = APIRouter(prefix="/api/v1")
 
 router.include_router(auth.router)
 router.include_router(users.router)
+router.include_router(portfolios.router)
 router.include_router(accounts.router)
 router.include_router(executions.router)
 router.include_router(trades.router)
@@ -44,6 +47,7 @@ router.include_router(screenshots.router)
 router.include_router(tax.router)
 router.include_router(broker.router)
 router.include_router(cash_transactions.router)
+router.include_router(deprecated.router)
 router.include_router(corporate_actions.router)
 router.include_router(market_data.router)
 router.include_router(
