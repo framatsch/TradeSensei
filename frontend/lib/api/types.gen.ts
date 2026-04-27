@@ -55,6 +55,12 @@ export type AccountCreate = {
      * Optional per-account import/sync settings.
      */
     settings?: AccountSettings | null;
+    /**
+     * Portfolio Id
+     *
+     * UUID of the portfolio this account belongs to.
+     */
+    portfolio_id?: string | null;
 };
 
 /**
@@ -114,6 +120,18 @@ export type AccountRead = {
      * UUID of the user who owns this account.
      */
     user_id: string;
+    /**
+     * Portfolio Id
+     *
+     * UUID of the portfolio this account belongs to.
+     */
+    portfolio_id: string;
+    /**
+     * Portfolio Name
+     *
+     * Name of the portfolio this account belongs to.
+     */
+    portfolio_name?: string | null;
     /**
      * Name
      *
@@ -375,13 +393,9 @@ export type AuthConfigResponse = {
 };
 
 /**
- * Body_fresh_start_import_api_v1_imports__account_id__fresh_start_post
+ * Body_fresh_start_import_api_v1_portfolios__portfolio_id__imports__account_id__fresh_start_post
  */
-export type BodyFreshStartImportApiV1ImportsAccountIdFreshStartPost = {
-    /**
-     * Broker type: 'ibkr' or 'schwab'.
-     */
-    broker: BrokerType;
+export type BodyFreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPost = {
     /**
      * File
      */
@@ -425,13 +439,9 @@ export type BodyLoginApiV1AuthTokenPost = {
 };
 
 /**
- * Body_upload_import_api_v1_imports_upload_post
+ * Body_upload_import_api_v1_portfolios__portfolio_id__imports_upload_post
  */
-export type BodyUploadImportApiV1ImportsUploadPost = {
-    /**
-     * Broker type: 'ibkr' or 'schwab'.
-     */
-    broker: BrokerType;
+export type BodyUploadImportApiV1PortfoliosPortfolioIdImportsUploadPost = {
     /**
      * File
      */
@@ -439,9 +449,9 @@ export type BodyUploadImportApiV1ImportsUploadPost = {
     /**
      * Account Id
      *
-     * UUID of the account to import trades into (optional).
+     * UUID of the account to import trades into.
      */
-    account_id?: string | null;
+    account_id: string;
     /**
      * Overwrite Manually Edited
      *
@@ -585,13 +595,6 @@ export type BrokerSyncResult = {
      */
     errors?: Array<string>;
 };
-
-/**
- * BrokerType
- *
- * Supported broker identifiers for file import.
- */
-export type BrokerType = 'ibkr' | 'ibkr_flex' | 'schwab';
 
 /**
  * BulkAssignPlaybookRequest
@@ -1346,6 +1349,12 @@ export type ImportResult = {
      * Number of cash transactions that were skipped due to non-fatal parse errors.
      */
     cash_transactions_skipped?: number;
+    /**
+     * Raw Transactions Created
+     *
+     * Number of broker raw transactions newly inserted during this import. Re-importing identical files should produce 0.
+     */
+    raw_transactions_created?: number;
     /**
      * Raw Suppressed Skipped
      *
@@ -2116,6 +2125,82 @@ export type PnlBySymbol = {
 };
 
 /**
+ * PortfolioCreate
+ *
+ * Request schema for creating a portfolio.
+ */
+export type PortfolioCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Base Currency
+     */
+    base_currency: 'USD' | 'EUR' | 'GBP' | 'CHF' | 'JPY' | 'AUD' | 'CAD';
+    /**
+     * Color Hex
+     */
+    color_hex?: string | null;
+};
+
+/**
+ * PortfolioRead
+ *
+ * Response schema for portfolios.
+ */
+export type PortfolioRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Base Currency
+     */
+    base_currency: 'USD' | 'EUR' | 'GBP' | 'CHF' | 'JPY' | 'AUD' | 'CAD';
+    /**
+     * Color Hex
+     */
+    color_hex: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * PortfolioUpdate
+ *
+ * Request schema for partially updating a portfolio.
+ */
+export type PortfolioUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Base Currency
+     */
+    base_currency?: 'USD' | 'EUR' | 'GBP' | 'CHF' | 'JPY' | 'AUD' | 'CAD' | null;
+    /**
+     * Color Hex
+     */
+    color_hex?: string | null;
+};
+
+/**
  * ReassignExecutionRequest
  *
  * Request payload for moving an execution to another trade.
@@ -2460,6 +2545,24 @@ export type ResponseEnvelopePlaybookRead = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: PlaybookRead;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ResponseEnvelope[PortfolioRead]
+ */
+export type ResponseEnvelopePortfolioRead = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: PortfolioRead;
     /**
      * Meta
      *
@@ -2864,6 +2967,26 @@ export type ResponseEnvelopeListPnlBySymbol = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: Array<PnlBySymbol>;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ResponseEnvelope[list[PortfolioRead]]
+ */
+export type ResponseEnvelopeListPortfolioRead = {
+    /**
+     * Data
+     *
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<PortfolioRead>;
     /**
      * Meta
      *
@@ -4057,6 +4180,12 @@ export type TradeRead = {
      */
     account_id?: string | null;
     /**
+     * Portfolio Id
+     *
+     * UUID of the portfolio this trade belongs to via its account. Null if no account is assigned.
+     */
+    portfolio_id?: string | null;
+    /**
      * Account Name
      *
      * Human-readable name of the broker account, resolved from the joined account relationship. Null if no account is assigned.
@@ -4825,37 +4954,184 @@ export type UpdateSettingsApiV1UsersMeSettingsPutResponses = {
 
 export type UpdateSettingsApiV1UsersMeSettingsPutResponse = UpdateSettingsApiV1UsersMeSettingsPutResponses[keyof UpdateSettingsApiV1UsersMeSettingsPutResponses];
 
-export type ListAccountsApiV1AccountsGetData = {
+export type ListPortfoliosApiV1PortfoliosGetData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/v1/accounts';
+    url: '/api/v1/portfolios';
 };
 
-export type ListAccountsApiV1AccountsGetErrors = {
+export type ListPortfoliosApiV1PortfoliosGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeListPortfolioRead;
+};
+
+export type ListPortfoliosApiV1PortfoliosGetResponse = ListPortfoliosApiV1PortfoliosGetResponses[keyof ListPortfoliosApiV1PortfoliosGetResponses];
+
+export type CreatePortfolioApiV1PortfoliosPostData = {
+    body: PortfolioCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/portfolios';
+};
+
+export type CreatePortfolioApiV1PortfoliosPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePortfolioApiV1PortfoliosPostError = CreatePortfolioApiV1PortfoliosPostErrors[keyof CreatePortfolioApiV1PortfoliosPostErrors];
+
+export type CreatePortfolioApiV1PortfoliosPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ResponseEnvelopePortfolioRead;
+};
+
+export type CreatePortfolioApiV1PortfoliosPostResponse = CreatePortfolioApiV1PortfoliosPostResponses[keyof CreatePortfolioApiV1PortfoliosPostResponses];
+
+export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
+    query?: never;
+    url: '/api/v1/portfolios/{portfolio_id}';
+};
+
+export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteError = DeletePortfolioApiV1PortfoliosPortfolioIdDeleteErrors[keyof DeletePortfolioApiV1PortfoliosPortfolioIdDeleteErrors];
+
+export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteResponse = DeletePortfolioApiV1PortfoliosPortfolioIdDeleteResponses[keyof DeletePortfolioApiV1PortfoliosPortfolioIdDeleteResponses];
+
+export type GetPortfolioApiV1PortfoliosPortfolioIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
+    query?: never;
+    url: '/api/v1/portfolios/{portfolio_id}';
+};
+
+export type GetPortfolioApiV1PortfoliosPortfolioIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPortfolioApiV1PortfoliosPortfolioIdGetError = GetPortfolioApiV1PortfoliosPortfolioIdGetErrors[keyof GetPortfolioApiV1PortfoliosPortfolioIdGetErrors];
+
+export type GetPortfolioApiV1PortfoliosPortfolioIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopePortfolioRead;
+};
+
+export type GetPortfolioApiV1PortfoliosPortfolioIdGetResponse = GetPortfolioApiV1PortfoliosPortfolioIdGetResponses[keyof GetPortfolioApiV1PortfoliosPortfolioIdGetResponses];
+
+export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchData = {
+    body: PortfolioUpdate;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
+    query?: never;
+    url: '/api/v1/portfolios/{portfolio_id}';
+};
+
+export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchError = UpdatePortfolioApiV1PortfoliosPortfolioIdPatchErrors[keyof UpdatePortfolioApiV1PortfoliosPortfolioIdPatchErrors];
+
+export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopePortfolioRead;
+};
+
+export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchResponse = UpdatePortfolioApiV1PortfoliosPortfolioIdPatchResponses[keyof UpdatePortfolioApiV1PortfoliosPortfolioIdPatchResponses];
+
+export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
+    query?: never;
+    url: '/api/v1/portfolios/{portfolio_id}/accounts';
+};
+
+export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetErrors = {
     /**
      * Missing or invalid Bearer token.
      */
     401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
 };
 
-export type ListAccountsApiV1AccountsGetResponses = {
+export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetError = ListAccountsApiV1PortfoliosPortfolioIdAccountsGetErrors[keyof ListAccountsApiV1PortfoliosPortfolioIdAccountsGetErrors];
+
+export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetResponses = {
     /**
      * Account list returned successfully.
      */
     200: ResponseEnvelopeCursorPageAccountRead;
 };
 
-export type ListAccountsApiV1AccountsGetResponse = ListAccountsApiV1AccountsGetResponses[keyof ListAccountsApiV1AccountsGetResponses];
+export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetResponse = ListAccountsApiV1PortfoliosPortfolioIdAccountsGetResponses[keyof ListAccountsApiV1PortfoliosPortfolioIdAccountsGetResponses];
 
-export type CreateAccountApiV1AccountsPostData = {
+export type CreateAccountApiV1PortfoliosPortfolioIdAccountsPostData = {
     body: AccountCreate;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/accounts';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts';
 };
 
-export type CreateAccountApiV1AccountsPostErrors = {
+export type CreateAccountApiV1PortfoliosPortfolioIdAccountsPostErrors = {
     /**
      * Missing or invalid Bearer token.
      */
@@ -4866,28 +5142,32 @@ export type CreateAccountApiV1AccountsPostErrors = {
     422: unknown;
 };
 
-export type CreateAccountApiV1AccountsPostResponses = {
+export type CreateAccountApiV1PortfoliosPortfolioIdAccountsPostResponses = {
     /**
      * Account created successfully.
      */
     201: ResponseEnvelopeAccountRead;
 };
 
-export type CreateAccountApiV1AccountsPostResponse = CreateAccountApiV1AccountsPostResponses[keyof CreateAccountApiV1AccountsPostResponses];
+export type CreateAccountApiV1PortfoliosPortfolioIdAccountsPostResponse = CreateAccountApiV1PortfoliosPortfolioIdAccountsPostResponses[keyof CreateAccountApiV1PortfoliosPortfolioIdAccountsPostResponses];
 
-export type DeleteAccountApiV1AccountsAccountIdDeleteData = {
+export type DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
         account_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}';
 };
 
-export type DeleteAccountApiV1AccountsAccountIdDeleteErrors = {
+export type DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteErrors = {
     /**
      * Missing or invalid Bearer token.
      */
@@ -4902,28 +5182,32 @@ export type DeleteAccountApiV1AccountsAccountIdDeleteErrors = {
     422: unknown;
 };
 
-export type DeleteAccountApiV1AccountsAccountIdDeleteResponses = {
+export type DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteResponses = {
     /**
      * Account and associated trades deleted.
      */
     204: void;
 };
 
-export type DeleteAccountApiV1AccountsAccountIdDeleteResponse = DeleteAccountApiV1AccountsAccountIdDeleteResponses[keyof DeleteAccountApiV1AccountsAccountIdDeleteResponses];
+export type DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteResponse = DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteResponses[keyof DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteResponses];
 
-export type GetAccountApiV1AccountsAccountIdGetData = {
+export type GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
         account_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}';
 };
 
-export type GetAccountApiV1AccountsAccountIdGetErrors = {
+export type GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetErrors = {
     /**
      * Missing or invalid Bearer token.
      */
@@ -4938,28 +5222,32 @@ export type GetAccountApiV1AccountsAccountIdGetErrors = {
     422: unknown;
 };
 
-export type GetAccountApiV1AccountsAccountIdGetResponses = {
+export type GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetResponses = {
     /**
      * Account found and returned.
      */
     200: ResponseEnvelopeAccountRead;
 };
 
-export type GetAccountApiV1AccountsAccountIdGetResponse = GetAccountApiV1AccountsAccountIdGetResponses[keyof GetAccountApiV1AccountsAccountIdGetResponses];
+export type GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetResponse = GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetResponses[keyof GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetResponses];
 
-export type UpdateAccountApiV1AccountsAccountIdPatchData = {
+export type UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchData = {
     body: AccountUpdate;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
         account_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}';
 };
 
-export type UpdateAccountApiV1AccountsAccountIdPatchErrors = {
+export type UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchErrors = {
     /**
      * Missing or invalid Bearer token.
      */
@@ -4974,28 +5262,32 @@ export type UpdateAccountApiV1AccountsAccountIdPatchErrors = {
     422: unknown;
 };
 
-export type UpdateAccountApiV1AccountsAccountIdPatchResponses = {
+export type UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchResponses = {
     /**
      * Account updated successfully.
      */
     200: ResponseEnvelopeAccountRead;
 };
 
-export type UpdateAccountApiV1AccountsAccountIdPatchResponse = UpdateAccountApiV1AccountsAccountIdPatchResponses[keyof UpdateAccountApiV1AccountsAccountIdPatchResponses];
+export type UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchResponse = UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchResponses[keyof UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchResponses];
 
-export type GetAccountMetricsApiV1AccountsAccountIdMetricsGetData = {
+export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
         account_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}/metrics';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}/metrics';
 };
 
-export type GetAccountMetricsApiV1AccountsAccountIdMetricsGetErrors = {
+export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetErrors = {
     /**
      * Missing or invalid Bearer token.
      */
@@ -5010,20 +5302,24 @@ export type GetAccountMetricsApiV1AccountsAccountIdMetricsGetErrors = {
     422: HttpValidationError;
 };
 
-export type GetAccountMetricsApiV1AccountsAccountIdMetricsGetError = GetAccountMetricsApiV1AccountsAccountIdMetricsGetErrors[keyof GetAccountMetricsApiV1AccountsAccountIdMetricsGetErrors];
+export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetError = GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetErrors[keyof GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetErrors];
 
-export type GetAccountMetricsApiV1AccountsAccountIdMetricsGetResponses = {
+export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetResponses = {
     /**
      * Metrics calculated successfully.
      */
     200: ResponseEnvelopeAccountMetrics;
 };
 
-export type GetAccountMetricsApiV1AccountsAccountIdMetricsGetResponse = GetAccountMetricsApiV1AccountsAccountIdMetricsGetResponses[keyof GetAccountMetricsApiV1AccountsAccountIdMetricsGetResponses];
+export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetResponse = GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetResponses[keyof GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetResponses];
 
-export type ListTradeExecutionsApiV1TradesTradeIdExecutionsGetData = {
+export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Trade Id
          */
@@ -5037,70 +5333,78 @@ export type ListTradeExecutionsApiV1TradesTradeIdExecutionsGetData = {
          */
         include_deleted?: boolean;
     };
-    url: '/api/v1/trades/{trade_id}/executions';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions';
 };
 
-export type ListTradeExecutionsApiV1TradesTradeIdExecutionsGetErrors = {
+export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListTradeExecutionsApiV1TradesTradeIdExecutionsGetError = ListTradeExecutionsApiV1TradesTradeIdExecutionsGetErrors[keyof ListTradeExecutionsApiV1TradesTradeIdExecutionsGetErrors];
+export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetError = ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetErrors[keyof ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetErrors];
 
-export type ListTradeExecutionsApiV1TradesTradeIdExecutionsGetResponses = {
+export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeListLogicalExecutionRead;
 };
 
-export type ListTradeExecutionsApiV1TradesTradeIdExecutionsGetResponse = ListTradeExecutionsApiV1TradesTradeIdExecutionsGetResponses[keyof ListTradeExecutionsApiV1TradesTradeIdExecutionsGetResponses];
+export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetResponse = ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetResponses[keyof ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetResponses];
 
-export type CreateManualExecutionApiV1TradesTradeIdExecutionsPostData = {
+export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostData = {
     body: LogicalExecutionCreate;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Trade Id
          */
         trade_id: string;
     };
     query?: never;
-    url: '/api/v1/trades/{trade_id}/executions';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions';
 };
 
-export type CreateManualExecutionApiV1TradesTradeIdExecutionsPostErrors = {
+export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateManualExecutionApiV1TradesTradeIdExecutionsPostError = CreateManualExecutionApiV1TradesTradeIdExecutionsPostErrors[keyof CreateManualExecutionApiV1TradesTradeIdExecutionsPostErrors];
+export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostError = CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostErrors[keyof CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostErrors];
 
-export type CreateManualExecutionApiV1TradesTradeIdExecutionsPostResponses = {
+export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostResponses = {
     /**
      * Successful Response
      */
     201: ResponseEnvelopeLogicalExecutionRead;
 };
 
-export type CreateManualExecutionApiV1TradesTradeIdExecutionsPostResponse = CreateManualExecutionApiV1TradesTradeIdExecutionsPostResponses[keyof CreateManualExecutionApiV1TradesTradeIdExecutionsPostResponses];
+export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostResponse = CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostResponses[keyof CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostResponses];
 
-export type DeleteExecutionApiV1ExecutionsExecutionIdDeleteData = {
+export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Execution Id
          */
         execution_id: string;
     };
     query?: never;
-    url: '/api/v1/executions/{execution_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}';
 };
 
-export type DeleteExecutionApiV1ExecutionsExecutionIdDeleteErrors = {
+export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteErrors = {
     /**
      * Execution not found
      */
@@ -5115,9 +5419,9 @@ export type DeleteExecutionApiV1ExecutionsExecutionIdDeleteErrors = {
     422: HttpValidationError;
 };
 
-export type DeleteExecutionApiV1ExecutionsExecutionIdDeleteError = DeleteExecutionApiV1ExecutionsExecutionIdDeleteErrors[keyof DeleteExecutionApiV1ExecutionsExecutionIdDeleteErrors];
+export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteError = DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteErrors[keyof DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteErrors];
 
-export type DeleteExecutionApiV1ExecutionsExecutionIdDeleteResponses = {
+export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteResponses = {
     /**
      * Soft-deleted (imported/merged/split execution)
      */
@@ -5128,51 +5432,59 @@ export type DeleteExecutionApiV1ExecutionsExecutionIdDeleteResponses = {
     204: void;
 };
 
-export type DeleteExecutionApiV1ExecutionsExecutionIdDeleteResponse = DeleteExecutionApiV1ExecutionsExecutionIdDeleteResponses[keyof DeleteExecutionApiV1ExecutionsExecutionIdDeleteResponses];
+export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteResponse = DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteResponses[keyof DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteResponses];
 
-export type UpdateExecutionApiV1ExecutionsExecutionIdPatchData = {
+export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchData = {
     body: LogicalExecutionUpdate;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Execution Id
          */
         execution_id: string;
     };
     query?: never;
-    url: '/api/v1/executions/{execution_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}';
 };
 
-export type UpdateExecutionApiV1ExecutionsExecutionIdPatchErrors = {
+export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateExecutionApiV1ExecutionsExecutionIdPatchError = UpdateExecutionApiV1ExecutionsExecutionIdPatchErrors[keyof UpdateExecutionApiV1ExecutionsExecutionIdPatchErrors];
+export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchError = UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchErrors[keyof UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchErrors];
 
-export type UpdateExecutionApiV1ExecutionsExecutionIdPatchResponses = {
+export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeLogicalExecutionRead;
 };
 
-export type UpdateExecutionApiV1ExecutionsExecutionIdPatchResponse = UpdateExecutionApiV1ExecutionsExecutionIdPatchResponses[keyof UpdateExecutionApiV1ExecutionsExecutionIdPatchResponses];
+export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchResponse = UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchResponses[keyof UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchResponses];
 
-export type RestoreExecutionApiV1ExecutionsExecutionIdRestorePostData = {
+export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Execution Id
          */
         execution_id: string;
     };
     query?: never;
-    url: '/api/v1/executions/{execution_id}/restore';
+    url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}/restore';
 };
 
-export type RestoreExecutionApiV1ExecutionsExecutionIdRestorePostErrors = {
+export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostErrors = {
     /**
      * Execution is not deleted
      */
@@ -5187,30 +5499,34 @@ export type RestoreExecutionApiV1ExecutionsExecutionIdRestorePostErrors = {
     422: HttpValidationError;
 };
 
-export type RestoreExecutionApiV1ExecutionsExecutionIdRestorePostError = RestoreExecutionApiV1ExecutionsExecutionIdRestorePostErrors[keyof RestoreExecutionApiV1ExecutionsExecutionIdRestorePostErrors];
+export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostError = RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostErrors[keyof RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostErrors];
 
-export type RestoreExecutionApiV1ExecutionsExecutionIdRestorePostResponses = {
+export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponses = {
     /**
      * Execution restored successfully
      */
     200: ResponseEnvelopeLogicalExecutionRead;
 };
 
-export type RestoreExecutionApiV1ExecutionsExecutionIdRestorePostResponse = RestoreExecutionApiV1ExecutionsExecutionIdRestorePostResponses[keyof RestoreExecutionApiV1ExecutionsExecutionIdRestorePostResponses];
+export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponse = RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponses[keyof RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponses];
 
-export type SplitExecutionApiV1ExecutionsExecutionIdSplitPostData = {
+export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostData = {
     body: SplitExecutionRequest;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Execution Id
          */
         execution_id: string;
     };
     query?: never;
-    url: '/api/v1/executions/{execution_id}/split';
+    url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}/split';
 };
 
-export type SplitExecutionApiV1ExecutionsExecutionIdSplitPostErrors = {
+export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostErrors = {
     /**
      * Invalid split parameters or execution cannot be split
      */
@@ -5225,25 +5541,30 @@ export type SplitExecutionApiV1ExecutionsExecutionIdSplitPostErrors = {
     422: HttpValidationError;
 };
 
-export type SplitExecutionApiV1ExecutionsExecutionIdSplitPostError = SplitExecutionApiV1ExecutionsExecutionIdSplitPostErrors[keyof SplitExecutionApiV1ExecutionsExecutionIdSplitPostErrors];
+export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostError = SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostErrors[keyof SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostErrors];
 
-export type SplitExecutionApiV1ExecutionsExecutionIdSplitPostResponses = {
+export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostResponses = {
     /**
      * Split completed successfully
      */
     200: ResponseEnvelopeSplitExecutionResponse;
 };
 
-export type SplitExecutionApiV1ExecutionsExecutionIdSplitPostResponse = SplitExecutionApiV1ExecutionsExecutionIdSplitPostResponses[keyof SplitExecutionApiV1ExecutionsExecutionIdSplitPostResponses];
+export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostResponse = SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostResponses[keyof SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostResponses];
 
-export type MergeExecutionsApiV1ExecutionsMergePostData = {
+export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostData = {
     body: MergeExecutionsRequest;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/executions/merge';
+    url: '/api/v1/portfolios/{portfolio_id}/executions/merge';
 };
 
-export type MergeExecutionsApiV1ExecutionsMergePostErrors = {
+export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostErrors = {
     /**
      * Invalid merge parameters or executions cannot be merged
      */
@@ -5258,108 +5579,126 @@ export type MergeExecutionsApiV1ExecutionsMergePostErrors = {
     422: HttpValidationError;
 };
 
-export type MergeExecutionsApiV1ExecutionsMergePostError = MergeExecutionsApiV1ExecutionsMergePostErrors[keyof MergeExecutionsApiV1ExecutionsMergePostErrors];
+export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostError = MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostErrors[keyof MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostErrors];
 
-export type MergeExecutionsApiV1ExecutionsMergePostResponses = {
+export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostResponses = {
     /**
      * Merge completed successfully
      */
     200: ResponseEnvelopeMergeExecutionsResponse;
 };
 
-export type MergeExecutionsApiV1ExecutionsMergePostResponse = MergeExecutionsApiV1ExecutionsMergePostResponses[keyof MergeExecutionsApiV1ExecutionsMergePostResponses];
+export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostResponse = MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostResponses[keyof MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostResponses];
 
-export type ReassignExecutionApiV1ExecutionsExecutionIdReassignPostData = {
+export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostData = {
     body: ReassignExecutionRequest;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Execution Id
          */
         execution_id: string;
     };
     query?: never;
-    url: '/api/v1/executions/{execution_id}/reassign';
+    url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}/reassign';
 };
 
-export type ReassignExecutionApiV1ExecutionsExecutionIdReassignPostErrors = {
+export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReassignExecutionApiV1ExecutionsExecutionIdReassignPostError = ReassignExecutionApiV1ExecutionsExecutionIdReassignPostErrors[keyof ReassignExecutionApiV1ExecutionsExecutionIdReassignPostErrors];
+export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostError = ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostErrors[keyof ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostErrors];
 
-export type ReassignExecutionApiV1ExecutionsExecutionIdReassignPostResponses = {
+export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeReassignExecutionResponse;
 };
 
-export type ReassignExecutionApiV1ExecutionsExecutionIdReassignPostResponse = ReassignExecutionApiV1ExecutionsExecutionIdReassignPostResponses[keyof ReassignExecutionApiV1ExecutionsExecutionIdReassignPostResponses];
+export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostResponse = ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostResponses[keyof ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostResponses];
 
-export type DetachExecutionApiV1ExecutionsExecutionIdDetachPostData = {
+export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Execution Id
          */
         execution_id: string;
     };
     query?: never;
-    url: '/api/v1/executions/{execution_id}/detach';
+    url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}/detach';
 };
 
-export type DetachExecutionApiV1ExecutionsExecutionIdDetachPostErrors = {
+export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DetachExecutionApiV1ExecutionsExecutionIdDetachPostError = DetachExecutionApiV1ExecutionsExecutionIdDetachPostErrors[keyof DetachExecutionApiV1ExecutionsExecutionIdDetachPostErrors];
+export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostError = DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostErrors[keyof DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostErrors];
 
-export type DetachExecutionApiV1ExecutionsExecutionIdDetachPostResponses = {
+export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeTradeRead;
 };
 
-export type DetachExecutionApiV1ExecutionsExecutionIdDetachPostResponse = DetachExecutionApiV1ExecutionsExecutionIdDetachPostResponses[keyof DetachExecutionApiV1ExecutionsExecutionIdDetachPostResponses];
+export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostResponse = DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostResponses[keyof DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostResponses];
 
-export type BulkDeleteTradesApiV1TradesBulkDeletePostData = {
+export type BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostData = {
     body: BulkDeleteRequest;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/trades/bulk/delete';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/bulk/delete';
 };
 
-export type BulkDeleteTradesApiV1TradesBulkDeletePostErrors = {
+export type BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostErrors = {
     /**
      * Request payload failed validation.
      */
     422: unknown;
 };
 
-export type BulkDeleteTradesApiV1TradesBulkDeletePostResponses = {
+export type BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostResponses = {
     /**
      * Bulk delete completed.
      */
     200: ResponseEnvelopeBulkDeleteResponse;
 };
 
-export type BulkDeleteTradesApiV1TradesBulkDeletePostResponse = BulkDeleteTradesApiV1TradesBulkDeletePostResponses[keyof BulkDeleteTradesApiV1TradesBulkDeletePostResponses];
+export type BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostResponse = BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostResponses[keyof BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostResponses];
 
-export type BulkAssignTagsApiV1TradesBulkAssignTagsPostData = {
+export type BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostData = {
     body: BulkAssignTagsRequest;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/trades/bulk/assign-tags';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags';
 };
 
-export type BulkAssignTagsApiV1TradesBulkAssignTagsPostErrors = {
+export type BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostErrors = {
     /**
      * One or more tags do not belong to this user.
      */
@@ -5374,23 +5713,28 @@ export type BulkAssignTagsApiV1TradesBulkAssignTagsPostErrors = {
     422: unknown;
 };
 
-export type BulkAssignTagsApiV1TradesBulkAssignTagsPostResponses = {
+export type BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostResponses = {
     /**
      * Bulk tag operation completed.
      */
     200: ResponseEnvelopeBulkUpdateResponse;
 };
 
-export type BulkAssignTagsApiV1TradesBulkAssignTagsPostResponse = BulkAssignTagsApiV1TradesBulkAssignTagsPostResponses[keyof BulkAssignTagsApiV1TradesBulkAssignTagsPostResponses];
+export type BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostResponse = BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostResponses[keyof BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostResponses];
 
-export type BulkAssignPlaybookApiV1TradesBulkAssignPlaybookPostData = {
+export type BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostData = {
     body: BulkAssignPlaybookRequest;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/trades/bulk/assign-playbook';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-playbook';
 };
 
-export type BulkAssignPlaybookApiV1TradesBulkAssignPlaybookPostErrors = {
+export type BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostErrors = {
     /**
      * Playbook does not belong to this user.
      */
@@ -5405,21 +5749,26 @@ export type BulkAssignPlaybookApiV1TradesBulkAssignPlaybookPostErrors = {
     422: unknown;
 };
 
-export type BulkAssignPlaybookApiV1TradesBulkAssignPlaybookPostResponses = {
+export type BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostResponses = {
     /**
      * Bulk playbook assignment completed.
      */
     200: ResponseEnvelopeBulkUpdateResponse;
 };
 
-export type BulkAssignPlaybookApiV1TradesBulkAssignPlaybookPostResponse = BulkAssignPlaybookApiV1TradesBulkAssignPlaybookPostResponses[keyof BulkAssignPlaybookApiV1TradesBulkAssignPlaybookPostResponses];
+export type BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostResponse = BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostResponses[keyof BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostResponses];
 
-export type ListTradesApiV1TradesGetData = {
+export type ListTradesApiV1PortfoliosPortfolioIdTradesGetData = {
     /**
      * Tag Ids
      */
     body?: Array<string> | null;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Cursor
@@ -5511,10 +5860,10 @@ export type ListTradesApiV1TradesGetData = {
          */
         sort_dir?: 'asc' | 'desc';
     };
-    url: '/api/v1/trades';
+    url: '/api/v1/portfolios/{portfolio_id}/trades';
 };
 
-export type ListTradesApiV1TradesGetErrors = {
+export type ListTradesApiV1PortfoliosPortfolioIdTradesGetErrors = {
     /**
      * Cursor token is malformed or expired.
      */
@@ -5525,51 +5874,60 @@ export type ListTradesApiV1TradesGetErrors = {
     422: unknown;
 };
 
-export type ListTradesApiV1TradesGetResponses = {
+export type ListTradesApiV1PortfoliosPortfolioIdTradesGetResponses = {
     /**
      * Paginated list of trades.
      */
     200: ResponseEnvelopeCursorPageTradeRead;
 };
 
-export type ListTradesApiV1TradesGetResponse = ListTradesApiV1TradesGetResponses[keyof ListTradesApiV1TradesGetResponses];
+export type ListTradesApiV1PortfoliosPortfolioIdTradesGetResponse = ListTradesApiV1PortfoliosPortfolioIdTradesGetResponses[keyof ListTradesApiV1PortfoliosPortfolioIdTradesGetResponses];
 
-export type CreateTradeApiV1TradesPostData = {
+export type CreateTradeApiV1PortfoliosPortfolioIdTradesPostData = {
     body: TradeCreateRequest;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/trades';
+    url: '/api/v1/portfolios/{portfolio_id}/trades';
 };
 
-export type CreateTradeApiV1TradesPostErrors = {
+export type CreateTradeApiV1PortfoliosPortfolioIdTradesPostErrors = {
     /**
      * Request payload failed validation.
      */
     422: unknown;
 };
 
-export type CreateTradeApiV1TradesPostResponses = {
+export type CreateTradeApiV1PortfoliosPortfolioIdTradesPostResponses = {
     /**
      * Trade created successfully.
      */
     201: ResponseEnvelopeTradeRead;
 };
 
-export type CreateTradeApiV1TradesPostResponse = CreateTradeApiV1TradesPostResponses[keyof CreateTradeApiV1TradesPostResponses];
+export type CreateTradeApiV1PortfoliosPortfolioIdTradesPostResponse = CreateTradeApiV1PortfoliosPortfolioIdTradesPostResponses[keyof CreateTradeApiV1PortfoliosPortfolioIdTradesPostResponses];
 
-export type DeleteTradeApiV1TradesTradeIdDeleteData = {
+export type DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Trade Id
          */
         trade_id: string;
     };
     query?: never;
-    url: '/api/v1/trades/{trade_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/{trade_id}';
 };
 
-export type DeleteTradeApiV1TradesTradeIdDeleteErrors = {
+export type DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteErrors = {
     /**
      * Trade not found.
      */
@@ -5580,28 +5938,32 @@ export type DeleteTradeApiV1TradesTradeIdDeleteErrors = {
     422: unknown;
 };
 
-export type DeleteTradeApiV1TradesTradeIdDeleteResponses = {
+export type DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteResponses = {
     /**
      * Trade deleted successfully. No content returned.
      */
     204: void;
 };
 
-export type DeleteTradeApiV1TradesTradeIdDeleteResponse = DeleteTradeApiV1TradesTradeIdDeleteResponses[keyof DeleteTradeApiV1TradesTradeIdDeleteResponses];
+export type DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteResponse = DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteResponses[keyof DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteResponses];
 
-export type GetTradeApiV1TradesTradeIdGetData = {
+export type GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Trade Id
          */
         trade_id: string;
     };
     query?: never;
-    url: '/api/v1/trades/{trade_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/{trade_id}';
 };
 
-export type GetTradeApiV1TradesTradeIdGetErrors = {
+export type GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetErrors = {
     /**
      * Trade not found.
      */
@@ -5612,28 +5974,32 @@ export type GetTradeApiV1TradesTradeIdGetErrors = {
     422: unknown;
 };
 
-export type GetTradeApiV1TradesTradeIdGetResponses = {
+export type GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetResponses = {
     /**
      * Trade found and returned.
      */
     200: ResponseEnvelopeTradeRead;
 };
 
-export type GetTradeApiV1TradesTradeIdGetResponse = GetTradeApiV1TradesTradeIdGetResponses[keyof GetTradeApiV1TradesTradeIdGetResponses];
+export type GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetResponse = GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetResponses[keyof GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetResponses];
 
-export type UpdateTradeApiV1TradesTradeIdPatchData = {
+export type UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchData = {
     body: TradeUpdate;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Trade Id
          */
         trade_id: string;
     };
     query?: never;
-    url: '/api/v1/trades/{trade_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/{trade_id}';
 };
 
-export type UpdateTradeApiV1TradesTradeIdPatchErrors = {
+export type UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchErrors = {
     /**
      * Trade not found.
      */
@@ -5644,28 +6010,32 @@ export type UpdateTradeApiV1TradesTradeIdPatchErrors = {
     422: unknown;
 };
 
-export type UpdateTradeApiV1TradesTradeIdPatchResponses = {
+export type UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchResponses = {
     /**
      * Trade updated successfully.
      */
     200: ResponseEnvelopeTradeRead;
 };
 
-export type UpdateTradeApiV1TradesTradeIdPatchResponse = UpdateTradeApiV1TradesTradeIdPatchResponses[keyof UpdateTradeApiV1TradesTradeIdPatchResponses];
+export type UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchResponse = UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchResponses[keyof UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchResponses];
 
-export type PartialCloseTradeApiV1TradesTradeIdPartialClosePostData = {
+export type PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostData = {
     body: TradePartialCloseRequest;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Trade Id
          */
         trade_id: string;
     };
     query?: never;
-    url: '/api/v1/trades/{trade_id}/partial-close';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/partial-close';
 };
 
-export type PartialCloseTradeApiV1TradesTradeIdPartialClosePostErrors = {
+export type PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostErrors = {
     /**
      * Invalid partial close request (e.g. quantity too high).
      */
@@ -5680,43 +6050,53 @@ export type PartialCloseTradeApiV1TradesTradeIdPartialClosePostErrors = {
     422: unknown;
 };
 
-export type PartialCloseTradeApiV1TradesTradeIdPartialClosePostResponses = {
+export type PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostResponses = {
     /**
      * Trade partially closed successfully.
      */
     200: ResponseEnvelopeTradeRead;
 };
 
-export type PartialCloseTradeApiV1TradesTradeIdPartialClosePostResponse = PartialCloseTradeApiV1TradesTradeIdPartialClosePostResponses[keyof PartialCloseTradeApiV1TradesTradeIdPartialClosePostResponses];
+export type PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostResponse = PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostResponses[keyof PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostResponses];
 
-export type MergeTradesApiV1TradesMergePostData = {
+export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostData = {
     body: MergeTradesRequest;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/trades/merge';
+    url: '/api/v1/portfolios/{portfolio_id}/trades/merge';
 };
 
-export type MergeTradesApiV1TradesMergePostErrors = {
+export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type MergeTradesApiV1TradesMergePostError = MergeTradesApiV1TradesMergePostErrors[keyof MergeTradesApiV1TradesMergePostErrors];
+export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostError = MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostErrors[keyof MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostErrors];
 
-export type MergeTradesApiV1TradesMergePostResponses = {
+export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeTradeRead;
 };
 
-export type MergeTradesApiV1TradesMergePostResponse = MergeTradesApiV1TradesMergePostResponses[keyof MergeTradesApiV1TradesMergePostResponses];
+export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponse = MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponses[keyof MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponses];
 
-export type GetMetricsSummaryApiV1MetricsSummaryGetData = {
+export type GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -5743,10 +6123,10 @@ export type GetMetricsSummaryApiV1MetricsSummaryGetData = {
          */
         starting_capital?: number | string;
     };
-    url: '/api/v1/metrics/summary';
+    url: '/api/v1/portfolios/{portfolio_id}/metrics/summary';
 };
 
-export type GetMetricsSummaryApiV1MetricsSummaryGetErrors = {
+export type GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -5757,18 +6137,23 @@ export type GetMetricsSummaryApiV1MetricsSummaryGetErrors = {
     422: unknown;
 };
 
-export type GetMetricsSummaryApiV1MetricsSummaryGetResponses = {
+export type GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetResponses = {
     /**
      * Metrics summary successfully computed and returned.
      */
     200: ResponseEnvelopeMetricsSummary;
 };
 
-export type GetMetricsSummaryApiV1MetricsSummaryGetResponse = GetMetricsSummaryApiV1MetricsSummaryGetResponses[keyof GetMetricsSummaryApiV1MetricsSummaryGetResponses];
+export type GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetResponse = GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetResponses[keyof GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetResponses];
 
-export type GetEquityCurveApiV1MetricsEquityCurveGetData = {
+export type GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -5795,10 +6180,10 @@ export type GetEquityCurveApiV1MetricsEquityCurveGetData = {
          */
         starting_capital?: number | string;
     };
-    url: '/api/v1/metrics/equity-curve';
+    url: '/api/v1/portfolios/{portfolio_id}/metrics/equity-curve';
 };
 
-export type GetEquityCurveApiV1MetricsEquityCurveGetErrors = {
+export type GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -5809,18 +6194,23 @@ export type GetEquityCurveApiV1MetricsEquityCurveGetErrors = {
     422: unknown;
 };
 
-export type GetEquityCurveApiV1MetricsEquityCurveGetResponses = {
+export type GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetResponses = {
     /**
      * Equity curve successfully computed and returned.
      */
     200: ResponseEnvelopeListEquityCurvePoint;
 };
 
-export type GetEquityCurveApiV1MetricsEquityCurveGetResponse = GetEquityCurveApiV1MetricsEquityCurveGetResponses[keyof GetEquityCurveApiV1MetricsEquityCurveGetResponses];
+export type GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetResponse = GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetResponses[keyof GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetResponses];
 
-export type GetDrawdownCurveApiV1MetricsDrawdownGetData = {
+export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -5847,10 +6237,10 @@ export type GetDrawdownCurveApiV1MetricsDrawdownGetData = {
          */
         starting_capital?: number | string;
     };
-    url: '/api/v1/metrics/drawdown';
+    url: '/api/v1/portfolios/{portfolio_id}/metrics/drawdown';
 };
 
-export type GetDrawdownCurveApiV1MetricsDrawdownGetErrors = {
+export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -5861,23 +6251,28 @@ export type GetDrawdownCurveApiV1MetricsDrawdownGetErrors = {
     422: unknown;
 };
 
-export type GetDrawdownCurveApiV1MetricsDrawdownGetResponses = {
+export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetResponses = {
     /**
      * Drawdown curve successfully computed and returned.
      */
     200: ResponseEnvelopeListDrawdownPoint;
 };
 
-export type GetDrawdownCurveApiV1MetricsDrawdownGetResponse = GetDrawdownCurveApiV1MetricsDrawdownGetResponses[keyof GetDrawdownCurveApiV1MetricsDrawdownGetResponses];
+export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetResponse = GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetResponses[keyof GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetResponses];
 
-export type UploadImportApiV1ImportsUploadPostData = {
-    body: BodyUploadImportApiV1ImportsUploadPost;
-    path?: never;
+export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostData = {
+    body: BodyUploadImportApiV1PortfoliosPortfolioIdImportsUploadPost;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/imports/upload';
+    url: '/api/v1/portfolios/{portfolio_id}/imports/upload';
 };
 
-export type UploadImportApiV1ImportsUploadPostErrors = {
+export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostErrors = {
     /**
      * File format not supported or parse error.
      */
@@ -5895,33 +6290,37 @@ export type UploadImportApiV1ImportsUploadPostErrors = {
      */
     413: unknown;
     /**
-     * Form parameter validation error.
+     * File type not allowed for this account type.
      */
     422: unknown;
 };
 
-export type UploadImportApiV1ImportsUploadPostResponses = {
+export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostResponses = {
     /**
      * Import completed. Check warnings for skipped rows.
      */
     200: ResponseEnvelopeImportResult;
 };
 
-export type UploadImportApiV1ImportsUploadPostResponse = UploadImportApiV1ImportsUploadPostResponses[keyof UploadImportApiV1ImportsUploadPostResponses];
+export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostResponse = UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostResponses[keyof UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostResponses];
 
-export type FreshStartImportApiV1ImportsAccountIdFreshStartPostData = {
-    body: BodyFreshStartImportApiV1ImportsAccountIdFreshStartPost;
+export type FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostData = {
+    body: BodyFreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPost;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
         account_id: string;
     };
     query?: never;
-    url: '/api/v1/imports/{account_id}/fresh-start';
+    url: '/api/v1/portfolios/{portfolio_id}/imports/{account_id}/fresh-start';
 };
 
-export type FreshStartImportApiV1ImportsAccountIdFreshStartPostErrors = {
+export type FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostErrors = {
     /**
      * File format not supported or parse error.
      */
@@ -5939,25 +6338,79 @@ export type FreshStartImportApiV1ImportsAccountIdFreshStartPostErrors = {
      */
     413: unknown;
     /**
-     * Validation Error
+     * File type not allowed for this account type.
      */
-    422: HttpValidationError;
+    422: unknown;
 };
 
-export type FreshStartImportApiV1ImportsAccountIdFreshStartPostError = FreshStartImportApiV1ImportsAccountIdFreshStartPostErrors[keyof FreshStartImportApiV1ImportsAccountIdFreshStartPostErrors];
-
-export type FreshStartImportApiV1ImportsAccountIdFreshStartPostResponses = {
+export type FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostResponses = {
     /**
      * Fresh-start completed. Check import_result for details.
      */
     200: ResponseEnvelopeFreshStartResult;
 };
 
-export type FreshStartImportApiV1ImportsAccountIdFreshStartPostResponse = FreshStartImportApiV1ImportsAccountIdFreshStartPostResponses[keyof FreshStartImportApiV1ImportsAccountIdFreshStartPostResponses];
+export type FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostResponse = FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostResponses[keyof FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostResponses];
 
-export type SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchData = {
+export type ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostData = {
+    /**
+     * Body
+     */
+    body: Array<{
+        [key: string]: unknown;
+    }>;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
+    query: {
+        /**
+         * Account Id
+         *
+         * UUID of the Schwab account to import into.
+         */
+        account_id: string;
+    };
+    url: '/api/v1/portfolios/{portfolio_id}/imports/schwab-json';
+};
+
+export type ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostErrors = {
+    /**
+     * Import payload is invalid or cannot be parsed.
+     */
+    400: unknown;
+    /**
+     * Authentication required.
+     */
+    401: unknown;
+    /**
+     * Account not found or not owned by the current user.
+     */
+    404: unknown;
+    /**
+     * Account type is not SCHWAB.
+     */
+    422: unknown;
+};
+
+export type ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostResponses = {
+    /**
+     * Import completed.
+     */
+    200: ResponseEnvelopeImportResult;
+};
+
+export type ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostResponse = ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostResponses[keyof ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostResponses];
+
+export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Raw Id
          */
@@ -5971,10 +6424,10 @@ export type SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppress
          */
         suppressed?: boolean;
     };
-    url: '/api/v1/imports/broker-raw-transactions/{raw_id}/suppress';
+    url: '/api/v1/portfolios/{portfolio_id}/imports/broker-raw-transactions/{raw_id}/suppress';
 };
 
-export type SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchErrors = {
+export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchErrors = {
     /**
      * Authentication required.
      */
@@ -5989,25 +6442,30 @@ export type SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppress
     422: HttpValidationError;
 };
 
-export type SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchError = SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchErrors[keyof SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchErrors];
+export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchError = SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchErrors[keyof SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchErrors];
 
-export type SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchResponses = {
+export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchResponses = {
     /**
      * Suppressed flag updated.
      */
     200: ResponseEnvelopeBrokerRawTransactionRead;
 };
 
-export type SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchResponse = SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchResponses[keyof SuppressRawTransactionApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchResponses];
+export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchResponse = SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchResponses[keyof SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchResponses];
 
-export type FlexImportApiV1ImportsFlexPostData = {
+export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostData = {
     body: FlexImportRequest;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: never;
-    url: '/api/v1/imports/flex';
+    url: '/api/v1/portfolios/{portfolio_id}/imports/flex';
 };
 
-export type FlexImportApiV1ImportsFlexPostErrors = {
+export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostErrors = {
     /**
      * Flex API returned an error.
      */
@@ -6034,20 +6492,25 @@ export type FlexImportApiV1ImportsFlexPostErrors = {
     503: unknown;
 };
 
-export type FlexImportApiV1ImportsFlexPostError = FlexImportApiV1ImportsFlexPostErrors[keyof FlexImportApiV1ImportsFlexPostErrors];
+export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostError = FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostErrors[keyof FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostErrors];
 
-export type FlexImportApiV1ImportsFlexPostResponses = {
+export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostResponses = {
     /**
      * Import completed. Check warnings for skipped entries.
      */
     200: ResponseEnvelopeImportResult;
 };
 
-export type FlexImportApiV1ImportsFlexPostResponse = FlexImportApiV1ImportsFlexPostResponses[keyof FlexImportApiV1ImportsFlexPostResponses];
+export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostResponse = FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostResponses[keyof FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostResponses];
 
-export type GetDailyPnlApiV1TimeseriesDailyPnlGetData = {
+export type GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -6068,10 +6531,10 @@ export type GetDailyPnlApiV1TimeseriesDailyPnlGetData = {
          */
         to_dt?: string | null;
     };
-    url: '/api/v1/timeseries/daily-pnl';
+    url: '/api/v1/portfolios/{portfolio_id}/timeseries/daily-pnl';
 };
 
-export type GetDailyPnlApiV1TimeseriesDailyPnlGetErrors = {
+export type GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -6082,18 +6545,23 @@ export type GetDailyPnlApiV1TimeseriesDailyPnlGetErrors = {
     422: unknown;
 };
 
-export type GetDailyPnlApiV1TimeseriesDailyPnlGetResponses = {
+export type GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetResponses = {
     /**
      * Daily PnL aggregates successfully returned.
      */
     200: ResponseEnvelopeListDailyPnl;
 };
 
-export type GetDailyPnlApiV1TimeseriesDailyPnlGetResponse = GetDailyPnlApiV1TimeseriesDailyPnlGetResponses[keyof GetDailyPnlApiV1TimeseriesDailyPnlGetResponses];
+export type GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetResponse = GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetResponses[keyof GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetResponses];
 
-export type GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetData = {
+export type GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -6114,10 +6582,10 @@ export type GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetData = {
          */
         to_dt?: string | null;
     };
-    url: '/api/v1/timeseries/monthly-pnl';
+    url: '/api/v1/portfolios/{portfolio_id}/timeseries/monthly-pnl';
 };
 
-export type GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetErrors = {
+export type GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -6128,18 +6596,23 @@ export type GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetErrors = {
     422: unknown;
 };
 
-export type GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetResponses = {
+export type GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetResponses = {
     /**
      * Monthly PnL aggregates successfully returned.
      */
     200: ResponseEnvelopeListMonthlyPnl;
 };
 
-export type GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetResponse = GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetResponses[keyof GetMonthlyPnlApiV1TimeseriesMonthlyPnlGetResponses];
+export type GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetResponse = GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetResponses[keyof GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetResponses];
 
-export type GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetData = {
+export type GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -6160,10 +6633,10 @@ export type GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetData = {
          */
         to_dt?: string | null;
     };
-    url: '/api/v1/timeseries/pnl-by-symbol';
+    url: '/api/v1/portfolios/{portfolio_id}/timeseries/pnl-by-symbol';
 };
 
-export type GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetErrors = {
+export type GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -6174,18 +6647,23 @@ export type GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetErrors = {
     422: unknown;
 };
 
-export type GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetResponses = {
+export type GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetResponses = {
     /**
      * Per-symbol PnL aggregates successfully returned.
      */
     200: ResponseEnvelopeListPnlBySymbol;
 };
 
-export type GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetResponse = GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetResponses[keyof GetPnlBySymbolApiV1TimeseriesPnlBySymbolGetResponses];
+export type GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetResponse = GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetResponses[keyof GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetResponses];
 
-export type GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetData = {
+export type GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -6206,10 +6684,10 @@ export type GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetData = {
          */
         to_dt?: string | null;
     };
-    url: '/api/v1/timeseries/pnl-by-asset-class';
+    url: '/api/v1/portfolios/{portfolio_id}/timeseries/pnl-by-asset-class';
 };
 
-export type GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetErrors = {
+export type GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -6220,18 +6698,23 @@ export type GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetErrors = {
     422: unknown;
 };
 
-export type GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetResponses = {
+export type GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetResponses = {
     /**
      * Per-asset-class PnL aggregates successfully returned.
      */
     200: ResponseEnvelopeListPnlByAssetClass;
 };
 
-export type GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetResponse = GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetResponses[keyof GetPnlByAssetClassApiV1TimeseriesPnlByAssetClassGetResponses];
+export type GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetResponse = GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetResponses[keyof GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetResponses];
 
-export type GetReturnDistributionApiV1TimeseriesReturnDistributionGetData = {
+export type GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -6258,10 +6741,10 @@ export type GetReturnDistributionApiV1TimeseriesReturnDistributionGetData = {
          */
         buckets?: number;
     };
-    url: '/api/v1/timeseries/return-distribution';
+    url: '/api/v1/portfolios/{portfolio_id}/timeseries/return-distribution';
 };
 
-export type GetReturnDistributionApiV1TimeseriesReturnDistributionGetErrors = {
+export type GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -6272,18 +6755,23 @@ export type GetReturnDistributionApiV1TimeseriesReturnDistributionGetErrors = {
     422: unknown;
 };
 
-export type GetReturnDistributionApiV1TimeseriesReturnDistributionGetResponses = {
+export type GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetResponses = {
     /**
      * Return distribution histogram successfully returned.
      */
     200: ResponseEnvelopeListReturnDistribution;
 };
 
-export type GetReturnDistributionApiV1TimeseriesReturnDistributionGetResponse = GetReturnDistributionApiV1TimeseriesReturnDistributionGetResponses[keyof GetReturnDistributionApiV1TimeseriesReturnDistributionGetResponses];
+export type GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetResponse = GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetResponses[keyof GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetResponses];
 
-export type GetRollingWinrateApiV1TimeseriesRollingWinrateGetData = {
+export type GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Window Trades
@@ -6310,10 +6798,10 @@ export type GetRollingWinrateApiV1TimeseriesRollingWinrateGetData = {
          */
         to_dt?: string | null;
     };
-    url: '/api/v1/timeseries/rolling-winrate';
+    url: '/api/v1/portfolios/{portfolio_id}/timeseries/rolling-winrate';
 };
 
-export type GetRollingWinrateApiV1TimeseriesRollingWinrateGetErrors = {
+export type GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -6324,18 +6812,23 @@ export type GetRollingWinrateApiV1TimeseriesRollingWinrateGetErrors = {
     422: unknown;
 };
 
-export type GetRollingWinrateApiV1TimeseriesRollingWinrateGetResponses = {
+export type GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetResponses = {
     /**
      * Rolling win-rate series successfully returned.
      */
     200: ResponseEnvelopeListRollingWinratePoint;
 };
 
-export type GetRollingWinrateApiV1TimeseriesRollingWinrateGetResponse = GetRollingWinrateApiV1TimeseriesRollingWinrateGetResponses[keyof GetRollingWinrateApiV1TimeseriesRollingWinrateGetResponses];
+export type GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetResponse = GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetResponses[keyof GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetResponses];
 
-export type GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetData = {
+export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetData = {
     body?: never;
-    path?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
     query?: {
         /**
          * Account Id
@@ -6356,10 +6849,10 @@ export type GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetData = {
          */
         to_dt?: string | null;
     };
-    url: '/api/v1/timeseries/monthly-winrate';
+    url: '/api/v1/portfolios/{portfolio_id}/timeseries/monthly-winrate';
 };
 
-export type GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetErrors = {
+export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetErrors = {
     /**
      * Not authenticated. The Bearer token is missing, expired, or invalid.
      */
@@ -6370,16 +6863,16 @@ export type GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetErrors = {
     422: HttpValidationError;
 };
 
-export type GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetError = GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetErrors[keyof GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetErrors];
+export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetError = GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetErrors[keyof GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetErrors];
 
-export type GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetResponses = {
+export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetResponses = {
     /**
      * Monthly win-rate series successfully returned.
      */
     200: ResponseEnvelopeListMonthlyWinratePoint;
 };
 
-export type GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetResponse = GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetResponses[keyof GetMonthlyWinrateApiV1TimeseriesMonthlyWinrateGetResponses];
+export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetResponse = GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetResponses[keyof GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetResponses];
 
 export type ListPlaybooksApiV1PlaybooksGetData = {
     body?: never;
@@ -7032,9 +7525,13 @@ export type SyncAccountApiV1BrokerSyncAccountIdPostResponses = {
 
 export type SyncAccountApiV1BrokerSyncAccountIdPostResponse = SyncAccountApiV1BrokerSyncAccountIdPostResponses[keyof SyncAccountApiV1BrokerSyncAccountIdPostResponses];
 
-export type ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetData = {
+export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
@@ -7070,60 +7567,68 @@ export type ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetData = 
          */
         to_date?: string | null;
     };
-    url: '/api/v1/accounts/{account_id}/cash-transactions';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}/cash-transactions';
 };
 
-export type ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetErrors = {
+export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetError = ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetErrors[keyof ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetErrors];
+export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetError = ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetErrors[keyof ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetErrors];
 
-export type ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetResponses = {
+export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeOffsetPageCashTransactionRead;
 };
 
-export type ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetResponse = ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetResponses[keyof ListCashTransactionsApiV1AccountsAccountIdCashTransactionsGetResponses];
+export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetResponse = ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetResponses[keyof ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetResponses];
 
-export type CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostData = {
+export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostData = {
     body: CashTransactionCreateRequest;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
         account_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}/cash-transactions';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}/cash-transactions';
 };
 
-export type CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostErrors = {
+export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostError = CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostErrors[keyof CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostErrors];
+export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostError = CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostErrors[keyof CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostErrors];
 
-export type CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostResponses = {
+export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostResponses = {
     /**
      * Successful Response
      */
     201: ResponseEnvelopeCashTransactionRead;
 };
 
-export type CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostResponse = CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostResponses[keyof CreateCashTransactionApiV1AccountsAccountIdCashTransactionsPostResponses];
+export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostResponse = CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostResponses[keyof CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostResponses];
 
-export type DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteData = {
+export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteData = {
     body?: never;
     path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
         /**
          * Account Id
          */
@@ -7134,31 +7639,35 @@ export type DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransacti
         transaction_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}/cash-transactions/{transaction_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}/cash-transactions/{transaction_id}';
 };
 
-export type DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteErrors = {
+export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteError = DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteErrors[keyof DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteErrors];
+export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteError = DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteErrors[keyof DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteErrors];
 
-export type DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteResponses = {
+export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteResponse = DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteResponses[keyof DeleteCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdDeleteResponses];
+export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteResponse = DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteResponses[keyof DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteResponses];
 
-export type GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetData = {
+export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetData = {
     body?: never;
     path: {
         /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+        /**
          * Account Id
          */
         account_id: string;
@@ -7168,31 +7677,35 @@ export type GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionI
         transaction_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}/cash-transactions/{transaction_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}/cash-transactions/{transaction_id}';
 };
 
-export type GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetErrors = {
+export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetError = GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetErrors[keyof GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetErrors];
+export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetError = GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetErrors[keyof GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetErrors];
 
-export type GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetResponses = {
+export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeCashTransactionRead;
 };
 
-export type GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetResponse = GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetResponses[keyof GetCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdGetResponses];
+export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetResponse = GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetResponses[keyof GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetResponses];
 
-export type UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchData = {
+export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchData = {
     body: CashTransactionUpdate;
     path: {
         /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+        /**
          * Account Id
          */
         account_id: string;
@@ -7202,26 +7715,656 @@ export type UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransacti
         transaction_id: string;
     };
     query?: never;
-    url: '/api/v1/accounts/{account_id}/cash-transactions/{transaction_id}';
+    url: '/api/v1/portfolios/{portfolio_id}/accounts/{account_id}/cash-transactions/{transaction_id}';
 };
 
-export type UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchErrors = {
+export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchError = UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchErrors[keyof UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchErrors];
+export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchError = UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchErrors[keyof UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchErrors];
 
-export type UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchResponses = {
+export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchResponses = {
     /**
      * Successful Response
      */
     200: ResponseEnvelopeCashTransactionRead;
 };
 
-export type UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchResponse = UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchResponses[keyof UpdateCashTransactionApiV1AccountsAccountIdCashTransactionsTransactionIdPatchResponses];
+export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchResponse = UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchResponses[keyof UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchResponses];
+
+export type DeprecatedTradesApiV1TradesTradeIdPartialClosePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/partial-close';
+};
+
+export type DeprecatedTradesApiV1TradesTradeIdPartialClosePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesTradeIdPatchData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/{trade_id}';
+};
+
+export type DeprecatedTradesApiV1TradesTradeIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesTradeIdPatch2Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/{trade_id}';
+};
+
+export type DeprecatedTradesApiV1TradesTradeIdPatch2Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesTradeIdPatch3Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/{trade_id}';
+};
+
+export type DeprecatedTradesApiV1TradesTradeIdPatch3Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesMergePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/merge';
+};
+
+export type DeprecatedTradesApiV1TradesMergePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesBulkAssignPlaybookPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/bulk/assign-playbook';
+};
+
+export type DeprecatedTradesApiV1TradesBulkAssignPlaybookPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesBulkAssignTagsPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/bulk/assign-tags';
+};
+
+export type DeprecatedTradesApiV1TradesBulkAssignTagsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesBulkDeletePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/bulk/delete';
+};
+
+export type DeprecatedTradesApiV1TradesBulkDeletePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades';
+};
+
+export type DeprecatedTradesApiV1TradesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTradesApiV1TradesGet2Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades';
+};
+
+export type DeprecatedTradesApiV1TradesGet2Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedMetricsApiV1MetricsDrawdownGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/metrics/drawdown';
+};
+
+export type DeprecatedMetricsApiV1MetricsDrawdownGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedMetricsApiV1MetricsEquityCurveGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/metrics/equity-curve';
+};
+
+export type DeprecatedMetricsApiV1MetricsEquityCurveGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedMetricsApiV1MetricsSummaryGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/metrics/summary';
+};
+
+export type DeprecatedMetricsApiV1MetricsSummaryGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesMonthlyWinrateGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/timeseries/monthly-winrate';
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesMonthlyWinrateGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesRollingWinrateGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/timeseries/rolling-winrate';
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesRollingWinrateGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesReturnDistributionGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/timeseries/return-distribution';
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesReturnDistributionGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesPnlByAssetClassGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/timeseries/pnl-by-asset-class';
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesPnlByAssetClassGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesPnlBySymbolGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/timeseries/pnl-by-symbol';
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesPnlBySymbolGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesMonthlyPnlGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/timeseries/monthly-pnl';
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesMonthlyPnlGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesDailyPnlGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/timeseries/daily-pnl';
+};
+
+export type DeprecatedTimeseriesApiV1TimeseriesDailyPnlGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedImportsApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/imports/broker-raw-transactions/{raw_id}/suppress';
+};
+
+export type DeprecatedImportsApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedImportsApiV1ImportsSchwabJsonPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/imports/schwab-json';
+};
+
+export type DeprecatedImportsApiV1ImportsSchwabJsonPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedImportsApiV1ImportsFlexPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/imports/flex';
+};
+
+export type DeprecatedImportsApiV1ImportsFlexPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedImportsApiV1ImportsAccountIdFreshStartPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/imports/{account_id}/fresh-start';
+};
+
+export type DeprecatedImportsApiV1ImportsAccountIdFreshStartPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedImportsApiV1ImportsUploadPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/imports/upload';
+};
+
+export type DeprecatedImportsApiV1ImportsUploadPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdMetricsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}/metrics';
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdMetricsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdPatchData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}';
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdPatch2Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}';
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdPatch2Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdPatch3Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}';
+};
+
+export type DeprecatedAccountsApiV1AccountsAccountIdPatch3Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedAccountsApiV1AccountsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts';
+};
+
+export type DeprecatedAccountsApiV1AccountsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedAccountsApiV1AccountsGet2Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts';
+};
+
+export type DeprecatedAccountsApiV1AccountsGet2Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDetachPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/executions/{execution_id}/detach';
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDetachPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdReassignPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/executions/{execution_id}/reassign';
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdReassignPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsMergePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/executions/merge';
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsMergePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdSplitPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/executions/{execution_id}/split';
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdSplitPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdRestorePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/executions/{execution_id}/restore';
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdRestorePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDeleteData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/executions/{execution_id}';
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdPatchData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/executions/{execution_id}';
+};
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/executions';
+};
+
+export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/executions';
+};
+
+export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdPatchData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}/cash-transactions/{transaction_id}';
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdPatch2Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}/cash-transactions/{transaction_id}';
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdPatch2Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdPatch3Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}/cash-transactions/{transaction_id}';
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdPatch3Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}/cash-transactions';
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsGet2Data = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/accounts/{account_id}/cash-transactions';
+};
+
+export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsGet2Responses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ListCorporateActionsApiV1CorporateActionsGetData = {
     body?: never;
