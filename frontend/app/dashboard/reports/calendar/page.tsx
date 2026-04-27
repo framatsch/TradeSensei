@@ -1,32 +1,31 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
-import { AccountFilter } from "@/components/ui/AccountFilter";
 import { Calendar } from "@/components/calendar";
 import { useReportData } from "@/hooks/useReportData";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 
 export default function CalendarPage() {
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const { calendarData, isLoading, isError } = useReportData(accountId);
+  const { activePortfolioId } = useActivePortfolio();
+  const { calendarData, isLoading, isError } = useReportData(activePortfolioId ?? undefined);
   const router = useRouter();
 
   const handleDayClick = useCallback((date: string) => {
     const params = new URLSearchParams({
       closed_at_from: date,
       closed_at_to: date,
-      ...(accountId ? { account_id: accountId } : {}),
+      ...(activePortfolioId ? { portfolio_id: activePortfolioId } : {}),
     });
     router.push(`/dashboard/trades?${params.toString()}`);
-  }, [router, accountId]);
+  }, [router, activePortfolioId]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <PageHeader title="Calendar" subtitle="Daily P&L and trade activity at a glance" />
-        <AccountFilter value={accountId} onChange={setAccountId} />
       </div>
 
       {isLoading ? (
