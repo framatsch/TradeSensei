@@ -12,6 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.account import Account
+from app.models.portfolio import Portfolio
 from app.models.trade import Trade
 
 
@@ -38,6 +40,7 @@ class MetricsRepository:
     async def get_closed_trades_for_account(
         self,
         account_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         user_id: uuid.UUID,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -71,6 +74,12 @@ class MetricsRepository:
                 Trade.pnl.is_not(None),
                 Trade.closed_at.is_not(None),
             )
+            .join(Account, Trade.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                Account.portfolio_id == portfolio_id,
+                Portfolio.user_id == user_id,
+            )
         )
 
         if from_dt is not None:
@@ -85,6 +94,7 @@ class MetricsRepository:
     async def get_closed_trades_for_user(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -117,6 +127,12 @@ class MetricsRepository:
                 Trade.user_id == user_id,
                 Trade.pnl.is_not(None),
                 Trade.closed_at.is_not(None),
+            )
+            .join(Account, Trade.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                Account.portfolio_id == portfolio_id,
+                Portfolio.user_id == user_id,
             )
         )
 

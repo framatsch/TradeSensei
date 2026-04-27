@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import Select
 
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
+from app.models.account import Account
 from app.models.cash_transaction import CashTransaction, CashTransactionType
+from app.models.portfolio import Portfolio
 from app.schemas.cash_transaction import (
     CashTransactionCreate,
     CashTransactionFilterParams,
@@ -45,24 +47,11 @@ class CashTransactionRepository:
         return transaction
 
     @staticmethod
-    async def get(
-        session: AsyncSession, transaction_id: uuid.UUID
-    ) -> CashTransaction | None:
-        """Retrieve a cash transaction by its ID.
-
-        Args:
-            session: The database session.
-            transaction_id: The UUID of the transaction.
-
-        Returns:
-            The CashTransaction ORM instance or None if not found.
-        """
-        return await session.get(CashTransaction, transaction_id)
-
-    @staticmethod
     async def get_by_account_id(
         session: AsyncSession,
         account_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+        user_id: uuid.UUID,
         transaction_id: uuid.UUID,
     ) -> CashTransaction | None:
         """Retrieve a cash transaction by its ID, scoped to an account.
@@ -75,9 +64,21 @@ class CashTransactionRepository:
         Returns:
             The CashTransaction ORM instance or None if not found.
         """
-        stmt = select(CashTransaction).where(
-            CashTransaction.id == transaction_id,
-            CashTransaction.account_id == account_id,
+        stmt = (
+            select(CashTransaction)
+            .where(
+                CashTransaction.id == transaction_id,
+                CashTransaction.account_id == account_id,
+            )
+            .join(Account, CashTransaction.account_id == Account.id)
+            .join(
+                Portfolio,
+                Account.portfolio_id == Portfolio.id,
+            )
+            .where(
+                Account.portfolio_id == portfolio_id,
+                Portfolio.user_id == user_id,
+            )
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
@@ -86,6 +87,8 @@ class CashTransactionRepository:
     async def list_by_account(
         session: AsyncSession,
         account_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+        user_id: uuid.UUID,
         filters: CashTransactionFilterParams,
         limit: int = PAGINATION_DEFAULT_LIMIT,
         offset: int = 0,
@@ -102,7 +105,16 @@ class CashTransactionRepository:
         Returns:
             A sequence of CashTransaction ORM instances.
         """
-        stmt = select(CashTransaction).where(CashTransaction.account_id == account_id)
+        stmt = (
+            select(CashTransaction)
+            .join(Account, CashTransaction.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                CashTransaction.account_id == account_id,
+                Account.portfolio_id == portfolio_id,
+                Portfolio.user_id == user_id,
+            )
+        )
         stmt = CashTransactionRepository._apply_filters(stmt, filters)
         stmt = stmt.order_by(CashTransaction.date.desc())
 
@@ -116,6 +128,8 @@ class CashTransactionRepository:
     async def count_by_account(
         session: AsyncSession,
         account_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+        user_id: uuid.UUID,
         filters: CashTransactionFilterParams,
     ) -> int:
         """Count cash transactions for an account matching the filters.
@@ -128,8 +142,15 @@ class CashTransactionRepository:
         Returns:
             The total number of matching records.
         """
-        stmt = select(func.count(CashTransaction.id)).where(
-            CashTransaction.account_id == account_id
+        stmt = (
+            select(func.count(CashTransaction.id))
+            .join(Account, CashTransaction.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                CashTransaction.account_id == account_id,
+                Account.portfolio_id == portfolio_id,
+                Portfolio.user_id == user_id,
+            )
         )
         stmt = CashTransactionRepository._apply_filters(stmt, filters)
 

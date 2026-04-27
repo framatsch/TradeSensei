@@ -15,6 +15,8 @@ from decimal import Decimal
 from sqlalchemy import ColumnElement, Numeric, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
+from app.models.portfolio import Portfolio
 from app.models.trade import Trade
 
 
@@ -40,6 +42,7 @@ class TimeSeriesRepository:
     def _base_filter(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None,
         from_dt: datetime | None,
         to_dt: datetime | None,
@@ -59,6 +62,8 @@ class TimeSeriesRepository:
             Trade.user_id == user_id,
             Trade.pnl.is_not(None),
             Trade.closed_at.is_not(None),
+            Account.portfolio_id == portfolio_id,
+            Portfolio.user_id == user_id,
         ]
         if account_id is not None:
             predicates.append(Trade.account_id == account_id)
@@ -71,6 +76,7 @@ class TimeSeriesRepository:
     async def get_daily_pnl(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None,
         from_dt: datetime | None,
         to_dt: datetime | None,
@@ -97,7 +103,17 @@ class TimeSeriesRepository:
 
         stmt = (
             select(date_col.label("trade_date"), total_pnl_col, count_col)
-            .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
+            .join(Account, Trade.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                *self._base_filter(
+                    user_id,
+                    portfolio_id,
+                    account_id,
+                    from_dt,
+                    to_dt,
+                )
+            )
             .group_by(date_col)
             .order_by(date_col.asc())
         )
@@ -109,6 +125,7 @@ class TimeSeriesRepository:
     async def get_closed_pnl_series(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None,
         from_dt: datetime | None,
         to_dt: datetime | None,
@@ -130,7 +147,17 @@ class TimeSeriesRepository:
         """
         stmt = (
             select(Trade.closed_at, Trade.pnl, Trade.symbol)
-            .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
+            .join(Account, Trade.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                *self._base_filter(
+                    user_id,
+                    portfolio_id,
+                    account_id,
+                    from_dt,
+                    to_dt,
+                )
+            )
             .order_by(Trade.closed_at.asc())
         )
 
@@ -141,6 +168,7 @@ class TimeSeriesRepository:
     async def get_pnl_by_symbol(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None,
         from_dt: datetime | None,
         to_dt: datetime | None,
@@ -165,7 +193,17 @@ class TimeSeriesRepository:
 
         stmt = (
             select(Trade.symbol, total_pnl_col, total_count_col, win_count_col)
-            .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
+            .join(Account, Trade.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                *self._base_filter(
+                    user_id,
+                    portfolio_id,
+                    account_id,
+                    from_dt,
+                    to_dt,
+                )
+            )
             .group_by(Trade.symbol)
             .order_by(total_pnl_col.desc())
         )
@@ -180,6 +218,7 @@ class TimeSeriesRepository:
     async def get_pnl_by_asset_class(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None,
         from_dt: datetime | None,
         to_dt: datetime | None,
@@ -209,7 +248,17 @@ class TimeSeriesRepository:
                 total_count_col,
                 win_count_col,
             )
-            .where(*self._base_filter(user_id, account_id, from_dt, to_dt))
+            .join(Account, Trade.account_id == Account.id)
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
+            .where(
+                *self._base_filter(
+                    user_id,
+                    portfolio_id,
+                    account_id,
+                    from_dt,
+                    to_dt,
+                )
+            )
             .group_by(Trade.asset_class)
         )
 
