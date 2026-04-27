@@ -132,6 +132,10 @@ class AccountCreate(BaseModel):
         default=None,
         description="Optional per-account import/sync settings.",
     )
+    portfolio_id: uuid.UUID | None = Field(
+        default=None,
+        description="UUID of the portfolio this account belongs to.",
+    )
 
 
 class AccountUpdate(BaseModel):
@@ -229,6 +233,15 @@ class AccountRead(BaseModel):
         ...,
         description="UUID of the user who owns this account.",
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    )
+    portfolio_id: uuid.UUID = Field(
+        ...,
+        description="UUID of the portfolio this account belongs to.",
+    )
+    portfolio_name: str | None = Field(
+        default=None,
+        description="Name of the portfolio this account belongs to.",
+        examples=["Default Portfolio", None],
     )
     name: str = Field(
         ...,
