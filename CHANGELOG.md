@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Introduced the `Portfolio` entity with `id`, `name`, `base_currency`, and `color_hex`, plus user-scoped CRUD endpoints at `/api/v1/portfolios`.
+
+### Changed
+- [backend] Scoped trades, metrics, timeseries, imports, accounts, executions, and cash-transactions under `/api/v1/portfolios/{portfolio_id}/...`; legacy unscoped endpoints now return HTTP 410.
+
+### Migration
+- [db] Added portfolio migration that creates a default portfolio per existing user and links all existing accounts automatically.
+
 ## [0.24.0] - 2026-04-20
 
 ### Added

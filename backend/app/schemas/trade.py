@@ -1013,6 +1013,14 @@ class TradeRead(BaseModel):
         ),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
+    portfolio_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "UUID of the portfolio this trade belongs to via its account. "
+            "Null if no account is assigned."
+        ),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
     account_name: str | None = Field(
         default=None,
         description=(
@@ -1115,6 +1123,9 @@ class TradeRead(BaseModel):
                             if hasattr(raw_type, "value")
                             else str(raw_type)
                         )
+                if getattr(data, "portfolio_id", None) is None:
+                    with contextlib.suppress(Exception):
+                        data.__dict__["portfolio_id"] = account.portfolio_id
 
             # Map logical_executions to legs (only if already loaded).
             # Use __dict__ to avoid triggering lazy-load of the relationship.

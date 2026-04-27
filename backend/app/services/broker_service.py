@@ -199,11 +199,16 @@ class BrokerService:
         from app.services.flex_import_service import FlexImportService
 
         flex_service = FlexImportService(self._session, flex_token)
+        if account.portfolio_id is None:
+            raise ConfigurationError(
+                f"Account {account.id} is not linked to a portfolio."
+            )
 
         try:
             result = await flex_service.import_flex(
                 query_id=query_id,
                 user_id=account.user_id,
+                portfolio_id=account.portfolio_id,
                 account_id=account.id,
                 from_date=from_date,
                 overwrite_manually_edited=overwrite_manually_edited,

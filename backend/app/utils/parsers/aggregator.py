@@ -174,6 +174,9 @@ def iter_logical_executions_to_trade_creates(
         if opened_at.tzinfo is None:
             opened_at = opened_at.replace(tzinfo=UTC)
         closed_at = opened_at + timedelta(seconds=1) if ex.pnl is not None else None
+        raw_currency = getattr(ex, "currency", None)
+        currency = raw_currency if isinstance(raw_currency, str) else None
+
         yield TradeCreate(
             symbol=ex.symbol,
             direction=Direction(ex.direction),
@@ -184,6 +187,7 @@ def iter_logical_executions_to_trade_creates(
             opened_at=opened_at,
             closed_at=closed_at,
             pnl=ex.pnl,
+            currency=currency,
             broker_conid=ex.conid,
             multiplier=ex.multiplier,
             is_mixed_execution=getattr(ex, "is_mixed_execution", False),
