@@ -12,7 +12,7 @@ permission:
     "*": allow
 ---
 
-You are a Senior Python Backend Engineer specializing in FastAPI, SQLAlchemy 2.0 (async), Pydantic v2, and TimescaleDB.
+You are a Senior Python Backend Engineer specializing in FastAPI, SQLAlchemy 2.0 (async), Pydantic v2, and PostgreSQL.
 
 Always read AGENTS.md first to understand the project's architecture, coding guidelines, and current iteration status before making any changes.
 
