@@ -18,6 +18,7 @@ from app.core.constants import (
     RETURN_DISTRIBUTION_DEFAULT_BUCKETS,
     ROLLING_WINRATE_MAX_POINTS,
 )
+from app.repositories.account_repository import AccountRepository
 from app.repositories.timeseries_repository import TimeSeriesRepository
 from app.schemas.timeseries import (
     DailyPnl,
@@ -52,10 +53,24 @@ class TimeSeriesService:
                 this request.
         """
         self._repo = TimeSeriesRepository(session)
+        self._account_repo = AccountRepository(session)
+
+    async def _validate_account_scope(
+        self,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+    ) -> None:
+        if account_id is None:
+            return
+        account = await self._account_repo.get_by_id(account_id, user_id, portfolio_id)
+        if account is None:
+            raise ValueError("account_id does not belong to portfolio")
 
     async def get_daily_pnl(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -73,8 +88,10 @@ class TimeSeriesService:
             DTOs, each with ``cumulative_pnl`` reflecting the running total up to
             and including that day.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         rows = await self._repo.get_daily_pnl(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -97,6 +114,7 @@ class TimeSeriesService:
     async def get_monthly_pnl(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -118,8 +136,10 @@ class TimeSeriesService:
             :class:`~app.schemas.timeseries.MonthlyPnl`
             DTOs.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         rows = await self._repo.get_closed_pnl_series(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -157,6 +177,7 @@ class TimeSeriesService:
     async def get_monthly_winrate(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -176,8 +197,10 @@ class TimeSeriesService:
             A chronologically ordered list of
             :class:`~app.schemas.timeseries.MonthlyWinratePoint` DTOs.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         rows = await self._repo.get_closed_pnl_series(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -220,6 +243,7 @@ class TimeSeriesService:
     async def get_pnl_by_symbol(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -236,8 +260,10 @@ class TimeSeriesService:
             A list of :class:`~app.schemas.timeseries.PnlBySymbol` DTOs
             sorted by ``total_pnl`` descending (most profitable symbol first).
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         rows = await self._repo.get_pnl_by_symbol(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -263,6 +289,7 @@ class TimeSeriesService:
     async def get_pnl_by_asset_class(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -278,8 +305,10 @@ class TimeSeriesService:
         Returns:
             A list of :class:`~app.schemas.timeseries.PnlByAssetClass` DTOs.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         rows = await self._repo.get_pnl_by_asset_class(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -303,6 +332,7 @@ class TimeSeriesService:
     async def get_return_distribution(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -332,8 +362,10 @@ class TimeSeriesService:
             Buckets with zero trades are included so the histogram shape is
             always preserved.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         rows = await self._repo.get_closed_pnl_series(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -387,6 +419,7 @@ class TimeSeriesService:
     async def get_rolling_winrate(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         window_trades: int = 20,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
@@ -419,8 +452,10 @@ class TimeSeriesService:
             :class:`~app.schemas.timeseries.RollingWinratePoint` DTOs.
             Empty when there are no closed trades with PnL data.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         rows = await self._repo.get_closed_pnl_series(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,

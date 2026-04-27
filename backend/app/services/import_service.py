@@ -46,6 +46,7 @@ from app.repositories.broker_raw_transaction_repository import (
 from app.repositories.cash_transaction_repository import CashTransactionRepository
 from app.repositories.corporate_action_repository import CorporateActionRepository
 from app.repositories.execution import ExecutionRepository
+from app.repositories.portfolio_repository import PortfolioRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.cash_transaction import CashTransactionCreateRequest
@@ -106,6 +107,7 @@ class ImportService:
         self._account_repo = AccountRepository(session)
         self._trade_repo = TradeRepository(session)
         self._ca_repo = CorporateActionRepository(session)
+        self._portfolio_repo = PortfolioRepository(session)
         self._raw_repo = BrokerRawTransactionRepository(session)
         self._logical_svc = LogicalExecutionService(session)
         self._exec_repo = ExecutionRepository(session)
@@ -131,6 +133,7 @@ class ImportService:
         content: bytes,
         filename: str,
         broker: BrokerType,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None,
         user_id: uuid.UUID,
         overwrite_manually_edited: bool = False,
@@ -179,12 +182,21 @@ class ImportService:
                 account does not exist or does not belong to ``user_id``.
         """
         # Verify the account belongs to the requesting user (only if provided).
+        portfolio_base_currency: str | None = None
         if account_id is not None:
-            account = await self._account_repo.get_by_id(account_id, user_id)
+            account = await self._account_repo.get_by_id(
+                account_id,
+                user_id,
+                portfolio_id,
+            )
             if account is None:
                 raise AccountNotFoundError(
                     f"Account {account_id} not found for user {user_id}."
                 )
+
+        portfolio = await self._portfolio_repo.get_by_id(portfolio_id, user_id)
+        if portfolio is not None:
+            portfolio_base_currency = portfolio.base_currency
 
         # Load corporate actions for this user so the parser/aggregator can apply
         # split adjustments at the correct chronological point.
@@ -192,26 +204,39 @@ class ImportService:
 
         # Load all existing open lots for this user so the aggregator can match
         # incoming closing executions against them (cross-period import support).
-        open_lots = await self._trade_repo.list_open_lots_by_user(user_id)
+        open_lots = await self._trade_repo.list_open_lots_by_user(
+            user_id,
+            portfolio_id,
+        )
         open_lot_ids = {lot.id for lot in open_lots}
 
         # Load all existing orphaned lots (closed, but no entry leg).
-        orphaned_lots = await self._trade_repo.list_orphaned_lots_by_user(user_id)
+        orphaned_lots = await self._trade_repo.list_orphaned_lots_by_user(
+            user_id,
+            portfolio_id,
+        )
         orphaned_lot_ids = {lot.id for lot in orphaned_lots}
 
         # Load the set of (broker_conid, opened_at) keys for manually-edited trades.
         manually_edited_keys = (
-            await self._trade_repo.list_manually_edited_keys(user_id)
+            await self._trade_repo.list_manually_edited_keys(
+                user_id,
+                portfolio_id,
+            )
             if not overwrite_manually_edited
             else set()
         )
 
         # Load existing execution keys for deduplication to ensure idempotency.
         existing_entry_keys = await self._trade_repo.list_existing_entry_keys(
-            user_id, account_id
+            user_id,
+            account_id,
+            portfolio_id,
         )
         existing_close_keys = await self._trade_repo.list_existing_close_keys(
-            user_id, account_id
+            user_id,
+            account_id,
+            portfolio_id,
         )
 
         parser: BrokerParser = get_parser(broker)
@@ -468,6 +493,7 @@ class ImportService:
                             if is_orphan:
                                 await self._trade_repo.fill_orphaned_lot(
                                     trade_id=db_trade_id,
+                                    user_id=user_id,
                                     entry_price=cast(Decimal, trade_data.entry_price),
                                     opened_at=trade_data.opened_at,
                                     pnl=trade_data.pnl,
@@ -496,6 +522,7 @@ class ImportService:
                             else:
                                 await self._trade_repo.close_open_lot(
                                     trade_id=db_trade_id,
+                                    user_id=user_id,
                                     exit_price=trade_data.exit_price,
                                     closed_at=trade_data.closed_at,
                                     pnl=trade_data.pnl,
@@ -744,6 +771,16 @@ class ImportService:
                 create_warnings.append(msg)
 
         if account_id is not None:
+            account = await self._account_repo.get_by_id(
+                account_id,
+                user_id,
+                portfolio_id,
+            )
+            if account is None:
+                raise AccountNotFoundError(
+                    f"Account {account_id} not found for user {user_id}."
+                )
+
             cash_service = CashTransactionService(self._session)
             for cash_tx_data in parsed_cash_txs:
                 # Duplicate check: same account + date + type + amount + symbol
@@ -767,6 +804,7 @@ class ImportService:
                 try:
                     await cash_service.create(
                         user_id=user_id,
+                        portfolio_id=portfolio_id,
                         account_id=account_id,
                         create_request=cash_tx_data,
                     )
@@ -780,6 +818,21 @@ class ImportService:
                     create_warnings.append(msg)
 
         all_warnings: list[str] = parser_warnings + create_warnings
+
+        if portfolio_base_currency is not None:
+            mismatched_count = sum(
+                1
+                for trade_data in parsed_trades
+                if trade_data.currency is not None
+                and trade_data.currency != portfolio_base_currency
+            )
+            if mismatched_count > 0:
+                all_warnings.append(
+                    "currency_mismatch: "
+                    f"{mismatched_count} imported trade(s) use a currency "
+                    "different from portfolio "
+                    f"base_currency '{portfolio_base_currency}'."
+                )
 
         # Trades parsed = all aggregated trades minus seed-only open lots
         # (seed lots that stayed open are returned by the aggregator but have
@@ -814,6 +867,7 @@ class ImportService:
         content: bytes,
         filename: str,
         broker: BrokerType,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID,
         user_id: uuid.UUID,
     ) -> FreshStartResult:
@@ -845,7 +899,7 @@ class ImportService:
             AccountNotFoundError: If the account does not exist or does not
                 belong to ``user_id``.
         """
-        account = await self._account_repo.get_by_id(account_id, user_id)
+        account = await self._account_repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(
                 f"Account {account_id} not found for user {user_id}."
@@ -885,6 +939,7 @@ class ImportService:
             content=content,
             filename=filename,
             broker=broker,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             user_id=user_id,
             overwrite_manually_edited=True,
@@ -901,6 +956,7 @@ class ImportService:
         self,
         raw_id: str,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
         suppressed: bool = True,
     ) -> None:
         """Toggle the suppressed flag on a BrokerRawTransaction.
@@ -921,6 +977,26 @@ class ImportService:
             raise BrokerRawTransactionNotFoundError(
                 f"BrokerRawTransaction {raw_id} not found."
             )
+        if raw.account_id is not None and portfolio_id is not None:
+            account = await self._account_repo.get_by_id(
+                raw.account_id,
+                user_id,
+                portfolio_id,
+            )
+            if account is None:
+                from app.core.exceptions import BrokerRawTransactionNotFoundError
+
+                raise BrokerRawTransactionNotFoundError(
+                    f"BrokerRawTransaction {raw_id} not found."
+                )
+        if portfolio_id is not None:
+            portfolio = await self._portfolio_repo.get_by_id(portfolio_id, user_id)
+            if portfolio is None:
+                from app.core.exceptions import BrokerRawTransactionNotFoundError
+
+                raise BrokerRawTransactionNotFoundError(
+                    f"BrokerRawTransaction {raw_id} not found."
+                )
         await self._raw_repo.set_suppressed(raw_id, suppressed)
 
     async def _backfill_execution_trade_links(
