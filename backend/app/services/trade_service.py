@@ -15,6 +15,7 @@ from app.core.constants import SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
 from app.models.trade import Trade
+from app.repositories.account_repository import AccountRepository
 from app.repositories.execution import ExecutionRepository
 from app.repositories.playbook_repository import PlaybookRepository
 from app.repositories.tag_repository import TagRepository
@@ -55,6 +56,7 @@ class TradeService:
         self._exec_repo = ExecutionRepository(session)
         self._tag_repo = TagRepository(session)
         self._playbook_repo = PlaybookRepository(session)
+        self._account_repo = AccountRepository(session)
 
     def _screenshot_dir(self, trade_id: uuid.UUID) -> Path:
         """Return the filesystem directory used for trade screenshots."""
@@ -135,7 +137,11 @@ class TradeService:
         exec_service = ExecutionService(self._session)
         await exec_service._re_aggregate_trade(trade_id, trade.user_id)
 
-    async def create_trade(self, data: TradeCreate) -> TradeRead:
+    async def create_trade(
+        self,
+        data: TradeCreate,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> TradeRead:
         """Create a new trade record.
 
         Args:
@@ -144,6 +150,15 @@ class TradeService:
         Returns:
             A :class:`TradeRead` DTO representing the created trade.
         """
+        if data.account_id is not None and data.user_id is not None:
+            account = await self._account_repo.get_by_id(
+                data.account_id,
+                data.user_id,
+                portfolio_id,
+            )
+            if account is None:
+                raise TradeNotFoundError(f"Account {data.account_id} not found.")
+
         trade: Trade = await self._repo.create(data)
 
         # Deferred import to break circular dependency: execution -> trade
@@ -251,7 +266,12 @@ class TradeService:
 
         return TradeRead.model_validate(trade_reloaded)
 
-    async def get_trade(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> TradeRead:
+    async def get_trade(
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> TradeRead:
         """Fetch a single trade by its UUID.
 
         Args:
@@ -264,7 +284,7 @@ class TradeService:
         Raises:
             TradeNotFoundError: If no trade with the given ID exists.
         """
-        trade = await self._repo.get_by_id(trade_id, user_id)
+        trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         return TradeRead.model_validate(trade)
@@ -276,6 +296,7 @@ class TradeService:
         include_total: bool = False,
         account_id: uuid.UUID | None = None,
         user_id: uuid.UUID | None = None,
+        portfolio_id: uuid.UUID | None = None,
         filters: TradeFilterParams | None = None,
         sort: TradeSortParams | None = None,
     ) -> CursorPage[TradeRead]:
@@ -308,6 +329,7 @@ class TradeService:
                 cursor=cursor,
                 include_total=include_total,
                 account_id=account_id,
+                portfolio_id=portfolio_id,
                 user_id=user_id,
                 filters=filters,
                 sort=sort,
@@ -326,6 +348,7 @@ class TradeService:
         trade_id: uuid.UUID,
         data: TradeUpdate,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> TradeRead:
         """Partially update an existing trade.
 
@@ -340,7 +363,7 @@ class TradeService:
         Raises:
             TradeNotFoundError: If no trade with the given ID exists.
         """
-        trade = await self._repo.get_by_id(trade_id, user_id)
+        trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         pre_update_updated_at = trade.updated_at
@@ -381,7 +404,12 @@ class TradeService:
         await self._session.commit()
         return TradeRead.model_validate(updated)
 
-    async def delete_trade(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    async def delete_trade(
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> None:
         """Delete a trade and its child executions.
 
         For each child :class:`~app.models.logical_execution.LogicalExecution`:
@@ -398,7 +426,7 @@ class TradeService:
         Raises:
             TradeNotFoundError: If no trade with the given ID exists.
         """
-        trade = await self._repo.get_by_id(trade_id, user_id)
+        trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
 
@@ -418,6 +446,7 @@ class TradeService:
         self,
         trade_ids: list[uuid.UUID],
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> int:
         """Bulk delete trades by their UUIDs.
 
@@ -430,7 +459,7 @@ class TradeService:
         Returns:
             Number of deleted trades.
         """
-        return await self._repo.bulk_delete(trade_ids, user_id)
+        return await self._repo.bulk_delete(trade_ids, user_id, portfolio_id)
 
     async def bulk_assign_tags(
         self,
@@ -438,6 +467,7 @@ class TradeService:
         tag_ids: list[uuid.UUID],
         mode: BulkTagMode,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> int:
         """Bulk add or remove tags from trades.
 
@@ -460,13 +490,20 @@ class TradeService:
             raise ValueError("One or more tags not found.")
         if any(tag.user_id != user_id for tag in tags):
             raise PermissionError("One or more tags do not belong to this user.")
-        return await self._repo.bulk_assign_tags(trade_ids, tag_ids, mode, user_id)
+        return await self._repo.bulk_assign_tags(
+            trade_ids,
+            tag_ids,
+            mode,
+            user_id,
+            portfolio_id,
+        )
 
     async def bulk_assign_playbook(
         self,
         trade_ids: list[uuid.UUID],
         playbook_id: uuid.UUID | None,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> int:
         """Bulk assign or unassign a playbook on trades.
 
@@ -488,10 +525,18 @@ class TradeService:
                 raise ValueError("Playbook not found.")
             if playbook.user_id != user_id:
                 raise PermissionError("Playbook does not belong to this user.")
-        return await self._repo.bulk_assign_playbook(trade_ids, playbook_id, user_id)
+        return await self._repo.bulk_assign_playbook(
+            trade_ids,
+            playbook_id,
+            user_id,
+            portfolio_id,
+        )
 
     async def merge_trades(
-        self, trade_ids: list[uuid.UUID], user_id: uuid.UUID
+        self,
+        trade_ids: list[uuid.UUID],
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> TradeRead:
         """Merge multiple trades into a single trade.
 
@@ -509,7 +554,7 @@ class TradeService:
         """
         trades = []
         for tid in set(trade_ids):
-            t = await self._repo.get_by_id(tid, user_id)
+            t = await self._repo.get_by_id(tid, user_id, portfolio_id)
             if not t:
                 raise TradeNotFoundError(f"Trade {tid} not found or not owned.")
             trades.append(t)
@@ -582,6 +627,7 @@ class TradeService:
         trade_id: uuid.UUID,
         request: TradePartialCloseRequest,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> TradeRead:
         """Partially close an open trade by splitting it into two records.
 
@@ -601,7 +647,7 @@ class TradeService:
             TradeNotFoundError: If the trade is not found or owned by another user.
             ValueError: If the trade is already closed or quantity is invalid.
         """
-        trade = await self._repo.get_by_id(trade_id, user_id)
+        trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
 
