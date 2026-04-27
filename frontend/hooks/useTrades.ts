@@ -22,7 +22,6 @@ export interface TradeFilters {
   playbook_id?: string;
   pnl_positive?: boolean | null;
   status?: "open" | "closed" | null;
-  account_id?: string;
   /** Filter by hour of day (0–23) the trade was opened. */
   hour_of_day?: number;
   /** Filter by day of week the trade was opened (0=Monday, …, 6=Sunday). */
@@ -35,6 +34,7 @@ export interface TradeSortConfig {
 }
 
 export interface UseTradesOptions {
+  portfolioId?: string;
   cursor?: string | null;
   limit?: number;
   filters?: TradeFilters;
@@ -77,18 +77,20 @@ function toUtcTo(dateStr: string): string {
 // ─── useTrades ────────────────────────────────────────────────────────────────
 
 export function useTrades({
+  portfolioId,
   cursor,
   limit = 20,
   filters,
   sort,
 }: UseTradesOptions = {}) {
   return useQuery<CursorPage<Trade>, Error>({
-    queryKey: ["trades", cursor, limit, filters, sort],
+    queryKey: ["trades", portfolioId, cursor, limit, filters, sort],
     queryFn: async () => {
       // Build URLSearchParams manually to support repeated keys for arrays
       const params = new URLSearchParams();
       params.set("limit", String(limit));
       if (cursor) params.set("cursor", cursor);
+      if (portfolioId) params.set("portfolio_id", portfolioId);
 
       if (filters) {
         if (filters.symbol) params.set("symbol", filters.symbol);
@@ -114,7 +116,6 @@ export function useTrades({
           params.set("pnl_positive", String(filters.pnl_positive));
         }
         if (filters.status) params.set("status", filters.status);
-        if (filters.account_id) params.set("account_id", filters.account_id);
         if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) {
           params.set("hour_of_day", String(filters.hour_of_day));
         }
@@ -128,11 +129,17 @@ export function useTrades({
         if (sort.sort_dir) params.set("sort_dir", sort.sort_dir);
       }
 
+      let url = "/api/v1/trades";
+      if (portfolioId) {
+        url = `/api/v1/portfolios/${portfolioId}/trades`;
+      }
+
       const res = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(
-        `/api/v1/trades?${params.toString()}`
+        `${url}?${params.toString()}`
       );
       return res.data.data;
     },
+    enabled: portfolioId !== undefined || portfolioId === undefined, // Always enabled
     staleTime: 30 * 1000,
   });
 }

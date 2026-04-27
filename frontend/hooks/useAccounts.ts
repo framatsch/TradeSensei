@@ -14,16 +14,18 @@ import type {
   ResponseEnvelope,
 } from "@/lib/types";
 
-export function useAccounts() {
+export function useAccounts(portfolioId?: string) {
   return useQuery<Account[], Error>({
-    queryKey: ["accounts"],
+    queryKey: ["accounts", portfolioId],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<CursorPage<Account>>>(
-        "/api/v1/accounts"
-      );
+      const url = portfolioId 
+        ? `/api/v1/portfolios/${portfolioId}/accounts` 
+        : "/api/v1/accounts";
+      const res = await apiClient.get<ResponseEnvelope<CursorPage<Account>>>(url);
       return res.data.data.items;
     },
     staleTime: 5 * 60 * 1000,
+    enabled: portfolioId !== undefined || portfolioId === undefined, // always enabled, but nice for logic
   });
 }
 

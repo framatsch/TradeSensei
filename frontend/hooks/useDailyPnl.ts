@@ -14,12 +14,16 @@ interface DailyPnlBar {
   pnl: number;
 }
 
-export function useDailyPnl() {
+export function useDailyPnl(portfolioId?: string) {
   return useQuery<DailyPnlBar[], Error>({
-    queryKey: ["metrics", "daily-pnl"],
+    queryKey: ["metrics", "daily-pnl", portfolioId],
     queryFn: async () => {
+      const params = new URLSearchParams();
+      if (portfolioId) {
+        params.append("portfolio_id", portfolioId);
+      }
       const res = await apiClient.get<ResponseEnvelope<EquityCurvePoint[]>>(
-        "/api/v1/metrics/equity-curve"
+        `/api/v1/metrics/equity-curve?${params.toString()}`
       );
       // Aggregate per day from individual trade PnL values
       const byDate = new Map<string, number>();
@@ -32,5 +36,6 @@ export function useDailyPnl() {
         .sort((a, b) => a.date.localeCompare(b.date));
     },
     staleTime: 60 * 1000,
+    enabled: !!portfolioId,
   });
 }

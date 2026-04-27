@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api";
 import {
-  listTradeExecutionsApiV1TradesTradeIdExecutionsGet,
+  listTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGet,
   type LogicalExecutionRead as GeneratedLogicalExecutionRead,
 } from "@/lib/api/index";
 import type {
@@ -52,13 +52,13 @@ function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead): Logica
  * @param tradeId - Trade UUID.
  * @param includeDeleted - When true, include soft-deleted executions (task 8.4).
  */
-export function useTradeExecutions(tradeId: string, includeDeleted = false) {
+export function useTradeExecutions(tradeId: string, portfolioId?: string | null, includeDeleted = false) {
   return useQuery<LogicalExecution[], Error>({
-    queryKey: ["executions", tradeId, { includeDeleted }],
+    queryKey: ["executions", portfolioId, tradeId, { includeDeleted }],
     queryFn: async () => {
       const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-      const envelope = await listTradeExecutionsApiV1TradesTradeIdExecutionsGet<true>({
-        path: { trade_id: tradeId },
+      const envelope = await listTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGet<true>({
+        path: { portfolio_id: portfolioId!, trade_id: tradeId },
         query: includeDeleted ? { include_deleted: true } : undefined,
         baseUrl: "/api/proxy",
         auth: token ?? undefined,
@@ -69,7 +69,7 @@ export function useTradeExecutions(tradeId: string, includeDeleted = false) {
       return (envelope as unknown as { data: GeneratedLogicalExecutionRead[] }).data.map(mapGeneratedExecution);
     },
     staleTime: 5 * 1000, // 5 seconds to ensure fresh data after updates
-    enabled: Boolean(tradeId),
+    enabled: Boolean(tradeId) && Boolean(portfolioId),
   });
 }
 
