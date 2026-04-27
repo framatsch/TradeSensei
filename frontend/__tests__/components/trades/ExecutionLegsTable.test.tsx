@@ -3,6 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { ExecutionLegsTable } from "@/components/trades/ExecutionLegsTable";
 import type { LogicalExecution, Trade } from "@/lib/types";
 
+jest.mock("@/hooks/useActivePortfolio", () => ({
+  useActivePortfolio: () => ({ activePortfolio: { id: "portfolio-1" }, portfolios: [] }),
+}));
+
 jest.mock("@/hooks/useExecutions", () => ({
   useTradeExecutions: jest.fn(),
   useReassignExecution: () => ({ mutate: jest.fn(), isPending: false }),
