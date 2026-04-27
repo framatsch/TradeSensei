@@ -11,6 +11,7 @@ from app.core.constants import (
     PAGINATION_MAX_LIMIT,
     PAGINATION_MIN_LIMIT,
 )
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.user import User
@@ -31,7 +32,11 @@ from app.schemas.trade import (
 )
 from app.services.trade_service import TradeService
 
-router = APIRouter(prefix="/trades", tags=["trades"])
+router = APIRouter(
+    prefix="/portfolios/{portfolio_id}/trades",
+    tags=["trades"],
+    dependencies=[Depends(require_portfolio_owner)],
+)
 
 
 def _raise_not_found() -> NoReturn:
@@ -77,6 +82,7 @@ def _get_service(
     },
 )
 async def bulk_delete_trades(
+    portfolio_id: uuid.UUID,
     payload: BulkDeleteRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -97,6 +103,7 @@ async def bulk_delete_trades(
     deleted_count = await service.bulk_delete_trades(
         trade_ids=payload.trade_ids,
         user_id=current_user.id,
+        portfolio_id=portfolio_id,
     )
     return ResponseEnvelope[BulkDeleteResponse](
         data=BulkDeleteResponse(deleted_count=deleted_count)
@@ -123,6 +130,7 @@ async def bulk_delete_trades(
     },
 )
 async def bulk_assign_tags(
+    portfolio_id: uuid.UUID,
     payload: BulkAssignTagsRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -148,6 +156,7 @@ async def bulk_assign_tags(
             tag_ids=payload.tag_ids,
             mode=payload.mode,
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -184,6 +193,7 @@ async def bulk_assign_tags(
     },
 )
 async def bulk_assign_playbook(
+    portfolio_id: uuid.UUID,
     payload: BulkAssignPlaybookRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -209,6 +219,7 @@ async def bulk_assign_playbook(
             trade_ids=payload.trade_ids,
             playbook_id=payload.playbook_id,
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -243,6 +254,7 @@ async def bulk_assign_playbook(
     },
 )
 async def create_trade(
+    portfolio_id: uuid.UUID,
     payload: TradeCreateRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -262,7 +274,7 @@ async def create_trade(
         HTTPException: 422 if the payload fails Pydantic validation.
     """
     trade_create = payload.to_trade_create(user_id=current_user.id)
-    trade = await service.create_trade(trade_create)
+    trade = await service.create_trade(trade_create, portfolio_id)
     return ResponseEnvelope[TradeRead](data=trade)
 
 
@@ -288,6 +300,7 @@ async def create_trade(
     },
 )
 async def list_trades(
+    portfolio_id: uuid.UUID,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     filters: Annotated[TradeFilterParams, Depends()],
@@ -359,6 +372,7 @@ async def list_trades(
             include_total=include_total,
             account_id=account_id,
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
             filters=filters,
             sort=sort,
         )
@@ -386,6 +400,7 @@ async def list_trades(
     },
 )
 async def get_trade(
+    portfolio_id: uuid.UUID,
     trade_id: uuid.UUID,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -404,7 +419,7 @@ async def get_trade(
         HTTPException: 404 if no trade with the given ID exists.
     """
     try:
-        trade = await service.get_trade(trade_id, current_user.id)
+        trade = await service.get_trade(trade_id, current_user.id, portfolio_id)
     except TradeNotFoundError:
         _raise_not_found()
     return ResponseEnvelope[TradeRead](data=trade)
@@ -430,6 +445,7 @@ async def get_trade(
     },
 )
 async def update_trade(
+    portfolio_id: uuid.UUID,
     trade_id: uuid.UUID,
     payload: TradeUpdate,
     service: Annotated[TradeService, Depends(_get_service)],
@@ -453,7 +469,12 @@ async def update_trade(
         HTTPException: 404 if no trade with the given ID exists.
     """
     try:
-        trade = await service.update_trade(trade_id, payload, current_user.id)
+        trade = await service.update_trade(
+            trade_id,
+            payload,
+            current_user.id,
+            portfolio_id,
+        )
     except TradeNotFoundError:
         _raise_not_found()
     return ResponseEnvelope[TradeRead](data=trade)
@@ -474,6 +495,7 @@ async def update_trade(
     },
 )
 async def delete_trade(
+    portfolio_id: uuid.UUID,
     trade_id: uuid.UUID,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -489,7 +511,7 @@ async def delete_trade(
         HTTPException: 404 if no trade with the given ID exists.
     """
     try:
-        await service.delete_trade(trade_id, current_user.id)
+        await service.delete_trade(trade_id, current_user.id, portfolio_id)
     except TradeNotFoundError:
         _raise_not_found()
 
@@ -518,6 +540,7 @@ async def delete_trade(
     },
 )
 async def partial_close_trade(
+    portfolio_id: uuid.UUID,
     trade_id: uuid.UUID,
     payload: TradePartialCloseRequest,
     service: Annotated[TradeService, Depends(_get_service)],
@@ -543,6 +566,7 @@ async def partial_close_trade(
             trade_id=trade_id,
             request=payload,
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
         )
         return ResponseEnvelope[TradeRead](data=new_trade)
     except TradeNotFoundError:
@@ -564,13 +588,18 @@ async def partial_close_trade(
     ),
 )
 async def merge_trades(
+    portfolio_id: uuid.UUID,
     payload: MergeTradesRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[TradeRead]:
     """Merge multiple trades into one."""
     try:
-        survivor = await service.merge_trades(payload.trade_ids, current_user.id)
+        survivor = await service.merge_trades(
+            payload.trade_ids,
+            current_user.id,
+            portfolio_id,
+        )
         return ResponseEnvelope[TradeRead](data=survivor)
     except TradeNotFoundError:
         _raise_not_found()

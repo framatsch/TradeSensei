@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import (
     ExecutionNotFoundError,
@@ -28,7 +29,11 @@ from app.schemas.execution import (
 from app.schemas.trade import TradeRead
 from app.services.execution import ExecutionService
 
-router = APIRouter(tags=["Executions"])
+router = APIRouter(
+    prefix="/portfolios/{portfolio_id}",
+    tags=["Executions"],
+    dependencies=[Depends(require_portfolio_owner)],
+)
 
 
 def _get_service(
@@ -54,6 +59,7 @@ def _get_service(
     ),
 )
 async def list_trade_executions(
+    portfolio_id: uuid.UUID,
     trade_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ExecutionService, Depends(_get_service)],
@@ -74,6 +80,7 @@ async def list_trade_executions(
         executions = await service.list_for_trade(
             trade_id=trade_id,
             user_id=user.id,
+            portfolio_id=portfolio_id,
             include_deleted=include_deleted,
         )
     except TradeNotFoundError as exc:
@@ -98,6 +105,7 @@ async def list_trade_executions(
     ),
 )
 async def create_manual_execution(
+    portfolio_id: uuid.UUID,
     trade_id: uuid.UUID,
     data: LogicalExecutionCreate,
     user: Annotated[User, Depends(get_current_user)],
@@ -106,7 +114,10 @@ async def create_manual_execution(
     """Create a manual execution and attach it to a specific trade."""
     try:
         execution = await service.create_manual_execution(
-            trade_id=trade_id, user_id=user.id, data=data
+            trade_id=trade_id,
+            user_id=user.id,
+            data=data,
+            portfolio_id=portfolio_id,
         )
     except TradeNotFoundError as exc:
         raise HTTPException(
@@ -129,6 +140,7 @@ async def create_manual_execution(
     ),
 )
 async def update_execution(
+    portfolio_id: uuid.UUID,
     execution_id: uuid.UUID,
     data: LogicalExecutionUpdate,
     user: Annotated[User, Depends(get_current_user)],
@@ -137,7 +149,10 @@ async def update_execution(
     """Update a specific execution."""
     try:
         execution = await service.update_execution(
-            execution_id=execution_id, user_id=user.id, data=data
+            execution_id=execution_id,
+            user_id=user.id,
+            data=data,
+            portfolio_id=portfolio_id,
         )
     except ExecutionNotFoundError as exc:
         raise HTTPException(
@@ -169,6 +184,7 @@ async def update_execution(
     },
 )
 async def delete_execution(
+    portfolio_id: uuid.UUID,
     execution_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ExecutionService, Depends(_get_service)],
@@ -179,7 +195,9 @@ async def delete_execution(
     """
     try:
         result = await service.delete_execution(
-            execution_id=execution_id, user_id=user.id
+            execution_id=execution_id,
+            user_id=user.id,
+            portfolio_id=portfolio_id,
         )
     except ExecutionNotFoundError as exc:
         raise HTTPException(
@@ -219,6 +237,7 @@ async def delete_execution(
     },
 )
 async def restore_execution(
+    portfolio_id: uuid.UUID,
     execution_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ExecutionService, Depends(_get_service)],
@@ -226,7 +245,9 @@ async def restore_execution(
     """Restore a previously soft-deleted execution."""
     try:
         execution = await service.restore_execution(
-            execution_id=execution_id, user_id=user.id
+            execution_id=execution_id,
+            user_id=user.id,
+            portfolio_id=portfolio_id,
         )
     except ExecutionNotFoundError as exc:
         raise HTTPException(
@@ -259,6 +280,7 @@ async def restore_execution(
     },
 )
 async def split_execution(
+    portfolio_id: uuid.UUID,
     execution_id: uuid.UUID,
     data: SplitExecutionRequest,
     user: Annotated[User, Depends(get_current_user)],
@@ -267,7 +289,10 @@ async def split_execution(
     """Split an execution into two child executions."""
     try:
         result = await service.split_execution(
-            execution_id=execution_id, user_id=user.id, data=data
+            execution_id=execution_id,
+            user_id=user.id,
+            data=data,
+            portfolio_id=portfolio_id,
         )
     except ExecutionNotFoundError as exc:
         raise HTTPException(
@@ -302,13 +327,18 @@ async def split_execution(
     },
 )
 async def merge_executions(
+    portfolio_id: uuid.UUID,
     data: MergeExecutionsRequest,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ExecutionService, Depends(_get_service)],
 ) -> ResponseEnvelope[MergeExecutionsResponse]:
     """Merge two or more executions into one merged execution."""
     try:
-        result = await service.merge_executions(user_id=user.id, data=data)
+        result = await service.merge_executions(
+            user_id=user.id,
+            data=data,
+            portfolio_id=portfolio_id,
+        )
     except ExecutionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -329,6 +359,7 @@ async def merge_executions(
     summary="Reassign an execution to another trade",
 )
 async def reassign_execution(
+    portfolio_id: uuid.UUID,
     execution_id: uuid.UUID,
     data: ReassignExecutionRequest,
     user: Annotated[User, Depends(get_current_user)],
@@ -340,6 +371,7 @@ async def reassign_execution(
             execution_id=execution_id,
             target_trade_id=data.target_trade_id,
             user_id=user.id,
+            portfolio_id=portfolio_id,
         )
     except ExecutionNotFoundError as exc:
         raise HTTPException(
@@ -371,6 +403,7 @@ async def reassign_execution(
     summary="Detach an execution into a new trade",
 )
 async def detach_execution(
+    portfolio_id: uuid.UUID,
     execution_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ExecutionService, Depends(_get_service)],
@@ -378,7 +411,9 @@ async def detach_execution(
     """Detach an execution from its current trade into a new trade."""
     try:
         trade = await service.detach_execution(
-            execution_id=execution_id, user_id=user.id
+            execution_id=execution_id,
+            user_id=user.id,
+            portfolio_id=portfolio_id,
         )
     except ExecutionNotFoundError as exc:
         raise HTTPException(

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import CashTransactionNotFoundError
 from app.models.user import User
@@ -23,7 +24,9 @@ from app.schemas.common import OffsetPage, ResponseEnvelope
 from app.services.cash_transaction_service import CashTransactionService
 
 router = APIRouter(
-    prefix="/accounts/{account_id}/cash-transactions", tags=["Cash Transactions"]
+    prefix="/portfolios/{portfolio_id}/accounts/{account_id}/cash-transactions",
+    tags=["Cash Transactions"],
+    dependencies=[Depends(require_portfolio_owner)],
 )
 
 
@@ -44,6 +47,7 @@ def _get_service(
     ),
 )
 async def create_cash_transaction(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     create_request: CashTransactionCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -52,6 +56,7 @@ async def create_cash_transaction(
     """Create a new cash transaction."""
     transaction = await service.create(
         user_id=current_user.id,
+        portfolio_id=portfolio_id,
         account_id=account_id,
         create_request=create_request,
     )
@@ -65,6 +70,7 @@ async def create_cash_transaction(
     description="Retrieve a paginated list of cash transactions for an account.",
 )
 async def list_cash_transactions(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     filters: Annotated[CashTransactionFilterParams, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -88,6 +94,7 @@ async def list_cash_transactions(
     """List cash transactions."""
     transactions, total_count = await service.list_by_account(
         user_id=current_user.id,
+        portfolio_id=portfolio_id,
         account_id=account_id,
         filters=filters,
         limit=limit,
@@ -111,6 +118,7 @@ async def list_cash_transactions(
     description="Retrieve a specific cash transaction by its ID.",
 )
 async def get_cash_transaction(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     transaction_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -120,6 +128,7 @@ async def get_cash_transaction(
     try:
         transaction = await service.get(
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             transaction_id=transaction_id,
         )
@@ -138,6 +147,7 @@ async def get_cash_transaction(
     description="Update fields of an existing cash transaction.",
 )
 async def update_cash_transaction(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     transaction_id: uuid.UUID,
     update_request: CashTransactionUpdate,
@@ -148,6 +158,7 @@ async def update_cash_transaction(
     try:
         transaction = await service.update(
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             transaction_id=transaction_id,
             update_schema=update_request,
@@ -167,6 +178,7 @@ async def update_cash_transaction(
     description="Permanently delete a cash transaction.",
 )
 async def delete_cash_transaction(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     transaction_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -176,6 +188,7 @@ async def delete_cash_transaction(
     try:
         await service.delete(
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             transaction_id=transaction_id,
         )
