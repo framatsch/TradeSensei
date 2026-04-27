@@ -29,6 +29,8 @@ from app.models.trade import AssetClass, Direction, Trade
 from app.services.execution import ExecutionService
 from app.services.logical_execution_service import LogicalExecutionService
 
+TEST_PORTFOLIO_ID = uuid.uuid4()
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -364,6 +366,7 @@ async def test_fresh_start_deletes_and_reimports(mock_session: AsyncMock) -> Non
         content=b"test",
         filename="test.csv",
         broker=BrokerType.IBKR,
+        portfolio_id=TEST_PORTFOLIO_ID,
         account_id=account_id,
         user_id=user_id,
     )
@@ -424,6 +427,7 @@ async def test_fresh_start_rollback_on_import_error(mock_session: AsyncMock) -> 
             content=b"bad data",
             filename="bad.csv",
             broker=BrokerType.IBKR,
+            portfolio_id=TEST_PORTFOLIO_ID,
             account_id=account_id,
             user_id=user_id,
         )

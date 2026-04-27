@@ -62,6 +62,39 @@ def _auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _create_portfolio_and_account(
+    client: AsyncClient,
+    headers: dict[str, str],
+    suffix: str,
+) -> tuple[str, str]:
+    """Create a portfolio and account for tax integration tests.
+
+    Args:
+        client: Test HTTP client.
+        headers: Authorization headers.
+        suffix: Unique suffix for resource names.
+
+    Returns:
+        Tuple of ``(portfolio_id, account_id)``.
+    """
+    p_resp = await client.post(
+        "/api/v1/portfolios",
+        json={"name": f"Tax Portfolio {suffix}", "base_currency": "USD"},
+        headers=headers,
+    )
+    assert p_resp.status_code == 201, p_resp.text
+    portfolio_id = str(p_resp.json()["data"]["id"])
+
+    a_resp = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        json={"name": f"Tax Account {suffix}", "type": "manual", "currency": "USD"},
+        headers=headers,
+    )
+    assert a_resp.status_code == 201, a_resp.text
+    account_id = str(a_resp.json()["data"]["id"])
+    return portfolio_id, account_id
+
+
 def _trade_payload(**kwargs: object) -> dict[str, object]:
     """Build a minimal closed trade creation payload.
 
@@ -140,6 +173,9 @@ class TestTaxSummaryWithTrades:
         """An EQUITY trade with pnl_eur set appears in the equities block."""
         token = await _register_and_token(client, suffix="eq1")
         headers = _auth_headers(token)
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "eq1"
+        )
 
         # Create an equity trade and manually set pnl_eur.
         payload = _trade_payload(
@@ -148,7 +184,11 @@ class TestTaxSummaryWithTrades:
             pnl="100.00000000",
             pnl_eur="92.50000000",
         )
-        create_resp = await client.post("/api/v1/trades", json=payload, headers=headers)
+        create_resp = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades",
+            json={**payload, "account_id": account_id},
+            headers=headers,
+        )
         assert create_resp.status_code == 201
 
         response = await client.get(
@@ -176,6 +216,9 @@ class TestTaxSummaryWithTrades:
         """An OPTION trade with negative pnl_eur appears in derivatives.losses_eur."""
         token = await _register_and_token(client, suffix="opt1")
         headers = _auth_headers(token)
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "opt1"
+        )
 
         payload = _trade_payload(
             symbol="AAPL250620C00200000",
@@ -183,7 +226,11 @@ class TestTaxSummaryWithTrades:
             pnl="-200.00000000",
             pnl_eur="-185.00000000",
         )
-        create_resp = await client.post("/api/v1/trades", json=payload, headers=headers)
+        create_resp = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades",
+            json={**payload, "account_id": account_id},
+            headers=headers,
+        )
         assert create_resp.status_code == 201
 
         response = await client.get(
@@ -204,11 +251,15 @@ class TestTaxSummaryWithTrades:
         """Equity gains and derivative losses are split correctly."""
         token = await _register_and_token(client, suffix="mixed1")
         headers = _auth_headers(token)
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "mixed1"
+        )
 
         # Equity gain.
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json=_trade_payload(
+                account_id=account_id,
                 symbol="AAPL",
                 asset_class="EQUITY",
                 pnl="500.00000000",
@@ -218,8 +269,9 @@ class TestTaxSummaryWithTrades:
         )
         # Derivative loss.
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json=_trade_payload(
+                account_id=account_id,
                 symbol="SPX",
                 asset_class="FUTURE",
                 pnl="-300.00000000",
@@ -252,11 +304,15 @@ class TestTaxSummaryWithTrades:
         """Closed trades with pnl_eur=NULL are counted in trades_missing_eur."""
         token = await _register_and_token(client, suffix="missing1")
         headers = _auth_headers(token)
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "missing1"
+        )
 
         # Trade without pnl_eur (no EUR conversion done at import).
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json=_trade_payload(
+                account_id=account_id,
                 symbol="TSLA",
                 asset_class="EQUITY",
                 pnl="200.00000000",
@@ -278,11 +334,15 @@ class TestTaxSummaryWithTrades:
         """Trades from a different year do not appear in the summary."""
         token = await _register_and_token(client, suffix="yearfilt")
         headers = _auth_headers(token)
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "yearfilt"
+        )
 
         # Trade in 2024.
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json=_trade_payload(
+                account_id=account_id,
                 opened_at=datetime(2024, 3, 1, 10, 0, tzinfo=UTC).isoformat(),
                 closed_at=datetime(2024, 3, 1, 15, 0, tzinfo=UTC).isoformat(),
                 pnl_eur="100.00000000",
@@ -350,10 +410,14 @@ class TestTaxCsvDownload:
         """A trade created for the year appears as a data row in the CSV."""
         token = await _register_and_token(client, suffix="csv3")
         headers = _auth_headers(token)
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "csv3"
+        )
 
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json=_trade_payload(
+                account_id=account_id,
                 symbol="MSFT",
                 asset_class="EQUITY",
                 pnl="250.00000000",

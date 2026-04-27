@@ -45,6 +45,37 @@ async def _get_auth_headers(client: AsyncClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _create_portfolio_and_account(
+    client: AsyncClient,
+    headers: dict[str, str],
+) -> tuple[str, str]:
+    """Create a portfolio and account for bulk trade tests.
+
+    Args:
+        client: The HTTPX test client.
+        headers: Auth headers.
+
+    Returns:
+        Tuple of ``(portfolio_id, account_id)``.
+    """
+    portfolio_resp = await client.post(
+        "/api/v1/portfolios",
+        json={"name": "Bulk Trades Portfolio", "base_currency": "USD"},
+        headers=headers,
+    )
+    assert portfolio_resp.status_code == 201, portfolio_resp.text
+    portfolio_id = str(portfolio_resp.json()["data"]["id"])
+
+    account_resp = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        json={"name": "Bulk Trades Account", "type": "manual", "currency": "USD"},
+        headers=headers,
+    )
+    assert account_resp.status_code == 201, account_resp.text
+    account_id = str(account_resp.json()["data"]["id"])
+    return portfolio_id, account_id
+
+
 def _trade_payload(**kwargs: object) -> dict[str, object]:
     """Build a minimal valid trade creation payload.
 
@@ -69,6 +100,8 @@ def _trade_payload(**kwargs: object) -> dict[str, object]:
 async def _create_trade(
     client: AsyncClient,
     headers: dict[str, str],
+    portfolio_id: str,
+    account_id: str,
     **kwargs: object,
 ) -> str:
     """Create a trade and return its UUID string.
@@ -82,7 +115,9 @@ async def _create_trade(
         The created trade's UUID as a string.
     """
     response = await client.post(
-        "/api/v1/trades", json=_trade_payload(**kwargs), headers=headers
+        f"/api/v1/portfolios/{portfolio_id}/trades",
+        json=_trade_payload(account_id=account_id, **kwargs),
+        headers=headers,
     )
     assert response.status_code == 201, response.text
     return str(response.json()["data"]["id"])
@@ -139,11 +174,12 @@ class TestBulkDeleteTrades:
     async def test_bulk_delete_returns_200_and_count(self, client: AsyncClient) -> None:
         """Deleting existing trades should return 200 with correct deleted_count."""
         h = await _get_auth_headers(client)
-        id1 = await _create_trade(client, h, symbol="GOOG")
-        id2 = await _create_trade(client, h, symbol="MSFT")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        id1 = await _create_trade(client, h, portfolio_id, account_id, symbol="GOOG")
+        id2 = await _create_trade(client, h, portfolio_id, account_id, symbol="MSFT")
 
         response = await client.post(
-            "/api/v1/trades/bulk/delete",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/delete",
             json={"trade_ids": [id1, id2]},
             headers=h,
         )
@@ -156,11 +192,12 @@ class TestBulkDeleteTrades:
         import uuid
 
         h = await _get_auth_headers(client)
-        id1 = await _create_trade(client, h, symbol="NVDA")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        id1 = await _create_trade(client, h, portfolio_id, account_id, symbol="NVDA")
         fake_id = str(uuid.uuid4())
 
         response = await client.post(
-            "/api/v1/trades/bulk/delete",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/delete",
             json={"trade_ids": [id1, fake_id]},
             headers=h,
         )
@@ -172,15 +209,18 @@ class TestBulkDeleteTrades:
     ) -> None:
         """After bulk delete, each deleted trade should return 404 on GET."""
         h = await _get_auth_headers(client)
-        id1 = await _create_trade(client, h, symbol="AMZN")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        id1 = await _create_trade(client, h, portfolio_id, account_id, symbol="AMZN")
 
         await client.post(
-            "/api/v1/trades/bulk/delete",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/delete",
             json={"trade_ids": [id1]},
             headers=h,
         )
 
-        get_resp = await client.get(f"/api/v1/trades/{id1}", headers=h)
+        get_resp = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{id1}", headers=h
+        )
         assert get_resp.status_code == 404
 
     async def test_bulk_delete_empty_list_returns_422(
@@ -188,8 +228,9 @@ class TestBulkDeleteTrades:
     ) -> None:
         """An empty trade_ids list should fail validation (min_length=1)."""
         h = await _get_auth_headers(client)
+        portfolio_id, _ = await _create_portfolio_and_account(client, h)
         response = await client.post(
-            "/api/v1/trades/bulk/delete",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/delete",
             json={"trade_ids": []},
             headers=h,
         )
@@ -202,9 +243,10 @@ class TestBulkDeleteTrades:
         import uuid
 
         h = await _get_auth_headers(client)
+        portfolio_id, _ = await _create_portfolio_and_account(client, h)
         ids = [str(uuid.uuid4()) for _ in range(101)]
         response = await client.post(
-            "/api/v1/trades/bulk/delete",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/delete",
             json={"trade_ids": ids},
             headers=h,
         )
@@ -218,11 +260,12 @@ class TestBulkAssignTags:
     async def test_bulk_add_tags_returns_200(self, client: AsyncClient) -> None:
         """Adding tags to existing trades should return 200 with updated_count."""
         h = await _get_auth_headers(client)
-        trade_id = await _create_trade(client, h, symbol="SPY")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="SPY")
         tag_id = await _create_tag(client, h)
 
         response = await client.post(
-            "/api/v1/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
             json={
                 "trade_ids": [trade_id],
                 "tag_ids": [tag_id],
@@ -236,19 +279,20 @@ class TestBulkAssignTags:
     async def test_bulk_remove_tags_returns_200(self, client: AsyncClient) -> None:
         """Removing tags from trades should return 200."""
         h = await _get_auth_headers(client)
-        trade_id = await _create_trade(client, h, symbol="QQQ")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="QQQ")
         tag_id = await _create_tag(client, h, name="removetag")
 
         # Add first
         await client.post(
-            "/api/v1/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
             json={"trade_ids": [trade_id], "tag_ids": [tag_id], "mode": "add"},
             headers=h,
         )
 
         # Now remove
         response = await client.post(
-            "/api/v1/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
             json={
                 "trade_ids": [trade_id],
                 "tag_ids": [tag_id],
@@ -266,11 +310,12 @@ class TestBulkAssignTags:
         import uuid
 
         h = await _get_auth_headers(client)
-        trade_id = await _create_trade(client, h, symbol="IWM")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="IWM")
         fake_tag_id = str(uuid.uuid4())
 
         response = await client.post(
-            "/api/v1/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
             json={
                 "trade_ids": [trade_id],
                 "tag_ids": [fake_tag_id],
@@ -285,9 +330,10 @@ class TestBulkAssignTags:
     ) -> None:
         """Empty trade_ids should fail validation."""
         h = await _get_auth_headers(client)
+        portfolio_id, _ = await _create_portfolio_and_account(client, h)
         tag_id = await _create_tag(client, h, name="validationtag")
         response = await client.post(
-            "/api/v1/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
             json={
                 "trade_ids": [],
                 "tag_ids": [tag_id],
@@ -304,8 +350,9 @@ class TestBulkAssignTags:
         import uuid
 
         h = await _get_auth_headers(client)
+        portfolio_id, _ = await _create_portfolio_and_account(client, h)
         response = await client.post(
-            "/api/v1/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
             json={
                 "trade_ids": [str(uuid.uuid4())],
                 "tag_ids": [str(uuid.uuid4())],
@@ -323,11 +370,12 @@ class TestBulkAssignPlaybook:
     async def test_bulk_assign_playbook_returns_200(self, client: AsyncClient) -> None:
         """Assigning a valid playbook to trades should return 200 with updated_count."""
         h = await _get_auth_headers(client)
-        trade_id = await _create_trade(client, h, symbol="META")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="META")
         playbook_id = await _create_playbook(client, h)
 
         response = await client.post(
-            "/api/v1/trades/bulk/assign-playbook",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-playbook",
             json={
                 "trade_ids": [trade_id],
                 "playbook_id": playbook_id,
@@ -342,19 +390,20 @@ class TestBulkAssignPlaybook:
     ) -> None:
         """Sending playbook_id=null should unassign the playbook from the trades."""
         h = await _get_auth_headers(client)
-        trade_id = await _create_trade(client, h, symbol="TSLA")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="TSLA")
         playbook_id = await _create_playbook(client, h, name="Unassign PB")
 
         # Assign first
         await client.post(
-            "/api/v1/trades/bulk/assign-playbook",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-playbook",
             json={"trade_ids": [trade_id], "playbook_id": playbook_id},
             headers=h,
         )
 
         # Now unassign
         response = await client.post(
-            "/api/v1/trades/bulk/assign-playbook",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-playbook",
             json={"trade_ids": [trade_id], "playbook_id": None},
             headers=h,
         )
@@ -368,11 +417,12 @@ class TestBulkAssignPlaybook:
         import uuid
 
         h = await _get_auth_headers(client)
-        trade_id = await _create_trade(client, h, symbol="COIN")
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="COIN")
         fake_pb_id = str(uuid.uuid4())
 
         response = await client.post(
-            "/api/v1/trades/bulk/assign-playbook",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-playbook",
             json={"trade_ids": [trade_id], "playbook_id": fake_pb_id},
             headers=h,
         )
@@ -383,9 +433,10 @@ class TestBulkAssignPlaybook:
     ) -> None:
         """Empty trade_ids should fail validation."""
         h = await _get_auth_headers(client)
+        portfolio_id, _ = await _create_portfolio_and_account(client, h)
         playbook_id = await _create_playbook(client, h, name="Val PB")
         response = await client.post(
-            "/api/v1/trades/bulk/assign-playbook",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-playbook",
             json={"trade_ids": [], "playbook_id": playbook_id},
             headers=h,
         )

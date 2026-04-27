@@ -53,8 +53,23 @@ class TestRLSBlocksCrossUser:
         This validates that the ``SET LOCAL app.current_user_id`` in
         ``get_session_with_rls`` correctly scopes the query.
         """
+        portfolio_resp = await client.post(
+            "/api/v1/portfolios",
+            json={"name": "RLS List Portfolio", "base_currency": "USD"},
+            headers=primary_user["headers"],
+        )
+        assert portfolio_resp.status_code == 201, portfolio_resp.text
+        portfolio_id = portfolio_resp.json()["data"]["id"]
+
+        account_resp = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/accounts",
+            json={"name": "RLS List Account", "type": "manual", "currency": "USD"},
+            headers=primary_user["headers"],
+        )
+        assert account_resp.status_code == 201, account_resp.text
+
         resp = await client.get(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 200, resp.text
@@ -84,8 +99,9 @@ class TestRLSBlocksCrossUser:
         add a ``user_id`` filter, the DB policy blocks the access.
         """
         trade_id = other_users_trade["id"]
+        portfolio_id = other_users_trade["portfolio_id"]
         resp = await client.get(
-            f"/api/v1/trades/{trade_id}",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, (
@@ -101,8 +117,16 @@ class TestRLSBlocksCrossUser:
         other_users_account: dict[str, Any],
     ) -> None:
         """GET /accounts as primary_user must not return other_user's accounts."""
+        portfolio_resp = await client.post(
+            "/api/v1/portfolios",
+            json={"name": "RLS Accounts Portfolio", "base_currency": "USD"},
+            headers=primary_user["headers"],
+        )
+        assert portfolio_resp.status_code == 201, portfolio_resp.text
+        portfolio_id = portfolio_resp.json()["data"]["id"]
+
         resp = await client.get(
-            "/api/v1/accounts",
+            f"/api/v1/portfolios/{portfolio_id}/accounts",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 200, resp.text
@@ -123,7 +147,6 @@ class TestRLSCorrectContextReturnsOwnRows:
         self,
         client: AsyncClient,
         primary_user: dict[str, Any],
-        other_users_account: dict[str, Any],
         other_users_trade: dict[str, Any],
     ) -> None:
         """A user must see their own trade when app.current_user_id is set correctly.
@@ -133,8 +156,16 @@ class TestRLSCorrectContextReturnsOwnRows:
         authenticated user's UUID.
         """
         # Create an account for primary_user
+        portfolio_resp = await client.post(
+            "/api/v1/portfolios",
+            json={"name": "RLS Test Portfolio", "base_currency": "USD"},
+            headers=primary_user["headers"],
+        )
+        assert portfolio_resp.status_code == 201, portfolio_resp.text
+        portfolio_id = portfolio_resp.json()["data"]["id"]
+
         acct_resp = await client.post(
-            "/api/v1/accounts",
+            f"/api/v1/portfolios/{portfolio_id}/accounts",
             json={"name": "RLS Test Account", "type": "manual", "currency": "USD"},
             headers=primary_user["headers"],
         )
@@ -143,7 +174,7 @@ class TestRLSCorrectContextReturnsOwnRows:
 
         # Create a trade owned by primary_user
         trade_resp = await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json={
                 "account_id": account_id,
                 "symbol": "RLSTEST",
@@ -161,7 +192,7 @@ class TestRLSCorrectContextReturnsOwnRows:
 
         # primary_user must be able to retrieve their own trade
         get_resp = await client.get(
-            f"/api/v1/trades/{own_trade_id}",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{own_trade_id}",
             headers=primary_user["headers"],
         )
         assert get_resp.status_code == 200, (

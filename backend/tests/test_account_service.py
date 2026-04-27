@@ -36,6 +36,7 @@ def _make_account(
     account_type: AccountType = AccountType.MANUAL,
     currency: str = "USD",
     is_active: bool = True,
+    portfolio_id: uuid.UUID | None = None,
 ) -> Account:
     """Build a detached :class:`Account` ORM instance for test use.
 
@@ -53,6 +54,9 @@ def _make_account(
     account = Account()
     account.id = id if id is not None else uuid.uuid4()  # type: ignore[assignment]
     account.user_id = user_id if user_id is not None else uuid.uuid4()  # type: ignore[assignment]
+    account.portfolio_id = (
+        portfolio_id if portfolio_id is not None else uuid.uuid4()
+    )  # type: ignore[assignment]
     account.name = name  # type: ignore[assignment]
     account.type = account_type  # type: ignore[assignment]
     account.currency = currency  # type: ignore[assignment]

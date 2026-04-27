@@ -19,6 +19,7 @@ from app.services.timeseries_service import TimeSeriesService
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 _BASE = datetime(2024, 5, 10, 12, 0, 0, tzinfo=UTC)
+_PORTFOLIO_ID = uuid.uuid4()
 
 
 def _dt(day: int, month: int = 5, year: int = 2024) -> datetime:
@@ -64,7 +65,9 @@ class TestGetDailyPnl:
             new_callable=AsyncMock,
             return_value=rows,
         ):
-            result = await service.get_daily_pnl(user_id=uuid.uuid4())
+            result = await service.get_daily_pnl(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result) == 3
         assert all(isinstance(p, DailyPnl) for p in result)
@@ -85,7 +88,9 @@ class TestGetDailyPnl:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_daily_pnl(user_id=uuid.uuid4())
+            result = await service.get_daily_pnl(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result == []
 
@@ -105,6 +110,7 @@ class TestGetDailyPnl:
         ):
             await service.get_daily_pnl(
                 user_id=uuid.uuid4(),
+                portfolio_id=_PORTFOLIO_ID,
                 account_id=account_id,
                 from_dt=from_dt,
                 to_dt=to_dt,
@@ -127,7 +133,9 @@ class TestGetDailyPnl:
             new_callable=AsyncMock,
             return_value=rows,
         ):
-            result = await service.get_daily_pnl(user_id=uuid.uuid4())
+            result = await service.get_daily_pnl(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result[0].trade_count == 5
 
@@ -152,7 +160,9 @@ class TestGetMonthlyPnl:
             new_callable=AsyncMock,
             return_value=series,
         ):
-            result = await service.get_monthly_pnl(user_id=uuid.uuid4())
+            result = await service.get_monthly_pnl(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result) == 2
         assert all(isinstance(m, MonthlyPnl) for m in result)
@@ -181,7 +191,9 @@ class TestGetMonthlyPnl:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_monthly_pnl(user_id=uuid.uuid4())
+            result = await service.get_monthly_pnl(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result == []
 
@@ -199,7 +211,9 @@ class TestGetMonthlyPnl:
             new_callable=AsyncMock,
             return_value=series,
         ):
-            result = await service.get_monthly_pnl(user_id=uuid.uuid4())
+            result = await service.get_monthly_pnl(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result[0].win_rate == Decimal("0")
 
@@ -224,7 +238,9 @@ class TestGetPnlBySymbol:
             new_callable=AsyncMock,
             return_value=rows,
         ):
-            result = await service.get_pnl_by_symbol(user_id=uuid.uuid4())
+            result = await service.get_pnl_by_symbol(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result) == 2
         assert all(isinstance(p, PnlBySymbol) for p in result)
@@ -251,7 +267,9 @@ class TestGetPnlBySymbol:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_pnl_by_symbol(user_id=uuid.uuid4())
+            result = await service.get_pnl_by_symbol(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result == []
 
@@ -274,7 +292,9 @@ class TestGetPnlByAssetClass:
             new_callable=AsyncMock,
             return_value=rows,
         ):
-            result = await service.get_pnl_by_asset_class(user_id=uuid.uuid4())
+            result = await service.get_pnl_by_asset_class(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result) == 2
         assert all(isinstance(p, PnlByAssetClass) for p in result)
@@ -298,7 +318,9 @@ class TestGetPnlByAssetClass:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_pnl_by_asset_class(user_id=uuid.uuid4())
+            result = await service.get_pnl_by_asset_class(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result == []
 
@@ -321,7 +343,7 @@ class TestGetReturnDistribution:
             return_value=series,
         ):
             result = await service.get_return_distribution(
-                user_id=uuid.uuid4(), buckets=10
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID, buckets=10
             )
 
         assert len(result) == 10
@@ -337,7 +359,7 @@ class TestGetReturnDistribution:
             return_value=series,
         ):
             result = await service.get_return_distribution(
-                user_id=uuid.uuid4(), buckets=5
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID, buckets=5
             )
 
         total_freq = sum(r.frequency for r in result)
@@ -357,7 +379,7 @@ class TestGetReturnDistribution:
             return_value=series,
         ):
             result = await service.get_return_distribution(
-                user_id=uuid.uuid4(), buckets=5
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID, buckets=5
             )
 
         assert sum(r.count for r in result) == n
@@ -372,7 +394,9 @@ class TestGetReturnDistribution:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_return_distribution(user_id=uuid.uuid4())
+            result = await service.get_return_distribution(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result == []
 
@@ -388,7 +412,7 @@ class TestGetReturnDistribution:
             return_value=series,
         ):
             result = await service.get_return_distribution(
-                user_id=uuid.uuid4(), buckets=10
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID, buckets=10
             )
 
         assert len(result) == 1
@@ -411,6 +435,8 @@ class TestGetReturnDistribution:
             new_callable=AsyncMock,
             return_value=series,
         ):
-            result = await service.get_return_distribution(user_id=uuid.uuid4())
+            result = await service.get_return_distribution(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result) == RETURN_DISTRIBUTION_DEFAULT_BUCKETS

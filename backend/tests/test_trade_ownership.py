@@ -26,8 +26,9 @@ class TestTradeOwnership:
     ) -> None:
         """GET /trades/{id} on another user's trade must return 404."""
         trade_id = other_users_trade["id"]
+        portfolio_id = other_users_trade["portfolio_id"]
         resp = await client.get(
-            f"/api/v1/trades/{trade_id}",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, resp.text
@@ -42,8 +43,9 @@ class TestTradeOwnership:
     ) -> None:
         """PATCH /trades/{id} on another user's trade must return 404."""
         trade_id = other_users_trade["id"]
+        portfolio_id = other_users_trade["portfolio_id"]
         resp = await client.patch(
-            f"/api/v1/trades/{trade_id}",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
             json={"notes": "hacked"},
             headers=primary_user["headers"],
         )
@@ -59,8 +61,9 @@ class TestTradeOwnership:
     ) -> None:
         """DELETE /trades/{id} on another user's trade must return 404."""
         trade_id = other_users_trade["id"]
+        portfolio_id = other_users_trade["portfolio_id"]
         resp = await client.delete(
-            f"/api/v1/trades/{trade_id}",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, resp.text

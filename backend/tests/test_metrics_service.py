@@ -14,6 +14,7 @@ from app.services.metrics_service import MetricsService
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 _NOW = datetime(2024, 6, 1, 12, 0, 0, tzinfo=UTC)
+_PORTFOLIO_ID = uuid.uuid4()
 
 
 def _make_trade_orm(
@@ -87,7 +88,9 @@ class TestGetSummary:
             new_callable=AsyncMock,
             return_value=trades,
         ):
-            result = await service.get_summary(user_id=uuid.uuid4())
+            result = await service.get_summary(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert isinstance(result, MetricsSummary)
         assert result.metrics.total_trades == 3
@@ -104,7 +107,9 @@ class TestGetSummary:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_summary(user_id=uuid.uuid4())
+            result = await service.get_summary(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result.metrics.total_trades == 0
         assert result.metrics.win_rate == Decimal("0")
@@ -125,6 +130,7 @@ class TestGetSummary:
         ):
             result = await service.get_summary(
                 user_id=uuid.uuid4(),
+                portfolio_id=_PORTFOLIO_ID,
                 starting_capital=Decimal("10000"),
             )
 
@@ -153,7 +159,9 @@ class TestGetSummary:
             new_callable=AsyncMock,
             return_value=trades,
         ):
-            result = await service.get_summary(user_id=uuid.uuid4())
+            result = await service.get_summary(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result.equity_curve) == EQUITY_CURVE_MAX_POINTS
         assert len(result.drawdown_curve) == EQUITY_CURVE_MAX_POINTS
@@ -172,6 +180,7 @@ class TestGetSummary:
         ):
             await service.get_summary(
                 user_id=uuid.uuid4(),
+                portfolio_id=_PORTFOLIO_ID,
                 account_id=account_id,
                 from_dt=from_dt,
                 to_dt=to_dt,
@@ -207,7 +216,9 @@ class TestGetEquityCurve:
             new_callable=AsyncMock,
             return_value=trades,
         ):
-            result = await service.get_equity_curve(user_id=uuid.uuid4())
+            result = await service.get_equity_curve(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result) == 2
         assert all(isinstance(p, EquityCurvePoint) for p in result)
@@ -222,7 +233,9 @@ class TestGetEquityCurve:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_equity_curve(user_id=uuid.uuid4())
+            result = await service.get_equity_curve(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result == []
 
@@ -247,7 +260,9 @@ class TestGetDrawdownCurve:
             new_callable=AsyncMock,
             return_value=trades,
         ):
-            result = await service.get_drawdown_curve(user_id=uuid.uuid4())
+            result = await service.get_drawdown_curve(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert len(result) == 2
         assert all(isinstance(p, DrawdownPoint) for p in result)
@@ -262,6 +277,8 @@ class TestGetDrawdownCurve:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            result = await service.get_drawdown_curve(user_id=uuid.uuid4())
+            result = await service.get_drawdown_curve(
+                user_id=uuid.uuid4(), portfolio_id=_PORTFOLIO_ID
+            )
 
         assert result == []
