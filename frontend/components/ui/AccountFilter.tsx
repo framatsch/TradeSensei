@@ -1,4 +1,5 @@
 /**
+ * @deprecated — replaced by global portfolio context
  * AccountFilter — dropdown to filter reports by broker account.
  * Shows "All Accounts" as the default option plus one entry per account.
  */

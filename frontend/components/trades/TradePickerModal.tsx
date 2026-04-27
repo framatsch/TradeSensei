@@ -57,7 +57,6 @@ export function TradePickerModal({
     limit: 50,
     filters: {
       symbol: search.trim() || undefined,
-      account_id: filterAccountId,
     },
   });
 

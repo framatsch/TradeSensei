@@ -11,6 +11,7 @@ import { TradeRow } from "./TradeRow";
 import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
+  portfolioId?: string;
   filters?: TradeFilters;
   sort?: TradeSortConfig;
   onSortChange?: (sort: TradeSortConfig) => void;
@@ -80,6 +81,7 @@ function SortIcon({ column, sort }: { column: string; sort?: TradeSortConfig }) 
 }
 
 export function TradeTable({
+  portfolioId,
   filters,
   sort,
   onSortChange,
@@ -113,6 +115,7 @@ export function TradeTable({
   }, [filters, sort, limit]);
 
   const { data, isLoading, isError, error, refetch } = useTrades({
+    portfolioId,
     cursor: currentCursor ?? undefined,
     limit,
     filters,

@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { useTradeExecutions, useReassignExecution, useDetachExecution } from "@/hooks/useExecutions";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { ExecutionRow } from "./ExecutionRow";
 import { AddExecutionModal } from "./AddExecutionModal";
 import { TradePickerModal } from "./TradePickerModal";
@@ -30,8 +31,10 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const [detachExecutionId, setDetachExecutionId] = useState<string | null>(null);
   const [splitExecution, setSplitExecution] = useState<LogicalExecution | null>(null);
 
+  const { activePortfolio } = useActivePortfolio();
+
   // Fetch with include_deleted=true when the toggle is on so we can show them
-  const { data: executions, isLoading, isError, refetch } = useTradeExecutions(tradeId, showDeleted);
+  const { data: executions, isLoading, isError, refetch } = useTradeExecutions(tradeId, activePortfolio?.id, showDeleted);
   const reassignExecution = useReassignExecution();
   const detachExecution = useDetachExecution();
 
