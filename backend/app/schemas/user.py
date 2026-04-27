@@ -136,6 +136,13 @@ class UserSettingsRead(BaseModel):
         description="Per-user feature flags (map of flag key to boolean).",
         examples=[{"rolling_winrate_chart": True}],
     )
+    chart_candles_before: int = Field(default=20, ge=1)
+    chart_candles_after: int = Field(default=10, ge=1)
+    chart_show_post_exit: bool = Field(default=False)
+    default_portfolio_id: uuid.UUID | None = Field(default=None)
+    home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] = (
+        Field(default="/dashboard")
+    )
 
 
 class UserSettingsUpdate(BaseModel):
@@ -163,6 +170,13 @@ class UserSettingsUpdate(BaseModel):
         description=("Partial update for per-user feature flags."),
         examples=[{"rolling_winrate_chart": True}, None],
     )
+    chart_candles_before: int | None = Field(default=None, ge=1)
+    chart_candles_after: int | None = Field(default=None, ge=1)
+    chart_show_post_exit: bool | None = Field(default=None)
+    default_portfolio_id: uuid.UUID | None = Field(default=None)
+    home_route: (
+        Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] | None
+    ) = Field(default=None)
 
 
 class UserLogin(BaseModel):

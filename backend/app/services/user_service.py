@@ -23,6 +23,11 @@ _SETTINGS_DEFAULTS: dict[str, object] = {
     "theme": "system",
     "default_date_range": "all",
     "features": "{}",
+    "chart_candles_before": "20",
+    "chart_candles_after": "10",
+    "chart_show_post_exit": "False",
+    "default_portfolio_id": None,
+    "home_route": "/dashboard",
 }
 
 logger = logging.getLogger(__name__)
@@ -158,6 +163,17 @@ class UserService:
             )
             merged_features = {}
         merged["features"] = merged_features
+
+        if merged.get("home_route") not in {
+            "/dashboard",
+            "/dashboard/trades",
+            "/dashboard/library",
+        }:
+            merged["home_route"] = "/dashboard"
+
+        if merged.get("default_portfolio_id") in ("None", "null"):
+            merged["default_portfolio_id"] = None  # type: ignore[assignment]
+
         return UserSettingsRead(**merged)  # type: ignore[arg-type]  # Type narrowing from dynamic settings dict is imperfect for mypy.
 
     async def update_settings(

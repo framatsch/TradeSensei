@@ -37,26 +37,26 @@
 
 ## 4. Frontend — PortfolioSettings Component
 
-- [ ] 4.1 Create `frontend/components/settings/PortfolioSettings.tsx` — client component; use `usePortfolios()` (Spec 2) and `useSettings()` to load list and `default_portfolio_id`
-- [ ] 4.2 Render portfolio cards: show colour chip, name, currency, default indicator (filled star if `id === default_portfolio_id`), Edit and Delete buttons
-- [ ] 4.3 Define `PORTFOLIO_COLORS: string[]` constant (12 hex values including `'#6366f1'`) in `frontend/lib/constants/portfolioColors.ts`; reuse in both create and edit forms
-- [ ] 4.4 Implement inline Create form:
+- [x] 4.1 Create `frontend/components/settings/PortfolioSettings.tsx` — client component; use `usePortfolios()` (Spec 2) and `useSettings()` to load list and `default_portfolio_id`
+- [x] 4.2 Render portfolio cards: show colour chip, name, currency, default indicator (filled star if `id === default_portfolio_id`), Edit and Delete buttons
+- [x] 4.3 Define `PORTFOLIO_COLORS: string[]` constant (12 hex values including `'#6366f1'`) in `frontend/lib/constants/portfolioColors.ts`; reuse in both create and edit forms
+- [x] 4.4 Implement inline Create form:
   - Name input (required)
   - Currency select (allowlist: USD/EUR/GBP/CHF/JPY/AUD/CAD)
   - Colour chip picker: row of 12 `<button>` elements, each a filled circle (20 px); active chip shows a ring; clicking sets `color_hex`; default pre-selected chip is `'#6366f1'`
   - On submit: call `createPortfolioApiV1PortfoliosPost`
-- [ ] 4.5 Implement inline Edit form: same fields as Create; `base_currency` select disabled with tooltip when `has_trades` is true; on submit call `updatePortfolioApiV1PortfoliosPortfolioIdPatch`
-- [ ] 4.6 Implement "Set as default" action per portfolio card:
+- [x] 4.5 Implement inline Edit form: same fields as Create; `base_currency` select disabled with tooltip when `has_trades` is true; on submit call `updatePortfolioApiV1PortfoliosPortfolioIdPatch`
+- [x] 4.6 Implement "Set as default" action per portfolio card:
   - Star icon button (unfilled = not default, filled = default)
   - On click: call `PUT /api/v1/users/me/settings` with `{ default_portfolio_id: portfolio.id }`; invalidate `["settings"]` cache; update star states in the list optimistically
-- [ ] 4.7 Implement Delete confirmation: confirm popover; on confirm call `deletePortfolioApiV1PortfoliosPortfolioIdDelete`; inline 409 error "Remove all accounts before deleting this portfolio"
-- [ ] 4.8 Implement **Danger Zone** section at the bottom:
+- [x] 4.7 Implement Delete confirmation: confirm popover; on confirm call `deletePortfolioApiV1PortfoliosPortfolioIdDelete`; inline 409 error "Remove all accounts before deleting this portfolio"
+- [x] 4.8 Implement **Danger Zone** section at the bottom:
   - "Wipe Portfolio Data" button opens modal dialog
   - Modal: warning copy + text input "Type portfolio name to confirm"
   - Confirm button disabled until typed name matches exactly (case-sensitive)
   - On confirm: iterate accounts via `useAccounts(portfolioId)`, call `freshStartImport` per account sequentially, show per-account progress + final summary toast
-- [ ] 4.9 Handle loading / error states: skeleton cards while fetching; error banner on failure
-- [ ] 4.10 Invalidate `["portfolios"]` React Query cache after create/update/delete
+- [x] 4.9 Handle loading / error states: skeleton cards while fetching; error banner on failure
+- [x] 4.10 Invalidate `["portfolios"]` React Query cache after create/update/delete
 
 ## 5. Frontend — PlaybooksTagsSettings Component
 
@@ -77,11 +77,11 @@ No `PlaybooksTagsSettings.tsx` component is created in this spec.
 
 ## 7. Frontend — AccountSettings: Scope to Active Portfolio
 
-- [ ] 7.1 Read `frontend/components/settings/AccountSettings.tsx` in full before editing
-- [ ] 7.2 Import `useActivePortfolio` from `@/hooks/useActivePortfolio`
-- [ ] 7.3 Extract `activePortfolioId` from the hook; pass it to `useAccounts(portfolioId)` (update the hook signature if needed to accept optional `portfolioId`)
-- [ ] 7.4 Update `AccountForm` default values: when `activePortfolioId` is set, pre-populate `portfolio_id` with it
-- [ ] 7.5 In fallback mode (no `activePortfolioId`): render a notice "Showing all accounts — select a portfolio to filter" above the account list; each row shows its portfolio name
+- [x] 7.1 Read `frontend/components/settings/AccountSettings.tsx` in full before editing
+- [x] 7.2 Import `useActivePortfolio` from `@/hooks/useActivePortfolio`
+- [x] 7.3 Extract `activePortfolioId` from the hook; pass it to `useAccounts(portfolioId)` (update the hook signature if needed to accept optional `portfolioId`)
+- [x] 7.4 Update `AccountForm` default values: when `activePortfolioId` is set, pre-populate `portfolio_id` with it
+- [x] 7.5 In fallback mode (no `activePortfolioId`): render a notice "Showing all accounts — select a portfolio to filter" above the account list; each row shows its portfolio name
 
 ## 8. Frontend — Route Redirects (handled by Spec 2)
 
@@ -94,20 +94,20 @@ They are listed here for cross-reference only — do NOT duplicate them.
 
 ## 9. Frontend — TypeScript Build Verification
 
-- [ ] 9.1 Run `npm run build` in `frontend/` and fix all TypeScript errors and Next.js build warnings
+- [x] 9.1 Run `npm run build` in `frontend/` and fix all TypeScript errors and Next.js build warnings
 
 ## 10. Tests
 
-- [ ] 10.1 Update any existing unit tests that reference the `Tab` type or `TABS` array in `SettingsPageClient.tsx` (now 6 tabs, not 7)
-- [ ] 10.2 Unit test `ChartDisplaySettings`: renders saved values; validation error on ≤ 0 input; calls `useUpdateSettings` on valid save
-- [ ] 10.3 Unit test `PortfolioSettings`:
+- [x] 10.1 Update any existing unit tests that reference the `Tab` type or `TABS` array in `SettingsPageClient.tsx` (now 6 tabs, not 7)
+- [x] 10.2 Unit test `ChartDisplaySettings`: renders saved values; validation error on ≤ 0 input; calls `useUpdateSettings` on valid save
+- [x] 10.3 Unit test `PortfolioSettings`:
   - renders portfolio list with colour chips and default indicator
   - create form submits with selected colour chip `color_hex`
   - delete confirmation blocks with 409 error message
   - "Set as default" star click calls `PUT /me/settings` with `default_portfolio_id`
   - default indicator appears on correct portfolio card
-- [ ] 10.4 Unit test: colour chip picker — only one chip active at a time; clicking new chip deselects previous
-- [ ] 10.5 Playwright: `frontend/tests/specs/portfolio-settings.spec.ts` — **ALREADY WRITTEN** (TC-130–TC-170); covers:
+- [x] 10.4 Unit test: colour chip picker — only one chip active at a time; clicking new chip deselects previous
+- [x] 10.5 Playwright: `frontend/tests/specs/portfolio-settings.spec.ts` — **ALREADY WRITTEN** (TC-130–TC-170); covers:
   - Portfolio CRUD (create, duplicate name error, edit rename, delete 409)
   - Colour chip picker (12 chips shown, one active at a time, hex submitted)
   - Default portfolio selector (star toggle, mutual exclusion, user_settings updated, used as fallback)
@@ -116,13 +116,13 @@ They are listed here for cross-reference only — do NOT duplicate them.
 
 ## 11. OpenAPI Sync & Lint
 
-- [ ] 11.1 Run `openapi-sync` skill to regenerate TypeScript client after backend schema changes
-- [ ] 11.2 Run `lint-check` skill — fix any remaining ruff / mypy / TypeScript errors
-- [ ] 11.3 Run `unit-test` skill — verify all backend tests pass
+- [x] 11.1 Run `openapi-sync` skill to regenerate TypeScript client after backend schema changes
+- [x] 11.2 Run `lint-check` skill — fix any remaining ruff / mypy / TypeScript errors
+- [x] 11.3 Run `unit-test` skill — verify all backend tests pass
 
 ## 12. Documentation & Changelog
 
-- [ ] 12.1 Append to `CHANGELOG.md` under `[Unreleased]`:
+- [x] 12.1 Append to `CHANGELOG.md` under `[Unreleased]`:
   - Added: Portfolios tab in Settings — full CRUD for portfolios with colour chip picker, default portfolio selector, and Danger Zone (data wipe)
   - Added: Look & Feel settings tab — chart display defaults (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`) stored in user settings
   - Changed: Accounts & Integrations tab scoped to active portfolio (Spec 2 prerequisite)

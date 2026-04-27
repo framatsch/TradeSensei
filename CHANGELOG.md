@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [frontend] Portfolios tab in Settings — full CRUD for portfolios with colour chip picker, default portfolio selector, and Danger Zone (data wipe)
+- [frontend] Look & Feel settings tab — chart display defaults (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`) stored in user settings
 - [backend] Introduced the `Portfolio` entity with `id`, `name`, `base_currency`, and `color_hex`, plus user-scoped CRUD endpoints at `/api/v1/portfolios`.
 - [frontend] Added `appContextStore` Zustand slice — Portfolio Workspace / Global Library / Market Check-in mode, persisted to localStorage
 - [frontend] Added `portfolioStore` Zustand slice — persists `activePortfolioId` to localStorage
@@ -17,10 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [frontend] Added Market Check-in placeholder at `/dashboard/checkin`
 
 ### Changed
+- [frontend] Accounts & Integrations tab scoped to active portfolio (Spec 2 prerequisite)
+- [backend] `UserSettingsRead` / `UserSettingsUpdate` schemas gain four new fields (3 chart display + `default_portfolio_id`)
 - [backend] Scoped trades, metrics, timeseries, imports, accounts, executions, and cash-transactions under `/api/v1/portfolios/{portfolio_id}/...`; legacy unscoped endpoints now return HTTP 410.
 - [frontend] All dashboard pages read `activePortfolioId` from global context; per-page `AccountFilter` state removed
 - [frontend] Sidebar nav-items are context-specific; Playbooks/Tags moved to Library context
 - [frontend] Sidebar cleaned of sign-out and standalone account-management links
+- Note: Playbooks & Tags management moved to Global Library context (Spec 2) — no Settings tab
 
 ### Migration
 - [db] Added portfolio migration that creates a default portfolio per existing user and links all existing accounts automatically.
