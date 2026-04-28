@@ -1,31 +1,41 @@
-name: Playwright Tests
+name: E2E Tests (Playwright)
+
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  test:
-    timeout-minutes: 60
+  e2e:
+    name: Playwright E2E
+    timeout-minutes: 30
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
         node-version: lts/*
         cache: npm
+
     - name: Install dependencies
       run: npm ci
+
     - name: Install Playwright Browsers
       run: npx playwright install chromium --with-deps
+
     - name: Start Docker stack (db + backend + frontend)
       run: docker compose up -d --wait
       env:
         COMPOSE_HTTP_TIMEOUT: 120
+
     - name: Wait for backend to be healthy
       run: |
         echo "Waiting for backend at http://localhost:8000/health..."
@@ -38,6 +48,7 @@ jobs:
           sleep 5
         done
         curl -sf http://localhost:8000/health || (echo "Backend health check failed." && exit 1)
+
     - name: Wait for frontend to be healthy
       run: |
         echo "Waiting for frontend at http://localhost:3000..."
@@ -50,18 +61,22 @@ jobs:
           sleep 5
         done
         curl -sf http://localhost:3000 || (echo "Frontend health check failed." && exit 1)
+
     - name: Run Playwright tests
       run: npx playwright test --project=chromium
       env:
         E2E_BASE_URL: http://localhost:3000
         E2E_API_URL: http://localhost:8000
         CI: true
+
     - name: Stop Docker stack
       if: always()
       run: docker compose down -v
-    - uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
+
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v4
+      if: always()
       with:
-        name: playwright-report
+        name: playwright-report-${{ github.run_id }}
         path: playwright-report/
-        retention-days: 30
+        retention-days: 14
