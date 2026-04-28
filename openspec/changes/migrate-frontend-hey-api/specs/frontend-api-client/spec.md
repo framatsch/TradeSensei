@@ -31,3 +31,36 @@ The `@hey-api` SDK SHALL capture any `401 Unauthorized` response globally and fo
 #### Scenario: Handling 401 Responses
 - **WHEN** an API request returns an HTTP status of `401` and the user is not currently on the `/login` route
 - **THEN** the `access_token` is removed from `localStorage` and the browser is redirected to `/login`
+
+### Requirement: No Direct HTTP Calls in UI Code
+Frontend components, stores, and hooks SHALL NOT call `fetch()`, `axios`, or any HTTP library directly. All backend communication MUST go through the generated `@hey-api` SDK functions exported from `frontend/lib/api/`.
+
+#### Scenario: Component Fetching Data
+- **WHEN** a React component or Zustand store needs to load data from the backend
+- **THEN** it calls the corresponding generated function (e.g., `listPortfoliosApiV1PortfoliosGet()`) and receives a fully typed response
+
+#### Scenario: Prohibited Direct Fetch
+- **WHEN** a developer introduces a call to `fetch()` or `axios` directly in a component or store
+- **THEN** the code review MUST reject the change as a spec violation
+
+### Requirement: Data Isolation via Authentication
+The frontend SHALL rely exclusively on the backend's JWT-based authorization to enforce data isolation. UI components SHALL NOT implement client-side ownership checks or attempt to filter data by user ID.
+
+#### Scenario: Fetching User-Scoped Data
+- **WHEN** any API function from the `@hey-api` SDK is called
+- **THEN** the attached JWT token causes the backend to return only data belonging to the authenticated user, without any additional filtering in the frontend
+
+#### Scenario: No Client-Side Ownership Filter
+- **WHEN** a component renders a list of resources (e.g., portfolios, trades)
+- **THEN** the component renders exactly what the backend returned, without filtering by user ID client-side
+
+### Requirement: Integration Tests Pass After Migration
+All existing backend integration tests and any new frontend integration tests related to authentication and API routing SHALL pass without modification after the migration is complete.
+
+#### Scenario: Pre-Existing Tests Remain Green
+- **WHEN** the full test suite is executed after the migration
+- **THEN** all previously passing backend integration tests continue to pass
+
+#### Scenario: Auth Flow is Testable
+- **WHEN** an integration test exercises the login → API call → response flow
+- **THEN** the test verifies that the Authorization header is present and the correct data is returned for that user only
