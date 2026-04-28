@@ -617,7 +617,7 @@ export default function DashboardLayout({ children }: Props) {
   };
 
   const renderContent = () => {
-    if (activeContext === 'portfolio') {
+    if (activeContext === 'portfolio' && !pathname.startsWith("/dashboard/settings")) {
       if (isPortfolioError) {
         return (
           <div className="flex items-center justify-center h-full">

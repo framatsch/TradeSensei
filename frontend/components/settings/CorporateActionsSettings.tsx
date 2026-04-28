@@ -150,7 +150,7 @@ function CorporateActionModal({
               value={form.symbol}
               onChange={(e) => onChange({ symbol: e.target.value })}
               placeholder="e.g. OTLK"
-              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-zinc-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -163,7 +163,7 @@ function CorporateActionModal({
               type="date"
               value={form.date}
               onChange={(e) => onChange({ date: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-zinc-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -182,7 +182,7 @@ function CorporateActionModal({
                   value={form.ratioBefore}
                   onChange={(e) => onChange({ ratioBefore: e.target.value })}
                   placeholder="e.g. 20"
-                  className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-zinc-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
               <div className="flex items-end pb-2">
@@ -200,7 +200,7 @@ function CorporateActionModal({
                   value={form.ratioAfter}
                   onChange={(e) => onChange({ ratioAfter: e.target.value })}
                   placeholder="e.g. 1"
-                  className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-zinc-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
@@ -222,7 +222,7 @@ function CorporateActionModal({
               value={form.old_conid}
               onChange={(e) => onChange({ old_conid: e.target.value })}
               placeholder="e.g. 357194941"
-              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-zinc-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -236,7 +236,7 @@ function CorporateActionModal({
               value={form.new_conid}
               onChange={(e) => onChange({ new_conid: e.target.value })}
               placeholder="e.g. 690184975"
-              className="w-full px-3 py-2 rounded-lg border border-border dark:border-border bg-white dark:bg-zinc-700 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
@@ -448,7 +448,7 @@ export function CorporateActionsSettings() {
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-zinc-50 dark:bg-zinc-800/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
+              <tr className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
                 <th className="px-4 py-3 text-left">Symbol</th>
                 <th className="px-4 py-3 text-left">Date</th>
                 <th className="px-4 py-3 text-left">Ratio</th>
@@ -459,11 +459,11 @@ export function CorporateActionsSettings() {
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
               {corporateActions.map((ca) => (
-                <tr key={ca.id} className="bg-card hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors">
+                <tr key={ca.id} className="bg-card hover:bg-muted/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{ca.symbol}</td>
                   <td className="px-4 py-3 text-muted-foreground">{ca.date}</td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
                       {ratioToDisplay(ca.ratio)}
                     </span>
                   </td>

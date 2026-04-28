@@ -23,13 +23,13 @@ export function AccountSettings() {
           <h3 className="text-sm font-semibold text-foreground">
             Trading Accounts
           </h3>
-          <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Manage your trading accounts. Set the account type and optionally store API credentials for automatic sync.
           </p>
         </div>
 
         {!activePortfolioId && (
-          <div className="bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400 p-3 rounded-md mb-4 text-sm border border-amber-200 dark:border-amber-500/20">
+          <div className="bg-amber-500/10 text-amber-500 p-3 rounded-md mb-4 text-sm border border-amber-500/20">
             Showing all accounts — select a portfolio to filter
           </div>
         )}

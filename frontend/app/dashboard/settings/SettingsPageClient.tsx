@@ -49,7 +49,7 @@ export function SettingsPageClient() {
   }, [searchParams]);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl bg-card border border-border p-6 rounded-xl">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Settings</h1>
@@ -59,7 +59,7 @@ export function SettingsPageClient() {
       </div>
 
       {/* Tab bar */}
-      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-1">
+      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-secondary p-1">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -67,8 +67,8 @@ export function SettingsPageClient() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
             {tab.label}

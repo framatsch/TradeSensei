@@ -92,7 +92,7 @@ export function UserBadge() {
               className="flex items-center w-full p-2 text-sm rounded-sm outline-none cursor-pointer hover:bg-muted focus:bg-muted"
             >
               <Info className="w-4 h-4 mr-2 text-muted-foreground" />
-              About v{version}
+              About
             </DropdownMenu.Item>
 
             <DropdownMenu.Separator className="h-px bg-border/50 my-1" />
