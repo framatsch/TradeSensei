@@ -48,7 +48,7 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = 
   },
 ];
 
-export function ChartDisplaySettings() {
+export function GeneralSettings() {
   const { data: settings, isLoading } = useSettings();
   const { mutateAsync: updateSettings } = useUpdateSettings();
   const queryClient = useQueryClient();
@@ -131,7 +131,7 @@ export function ChartDisplaySettings() {
   return (
     <div className="space-y-8 max-w-lg">
       <div>
-        <h3 className="text-lg font-medium text-foreground">Look & Feel</h3>
+        <h3 className="text-lg font-medium text-foreground">General</h3>
         <p className="text-sm text-muted-foreground mt-1">
           Customize your interface theme, chart display defaults and home page.
         </p>

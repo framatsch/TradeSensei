@@ -14,12 +14,12 @@ import { AccountSettings } from "@/components/settings/AccountSettings";
 import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
 import FeaturesSettings from "@/components/settings/FeaturesSettings";
 import { PortfolioSettings } from "@/components/settings/PortfolioSettings";
-import { ChartDisplaySettings } from "@/components/settings/ChartDisplaySettings";
+import { GeneralSettings } from "@/components/settings/GeneralSettings";
 
-type Tab = "look-and-feel" | "integrations" | "corporate-actions" | "features" | "portfolios";
+type Tab = "general" | "integrations" | "corporate-actions" | "features" | "portfolios";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "look-and-feel", label: "Look & Feel" },
+  { id: "general", label: "General" },
   { id: "integrations", label: "Accounts & Integrations" },
   { id: "corporate-actions", label: "Corporate Actions" },
   { id: "features", label: "Features" },
@@ -28,7 +28,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function SettingsPageClient() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>("look-and-feel");
+  const [activeTab, setActiveTab] = useState<Tab>("general");
 
   // Allow linking to a specific tab via ?tab=integrations, ?tab=features, etc.
   useEffect(() => {
@@ -41,8 +41,8 @@ export function SettingsPageClient() {
       setActiveTab("features");
     } else if (tabParam === "portfolios") {
       setActiveTab("portfolios");
-    } else if (tabParam === "look-and-feel") {
-      setActiveTab("look-and-feel");
+    } else if (tabParam === "general") {
+      setActiveTab("general");
     }
   }, [searchParams]);
 
@@ -76,7 +76,7 @@ export function SettingsPageClient() {
 
       {/* Tab content */}
       <div className="pt-2">
-        {activeTab === "look-and-feel" && <ChartDisplaySettings />}
+        {activeTab === "general" && <GeneralSettings />}
         {activeTab === "integrations" && <AccountSettings />}
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
         {activeTab === "features" && <FeaturesSettings />}

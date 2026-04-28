@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { ChartDisplaySettings } from "@/components/settings/ChartDisplaySettings";
+import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
@@ -17,7 +17,7 @@ jest.mock("react-hot-toast", () => ({
 const mockUseSettings = useSettings as jest.Mock;
 const mockUseUpdateSettings = useUpdateSettings as jest.Mock;
 
-describe("ChartDisplaySettings", () => {
+describe("GeneralSettings", () => {
   let queryClient: QueryClient;
   let mockMutateAsync: jest.Mock;
 
@@ -42,7 +42,7 @@ describe("ChartDisplaySettings", () => {
   function renderComponent() {
     return render(
       <QueryClientProvider client={queryClient}>
-        <ChartDisplaySettings />
+        <GeneralSettings />
       </QueryClientProvider>
     );
   }

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Grid3x3, LayoutDashboard, Library, Clock } from "lucide-react";
+import { LayoutDashboard, Library, Clock } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { useAppContext } from "@/hooks/useAppContext";
 import { AppContext } from "@/stores/appContextStore";
+import { LauncherIcon } from "@/components/icons/LauncherIcon";
 
 export function BentoMenu() {
   const { activeContext, setActiveContext } = useAppContext();
@@ -25,7 +26,7 @@ export function BentoMenu() {
           className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Application Context"
         >
-          <Grid3x3 className="w-5 h-5" />
+          <LauncherIcon className="w-5 h-5" />
         </button>
       </Popover.Trigger>
 

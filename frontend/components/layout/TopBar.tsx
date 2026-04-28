@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PanelLeftOpen, Home } from "lucide-react";
+import { PanelLeftOpen, PanelLeftClose, Home } from "lucide-react";
 import { BentoMenu } from "./BentoMenu";
 import { PortfolioSwitcher } from "./PortfolioSwitcher";
 import { UserBadge } from "./UserBadge";
@@ -9,10 +9,13 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useSettings } from "@/hooks/useSettings";
 
 interface TopBarProps {
-  onToggleSidebar: () => void;
+  onToggleMobileSidebar: () => void;
+  onToggleDesktopSidebar: () => void;
+  isMobileSidebarOpen: boolean;
+  isDesktopSidebarOpen: boolean;
 }
 
-export function TopBar({ onToggleSidebar }: TopBarProps) {
+export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobileSidebarOpen, isDesktopSidebarOpen }: TopBarProps) {
   const { activeContext } = useAppContext();
   const { data: settings } = useSettings();
 
@@ -23,18 +26,18 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
       {/* Left section */}
       <div className="flex items-center gap-2 lg:gap-4 w-1/3">
         <button
-          onClick={onToggleSidebar}
+          onClick={onToggleMobileSidebar}
           className="p-2 rounded-md hover:bg-muted text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
           aria-label="Toggle Sidebar"
         >
-          <PanelLeftOpen className="w-5 h-5" />
+          {isMobileSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
         </button>
         <button
-          onClick={onToggleSidebar}
+          onClick={onToggleDesktopSidebar}
           className="hidden lg:flex p-2 rounded-md hover:bg-muted text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Toggle Sidebar"
         >
-          <PanelLeftOpen className="w-5 h-5" />
+          {isDesktopSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
         </button>
         <div className="h-6 w-px bg-border/50 mx-1 hidden lg:block" />
         <BentoMenu />

@@ -643,7 +643,12 @@ export default function DashboardLayout({ children }: Props) {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden" style={{ "--topbar-height": "3.5rem" } as React.CSSProperties}>
-      <TopBar onToggleSidebar={() => setDesktopSidebarOpen(!desktopSidebarOpen)} />
+      <TopBar 
+        onToggleMobileSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onToggleDesktopSidebar={toggleDesktopSidebar}
+        isMobileSidebarOpen={sidebarOpen}
+        isDesktopSidebarOpen={desktopSidebarOpen}
+      />
       
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile overlay */}
