@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PanelLeftOpen } from "lucide-react";
+import { PanelLeftOpen, Home } from "lucide-react";
 import { BentoMenu } from "./BentoMenu";
 import { PortfolioSwitcher } from "./PortfolioSwitcher";
 import { UserBadge } from "./UserBadge";
@@ -19,7 +19,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
   const homeRoute = (settings as any)?.home_route || "/dashboard";
 
   return (
-    <header className="sticky top-0 h-[var(--topbar-height,3.5rem)] w-full border-b border-border bg-background z-40 flex items-center justify-between px-4 lg:px-6">
+    <header className="sticky top-0 h-[var(--topbar-height,3.5rem)] w-full border-b border-border bg-sidebar z-40 flex items-center justify-between px-4 lg:px-6">
       {/* Left section */}
       <div className="flex items-center gap-2 lg:gap-4 w-1/3">
         <button
@@ -40,9 +40,10 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         <BentoMenu />
         <Link
           href={homeRoute}
-          className="hidden sm:flex font-bold text-foreground text-sm tracking-wide ml-2 hover:opacity-80 transition-opacity"
+          className="hidden sm:flex p-2 rounded-md hover:bg-muted text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring ml-1"
+          aria-label="Home"
         >
-          Trade Sensei
+          <Home className="w-5 h-5" />
         </Link>
       </div>
 

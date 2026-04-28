@@ -10,27 +10,25 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
 import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
 import FeaturesSettings from "@/components/settings/FeaturesSettings";
 import { PortfolioSettings } from "@/components/settings/PortfolioSettings";
 import { ChartDisplaySettings } from "@/components/settings/ChartDisplaySettings";
 
-type Tab = "general" | "integrations" | "corporate-actions" | "features" | "portfolios" | "look-and-feel";
+type Tab = "look-and-feel" | "integrations" | "corporate-actions" | "features" | "portfolios";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "general", label: "General" },
+  { id: "look-and-feel", label: "Look & Feel" },
   { id: "integrations", label: "Accounts & Integrations" },
   { id: "corporate-actions", label: "Corporate Actions" },
   { id: "features", label: "Features" },
   { id: "portfolios", label: "Portfolios" },
-  { id: "look-and-feel", label: "Look & Feel" },
 ];
 
 export function SettingsPageClient() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>("general");
+  const [activeTab, setActiveTab] = useState<Tab>("look-and-feel");
 
   // Allow linking to a specific tab via ?tab=integrations, ?tab=features, etc.
   useEffect(() => {
@@ -78,12 +76,11 @@ export function SettingsPageClient() {
 
       {/* Tab content */}
       <div className="pt-2">
-        {activeTab === "general" && <GeneralSettings />}
+        {activeTab === "look-and-feel" && <ChartDisplaySettings />}
         {activeTab === "integrations" && <AccountSettings />}
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
         {activeTab === "features" && <FeaturesSettings />}
         {activeTab === "portfolios" && <PortfolioSettings />}
-        {activeTab === "look-and-feel" && <ChartDisplaySettings />}
       </div>
     </div>
   );
