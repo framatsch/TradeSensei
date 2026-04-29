@@ -2,6 +2,8 @@
 
 The frontend currently uses two different API clients: a legacy Axios instance (`frontend/lib/api.ts`) and a newly generated `@hey-api/client-fetch` SDK (`frontend/lib/api/client.gen.ts`). The generated client is not properly configured with the authorization token or the correct base URL (`/api/proxy`), which causes authentication and CORS errors when used. Maintaining two clients is significant technical debt and prevents the frontend from fully leveraging the type safety and auto-updating benefits of the OpenAPI-generated SDK. Consolidating the API layer ensures consistent behavior, better security (authorization headers applied correctly everywhere), and eliminates boilerplate.
 
+A subsequent code review (OCR session `2026-04-29-devel`) identified one data-correctness blocker and several hardening gaps introduced during migration. Phase 4 addresses these — error shape mismatches, missing network-error 401 handling, Pattern C anti-patterns, and residual `as any` casts — to complete the migration correctly.
+
 ## What Changes
 
 - **Configure Generated SDK**: Initialize the `@hey-api` client to use `/api/proxy` as the base URL and attach the JWT token from `localStorage` to all requests.
