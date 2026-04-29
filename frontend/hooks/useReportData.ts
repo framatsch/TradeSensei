@@ -11,8 +11,8 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
-import type { Trade, CursorPage, ResponseEnvelope } from "@/lib/types";
+import { client } from "@/lib/api/client.gen";
+import type { Trade, CursorPage } from "@/lib/types";
 import type { PerformanceDataPoint } from "@/components/trades/PerformanceAnalysisDashboard";
 import type { DailyTradeData } from "@/components/calendar/types";
 
@@ -60,12 +60,12 @@ async function fetchAllTrades(): Promise<Trade[]> {
   let cursor: string | null = null;
 
   do {
-    const requestUrl: string = cursor
-      ? `/api/v1/trades?limit=${PAGE_SIZE}&cursor=${encodeURIComponent(cursor)}`
-      : `/api/v1/trades?limit=${PAGE_SIZE}`;
+    const query: Record<string, string | number> = { limit: PAGE_SIZE };
+    if (cursor) query.cursor = cursor;
 
-    const response = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(requestUrl);
-    const pageData = response.data.data;
+    const response = await client.get({ url: "/api/v1/trades", query });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pageData = ((response as any).data?.data ?? (response as any).data) as CursorPage<Trade>;
     allItems.push(...pageData.items);
     cursor = pageData.next_cursor ?? null;
   } while (cursor !== null);

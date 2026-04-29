@@ -11,14 +11,13 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
 import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
 import { Spinner } from "@/components/ui/Spinner";
 import { FileQueue, FileQueueSummary } from "@/components/imports/FileQueue";
 import { DateRangeVisualizer } from "@/components/imports/DateRangeVisualizer";
 import type { QueuedFile } from "@/components/imports/FileQueue";
 import type { ImportResult, FreshStartResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
-import type { AxiosError } from "axios";
+import { client } from "@/lib/api/client.gen";
 
 // Type badge helper
 const TYPE_LABEL: Record<AccountType, string> = {
@@ -166,11 +165,7 @@ export function ImportForm() {
           formData.append("file", qf.file);
           if (overwrite) formData.append("overwrite_manually_edited", "true");
 
-          const res = await apiClient.post<ResponseEnvelope<ImportResult>>(
-            "/api/v1/imports/upload",
-            formData,
-            { headers: { "Content-Type": "multipart/form-data" } }
-          );
+          const res = (await (await client.post({ url: "/api/v1/imports/upload" as any, body: formData as any })).data) as any;
           const result = res.data.data;
 
           setQueuedFiles((prev) =>
@@ -179,10 +174,8 @@ export function ImportForm() {
             )
           );
         } catch (err) {
-          const axiosErr = err as AxiosError<{ detail?: string }>;
-          const errorMsg =
-            axiosErr.response?.data?.detail ??
-            (err instanceof Error ? err.message : "Upload failed.");
+          const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+          const errorMsg = detail ?? (err instanceof Error ? err.message : "Upload failed.");
           setQueuedFiles((prev) =>
             prev.map((f, idx) =>
               idx === i ? { ...f, status: "error", error: errorMsg } : f
@@ -242,11 +235,7 @@ export function ImportForm() {
       formData.append("acknowledged", "true");
       formData.append("file", freshStartFile);
 
-      const res = await apiClient.post<ResponseEnvelope<FreshStartResult>>(
-        `/api/v1/imports/${accountId}/fresh-start`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
+      const res = (await (await client.post({ url: `/api/v1/imports/${accountId}/fresh-start` as any, body: formData as any })).data) as any;
       setFreshStartResult(res.data.data);
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["metrics"] });
@@ -254,9 +243,9 @@ export function ImportForm() {
       void qc.invalidateQueries({ queryKey: ["stats"] });
       void qc.invalidateQueries({ queryKey: ["accounts"] });
     } catch (err) {
-      const axiosErr = err as import("axios").AxiosError<{ detail?: string }>;
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setFreshStartError(
-        axiosErr.response?.data?.detail ?? (err instanceof Error ? err.message : "Fresh start failed.")
+        detail ?? (err instanceof Error ? err.message : "Fresh start failed.")
       );
     } finally {
       setIsFreshStartRunning(false);
@@ -272,9 +261,7 @@ export function ImportForm() {
     mutationFn: async () => {
       const fromDate = accountType === "ibkr" ? `&from_date=${getFlexFromDate()}` : "";
       const overwrite = overwriteManuallyEdited ? "&overwrite_manually_edited=true" : "";
-      const res = await apiClient.post<ResponseEnvelope<BrokerSyncResult>>(
-        `/api/v1/broker/sync/${accountId}?days=${syncDays}${fromDate}${overwrite}`
-      );
+      const res = (await (await client.post({ url: `/api/v1/broker/sync/${accountId}?days=${syncDays}${fromDate}${overwrite}` as any })).data) as any;
       return res.data.data;
     },
     onSuccess: (data) => {
@@ -289,8 +276,8 @@ export function ImportForm() {
 
   const syncErrorMsg = (() => {
     if (!syncError) return null;
-    const e = syncError as AxiosError<{ detail?: string }>;
-    return e.response?.data?.detail ?? "Sync failed.";
+    const detail = (syncError as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+    return detail ?? "Sync failed.";
   })();
 
   // ── Derived state ─────────────────────────────────────────────────────────

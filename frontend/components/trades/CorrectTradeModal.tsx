@@ -8,7 +8,6 @@
 import { useState } from "react";
 import type { AssetClass, Trade } from "@/lib/types";
 import { useUpdateTrade } from "@/hooks/useTrade";
-import type { AxiosError } from "axios";
 
 interface Props {
   trade: Trade;
@@ -47,7 +46,7 @@ export function CorrectTradeModal({ trade, onClose }: Props) {
       {
         onSuccess: () => onClose(),
         onError: (err) => {
-          const axiosErr = err as AxiosError<{ detail?: string }>;
+          const axiosErr = err as { response?: { data?: { detail?: string } } };
           setErrorMsg(axiosErr.response?.data?.detail ?? "Failed to save correction.");
         },
       }

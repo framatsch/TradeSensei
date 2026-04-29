@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import apiClient from "@/lib/api";
 import { Spinner } from "@/components/ui/Spinner";
+import { client } from "@/lib/api/client.gen";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await apiClient.post("/api/v1/auth/forgot-password", { email });
+      await (await client.post({ url: "/api/v1/auth/forgot-password" as any, body: { email } as any })).data;
     } catch {
       // Intentionally ignore errors — always show the success message
       // to prevent user enumeration.

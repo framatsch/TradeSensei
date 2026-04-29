@@ -5,17 +5,19 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import { client } from "@/lib/api/client.gen";
 import type { RollingWinratePoint, ResponseEnvelope } from "@/lib/types";
 
 export function useRollingWinrate(windowTrades: number = 20) {
   return useQuery<RollingWinratePoint[], Error>({
     queryKey: ["metrics", "rolling-winrate", windowTrades],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<RollingWinratePoint[]>>(
-        `/api/v1/timeseries/rolling-winrate?window_trades=${windowTrades}`
-      );
-      return res.data.data;
+      const { data, error } = await client.get<ResponseEnvelope<RollingWinratePoint[]>, unknown, false>({
+        url: "/api/v1/timeseries/rolling-winrate",
+        query: { window_trades: windowTrades },
+      });
+      if (error || !data) throw error;
+      return data.data;
     },
     staleTime: 5 * 60 * 1000,
   });

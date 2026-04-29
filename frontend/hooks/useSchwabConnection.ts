@@ -9,8 +9,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
-import type { BrokerStatusResponse, ResponseEnvelope, BrokerSyncResult } from "@/lib/types";
+import { client } from "@/lib/api/client.gen";
+import type { BrokerStatusResponse, BrokerSyncResult } from "@/lib/types";
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
@@ -25,10 +25,10 @@ export function useSchwabStatus() {
   return useQuery<BrokerStatusResponse, Error>({
     queryKey: SCHWAB_STATUS_KEY,
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<BrokerStatusResponse>>(
-        "/api/v1/broker/schwab/status"
-      );
-      return res.data.data;
+      const response = await client.get({ url: "/api/v1/broker/schwab/status" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = response as any;
+      return (envelope.data?.data ?? envelope.data) as BrokerStatusResponse;
     },
     staleTime: 30 * 1000,
   });
@@ -43,10 +43,10 @@ export function useSchwabSync() {
   const qc = useQueryClient();
   return useMutation<BrokerSyncResult, Error, void>({
     mutationFn: async () => {
-      const res = await apiClient.post<ResponseEnvelope<BrokerSyncResult>>(
-        "/api/v1/broker/schwab/sync"
-      );
-      return res.data.data;
+      const response = await client.post({ url: "/api/v1/broker/schwab/sync" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = response as any;
+      return (envelope.data?.data ?? envelope.data) as BrokerSyncResult;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: SCHWAB_STATUS_KEY });
@@ -66,7 +66,7 @@ export function useDisconnectSchwab() {
   const qc = useQueryClient();
   return useMutation<void, Error, void>({
     mutationFn: async () => {
-      await apiClient.delete("/api/v1/broker/schwab/disconnect");
+      await client.delete({ url: "/api/v1/broker/schwab/disconnect" });
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: SCHWAB_STATUS_KEY });

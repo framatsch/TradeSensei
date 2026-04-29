@@ -6,7 +6,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import { getEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGet } from "@/lib/api/index";
+import { client } from "@/lib/api/client.gen";
 import type { EquityCurvePoint, ResponseEnvelope } from "@/lib/types";
 
 interface DailyPnlBar {
@@ -18,16 +19,23 @@ export function useDailyPnl(portfolioId?: string) {
   return useQuery<DailyPnlBar[], Error>({
     queryKey: ["metrics", "daily-pnl", portfolioId],
     queryFn: async () => {
-      const params = new URLSearchParams();
+      let points: EquityCurvePoint[];
       if (portfolioId) {
-        params.append("portfolio_id", portfolioId);
+        const { data, error } = await getEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGet({
+          path: { portfolio_id: portfolioId },
+        });
+        if (error || !data) throw error;
+        points = (data as unknown as ResponseEnvelope<EquityCurvePoint[]>).data;
+      } else {
+        const { data, error } = await client.get<ResponseEnvelope<EquityCurvePoint[]>, unknown, false>({
+          url: "/api/v1/metrics/equity-curve",
+        });
+        if (error || !data) throw error;
+        points = data.data;
       }
-      const res = await apiClient.get<ResponseEnvelope<EquityCurvePoint[]>>(
-        `/api/v1/metrics/equity-curve?${params.toString()}`
-      );
       // Aggregate per day from individual trade PnL values
       const byDate = new Map<string, number>();
-      for (const point of res.data.data) {
+      for (const point of points) {
         const date = point.timestamp.slice(0, 10);
         byDate.set(date, (byDate.get(date) ?? 0) + parseFloat(point.pnl));
       }

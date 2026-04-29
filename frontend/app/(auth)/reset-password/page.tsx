@@ -4,9 +4,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import type { AxiosError } from "axios";
-import apiClient from "@/lib/api";
 import { Spinner } from "@/components/ui/Spinner";
+import { client } from "@/lib/api/client.gen";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -35,14 +34,13 @@ function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      await apiClient.post("/api/v1/auth/reset-password", {
-        token,
-        new_password: newPassword,
-      });
+      await (await client.post({ url: "/api/v1/auth/reset-password" as any, body: {
+              token,
+              new_password: newPassword,
+            } as any })).data;
       router.push("/login?reset=success");
     } catch (err) {
-      const axiosErr = err as AxiosError<{ detail?: string }>;
-      const status = axiosErr.response?.status;
+      const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 401) {
         setErrorMessage(
           "This reset link has expired or has already been used. Please request a new one."

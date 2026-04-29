@@ -5,7 +5,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import { client } from "@/lib/api/client.gen";
 import type {
   Account,
   AccountCreate,
@@ -18,14 +18,17 @@ export function useAccounts(portfolioId?: string) {
   return useQuery<Account[], Error>({
     queryKey: ["accounts", portfolioId],
     queryFn: async () => {
-      const url = portfolioId 
-        ? `/api/v1/portfolios/${portfolioId}/accounts` 
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts`
         : "/api/v1/accounts";
-      const res = await apiClient.get<ResponseEnvelope<CursorPage<Account>>>(url);
-      return res.data.data.items;
+      const { data, error } = await client.get<ResponseEnvelope<CursorPage<Account>>, unknown, false>({
+        url,
+      });
+      if (error || !data) throw error;
+      return data.data.items;
     },
     staleTime: 5 * 60 * 1000,
-    enabled: portfolioId !== undefined || portfolioId === undefined, // always enabled, but nice for logic
+    enabled: portfolioId !== undefined || portfolioId === undefined, // always enabled
   });
 }
 
@@ -33,11 +36,12 @@ export function useCreateAccount() {
   const qc = useQueryClient();
   return useMutation<Account, Error, AccountCreate>({
     mutationFn: async (payload) => {
-      const res = await apiClient.post<ResponseEnvelope<Account>>(
-        "/api/v1/accounts",
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await client.post<ResponseEnvelope<Account>, unknown, false>({
+        url: "/api/v1/accounts",
+        body: payload,
+      });
+      if (error || !data) throw error;
+      return data.data;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["accounts"] });
@@ -53,11 +57,13 @@ export function useUpdateAccount(id: string) {
   const qc = useQueryClient();
   return useMutation<Account, Error, AccountUpdate>({
     mutationFn: async (payload) => {
-      const res = await apiClient.patch<ResponseEnvelope<Account>>(
-        `/api/v1/accounts/${id}`,
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await client.patch<ResponseEnvelope<Account>, unknown, false>({
+        url: "/api/v1/accounts/{account_id}",
+        path: { account_id: id },
+        body: payload,
+      });
+      if (error || !data) throw error;
+      return data.data;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["accounts"] });
@@ -73,7 +79,11 @@ export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      await apiClient.delete(`/api/v1/accounts/${id}`);
+      const { error } = await client.delete<unknown, unknown, false>({
+        url: "/api/v1/accounts/{account_id}",
+        path: { account_id: id },
+      });
+      if (error) throw error;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["accounts"] });

@@ -8,7 +8,6 @@
 import { ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
 import type { Trade } from "@/lib/types";
 import { useMergeTrades } from "@/hooks/useMergeTrades";
-import type { AxiosError } from "axios";
 import { useState } from "react";
 
 interface Props {
@@ -82,7 +81,7 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
           onClose();
         },
         onError: (err) => {
-          const axiosErr = err as AxiosError<{ detail?: string }>;
+          const axiosErr = err as { response?: { data?: { detail?: string } } };
           setErrorMsg(axiosErr.response?.data?.detail ?? "Failed to merge trades.");
         },
       }

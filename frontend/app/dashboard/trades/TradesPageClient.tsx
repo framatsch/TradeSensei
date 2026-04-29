@@ -439,14 +439,14 @@ export function TradesPageClient() {
     )
       return;
     bulkDelete(
-      { trade_ids: Array.from(selectedIds) },
+      { trade_ids: Array.from(selectedIds), portfolio_id: activePortfolioId ?? "" },
       { onSuccess: () => setSelectedIds(new Set()) }
     );
   };
 
   const handleTagConfirm = (tagIds: string[]) => {
     bulkAssignTag(
-      { trade_ids: Array.from(selectedIds), tag_ids: tagIds },
+      { trade_ids: Array.from(selectedIds), tag_ids: tagIds, portfolio_id: activePortfolioId ?? "" },
       {
         onSuccess: () => {
           setSelectedIds(new Set());
@@ -458,7 +458,7 @@ export function TradesPageClient() {
 
   const handlePlaybookConfirm = (playbookId: string | null) => {
     bulkAssignPlaybook(
-      { trade_ids: Array.from(selectedIds), playbook_id: playbookId },
+      { trade_ids: Array.from(selectedIds), playbook_id: playbookId, portfolio_id: activePortfolioId ?? "" },
       {
         onSuccess: () => {
           setSelectedIds(new Set());

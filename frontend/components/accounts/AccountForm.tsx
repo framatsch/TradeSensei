@@ -9,7 +9,6 @@ import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { Spinner } from "@/components/ui/Spinner";
 import type { Account, AccountType, FlexFromDatePreset } from "@/lib/types";
-import type { AxiosError } from "axios";
 
 interface Props {
   account?: Account;
@@ -63,7 +62,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
 
   const errorMessage = (() => {
     if (!mutError) return null;
-    const axiosErr = mutError as AxiosError<{ detail?: string }>;
+    const axiosErr = mutError as { response?: { data?: { detail?: string } } };
     return axiosErr.response?.data?.detail ?? mutError.message;
   })();
 

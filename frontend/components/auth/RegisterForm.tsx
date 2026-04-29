@@ -11,14 +11,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import apiClient from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { Spinner } from "@/components/ui/Spinner";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { OIDCSignInButton } from "@/components/auth/OIDCSignInButton";
 import { useAuthConfig } from "@/hooks/useAuth";
 import type { ResponseEnvelope, TokenResponse, User, UserCreate } from "@/lib/types";
-import type { AxiosError } from "axios";
+import { client } from "@/lib/api/client.gen";
 
 export function RegisterForm() {
   const [username, setUsername] = useState("");
@@ -32,10 +31,7 @@ export function RegisterForm() {
 
   const { mutate: register, isPending, error } = useMutation<User, Error, UserCreate>({
     mutationFn: async (payload: UserCreate) => {
-      const res = await apiClient.post<ResponseEnvelope<User>>(
-        "/api/v1/auth/register",
-        payload
-      );
+      const res = (await (await client.post({ url: "/api/v1/auth/register" as any, body: payload as any })).data) as any;
       return res.data.data;
     },
     onSuccess: async (user) => {
@@ -43,11 +39,7 @@ export function RegisterForm() {
       const params = new URLSearchParams();
       params.append("username", username);
       params.append("password", password);
-      const tokenRes = await apiClient.post<TokenResponse>(
-        "/api/v1/auth/token",
-        params,
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-      );
+      const tokenRes = (await (await client.post({ url: "/api/v1/auth/token" as any, body: params as any })).data) as any;
       setToken(tokenRes.data.access_token);
       setUser(user);
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
@@ -57,11 +49,8 @@ export function RegisterForm() {
 
   const errorMessage = (() => {
     if (!error) return null;
-    const axiosErr = error as AxiosError<{ detail?: string }>;
-    return (
-      axiosErr.response?.data?.detail ??
-      "Registration failed. Please try again."
-    );
+    const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+    return detail ?? "Registration failed. Please try again.";
   })();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {

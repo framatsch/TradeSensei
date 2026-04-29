@@ -5,6 +5,10 @@ import { ThemeProvider } from "next-themes";
 import { useState, useEffect } from "react";
 import { useAppContextStore } from "@/stores/appContextStore";
 import { usePortfolioStore } from "@/stores/portfolioStore";
+import { initializeApiClient } from "@/lib/api/init";
+
+// Configure the @hey-api SDK once at module load (base URL + JWT interceptors)
+initializeApiClient();
 
 interface Props {
   children: React.ReactNode;

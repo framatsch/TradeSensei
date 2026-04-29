@@ -7,11 +7,16 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import apiClient from "@/lib/api";
+import {
+  getConfigApiV1AuthConfigGet,
+  getMeApiV1UsersMeGet,
+  loginApiV1AuthTokenPost,
+  registerApiV1AuthRegisterPost,
+  logoutApiV1AuthLogoutPost,
+} from "@/lib/api/index";
 import { useAuthStore } from "@/stores/authStore";
 import type {
   AuthConfigResponse,
-  ResponseEnvelope,
   TokenResponse,
   User,
   UserCreate,
@@ -23,8 +28,10 @@ export function useAuthConfig() {
   return useQuery<AuthConfigResponse, Error>({
     queryKey: ["authConfig"],
     queryFn: async () => {
-      const res = await apiClient.get<AuthConfigResponse>("/api/v1/auth/config");
-      return res.data;
+      const { data, error } = await getConfigApiV1AuthConfigGet();
+      if (error || !data) throw error;
+      // SDK returns ResponseEnvelope; cast to local type
+      return (data as unknown as { data: AuthConfigResponse }).data;
     },
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
@@ -38,10 +45,9 @@ export function useCurrentUser() {
   return useQuery<User, Error>({
     queryKey: ["currentUser"],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<User>>(
-        "/api/v1/users/me"
-      );
-      return res.data.data;
+      const { data, error } = await getMeApiV1UsersMeGet();
+      if (error || !data) throw error;
+      return (data as unknown as { data: User }).data;
     },
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
@@ -63,26 +69,19 @@ export function useLogin() {
 
   return useMutation<TokenResponse, Error, LoginCredentials>({
     mutationFn: async ({ username, password }) => {
-      const params = new URLSearchParams();
-      params.append("username", username);
-      params.append("password", password);
-      const res = await apiClient.post<TokenResponse>(
-        "/api/v1/auth/token",
-        params,
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-      );
-      return res.data;
+      const { data, error } = await loginApiV1AuthTokenPost({
+        body: { username, password, grant_type: "password" },
+      });
+      if (error || !data) throw error;
+      return data as unknown as TokenResponse;
     },
     onSuccess: async (data) => {
       setToken(data.access_token);
-      // Fetch the current user after login
-      const userRes = await apiClient.get<ResponseEnvelope<User>>(
-        "/api/v1/users/me",
-        {
-          headers: { Authorization: `Bearer ${data.access_token}` },
-        }
-      );
-      setUser(userRes.data.data);
+      // Fetch the current user after login — token is now in localStorage via setToken
+      const { data: meData, error: meError } = await getMeApiV1UsersMeGet();
+      if (!meError && meData) {
+        setUser((meData as unknown as { data: User }).data);
+      }
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       router.push("/dashboard");
     },
@@ -92,22 +91,20 @@ export function useLogin() {
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 export function useRegister() {
-  const setToken = useAuthStore((s) => s.setToken);
   const setUser = useAuthStore((s) => s.setUser);
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation<User, Error, UserCreate>({
     mutationFn: async (payload: UserCreate) => {
-      const res = await apiClient.post<ResponseEnvelope<User>>(
-        "/api/v1/auth/register",
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await registerApiV1AuthRegisterPost({
+        // UserCreate in lib/types matches UserCreate in the SDK
+        body: payload as import("@/lib/api/types.gen").UserCreate,
+      });
+      if (error || !data) throw error;
+      return (data as unknown as { data: User }).data;
     },
     onSuccess: async (user) => {
-      // Auto-login after registration using the user's credentials
-      // We don't have the password here, so the caller must trigger login separately.
       setUser(user);
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       router.push("/dashboard");
@@ -125,7 +122,7 @@ export function useLogout() {
   return useMutation<void, Error, void>({
     mutationFn: async () => {
       try {
-        await apiClient.post("/api/v1/auth/logout");
+        await logoutApiV1AuthLogoutPost();
       } catch {
         // Even if the backend call fails, clear local state
       }

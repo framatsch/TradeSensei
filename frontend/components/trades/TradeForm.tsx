@@ -12,7 +12,6 @@ import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useAccounts } from "@/hooks/useAccounts";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
-import type { AxiosError } from "axios";
 import { Trash2, Plus } from "lucide-react";
 import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
 
@@ -231,7 +230,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
   const serverError = (() => {
     if (!mutError) return null;
-    const axiosErr = mutError as AxiosError<{ detail?: string }>;
+    const axiosErr = mutError as { response?: { data?: { detail?: string } } };
     return axiosErr.response?.data?.detail ?? mutError.message;
   })();
 

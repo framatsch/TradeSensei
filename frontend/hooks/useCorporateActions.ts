@@ -13,12 +13,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import {
+  listCorporateActionsApiV1CorporateActionsGet,
+  createCorporateActionApiV1CorporateActionsPost,
+  updateCorporateActionApiV1CorporateActionsCorporateActionIdPut,
+  deleteCorporateActionApiV1CorporateActionsCorporateActionIdDelete,
+} from "@/lib/api/index";
 import type {
   CorporateAction,
   CorporateActionCreate,
   CorporateActionUpdate,
-  ResponseEnvelope,
 } from "@/lib/types";
 
 const QUERY_KEY = ["corporate-actions"] as const;
@@ -31,10 +35,9 @@ export function useListCorporateActions() {
   return useQuery<CorporateAction[], Error>({
     queryKey: QUERY_KEY,
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<CorporateAction[]>>(
-        "/api/v1/corporate-actions"
-      );
-      return res.data.data;
+      const { data, error } = await listCorporateActionsApiV1CorporateActionsGet();
+      if (error || !data) throw error;
+      return data.data as CorporateAction[];
     },
     staleTime: 60 * 1000,
   });
@@ -49,11 +52,10 @@ export function useCreateCorporateAction() {
   const qc = useQueryClient();
   return useMutation<CorporateAction, Error, CorporateActionCreate>({
     mutationFn: async (payload) => {
-      const res = await apiClient.post<ResponseEnvelope<CorporateAction>>(
-        "/api/v1/corporate-actions",
-        payload
-      );
-      return res.data.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await createCorporateActionApiV1CorporateActionsPost({ body: payload as any });
+      if (error || !data) throw error;
+      return data.data as CorporateAction;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: QUERY_KEY });
@@ -73,11 +75,10 @@ export function useUpdateCorporateAction() {
     { id: string; payload: CorporateActionUpdate }
   >({
     mutationFn: async ({ id, payload }) => {
-      const res = await apiClient.put<ResponseEnvelope<CorporateAction>>(
-        `/api/v1/corporate-actions/${id}`,
-        payload
-      );
-      return res.data.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await updateCorporateActionApiV1CorporateActionsCorporateActionIdPut({ path: { corporate_action_id: id }, body: payload as any });
+      if (error || !data) throw error;
+      return data.data as CorporateAction;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: QUERY_KEY });
@@ -92,7 +93,8 @@ export function useDeleteCorporateAction() {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      await apiClient.delete(`/api/v1/corporate-actions/${id}`);
+      const { error } = await deleteCorporateActionApiV1CorporateActionsCorporateActionIdDelete({ path: { corporate_action_id: id } });
+      if (error) throw error;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: QUERY_KEY });

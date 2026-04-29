@@ -8,8 +8,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
-import type { ResponseEnvelope, UserSettings, UserSettingsUpdate } from "@/lib/types";
+import {
+  getSettingsApiV1UsersMeSettingsGet,
+  updateSettingsApiV1UsersMeSettingsPut,
+} from "@/lib/api/index";
+import type { UserSettings, UserSettingsUpdate } from "@/lib/types";
 
 // ─── Query key ────────────────────────────────────────────────────────────────
 
@@ -38,10 +41,9 @@ export function useSettings() {
   return useQuery<UserSettings, Error>({
     queryKey: SETTINGS_KEY,
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<UserSettings>>(
-        "/api/v1/users/me/settings"
-      );
-      return res.data.data;
+      const { data, error } = await getSettingsApiV1UsersMeSettingsGet();
+      if (error || !data) throw error;
+      return data.data as UserSettings;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     placeholderData: DEFAULT_SETTINGS,
@@ -59,11 +61,10 @@ export function useUpdateSettings() {
 
   return useMutation<UserSettings, Error, UserSettingsUpdate>({
     mutationFn: async (update: UserSettingsUpdate) => {
-      const res = await apiClient.put<ResponseEnvelope<UserSettings>>(
-        "/api/v1/users/me/settings",
-        update
-      );
-      return res.data.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await updateSettingsApiV1UsersMeSettingsPut({ body: update as any });
+      if (error || !data) throw error;
+      return data.data as UserSettings;
     },
     onMutate: async (update) => {
       await qc.cancelQueries({ queryKey: SETTINGS_KEY });

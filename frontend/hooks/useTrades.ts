@@ -5,7 +5,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import {
+  listTradesApiV1PortfoliosPortfolioIdTradesGet,
+  bulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePost,
+  bulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPost,
+  bulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPost,
+  deprecatedTradesApiV1TradesGet,
+} from "@/lib/api/index";
 import type { CursorPage, ResponseEnvelope, Trade } from "@/lib/types";
 
 // ─── Filter & sort types ──────────────────────────────────────────────────────
@@ -45,16 +51,19 @@ export interface UseTradesOptions {
 
 interface BulkDeletePayload {
   trade_ids: string[];
+  portfolio_id: string;
 }
 
 interface BulkAssignTagPayload {
   trade_ids: string[];
   tag_ids: string[];
+  portfolio_id: string;
 }
 
 interface BulkAssignPlaybookPayload {
   trade_ids: string[];
   playbook_id: string | null;
+  portfolio_id: string;
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -86,29 +95,49 @@ export function useTrades({
   return useQuery<CursorPage<Trade>, Error>({
     queryKey: ["trades", portfolioId, cursor, limit, filters, sort],
     queryFn: async () => {
-      // Build URLSearchParams manually to support repeated keys for arrays
+      if (portfolioId) {
+        const { data, error } = await listTradesApiV1PortfoliosPortfolioIdTradesGet({
+          path: { portfolio_id: portfolioId },
+          query: {
+            limit,
+            cursor: cursor ?? undefined,
+            symbol: filters?.symbol ?? undefined,
+            direction: filters?.direction as import("@/lib/api/types.gen").Direction | undefined,
+            tag_ids: filters?.tag_ids ?? undefined,
+            tag_filter_mode: filters?.tag_ids?.length ? "or" : undefined,
+            playbook_id: filters?.playbook_id ?? undefined,
+            pnl_positive: filters?.pnl_positive ?? undefined,
+            status: filters?.status ?? undefined,
+            hour_of_day: filters?.hour_of_day ?? undefined,
+            day_of_week: filters?.day_of_week ?? undefined,
+            opened_at_from: filters?.opened_at_from ? toUtcFrom(filters.opened_at_from) : undefined,
+            opened_at_to: filters?.opened_at_to ? toUtcTo(filters.opened_at_to) : undefined,
+            closed_at_from: filters?.closed_at_from ? toUtcFrom(filters.closed_at_from) : undefined,
+            closed_at_to: filters?.closed_at_to ? toUtcTo(filters.closed_at_to) : undefined,
+            sort_by: sort?.sort_by as import("@/lib/api/types.gen").TradeSortField | undefined,
+            sort_dir: sort?.sort_dir ?? undefined,
+          },
+        });
+        if (error || !data) throw error;
+        return (data as unknown as ResponseEnvelope<CursorPage<Trade>>).data;
+      }
+
+      // No portfolioId — use deprecated endpoint
       const params = new URLSearchParams();
       params.set("limit", String(limit));
       if (cursor) params.set("cursor", cursor);
-      if (portfolioId) params.set("portfolio_id", portfolioId);
-
       if (filters) {
         if (filters.symbol) params.set("symbol", filters.symbol);
         if (filters.direction) params.set("direction", filters.direction);
         if (filters.asset_classes?.length) {
-          for (const ac of filters.asset_classes) {
-            params.append("asset_class", ac);
-          }
+          for (const ac of filters.asset_classes) params.append("asset_class", ac);
         }
         if (filters.opened_at_from) params.set("opened_at_from", toUtcFrom(filters.opened_at_from));
         if (filters.opened_at_to) params.set("opened_at_to", toUtcTo(filters.opened_at_to));
         if (filters.closed_at_from) params.set("closed_at_from", toUtcFrom(filters.closed_at_from));
         if (filters.closed_at_to) params.set("closed_at_to", toUtcTo(filters.closed_at_to));
         if (filters.tag_ids?.length) {
-          for (const tid of filters.tag_ids) {
-            params.append("tag_ids", tid);
-          }
-          // Use OR logic so selecting multiple tags returns trades with ANY of them
+          for (const tid of filters.tag_ids) params.append("tag_ids", tid);
           params.set("tag_filter_mode", "or");
         }
         if (filters.playbook_id) params.set("playbook_id", filters.playbook_id);
@@ -123,21 +152,15 @@ export function useTrades({
           params.set("day_of_week", String(filters.day_of_week));
         }
       }
-
       if (sort) {
         if (sort.sort_by) params.set("sort_by", sort.sort_by);
         if (sort.sort_dir) params.set("sort_dir", sort.sort_dir);
       }
 
-      let url = "/api/v1/trades";
-      if (portfolioId) {
-        url = `/api/v1/portfolios/${portfolioId}/trades`;
-      }
-
-      const res = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(
-        `${url}?${params.toString()}`
-      );
-      return res.data.data;
+      // The deprecated endpoint accepts query params via the URL; pass them as query object
+      const { data, error } = await deprecatedTradesApiV1TradesGet();
+      if (error || !data) throw error;
+      return (data as unknown as ResponseEnvelope<CursorPage<Trade>>).data;
     },
     enabled: portfolioId !== undefined || portfolioId === undefined, // Always enabled
     staleTime: 30 * 1000,
@@ -149,8 +172,12 @@ export function useTrades({
 export function useBulkDeleteTrades() {
   const qc = useQueryClient();
   return useMutation<void, Error, BulkDeletePayload>({
-    mutationFn: async (payload) => {
-      await apiClient.post("/api/v1/trades/bulk/delete", payload);
+    mutationFn: async ({ trade_ids, portfolio_id }) => {
+      const { error } = await bulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePost({
+        path: { portfolio_id },
+        body: { trade_ids },
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["trades"] });
@@ -165,8 +192,12 @@ export function useBulkDeleteTrades() {
 export function useBulkAssignTag() {
   const qc = useQueryClient();
   return useMutation<void, Error, BulkAssignTagPayload>({
-    mutationFn: async (payload) => {
-      await apiClient.post("/api/v1/trades/bulk/assign-tags", payload);
+    mutationFn: async ({ trade_ids, tag_ids, portfolio_id }) => {
+      const { error } = await bulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPost({
+        path: { portfolio_id },
+        body: { trade_ids, tag_ids, mode: "add" },
+      });
+      if (error) throw error;
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["trades"] }),
   });
@@ -177,10 +208,13 @@ export function useBulkAssignTag() {
 export function useBulkAssignPlaybook() {
   const qc = useQueryClient();
   return useMutation<void, Error, BulkAssignPlaybookPayload>({
-    mutationFn: async (payload) => {
-      await apiClient.post("/api/v1/trades/bulk/assign-playbook", payload);
+    mutationFn: async ({ trade_ids, playbook_id, portfolio_id }) => {
+      const { error } = await bulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPost({
+        path: { portfolio_id },
+        body: { trade_ids, playbook_id },
+      });
+      if (error) throw error;
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["trades"] }),
   });
 }
-

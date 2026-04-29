@@ -13,10 +13,10 @@
 
 import { useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import apiClient from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { Spinner } from "@/components/ui/Spinner";
 import type { TokenResponse, ResponseEnvelope, User } from "@/lib/types";
+import { client } from "@/lib/api/client.gen";
 
 function OAuthCallbackContent() {
   const searchParams = useSearchParams();
@@ -42,18 +42,12 @@ function OAuthCallbackContent() {
     (async () => {
       try {
         // Exchange the one-time token for a full access token
-        const exchangeRes = await apiClient.post<TokenResponse>(
-          "/api/v1/auth/google/exchange",
-          { one_time_token: token }
-        );
+        const exchangeRes = await (await client.post({ url: "/api/v1/auth/google/exchange" as any, body: { one_time_token: token } as any })).data as any;
         const accessToken = exchangeRes.data.access_token;
         setToken(accessToken);
 
         // Fetch the current user to populate the auth store
-        const userRes = await apiClient.get<ResponseEnvelope<User>>(
-          "/api/v1/users/me",
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
+        const userRes = await (await client.get({ url: "/api/v1/users/me" as any, body: { headers: { Authorization: `Bearer ${accessToken}` } } as any })).data as any;
         setUser(userRes.data.data);
 
         router.replace("/dashboard");
