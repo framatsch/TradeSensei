@@ -23,7 +23,7 @@ export function usePlaybooks() {
     queryKey: ["playbooks"],
     queryFn: async () => {
       const { data, error } = await listPlaybooksApiV1PlaybooksGet();
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<Playbook[]>).data;
     },
     staleTime: 60 * 1000,
@@ -37,7 +37,7 @@ export function useCreatePlaybook() {
       const { data, error } = await createPlaybookApiV1PlaybooksPost({
         body: payload as import("@/lib/api/types.gen").PlaybookCreate,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<Playbook>).data;
     },
     onSuccess: (newPlaybook) => {
@@ -62,7 +62,7 @@ export function useUpdatePlaybook() {
         path: { playbook_id: id },
         body: payload as import("@/lib/api/types.gen").PlaybookUpdate,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<Playbook>).data;
     },
     onSuccess: (updated) => {
@@ -84,7 +84,7 @@ export function useDeletePlaybook() {
       const { error } = await deletePlaybookApiV1PlaybooksPlaybookIdDelete({
         path: { playbook_id: id },
       });
-      if (error) throw error;
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: (_data, deletedId) => {
       // Immediately remove the deleted playbook from the cache

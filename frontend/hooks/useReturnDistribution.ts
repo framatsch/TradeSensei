@@ -15,7 +15,7 @@ export function useReturnDistribution(portfolioId?: string) {
       const { data, error } = await getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet({
         path: { portfolio_id: portfolioId! },
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as ReturnDistribution[];
     },
     staleTime: 5 * 60 * 1000,

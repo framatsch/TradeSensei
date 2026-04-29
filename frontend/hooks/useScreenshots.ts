@@ -19,7 +19,7 @@ export function useUploadScreenshot(tradeId: string) {
         path: { trade_id: tradeId },
         body: { file },
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as unknown as Trade;
     },
     onSuccess: (updated) => {
@@ -38,7 +38,7 @@ export function useDeleteScreenshot(tradeId: string) {
       const { data, error } = await deleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDelete({
         path: { trade_id: tradeId, filename },
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as unknown as Trade;
     },
     onSuccess: (updated) => {

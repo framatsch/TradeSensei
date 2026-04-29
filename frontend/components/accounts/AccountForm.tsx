@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { Spinner } from "@/components/ui/Spinner";
+import { extractApiError } from "@/lib/api/errors";
 import type { Account, AccountType, FlexFromDatePreset } from "@/lib/types";
 
 interface Props {
@@ -62,8 +63,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
 
   const errorMessage = (() => {
     if (!mutError) return null;
-    const axiosErr = mutError as { response?: { data?: { detail?: string } } };
-    return axiosErr.response?.data?.detail ?? mutError.message;
+    return extractApiError(mutError, mutError.message);
   })();
 
   const handleCredentialChange = (key: string, value: string) => {

@@ -15,7 +15,7 @@ export function useTaxSummary(year: number) {
       const { data, error } = await getAnnualSummaryApiV1TaxAnnualSummaryGet({
         query: { year },
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (data as any).data as TaxAnnualSummary;
     },

@@ -21,7 +21,7 @@ export function useTags() {
     queryKey: ["tags"],
     queryFn: async () => {
       const { data, error } = await listTagsApiV1TagsGet();
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<Tag[]>).data;
     },
     staleTime: 60 * 1000,
@@ -35,7 +35,7 @@ export function useCreateTag() {
       const { data, error } = await createTagApiV1TagsPost({
         body: payload as import("@/lib/api/types.gen").TagCreate,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<Tag>).data;
     },
     onSuccess: (newTag) => {
@@ -56,7 +56,7 @@ export function useDeleteTag() {
       const { error } = await deleteTagApiV1TagsTagIdDelete({
         path: { tag_id: id },
       });
-      if (error) throw error;
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: (_data, id) => {
       // Optimistic update: immediately remove the deleted tag from the cache

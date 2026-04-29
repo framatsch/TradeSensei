@@ -24,7 +24,7 @@ export function useAccounts(portfolioId?: string) {
       const { data, error } = await client.get<ResponseEnvelope<CursorPage<Account>>, unknown, false>({
         url,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data.items;
     },
     staleTime: 5 * 60 * 1000,
@@ -40,7 +40,7 @@ export function useCreateAccount() {
         url: "/api/v1/accounts",
         body: payload,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     onSuccess: () => {
@@ -62,7 +62,7 @@ export function useUpdateAccount(id: string) {
         path: { account_id: id },
         body: payload,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     onSuccess: () => {
@@ -83,7 +83,7 @@ export function useDeleteAccount() {
         url: "/api/v1/accounts/{account_id}",
         path: { account_id: id },
       });
-      if (error) throw error;
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["accounts"] });

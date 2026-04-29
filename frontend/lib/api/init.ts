@@ -37,4 +37,17 @@ export function initializeApiClient() {
     }
     return response;
   });
+
+  // Task 4.4: Handle 401 on network-level failures (timeout, proxy 502, DNS)
+  client.interceptors.error.use((error, response, _request, _options) => {
+    if (
+      response?.status === 401 &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/login"
+    ) {
+      localStorage.removeItem("access_token");
+      window.location.href = "/login";
+    }
+    return error;
+  });
 }

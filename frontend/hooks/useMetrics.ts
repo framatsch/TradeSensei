@@ -17,13 +17,13 @@ export function useMetrics(portfolioId?: string) {
         const { data, error } = await getMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGet({
           path: { portfolio_id: portfolioId },
         });
-        if (error || !data) throw error;
+        if (error || !data) throw error ?? new Error("Request failed: no data returned");
         return (data as unknown as ResponseEnvelope<MetricsSummary>).data;
       }
       const { data, error } = await client.get<ResponseEnvelope<MetricsSummary>, unknown, false>({
         url: "/api/v1/metrics/summary",
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     staleTime: 60 * 1000,

@@ -16,7 +16,7 @@ export function useTrade(id: string) {
         url: "/api/v1/trades/{trade_id}",
         path: { trade_id: id },
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     staleTime: 5 * 1000, // 5 seconds to ensure fresh data after execution updates
@@ -32,7 +32,7 @@ export function useCreateTrade() {
         url: "/api/v1/trades",
         body: payload,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     onSuccess: () => {
@@ -52,7 +52,7 @@ export function useUpdateTrade(id: string) {
         path: { trade_id: id },
         body: payload,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     onSuccess: (updated) => {

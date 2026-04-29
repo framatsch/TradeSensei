@@ -11,7 +11,6 @@ import {
   getConfigApiV1AuthConfigGet,
   getMeApiV1UsersMeGet,
   loginApiV1AuthTokenPost,
-  registerApiV1AuthRegisterPost,
   logoutApiV1AuthLogoutPost,
 } from "@/lib/api/index";
 import { useAuthStore } from "@/stores/authStore";
@@ -19,7 +18,6 @@ import type {
   AuthConfigResponse,
   TokenResponse,
   User,
-  UserCreate,
 } from "@/lib/types";
 
 // ─── Auth Config ──────────────────────────────────────────────────────────────
@@ -29,7 +27,7 @@ export function useAuthConfig() {
     queryKey: ["authConfig"],
     queryFn: async () => {
       const { data, error } = await getConfigApiV1AuthConfigGet();
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       // SDK returns ResponseEnvelope; cast to local type
       return (data as unknown as { data: AuthConfigResponse }).data;
     },
@@ -46,7 +44,7 @@ export function useCurrentUser() {
     queryKey: ["currentUser"],
     queryFn: async () => {
       const { data, error } = await getMeApiV1UsersMeGet();
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as { data: User }).data;
     },
     enabled: !!token,
@@ -72,7 +70,7 @@ export function useLogin() {
       const { data, error } = await loginApiV1AuthTokenPost({
         body: { username, password, grant_type: "password" },
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data as unknown as TokenResponse;
     },
     onSuccess: async (data) => {
@@ -82,30 +80,6 @@ export function useLogin() {
       if (!meError && meData) {
         setUser((meData as unknown as { data: User }).data);
       }
-      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      router.push("/dashboard");
-    },
-  });
-}
-
-// ─── Register ─────────────────────────────────────────────────────────────────
-
-export function useRegister() {
-  const setUser = useAuthStore((s) => s.setUser);
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
-  return useMutation<User, Error, UserCreate>({
-    mutationFn: async (payload: UserCreate) => {
-      const { data, error } = await registerApiV1AuthRegisterPost({
-        // UserCreate in lib/types matches UserCreate in the SDK
-        body: payload as import("@/lib/api/types.gen").UserCreate,
-      });
-      if (error || !data) throw error;
-      return (data as unknown as { data: User }).data;
-    },
-    onSuccess: async (user) => {
-      setUser(user);
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       router.push("/dashboard");
     },

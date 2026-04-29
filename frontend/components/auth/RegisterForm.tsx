@@ -16,8 +16,9 @@ import { Spinner } from "@/components/ui/Spinner";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { OIDCSignInButton } from "@/components/auth/OIDCSignInButton";
 import { useAuthConfig } from "@/hooks/useAuth";
-import type { ResponseEnvelope, TokenResponse, User, UserCreate } from "@/lib/types";
-import { client } from "@/lib/api/client.gen";
+import { extractApiError } from "@/lib/api/errors";
+import { registerApiV1AuthRegisterPost, loginApiV1AuthTokenPost } from "@/lib/api/index";
+import type { ResponseEnvelope, User, UserCreate } from "@/lib/types";
 
 export function RegisterForm() {
   const [username, setUsername] = useState("");
@@ -31,16 +32,17 @@ export function RegisterForm() {
 
   const { mutate: register, isPending, error } = useMutation<User, Error, UserCreate>({
     mutationFn: async (payload: UserCreate) => {
-      const res = (await (await client.post({ url: "/api/v1/auth/register" as any, body: payload as any })).data) as any;
-      return res.data.data;
+      const { data, error: regError } = await registerApiV1AuthRegisterPost({ body: payload });
+      if (regError || !data) throw regError ?? new Error("Registration failed: no data returned");
+      return (data as unknown as ResponseEnvelope<User>).data;
     },
     onSuccess: async (user) => {
       // Auto-login after registration
-      const params = new URLSearchParams();
-      params.append("username", username);
-      params.append("password", password);
-      const tokenRes = (await (await client.post({ url: "/api/v1/auth/token" as any, body: params as any })).data) as any;
-      setToken(tokenRes.data.access_token);
+      const { data: tokenData, error: tokenError } = await loginApiV1AuthTokenPost({
+        body: { username, password },
+      });
+      if (tokenError || !tokenData) throw tokenError ?? new Error("Login after registration failed");
+      setToken(tokenData.access_token);
       setUser(user);
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       router.push("/dashboard");
@@ -49,8 +51,7 @@ export function RegisterForm() {
 
   const errorMessage = (() => {
     if (!error) return null;
-    const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-    return detail ?? "Registration failed. Please try again.";
+    return extractApiError(error, "Registration failed. Please try again.");
   })();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {

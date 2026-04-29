@@ -42,7 +42,7 @@ export function useSettings() {
     queryKey: SETTINGS_KEY,
     queryFn: async () => {
       const { data, error } = await getSettingsApiV1UsersMeSettingsGet();
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as UserSettings;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -63,7 +63,7 @@ export function useUpdateSettings() {
     mutationFn: async (update: UserSettingsUpdate) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await updateSettingsApiV1UsersMeSettingsPut({ body: update as any });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as UserSettings;
     },
     onMutate: async (update) => {

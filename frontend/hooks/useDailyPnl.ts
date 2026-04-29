@@ -24,13 +24,13 @@ export function useDailyPnl(portfolioId?: string) {
         const { data, error } = await getEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGet({
           path: { portfolio_id: portfolioId },
         });
-        if (error || !data) throw error;
+        if (error || !data) throw error ?? new Error("Request failed: no data returned");
         points = (data as unknown as ResponseEnvelope<EquityCurvePoint[]>).data;
       } else {
         const { data, error } = await client.get<ResponseEnvelope<EquityCurvePoint[]>, unknown, false>({
           url: "/api/v1/metrics/equity-curve",
         });
-        if (error || !data) throw error;
+        if (error || !data) throw error ?? new Error("Request failed: no data returned");
         points = data.data;
       }
       // Aggregate per day from individual trade PnL values

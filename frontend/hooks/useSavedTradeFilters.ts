@@ -18,7 +18,7 @@ export function useSavedTradeFilters() {
     queryKey: QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await listSavedTradeFiltersApiV1SavedTradeFiltersGet();
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (data as any).data as SavedTradeFilterRead[];
     },
@@ -33,7 +33,7 @@ export function useCreateSavedTradeFilter() {
       const { data, error } = await createSavedTradeFilterApiV1SavedTradeFiltersPost({
         body: payload as import("@/lib/api/types.gen").SavedTradeFilterCreate,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (data as any).data as SavedTradeFilterRead;
     },
@@ -52,7 +52,7 @@ export function useUpdateSavedTradeFilter(id: string) {
         path: { filter_id: id },
         body: payload as import("@/lib/api/types.gen").SavedTradeFilterUpdate,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (data as any).data as SavedTradeFilterRead;
     },
@@ -70,7 +70,7 @@ export function useDeleteSavedTradeFilter() {
       const { error } = await deleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDelete({
         path: { filter_id: filterId },
       });
-      if (error) throw error;
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });

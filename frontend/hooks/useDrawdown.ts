@@ -17,13 +17,13 @@ export function useDrawdown(portfolioId?: string) {
         const { data, error } = await getDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGet({
           path: { portfolio_id: portfolioId },
         });
-        if (error || !data) throw error;
+        if (error || !data) throw error ?? new Error("Request failed: no data returned");
         return (data as unknown as ResponseEnvelope<DrawdownPoint[]>).data;
       }
       const { data, error } = await client.get<ResponseEnvelope<DrawdownPoint[]>, unknown, false>({
         url: "/api/v1/metrics/drawdown",
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     staleTime: 60 * 1000,

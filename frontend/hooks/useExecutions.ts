@@ -59,7 +59,7 @@ export function useTradeExecutions(tradeId: string, portfolioId?: string | null,
         path: { portfolio_id: portfolioId!, trade_id: tradeId },
         query: includeDeleted ? { include_deleted: true } : undefined,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data.data as GeneratedLogicalExecutionRead[]).map(mapGeneratedExecution);
     },
     staleTime: 5 * 1000, // 5 seconds to ensure fresh data after updates
@@ -72,15 +72,13 @@ export function useRestoreExecution() {
   const qc = useQueryClient();
   return useMutation<LogicalExecution, Error, { executionId: string; tradeId: string }>({
     mutationFn: async ({ executionId }) => {
-      const response = await client.post({
+      const { data, error } = await client.post<unknown, unknown, false>({
         url: `/api/v1/executions/${executionId}/restore`,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const envelope = response as any;
-      return (envelope.data?.data ?? envelope.data) as LogicalExecution;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return ((data as Record<string, unknown>)?.data ?? data) as LogicalExecution;
     },
     onSuccess: (_, { tradeId }) => {
-      // Refetch both the regular and deleted-included execution lists
       void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
@@ -93,18 +91,15 @@ export function useCreateExecution(tradeId: string) {
   const qc = useQueryClient();
   return useMutation<LogicalExecution, Error, LogicalExecutionCreate>({
     mutationFn: async (payload) => {
-      const response = await client.post({
+      const { data, error } = await client.post<unknown, unknown, false>({
         url: `/api/v1/trades/${tradeId}/executions`,
         body: payload,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const envelope = response as any;
-      return (envelope.data?.data ?? envelope.data) as LogicalExecution;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return ((data as Record<string, unknown>)?.data ?? data) as LogicalExecution;
     },
     onSuccess: () => {
-      // Force immediate refetch of executions
       void qc.refetchQueries({ queryKey: ["executions", tradeId], type: "all" });
-      // Force immediate refetch of trade (P&L, etc will be re-calculated server-side)
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
@@ -120,18 +115,15 @@ export function useUpdateExecution() {
     { executionId: string; tradeId: string; data: LogicalExecutionUpdate }
   >({
     mutationFn: async ({ executionId, data }) => {
-      const response = await client.patch({
+      const { data: resData, error } = await client.patch<unknown, unknown, false>({
         url: `/api/v1/executions/${executionId}`,
         body: data,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const envelope = response as any;
-      return (envelope.data?.data ?? envelope.data) as LogicalExecution;
+      if (error || !resData) throw error ?? new Error("Request failed: no data returned");
+      return ((resData as Record<string, unknown>)?.data ?? resData) as LogicalExecution;
     },
     onSuccess: (_, { tradeId }) => {
-      // Force immediate refetch of executions (pnl field will be updated)
       void qc.refetchQueries({ queryKey: ["executions", tradeId], type: "all" });
-      // Force immediate refetch of trade (P&L, etc will be re-calculated server-side)
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
@@ -150,18 +142,14 @@ export function useDeleteExecution() {
   const qc = useQueryClient();
   return useMutation<LogicalExecution | null, Error, { executionId: string; tradeId: string }>({
     mutationFn: async ({ executionId }) => {
-      const response = await client.delete({
+      const { data, error } = await client.delete<unknown, unknown, false>({
         url: `/api/v1/executions/${executionId}`,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const envelope = response as any;
-      // 204 → empty body; 200 → envelope with soft-deleted execution
-      if (!envelope.data) return null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return ((envelope.data as any).data ?? envelope.data) as LogicalExecution;
+      if (error) throw error ?? new Error("Request failed");
+      if (!data) return null;
+      return ((data as Record<string, unknown>)?.data ?? data) as LogicalExecution;
     },
     onSuccess: (_, { tradeId }) => {
-      // Invalidate all execution query variants (include_deleted true/false)
       void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
@@ -178,19 +166,16 @@ export function useReassignExecution() {
     { executionId: string; sourceTradeId: string } & ReassignExecutionRequest
   >({
     mutationFn: async ({ executionId, target_trade_id }) => {
-      const response = await client.post({
+      const { data, error } = await client.post<unknown, unknown, false>({
         url: `/api/v1/executions/${executionId}/reassign`,
         body: { target_trade_id },
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const envelope = response as any;
-      return (envelope.data?.data ?? envelope.data) as LogicalExecution;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return ((data as Record<string, unknown>)?.data ?? data) as LogicalExecution;
     },
     onSuccess: (_, { sourceTradeId, target_trade_id }) => {
-      // Force immediate refetch of both execution lists
       void qc.refetchQueries({ queryKey: ["executions", sourceTradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["executions", target_trade_id], type: "all" });
-      // Force immediate refetch of both trades (P&L will be re-calculated server-side)
       void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", target_trade_id], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
@@ -207,20 +192,17 @@ export function useDetachExecution() {
     { executionId: string; sourceTradeId: string }
   >({
     mutationFn: async ({ executionId }) => {
-      const response = await client.post({
+      const { data, error } = await client.post<unknown, unknown, false>({
         url: `/api/v1/executions/${executionId}/detach`,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const envelope = response as any;
-      return (envelope.data?.data ?? envelope.data) as Trade;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return ((data as Record<string, unknown>)?.data ?? data) as Trade;
     },
-      onSuccess: (_, { sourceTradeId }) => {
-        // Force immediate refetch of executions
-        void qc.refetchQueries({ queryKey: ["executions", sourceTradeId], type: "all" });
-        // Force immediate refetch of trade (P&L will be re-calculated server-side)
-        void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
-        void qc.invalidateQueries({ queryKey: ["trades"] });
-      },
+    onSuccess: (_, { sourceTradeId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", sourceTradeId], type: "all" });
+      void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+    },
   });
 }
 
@@ -233,16 +215,14 @@ export function useSplitExecution() {
     { executionId: string; tradeId: string; data: SplitExecutionRequest }
   >({
     mutationFn: async ({ executionId, data }) => {
-      const response = await client.post({
+      const { data: resData, error } = await client.post<unknown, unknown, false>({
         url: `/api/v1/executions/${executionId}/split`,
         body: data,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const envelope = response as any;
-      return (envelope.data?.data ?? envelope.data) as SplitExecutionResponse;
+      if (error || !resData) throw error ?? new Error("Request failed: no data returned");
+      return ((resData as Record<string, unknown>)?.data ?? resData) as SplitExecutionResponse;
     },
     onSuccess: (_, { tradeId }) => {
-      // Invalidate all execution query variants (deleted included or not)
       void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });

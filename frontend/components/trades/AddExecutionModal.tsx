@@ -7,6 +7,7 @@
 import { useState } from "react";
 import type { AssetClass, Direction, LogicalExecutionCreate, Trade } from "@/lib/types";
 import { useCreateExecution } from "@/hooks/useExecutions";
+import { extractApiError } from "@/lib/api/errors";
 
 interface Props {
   tradeId: string;
@@ -94,8 +95,7 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
         onClose();
       },
       onError: (err) => {
-        const axiosErr = err as { response?: { data?: { detail?: string } } };
-        setErrorMsg(axiosErr.response?.data?.detail ?? "Failed to add execution.");
+        setErrorMsg(extractApiError(err, "Failed to add execution."));
       },
     });
   };

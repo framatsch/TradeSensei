@@ -18,6 +18,7 @@ import { DateRangeVisualizer } from "@/components/imports/DateRangeVisualizer";
 import type { QueuedFile } from "@/components/imports/FileQueue";
 import type { ImportResult, FreshStartResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
 import { client } from "@/lib/api/client.gen";
+import { extractApiError } from "@/lib/api/errors";
 
 // Type badge helper
 const TYPE_LABEL: Record<AccountType, string> = {
@@ -174,8 +175,7 @@ export function ImportForm() {
             )
           );
         } catch (err) {
-          const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-          const errorMsg = detail ?? (err instanceof Error ? err.message : "Upload failed.");
+          const errorMsg = extractApiError(err, err instanceof Error ? err.message : "Upload failed.");
           setQueuedFiles((prev) =>
             prev.map((f, idx) =>
               idx === i ? { ...f, status: "error", error: errorMsg } : f
@@ -243,10 +243,7 @@ export function ImportForm() {
       void qc.invalidateQueries({ queryKey: ["stats"] });
       void qc.invalidateQueries({ queryKey: ["accounts"] });
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setFreshStartError(
-        detail ?? (err instanceof Error ? err.message : "Fresh start failed.")
-      );
+      setFreshStartError(extractApiError(err, err instanceof Error ? err.message : "Fresh start failed."));
     } finally {
       setIsFreshStartRunning(false);
     }
@@ -276,8 +273,7 @@ export function ImportForm() {
 
   const syncErrorMsg = (() => {
     if (!syncError) return null;
-    const detail = (syncError as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-    return detail ?? "Sync failed.";
+    return extractApiError(syncError, "Sync failed.");
   })();
 
   // ── Derived state ─────────────────────────────────────────────────────────

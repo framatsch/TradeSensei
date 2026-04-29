@@ -36,7 +36,7 @@ export function useListCorporateActions() {
     queryKey: QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await listCorporateActionsApiV1CorporateActionsGet();
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as CorporateAction[];
     },
     staleTime: 60 * 1000,
@@ -54,7 +54,7 @@ export function useCreateCorporateAction() {
     mutationFn: async (payload) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await createCorporateActionApiV1CorporateActionsPost({ body: payload as any });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as CorporateAction;
     },
     onSuccess: () => {
@@ -77,7 +77,7 @@ export function useUpdateCorporateAction() {
     mutationFn: async ({ id, payload }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await updateCorporateActionApiV1CorporateActionsCorporateActionIdPut({ path: { corporate_action_id: id }, body: payload as any });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as CorporateAction;
     },
     onSuccess: () => {
@@ -94,7 +94,7 @@ export function useDeleteCorporateAction() {
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
       const { error } = await deleteCorporateActionApiV1CorporateActionsCorporateActionIdDelete({ path: { corporate_action_id: id } });
-      if (error) throw error;
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: QUERY_KEY });

@@ -14,6 +14,7 @@ import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { Trash2, Plus } from "lucide-react";
 import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
+import { extractApiError } from "@/lib/api/errors";
 
 const DIRECTIONS: Direction[] = ["LONG", "SHORT"];
 const ASSET_CLASSES: AssetClass[] = [
@@ -230,8 +231,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
   const serverError = (() => {
     if (!mutError) return null;
-    const axiosErr = mutError as { response?: { data?: { detail?: string } } };
-    return axiosErr.response?.data?.detail ?? mutError.message;
+    return extractApiError(mutError, mutError.message);
   })();
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {

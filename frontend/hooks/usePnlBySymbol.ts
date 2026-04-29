@@ -15,7 +15,7 @@ export function usePnlBySymbol() {
       const { data, error } = await client.get<ResponseEnvelope<PnlBySymbol[]>, unknown, false>({
         url: "/api/v1/timeseries/pnl-by-symbol",
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     staleTime: 5 * 60 * 1000,

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Spinner } from "@/components/ui/Spinner";
-import { client } from "@/lib/api/client.gen";
+import { resetPasswordApiV1AuthResetPasswordPost } from "@/lib/api/index";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -34,22 +34,25 @@ function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      await (await client.post({ url: "/api/v1/auth/reset-password" as any, body: {
-              token,
-              new_password: newPassword,
-            } as any })).data;
-      router.push("/login?reset=success");
-    } catch (err) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 401) {
-        setErrorMessage(
-          "This reset link has expired or has already been used. Please request a new one."
-        );
-      } else if (status === 422) {
-        setErrorMessage("Password must be at least 8 characters.");
-      } else {
-        setErrorMessage("Something went wrong. Please try again.");
+      const { error, response } = await resetPasswordApiV1AuthResetPasswordPost({
+        body: { token, new_password: newPassword },
+      });
+      if (error) {
+        const status = response?.status;
+        if (status === 401) {
+          setErrorMessage(
+            "This reset link has expired or has already been used. Please request a new one."
+          );
+        } else if (status === 422) {
+          setErrorMessage("Password must be at least 8 characters.");
+        } else {
+          setErrorMessage("Something went wrong. Please try again.");
+        }
+        return;
       }
+      router.push("/login?reset=success");
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }

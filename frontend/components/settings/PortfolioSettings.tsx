@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -200,6 +200,7 @@ function PortfolioForm({ initialData, onSubmit, onCancel }: { initialData?: any,
   const [name, setName] = useState(initialData?.name || "");
   const [currency, setCurrency] = useState(initialData?.base_currency || "USD");
   const [color, setColor] = useState(initialData?.color_hex || PORTFOLIO_COLORS[0]);
+  const uid = useId();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,9 +216,9 @@ function PortfolioForm({ initialData, onSubmit, onCancel }: { initialData?: any,
     <form onSubmit={handleSubmit} className="p-4 border border-border rounded-lg bg-card space-y-4 shadow-sm">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label htmlFor="portfolio-name" className="text-sm font-medium text-foreground">Name</label>
+          <label htmlFor={`${uid}-name`} className="text-sm font-medium text-foreground">Name</label>
           <input
-            id="portfolio-name"
+            id={`${uid}-name`}
             type="text"
             required
             value={name}
@@ -227,9 +228,9 @@ function PortfolioForm({ initialData, onSubmit, onCancel }: { initialData?: any,
           />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="portfolio-currency" className="text-sm font-medium text-foreground">Base Currency</label>
+          <label htmlFor={`${uid}-currency`} className="text-sm font-medium text-foreground">Base Currency</label>
           <select
-            id="portfolio-currency"
+            id={`${uid}-currency`}
             value={currency}
             onChange={e => setCurrency(e.target.value)}
             disabled={initialData?.has_trades}

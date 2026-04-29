@@ -15,7 +15,7 @@ export function useMergeTrades() {
     mutationFn: async (payload) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await deprecatedTradesApiV1TradesMergePost({ body: payload as any });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       // Deprecated endpoint returns unknown — cast to expected shape
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return ((data as any).data ?? data) as Trade;

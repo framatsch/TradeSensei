@@ -25,7 +25,7 @@ export function useNotes(tradeId: string) {
       const { data, error } = await listNotesApiV1TradesTradeIdNotesGet({
         path: { trade_id: tradeId },
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return ((data as unknown as ResponseEnvelope<TradeNote[]>).data) ?? [];
     },
     staleTime: 30 * 1000,
@@ -41,7 +41,7 @@ export function useAddNote() {
         path: { trade_id: tradeId },
         body: payload as import("@/lib/api/types.gen").TradeNoteCreate,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<TradeNote>).data;
     },
     onSuccess: (_data, { tradeId }) => {
@@ -60,7 +60,7 @@ export function useUpdateNote() {
         path: { trade_id: tradeId, note_id: noteId },
         body: payload as import("@/lib/api/types.gen").TradeNoteUpdate,
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<TradeNote>).data;
     },
     onSuccess: (_data, { tradeId }) => {
@@ -76,7 +76,7 @@ export function useDeleteNote() {
       const { error } = await deleteNoteApiV1TradesTradeIdNotesNoteIdDelete({
         path: { trade_id: tradeId, note_id: noteId },
       });
-      if (error) throw error;
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: (_data, { tradeId }) => {
       void qc.invalidateQueries({ queryKey: ["notes", tradeId] });

@@ -17,13 +17,13 @@ export function useEquityCurve(portfolioId?: string) {
         const { data, error } = await getEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGet({
           path: { portfolio_id: portfolioId },
         });
-        if (error || !data) throw error;
+        if (error || !data) throw error ?? new Error("Request failed: no data returned");
         return (data as unknown as ResponseEnvelope<EquityCurvePoint[]>).data;
       }
       const { data, error } = await client.get<ResponseEnvelope<EquityCurvePoint[]>, unknown, false>({
         url: "/api/v1/metrics/equity-curve",
       });
-      if (error || !data) throw error;
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data;
     },
     staleTime: 60 * 1000,
