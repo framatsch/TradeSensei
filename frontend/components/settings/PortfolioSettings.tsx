@@ -215,8 +215,9 @@ function PortfolioForm({ initialData, onSubmit, onCancel }: { initialData?: any,
     <form onSubmit={handleSubmit} className="p-4 border border-border rounded-lg bg-card space-y-4 shadow-sm">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Name</label>
+          <label htmlFor="portfolio-name" className="text-sm font-medium text-foreground">Name</label>
           <input
+            id="portfolio-name"
             type="text"
             required
             value={name}
@@ -226,8 +227,9 @@ function PortfolioForm({ initialData, onSubmit, onCancel }: { initialData?: any,
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Base Currency</label>
+          <label htmlFor="portfolio-currency" className="text-sm font-medium text-foreground">Base Currency</label>
           <select
+            id="portfolio-currency"
             value={currency}
             onChange={e => setCurrency(e.target.value)}
             disabled={initialData?.has_trades}
