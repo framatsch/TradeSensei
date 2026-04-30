@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { useTradeExecutions, useReassignExecution, useDetachExecution } from "@/hooks/useExecutions";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { ExecutionRow } from "./ExecutionRow";
 import { AddExecutionModal } from "./AddExecutionModal";
 import { TradePickerModal } from "./TradePickerModal";
@@ -30,8 +31,10 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const [detachExecutionId, setDetachExecutionId] = useState<string | null>(null);
   const [splitExecution, setSplitExecution] = useState<LogicalExecution | null>(null);
 
+  const { activePortfolio } = useActivePortfolio();
+
   // Fetch with include_deleted=true when the toggle is on so we can show them
-  const { data: executions, isLoading, isError, refetch } = useTradeExecutions(tradeId, showDeleted);
+  const { data: executions, isLoading, isError, refetch } = useTradeExecutions(tradeId, activePortfolio?.id, showDeleted);
   const reassignExecution = useReassignExecution();
   const detachExecution = useDetachExecution();
 
@@ -50,9 +53,9 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   };
 
   const confirmDetach = () => {
-    if (!detachExecutionId) return;
+    if (!detachExecutionId || !activePortfolio) return;
     detachExecution.mutate(
-      { executionId: detachExecutionId, sourceTradeId: tradeId },
+      { executionId: detachExecutionId, sourceTradeId: tradeId, portfolioId: activePortfolio.id },
       {
         onSettled: () => setDetachExecutionId(null),
       }
@@ -85,7 +88,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
           )}
 
           {hasSplitExecutions && trade.position_id && (
-            <span className="inline-flex items-center rounded border border-cyan-200 bg-cyan-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-cyan-700">
+            <span className="inline-flex items-center rounded border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-primary">
               Metadata inherited
             </span>
           )}
@@ -99,7 +102,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
               className={`text-xs px-2 py-1 rounded border transition-colors ${
                 showDeleted
                   ? "bg-muted text-foreground border-border"
-                  : "text-muted-foreground border-border hover:bg-muted/50"
+                  : "text-muted-foreground border-border hover:bg-[color-mix(in_srgb,var(--muted)_50%,transparent)]"
               }`}
             >
               {showDeleted ? `Hide deleted (${deletedCount})` : `Show deleted (${deletedCount})`}
@@ -108,7 +111,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
 
           <button
             onClick={() => setAddModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#6063dd] text-white hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-opacity"
           >
             <Plus size={13} />
             Add Execution
@@ -149,7 +152,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
           {!isLoading && !isError && totalCount > 0 && (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/40">
+                 <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Side</th>
                   {trade.is_combo && (
@@ -175,6 +178,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                     execution={ex}
                     trade={trade}
                     tradeId={tradeId}
+
                     onMoveToTrade={handleMoveToTrade}
                     onDetach={handleDetach}
                     onSplit={setSplitExecution}
@@ -202,9 +206,9 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
           confirmLabel="Move Here"
           onConfirm={(picked) => {
             const targetId = picked[0]?.id;
-            if (!targetId || !moveExecutionId) return;
+            if (!targetId || !moveExecutionId || !activePortfolio) return;
             reassignExecution.mutate(
-              { executionId: moveExecutionId, sourceTradeId: tradeId, target_trade_id: targetId },
+              { executionId: moveExecutionId, sourceTradeId: tradeId, target_trade_id: targetId, portfolioId: activePortfolio.id },
               { onSuccess: () => setMoveExecutionId(null) }
             );
           }}
@@ -231,7 +235,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                 type="button"
                 onClick={confirmDetach}
                 disabled={detachExecution.isPending}
-                className="rounded-md bg-[#6063dd] px-3 py-1.5 text-sm text-white hover:opacity-90 disabled:opacity-50"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {detachExecution.isPending ? "Detaching..." : "Detach"}
               </button>

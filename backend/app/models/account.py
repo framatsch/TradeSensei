@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func
 from sqlalchemy import Enum as SAEnum
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.models.broker_raw_transaction import BrokerRawTransaction
     from app.models.cash_transaction import CashTransaction
     from app.models.logical_execution import LogicalExecution
+    from app.models.portfolio import Portfolio
     from app.models.trade import Trade
     from app.models.user import User
 
@@ -81,6 +82,12 @@ class Account(Base):
         nullable=False,
         index=True,
     )
+    portfolio_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("portfolios.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(
         String(ACCOUNT_NAME_MAX_LENGTH),
         nullable=False,
@@ -137,6 +144,10 @@ class Account(Base):
     # Relationships
     user: Mapped["User"] = relationship(
         "User",
+        back_populates="accounts",
+    )
+    portfolio: Mapped[Optional["Portfolio"]] = relationship(
+        "Portfolio",
         back_populates="accounts",
     )
     trades: Mapped[list["Trade"]] = relationship(

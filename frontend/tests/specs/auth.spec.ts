@@ -34,7 +34,7 @@ test.describe('Login', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 });
-    await expect(page.locator('a[href="/dashboard"]')).toBeVisible();
+    await expect(page.locator('a[href="/dashboard"]').first()).toBeVisible();
   });
 
   test('TC-003 wrong password shows error message', async ({ page }) => {

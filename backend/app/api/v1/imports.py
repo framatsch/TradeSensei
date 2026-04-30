@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.constants import IMPORT_MAX_FILE_SIZE_MB
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import (
     AccountNotFoundError,
@@ -36,7 +37,11 @@ from app.services.flex_import_service import FlexImportService
 from app.services.import_service import ImportService
 from app.utils.parsers.factory import BrokerType
 
-router = APIRouter(prefix="/imports", tags=["imports"])
+router = APIRouter(
+    prefix="/portfolios/{portfolio_id}/imports",
+    tags=["imports"],
+    dependencies=[Depends(require_portfolio_owner)],
+)
 
 # 1 MB in bytes.
 _BYTES_PER_MB: int = 1024 * 1024
@@ -96,6 +101,7 @@ def _get_flex_service(
 
 async def _validate_account_import(
     account_id: uuid.UUID,
+    portfolio_id: uuid.UUID,
     user_id: uuid.UUID,
     extension: str,
     session: AsyncSession,
@@ -117,7 +123,11 @@ async def _validate_account_import(
         AccountNotFoundError: If the account does not exist or is not owned by
             the user.
     """
-    account = await AccountRepository(session).get_by_id(account_id, user_id)
+    account = await AccountRepository(session).get_by_id(
+        account_id,
+        user_id,
+        portfolio_id,
+    )
     if account is None:
         raise AccountNotFoundError(
             f"Account {account_id} not found for user {user_id}."
@@ -166,6 +176,7 @@ async def _validate_account_import(
     },
 )
 async def upload_import(
+    portfolio_id: uuid.UUID,
     service: Annotated[ImportService, Depends(_get_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -220,6 +231,7 @@ async def upload_import(
     try:
         broker = await _validate_account_import(
             account_id=account_id,
+            portfolio_id=portfolio_id,
             user_id=current_user.id,
             extension=extension,
             session=session,
@@ -253,6 +265,7 @@ async def upload_import(
             content=content,
             filename=filename,
             broker=broker,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             user_id=current_user.id,
             overwrite_manually_edited=overwrite_manually_edited,
@@ -296,6 +309,7 @@ async def upload_import(
     },
 )
 async def fresh_start_import(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     service: Annotated[ImportService, Depends(_get_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
@@ -348,6 +362,7 @@ async def fresh_start_import(
     try:
         broker = await _validate_account_import(
             account_id=account_id,
+            portfolio_id=portfolio_id,
             user_id=current_user.id,
             extension=extension,
             session=session,
@@ -384,6 +399,7 @@ async def fresh_start_import(
             content=content,
             filename=filename,
             broker=broker,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             user_id=current_user.id,
         )
@@ -419,6 +435,7 @@ async def fresh_start_import(
     },
 )
 async def import_schwab_json(
+    portfolio_id: uuid.UUID,
     service: Annotated[ImportService, Depends(_get_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -429,7 +446,11 @@ async def import_schwab_json(
     body: Annotated[list[dict[str, object]], Body()],
 ) -> ResponseEnvelope[ImportResult]:
     """Import Schwab transaction JSON directly from request body."""
-    account = await AccountRepository(session).get_by_id(account_id, current_user.id)
+    account = await AccountRepository(session).get_by_id(
+        account_id,
+        current_user.id,
+        portfolio_id,
+    )
     if account is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -447,6 +468,7 @@ async def import_schwab_json(
             content=content,
             filename="schwab_transactions.json",
             broker=BrokerType.SCHWAB,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             user_id=current_user.id,
         )
@@ -477,6 +499,7 @@ async def import_schwab_json(
     },
 )
 async def suppress_raw_transaction(
+    portfolio_id: uuid.UUID,
     raw_id: str,
     service: Annotated[ImportService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -507,6 +530,7 @@ async def suppress_raw_transaction(
         await service.suppress_raw_transaction(
             raw_id=raw_id,
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
             suppressed=suppressed,
         )
     except BrokerRawTransactionNotFoundError as exc:
@@ -552,6 +576,7 @@ async def suppress_raw_transaction(
     },
 )
 async def flex_import(
+    portfolio_id: uuid.UUID,
     service: Annotated[FlexImportService, Depends(_get_flex_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     body: Annotated[FlexImportRequest, Body()],
@@ -579,6 +604,7 @@ async def flex_import(
         result = await service.import_flex(
             query_id=body.query_id,
             user_id=current_user.id,
+            portfolio_id=portfolio_id,
             account_id=body.account_id,
             from_date=body.from_date,
             overwrite_manually_edited=body.overwrite_manually_edited,

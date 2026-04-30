@@ -11,8 +11,9 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
-import type { Trade, CursorPage, ResponseEnvelope } from "@/lib/types";
+import { client } from "@/lib/api/client.gen";
+import { usePortfolioStore } from "@/stores/portfolioStore";
+import type { Trade, CursorPage } from "@/lib/types";
 import type { PerformanceDataPoint } from "@/components/trades/PerformanceAnalysisDashboard";
 import type { DailyTradeData } from "@/components/calendar/types";
 
@@ -54,18 +55,21 @@ function sortResult(result: PerformanceDataPoint[], dimension: ReportDimension):
  * Fetch all trades by walking the cursor-pagination (API hard-limit is 100
  * per page). Accumulates every page and returns the full list.
  */
-async function fetchAllTrades(): Promise<Trade[]> {
+async function fetchAllTrades(portfolioId?: string): Promise<Trade[]> {
   const PAGE_SIZE = 100;
   const allItems: Trade[] = [];
   let cursor: string | null = null;
 
   do {
-    const requestUrl: string = cursor
-      ? `/api/v1/trades?limit=${PAGE_SIZE}&cursor=${encodeURIComponent(cursor)}`
-      : `/api/v1/trades?limit=${PAGE_SIZE}`;
+    const query: Record<string, string | number> = { limit: PAGE_SIZE };
+    if (cursor) query.cursor = cursor;
 
-    const response = await apiClient.get<ResponseEnvelope<CursorPage<Trade>>>(requestUrl);
-    const pageData = response.data.data;
+    const url = portfolioId
+      ? `/api/v1/portfolios/${portfolioId}/trades`
+      : "/api/v1/trades";
+    const response = await client.get({ url, query });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pageData = ((response as any).data?.data ?? (response as any).data) as CursorPage<Trade>;
     allItems.push(...pageData.items);
     cursor = pageData.next_cursor ?? null;
   } while (cursor !== null);
@@ -74,10 +78,12 @@ async function fetchAllTrades(): Promise<Trade[]> {
 }
 
 export function useReportData(accountId?: string | null) {
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   const { data: allTrades, isLoading, isError } = useQuery<Trade[], Error>({
-    queryKey: ["trades-all-for-reports"],
-    queryFn: fetchAllTrades,
+    queryKey: ["trades-all-for-reports", portfolioId],
+    queryFn: () => fetchAllTrades(portfolioId ?? undefined),
     staleTime: 5 * 60 * 1000,
+    enabled: Boolean(portfolioId),
   });
 
   // Apply account filter client-side (trades are already cached)

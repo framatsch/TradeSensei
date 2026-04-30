@@ -13,6 +13,7 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import EQUITY_CURVE_MAX_POINTS
+from app.repositories.account_repository import AccountRepository
 from app.repositories.metrics_repository import MetricsRepository
 from app.schemas.metrics import (
     DrawdownPoint,
@@ -48,10 +49,24 @@ class MetricsService:
                 this request.
         """
         self._repo = MetricsRepository(session)
+        self._account_repo = AccountRepository(session)
+
+    async def _validate_account_scope(
+        self,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+    ) -> None:
+        if account_id is None:
+            return
+        account = await self._account_repo.get_by_id(account_id, user_id, portfolio_id)
+        if account is None:
+            raise ValueError("account_id does not belong to portfolio")
 
     async def get_summary(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -73,8 +88,10 @@ class MetricsService:
             A fully populated :class:`~app.schemas.metrics.MetricsSummary`
             DTO.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         orm_trades = await self._repo.get_closed_trades_for_user(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -110,6 +127,7 @@ class MetricsService:
     async def get_equity_curve(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -128,8 +146,10 @@ class MetricsService:
             An ordered list of :class:`~app.schemas.metrics.EquityCurvePoint`
             DTOs, capped at ``EQUITY_CURVE_MAX_POINTS`` entries.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         orm_trades = await self._repo.get_closed_trades_for_user(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,
@@ -143,6 +163,7 @@ class MetricsService:
     async def get_drawdown_curve(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_dt: datetime | None = None,
         to_dt: datetime | None = None,
@@ -161,8 +182,10 @@ class MetricsService:
             An ordered list of :class:`~app.schemas.metrics.DrawdownPoint`
             DTOs.
         """
+        await self._validate_account_scope(user_id, portfolio_id, account_id)
         orm_trades = await self._repo.get_closed_trades_for_user(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             from_dt=from_dt,
             to_dt=to_dt,

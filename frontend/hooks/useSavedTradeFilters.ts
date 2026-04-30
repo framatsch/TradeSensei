@@ -1,12 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-import apiClient from "@/lib/api";
 import type {
   SavedTradeFilterCreate,
   SavedTradeFilterRead,
   SavedTradeFilterUpdate,
-  ResponseEnvelope,
 } from "@/lib/types";
+import {
+  listSavedTradeFiltersApiV1SavedTradeFiltersGet,
+  createSavedTradeFilterApiV1SavedTradeFiltersPost,
+  updateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatch,
+  deleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDelete,
+} from "@/lib/api/index";
 
 const QUERY_KEY = ["saved-trade-filters"];
 
@@ -14,10 +17,10 @@ export function useSavedTradeFilters() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: async () => {
-      const response = await apiClient.get<ResponseEnvelope<SavedTradeFilterRead[]>>(
-        "/api/v1/saved-trade-filters"
-      );
-      return response.data.data;
+      const { data, error } = await listSavedTradeFiltersApiV1SavedTradeFiltersGet();
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data as any).data as SavedTradeFilterRead[];
     },
   });
 }
@@ -27,11 +30,12 @@ export function useCreateSavedTradeFilter() {
 
   return useMutation<SavedTradeFilterRead, Error, SavedTradeFilterCreate>({
     mutationFn: async (payload) => {
-      const response = await apiClient.post<ResponseEnvelope<SavedTradeFilterRead>>(
-        "/api/v1/saved-trade-filters",
-        payload
-      );
-      return response.data.data;
+      const { data, error } = await createSavedTradeFilterApiV1SavedTradeFiltersPost({
+        body: payload as import("@/lib/api/types.gen").SavedTradeFilterCreate,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data as any).data as SavedTradeFilterRead;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -44,11 +48,13 @@ export function useUpdateSavedTradeFilter(id: string) {
 
   return useMutation<SavedTradeFilterRead, Error, SavedTradeFilterUpdate>({
     mutationFn: async (payload) => {
-      const response = await apiClient.patch<ResponseEnvelope<SavedTradeFilterRead>>(
-        `/api/v1/saved-trade-filters/${id}`,
-        payload
-      );
-      return response.data.data;
+      const { data, error } = await updateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatch({
+        path: { filter_id: id },
+        body: payload as import("@/lib/api/types.gen").SavedTradeFilterUpdate,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data as any).data as SavedTradeFilterRead;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -60,8 +66,11 @@ export function useDeleteSavedTradeFilter() {
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, string>({
-    mutationFn: async (id) => {
-      await apiClient.delete(`/api/v1/saved-trade-filters/${id}`);
+    mutationFn: async (filterId) => {
+      const { error } = await deleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDelete({
+        path: { filter_id: filterId },
+      });
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });

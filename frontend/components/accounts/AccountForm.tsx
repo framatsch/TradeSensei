@@ -6,9 +6,10 @@
 
 import { useState } from "react";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { Spinner } from "@/components/ui/Spinner";
+import { extractApiError } from "@/lib/api/errors";
 import type { Account, AccountType, FlexFromDatePreset } from "@/lib/types";
-import type { AxiosError } from "axios";
 
 interface Props {
   account?: Account;
@@ -38,12 +39,14 @@ const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; l
 };
 
 export function AccountForm({ account, onSave, onCancel }: Props) {
-  const isEditing = account !== undefined;
+  const isEditing = !!account;
+  const { activePortfolioId } = useActivePortfolio();
 
   const [name, setName] = useState(account?.name ?? "");
   const [accountNumber, setAccountNumber] = useState(account?.account_number ?? "");
   const [type, setType] = useState<AccountType>(account?.type ?? "manual");
   const [currency, setCurrency] = useState(account?.currency ?? "USD");
+  const [portfolioId, setPortfolioId] = useState<string | null>(account?.portfolio_id ?? activePortfolioId ?? null);
   const [credentials, setCredentials] = useState<Record<string, string>>({});
 
   // Sync settings
@@ -60,8 +63,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
 
   const errorMessage = (() => {
     if (!mutError) return null;
-    const axiosErr = mutError as AxiosError<{ detail?: string }>;
-    return axiosErr.response?.data?.detail ?? mutError.message;
+    return extractApiError(mutError, mutError.message);
   })();
 
   const handleCredentialChange = (key: string, value: string) => {
@@ -81,6 +83,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
       type,
       currency: currency.trim() || "USD",
       properties,
+      portfolio_id: portfolioId,
       settings: {
         sync_days: syncDays,
         flex_from_date_preset: flexPreset,

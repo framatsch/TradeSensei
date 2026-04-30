@@ -21,23 +21,34 @@ async def _register_and_get_token(client: AsyncClient, email: str) -> str:
     )
     return res.json()["access_token"]
 
+
 @pytest.mark.asyncio
-async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_delete_account_cascade(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     uid = str(uuid.uuid4())[:8]
     token = await _register_and_get_token(client, f"testcascade_{uid}@example.com")
-    
+    headers = {"Authorization": f"Bearer {token}"}
+
+    portfolio_res = await client.post(
+        "/api/v1/portfolios",
+        json={"name": "Cascade Portfolio", "base_currency": "USD"},
+        headers=headers,
+    )
+    portfolio_id = portfolio_res.json()["data"]["id"]
+
     # 1. Create account
     res = await client.post(
-        "/api/v1/accounts",
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         json={"name": "Cascade Acc", "type": "manual", "currency": "USD"},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=headers,
     )
     account_id = res.json()["data"]["id"]
-    
+
     # 2. Insert a Trade referencing this account via db_session directly
-    res_me = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    res_me = await client.get("/api/v1/users/me", headers=headers)
     user_id = res_me.json()["data"]["id"]
-    
+
     trade = Trade(
         id=uuid.uuid4(),
         user_id=uuid.UUID(user_id),
@@ -48,14 +59,14 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
         quantity=Decimal("100"),
         entry_price=Decimal("150"),
         commission=Decimal("0"),
-        opened_at=datetime.now(UTC)
+        opened_at=datetime.now(UTC),
     )
     db_session.add(trade)
     await db_session.flush()
 
     from app.models.broker_raw_transaction import BrokerRawTransaction
     from app.models.logical_execution import LogicalExecution
-    
+
     raw = BrokerRawTransaction(
         id="user:123",
         user_id=uuid.UUID(user_id),
@@ -68,7 +79,7 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
         commission=Decimal("0"),
         executed_at=datetime.now(UTC),
         asset_class=AssetClass.EQUITY,
-        raw_data={"foo": "bar"}
+        raw_data={"foo": "bar"},
     )
     db_session.add(raw)
     await db_session.flush()
@@ -91,11 +102,11 @@ async def test_delete_account_cascade(client: AsyncClient, db_session: AsyncSess
     db_session.add(lexec)
     await db_session.flush()
     await db_session.commit()
-    
+
     # Try delete again
     del_res = await client.delete(
-        f"/api/v1/accounts/{account_id}",
-        headers={"Authorization": f"Bearer {token}"},
+        f"/api/v1/portfolios/{portfolio_id}/accounts/{account_id}",
+        headers=headers,
     )
     print("Delete response:", del_res.status_code, del_res.text)
     assert del_res.status_code == 204

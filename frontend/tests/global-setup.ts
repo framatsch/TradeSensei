@@ -14,7 +14,7 @@
  * which cascade-deletes all owned data in one API call.
  */
 
-import { chromium, type FullConfig } from '@playwright/test';
+import { type FullConfig } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
@@ -30,7 +30,15 @@ export const E2E_USER = {
   password: 'E2eTestPass123!',
 };
 
+/** Second test user used exclusively for destructive tests (e.g. EmptyPortfolioGate). */
+export const E2E_DESTRUCTIVE_USER = {
+  username: 'e2e_destructive',
+  email: 'e2e_destructive@example.com',
+  password: 'E2eTestPass123!',
+};
+
 const AUTH_FILE = path.join(__dirname, '.auth', 'user.json');
+const DESTRUCTIVE_AUTH_FILE = path.join(__dirname, '.auth', 'destructive-user.json');
 
 // ─── REST API helpers ────────────────────────────────────────────────────────
 
@@ -259,6 +267,7 @@ const SEED_SCHWAB_ACCOUNT = {
 export const SEED_STATE_FILE = path.join(__dirname, '.auth', 'seed-state.json');
 
 export interface SeedState {
+  portfolioId: string;
   accountId: string;
   schwabAccountId: string;
   /** ID of the E2E execution-test trade (MSFT LONG, 2 executions) - for TC-061, TC-062, TC-063 */
@@ -443,6 +452,33 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   const { access_token: token } = (await tokenRes.json()) as { access_token: string };
   console.log('[global-setup] Login successful. Token acquired.');
 
+  // 2.5 Ensure the E2E user has a default portfolio
+  let portfolioId = '';
+  const listPortfoliosRes = await fetchWithRetry(`${API_URL}/api/v1/portfolios`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (listPortfoliosRes.ok) {
+    const listBody = (await listPortfoliosRes.json()) as { data: Array<{ id: string; name: string }> };
+    if (listBody.data && listBody.data.length > 0) {
+      portfolioId = listBody.data[0].id;
+      console.log(`[global-setup] Existing portfolio found: ${portfolioId}`);
+    }
+  }
+  if (!portfolioId) {
+    const createPortfolioRes = await apiPost(
+      '/api/v1/portfolios',
+      { name: 'E2E Default Portfolio', base_currency: 'USD', color_hex: '#6366f1' },
+      token
+    );
+    if (createPortfolioRes.ok) {
+      const createBody = (await createPortfolioRes.json()) as { data: { id: string } };
+      portfolioId = createBody.data.id;
+      console.log(`[global-setup] Portfolio created: ${portfolioId}`);
+    } else {
+      console.warn(`[global-setup] Portfolio creation warning (${createPortfolioRes.status})`);
+    }
+  }
+
   // 3. Seed playbooks
   for (const pb of SEED_PLAYBOOKS) {
     const res = await apiPost('/api/v1/playbooks', pb, token);
@@ -464,7 +500,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 5. Seed account (IBKR type — needed for import tests)
   let accountId = '';
   let schwabAccountId = '';
-  const accRes = await apiPost('/api/v1/accounts', SEED_ACCOUNT as unknown as Record<string, unknown>, token);
+  const accEndpoint = portfolioId ? `/api/v1/portfolios/${portfolioId}/accounts` : '/api/v1/accounts';
+  const accRes = await apiPost(accEndpoint, SEED_ACCOUNT as unknown as Record<string, unknown>, token);
   if (accRes.ok) {
     const accBody = (await accRes.json()) as { data: { id: string } };
     accountId = accBody.data.id;
@@ -474,7 +511,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   }
 
   const schwabAccRes = await apiPost(
-    '/api/v1/accounts',
+    portfolioId ? `/api/v1/portfolios/${portfolioId}/accounts` : '/api/v1/accounts',
     SEED_SCHWAB_ACCOUNT as unknown as Record<string, unknown>,
     token
   );
@@ -488,8 +525,12 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   // 6. Seed trades
   let tradeCount = 0;
+  const tradeEndpoint = portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades';
   for (const trade of SEED_TRADES) {
-    const res = await apiPost('/api/v1/trades', trade as unknown as Record<string, unknown>, token);
+    const payload = accountId
+      ? { ...trade, account_id: accountId }
+      : trade;
+    const res = await apiPost(tradeEndpoint, payload as unknown as Record<string, unknown>, token);
     if (res.ok) {
       tradeCount++;
     } else {
@@ -502,8 +543,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 7. Seed execution-test trade (MSFT LONG) + two manual execution legs
   let executionTradeId = '';
   const execTradeRes = await apiPost(
-    '/api/v1/trades',
-    SEED_EXECUTION_TRADE as unknown as Record<string, unknown>,
+    portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades',
+    { ...SEED_EXECUTION_TRADE, ...(accountId ? { account_id: accountId } : {}) } as unknown as Record<string, unknown>,
     token
   );
   if (execTradeRes.ok) {
@@ -516,7 +557,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
     // Add BUY execution leg — 100 @ $400.00
     const exec1Res = await apiPost(
-      `/api/v1/trades/${executionTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${executionTradeId}/executions` : `/api/v1/trades/${executionTradeId}/executions`,
       {
         direction: 'LONG',
         quantity: '100',
@@ -532,7 +573,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     
     // Add SELL execution leg — 50 @ $420.00
     const exec2Res = await apiPost(
-      `/api/v1/trades/${executionTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${executionTradeId}/executions` : `/api/v1/trades/${executionTradeId}/executions`,
       {
         direction: 'SHORT',
         quantity: '50',
@@ -553,8 +594,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 8. Seed dedicated add-execution-test trade (AMZN LONG) + two manual execution legs
   let addExecutionTestTradeId = '';
   const addExecTradeRes = await apiPost(
-    '/api/v1/trades',
-    SEED_ADD_EXECUTION_TEST_TRADE as unknown as Record<string, unknown>,
+    portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades',
+    { ...SEED_ADD_EXECUTION_TEST_TRADE, ...(accountId ? { account_id: accountId } : {}) } as unknown as Record<string, unknown>,
     token
   );
   if (addExecTradeRes.ok) {
@@ -567,7 +608,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
     // Add two execution legs for the add-execution test (TC-071 will add a third)
     const addExec1Res = await apiPost(
-      `/api/v1/trades/${addExecutionTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${addExecutionTestTradeId}/executions` : `/api/v1/trades/${addExecutionTestTradeId}/executions`,
       {
         direction: 'LONG',
         quantity: '25',
@@ -582,7 +623,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     }
     
     const addExec2Res = await apiPost(
-      `/api/v1/trades/${addExecutionTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${addExecutionTestTradeId}/executions` : `/api/v1/trades/${addExecutionTestTradeId}/executions`,
       {
         direction: 'SHORT',
         quantity: '10',
@@ -603,8 +644,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 9. Seed dedicated detach-test trade (GOOGL LONG) + three manual execution legs
   let detachTestTradeId = '';
   const detachTradeRes = await apiPost(
-    '/api/v1/trades',
-    SEED_DETACH_TEST_TRADE as unknown as Record<string, unknown>,
+    portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades',
+    { ...SEED_DETACH_TEST_TRADE, ...(accountId ? { account_id: accountId } : {}) } as unknown as Record<string, unknown>,
     token
   );
   if (detachTradeRes.ok) {
@@ -617,7 +658,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
     // Add three execution legs for the detach test
     const detachExec1Res = await apiPost(
-      `/api/v1/trades/${detachTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${detachTestTradeId}/executions` : `/api/v1/trades/${detachTestTradeId}/executions`,
       {
         direction: 'LONG',
         quantity: '50',
@@ -632,7 +673,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     }
     
     const detachExec2Res = await apiPost(
-      `/api/v1/trades/${detachTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${detachTestTradeId}/executions` : `/api/v1/trades/${detachTestTradeId}/executions`,
       {
         direction: 'LONG',
         quantity: '30',
@@ -647,7 +688,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     }
     
     const detachExec3Res = await apiPost(
-      `/api/v1/trades/${detachTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${detachTestTradeId}/executions` : `/api/v1/trades/${detachTestTradeId}/executions`,
       {
         direction: 'SHORT',
         quantity: '20',
@@ -669,8 +710,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   const mergeTradeIds: [string, string] = ['', ''];
   for (let i = 0; i < SEED_MERGE_TRADES.length; i++) {
     const res = await apiPost(
-      '/api/v1/trades',
-      SEED_MERGE_TRADES[i] as unknown as Record<string, unknown>,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades',
+      { ...SEED_MERGE_TRADES[i], ...(accountId ? { account_id: accountId } : {}) } as unknown as Record<string, unknown>,
       token
     );
     if (res.ok) {
@@ -685,8 +726,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 11. Seed dedicated edit-execution-test trade (TSLA LONG)
   let editExecutionTestTradeId = '';
   const editExecTradeRes = await apiPost(
-    '/api/v1/trades',
-    SEED_EDIT_EXECUTION_TEST_TRADE as unknown as Record<string, unknown>,
+    portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades',
+    { ...SEED_EDIT_EXECUTION_TEST_TRADE, ...(accountId ? { account_id: accountId } : {}) } as unknown as Record<string, unknown>,
     token
   );
   if (editExecTradeRes.ok) {
@@ -698,7 +739,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
     // Add BUY execution leg — 50 @ $200.00
     const editExec1Res = await apiPost(
-      `/api/v1/trades/${editExecutionTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${editExecutionTestTradeId}/executions` : `/api/v1/trades/${editExecutionTestTradeId}/executions`,
       {
         direction: 'LONG',
         quantity: '50',
@@ -712,7 +753,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     
     // Add SELL execution leg — 50 @ $210.00
     const editExec2Res = await apiPost(
-      `/api/v1/trades/${editExecutionTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${editExecutionTestTradeId}/executions` : `/api/v1/trades/${editExecutionTestTradeId}/executions`,
       {
         direction: 'SHORT',
         quantity: '50',
@@ -730,8 +771,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 12. Seed dedicated option-test trade (AAPL OPTION)
   let optionTestTradeId = '';
   const optionTradeRes = await apiPost(
-    '/api/v1/trades',
-    SEED_OPTION_TEST_TRADE as unknown as Record<string, unknown>,
+    portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades',
+    { ...SEED_OPTION_TEST_TRADE, ...(accountId ? { account_id: accountId } : {}) } as unknown as Record<string, unknown>,
     token
   );
   if (optionTradeRes.ok) {
@@ -743,7 +784,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
     // Add BUY execution leg — 5 @ $10.50
     const optExecRes = await apiPost(
-      `/api/v1/trades/${optionTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${optionTestTradeId}/executions` : `/api/v1/trades/${optionTestTradeId}/executions`,
       {
         direction: 'LONG',
         quantity: '5',
@@ -761,8 +802,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 13. Seed dedicated COMBO test trade (AAPL COMBO)
   let comboTestTradeId = '';
   const comboTradeRes = await apiPost(
-    '/api/v1/trades',
-    SEED_COMBO_TEST_TRADE as unknown as Record<string, unknown>,
+    portfolioId ? `/api/v1/portfolios/${portfolioId}/trades` : '/api/v1/trades',
+    { ...SEED_COMBO_TEST_TRADE, ...(accountId ? { account_id: accountId } : {}) } as unknown as Record<string, unknown>,
     token
   );
   if (comboTradeRes.ok) {
@@ -773,7 +814,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const comboEqRes = await apiPost(
-      `/api/v1/trades/${comboTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${comboTestTradeId}/executions` : `/api/v1/trades/${comboTestTradeId}/executions`,
       {
         direction: 'LONG',
         asset_class: 'EQUITY',
@@ -789,7 +830,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     if (!comboEqRes.ok) console.warn(`[global-setup] Combo equity leg seed warning (${comboEqRes.status})`);
 
     const comboOptRes = await apiPost(
-      `/api/v1/trades/${comboTestTradeId}/executions`,
+      portfolioId ? `/api/v1/portfolios/${portfolioId}/trades/${comboTestTradeId}/executions` : `/api/v1/trades/${comboTestTradeId}/executions`,
       {
         direction: 'SHORT',
         asset_class: 'OPTION',
@@ -812,6 +853,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   fs.writeFileSync(
     SEED_STATE_FILE,
     JSON.stringify({ 
+      portfolioId,
       accountId, 
       schwabAccountId,
       executionTradeId, 
@@ -824,22 +866,84 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     })
   );
 
-  // 7. Produce storageState: log in via browser and save localStorage
-  const browser = await chromium.launch();
-  const context = await browser.newContext({ baseURL: BASE_URL });
-  const page = await context.newPage();
-
-  // Inject token directly into localStorage (avoids UI login in every test)
-  await page.goto(BASE_URL);
-  await page.evaluate((t: string) => {
-    localStorage.setItem('access_token', t);
-  }, token);
-
-  // Save storage state
+  // 7. Produce storageState: write localStorage directly as JSON (avoids React app
+  // hydration overwriting active_portfolio_id during browser-based navigation).
+  const storageState = {
+    cookies: [],
+    origins: [
+      {
+        origin: BASE_URL,
+        localStorage: [
+          { name: 'access_token', value: token },
+          { name: 'active_portfolio_id', value: portfolioId },
+          { name: 'active_app_context', value: 'portfolio' },
+        ],
+      },
+    ],
+  };
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
-  await context.storageState({ path: AUTH_FILE });
-  await browser.close();
+  fs.writeFileSync(AUTH_FILE, JSON.stringify(storageState, null, 2));
 
   console.log(`[global-setup] Auth state saved to ${AUTH_FILE}`);
   console.log('[global-setup] Seed complete.\n');
+
+  // 8. Seed destructive-test user (used by portfolio-context EmptyPortfolioGate tests)
+  // This user gets a portfolio but NO trades — destructive tests will delete/recreate portfolios.
+  const destructiveRegRes = await apiPost('/api/v1/auth/register', E2E_DESTRUCTIVE_USER);
+  let destructiveToken = '';
+  if (destructiveRegRes.ok || destructiveRegRes.status === 409) {
+    const dFormData = new URLSearchParams();
+    dFormData.append('username', E2E_DESTRUCTIVE_USER.username);
+    dFormData.append('password', E2E_DESTRUCTIVE_USER.password);
+    const dTokenRes = await apiPost('/api/v1/auth/token', dFormData);
+    if (dTokenRes.ok) {
+      const dBody = (await dTokenRes.json()) as { access_token: string };
+      destructiveToken = dBody.access_token;
+      console.log('[global-setup] Destructive test user ready.');
+    }
+  }
+
+  if (destructiveToken) {
+    // Ensure destructive user has a portfolio
+    const dPortfoliosRes = await fetchWithRetry(`${API_URL}/api/v1/portfolios`, {
+      headers: { Authorization: `Bearer ${destructiveToken}` },
+    });
+    let dPortfolioId = '';
+    if (dPortfoliosRes.ok) {
+      const dListBody = (await dPortfoliosRes.json()) as { data: Array<{ id: string }> };
+      if (dListBody.data && dListBody.data.length > 0) {
+        dPortfolioId = dListBody.data[0].id;
+      }
+    }
+    if (!dPortfolioId) {
+      const dCreateRes = await apiPost(
+        '/api/v1/portfolios',
+        { name: 'E2E Destructive Portfolio', base_currency: 'USD', color_hex: '#ef4444' },
+        destructiveToken
+      );
+      if (dCreateRes.ok) {
+        const dCreateBody = (await dCreateRes.json()) as { data: { id: string } };
+        dPortfolioId = dCreateBody.data.id;
+      }
+    }
+
+    // Save destructive user storageState — write JSON directly to avoid React hydration
+    // overwriting active_portfolio_id during browser-based navigation.
+    const dStorageState = {
+      cookies: [],
+      origins: [
+        {
+          origin: BASE_URL,
+          localStorage: [
+            { name: 'access_token', value: destructiveToken },
+            { name: 'active_portfolio_id', value: dPortfolioId },
+            { name: 'active_app_context', value: 'portfolio' },
+          ],
+        },
+      ],
+    };
+    fs.mkdirSync(path.dirname(DESTRUCTIVE_AUTH_FILE), { recursive: true });
+    fs.writeFileSync(DESTRUCTIVE_AUTH_FILE, JSON.stringify(dStorageState, null, 2));
+    console.log(`[global-setup] Destructive auth state saved to ${DESTRUCTIVE_AUTH_FILE}`);
+  }
 }

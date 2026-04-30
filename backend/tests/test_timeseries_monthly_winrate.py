@@ -12,8 +12,6 @@ from httpx import AsyncClient
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
-_TRADES_URL = "/api/v1/trades"
-_MONTHLY_WINRATE_URL = "/api/v1/timeseries/monthly-winrate"
 
 
 async def _get_auth_headers(client: AsyncClient, suffix: str = "") -> dict[str, str]:
@@ -47,7 +45,41 @@ async def _get_auth_headers(client: AsyncClient, suffix: str = "") -> dict[str, 
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _create_portfolio_and_account(
+    client: AsyncClient,
+    headers: dict[str, str],
+    suffix: str,
+) -> tuple[str, str]:
+    """Create a portfolio and account for monthly win-rate tests.
+
+    Args:
+        client: The HTTPX test client.
+        headers: Auth headers.
+        suffix: Unique suffix for resource names.
+
+    Returns:
+        Tuple of ``(portfolio_id, account_id)``.
+    """
+    p_resp = await client.post(
+        "/api/v1/portfolios",
+        json={"name": f"MWR Portfolio {suffix}", "base_currency": "USD"},
+        headers=headers,
+    )
+    assert p_resp.status_code == 201, p_resp.text
+    portfolio_id = str(p_resp.json()["data"]["id"])
+
+    a_resp = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        json={"name": f"MWR Account {suffix}", "type": "manual", "currency": "USD"},
+        headers=headers,
+    )
+    assert a_resp.status_code == 201, a_resp.text
+    account_id = str(a_resp.json()["data"]["id"])
+    return portfolio_id, account_id
+
+
 def _trade_payload(
+    account_id: str,
     symbol: str = "AAPL",
     pnl: str | None = "100.00",
     closed_at: str | None = None,
@@ -65,6 +97,7 @@ def _trade_payload(
         A dict suitable for ``POST /api/v1/trades``.
     """
     base: dict[str, object] = {
+        "account_id": account_id,
         "symbol": symbol,
         "direction": "LONG",
         "asset_class": "EQUITY",
@@ -85,7 +118,9 @@ class TestMonthlyWinrateUnauthenticated:
 
     async def test_returns_401_without_token(self, client: AsyncClient) -> None:
         """GET /timeseries/monthly-winrate without auth should return 401."""
-        response = await client.get(_MONTHLY_WINRATE_URL)
+        response = await client.get(
+            "/api/v1/portfolios/00000000-0000-0000-0000-000000000000/timeseries/monthly-winrate"
+        )
         assert response.status_code == 401
 
 
@@ -96,7 +131,11 @@ class TestMonthlyWinrateEmpty:
     async def test_returns_empty_list_for_new_user(self, client: AsyncClient) -> None:
         """A user with no closed trades should receive an empty list."""
         headers = await _get_auth_headers(client, "empty")
-        response = await client.get(_MONTHLY_WINRATE_URL, headers=headers)
+        portfolio_id, _ = await _create_portfolio_and_account(client, headers, "empty")
+        response = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/timeseries/monthly-winrate",
+            headers=headers,
+        )
         assert response.status_code == 200
         body = response.json()
         assert "data" in body
@@ -110,6 +149,9 @@ class TestMonthlyWinrateShape:
     async def test_correct_shape_and_win_loss_counts(self, client: AsyncClient) -> None:
         """Endpoint should return correct win/loss counts and win_rate per month."""
         headers = await _get_auth_headers(client, "shape")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "shape"
+        )
 
         # Two wins and one loss in May 2024
         may_open = datetime(2024, 5, 1, 10, 0, tzinfo=UTC).isoformat()
@@ -117,24 +159,38 @@ class TestMonthlyWinrateShape:
         may_loss_close = datetime(2024, 5, 20, 10, 0, tzinfo=UTC).isoformat()
 
         await client.post(
-            _TRADES_URL,
-            json=_trade_payload(pnl="200.00", opened_at=may_open, closed_at=may_close),
-            headers=headers,
-        )
-        await client.post(
-            _TRADES_URL,
-            json=_trade_payload(pnl="150.00", opened_at=may_open, closed_at=may_close),
-            headers=headers,
-        )
-        await client.post(
-            _TRADES_URL,
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json=_trade_payload(
+                account_id=account_id,
+                pnl="200.00",
+                opened_at=may_open,
+                closed_at=may_close,
+            ),
+            headers=headers,
+        )
+        await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades",
+            json=_trade_payload(
+                account_id=account_id,
+                pnl="150.00",
+                opened_at=may_open,
+                closed_at=may_close,
+            ),
+            headers=headers,
+        )
+        await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades",
+            json=_trade_payload(
+                account_id=account_id,
                 pnl="-50.00", opened_at=may_open, closed_at=may_loss_close
             ),
             headers=headers,
         )
 
-        response = await client.get(_MONTHLY_WINRATE_URL, headers=headers)
+        response = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/timeseries/monthly-winrate",
+            headers=headers,
+        )
         assert response.status_code == 200
         body = response.json()
         assert "data" in body
@@ -159,6 +215,9 @@ class TestMonthlyWinrateShape:
     ) -> None:
         """Data points should be ordered by year/month ascending."""
         headers = await _get_auth_headers(client, "chron")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "chron"
+        )
 
         # One trade in March, one in June (different year)
         for opened_at, closed_at, pnl in [
@@ -174,12 +233,20 @@ class TestMonthlyWinrateShape:
             ),
         ]:
             await client.post(
-                _TRADES_URL,
-                json=_trade_payload(pnl=pnl, opened_at=opened_at, closed_at=closed_at),
+                f"/api/v1/portfolios/{portfolio_id}/trades",
+                json=_trade_payload(
+                    account_id=account_id,
+                    pnl=pnl,
+                    opened_at=opened_at,
+                    closed_at=closed_at,
+                ),
                 headers=headers,
             )
 
-        response = await client.get(_MONTHLY_WINRATE_URL, headers=headers)
+        response = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/timeseries/monthly-winrate",
+            headers=headers,
+        )
         assert response.status_code == 200
         points = response.json()["data"]
         assert len(points) == 2
@@ -201,11 +268,15 @@ class TestMonthlyWinrateShape:
     async def test_open_trades_excluded(self, client: AsyncClient) -> None:
         """Trades without pnl or closed_at should be excluded from the series."""
         headers = await _get_auth_headers(client, "open")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "open"
+        )
 
         # One closed trade
         await client.post(
-            _TRADES_URL,
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json=_trade_payload(
+                account_id=account_id,
                 pnl="100.00",
                 opened_at=datetime(2024, 7, 1, 10, 0, tzinfo=UTC).isoformat(),
                 closed_at=datetime(2024, 7, 5, 10, 0, tzinfo=UTC).isoformat(),
@@ -214,12 +285,15 @@ class TestMonthlyWinrateShape:
         )
         # One open trade (no pnl, no closed_at)
         await client.post(
-            _TRADES_URL,
-            json=_trade_payload(pnl=None),
+            f"/api/v1/portfolios/{portfolio_id}/trades",
+            json=_trade_payload(account_id=account_id, pnl=None),
             headers=headers,
         )
 
-        response = await client.get(_MONTHLY_WINRATE_URL, headers=headers)
+        response = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/timeseries/monthly-winrate",
+            headers=headers,
+        )
         assert response.status_code == 200
         points = response.json()["data"]
         # Only the closed trade counts — should have exactly 1 month point

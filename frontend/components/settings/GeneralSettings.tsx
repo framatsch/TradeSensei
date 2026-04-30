@@ -1,13 +1,11 @@
-/**
- * GeneralSettings — UI preferences: theme and default date range.
- */
-
 "use client";
 
-import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
-import type { DefaultDateRange, Theme } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
+import { useTheme } from "next-themes";
+import type { Theme } from "@/lib/types";
 
 // ─── Theme selector ────────────────────────────────────────────────────────
 
@@ -50,111 +48,199 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = 
   },
 ];
 
-// ─── Date range options ────────────────────────────────────────────────────
-
-const DATE_RANGE_OPTIONS: { value: DefaultDateRange; label: string; description: string }[] = [
-  { value: "all", label: "All Time", description: "Show all trades regardless of date" },
-  { value: "ytd", label: "Year to Date", description: "Show trades from January 1 of this year" },
-  { value: "last30", label: "Last 30 Days", description: "Show trades from the past 30 days" },
-];
-
-// ─── Component ─────────────────────────────────────────────────────────────
-
 export function GeneralSettings() {
-  const { setTheme } = useTheme();
-  const { data: settings } = useSettings();
-  const { mutate: updateSettings } = useUpdateSettings();
-  const [mounted, setMounted] = useState(false);
+  const { data: settings, isLoading } = useSettings();
+  const { mutateAsync: updateSettings } = useUpdateSettings();
+  const queryClient = useQueryClient();
+
+  const [candlesBefore, setCandlesBefore] = useState<string>("20");
+  const [candlesAfter, setCandlesAfter] = useState<string>("10");
+  const [showPostExit, setShowPostExit] = useState<boolean>(false);
+  const [homeRoute, setHomeRoute] = useState<"/dashboard" | "/dashboard/trades" | "/dashboard/library">("/dashboard");
+
+  const { theme, setTheme } = useTheme();
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (settings) {
+      setCandlesBefore(String(settings.chart_candles_before ?? 20));
+      setCandlesAfter(String(settings.chart_candles_after ?? 10));
+      setShowPostExit(settings.chart_show_post_exit ?? false);
+      setHomeRoute(settings.home_route ?? "/dashboard");
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    setError(null);
+    const before = parseInt(candlesBefore, 10);
+    const after = parseInt(candlesAfter, 10);
+
+    if (isNaN(before) || before <= 0) {
+      setError("Candles before entry must be a positive whole number");
+      return;
+    }
+    if (isNaN(after) || after <= 0) {
+      setError("Candles after exit must be a positive whole number");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateSettings({
+        chart_candles_before: before,
+        chart_candles_after: after,
+        chart_show_post_exit: showPostExit,
+        home_route: homeRoute,
+        theme: theme as Theme,
+      });
+      toast.success("Settings saved successfully");
+      queryClient.invalidateQueries({ queryKey: ["users", "me", "settings"] });
+    } catch (err) {
+      toast.error("Failed to save settings");
+      // Revert form state
+      if (settings) {
+        setCandlesBefore(String(settings.chart_candles_before ?? 20));
+        setCandlesAfter(String(settings.chart_candles_after ?? 10));
+        setShowPostExit(settings.chart_show_post_exit ?? false);
+        setHomeRoute(settings.home_route ?? "/dashboard");
+        setTheme(settings.theme ?? "system");
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleThemeChange = (value: Theme) => {
     setTheme(value);
     updateSettings({ theme: value });
   };
 
-  const handleDateRangeChange = (value: DefaultDateRange) => {
-    updateSettings({ default_date_range: value });
-  };
-
-  if (!mounted) return null;
-
-  const currentTheme = settings?.theme ?? "system";
-  const currentDateRange = settings?.default_date_range ?? "all";
+  if (isLoading) {
+    return (
+      <div className="space-y-6 max-w-lg opacity-50 pointer-events-none animate-pulse">
+        <div className="h-20 bg-muted rounded-lg" />
+        <div className="h-20 bg-muted rounded-lg" />
+        <div className="h-20 bg-muted rounded-lg" />
+        <div className="h-20 bg-muted rounded-lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-lg">
-      {/* ── Theme ─────────────────────────────────────────────────────── */}
       <div>
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-foreground">Theme</h3>
-          <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
-            Choose how Trade Sensei looks. "System" follows your OS preference.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handleThemeChange(opt.value)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                currentTheme === opt.value
-                  ? "bg-indigo-500/15 text-indigo-300 border-indigo-500/40 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/40 light:bg-indigo-50 light:text-indigo-700 light:border-indigo-300"
-                  : "bg-card text-muted-foreground border-border hover:bg-white/5 dark:hover:bg-white/5"
-              }`}
-            >
-              {opt.icon}
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <h3 className="text-lg font-medium text-foreground">General</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          Customize your interface theme, chart display defaults and home page.
+        </p>
       </div>
 
-      {/* ── Default Date Range ────────────────────────────────────────── */}
-      <div>
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-foreground">Default Date Range</h3>
-          <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
-            The date range applied when you open the Trades page or Dashboard without URL filters.
-          </p>
+      <div className="space-y-6">
+        {/* ── Theme ─────────────────────────────────────────────────────── */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Theme
+          </label>
+          <div className="flex gap-2 mt-1">
+            {THEME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleThemeChange(opt.value)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
+                  theme === opt.value
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                {opt.icon}
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-2">
-          {DATE_RANGE_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                currentDateRange === opt.value
-                  ? "bg-indigo-500/10 border-indigo-500/40"
-                  : "bg-card border-border hover:bg-white/5 dark:hover:bg-white/5"
+        <hr className="border-border" />
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Candles before entry
+          </label>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={candlesBefore}
+            onChange={(e) => setCandlesBefore(e.target.value)}
+            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Candles after exit
+          </label>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={candlesAfter}
+            onChange={(e) => setCandlesAfter(e.target.value)}
+            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showPostExit}
+            onClick={() => setShowPostExit(!showPostExit)}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+              showPostExit ? "bg-primary" : "bg-muted"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                showPostExit ? "translate-x-4" : "translate-x-0"
               }`}
-            >
-              <input
-                type="radio"
-                name="default_date_range"
-                value={opt.value}
-                checked={currentDateRange === opt.value}
-                onChange={() => handleDateRangeChange(opt.value)}
-                className="mt-0.5 accent-indigo-500"
-              />
-              <div>
-                <p className={`text-sm font-medium ${
-                  currentDateRange === opt.value
-                    ? "text-indigo-300 dark:text-indigo-300"
-                    : "text-muted-foreground"
-                }`}>
-                  {opt.label}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {opt.description}
-                </p>
-              </div>
-            </label>
-          ))}
+            />
+          </button>
+          <label className="text-sm font-medium text-foreground cursor-pointer" onClick={() => setShowPostExit(!showPostExit)}>
+            Show post-exit candles by default
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Default Home Page
+          </label>
+          <select
+            value={homeRoute}
+            onChange={(e) => setHomeRoute(e.target.value as any)}
+            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="/dashboard">Portfolio Overview</option>
+            <option value="/dashboard/trades">Journal</option>
+            <option value="/dashboard/library">Strategy & Tags</option>
+          </select>
+        </div>
+
+        {error && (
+          <p className="text-sm text-danger mt-2">{error}</p>
+        )}
+
+        <div className="pt-4">
+          <button
+            onClick={handleSave}
+            disabled={isSaving || (error !== null && error !== "")}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium disabled:opacity-50 transition-opacity"
+          >
+            {isSaving ? "Saving..." : "Save Settings"}
+          </button>
         </div>
       </div>
     </div>

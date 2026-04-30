@@ -4,9 +4,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import type { AxiosError } from "axios";
-import apiClient from "@/lib/api";
 import { Spinner } from "@/components/ui/Spinner";
+import { resetPasswordApiV1AuthResetPasswordPost } from "@/lib/api/index";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -35,23 +34,25 @@ function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
-      await apiClient.post("/api/v1/auth/reset-password", {
-        token,
-        new_password: newPassword,
+      const { error, response } = await resetPasswordApiV1AuthResetPasswordPost({
+        body: { token, new_password: newPassword },
       });
-      router.push("/login?reset=success");
-    } catch (err) {
-      const axiosErr = err as AxiosError<{ detail?: string }>;
-      const status = axiosErr.response?.status;
-      if (status === 401) {
-        setErrorMessage(
-          "This reset link has expired or has already been used. Please request a new one."
-        );
-      } else if (status === 422) {
-        setErrorMessage("Password must be at least 8 characters.");
-      } else {
-        setErrorMessage("Something went wrong. Please try again.");
+      if (error) {
+        const status = response?.status;
+        if (status === 401) {
+          setErrorMessage(
+            "This reset link has expired or has already been used. Please request a new one."
+          );
+        } else if (status === 422) {
+          setErrorMessage("Password must be at least 8 characters.");
+        } else {
+          setErrorMessage("Something went wrong. Please try again.");
+        }
+        return;
       }
+      router.push("/login?reset=success");
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }

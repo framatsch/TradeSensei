@@ -87,7 +87,7 @@ async def test_sequential_import_matches_in_memory_ground_truth(
     await db_session.commit()
 
     token, user_id = await _register_and_login(client)
-    account_id = await _create_account(client, token)
+    portfolio_id, account_id = await _create_account(client, token)
 
     # 4. Sequentially import into the DB
     service = ImportService(db_session)
@@ -96,6 +96,7 @@ async def test_sequential_import_matches_in_memory_ground_truth(
             content=p.read_bytes(),
             filename=p.name,
             broker=BrokerType.IBKR,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             user_id=user_id,
         )

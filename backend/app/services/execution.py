@@ -53,6 +53,7 @@ class ExecutionService:
         self,
         trade_id: uuid.UUID,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
         include_deleted: bool = False,
     ) -> Sequence[LogicalExecution]:
         """List executions for a specific trade, ensuring user ownership.
@@ -68,7 +69,7 @@ class ExecutionService:
         Raises:
             TradeNotFoundError: If the trade is not found or user lacks access.
         """
-        trade = await self.trade_repo.get_by_id(trade_id, user_id)
+        trade = await self.trade_repo.get_by_id(trade_id, user_id, portfolio_id)
         if not trade:
             raise TradeNotFoundError("Trade not found.")
 
@@ -77,7 +78,11 @@ class ExecutionService:
         )
 
     async def create_manual_execution(
-        self, trade_id: uuid.UUID, user_id: uuid.UUID, data: LogicalExecutionCreate
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        data: LogicalExecutionCreate,
+        portfolio_id: uuid.UUID | None = None,
     ) -> LogicalExecution:
         """Create a manual execution under a specific trade.
 
@@ -92,7 +97,7 @@ class ExecutionService:
         Raises:
             TradeNotFoundError: If the trade is not found.
         """
-        trade = await self.trade_repo.get_by_id(trade_id, user_id)
+        trade = await self.trade_repo.get_by_id(trade_id, user_id, portfolio_id)
         if not trade:
             raise TradeNotFoundError("Trade not found.")
 
@@ -130,7 +135,11 @@ class ExecutionService:
         return execution
 
     async def update_execution(
-        self, execution_id: uuid.UUID, user_id: uuid.UUID, data: LogicalExecutionUpdate
+        self,
+        execution_id: uuid.UUID,
+        user_id: uuid.UUID,
+        data: LogicalExecutionUpdate,
+        portfolio_id: uuid.UUID | None = None,
     ) -> LogicalExecution:
         """Update an execution by ID and re-aggregate its parent trade.
 
@@ -141,6 +150,7 @@ class ExecutionService:
             execution_id: Target execution ID.
             user_id: The requesting user's ID.
             data: Payload containing update fields.
+            portfolio_id: Optional portfolio scope for ownership isolation.
 
         Returns:
             The updated logical execution.
@@ -151,6 +161,14 @@ class ExecutionService:
         execution = await self.execution_repo.get_by_id(execution_id, user_id)
         if not execution:
             raise ExecutionNotFoundError("Execution not found.")
+        if execution.trade_id is not None:
+            trade = await self.trade_repo.get_by_id(
+                execution.trade_id,
+                user_id,
+                portfolio_id,
+            )
+            if trade is None:
+                raise ExecutionNotFoundError("Execution not found.")
 
         update_data = data.model_dump(exclude_unset=True)
 
@@ -166,7 +184,10 @@ class ExecutionService:
         return execution
 
     async def delete_execution(
-        self, execution_id: uuid.UUID, user_id: uuid.UUID
+        self,
+        execution_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> LogicalExecution | None:
         """Delete an execution following Decision 4 rules.
 
@@ -179,6 +200,7 @@ class ExecutionService:
         Args:
             execution_id: Execution to delete.
             user_id: User ownership check.
+            portfolio_id: Optional portfolio scope for ownership isolation.
 
         Returns:
             The soft-deleted execution (for imported/merged/split), or None (manual).
@@ -190,6 +212,14 @@ class ExecutionService:
         execution = await self.execution_repo.get_by_id(execution_id, user_id)
         if not execution:
             raise ExecutionNotFoundError("Execution not found.")
+        if execution.trade_id is not None:
+            trade = await self.trade_repo.get_by_id(
+                execution.trade_id,
+                user_id,
+                portfolio_id,
+            )
+            if trade is None:
+                raise ExecutionNotFoundError("Execution not found.")
 
         # Decision 4: already deleted → 409 Conflict
         if execution.deleted:
@@ -208,7 +238,11 @@ class ExecutionService:
                 )
                 if not remaining:
                     # Trade is now empty — cascade-delete it
-                    trade_to_delete = await self.trade_repo.get_by_id(trade_id, user_id)
+                    trade_to_delete = await self.trade_repo.get_by_id(
+                        trade_id,
+                        user_id,
+                        portfolio_id,
+                    )
                     if trade_to_delete:
                         await self.trade_repo.delete(trade_to_delete)
                 else:
@@ -226,7 +260,10 @@ class ExecutionService:
             return updated
 
     async def restore_execution(
-        self, execution_id: uuid.UUID, user_id: uuid.UUID
+        self,
+        execution_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> LogicalExecution:
         """Restore a soft-deleted execution.
 
@@ -235,6 +272,7 @@ class ExecutionService:
         Args:
             execution_id: Execution to restore.
             user_id: User ownership check.
+            portfolio_id: Optional portfolio scope for ownership isolation.
 
         Returns:
             The restored execution.
@@ -246,6 +284,14 @@ class ExecutionService:
         execution = await self.execution_repo.get_by_id(execution_id, user_id)
         if not execution:
             raise ExecutionNotFoundError("Execution not found.")
+        if execution.trade_id is not None:
+            trade = await self.trade_repo.get_by_id(
+                execution.trade_id,
+                user_id,
+                portfolio_id,
+            )
+            if trade is None:
+                raise ExecutionNotFoundError("Execution not found.")
 
         if not execution.deleted:
             raise ExecutionValidationError(
@@ -269,6 +315,7 @@ class ExecutionService:
         execution_id: uuid.UUID,
         user_id: uuid.UUID,
         data: SplitExecutionRequest,
+        portfolio_id: uuid.UUID | None = None,
     ) -> SplitExecutionResponse:
         """Split an execution into two child executions.
 
@@ -281,6 +328,7 @@ class ExecutionService:
             execution_id: Execution to split.
             user_id: User ownership check.
             data: Split parameters (quantities, optional prices/timestamps).
+            portfolio_id: Optional portfolio scope for ownership isolation.
 
         Returns:
             A :class:`SplitExecutionResponse` with both new executions and the original.
@@ -293,6 +341,14 @@ class ExecutionService:
         execution = await self.execution_repo.get_by_id(execution_id, user_id)
         if not execution:
             raise ExecutionNotFoundError("Execution not found.")
+        if execution.trade_id is not None:
+            trade = await self.trade_repo.get_by_id(
+                execution.trade_id,
+                user_id,
+                portfolio_id,
+            )
+            if trade is None:
+                raise ExecutionNotFoundError("Execution not found.")
 
         if execution.deleted:
             raise ExecutionValidationError("Cannot split a deleted execution.")
@@ -382,6 +438,7 @@ class ExecutionService:
         self,
         user_id: uuid.UUID,
         data: MergeExecutionsRequest,
+        portfolio_id: uuid.UUID | None = None,
     ) -> MergeExecutionsResponse:
         """Merge two or more executions into a single execution.
 
@@ -400,6 +457,7 @@ class ExecutionService:
         Args:
             user_id: User ownership check.
             data: Merge parameters.
+            portfolio_id: Optional portfolio scope for ownership isolation.
 
         Returns:
             A :class:`MergeExecutionsResponse` with the merged execution and
@@ -447,6 +505,15 @@ class ExecutionService:
                 raise ExecutionValidationError(
                     "All executions must have the same direction."
                 )
+
+        if first_trade_id is not None:
+            trade = await self.trade_repo.get_by_id(
+                first_trade_id,
+                user_id,
+                portfolio_id,
+            )
+            if trade is None:
+                raise ExecutionNotFoundError("Execution not found.")
 
         # Compute merged quantity (sum) and weighted-average price
         total_quantity = sum((ex.quantity for ex in sources), Decimal("0"))
@@ -506,7 +573,11 @@ class ExecutionService:
         )
 
     async def reassign_execution(
-        self, execution_id: uuid.UUID, target_trade_id: uuid.UUID, user_id: uuid.UUID
+        self,
+        execution_id: uuid.UUID,
+        target_trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> LogicalExecution:
         """Reassign an execution to another trade.
 
@@ -527,7 +598,11 @@ class ExecutionService:
         if not execution:
             raise ExecutionNotFoundError("Execution not found.")
 
-        target_trade = await self.trade_repo.get_by_id(target_trade_id, user_id)
+        target_trade = await self.trade_repo.get_by_id(
+            target_trade_id,
+            user_id,
+            portfolio_id,
+        )
         if not target_trade:
             raise TradeNotFoundError("Target trade not found.")
 
@@ -562,13 +637,17 @@ class ExecutionService:
         return execution
 
     async def detach_execution(
-        self, execution_id: uuid.UUID, user_id: uuid.UUID
+        self,
+        execution_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> "Trade":
         """Detach an execution from its current trade into a new trade.
 
         Args:
             execution_id: Execution to detach.
             user_id: User ownership check.
+            portfolio_id: Optional portfolio scope for ownership isolation.
 
         Returns:
             The newly created Trade.
@@ -586,6 +665,14 @@ class ExecutionService:
         source_trade_id = execution.trade_id
         if not source_trade_id:
             raise ExecutionValidationError("Execution is not attached to a trade.")
+
+        source_trade = await self.trade_repo.get_by_id(
+            source_trade_id,
+            user_id,
+            portfolio_id,
+        )
+        if source_trade is None:
+            raise ExecutionNotFoundError("Execution not found.")
 
         remaining_executions = await self.execution_repo.list_by_trade_id(
             source_trade_id
@@ -618,7 +705,11 @@ class ExecutionService:
         await self._re_aggregate_trade(source_trade_id, user_id)
 
         await self.session.commit()
-        reloaded_new_trade = await self.trade_repo.get_by_id(new_trade.id, user_id)
+        reloaded_new_trade = await self.trade_repo.get_by_id(
+            new_trade.id,
+            user_id,
+            portfolio_id,
+        )
         if reloaded_new_trade is None:
             raise TradeNotFoundError(f"Trade {new_trade.id} not found.")
         return reloaded_new_trade
@@ -627,6 +718,7 @@ class ExecutionService:
         self,
         trade_id: uuid.UUID,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> None:
         """Re-aggregate a trade's values from its active logical executions.
 
@@ -646,7 +738,7 @@ class ExecutionService:
             trade_id: Target trade ID to re-aggregate.
             user_id: For permissions check.
         """
-        trade = await self.trade_repo.get_by_id(trade_id, user_id)
+        trade = await self.trade_repo.get_by_id(trade_id, user_id, portfolio_id)
         if not trade:
             return
 
@@ -768,11 +860,16 @@ class ExecutionService:
         trade.updated_at = datetime.now(UTC)
         await self.session.flush()
 
-    async def re_aggregate_trade(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    async def re_aggregate_trade(
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> None:
         """Public wrapper for _re_aggregate_trade.
 
         Args:
             trade_id: Target trade UUID.
             user_id: Owner user UUID.
         """
-        await self._re_aggregate_trade(trade_id, user_id)
+        await self._re_aggregate_trade(trade_id, user_id, portfolio_id)

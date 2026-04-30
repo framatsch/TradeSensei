@@ -7,6 +7,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveFilterModal } from "@/components/trades/SaveFilterModal";
 import { TradeTable } from "@/components/trades/TradeTable";
@@ -44,7 +45,6 @@ const EMPTY_FILTERS: TradeFilters = {
   playbook_id: "",
   pnl_positive: null,
   status: null,
-  account_id: "",
   hour_of_day: undefined,
   day_of_week: undefined,
 };
@@ -94,7 +94,6 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     playbook_id: params.get("playbook_id") ?? undefined,
     pnl_positive,
     status: status === "all" ? null : status,
-    account_id: params.get("account_id") ?? undefined,
     hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
     day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
   };
@@ -127,7 +126,6 @@ function filtersToParams(
     p.set("pnl_positive", String(filters.pnl_positive));
   }
   if (filters.status) p.set("status", filters.status);
-  if (filters.account_id) p.set("account_id", filters.account_id);
   if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) {
     p.set("hour_of_day", String(filters.hour_of_day));
   }
@@ -324,6 +322,7 @@ export function TradesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: settings } = useSettings();
+  const { activePortfolioId } = useActivePortfolio();
 
   // Active view ID is read reactively from the URL (set by sidebar navigation).
   const activeViewId = searchParams.get("view_id") ?? undefined;
@@ -440,14 +439,14 @@ export function TradesPageClient() {
     )
       return;
     bulkDelete(
-      { trade_ids: Array.from(selectedIds) },
+      { trade_ids: Array.from(selectedIds), portfolio_id: activePortfolioId ?? "" },
       { onSuccess: () => setSelectedIds(new Set()) }
     );
   };
 
   const handleTagConfirm = (tagIds: string[]) => {
     bulkAssignTag(
-      { trade_ids: Array.from(selectedIds), tag_ids: tagIds },
+      { trade_ids: Array.from(selectedIds), tag_ids: tagIds, portfolio_id: activePortfolioId ?? "" },
       {
         onSuccess: () => {
           setSelectedIds(new Set());
@@ -459,7 +458,7 @@ export function TradesPageClient() {
 
   const handlePlaybookConfirm = (playbookId: string | null) => {
     bulkAssignPlaybook(
-      { trade_ids: Array.from(selectedIds), playbook_id: playbookId },
+      { trade_ids: Array.from(selectedIds), playbook_id: playbookId, portfolio_id: activePortfolioId ?? "" },
       {
         onSuccess: () => {
           setSelectedIds(new Set());
@@ -502,6 +501,7 @@ export function TradesPageClient() {
       />
 
       <TradeTable
+        portfolioId={activePortfolioId ?? undefined}
         filters={filters}
         sort={sort}
         onSortChange={handleSortChange}

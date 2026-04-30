@@ -68,10 +68,14 @@ context_discovery:
 # ─────────────────────────────────────────────────────────────────────────────
 
 default_team:
-  principal: 2    # Holistic architecture review
-  quality: 2      # Code quality and maintainability
-  # security: 1   # Auto-added for auth/API/data changes
-  # testing: 1    # Auto-added for logic-heavy changes
+  fullstack: 1        # End-to-end coherence, data contract alignment, API↔Frontend gaps
+  quality: 1          # Code quality and maintainability
+  backend: 1          # API design, data modeling, service layer
+  frontend: 1         # Component architecture, state management, rendering
+  ui-design-system: 1 # Design token compliance, dual-theme, accessibility
+  security: 1         # Auth, JWT, interceptors, API security
+  # testing: 1        # Auto-added for logic-heavy changes
+  # architect: 1      # For larger structural/design decisions
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CODE REVIEW MAP

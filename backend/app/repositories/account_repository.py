@@ -16,7 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
+from app.models.account_property import AccountProperty
 from app.models.cash_transaction import CashTransaction, CashTransactionType
+from app.models.portfolio import Portfolio
 from app.schemas.account import (
     AccountCreate,
     AccountMetrics,
@@ -47,6 +49,7 @@ class AccountRepository:
         self,
         account_id: uuid.UUID,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> Account | None:
         """Retrieve a single account by primary key, scoped to a user.
 
@@ -62,20 +65,28 @@ class AccountRepository:
             The matching :class:`Account`, or ``None`` if not found or
             not owned by the given user.
         """
-        result = await self._session.execute(
+        stmt = (
             select(Account)
-            .options(selectinload(Account.properties))
+            .options(
+                selectinload(Account.properties),
+                selectinload(Account.portfolio),
+            )
+            .join(Portfolio, Account.portfolio_id == Portfolio.id)
             .where(
                 Account.id == account_id,
-                Account.user_id == user_id,
+                Portfolio.user_id == user_id,
             )
         )
+        if portfolio_id is not None:
+            stmt = stmt.where(Account.portfolio_id == portfolio_id)
+        result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_id_with_properties(
         self,
         account_id: uuid.UUID,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> Account | None:
         """Retrieve an account by ID with eagerly loaded properties.
 
@@ -86,9 +97,13 @@ class AccountRepository:
         Returns:
             Matching account or ``None``.
         """
-        return await self.get_by_id(account_id, user_id)
+        return await self.get_by_id(account_id, user_id, portfolio_id)
 
-    async def list_by_user(self, user_id: uuid.UUID) -> list[Account]:
+    async def list_by_user(
+        self,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> list[Account]:
         """Return all accounts owned by the given user.
 
         Eagerly loads associated :class:`~app.models.account_property.AccountProperty`
@@ -104,12 +119,18 @@ class AccountRepository:
         Returns:
             A list of :class:`Account` ORM instances (may be empty).
         """
-        result = await self._session.execute(
+        stmt = (
             select(Account)
-            .options(selectinload(Account.properties))
+            .options(
+                selectinload(Account.properties),
+                selectinload(Account.portfolio),
+            )
             .where(Account.user_id == user_id)
             .order_by(Account.created_at.asc())
         )
+        if portfolio_id is not None:
+            stmt = stmt.where(Account.portfolio_id == portfolio_id)
+        result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
     async def create(self, data: AccountCreate, user_id: uuid.UUID) -> Account:
@@ -126,8 +147,18 @@ class AccountRepository:
             The newly created :class:`Account` with all server defaults
             populated.
         """
+        portfolio = await self._session.execute(
+            select(Portfolio.id).where(
+                Portfolio.id == data.portfolio_id,
+                Portfolio.user_id == user_id,
+            )
+        )
+        if portfolio.scalar_one_or_none() is None:
+            raise ValueError("Portfolio not found.")
+
         account = Account(
             user_id=user_id,
+            portfolio_id=data.portfolio_id,
             name=data.name,
             type=data.type,
             currency=data.currency,
@@ -167,6 +198,7 @@ class AccountRepository:
     async def update_settings(
         self,
         account_id: uuid.UUID,
+        user_id: uuid.UUID,
         settings: AccountSettings,
     ) -> None:
         """Persist import/sync settings for an account as a JSONB blob.
@@ -183,7 +215,7 @@ class AccountRepository:
         settings_dict: dict[str, Any] = settings.model_dump()
         stmt = (
             sa_update(Account)
-            .where(Account.id == account_id)
+            .where(Account.id == account_id, Account.user_id == user_id)
             .values(settings=settings_dict)
         )
         await self._session.execute(stmt)
@@ -192,6 +224,7 @@ class AccountRepository:
     async def upsert_property(
         self,
         account_id: uuid.UUID,
+        user_id: uuid.UUID,
         key: str,
         encrypted_value: str,
     ) -> None:
@@ -209,15 +242,23 @@ class AccountRepository:
             key: Property key identifier (e.g. ``"SCHWAB_APP_KEY"``).
             encrypted_value: Fernet-encrypted property value.
         """
-        from app.models.account_property import AccountProperty
-
-        stmt = (
-            pg_insert(AccountProperty)
-            .values(account_id=account_id, key=key, value=encrypted_value)
-            .on_conflict_do_update(
-                constraint="uq_account_properties_account_key",
-                set_={"value": encrypted_value},
+        owner_check = await self._session.execute(
+            select(Account.id).where(
+                Account.id == account_id,
+                Account.user_id == user_id,
             )
+        )
+        if owner_check.scalar_one_or_none() is None:
+            return
+
+        stmt = pg_insert(AccountProperty).values(
+            account_id=account_id,
+            key=key,
+            value=encrypted_value,
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_account_properties_account_key",
+            set_={"value": encrypted_value},
         )
         await self._session.execute(stmt)
 

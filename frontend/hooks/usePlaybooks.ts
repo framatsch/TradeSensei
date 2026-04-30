@@ -5,7 +5,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import {
+  listPlaybooksApiV1PlaybooksGet,
+  createPlaybookApiV1PlaybooksPost,
+  updatePlaybookApiV1PlaybooksPlaybookIdPatch,
+  deletePlaybookApiV1PlaybooksPlaybookIdDelete,
+} from "@/lib/api/index";
 import type {
   Playbook,
   PlaybookCreate,
@@ -17,10 +22,9 @@ export function usePlaybooks() {
   return useQuery<Playbook[], Error>({
     queryKey: ["playbooks"],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<Playbook[]>>(
-        "/api/v1/playbooks"
-      );
-      return res.data.data;
+      const { data, error } = await listPlaybooksApiV1PlaybooksGet();
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as unknown as ResponseEnvelope<Playbook[]>).data;
     },
     staleTime: 60 * 1000,
   });
@@ -30,11 +34,11 @@ export function useCreatePlaybook() {
   const qc = useQueryClient();
   return useMutation<Playbook, Error, PlaybookCreate>({
     mutationFn: async (payload) => {
-      const res = await apiClient.post<ResponseEnvelope<Playbook>>(
-        "/api/v1/playbooks",
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await createPlaybookApiV1PlaybooksPost({
+        body: payload as import("@/lib/api/types.gen").PlaybookCreate,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as unknown as ResponseEnvelope<Playbook>).data;
     },
     onSuccess: (newPlaybook) => {
       // Optimistic update: immediately add the new playbook to the cache
@@ -54,11 +58,12 @@ export function useUpdatePlaybook() {
   const qc = useQueryClient();
   return useMutation<Playbook, Error, { id: string; payload: PlaybookUpdate }>({
     mutationFn: async ({ id, payload }) => {
-      const res = await apiClient.patch<ResponseEnvelope<Playbook>>(
-        `/api/v1/playbooks/${id}`,
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await updatePlaybookApiV1PlaybooksPlaybookIdPatch({
+        path: { playbook_id: id },
+        body: payload as import("@/lib/api/types.gen").PlaybookUpdate,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as unknown as ResponseEnvelope<Playbook>).data;
     },
     onSuccess: (updated) => {
       // Immediately replace the updated playbook in the cache
@@ -76,7 +81,10 @@ export function useDeletePlaybook() {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      await apiClient.delete(`/api/v1/playbooks/${id}`);
+      const { error } = await deletePlaybookApiV1PlaybooksPlaybookIdDelete({
+        path: { playbook_id: id },
+      });
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: (_data, deletedId) => {
       // Immediately remove the deleted playbook from the cache

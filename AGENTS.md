@@ -155,6 +155,7 @@ Agent instructions
 | 6 | Playbook, tagging, psychological notes | Complete |
 | 7 | Simplified execution model (origin/deleted/restore) | Complete |
 | 8 | Live broker API connections (IBKR TWS, Schwab API) | Stretch |
+| 9 | Portfolio core data model, scoped APIs, and app-state navigation (Frontend) | Complete |
 
 ---
 

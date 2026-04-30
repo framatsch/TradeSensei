@@ -13,10 +13,10 @@
 
 import { useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import apiClient from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { Spinner } from "@/components/ui/Spinner";
-import type { TokenResponse, ResponseEnvelope, User } from "@/lib/types";
+import { googleExchangeApiV1AuthGoogleExchangePost, getMeApiV1UsersMeGet } from "@/lib/api/index";
+import type { ResponseEnvelope, User } from "@/lib/types";
 
 function OAuthCallbackContent() {
   const searchParams = useSearchParams();
@@ -42,19 +42,22 @@ function OAuthCallbackContent() {
     (async () => {
       try {
         // Exchange the one-time token for a full access token
-        const exchangeRes = await apiClient.post<TokenResponse>(
-          "/api/v1/auth/google/exchange",
-          { one_time_token: token }
-        );
-        const accessToken = exchangeRes.data.access_token;
-        setToken(accessToken);
+        const { data: tokenData, error: tokenError } = await googleExchangeApiV1AuthGoogleExchangePost({
+          body: { one_time_token: token },
+        });
+        if (tokenError || !tokenData) {
+          router.replace("/login?error=oauth_failed");
+          return;
+        }
+        setToken(tokenData.access_token);
 
-        // Fetch the current user to populate the auth store
-        const userRes = await apiClient.get<ResponseEnvelope<User>>(
-          "/api/v1/users/me",
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        setUser(userRes.data.data);
+        // Fetch the current user — the JWT interceptor in init.ts provides the header
+        const { data: meData, error: meError } = await getMeApiV1UsersMeGet();
+        if (meError || !meData) {
+          router.replace("/login?error=oauth_failed");
+          return;
+        }
+        setUser((meData as unknown as ResponseEnvelope<User>).data);
 
         router.replace("/dashboard");
       } catch {

@@ -10,6 +10,7 @@
 
 "use client";
 
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useDailyPnl } from "@/hooks/useDailyPnl";
 import { useReturnDistribution } from "@/hooks/useReturnDistribution";
@@ -31,9 +32,10 @@ function ChartSkeleton() {
 }
 
 export default function DashboardPage() {
-  const { data: summary, isLoading, isError, error, refetch } = useMetrics();
-  const { data: dailyPnl, isLoading: loadingDaily } = useDailyPnl();
-  const { data: returnDist, isLoading: loadingReturnDist } = useReturnDistribution();
+  const { activePortfolioId } = useActivePortfolio();
+  const { data: summary, isLoading, isError, error, refetch } = useMetrics(activePortfolioId ?? undefined);
+  const { data: dailyPnl, isLoading: loadingDaily } = useDailyPnl(activePortfolioId ?? undefined);
+  const { data: returnDist, isLoading: loadingReturnDist } = useReturnDistribution(activePortfolioId ?? undefined);
 
   if (isLoading) {
     return (

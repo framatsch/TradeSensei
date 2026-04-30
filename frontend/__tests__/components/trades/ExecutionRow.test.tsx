@@ -1,12 +1,22 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { ExecutionRow } from "@/components/trades/ExecutionRow";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
 import type { LogicalExecution, Trade } from "@/lib/types";
 
+jest.mock("@/hooks/useActivePortfolio", () => ({
+  useActivePortfolio: jest.fn(() => ({ activePortfolioId: "portfolio-1" })),
+}));
+
+const mockMutateUpdate = jest.fn();
+const mockMutateDelete = jest.fn();
+const mockMutateRestore = jest.fn();
+
 jest.mock("@/hooks/useExecutions", () => ({
-  useUpdateExecution: () => ({ mutate: jest.fn(), isPending: false }),
-  useDeleteExecution: () => ({ mutate: jest.fn(), isPending: false }),
-  useRestoreExecution: () => ({ mutate: jest.fn(), isPending: false }),
+  useUpdateExecution: () => ({ mutate: mockMutateUpdate, isPending: false }),
+  useDeleteExecution: () => ({ mutate: mockMutateDelete, isPending: false }),
+  useRestoreExecution: () => ({ mutate: mockMutateRestore, isPending: false }),
 }));
 
 const baseTrade: Trade = {
@@ -53,11 +63,13 @@ const splitExecution: LogicalExecution = {
   account_id: "account-1",
   symbol: "AAPL",
   asset_class: "EQUITY",
+  conid: null,
   direction: "LONG",
   quantity: "6",
   price: "100",
   commission: "0.6",
   pnl: null,
+  pnl_eur: null,
   executed_at: "2024-01-01T12:00:00Z",
   origin: "split",
   deleted: false,
@@ -70,10 +82,35 @@ const splitExecution: LogicalExecution = {
 };
 
 describe("ExecutionRow", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useActivePortfolio as jest.Mock).mockReturnValue({ activePortfolioId: "portfolio-1" });
+  });
+
   it("shows lineage and allocated quantity markers for split child execution", () => {
-    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
+    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" portfolioId="portfolio-1" /></tbody></table>);
 
     expect(screen.getByText("Allocated")).toBeInTheDocument();
     expect(screen.getByText("↳ 0b18cd17")).toBeInTheDocument();
+  });
+
+  it("does not mutate when activePortfolioId is null", () => {
+    (useActivePortfolio as jest.Mock).mockReturnValue({ activePortfolioId: null });
+    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" portfolioId="" /></tbody></table>);
+
+    // For example, clicking delete and confirm
+    const overflowButton = screen.getByRole("button", { name: "" }); // or find by icon
+    // Wait, the action button depends on the state. It's better to just test that the functions like handleSave or handleRestore won't mutate.
+    // Actually, it's easier to verify that the disabled state or early return works.
+    // Let's just simulate a restore on a deleted row
+    const deletedExecution = { ...splitExecution, deleted: true };
+    render(<table><tbody><ExecutionRow execution={deletedExecution} trade={baseTrade} tradeId="trade-1" portfolioId="" /></tbody></table>);
+    
+    // There is a Restore button
+    const restoreBtn = screen.getByRole("button", { name: /restore/i });
+    restoreBtn.click();
+    
+    // Should NOT have called mutate
+    expect(mockMutateRestore).not.toHaveBeenCalled();
   });
 });

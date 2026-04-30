@@ -3,6 +3,7 @@
 import subprocess
 from pathlib import Path
 
+import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 from app.core import migrations
@@ -40,3 +41,43 @@ def test_run_migrations_calls_upgrade(monkeypatch: MonkeyPatch) -> None:
     assert calls[1][0][-2:] == ["upgrade", "head"]
     assert calls[1][1] == migrations.PROJECT_ROOT
     assert calls[1][2] is True
+
+
+@pytest.mark.integration
+def test_alembic_upgrade_and_downgrade_commands_succeed() -> None:
+    """Migration scripts should apply and roll back cleanly."""
+    backend_dir = Path(__file__).resolve().parents[1]
+
+    def _skip_if_db_unavailable(result: subprocess.CompletedProcess[str]) -> None:
+        if result.returncode != 0 and "Connect call failed" in result.stderr:
+            pytest.skip("Database is unavailable for migration integration test.")
+
+    upgrade = subprocess.run(
+        ["uv", "run", "alembic", "upgrade", "head"],
+        capture_output=True,
+        text=True,
+        cwd=backend_dir,
+        check=False,
+    )
+    _skip_if_db_unavailable(upgrade)
+    assert upgrade.returncode == 0, upgrade.stderr
+
+    downgrade = subprocess.run(
+        ["uv", "run", "alembic", "downgrade", "-1"],
+        capture_output=True,
+        text=True,
+        cwd=backend_dir,
+        check=False,
+    )
+    _skip_if_db_unavailable(downgrade)
+    assert downgrade.returncode == 0, downgrade.stderr
+
+    reupgrade = subprocess.run(
+        ["uv", "run", "alembic", "upgrade", "head"],
+        capture_output=True,
+        text=True,
+        cwd=backend_dir,
+        check=False,
+    )
+    _skip_if_db_unavailable(reupgrade)
+    assert reupgrade.returncode == 0, reupgrade.stderr

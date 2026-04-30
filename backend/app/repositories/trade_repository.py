@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import delete, func, nullslast, select
+from sqlalchemy import delete, func, nullslast, or_, select
 from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +21,8 @@ from sqlalchemy.sql.selectable import Select
 from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
 from app.core.security import decode_cursor as _decode_signed_cursor
 from app.core.security import encode_cursor as _encode_signed_cursor
+from app.models.account import Account
+from app.models.portfolio import Portfolio
 from app.models.trade import Trade
 from app.models.trade_tag import TradeTag
 from app.schemas.trade import (
@@ -405,6 +407,7 @@ class TradeRepository:
         user_id: uuid.UUID,
         symbol: str,
         opened_at: datetime,
+        portfolio_id: uuid.UUID | None = None,
     ) -> bool:
         """Check whether a trade with the same key already exists.
 
@@ -421,10 +424,24 @@ class TradeRepository:
             Trade.symbol == symbol,
             Trade.opened_at == opened_at,
         )
+        if portfolio_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
 
-    async def get_by_id(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> Trade | None:
+    async def get_by_id(
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> Trade | None:
         """Retrieve a single trade by its primary key, scoped to a user.
 
         Eagerly loads ``tags``, ``trade_notes``, ``playbook``, ``account``,
@@ -442,6 +459,17 @@ class TradeRepository:
             Trade.id == trade_id,
             Trade.user_id == user_id,
         )
+        if portfolio_id is not None:
+            stmt = (
+                stmt.outerjoin(Account, Trade.account_id == Account.id)
+                .outerjoin(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    or_(
+                        Trade.account_id.is_(None),
+                        Account.portfolio_id == portfolio_id,
+                    )
+                )
+            )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -451,6 +479,7 @@ class TradeRepository:
         cursor: str | None = None,
         include_total: bool = False,
         account_id: uuid.UUID | None = None,
+        portfolio_id: uuid.UUID | None = None,
         user_id: uuid.UUID | None = None,
         filters: TradeFilterParams | None = None,
         sort: TradeSortParams | None = None,
@@ -515,6 +544,15 @@ class TradeRepository:
             stmt = stmt.where(Trade.user_id == user_id)
         if account_id is not None:
             stmt = stmt.where(Trade.account_id == account_id)
+        if portfolio_id is not None and user_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
 
         # ── Domain filters ───────────────────────────────────────────────────
         if filters is not None:
@@ -594,6 +632,15 @@ class TradeRepository:
                 base_count = base_count.where(Trade.user_id == user_id)
             if account_id is not None:
                 base_count = base_count.where(Trade.account_id == account_id)
+            if portfolio_id is not None and user_id is not None:
+                base_count = (
+                    base_count.join(Account, Trade.account_id == Account.id)
+                    .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                    .where(
+                        Account.portfolio_id == portfolio_id,
+                        Portfolio.user_id == user_id,
+                    )
+                )
             if filters is not None:
                 base_count = _apply_filters(base_count, filters)
             count_stmt = select(func.count()).select_from(base_count.subquery())
@@ -656,6 +703,7 @@ class TradeRepository:
         self,
         trade_ids: list[uuid.UUID],
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> int:
         """Delete multiple trades belonging to the given user.
 
@@ -669,12 +717,30 @@ class TradeRepository:
         Returns:
             Number of trades actually deleted.
         """
-        stmt = (
-            delete(Trade)
-            .where(Trade.id.in_(trade_ids))
-            .where(Trade.user_id == user_id)
-            .returning(Trade.id)
-        )
+        if portfolio_id is not None:
+            scoped_ids_stmt = (
+                select(Trade.id)
+                .join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Trade.id.in_(trade_ids),
+                    Trade.user_id == user_id,
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
+            scoped_ids_result = await self._session.execute(scoped_ids_stmt)
+            scoped_ids = list(scoped_ids_result.scalars().all())
+            if not scoped_ids:
+                return 0
+            stmt = delete(Trade).where(Trade.id.in_(scoped_ids)).returning(Trade.id)
+        else:
+            stmt = (
+                delete(Trade)
+                .where(Trade.id.in_(trade_ids))
+                .where(Trade.user_id == user_id)
+                .returning(Trade.id)
+            )
         result = await self._session.execute(stmt)
         deleted = list(result.scalars().all())
         await self._session.flush()
@@ -716,6 +782,7 @@ class TradeRepository:
         tag_ids: list[uuid.UUID],
         mode: BulkTagMode,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> int:
         """Add or remove tags on multiple trades.
 
@@ -737,6 +804,15 @@ class TradeRepository:
             Trade.id.in_(trade_ids),
             Trade.user_id == user_id,
         )
+        if portfolio_id is not None:
+            owned_stmt = (
+                owned_stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
         owned_result = await self._session.execute(owned_stmt)
         owned_ids = list(owned_result.scalars().all())
 
@@ -768,6 +844,7 @@ class TradeRepository:
         trade_ids: list[uuid.UUID],
         playbook_id: uuid.UUID | None,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> int:
         """Assign or unassign a playbook on multiple trades.
 
@@ -781,12 +858,35 @@ class TradeRepository:
         Returns:
             Number of trades actually updated.
         """
-        stmt = (
-            sa_update(Trade)
-            .where(Trade.id.in_(trade_ids), Trade.user_id == user_id)
-            .values(playbook_id=playbook_id)
-            .returning(Trade.id)
-        )
+        if portfolio_id is not None:
+            scoped_ids_stmt = (
+                select(Trade.id)
+                .join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Trade.id.in_(trade_ids),
+                    Trade.user_id == user_id,
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
+            scoped_ids_result = await self._session.execute(scoped_ids_stmt)
+            scoped_ids = list(scoped_ids_result.scalars().all())
+            if not scoped_ids:
+                return 0
+            stmt = (
+                sa_update(Trade)
+                .where(Trade.id.in_(scoped_ids))
+                .values(playbook_id=playbook_id)
+                .returning(Trade.id)
+            )
+        else:
+            stmt = (
+                sa_update(Trade)
+                .where(Trade.id.in_(trade_ids), Trade.user_id == user_id)
+                .values(playbook_id=playbook_id)
+                .returning(Trade.id)
+            )
         result = await self._session.execute(stmt)
         updated = list(result.scalars().all())
         await self._session.flush()
@@ -932,6 +1032,7 @@ class TradeRepository:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None,
+        portfolio_id: uuid.UUID | None = None,
     ) -> set[tuple[str, datetime, Decimal, Decimal, str]]:
         """Return dedupe keys for regular trades.
 
@@ -949,6 +1050,15 @@ class TradeRepository:
             Trade.account_id == account_id,
             Trade.entry_price != Decimal("0.001"),
         )
+        if portfolio_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
         result = await self._session.execute(stmt)
         return {
             (
@@ -965,6 +1075,7 @@ class TradeRepository:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None,
+        portfolio_id: uuid.UUID | None = None,
     ) -> set[tuple[str, datetime, Decimal, Decimal, str]]:
         """Return dedupe keys for closed trades.
 
@@ -981,6 +1092,15 @@ class TradeRepository:
             Trade.account_id == account_id,
             Trade.closed_at.is_not(None),
         )
+        if portfolio_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
         result = await self._session.execute(stmt)
         return {
             (
@@ -997,6 +1117,7 @@ class TradeRepository:
     async def list_open_lots_by_user(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> list[Trade]:
         """Return all open (unclosed) trades owned by *user_id*.
 
@@ -1016,12 +1137,22 @@ class TradeRepository:
             .where(Trade.user_id == user_id, Trade.closed_at.is_(None))
             .order_by(Trade.opened_at.asc())
         )
+        if portfolio_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
     async def list_orphaned_lots_by_user(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> list[Trade]:
         """Return all orphaned trades owned by *user_id*.
 
@@ -1044,12 +1175,22 @@ class TradeRepository:
             )
             .order_by(Trade.opened_at.asc())
         )
+        if portfolio_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
     async def close_open_lot(
         self,
         trade_id: uuid.UUID,
+        user_id: uuid.UUID,
         exit_price: Decimal,
         closed_at: datetime,
         pnl: Decimal | None,
@@ -1078,7 +1219,7 @@ class TradeRepository:
         """
         stmt = (
             sa_update(Trade)
-            .where(Trade.id == trade_id)
+            .where(Trade.id == trade_id, Trade.user_id == user_id)
             .values(
                 exit_price=exit_price,
                 closed_at=closed_at,
@@ -1096,6 +1237,7 @@ class TradeRepository:
     async def fill_orphaned_lot(
         self,
         trade_id: uuid.UUID,
+        user_id: uuid.UUID,
         entry_price: Decimal,
         opened_at: datetime,
         pnl: Decimal | None,
@@ -1114,7 +1256,7 @@ class TradeRepository:
         """
         stmt = (
             sa_update(Trade)
-            .where(Trade.id == trade_id)
+            .where(Trade.id == trade_id, Trade.user_id == user_id)
             .values(
                 entry_price=entry_price,
                 opened_at=opened_at,
@@ -1132,6 +1274,7 @@ class TradeRepository:
     async def list_manually_edited_keys(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> set[tuple[str | None, datetime]]:
         """Return a set of ``(broker_conid, opened_at)`` tuples for all manually
         edited trades owned by *user_id*.
@@ -1151,5 +1294,14 @@ class TradeRepository:
             Trade.user_id == user_id,
             Trade.is_manually_edited.is_(True),
         )
+        if portfolio_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
         result = await self._session.execute(stmt)
         return {(row.broker_conid, row.opened_at) for row in result}

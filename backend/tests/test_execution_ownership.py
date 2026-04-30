@@ -26,8 +26,9 @@ class TestExecutionOwnership:
     ) -> None:
         """PATCH /executions/{id} on another user's execution must return 404."""
         execution_id = other_users_execution["id"]
+        portfolio_id = other_users_execution["portfolio_id"]
         resp = await client.patch(
-            f"/api/v1/executions/{execution_id}",
+            f"/api/v1/portfolios/{portfolio_id}/executions/{execution_id}",
             json={"price": "999"},
             headers=primary_user["headers"],
         )
@@ -43,8 +44,9 @@ class TestExecutionOwnership:
     ) -> None:
         """DELETE /executions/{id} on another user's execution must return 404."""
         execution_id = other_users_execution["id"]
+        portfolio_id = other_users_execution["portfolio_id"]
         resp = await client.delete(
-            f"/api/v1/executions/{execution_id}",
+            f"/api/v1/portfolios/{portfolio_id}/executions/{execution_id}",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, resp.text

@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import AccountNotFoundError
 from app.models.user import User
@@ -22,7 +23,11 @@ from app.schemas.account import (
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.services.account_service import AccountService
 
-router = APIRouter(prefix="/accounts", tags=["accounts"])
+router = APIRouter(
+    prefix="/portfolios/{portfolio_id}/accounts",
+    tags=["accounts"],
+    dependencies=[Depends(require_portfolio_owner)],
+)
 
 
 def _get_service(
@@ -58,6 +63,7 @@ def _get_service(
     },
 )
 async def list_accounts(
+    portfolio_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AccountService, Depends(_get_service)],
 ) -> ResponseEnvelope[CursorPage[AccountRead]]:
@@ -76,7 +82,7 @@ async def list_accounts(
         A :class:`ResponseEnvelope` wrapping a :class:`CursorPage` of
         :class:`AccountRead` DTOs.
     """
-    page = await service.list_accounts(current_user.id)
+    page = await service.list_accounts(current_user.id, portfolio_id)
     return ResponseEnvelope[CursorPage[AccountRead]](data=page)
 
 
@@ -98,6 +104,7 @@ async def list_accounts(
     },
 )
 async def create_account(
+    portfolio_id: uuid.UUID,
     payload: AccountCreate,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AccountService, Depends(_get_service)],
@@ -116,7 +123,8 @@ async def create_account(
         A :class:`ResponseEnvelope` containing the created
         :class:`AccountRead` DTO.
     """
-    account = await service.create_account(payload, current_user.id)
+    account_payload = payload.model_copy(update={"portfolio_id": portfolio_id})
+    account = await service.create_account(account_payload, current_user.id)
     return ResponseEnvelope[AccountRead](data=account)
 
 
@@ -138,6 +146,7 @@ async def create_account(
     },
 )
 async def get_account(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AccountService, Depends(_get_service)],
@@ -160,7 +169,7 @@ async def get_account(
         HTTPException: 404 if the account is not found for this user.
     """
     try:
-        account = await service.get_account(account_id, current_user.id)
+        account = await service.get_account(account_id, current_user.id, portfolio_id)
     except AccountNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Account not found."
@@ -189,6 +198,7 @@ async def get_account(
     },
 )
 async def update_account(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     payload: AccountUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -214,7 +224,12 @@ async def update_account(
         HTTPException: 404 if the account is not found for this user.
     """
     try:
-        account = await service.update_account(account_id, payload, current_user.id)
+        account = await service.update_account(
+            account_id,
+            payload,
+            current_user.id,
+            portfolio_id,
+        )
     except AccountNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Account not found."
@@ -241,6 +256,7 @@ async def update_account(
     },
 )
 async def delete_account(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AccountService, Depends(_get_service)],
@@ -260,7 +276,7 @@ async def delete_account(
         HTTPException: 404 if the account is not found for this user.
     """
     try:
-        await service.delete_account(account_id, current_user.id)
+        await service.delete_account(account_id, current_user.id, portfolio_id)
     except AccountNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -284,6 +300,7 @@ async def delete_account(
     },
 )
 async def get_account_metrics(
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AccountService, Depends(_get_service)],
@@ -299,7 +316,7 @@ async def get_account_metrics(
         ResponseEnvelope containing an AccountMetrics DTO.
     """
     try:
-        metrics = await service.get_metrics(account_id, current_user.id)
+        metrics = await service.get_metrics(account_id, current_user.id, portfolio_id)
         return ResponseEnvelope[AccountMetrics](data=metrics)
     except AccountNotFoundError as exc:
         raise HTTPException(

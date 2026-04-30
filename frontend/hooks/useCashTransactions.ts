@@ -5,7 +5,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import { client } from "@/lib/api/client.gen";
 import type {
   AccountMetrics,
   CashTransaction,
@@ -13,7 +13,6 @@ import type {
   CashTransactionType,
   CashTransactionUpdate,
   OffsetPage,
-  ResponseEnvelope,
 } from "@/lib/types";
 
 // ─── Options type ─────────────────────────────────────────────────────────────
@@ -42,18 +41,19 @@ export function useCashTransactions({
   return useQuery<OffsetPage<CashTransaction>, Error>({
     queryKey: ["cash-transactions", account_id, offset, limit, type, symbol, from_date, to_date],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set("limit", String(limit));
-      params.set("offset", String(offset));
-      if (type) params.set("type", type);
-      if (symbol) params.set("symbol", symbol);
-      if (from_date) params.set("from_date", from_date);
-      if (to_date) params.set("to_date", to_date);
+      const query: Record<string, string | number> = { limit, offset };
+      if (type) query.type = type;
+      if (symbol) query.symbol = symbol;
+      if (from_date) query.from_date = from_date;
+      if (to_date) query.to_date = to_date;
 
-      const res = await apiClient.get<ResponseEnvelope<OffsetPage<CashTransaction>>>(
-        `/api/v1/accounts/${account_id}/cash-transactions?${params.toString()}`
-      );
-      return res.data.data;
+      const response = await client.get({
+        url: `/api/v1/accounts/${account_id}/cash-transactions`,
+        query,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = response as any;
+      return (envelope.data?.data ?? envelope.data) as OffsetPage<CashTransaction>;
     },
     enabled: Boolean(account_id),
     staleTime: 30 * 1000,
@@ -66,10 +66,12 @@ export function useAccountMetrics(account_id: string) {
   return useQuery<AccountMetrics, Error>({
     queryKey: ["account-metrics", account_id],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<AccountMetrics>>(
-        `/api/v1/accounts/${account_id}/metrics`
-      );
-      return res.data.data;
+      const response = await client.get({
+        url: `/api/v1/accounts/${account_id}/metrics`,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = response as any;
+      return (envelope.data?.data ?? envelope.data) as AccountMetrics;
     },
     enabled: Boolean(account_id),
     staleTime: 30 * 1000,
@@ -95,11 +97,13 @@ export function useCreateCashTransaction() {
   const qc = useQueryClient();
   return useMutation<CashTransaction, Error, { account_id: string; data: CashTransactionCreate }>({
     mutationFn: async ({ account_id, data }) => {
-      const res = await apiClient.post<ResponseEnvelope<CashTransaction>>(
-        `/api/v1/accounts/${account_id}/cash-transactions`,
-        data
-      );
-      return res.data.data;
+      const response = await client.post({
+        url: `/api/v1/accounts/${account_id}/cash-transactions`,
+        body: data,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = response as any;
+      return (envelope.data?.data ?? envelope.data) as CashTransaction;
     },
     onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: ["cash-transactions", variables.account_id] });
@@ -114,11 +118,13 @@ export function useUpdateCashTransaction() {
   const qc = useQueryClient();
   return useMutation<CashTransaction, Error, UpdateCashTransactionPayload>({
     mutationFn: async ({ id, account_id, data }) => {
-      const res = await apiClient.patch<ResponseEnvelope<CashTransaction>>(
-        `/api/v1/accounts/${account_id}/cash-transactions/${id}`,
-        data
-      );
-      return res.data.data;
+      const response = await client.patch({
+        url: `/api/v1/accounts/${account_id}/cash-transactions/${id}`,
+        body: data,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = response as any;
+      return (envelope.data?.data ?? envelope.data) as CashTransaction;
     },
     onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: ["cash-transactions", variables.account_id] });
@@ -133,9 +139,9 @@ export function useDeleteCashTransaction() {
   const qc = useQueryClient();
   return useMutation<void, Error, DeleteCashTransactionPayload>({
     mutationFn: async ({ id, account_id }) => {
-      await apiClient.delete(
-        `/api/v1/accounts/${account_id}/cash-transactions/${id}`
-      );
+      await client.delete({
+        url: `/api/v1/accounts/${account_id}/cash-transactions/${id}`,
+      });
     },
     onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: ["cash-transactions", variables.account_id] });

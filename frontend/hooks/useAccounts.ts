@@ -5,7 +5,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import { client } from "@/lib/api/client.gen";
+import { usePortfolioStore } from "@/stores/portfolioStore";
 import type {
   Account,
   AccountCreate,
@@ -14,28 +15,38 @@ import type {
   ResponseEnvelope,
 } from "@/lib/types";
 
-export function useAccounts() {
+export function useAccounts(portfolioId?: string) {
   return useQuery<Account[], Error>({
-    queryKey: ["accounts"],
+    queryKey: ["accounts", portfolioId],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<CursorPage<Account>>>(
-        "/api/v1/accounts"
-      );
-      return res.data.data.items;
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts`
+        : "/api/v1/accounts";
+      const { data, error } = await client.get<ResponseEnvelope<CursorPage<Account>>, unknown, false>({
+        url,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data.items;
     },
     staleTime: 5 * 60 * 1000,
+    enabled: portfolioId !== undefined || portfolioId === undefined, // always enabled
   });
 }
 
 export function useCreateAccount() {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Account, Error, AccountCreate>({
     mutationFn: async (payload) => {
-      const res = await apiClient.post<ResponseEnvelope<Account>>(
-        "/api/v1/accounts",
-        payload
-      );
-      return res.data.data;
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts`
+        : "/api/v1/accounts";
+      const { data, error } = await client.post<ResponseEnvelope<Account>, unknown, false>({
+        url,
+        body: payload,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["accounts"] });
@@ -49,13 +60,18 @@ export function useCreateAccount() {
 
 export function useUpdateAccount(id: string) {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Account, Error, AccountUpdate>({
     mutationFn: async (payload) => {
-      const res = await apiClient.patch<ResponseEnvelope<Account>>(
-        `/api/v1/accounts/${id}`,
-        payload
-      );
-      return res.data.data;
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts/${id}`
+        : `/api/v1/accounts/${id}`;
+      const { data, error } = await client.patch<ResponseEnvelope<Account>, unknown, false>({
+        url,
+        body: payload,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["accounts"] });
@@ -69,9 +85,16 @@ export function useUpdateAccount(id: string) {
 
 export function useDeleteAccount() {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      await apiClient.delete(`/api/v1/accounts/${id}`);
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts/${id}`
+        : `/api/v1/accounts/${id}`;
+      const { error } = await client.delete<unknown, unknown, false>({
+        url,
+      });
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["accounts"] });

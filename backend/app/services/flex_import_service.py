@@ -28,6 +28,7 @@ from app.core.constants import (
 )
 from app.core.exceptions import AccountNotFoundError, FlexAPIError, RateLimitError
 from app.repositories.account_repository import AccountRepository
+from app.repositories.portfolio_repository import PortfolioRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.imports import ImportResult
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
@@ -68,6 +69,7 @@ class FlexImportService:
         self._token = flex_token
         self._timeout = http_timeout
         self._account_repo = AccountRepository(session)
+        self._portfolio_repo = PortfolioRepository(session)
         self._trade_repo = TradeRepository(session)
         self._parser = IBKRXMLParser()
 
@@ -77,6 +79,7 @@ class FlexImportService:
         self,
         query_id: str,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
         from_date: str | None = None,
         overwrite_manually_edited: bool = False,
@@ -106,7 +109,11 @@ class FlexImportService:
         """
         # Verify account ownership when provided.
         if account_id is not None:
-            account = await self._account_repo.get_by_id(account_id, user_id)
+            account = await self._account_repo.get_by_id(
+                account_id,
+                user_id,
+                portfolio_id,
+            )
             if account is None:
                 raise AccountNotFoundError(
                     f"Account {account_id} not found for user {user_id}."
@@ -117,11 +124,15 @@ class FlexImportService:
             xml_string.encode("utf-8"), filename="flex_query.xml"
         )
         parser_warnings: list[str] = list(self._parser.warnings)
+        portfolio_base_currency: str | None = None
+        portfolio = await self._portfolio_repo.get_by_id(portfolio_id, user_id)
+        if portfolio is not None:
+            portfolio_base_currency = portfolio.base_currency
 
         # Load manually-edited keys once for the whole batch (skip when
         # overwrite_manually_edited is requested).
         manually_edited_keys = (
-            await self._trade_repo.list_manually_edited_keys(user_id)
+            await self._trade_repo.list_manually_edited_keys(user_id, portfolio_id)
             if not overwrite_manually_edited
             else set()
         )
@@ -154,6 +165,7 @@ class FlexImportService:
                 user_id=user_id,
                 symbol=trade_with_owner.symbol,
                 opened_at=trade_with_owner.opened_at,
+                portfolio_id=portfolio_id,
             ):
                 trades_skipped += 1
                 logger.debug(
@@ -206,6 +218,7 @@ class FlexImportService:
                 try:
                     await cash_service.create(
                         user_id=user_id,
+                        portfolio_id=portfolio_id,
                         account_id=account_id,
                         create_request=cash_tx_data,
                     )
@@ -222,6 +235,21 @@ class FlexImportService:
             cash_txs_skipped += len(parsed_cash_txs)
 
         all_warnings = parser_warnings + create_warnings
+
+        if portfolio_base_currency is not None:
+            mismatched_count = sum(
+                1
+                for trade_data in parsed_trades
+                if trade_data.currency is not None
+                and trade_data.currency != portfolio_base_currency
+            )
+            if mismatched_count > 0:
+                all_warnings.append(
+                    "currency_mismatch: "
+                    f"{mismatched_count} imported trade(s) use a currency "
+                    "different from portfolio "
+                    f"base_currency '{portfolio_base_currency}'."
+                )
 
         return ImportResult(
             broker="ibkr",

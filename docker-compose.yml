@@ -46,6 +46,7 @@ services:
       ENVIRONMENT: development
       LOG_LEVEL: DEBUG
       SECRET_KEY: dev-secret-key-change-in-production
+      ACCESS_TOKEN_EXPIRE_MINUTES: "120"
       CORS_ORIGINS: "http://localhost:3000"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"

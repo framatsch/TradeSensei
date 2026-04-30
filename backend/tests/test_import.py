@@ -19,6 +19,8 @@ from app.utils.parsers.factory import BrokerType, get_parser
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
 from app.utils.parsers.schwab import SchwabParser, _parse_decimal, _parse_schwab_date
 
+TEST_PORTFOLIO_ID = uuid.uuid4()
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
@@ -279,6 +281,7 @@ class TestImportService:
                 content=b"",
                 filename="test.csv",
                 broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
                 account_id=uuid.uuid4(),
                 user_id=uuid.uuid4(),
             )
@@ -332,11 +335,17 @@ class TestImportService:
                 new_callable=AsyncMock,
                 return_value=MagicMock(),
             ),
+            patch(
+                "app.services.import_service.PortfolioRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             result = await import_service.import_file(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
                 account_id=uuid.uuid4(),
                 user_id=uuid.uuid4(),
             )
@@ -408,11 +417,17 @@ class TestImportService:
                 "app.services.import_service.TradeRepository.create",
                 new=create_side_effect,
             ),
+            patch(
+                "app.services.import_service.PortfolioRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             result = await import_service.import_file(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
                 account_id=uuid.uuid4(),
                 user_id=uuid.uuid4(),
             )
@@ -464,11 +479,17 @@ class TestImportService:
                 "app.services.import_service.get_parser",
                 return_value=mock_parser,
             ),
+            patch(
+                "app.services.import_service.PortfolioRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             result = await import_service.import_file(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
                 account_id=uuid.uuid4(),
                 user_id=uuid.uuid4(),
             )
@@ -533,11 +554,17 @@ class TestImportService:
                 "app.services.import_service.TradeRepository.create",
                 new=capture_create,
             ),
+            patch(
+                "app.services.import_service.PortfolioRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             await import_service.import_file(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
                 account_id=target_account_id,
                 user_id=uuid.uuid4(),
             )
@@ -1149,11 +1176,17 @@ class TestImportWithSplit:
                 new_callable=AsyncMock,
                 return_value=MagicMock(),
             ),
+            patch(
+                "app.services.import_service.PortfolioRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             result = await import_service.import_file(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
                 account_id=uuid.uuid4(),
                 user_id=uuid.uuid4(),
             )
@@ -1216,11 +1249,17 @@ class TestImportWithSplit:
                 new_callable=AsyncMock,
                 return_value=MagicMock(),
             ),
+            patch(
+                "app.services.import_service.PortfolioRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             result = await import_service.import_file(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
                 account_id=uuid.uuid4(),
                 user_id=uuid.uuid4(),
             )

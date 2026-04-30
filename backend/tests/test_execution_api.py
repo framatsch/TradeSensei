@@ -35,9 +35,40 @@ async def _get_auth_headers(client: AsyncClient, suffix: str = "") -> dict[str, 
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _create_portfolio(
+    client: AsyncClient,
+    headers: dict[str, str],
+    suffix: str,
+) -> str:
+    res = await client.post(
+        "/api/v1/portfolios",
+        json={"name": f"Exec Portfolio {suffix}", "base_currency": "USD"},
+        headers=headers,
+    )
+    assert res.status_code == 201, res.text
+    return str(res.json()["data"]["id"])
+
+
+async def _create_account(
+    client: AsyncClient,
+    headers: dict[str, str],
+    portfolio_id: str,
+    suffix: str,
+) -> str:
+    res = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        json={"name": f"Exec Account {suffix}", "type": "manual", "currency": "USD"},
+        headers=headers,
+    )
+    assert res.status_code == 201, res.text
+    return str(res.json()["data"]["id"])
+
+
 async def _create_trade(
     client: AsyncClient,
     headers: dict[str, str],
+    portfolio_id: str,
+    account_id: str,
     overrides: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Create a default trade through the API.
@@ -52,11 +83,16 @@ async def _create_trade(
         "entry_price": "150.00",
         "opened_at": datetime.now(UTC).isoformat(),
         "commission": "1.50",
+        "account_id": account_id,
     }
     if overrides:
         payload.update(overrides)
 
-    res = await client.post("/api/v1/trades", json=payload, headers=headers)
+    res = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/trades",
+        json=payload,
+        headers=headers,
+    )
     assert res.status_code == 201
     return res.json()["data"]
 
@@ -67,7 +103,9 @@ class TestExecutionAPI:
     async def test_create_execution(self, client: AsyncClient) -> None:
         """POST /trades/{trade_id}/executions should return 201 and create execution."""
         headers = await _get_auth_headers(client, "cre_exec")
-        trade = await _create_trade(client, headers)
+        portfolio_id = await _create_portfolio(client, headers, "cre_exec")
+        account_id = await _create_account(client, headers, portfolio_id, "cre_exec")
+        trade = await _create_trade(client, headers, portfolio_id, account_id)
         trade_id = trade["id"]
 
         payload = {
@@ -79,7 +117,9 @@ class TestExecutionAPI:
         }
 
         res = await client.post(
-            f"/api/v1/trades/{trade_id}/executions", json=payload, headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+            json=payload,
+            headers=headers,
         )
         assert res.status_code == 201, res.text
         data = res.json()["data"]
@@ -88,7 +128,9 @@ class TestExecutionAPI:
         assert Decimal(data["quantity"]) == Decimal("5")
 
         # Verify trade was re-aggregated
-        trade_res = await client.get(f"/api/v1/trades/{trade_id}", headers=headers)
+        trade_res = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers
+        )
         assert trade_res.status_code == 200
         trade_data = trade_res.json()["data"]
         # Trade should now have exit_price computed
@@ -97,7 +139,11 @@ class TestExecutionAPI:
     async def test_create_execution_validation(self, client: AsyncClient) -> None:
         """POST /trades/{trade_id}/executions with invalid data should return 422."""
         headers = await _get_auth_headers(client, "cre_exec_val")
-        trade = await _create_trade(client, headers)
+        portfolio_id = await _create_portfolio(client, headers, "cre_exec_val")
+        account_id = await _create_account(
+            client, headers, portfolio_id, "cre_exec_val"
+        )
+        trade = await _create_trade(client, headers, portfolio_id, account_id)
 
         payload = {
             "direction": "INVALID",
@@ -107,17 +153,24 @@ class TestExecutionAPI:
         }
 
         res = await client.post(
-            f"/api/v1/trades/{trade['id']}/executions", json=payload, headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade['id']}/executions",
+            json=payload,
+            headers=headers,
         )
         assert res.status_code == 422
 
     async def test_list_executions(self, client: AsyncClient) -> None:
         """GET /trades/{trade_id}/executions should return all executions."""
         headers = await _get_auth_headers(client, "list_exec")
-        trade = await _create_trade(client, headers)
+        portfolio_id = await _create_portfolio(client, headers, "list_exec")
+        account_id = await _create_account(client, headers, portfolio_id, "list_exec")
+        trade = await _create_trade(client, headers, portfolio_id, account_id)
         trade_id = trade["id"]
 
-        res = await client.get(f"/api/v1/trades/{trade_id}/executions", headers=headers)
+        res = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+            headers=headers,
+        )
         assert res.status_code == 200
         data = res.json()["data"]
         # Should have the auto-created initial execution from the trade
@@ -126,17 +179,22 @@ class TestExecutionAPI:
     async def test_update_execution(self, client: AsyncClient) -> None:
         """PATCH /executions/{execution_id} should update and return execution."""
         headers = await _get_auth_headers(client, "upd_exec")
-        trade = await _create_trade(client, headers)
+        portfolio_id = await _create_portfolio(client, headers, "upd_exec")
+        account_id = await _create_account(client, headers, portfolio_id, "upd_exec")
+        trade = await _create_trade(client, headers, portfolio_id, account_id)
         trade_id = trade["id"]
 
         # Fetch executions to get the auto-created one
         list_res = await client.get(
-            f"/api/v1/trades/{trade_id}/executions", headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+            headers=headers,
         )
         ex_id = list_res.json()["data"][0]["id"]
 
         patch_res = await client.patch(
-            f"/api/v1/executions/{ex_id}", json={"price": "155.00"}, headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/executions/{ex_id}",
+            json={"price": "155.00"},
+            headers=headers,
         )
         assert patch_res.status_code == 200, patch_res.text
         assert Decimal(patch_res.json()["data"]["price"]) == Decimal("155.00")
@@ -147,35 +205,45 @@ class TestExecutionAPI:
         The owning trade should also be deleted when it becomes empty.
         """
         headers = await _get_auth_headers(client, "del_exec")
-        trade = await _create_trade(client, headers)
+        portfolio_id = await _create_portfolio(client, headers, "del_exec")
+        account_id = await _create_account(client, headers, portfolio_id, "del_exec")
+        trade = await _create_trade(client, headers, portfolio_id, account_id)
         trade_id = trade["id"]
 
         list_res = await client.get(
-            f"/api/v1/trades/{trade_id}/executions", headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+            headers=headers,
         )
         ex_id = list_res.json()["data"][0]["id"]
 
-        del_res = await client.delete(f"/api/v1/executions/{ex_id}", headers=headers)
+        del_res = await client.delete(
+            f"/api/v1/portfolios/{portfolio_id}/executions/{ex_id}", headers=headers
+        )
         assert del_res.status_code == 204
 
         # Trade should also be deleted
-        get_res = await client.get(f"/api/v1/trades/{trade_id}", headers=headers)
+        get_res = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers
+        )
         assert get_res.status_code == 404
 
     async def test_reassign_execution(self, client: AsyncClient) -> None:
         """POST /executions/{execution_id}/reassign should move execution."""
         headers = await _get_auth_headers(client, "reassign")
-        source_trade = await _create_trade(client, headers)
-        target_trade = await _create_trade(client, headers)
+        portfolio_id = await _create_portfolio(client, headers, "reassign")
+        account_id = await _create_account(client, headers, portfolio_id, "reassign")
+        source_trade = await _create_trade(client, headers, portfolio_id, account_id)
+        target_trade = await _create_trade(client, headers, portfolio_id, account_id)
 
         # Get execution from source_trade
         list_res = await client.get(
-            f"/api/v1/trades/{source_trade['id']}/executions", headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{source_trade['id']}/executions",
+            headers=headers,
         )
         ex_id = list_res.json()["data"][0]["id"]
 
         reassign_res = await client.post(
-            f"/api/v1/executions/{ex_id}/reassign",
+            f"/api/v1/portfolios/{portfolio_id}/executions/{ex_id}/reassign",
             json={"target_trade_id": target_trade["id"]},
             headers=headers,
         )
@@ -186,14 +254,17 @@ class TestExecutionAPI:
 
         # Source trade should be deleted since it was empty
         get_res = await client.get(
-            f"/api/v1/trades/{source_trade['id']}", headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{source_trade['id']}",
+            headers=headers,
         )
         assert get_res.status_code == 404
 
     async def test_detach_execution(self, client: AsyncClient) -> None:
         """POST /executions/{execution_id}/detach should create new trade."""
         headers = await _get_auth_headers(client, "detach")
-        trade = await _create_trade(client, headers)
+        portfolio_id = await _create_portfolio(client, headers, "detach")
+        account_id = await _create_account(client, headers, portfolio_id, "detach")
+        trade = await _create_trade(client, headers, portfolio_id, account_id)
         trade_id = trade["id"]
 
         # Add a second execution so we can detach one
@@ -204,18 +275,22 @@ class TestExecutionAPI:
             "executed_at": datetime.now(UTC).isoformat(),
         }
         await client.post(
-            f"/api/v1/trades/{trade_id}/executions", json=payload, headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+            json=payload,
+            headers=headers,
         )
 
         list_res = await client.get(
-            f"/api/v1/trades/{trade_id}/executions", headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+            headers=headers,
         )
         executions = list_res.json()["data"]
         assert len(executions) == 2
         ex_to_detach = executions[1]["id"]
 
         detach_res = await client.post(
-            f"/api/v1/executions/{ex_to_detach}/detach", headers=headers
+            f"/api/v1/portfolios/{portfolio_id}/executions/{ex_to_detach}/detach",
+            headers=headers,
         )
         assert detach_res.status_code == 200
         new_trade_id = detach_res.json()["data"]["id"]
@@ -226,12 +301,15 @@ class TestExecutionAPI:
     ) -> None:
         """COMBO trade keeps VWAP fields null and sums broker-reported leg PnL."""
         headers = await _get_auth_headers(client, "combo_sum")
+        portfolio_id = await _create_portfolio(client, headers, "combo_sum")
+        account_id = await _create_account(client, headers, portfolio_id, "combo_sum")
         create_trade_res = await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json={
                 "symbol": "AAPL",
                 "direction": "LONG",
                 "is_combo": True,
+                "account_id": account_id,
                 "opened_at": datetime.now(UTC).isoformat(),
             },
             headers=headers,
@@ -240,7 +318,7 @@ class TestExecutionAPI:
         trade_id = create_trade_res.json()["data"]["id"]
 
         eq_leg = await client.post(
-            f"/api/v1/trades/{trade_id}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
             json={
                 "direction": "LONG",
                 "asset_class": "EQUITY",
@@ -256,7 +334,7 @@ class TestExecutionAPI:
         assert eq_leg.status_code == 201, eq_leg.text
 
         opt_leg = await client.post(
-            f"/api/v1/trades/{trade_id}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
             json={
                 "direction": "SHORT",
                 "asset_class": "OPTION",
@@ -271,7 +349,9 @@ class TestExecutionAPI:
         )
         assert opt_leg.status_code == 201, opt_leg.text
 
-        trade_res = await client.get(f"/api/v1/trades/{trade_id}", headers=headers)
+        trade_res = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers
+        )
         assert trade_res.status_code == 200, trade_res.text
         trade = trade_res.json()["data"]
 
@@ -285,12 +365,15 @@ class TestExecutionAPI:
     ) -> None:
         """COMBO trade leaves trade.pnl null when all leg pnl values are null."""
         headers = await _get_auth_headers(client, "combo_null")
+        portfolio_id = await _create_portfolio(client, headers, "combo_null")
+        account_id = await _create_account(client, headers, portfolio_id, "combo_null")
         create_trade_res = await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json={
                 "symbol": "AAPL",
                 "direction": "LONG",
                 "is_combo": True,
+                "account_id": account_id,
                 "opened_at": datetime.now(UTC).isoformat(),
             },
             headers=headers,
@@ -299,7 +382,7 @@ class TestExecutionAPI:
         trade_id = create_trade_res.json()["data"]["id"]
 
         leg_a = await client.post(
-            f"/api/v1/trades/{trade_id}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
             json={
                 "direction": "LONG",
                 "asset_class": "EQUITY",
@@ -314,7 +397,7 @@ class TestExecutionAPI:
         assert leg_a.status_code == 201, leg_a.text
 
         leg_b = await client.post(
-            f"/api/v1/trades/{trade_id}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
             json={
                 "direction": "SHORT",
                 "asset_class": "OPTION",
@@ -328,7 +411,9 @@ class TestExecutionAPI:
         )
         assert leg_b.status_code == 201, leg_b.text
 
-        trade_res = await client.get(f"/api/v1/trades/{trade_id}", headers=headers)
+        trade_res = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers
+        )
         assert trade_res.status_code == 200, trade_res.text
         trade = trade_res.json()["data"]
 

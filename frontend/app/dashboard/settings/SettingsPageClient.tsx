@@ -10,18 +10,20 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
 import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
 import FeaturesSettings from "@/components/settings/FeaturesSettings";
+import { PortfolioSettings } from "@/components/settings/PortfolioSettings";
+import { GeneralSettings } from "@/components/settings/GeneralSettings";
 
-type Tab = "general" | "integrations" | "corporate-actions" | "features";
+type Tab = "general" | "integrations" | "corporate-actions" | "features" | "portfolios";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "integrations", label: "Accounts & Integrations" },
   { id: "corporate-actions", label: "Corporate Actions" },
   { id: "features", label: "Features" },
+  { id: "portfolios", label: "Portfolios" },
 ];
 
 export function SettingsPageClient() {
@@ -37,11 +39,15 @@ export function SettingsPageClient() {
       setActiveTab("corporate-actions");
     } else if (tabParam === "features") {
       setActiveTab("features");
+    } else if (tabParam === "portfolios") {
+      setActiveTab("portfolios");
+    } else if (tabParam === "general") {
+      setActiveTab("general");
     }
   }, [searchParams]);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl bg-card border border-border p-6 rounded-xl">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Settings</h1>
@@ -51,7 +57,7 @@ export function SettingsPageClient() {
       </div>
 
       {/* Tab bar */}
-      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-1">
+      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-secondary p-1">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -59,8 +65,8 @@ export function SettingsPageClient() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
             {tab.label}
@@ -74,6 +80,7 @@ export function SettingsPageClient() {
         {activeTab === "integrations" && <AccountSettings />}
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
         {activeTab === "features" && <FeaturesSettings />}
+        {activeTab === "portfolios" && <PortfolioSettings />}
       </div>
     </div>
   );

@@ -5,8 +5,8 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
-import type { ImportResult, ResponseEnvelope } from "@/lib/types";
+import { client } from "@/lib/api/client.gen";
+import type { ImportResult } from "@/lib/types";
 
 interface FlexImportPayload {
   query_id: string;
@@ -17,11 +17,14 @@ interface FlexImportPayload {
 export function useFlexImport() {
   return useMutation<ImportResult, Error, FlexImportPayload>({
     mutationFn: async (payload) => {
-      const res = await apiClient.post<ResponseEnvelope<ImportResult>>(
-        "/api/v1/imports/flex",
-        payload
-      );
-      return res.data.data;
+      const response = await client.post({
+        url: "/api/v1/imports/flex",
+        body: payload,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = response as any;
+      if (!envelope.data) throw new Error("Flex import failed");
+      return (envelope.data.data ?? envelope.data) as ImportResult;
     },
   });
 }

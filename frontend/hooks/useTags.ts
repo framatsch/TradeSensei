@@ -5,7 +5,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import {
+  listTagsApiV1TagsGet,
+  createTagApiV1TagsPost,
+  deleteTagApiV1TagsTagIdDelete,
+} from "@/lib/api/index";
 import type {
   ResponseEnvelope,
   Tag,
@@ -16,10 +20,9 @@ export function useTags() {
   return useQuery<Tag[], Error>({
     queryKey: ["tags"],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<Tag[]>>(
-        "/api/v1/tags"
-      );
-      return res.data.data;
+      const { data, error } = await listTagsApiV1TagsGet();
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as unknown as ResponseEnvelope<Tag[]>).data;
     },
     staleTime: 60 * 1000,
   });
@@ -29,11 +32,11 @@ export function useCreateTag() {
   const qc = useQueryClient();
   return useMutation<Tag, Error, TagCreate>({
     mutationFn: async (payload) => {
-      const res = await apiClient.post<ResponseEnvelope<Tag>>(
-        "/api/v1/tags",
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await createTagApiV1TagsPost({
+        body: payload as import("@/lib/api/types.gen").TagCreate,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as unknown as ResponseEnvelope<Tag>).data;
     },
     onSuccess: (newTag) => {
       // Optimistic update: immediately add the new tag to the cache
@@ -50,7 +53,10 @@ export function useDeleteTag() {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      await apiClient.delete(`/api/v1/tags/${id}`);
+      const { error } = await deleteTagApiV1TagsTagIdDelete({
+        path: { tag_id: id },
+      });
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: (_data, id) => {
       // Optimistic update: immediately remove the deleted tag from the cache

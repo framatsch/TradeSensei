@@ -8,7 +8,7 @@
  */
 
 import type { FullConfig } from '@playwright/test';
-import { E2E_USER } from './global-setup';
+import { E2E_USER, E2E_DESTRUCTIVE_USER } from './global-setup';
 
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000';
 const NETWORK_RETRIES = 6;
@@ -52,6 +52,27 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
   } catch (err) {
     // Teardown failures should not block CI reports
     console.warn('[global-teardown] Teardown error (non-fatal):', err);
+  }
+
+  // Also delete the destructive test user
+  try {
+    const dFormData = new URLSearchParams();
+    dFormData.append('username', E2E_DESTRUCTIVE_USER.username);
+    dFormData.append('password', E2E_DESTRUCTIVE_USER.password);
+    const dTokenRes = await fetchWithRetry(`${API_URL}/api/v1/auth/token`, {
+      method: 'POST',
+      body: dFormData,
+    });
+    if (dTokenRes.ok) {
+      const { access_token: dToken } = (await dTokenRes.json()) as { access_token: string };
+      await fetchWithRetry(`${API_URL}/api/v1/users/me`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${dToken}` },
+      });
+      console.log('[global-teardown] Destructive test user deleted.');
+    }
+  } catch {
+    // Non-fatal
   }
 
   console.log('[global-teardown] Done.\n');

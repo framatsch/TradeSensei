@@ -80,7 +80,7 @@ export default function FeaturesSettings() {
                 disabled={f.comingSoon}
                 type="button"
                 className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed ${
-                  enabled ? "bg-indigo-500" : "bg-zinc-600 dark:bg-zinc-700"
+                  enabled ? "bg-primary" : "bg-muted"
                 }`}
               >
                 <span
@@ -100,7 +100,7 @@ export default function FeaturesSettings() {
           type="button"
           onClick={handleApply}
           disabled={!hasPending || update.isPending}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {update.isPending ? "Applying…" : "Apply Changes"}
         </button>

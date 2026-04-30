@@ -24,9 +24,7 @@ from app.utils.parsers.schwab_json import SchwabJSONParser
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
-_ACCOUNTS_URL = "/api/v1/accounts"
-_UPLOAD_URL = "/api/v1/imports/upload"
-_SCHWAB_JSON_URL = "/api/v1/imports/schwab-json"
+_PORTFOLIOS_URL = "/api/v1/portfolios"
 
 
 def _fixture_path() -> Path:
@@ -72,9 +70,17 @@ async def _create_account(
     client: AsyncClient,
     token: str,
     account_type: AccountType,
-) -> uuid.UUID:
+) -> tuple[uuid.UUID, uuid.UUID]:
+    portfolio_resp = await client.post(
+        _PORTFOLIOS_URL,
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": f"{account_type.value.upper()} Portfolio", "base_currency": "USD"},
+    )
+    assert portfolio_resp.status_code == 201, portfolio_resp.text
+    portfolio_id = uuid.UUID(portfolio_resp.json()["data"]["id"])
+
     resp = await client.post(
-        _ACCOUNTS_URL,
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "name": f"{account_type.value.upper()} Import",
@@ -83,7 +89,7 @@ async def _create_account(
         },
     )
     assert resp.status_code == 201, resp.text
-    return uuid.UUID(resp.json()["data"]["id"])
+    return portfolio_id, uuid.UUID(resp.json()["data"]["id"])
 
 
 @pytest.mark.integration
@@ -92,7 +98,7 @@ async def test_schwab_json_import_ground_truth(
     db_session: AsyncSession,
 ) -> None:
     token, user_id = await _register_and_login(client)
-    account_id = await _create_account(client, token, AccountType.SCHWAB)
+    portfolio_id, account_id = await _create_account(client, token, AccountType.SCHWAB)
 
     fixture_bytes = _fixture_path().read_bytes()
     payload = _load_fixture()
@@ -111,6 +117,7 @@ async def test_schwab_json_import_ground_truth(
         content=fixture_bytes,
         filename="schwab_aggregation.json",
         broker=BrokerType.SCHWAB,
+        portfolio_id=portfolio_id,
         account_id=account_id,
         user_id=user_id,
     )
@@ -144,6 +151,7 @@ async def test_schwab_json_import_ground_truth(
         content=fixture_bytes,
         filename="schwab_aggregation.json",
         broker=BrokerType.SCHWAB,
+        portfolio_id=portfolio_id,
         account_id=account_id,
         user_id=user_id,
     )
@@ -162,11 +170,11 @@ async def test_schwab_json_import_ground_truth(
 @pytest.mark.integration
 async def test_schwab_json_rest_endpoint(client: AsyncClient) -> None:
     token, _ = await _register_and_login(client)
-    account_id = await _create_account(client, token, AccountType.SCHWAB)
+    portfolio_id, account_id = await _create_account(client, token, AccountType.SCHWAB)
     payload = _load_fixture()
 
     response = await client.post(
-        _SCHWAB_JSON_URL,
+        f"/api/v1/portfolios/{portfolio_id}/imports/schwab-json",
         params={"account_id": str(account_id)},
         json=payload,
         headers={"Authorization": f"Bearer {token}"},
@@ -182,10 +190,10 @@ async def test_schwab_json_rest_endpoint_wrong_account_type(
     client: AsyncClient,
 ) -> None:
     token, _ = await _register_and_login(client)
-    account_id = await _create_account(client, token, AccountType.IBKR)
+    portfolio_id, account_id = await _create_account(client, token, AccountType.IBKR)
 
     response = await client.post(
-        _SCHWAB_JSON_URL,
+        f"/api/v1/portfolios/{portfolio_id}/imports/schwab-json",
         params={"account_id": str(account_id)},
         json=[],
         headers={"Authorization": f"Bearer {token}"},
@@ -271,10 +279,10 @@ def test_pipeline_parity_schwab_vs_ibkr() -> None:
 @pytest.mark.integration
 async def test_schwab_csv_upload_rejected(client: AsyncClient) -> None:
     token, _ = await _register_and_login(client)
-    account_id = await _create_account(client, token, AccountType.SCHWAB)
+    portfolio_id, account_id = await _create_account(client, token, AccountType.SCHWAB)
 
     response = await client.post(
-        _UPLOAD_URL,
+        f"/api/v1/portfolios/{portfolio_id}/imports/upload",
         headers={"Authorization": f"Bearer {token}"},
         data={"account_id": str(account_id)},
         files={"file": ("schwab.csv", b"Date,Action\n", "text/csv")},
@@ -289,10 +297,10 @@ async def test_schwab_csv_upload_rejected(client: AsyncClient) -> None:
 @pytest.mark.integration
 async def test_manual_account_upload_rejected(client: AsyncClient) -> None:
     token, _ = await _register_and_login(client)
-    account_id = await _create_account(client, token, AccountType.MANUAL)
+    portfolio_id, account_id = await _create_account(client, token, AccountType.MANUAL)
 
     response = await client.post(
-        _UPLOAD_URL,
+        f"/api/v1/portfolios/{portfolio_id}/imports/upload",
         headers={"Authorization": f"Bearer {token}"},
         data={"account_id": str(account_id)},
         files={"file": ("anything.json", b"[]", "application/json")},

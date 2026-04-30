@@ -15,6 +15,8 @@ import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2 } from "lucide-reac
 import type { LogicalExecution, Trade } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
 import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { extractApiError } from "@/lib/api/errors";
 
 interface Props {
   execution: LogicalExecution;
@@ -39,9 +41,9 @@ function fmtQty(value: string): string {
 function fmtPnl(value: string | null) {
   if (!value) return <span className="text-muted-foreground">—</span>;
   const num = parseFloat(value);
-  const color = num >= 0 ? "text-emerald-500" : "text-red-500";
+  const color = num >= 0 ? "text-success" : "text-danger";
   const prefix = num >= 0 ? "+" : "";
-  return <span className={`font-medium ${color}`}>{prefix}${Math.abs(num).toFixed(2)}</span>;
+  return <span className={`font-medium font-mono ${color}`}>{prefix}${Math.abs(num).toFixed(2)}</span>;
 }
 
 function fmtDate(value: string): string {
@@ -52,9 +54,11 @@ function fmtDate(value: string): string {
 }
 
 export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit }: Props) {
+  const { activePortfolioId } = useActivePortfolio();
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState(execution.price);
   const [editQty, setEditQty] = useState(execution.quantity);
   const [editCommission, setEditCommission] = useState(execution.commission);
@@ -102,10 +106,13 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
   }, [menuOpen]);
 
   function handleSave() {
+    if (!activePortfolioId) return;
+    setErrorMsg(null);
     updateExecution.mutate(
       {
         executionId: execution.id,
         tradeId,
+        portfolioId: activePortfolioId,
         data: {
           direction: editDirection,
           executed_at: new Date(editExecutedAt).toISOString(),
@@ -115,7 +122,10 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
           pnl: editPnl === "" ? null : editPnl,
         },
       },
-      { onSuccess: () => setIsEditing(false) }
+      {
+        onSuccess: () => setIsEditing(false),
+        onError: (err) => setErrorMsg(extractApiError(err, "Failed to save execution.")),
+      }
     );
   }
 
@@ -131,6 +141,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
     setEditQty(execution.quantity);
     setEditCommission(execution.commission);
     setEditPnl(execution.pnl ?? "");
+    setErrorMsg(null);
     setIsEditing(false);
   }
 
@@ -140,15 +151,25 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
   }
 
   function confirmDelete() {
+    if (!activePortfolioId) return;
+    setErrorMsg(null);
     deleteExecution.mutate(
-      { executionId: execution.id, tradeId },
-      { onSettled: () => setShowDeleteConfirm(false) }
+      { executionId: execution.id, tradeId, portfolioId: activePortfolioId },
+      {
+        onSettled: () => setShowDeleteConfirm(false),
+        onError: (err) => setErrorMsg(extractApiError(err, "Failed to delete execution.")),
+      }
     );
   }
 
   function handleRestore() {
-    restoreExecution.mutate({ executionId: execution.id, tradeId });
+    if (!activePortfolioId) return;
+    restoreExecution.mutate({ executionId: execution.id, tradeId, portfolioId: activePortfolioId });
   }
+
+  // Direction badge classes using semantic tokens
+  const longBadgeCls = "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-success border border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
+  const shortBadgeCls = "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-danger border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
 
   // Deleted rows: 50% opacity, Restore button only
   if (isDeleted) {
@@ -163,9 +184,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
         <td className="px-3 py-2">
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-              isLong
-                ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                : "bg-red-100 text-red-700 border border-red-200"
+              isLong ? longBadgeCls : shortBadgeCls
             }`}
           >
             {isLong ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />}
@@ -180,11 +199,11 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
           </>
         )}
 
-        <td className="px-3 py-2 text-sm text-right">{fmtQty(execution.quantity)}</td>
-        <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+        <td className="px-3 py-2 text-sm text-right font-mono">{fmtQty(execution.quantity)}</td>
+        <td className="px-3 py-2 text-sm text-right text-muted-foreground font-mono">
           {execution.multiplier === 1 ? "—" : execution.multiplier}
         </td>
-        <td className="px-3 py-2 text-sm text-right">
+        <td className="px-3 py-2 text-sm text-right font-mono">
           {fmt(execution.price)}
           {execution.multiplier > 1 && (
             <div className="text-[10px] text-muted-foreground">
@@ -192,7 +211,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
             </div>
           )}
         </td>
-        <td className="px-3 py-2 text-sm text-right text-muted-foreground">{fmt(execution.commission)}</td>
+        <td className="px-3 py-2 text-sm text-right text-muted-foreground font-mono">{fmt(execution.commission)}</td>
         <td className="px-3 py-2 text-sm text-right">{fmtPnl(execution.pnl)}</td>
 
         {/* Lineage */}
@@ -237,7 +256,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
   return (
     <>
-      <tr className="border-b border-border hover:bg-muted/30 transition-colors">
+      <tr className="border-b border-border hover:bg-[color-mix(in_srgb,var(--muted)_30%,transparent)] transition-colors">
         {/* Date */}
         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
           {isEditing ? (
@@ -245,6 +264,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               type="datetime-local"
               value={editExecutedAt}
               onChange={(e) => setEditExecutedAt(e.target.value)}
+              aria-label="Executed at date and time"
               className="w-36 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground"
             />
           ) : (
@@ -259,10 +279,9 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               <button
                 type="button"
                 onClick={() => setEditDirection("LONG")}
+                aria-label="Set direction to LONG"
                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  editDirection === "LONG"
-                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                    : "bg-muted text-muted-foreground border border-border"
+                  editDirection === "LONG" ? longBadgeCls : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
                 LONG
@@ -270,10 +289,9 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               <button
                 type="button"
                 onClick={() => setEditDirection("SHORT")}
+                aria-label="Set direction to SHORT"
                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  editDirection === "SHORT"
-                    ? "bg-red-100 text-red-700 border border-red-200"
-                    : "bg-muted text-muted-foreground border border-border"
+                  editDirection === "SHORT" ? shortBadgeCls : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
                 SHORT
@@ -282,9 +300,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
           ) : (
             <span
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer ${
-                isLong
-                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                  : "bg-red-100 text-red-700 border border-red-200"
+                isLong ? longBadgeCls : shortBadgeCls
               }`}
               onClick={() => setIsEditing(true)}
             >
@@ -308,7 +324,8 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               type="number"
               value={editQty}
               onChange={(e) => setEditQty(e.target.value)}
-              className="w-20 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right"
+              aria-label="Quantity"
+              className="w-20 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right font-mono"
             />
           ) : (
             <div className="inline-flex items-center justify-end gap-1.5">
@@ -326,7 +343,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
         </td>
 
         {/* Multiplier */}
-        <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+        <td className="px-3 py-2 text-sm text-right text-muted-foreground font-mono">
           {execution.multiplier === 1 ? "—" : execution.multiplier}
         </td>
 
@@ -337,13 +354,14 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               type="number"
               value={editPrice}
               onChange={(e) => setEditPrice(e.target.value)}
-              className="w-24 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right"
+              aria-label="Price"
+              className="w-24 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right font-mono"
             />
           ) : (
             <>
-              <div className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmt(execution.price)}</div>
+              <div className="cursor-pointer font-mono" onClick={() => setIsEditing(true)}>{fmt(execution.price)}</div>
               {execution.multiplier > 1 && (
-                <div className="text-[10px] text-muted-foreground mt-0.5" title="Notional Value">
+                <div className="text-[10px] text-muted-foreground mt-0.5 font-mono" title="Notional Value">
                   {fmt((parseFloat(execution.quantity) * parseFloat(execution.price) * execution.multiplier).toString())}
                 </div>
               )}
@@ -358,10 +376,11 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               type="number"
               value={editCommission}
               onChange={(e) => setEditCommission(e.target.value)}
-              className="w-20 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right"
+              aria-label="Commission"
+              className="w-20 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right font-mono"
             />
           ) : (
-            <span className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmt(execution.commission)}</span>
+            <span className="cursor-pointer font-mono" onClick={() => setIsEditing(true)}>{fmt(execution.commission)}</span>
           )}
         </td>
 
@@ -373,7 +392,8 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               value={editPnl}
               placeholder="—"
               onChange={(e) => setEditPnl(e.target.value)}
-              className="w-24 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right"
+              aria-label="P&L"
+              className="w-24 px-1.5 py-0.5 text-xs border border-border rounded bg-background text-foreground text-right font-mono"
             />
           ) : (
             <span className="cursor-pointer" onClick={() => setIsEditing(true)}>{fmtPnl(execution.pnl)}</span>
@@ -410,8 +430,8 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
              <div className="inline-flex items-center gap-1">
                <button
                  onClick={handleSave}
-                 disabled={updateExecution.isPending || !editExecutedAt}
-                 className="p-1 rounded hover:bg-emerald-100 text-emerald-600 disabled:opacity-50"
+                 disabled={updateExecution.isPending || !editExecutedAt || !activePortfolioId}
+                 className="p-1 rounded hover:bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-success disabled:opacity-50"
                  title="Save"
                >
                  <Check size={14} />
@@ -474,7 +494,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
                    )}
                    <button
                      onClick={handleDelete}
-                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-red-600"
+                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-danger"
                    >
                      Delete
                    </button>
@@ -486,9 +506,17 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
          </td>
       </tr>
 
+      {errorMsg && (
+        <tr>
+          <td colSpan={trade.is_combo ? 12 : 10} className="px-3 py-2 border-b border-border">
+            <p className="text-xs text-destructive">{errorMsg}</p>
+          </td>
+        </tr>
+      )}
+
       {showDeleteConfirm && (
         <tr>
-          <td colSpan={trade.is_combo ? 12 : 10} className="px-3 py-3 bg-muted/50 border-b border-border">
+          <td colSpan={trade.is_combo ? 12 : 10} className="px-3 py-3 bg-[color-mix(in_srgb,var(--muted)_50%,transparent)] border-b border-border">
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-foreground">
                 Delete this execution? This will re-aggregate the trade.
@@ -505,7 +533,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
                   type="button"
                   onClick={confirmDelete}
                   disabled={deleteExecution.isPending}
-                  className="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-700 disabled:opacity-50"
+                  className="rounded bg-destructive px-2 py-1 text-destructive-foreground hover:opacity-90 disabled:opacity-50"
                 >
                   {deleteExecution.isPending ? "Deleting..." : "Delete"}
                 </button>

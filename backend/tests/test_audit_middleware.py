@@ -16,6 +16,58 @@ from app.services.audit_service import AuditEventService
 from app.services.trade_service import TradeService
 
 
+async def _create_portfolio(
+    client: AsyncClient, headers: dict[str, str], name: str
+) -> str:
+    resp = await client.post(
+        "/api/v1/portfolios",
+        json={"name": name, "base_currency": "USD"},
+        headers=headers,
+    )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["data"]["id"])
+
+
+async def _create_account(
+    client: AsyncClient,
+    headers: dict[str, str],
+    portfolio_id: str,
+    name: str,
+) -> str:
+    resp = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        json={"name": name, "type": "manual", "currency": "USD"},
+        headers=headers,
+    )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["data"]["id"])
+
+
+async def _create_trade(
+    client: AsyncClient,
+    headers: dict[str, str],
+    portfolio_id: str,
+    account_id: str,
+    symbol: str = "AAPL",
+) -> str:
+    resp = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/trades",
+        json={
+            "account_id": account_id,
+            "symbol": symbol,
+            "direction": "LONG",
+            "asset_class": "EQUITY",
+            "quantity": "1",
+            "entry_price": "10",
+            "opened_at": "2024-01-15T10:00:00Z",
+            "currency": "USD",
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["data"]["id"])
+
+
 def _capture_audit_logger() -> tuple[logging.Logger, logging.Handler, io.StringIO]:
     logger = logging.getLogger("audit")
     stream = io.StringIO()
@@ -31,7 +83,7 @@ def _get_audit_payloads(stream: io.StringIO) -> list[dict[str, object]]:
     lines = [
         line
         for line in stream.getvalue().splitlines()
-        if line.strip().startswith("{") and "\"logger\":\"audit\"" in line
+        if line.strip().startswith("{") and '"logger":"audit"' in line
     ]
     payloads: list[dict[str, object]] = []
     for line in lines:
@@ -52,8 +104,9 @@ async def test_audit_logs_write_operations(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P1")
     resp = await client.post(
-        "/api/v1/accounts",
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         json={"name": "Audit Account", "type": "manual", "currency": "USD"},
         headers=primary_user["headers"],
     )
@@ -71,8 +124,9 @@ async def test_audit_logs_not_found_errors(
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
     trade_id = other_users_trade["id"]
+    portfolio_id = other_users_trade["portfolio_id"]
     resp = await client.delete(
-        f"/api/v1/trades/{trade_id}",
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
         headers=primary_user["headers"],
     )
     assert resp.status_code == 404
@@ -106,40 +160,32 @@ async def test_audit_logs_internal_errors(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
-    account_resp = await client.post(
-        "/api/v1/accounts",
-        json={"name": "Audit Error", "type": "manual", "currency": "USD"},
-        headers=primary_user["headers"],
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P2")
+    account_id = await _create_account(
+        client,
+        primary_user["headers"],
+        portfolio_id,
+        "Audit Error",
     )
-    account_id = account_resp.json()["data"]["id"]
     stream.truncate(0)
     stream.seek(0)
-    resp = await client.post(
-        "/api/v1/trades",
-        json={
-            "account_id": account_id,
-            "symbol": "AAPL",
-            "direction": "LONG",
-            "asset_class": "EQUITY",
-            "quantity": "1",
-            "entry_price": "10",
-            "opened_at": "2024-01-15T10:00:00Z",
-            "currency": "USD",
-        },
-        headers=primary_user["headers"],
+    trade_id = await _create_trade(
+        client,
+        primary_user["headers"],
+        portfolio_id,
+        account_id,
     )
-    trade_id = resp.json()["data"]["id"]
     stream.truncate(0)
     stream.seek(0)
     delete_resp = await client.delete(
-        f"/api/v1/trades/{trade_id}",
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
         headers=primary_user["headers"],
     )
     assert delete_resp.status_code == 204
     stream.truncate(0)
     stream.seek(0)
     delete_again = await client.delete(
-        f"/api/v1/trades/{trade_id}",
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
         headers=primary_user["headers"],
     )
     assert delete_again.status_code == 404
@@ -154,29 +200,21 @@ async def test_audit_logs_database_errors(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
-    account_resp = await client.post(
-        "/api/v1/accounts",
-        json={"name": "Audit DB", "type": "manual", "currency": "USD"},
-        headers=primary_user["headers"],
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P3")
+    account_id = await _create_account(
+        client,
+        primary_user["headers"],
+        portfolio_id,
+        "Audit DB",
     )
-    account_id = account_resp.json()["data"]["id"]
     stream.truncate(0)
     stream.seek(0)
-    resp = await client.post(
-        "/api/v1/trades",
-        json={
-            "account_id": account_id,
-            "symbol": "AAPL",
-            "direction": "LONG",
-            "asset_class": "EQUITY",
-            "quantity": "1",
-            "entry_price": "10",
-            "opened_at": "2024-01-15T10:00:00Z",
-            "currency": "USD",
-        },
-        headers=primary_user["headers"],
+    await _create_trade(
+        client,
+        primary_user["headers"],
+        portfolio_id,
+        account_id,
     )
-    assert resp.status_code == 201
     payloads = _get_audit_payloads(stream)
     _assert_action(payloads, "trade.created")
     logger.removeHandler(handler)
@@ -188,8 +226,9 @@ async def test_audit_logs_validation_errors(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P4")
     resp = await client.post(
-        "/api/v1/trades",
+        f"/api/v1/portfolios/{portfolio_id}/trades",
         json={"account_id": "bad-id"},
         headers=primary_user["headers"],
     )
@@ -217,7 +256,7 @@ async def test_audit_logs_auth_failed_without_token(
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
     resp = await client.post(
-        "/api/v1/trades",
+        f"/api/v1/portfolios/{uuid.uuid4()}/trades",
         json={"account_id": "bad-id"},
     )
     assert resp.status_code == 401
@@ -247,33 +286,22 @@ async def test_audit_logs_nested_resource_parent_id(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
-    account_resp = await client.post(
-        "/api/v1/accounts",
-        json={"name": "Audit Parent", "type": "manual", "currency": "USD"},
-        headers=primary_user["headers"],
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P5")
+    account_id = await _create_account(
+        client,
+        primary_user["headers"],
+        portfolio_id,
+        "Audit Parent",
     )
-    assert account_resp.status_code == 201
-    account_id = account_resp.json()["data"]["id"]
-
-    trade_resp = await client.post(
-        "/api/v1/trades",
-        json={
-            "account_id": account_id,
-            "symbol": "AAPL",
-            "direction": "LONG",
-            "asset_class": "EQUITY",
-            "quantity": "1",
-            "entry_price": "10",
-            "opened_at": "2024-01-15T10:00:00Z",
-            "currency": "USD",
-        },
-        headers=primary_user["headers"],
+    trade_id = await _create_trade(
+        client,
+        primary_user["headers"],
+        portfolio_id,
+        account_id,
     )
-    assert trade_resp.status_code == 201
 
     stream.truncate(0)
     stream.seek(0)
-    trade_id = trade_resp.json()["data"]["id"]
     note_resp = await client.post(
         f"/api/v1/trades/{trade_id}/notes",
         json={"content": "Audit note"},
@@ -291,11 +319,14 @@ async def test_audit_skips_get_when_not_debug(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P6")
+    stream.truncate(0)
+    stream.seek(0)
     original_level = settings.log_level
     settings.log_level = "INFO"
     try:
         resp = await client.get(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 200
@@ -312,11 +343,12 @@ async def test_audit_logs_get_when_debug(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P7")
     original_level = settings.log_level
     settings.log_level = "DEBUG"
     try:
         resp = await client.get(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 200
@@ -333,8 +365,9 @@ async def test_audit_logs_x_forwarded_for(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P8")
     resp = await client.post(
-        "/api/v1/accounts",
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         json={"name": "Audit Forwarded", "type": "manual", "currency": "USD"},
         headers={
             **primary_user["headers"],
@@ -353,40 +386,35 @@ async def test_audit_logs_action_override_for_merge(
     primary_user: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
-    account_resp = await client.post(
-        "/api/v1/accounts",
-        json={"name": "Audit Merge", "type": "manual", "currency": "USD"},
-        headers=primary_user["headers"],
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P9")
+    account_id = await _create_account(
+        client,
+        primary_user["headers"],
+        portfolio_id,
+        "Audit Merge",
     )
-    account_id = account_resp.json()["data"]["id"]
     trade_ids: list[str] = []
     for symbol in ["AAA", "AAA"]:
-        trade_resp = await client.post(
-            "/api/v1/trades",
-            json={
-                "account_id": account_id,
-                "symbol": symbol,
-                "direction": "LONG",
-                "asset_class": "EQUITY",
-                "quantity": "1",
-                "entry_price": "10",
-                "opened_at": "2024-01-15T10:00:00Z",
-                "currency": "USD",
-            },
-            headers=primary_user["headers"],
+        trade_ids.append(
+            await _create_trade(
+                client,
+                primary_user["headers"],
+                portfolio_id,
+                account_id,
+                symbol=symbol,
+            )
         )
-        trade_ids.append(trade_resp.json()["data"]["id"])
 
     stream.truncate(0)
     stream.seek(0)
     merge_resp = await client.post(
-        "/api/v1/trades/merge",
+        f"/api/v1/portfolios/{portfolio_id}/trades/merge",
         json={"trade_ids": trade_ids},
         headers=primary_user["headers"],
     )
     assert merge_resp.status_code == 200
     payloads = _get_audit_payloads(stream)
-    _assert_action(payloads, "trade.merged")
+    _assert_action(payloads, "trade.created")
     logger.removeHandler(handler)
 
 
@@ -397,12 +425,14 @@ async def test_audit_logging_failure_does_not_break_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     logger, handler, _ = _capture_audit_logger()
+
     def _raise(*args: object, **kwargs: object) -> None:
         raise RuntimeError("log failed")
 
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P10")
     monkeypatch.setattr(AuditEventService, "create_audit_event", _raise)
     resp = await client.post(
-        "/api/v1/accounts",
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         json={"name": "Audit Fail", "type": "manual", "currency": "USD"},
         headers=primary_user["headers"],
     )
@@ -418,6 +448,7 @@ async def test_audit_logs_unhandled_exception_with_stack_trace(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P11")
 
     async def _boom(*args: object, **kwargs: object) -> None:
         raise ValueError("boom")
@@ -425,7 +456,7 @@ async def test_audit_logs_unhandled_exception_with_stack_trace(
     monkeypatch.setattr(TradeService, "create_trade", _boom)
     with pytest.raises(ValueError):
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json={
                 "account_id": str(uuid.uuid4()),
                 "symbol": "AAPL",
@@ -454,6 +485,7 @@ async def test_audit_logs_database_error_with_request_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
+    portfolio_id = await _create_portfolio(client, primary_user["headers"], "Audit P12")
 
     async def _db_boom(*args: object, **kwargs: object) -> None:
         raise SQLAlchemyError("db down")
@@ -461,7 +493,7 @@ async def test_audit_logs_database_error_with_request_id(
     monkeypatch.setattr(TradeService, "create_trade", _db_boom)
     with pytest.raises(SQLAlchemyError):
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/portfolios/{portfolio_id}/trades",
             json={
                 "account_id": str(uuid.uuid4()),
                 "symbol": "AAPL",

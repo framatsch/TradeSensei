@@ -85,6 +85,7 @@ def _make_account(
     account = Account()
     account.id = uuid.uuid4()  # type: ignore[assignment]
     account.user_id = uuid.uuid4()  # type: ignore[assignment]
+    account.portfolio_id = uuid.uuid4()  # type: ignore[assignment]
     account.name = "Test Account"  # type: ignore[assignment]
     account.type = account_type  # type: ignore[assignment]
     account.currency = "USD"  # type: ignore[assignment]
@@ -185,6 +186,7 @@ class TestSyncAccountRouting:
         mock_flex_instance.import_flex.assert_called_once_with(
             query_id="12345",
             user_id=account.user_id,
+            portfolio_id=account.portfolio_id,
             account_id=account.id,
             from_date=expected_from_date,
             overwrite_manually_edited=False,

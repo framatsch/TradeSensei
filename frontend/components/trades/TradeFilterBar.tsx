@@ -47,7 +47,6 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.playbook_id) count++;
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) count++;
   if (filters.status) count++;
-  if (filters.account_id) count++;
   if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) count++;
   if (filters.day_of_week !== undefined && filters.day_of_week !== null) count++;
   return count;
@@ -65,7 +64,6 @@ const EMPTY_FILTERS: TradeFilters = {
   playbook_id: "",
   pnl_positive: null,
   status: null,
-  account_id: "",
   hour_of_day: undefined,
   day_of_week: undefined,
 };
@@ -163,9 +161,6 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
     onChange({ ...filters, status });
   };
 
-  const handleAccountChange = (value: string) => {
-    onChange({ ...filters, account_id: value || undefined });
-  };
 
   const handleClearAll = () => {
     setSymbolInput("");
@@ -357,24 +352,6 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
             </select>
           </div>
 
-          {/* Account / Broker */}
-          {accounts && accounts.length > 0 && (
-            <div>
-              <label className={LABEL_CLASS}>Account</label>
-              <select
-                value={filters.account_id ?? ""}
-                onChange={(e) => handleAccountChange(e.target.value)}
-                className={INPUT_CLASS}
-              >
-                <option value="">All</option>
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* PnL positive */}
           <div>

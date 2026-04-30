@@ -7,7 +7,8 @@
 import { useState } from "react";
 import type { AssetClass, Direction, LogicalExecutionCreate, Trade } from "@/lib/types";
 import { useCreateExecution } from "@/hooks/useExecutions";
-import type { AxiosError } from "axios";
+import { extractApiError } from "@/lib/api/errors";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 
 interface Props {
   tradeId: string;
@@ -28,6 +29,7 @@ function toISOString(localDatetime: string): string {
 }
 
 export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
+  const { activePortfolioId } = useActivePortfolio();
   const [direction, setDirection] = useState<Direction>("LONG");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
@@ -38,7 +40,7 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
   const [multiplier, setMultiplier] = useState(String(trade.multiplier ?? 1));
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const createExecution = useCreateExecution(tradeId);
+  const createExecution = useCreateExecution();
 
   const inputCls =
     "w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
@@ -65,6 +67,8 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
       return;
     }
 
+    if (!activePortfolioId) return;
+
     const payload: LogicalExecutionCreate = {
       direction,
       quantity: qty.toString(),
@@ -90,13 +94,12 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
       }
     }
 
-    createExecution.mutate(payload, {
+    createExecution.mutate({ tradeId, portfolioId: activePortfolioId, data: payload }, {
       onSuccess: () => {
         onClose();
       },
       onError: (err) => {
-        const axiosErr = err as AxiosError<{ detail?: string }>;
-        setErrorMsg(axiosErr.response?.data?.detail ?? "Failed to add execution.");
+        setErrorMsg(extractApiError(err, "Failed to add execution."));
       },
     });
   };
@@ -107,16 +110,16 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
         <h2 className="mb-5 text-xl font-bold text-foreground">Add Execution</h2>
 
         {errorMsg && (
-          <div className="mb-4 rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
+          <div className="mb-4 rounded-md bg-[color-mix(in_srgb,var(--destructive)_15%,transparent)] border border-destructive p-3 text-sm text-destructive">
             {errorMsg}
           </div>
         )}
 
         <form id="add-execution-form" onSubmit={handleSubmit} className="space-y-4">
           {/* BUY / SELL toggle */}
-          <div>
-            <label className={labelCls}>Side</label>
-            <div className="flex rounded-lg border border-border overflow-hidden bg-[#e9e9e9] dark:bg-secondary p-0.5 gap-0.5">
+          <fieldset>
+            <legend className={labelCls}>Side</legend>
+            <div className="flex rounded-lg border border-border overflow-hidden bg-muted p-0.5 gap-0.5">
               {[
                 { label: "BUY", value: "LONG" as Direction },
                 { label: "SELL", value: "SHORT" as Direction },
@@ -127,20 +130,21 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
                   onClick={() => setDirection(side.value)}
                   className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
                     direction === side.value
-                      ? "bg-[#6063dd] text-white"
-                      : "text-[#717174] hover:text-foreground"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {side.label}
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Quantity */}
           <div>
-            <label className={labelCls}>Quantity</label>
+            <label htmlFor="exec-quantity" className={labelCls}>Quantity</label>
             <input
+              id="exec-quantity"
               type="number"
               step="any"
               min="0"
@@ -154,8 +158,9 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
 
           {/* Price */}
           <div>
-            <label className={labelCls}>Price</label>
+            <label htmlFor="exec-price" className={labelCls}>Price</label>
             <input
+              id="exec-price"
               type="number"
               step="any"
               min="0"
@@ -169,8 +174,9 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
 
           {/* Executed At */}
           <div>
-            <label className={labelCls}>Executed At</label>
+            <label htmlFor="exec-executed-at" className={labelCls}>Executed At</label>
             <input
+              id="exec-executed-at"
               type="datetime-local"
               className={inputCls}
               value={executedAt}
@@ -181,8 +187,9 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
 
           {/* Commission */}
           <div>
-            <label className={labelCls}>Commission (Optional)</label>
+            <label htmlFor="exec-commission" className={labelCls}>Commission (Optional)</label>
             <input
+              id="exec-commission"
               type="number"
               step="any"
               min="0"
@@ -195,8 +202,9 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
 
           {/* P&L */}
           <div>
-            <label className={labelCls}>P&amp;L (Optional — leave blank to auto-compute)</label>
+            <label htmlFor="exec-pnl" className={labelCls}>P&amp;L (Optional — leave blank to auto-compute)</label>
             <input
+              id="exec-pnl"
               type="number"
               step="any"
               className={inputCls}
@@ -209,8 +217,9 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
           {trade.is_combo && (
             <>
               <div>
-                <label className={labelCls}>Asset Class</label>
+                <label htmlFor="exec-asset-class" className={labelCls}>Asset Class</label>
                 <select
+                  id="exec-asset-class"
                   className={inputCls}
                   value={assetClass}
                   onChange={(e) => setAssetClass(e.target.value as AssetClass)}
@@ -221,8 +230,9 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Multiplier</label>
+                <label htmlFor="exec-multiplier" className={labelCls}>Multiplier</label>
                 <input
+                  id="exec-multiplier"
                   type="number"
                   min="1"
                   step="1"
@@ -244,8 +254,8 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
             </button>
             <button
               type="submit"
-              disabled={createExecution.isPending}
-              className="rounded-md bg-[#6063dd] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+              disabled={createExecution.isPending || !activePortfolioId}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {createExecution.isPending ? "Adding…" : "Add Execution"}
             </button>

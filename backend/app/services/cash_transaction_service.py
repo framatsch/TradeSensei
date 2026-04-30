@@ -32,15 +32,21 @@ class CashTransactionService:
         self._session = session
         self._account_repo = AccountRepository(session)
 
-    async def _ensure_account(self, user_id: uuid.UUID, account_id: uuid.UUID) -> None:
+    async def _ensure_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+    ) -> None:
         """Ensure the requested account exists and belongs to the user."""
-        account = await self._account_repo.get_by_id(account_id, user_id)
+        account = await self._account_repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
 
     async def create(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID,
         create_request: CashTransactionCreateRequest,
     ) -> CashTransaction:
@@ -57,7 +63,7 @@ class CashTransactionService:
         Raises:
             AccountNotFoundError: If the account does not exist or user lacks access.
         """
-        await self._ensure_account(user_id, account_id)
+        await self._ensure_account(user_id, account_id, portfolio_id)
 
         # Convert to internal schema
         create_schema = create_request.to_cash_transaction_create(account_id)
@@ -82,6 +88,7 @@ class CashTransactionService:
     async def get(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID,
         transaction_id: uuid.UUID,
     ) -> CashTransaction:
@@ -99,10 +106,14 @@ class CashTransactionService:
             AccountNotFoundError: If the account does not exist or user lacks access.
             CashTransactionNotFoundError: If the transaction does not exist.
         """
-        await self._ensure_account(user_id, account_id)
+        await self._ensure_account(user_id, account_id, portfolio_id)
 
         transaction = await CashTransactionRepository.get_by_account_id(
-            self._session, account_id, transaction_id
+            self._session,
+            account_id,
+            portfolio_id,
+            user_id,
+            transaction_id,
         )
         if not transaction:
             raise CashTransactionNotFoundError(
@@ -114,6 +125,7 @@ class CashTransactionService:
     async def list_by_account(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID,
         filters: CashTransactionFilterParams,
         limit: int,
@@ -134,13 +146,23 @@ class CashTransactionService:
         Raises:
             AccountNotFoundError: If the account does not exist or user lacks access.
         """
-        await self._ensure_account(user_id, account_id)
+        await self._ensure_account(user_id, account_id, portfolio_id)
 
         transactions = await CashTransactionRepository.list_by_account(
-            self._session, account_id, filters, limit, offset
+            self._session,
+            account_id,
+            portfolio_id,
+            user_id,
+            filters,
+            limit,
+            offset,
         )
         total_count = await CashTransactionRepository.count_by_account(
-            self._session, account_id, filters
+            self._session,
+            account_id,
+            portfolio_id,
+            user_id,
+            filters,
         )
 
         return transactions, total_count
@@ -148,6 +170,7 @@ class CashTransactionService:
     async def update(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID,
         transaction_id: uuid.UUID,
         update_schema: CashTransactionUpdate,
@@ -169,6 +192,7 @@ class CashTransactionService:
         """
         transaction = await self.get(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             transaction_id=transaction_id,
         )
@@ -214,6 +238,7 @@ class CashTransactionService:
     async def delete(
         self,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
         account_id: uuid.UUID,
         transaction_id: uuid.UUID,
     ) -> None:
@@ -230,6 +255,7 @@ class CashTransactionService:
         """
         transaction = await self.get(
             user_id=user_id,
+            portfolio_id=portfolio_id,
             account_id=account_id,
             transaction_id=transaction_id,
         )

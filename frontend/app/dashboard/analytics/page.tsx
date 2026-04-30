@@ -8,13 +8,11 @@
  * tab switching happens through the main sidebar.
  */
 
-import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart2 } from "lucide-react";
 
 import { useReportData } from "@/hooks/useReportData";
 import { useSettings } from "@/hooks/useSettings";
-import { AccountFilter } from "@/components/ui/AccountFilter";
 import { Spinner } from "@/components/ui/Spinner";
 import { TimeAnalysisTab } from "./TimeAnalysisTab";
 import { StrategyAnalysisTab } from "./StrategyAnalysisTab";
@@ -46,12 +44,9 @@ export default function AnalyticsHubPage() {
       ? "risk"
       : "time";
 
-  // Single global account filter
-  const [accountId, setAccountId] = useState<string | null>(null);
-
-  // Fetch all report data once at page level
+  // Fetch all report data once at page level — no account filter here
   const { trades, getAggregated, isLoading, isError } =
-    useReportData(accountId);
+    useReportData();
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,9 +59,6 @@ export default function AnalyticsHubPage() {
           <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-lg">
             Deep-dive into your trading performance across time, strategy, risk, and behavior.
           </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 ml-4">
-          <AccountFilter value={accountId} onChange={setAccountId} />
         </div>
       </div>
 

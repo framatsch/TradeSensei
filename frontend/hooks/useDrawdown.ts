@@ -5,18 +5,28 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import { getDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGet } from "@/lib/api/index";
+import { client } from "@/lib/api/client.gen";
 import type { DrawdownPoint, ResponseEnvelope } from "@/lib/types";
 
-export function useDrawdown() {
+export function useDrawdown(portfolioId?: string) {
   return useQuery<DrawdownPoint[], Error>({
-    queryKey: ["metrics", "drawdown"],
+    queryKey: ["metrics", "drawdown", portfolioId],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<DrawdownPoint[]>>(
-        "/api/v1/metrics/drawdown"
-      );
-      return res.data.data;
+      if (portfolioId) {
+        const { data, error } = await getDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGet({
+          path: { portfolio_id: portfolioId },
+        });
+        if (error || !data) throw error ?? new Error("Request failed: no data returned");
+        return (data as unknown as ResponseEnvelope<DrawdownPoint[]>).data;
+      }
+      const { data, error } = await client.get<ResponseEnvelope<DrawdownPoint[]>, unknown, false>({
+        url: "/api/v1/metrics/drawdown",
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data;
     },
     staleTime: 60 * 1000,
+    enabled: !!portfolioId,
   });
 }

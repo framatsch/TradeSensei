@@ -5,21 +5,22 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
-import type { ResponseEnvelope, Trade } from "@/lib/types";
+import {
+  uploadScreenshotApiV1TradesTradeIdScreenshotsPost,
+  deleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDelete,
+} from "@/lib/api/index";
+import type { Trade } from "@/lib/types";
 
 export function useUploadScreenshot(tradeId: string) {
   const qc = useQueryClient();
   return useMutation<Trade, Error, File>({
     mutationFn: async (file: File) => {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await apiClient.post<ResponseEnvelope<Trade>>(
-        `/api/v1/trades/${tradeId}/screenshots`,
-        form,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      return res.data.data;
+      const { data, error } = await uploadScreenshotApiV1TradesTradeIdScreenshotsPost({
+        path: { trade_id: tradeId },
+        body: { file },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as unknown as Trade;
     },
     onSuccess: (updated) => {
       qc.setQueryData(["trade", tradeId], updated);
@@ -34,10 +35,11 @@ export function useDeleteScreenshot(tradeId: string) {
     mutationFn: async (url: string) => {
       // Extract only the filename from the full URL path
       const filename = url.split("/").pop()!;
-      const res = await apiClient.delete<ResponseEnvelope<Trade>>(
-        `/api/v1/trades/${tradeId}/screenshots/${filename}`
-      );
-      return res.data.data;
+      const { data, error } = await deleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDelete({
+        path: { trade_id: tradeId, filename },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as unknown as Trade;
     },
     onSuccess: (updated) => {
       qc.setQueryData(["trade", tradeId], updated);

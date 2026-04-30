@@ -15,6 +15,7 @@ from app.core.constants import (
     ROLLING_WINRATE_MAX_WINDOW,
     ROLLING_WINRATE_MIN_WINDOW,
 )
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
@@ -29,7 +30,11 @@ from app.schemas.timeseries import (
 )
 from app.services.timeseries_service import TimeSeriesService
 
-router = APIRouter(prefix="/timeseries", tags=["timeseries"])
+router = APIRouter(
+    prefix="/portfolios/{portfolio_id}/timeseries",
+    tags=["timeseries"],
+    dependencies=[Depends(require_portfolio_owner)],
+)
 
 
 def _get_service(
@@ -83,6 +88,7 @@ def _get_service(
     },
 )
 async def get_daily_pnl(
+    portfolio_id: uuid.UUID,
     service: Annotated[TimeSeriesService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -133,12 +139,21 @@ async def get_daily_pnl(
     Raises:
         HTTPException: 401 if the Bearer token is missing, expired, or invalid.
     """
-    data = await service.get_daily_pnl(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-    )
+    try:
+        data = await service.get_daily_pnl(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[DailyPnl]](data=data)
 
 
@@ -179,6 +194,7 @@ async def get_daily_pnl(
     },
 )
 async def get_monthly_pnl(
+    portfolio_id: uuid.UUID,
     service: Annotated[TimeSeriesService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -229,12 +245,21 @@ async def get_monthly_pnl(
     Raises:
         HTTPException: 401 if the Bearer token is missing, expired, or invalid.
     """
-    data = await service.get_monthly_pnl(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-    )
+    try:
+        data = await service.get_monthly_pnl(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[MonthlyPnl]](data=data)
 
 
@@ -276,6 +301,7 @@ async def get_monthly_pnl(
     },
 )
 async def get_pnl_by_symbol(
+    portfolio_id: uuid.UUID,
     service: Annotated[TimeSeriesService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -326,12 +352,21 @@ async def get_pnl_by_symbol(
     Raises:
         HTTPException: 401 if the Bearer token is missing, expired, or invalid.
     """
-    data = await service.get_pnl_by_symbol(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-    )
+    try:
+        data = await service.get_pnl_by_symbol(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[PnlBySymbol]](data=data)
 
 
@@ -371,6 +406,7 @@ async def get_pnl_by_symbol(
     },
 )
 async def get_pnl_by_asset_class(
+    portfolio_id: uuid.UUID,
     service: Annotated[TimeSeriesService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -421,12 +457,21 @@ async def get_pnl_by_asset_class(
     Raises:
         HTTPException: 401 if the Bearer token is missing, expired, or invalid.
     """
-    data = await service.get_pnl_by_asset_class(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-    )
+    try:
+        data = await service.get_pnl_by_asset_class(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[PnlByAssetClass]](data=data)
 
 
@@ -470,6 +515,7 @@ async def get_pnl_by_asset_class(
     },
 )
 async def get_return_distribution(
+    portfolio_id: uuid.UUID,
     service: Annotated[TimeSeriesService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -536,13 +582,22 @@ async def get_return_distribution(
     Raises:
         HTTPException: 401 if the Bearer token is missing, expired, or invalid.
     """
-    data = await service.get_return_distribution(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-        buckets=buckets,
-    )
+    try:
+        data = await service.get_return_distribution(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+            buckets=buckets,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[ReturnDistribution]](data=data)
 
 
@@ -588,6 +643,7 @@ async def get_return_distribution(
     },
 )
 async def get_rolling_winrate(
+    portfolio_id: uuid.UUID,
     service: Annotated[TimeSeriesService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     window_trades: Annotated[
@@ -654,13 +710,22 @@ async def get_rolling_winrate(
     Raises:
         HTTPException: 401 if the Bearer token is missing, expired, or invalid.
     """
-    data = await service.get_rolling_winrate(
-        user_id=current_user.id,
-        window_trades=window_trades,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-    )
+    try:
+        data = await service.get_rolling_winrate(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            window_trades=window_trades,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[RollingWinratePoint]](data=data)
 
 
@@ -696,6 +761,7 @@ async def get_rolling_winrate(
     },
 )
 async def get_monthly_winrate(
+    portfolio_id: uuid.UUID,
     service: Annotated[TimeSeriesService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -747,10 +813,19 @@ async def get_monthly_winrate(
     Raises:
         HTTPException: 401 if the Bearer token is missing, expired, or invalid.
     """
-    data = await service.get_monthly_winrate(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-    )
+    try:
+        data = await service.get_monthly_winrate(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[MonthlyWinratePoint]](data=data)

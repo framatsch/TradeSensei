@@ -1,4 +1,4 @@
-"""Ownership tests for the /api/v1/accounts endpoints.
+"""Ownership tests for the portfolio-scoped account endpoints.
 
 Verifies that GET, PATCH, and DELETE on an account owned by another user
 returns 404 — the repository's WHERE user_id = :uid clause makes the
@@ -24,10 +24,11 @@ class TestAccountOwnership:
         primary_user: dict[str, Any],
         other_users_account: dict[str, Any],
     ) -> None:
-        """GET /accounts/{id} on another user's account must return 404."""
+        """GET scoped account on another user's portfolio must return 404."""
         account_id = other_users_account["id"]
+        portfolio_id = other_users_account["portfolio_id"]
         resp = await client.get(
-            f"/api/v1/accounts/{account_id}",
+            f"/api/v1/portfolios/{portfolio_id}/accounts/{account_id}",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, resp.text
@@ -40,10 +41,11 @@ class TestAccountOwnership:
         primary_user: dict[str, Any],
         other_users_account: dict[str, Any],
     ) -> None:
-        """PATCH /accounts/{id} on another user's account must return 404."""
+        """PATCH scoped account on another user's portfolio must return 404."""
         account_id = other_users_account["id"]
+        portfolio_id = other_users_account["portfolio_id"]
         resp = await client.patch(
-            f"/api/v1/accounts/{account_id}",
+            f"/api/v1/portfolios/{portfolio_id}/accounts/{account_id}",
             json={"name": "hacked"},
             headers=primary_user["headers"],
         )
@@ -57,10 +59,11 @@ class TestAccountOwnership:
         primary_user: dict[str, Any],
         other_users_account: dict[str, Any],
     ) -> None:
-        """DELETE /accounts/{id} on another user's account must return 404."""
+        """DELETE scoped account on another user's portfolio must return 404."""
         account_id = other_users_account["id"]
+        portfolio_id = other_users_account["portfolio_id"]
         resp = await client.delete(
-            f"/api/v1/accounts/{account_id}",
+            f"/api/v1/portfolios/{portfolio_id}/accounts/{account_id}",
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, resp.text

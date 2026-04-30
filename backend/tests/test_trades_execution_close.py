@@ -8,7 +8,38 @@ from httpx import AsyncClient
 
 from tests.test_trades_api import _get_auth_headers, _trade_payload
 
-_TRADES_URL = "/api/v1/trades"
+
+async def _create_portfolio_and_account(
+    client: AsyncClient,
+    headers: dict[str, str],
+    suffix: str,
+) -> tuple[str, str]:
+    """Create a portfolio and account for execution close tests.
+
+    Args:
+        client: The HTTPX test client.
+        headers: Auth headers.
+        suffix: Unique suffix for names.
+
+    Returns:
+        Tuple of ``(portfolio_id, account_id)``.
+    """
+    p_resp = await client.post(
+        "/api/v1/portfolios",
+        json={"name": f"Execution Close {suffix}", "base_currency": "USD"},
+        headers=headers,
+    )
+    assert p_resp.status_code == 201, p_resp.text
+    portfolio_id = str(p_resp.json()["data"]["id"])
+
+    a_resp = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        json={"name": f"Execution Close {suffix}", "type": "manual", "currency": "USD"},
+        headers=headers,
+    )
+    assert a_resp.status_code == 201, a_resp.text
+    account_id = str(a_resp.json()["data"]["id"])
+    return portfolio_id, account_id
 
 
 @pytest.mark.integration
@@ -20,10 +51,20 @@ class TestExecutionCloseTrade:
     ) -> None:
         """Adding a SELL execution to an open LONG trade correctly aggregates values but keeps it open if partial."""
         headers = await _get_auth_headers(client, "pcsplit")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "pcsplit"
+        )
 
         # 1. Create an open LONG trade (10 shares)
-        payload = _trade_payload(quantity="10", commission="10.00", direction="LONG")
-        create_resp = await client.post(_TRADES_URL, json=payload, headers=headers)
+        payload = _trade_payload(
+            quantity="10",
+            commission="10.00",
+            direction="LONG",
+            account_id=account_id,
+        )
+        create_resp = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades", json=payload, headers=headers
+        )
         trade_id = create_resp.json()["data"]["id"]
 
         # 2. Add a SELL execution for 4 shares
@@ -35,14 +76,16 @@ class TestExecutionCloseTrade:
             "executed_at": datetime(2025, 1, 15, 15, 0, tzinfo=UTC).isoformat(),
         }
         exec_resp = await client.post(
-            f"{_TRADES_URL}/{trade_id}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
             json=execution_payload,
             headers=headers,
         )
         assert exec_resp.status_code == 201
 
         # 3. Verify original trade was re-aggregated
-        trade_resp = await client.get(f"{_TRADES_URL}/{trade_id}", headers=headers)
+        trade_resp = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers
+        )
         trade = trade_resp.json()["data"]
 
         # Qty remains 10 (entry sum). Commission is 10.00 (entry) + 2.50 (exit) = 12.50
@@ -56,10 +99,20 @@ class TestExecutionCloseTrade:
     ) -> None:
         """If exit quantity matches entry quantity, the trade should be fully closed."""
         headers = await _get_auth_headers(client, "pcfull")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "pcfull"
+        )
 
         # 1. Create an open LONG trade (10 shares)
-        payload = _trade_payload(quantity="10", commission="5.00", direction="LONG")
-        create_resp = await client.post(_TRADES_URL, json=payload, headers=headers)
+        payload = _trade_payload(
+            quantity="10",
+            commission="5.00",
+            direction="LONG",
+            account_id=account_id,
+        )
+        create_resp = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades", json=payload, headers=headers
+        )
         trade_id = create_resp.json()["data"]["id"]
 
         # 2. Add a SELL execution for 10 shares
@@ -71,14 +124,16 @@ class TestExecutionCloseTrade:
             "executed_at": datetime(2025, 1, 15, 16, 0, tzinfo=UTC).isoformat(),
         }
         exec_resp = await client.post(
-            f"{_TRADES_URL}/{trade_id}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
             json=execution_payload,
             headers=headers,
         )
         assert exec_resp.status_code == 201
 
         # 3. Verify trade is closed
-        trade_resp = await client.get(f"{_TRADES_URL}/{trade_id}", headers=headers)
+        trade_resp = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers
+        )
         trade = trade_resp.json()["data"]
 
         assert Decimal(trade["quantity"]) == Decimal("10")
@@ -91,10 +146,15 @@ class TestExecutionCloseTrade:
     ) -> None:
         """Should return 422 if execution payload is invalid (e.g. qty=0)."""
         headers = await _get_auth_headers(client, "pcinv")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "pcinv"
+        )
 
         # 1. Create an open LONG trade (5 shares)
-        payload = _trade_payload(quantity="5", direction="LONG")
-        create_resp = await client.post(_TRADES_URL, json=payload, headers=headers)
+        payload = _trade_payload(quantity="5", direction="LONG", account_id=account_id)
+        create_resp = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades", json=payload, headers=headers
+        )
         trade_id = create_resp.json()["data"]["id"]
 
         # 2. Attempt to add invalid execution
@@ -106,7 +166,7 @@ class TestExecutionCloseTrade:
             "executed_at": datetime.now(UTC).isoformat(),
         }
         exec_resp = await client.post(
-            f"{_TRADES_URL}/{trade_id}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
             json=execution_payload,
             headers=headers,
         )

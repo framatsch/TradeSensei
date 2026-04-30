@@ -8,13 +8,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.metrics import DrawdownPoint, EquityCurvePoint, MetricsSummary
 from app.services.metrics_service import MetricsService
 
-router = APIRouter(prefix="/metrics", tags=["metrics"])
+router = APIRouter(
+    prefix="/portfolios/{portfolio_id}/metrics",
+    tags=["metrics"],
+    dependencies=[Depends(require_portfolio_owner)],
+)
 
 
 def _get_service(
@@ -75,6 +80,7 @@ def _get_service(
     },
 )
 async def get_metrics_summary(
+    portfolio_id: uuid.UUID,
     service: Annotated[MetricsService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -150,13 +156,22 @@ async def get_metrics_summary(
         HTTPException: 401 if the Bearer token is missing, expired, or
             otherwise invalid.
     """
-    summary = await service.get_summary(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-        starting_capital=starting_capital,
-    )
+    try:
+        summary = await service.get_summary(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+            starting_capital=starting_capital,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[MetricsSummary](data=summary)
 
 
@@ -200,6 +215,7 @@ async def get_metrics_summary(
     },
 )
 async def get_equity_curve(
+    portfolio_id: uuid.UUID,
     service: Annotated[MetricsService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -273,13 +289,22 @@ async def get_equity_curve(
         HTTPException: 401 if the Bearer token is missing, expired, or
             otherwise invalid.
     """
-    curve = await service.get_equity_curve(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-        starting_capital=starting_capital,
-    )
+    try:
+        curve = await service.get_equity_curve(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+            starting_capital=starting_capital,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[EquityCurvePoint]](data=curve)
 
 
@@ -328,6 +353,7 @@ async def get_equity_curve(
     },
 )
 async def get_drawdown_curve(
+    portfolio_id: uuid.UUID,
     service: Annotated[MetricsService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
@@ -403,11 +429,20 @@ async def get_drawdown_curve(
         HTTPException: 401 if the Bearer token is missing, expired, or
             otherwise invalid.
     """
-    curve = await service.get_drawdown_curve(
-        user_id=current_user.id,
-        account_id=account_id,
-        from_dt=from_dt,
-        to_dt=to_dt,
-        starting_capital=starting_capital,
-    )
+    try:
+        curve = await service.get_drawdown_curve(
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            from_dt=from_dt,
+            to_dt=to_dt,
+            starting_capital=starting_capital,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[list[DrawdownPoint]](data=curve)

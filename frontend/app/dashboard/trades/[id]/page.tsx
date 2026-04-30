@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Check, X, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useTradeExecutions } from "@/hooks/useExecutions";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useTags } from "@/hooks/useTags";
 import { NoteList } from "@/components/notes/NoteList";
@@ -328,8 +329,9 @@ function InlineTagsField({ tagIds, tags: tradeTags, onSave }: InlineTagsFieldPro
 export default function TradeDetailPage() {
   const params = useParams();
   const tradeId = typeof params.id === "string" ? params.id : "";
+  const { activePortfolioId } = useActivePortfolio();
   const { data: trade, isLoading, isError, error } = useTrade(tradeId);
-  const { data: executions = [] } = useTradeExecutions(tradeId);
+  const { data: executions = [] } = useTradeExecutions(tradeId, activePortfolioId);
   const updateTrade = useUpdateTrade(tradeId);
   const [correctModalOpen, setCorrectModalOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);

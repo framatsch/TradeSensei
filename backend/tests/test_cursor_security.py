@@ -151,6 +151,14 @@ class TestOtherUserCursorReturnsEmpty:
         assert token_resp_a.status_code == 200
         headers_a = {"Authorization": f"Bearer {token_resp_a.json()['access_token']}"}
 
+        portfolio_a = await client.post(
+            "/api/v1/portfolios",
+            json={"name": "Cursor Portfolio A", "base_currency": "USD"},
+            headers=headers_a,
+        )
+        assert portfolio_a.status_code == 201
+        portfolio_id_a = portfolio_a.json()["data"]["id"]
+
         # Register user B
         resp_b = await client.post(
             "/api/v1/auth/register",
@@ -169,9 +177,17 @@ class TestOtherUserCursorReturnsEmpty:
         assert token_resp_b.status_code == 200
         headers_b = {"Authorization": f"Bearer {token_resp_b.json()['access_token']}"}
 
+        portfolio_b = await client.post(
+            "/api/v1/portfolios",
+            json={"name": "Cursor Portfolio B", "base_currency": "USD"},
+            headers=headers_b,
+        )
+        assert portfolio_b.status_code == 201
+        portfolio_id_b = portfolio_b.json()["data"]["id"]
+
         # Create an account for user A
         acc_resp_a = await client.post(
-            "/api/v1/accounts",
+            f"/api/v1/portfolios/{portfolio_id_a}/accounts",
             json={"name": "Acc A", "type": "manual", "currency": "USD"},
             headers=headers_a,
         )
@@ -181,7 +197,7 @@ class TestOtherUserCursorReturnsEmpty:
         # Create two trades for user A so the cursor page has data
         for i in range(2):
             tr = await client.post(
-                "/api/v1/trades",
+                f"/api/v1/portfolios/{portfolio_id_a}/trades",
                 json={
                     "account_id": account_id_a,
                     "symbol": f"AAA{i}",
@@ -198,7 +214,7 @@ class TestOtherUserCursorReturnsEmpty:
 
         # List user A's trades with limit=1 to get a cursor
         list_a = await client.get(
-            "/api/v1/trades?limit=1",
+            f"/api/v1/portfolios/{portfolio_id_a}/trades?limit=1",
             headers=headers_a,
         )
         assert list_a.status_code == 200
@@ -210,7 +226,7 @@ class TestOtherUserCursorReturnsEmpty:
 
         # Use user A's cursor on user B's request — must return zero items
         list_b = await client.get(
-            f"/api/v1/trades?limit=10&cursor={cursor_from_a}",
+            f"/api/v1/portfolios/{portfolio_id_b}/trades?limit=10&cursor={cursor_from_a}",
             headers=headers_b,
         )
         # Expect 200 with empty items, or 400 (bad cursor for this user's context).

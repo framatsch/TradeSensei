@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.broker_raw_transaction import BrokerRawTransaction
     from app.models.corporate_action import CorporateAction
     from app.models.logical_execution import LogicalExecution
+    from app.models.portfolio import Portfolio
     from app.models.saved_trade_filter import SavedTradeFilter
     from app.models.trade import Trade
     from app.models.user_setting import UserSetting
@@ -106,6 +107,11 @@ class User(Base):
     # Relationships
     accounts: Mapped[list["Account"]] = relationship(
         "Account",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    portfolios: Mapped[list["Portfolio"]] = relationship(
+        "Portfolio",
         back_populates="user",
         cascade="all, delete-orphan",
     )

@@ -5,7 +5,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
+import {
+  listNotesApiV1TradesTradeIdNotesGet,
+  createNoteApiV1TradesTradeIdNotesPost,
+  updateNoteApiV1TradesTradeIdNotesNoteIdPatch,
+  deleteNoteApiV1TradesTradeIdNotesNoteIdDelete,
+} from "@/lib/api/index";
 import type {
   ResponseEnvelope,
   TradeNote,
@@ -17,10 +22,11 @@ export function useNotes(tradeId: string) {
   return useQuery<TradeNote[], Error>({
     queryKey: ["notes", tradeId],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<TradeNote[]>>(
-        `/api/v1/trades/${tradeId}/notes`
-      );
-      return res.data?.data ?? [];
+      const { data, error } = await listNotesApiV1TradesTradeIdNotesGet({
+        path: { trade_id: tradeId },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return ((data as unknown as ResponseEnvelope<TradeNote[]>).data) ?? [];
     },
     staleTime: 30 * 1000,
     enabled: Boolean(tradeId),
@@ -31,11 +37,12 @@ export function useAddNote() {
   const qc = useQueryClient();
   return useMutation<TradeNote, Error, { tradeId: string; payload: TradeNoteCreate }>({
     mutationFn: async ({ tradeId, payload }) => {
-      const res = await apiClient.post<ResponseEnvelope<TradeNote>>(
-        `/api/v1/trades/${tradeId}/notes`,
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await createNoteApiV1TradesTradeIdNotesPost({
+        path: { trade_id: tradeId },
+        body: payload as import("@/lib/api/types.gen").TradeNoteCreate,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as unknown as ResponseEnvelope<TradeNote>).data;
     },
     onSuccess: (_data, { tradeId }) => {
       void qc.invalidateQueries({ queryKey: ["notes", tradeId] });
@@ -49,11 +56,12 @@ export function useUpdateNote() {
   const qc = useQueryClient();
   return useMutation<TradeNote, Error, { tradeId: string; noteId: string; payload: TradeNoteUpdate }>({
     mutationFn: async ({ tradeId, noteId, payload }) => {
-      const res = await apiClient.patch<ResponseEnvelope<TradeNote>>(
-        `/api/v1/trades/${tradeId}/notes/${noteId}`,
-        payload
-      );
-      return res.data.data;
+      const { data, error } = await updateNoteApiV1TradesTradeIdNotesNoteIdPatch({
+        path: { trade_id: tradeId, note_id: noteId },
+        body: payload as import("@/lib/api/types.gen").TradeNoteUpdate,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as unknown as ResponseEnvelope<TradeNote>).data;
     },
     onSuccess: (_data, { tradeId }) => {
       void qc.invalidateQueries({ queryKey: ["notes", tradeId] });
@@ -65,9 +73,10 @@ export function useDeleteNote() {
   const qc = useQueryClient();
   return useMutation<void, Error, { tradeId: string; noteId: string }>({
     mutationFn: async ({ tradeId, noteId }) => {
-      await apiClient.delete(
-        `/api/v1/trades/${tradeId}/notes/${noteId}`
-      );
+      const { error } = await deleteNoteApiV1TradesTradeIdNotesNoteIdDelete({
+        path: { trade_id: tradeId, note_id: noteId },
+      });
+      if (error) throw error ?? new Error("Request failed");
     },
     onSuccess: (_data, { tradeId }) => {
       void qc.invalidateQueries({ queryKey: ["notes", tradeId] });

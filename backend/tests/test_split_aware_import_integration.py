@@ -10,8 +10,7 @@ from httpx import AsyncClient
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
-_ACCOUNTS_URL = "/api/v1/accounts"
-_IMPORT_URL = "/api/v1/imports/upload"
+_PORTFOLIOS_URL = "/api/v1/portfolios"
 
 
 def _make_split_xml(trade_count: int) -> bytes:
@@ -116,24 +115,33 @@ async def _auth_headers(client: AsyncClient, suffix: str) -> dict[str, str]:
 
 async def _create_account(client: AsyncClient, headers: dict[str, str]) -> str:
     """Create an account and return its ID."""
+    portfolio_res = await client.post(
+        _PORTFOLIOS_URL,
+        headers=headers,
+        json={"name": "Split Portfolio", "base_currency": "USD"},
+    )
+    assert portfolio_res.status_code == 201, portfolio_res.text
+    portfolio_id = str(portfolio_res.json()["data"]["id"])
+
     res = await client.post(
-        _ACCOUNTS_URL,
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         headers=headers,
         json={"name": "Split Import", "type": "ibkr", "currency": "USD"},
     )
     assert res.status_code == 201, res.text
-    return str(res.json()["data"]["id"])
+    return portfolio_id, str(res.json()["data"]["id"])
 
 
 async def _import_xml(
     client: AsyncClient,
     headers: dict[str, str],
+    portfolio_id: str,
     account_id: str,
     xml_content: bytes,
 ) -> dict[str, object]:
     """Import xml content using public import API endpoint."""
     response = await client.post(
-        _IMPORT_URL,
+        f"/api/v1/portfolios/{portfolio_id}/imports/upload",
         headers=headers,
         data={"broker": "ibkr", "account_id": account_id},
         files={"file": ("split.xml", xml_content, "application/xml")},
@@ -146,12 +154,20 @@ async def _import_xml(
 async def test_complete_import_flow_with_split_scenarios(client: AsyncClient) -> None:
     """Import should produce trades whose execution legs include split-origin rows."""
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
-    account_id = await _create_account(client, headers)
+    portfolio_id, account_id = await _create_account(client, headers)
 
-    import_result = await _import_xml(client, headers, account_id, _make_split_xml(3))
+    import_result = await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_split_xml(3),
+    )
     assert int(import_result["trades_created"]) >= 6
 
-    trades_resp = await client.get("/api/v1/trades?limit=50", headers=headers)
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=50", headers=headers
+    )
     assert trades_resp.status_code == 200, trades_resp.text
     trades = trades_resp.json()["data"]["items"]
     assert trades, "Expected at least one imported trade"
@@ -159,7 +175,7 @@ async def test_complete_import_flow_with_split_scenarios(client: AsyncClient) ->
     split_found = False
     for trade in trades:
         ex_resp = await client.get(
-            f"/api/v1/trades/{trade['id']}/executions",
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade['id']}/executions",
             headers=headers,
         )
         assert ex_resp.status_code == 200, ex_resp.text
@@ -179,14 +195,19 @@ async def test_complete_import_flow_with_split_scenarios(client: AsyncClient) ->
 async def test_trade_executions_api_after_split_import(client: AsyncClient) -> None:
     """Trade executions endpoint should return split lineage fields after import."""
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
-    account_id = await _create_account(client, headers)
-    await _import_xml(client, headers, account_id, _make_split_xml(2))
+    portfolio_id, account_id = await _create_account(client, headers)
+    await _import_xml(client, headers, portfolio_id, account_id, _make_split_xml(2))
 
-    trades_resp = await client.get("/api/v1/trades?limit=20", headers=headers)
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
     assert trades_resp.status_code == 200, trades_resp.text
     trade_id = trades_resp.json()["data"]["items"][0]["id"]
 
-    ex_resp = await client.get(f"/api/v1/trades/{trade_id}/executions", headers=headers)
+    ex_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+        headers=headers,
+    )
     assert ex_resp.status_code == 200, ex_resp.text
     data = ex_resp.json()["data"]
     assert data
@@ -197,13 +218,13 @@ async def test_trade_executions_api_after_split_import(client: AsyncClient) -> N
 async def test_reimport_idempotency_via_fresh_start(client: AsyncClient) -> None:
     """Fresh-start re-import with same file should produce stable trade counts."""
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
-    account_id = await _create_account(client, headers)
+    portfolio_id, account_id = await _create_account(client, headers)
     xml_content = _make_split_xml(5)
 
-    first = await _import_xml(client, headers, account_id, xml_content)
+    first = await _import_xml(client, headers, portfolio_id, account_id, xml_content)
 
     fresh = await client.post(
-        f"/api/v1/imports/{account_id}/fresh-start",
+        f"/api/v1/portfolios/{portfolio_id}/imports/{account_id}/fresh-start",
         headers=headers,
         data={"broker": "ibkr", "acknowledged": "true"},
         files={"file": ("split.xml", xml_content, "application/xml")},
@@ -219,11 +240,11 @@ async def test_reimport_idempotency_via_fresh_start(client: AsyncClient) -> None
 async def test_large_file_import_performance_smoke(client: AsyncClient) -> None:
     """Large split fixture should import in a bounded time and row count."""
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
-    account_id = await _create_account(client, headers)
+    portfolio_id, account_id = await _create_account(client, headers)
     xml_content = _make_split_xml(340)
 
     started_at = perf_counter()
-    result = await _import_xml(client, headers, account_id, xml_content)
+    result = await _import_xml(client, headers, portfolio_id, account_id, xml_content)
     elapsed_s = perf_counter() - started_at
 
     assert int(result["trades_created"]) >= 680

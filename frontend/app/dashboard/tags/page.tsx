@@ -1,22 +1,5 @@
-/**
- * Tags page — create and manage trade tags with custom colors.
- */
+import { redirect } from "next/navigation";
 
-import { PageHeader } from "@/components/ui/PageHeader";
-import { TagList } from "@/components/tags/TagList";
-
-export const metadata = {
-  title: "Tags — Trade Sensei",
-};
-
-export default function TagsPage() {
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Tags"
-        subtitle="Organize trades with custom colored labels"
-      />
-      <TagList />
-    </div>
-  );
+export default function OldTagsRedirect() {
+  redirect("/dashboard/library/tags");
 }

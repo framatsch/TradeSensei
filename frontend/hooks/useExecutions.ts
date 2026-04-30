@@ -5,9 +5,15 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
 import {
-  listTradeExecutionsApiV1TradesTradeIdExecutionsGet,
+  listTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGet as listTradeExecutions,
+  createManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPost as createManualExecution,
+  updateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatch as updateExecution,
+  deleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDelete as deleteExecution,
+  restoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePost as restoreExecution,
+  reassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPost as reassignExecution,
+  detachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPost as detachExecution,
+  splitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPost as splitExecution,
   type LogicalExecutionRead as GeneratedLogicalExecutionRead,
 } from "@/lib/api/index";
 import type {
@@ -15,13 +21,11 @@ import type {
   LogicalExecutionCreate,
   LogicalExecutionUpdate,
   ReassignExecutionRequest,
-  ResponseEnvelope,
   SplitExecutionRequest,
   SplitExecutionResponse,
-  Trade,
 } from "@/lib/types";
 
-function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead): LogicalExecution {
+export function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead): LogicalExecution {
   return {
     id: execution.id,
     trade_id: execution.trade_id ?? null,
@@ -29,11 +33,14 @@ function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead): Logica
     account_id: execution.account_id ?? null,
     symbol: execution.symbol,
     asset_class: execution.asset_class,
+    conid: execution.conid ?? null,
     direction: execution.direction,
     quantity: execution.quantity,
     price: execution.price,
+    // Backend always provides commission, defaulting to "0" defensively
     commission: execution.commission ?? "0",
     pnl: execution.pnl ?? null,
+    pnl_eur: execution.pnl_eur ?? null,
     executed_at: execution.executed_at,
     origin: execution.origin,
     deleted: execution.deleted,
@@ -49,43 +56,42 @@ function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead): Logica
 /**
  * Fetch executions for a trade.
  *
+ * Query key: ["executions", portfolioId, tradeId, { includeDeleted }] (4-element)
+ * Write hooks invalidate using the 3-element prefix ["executions", portfolioId, tradeId],
+ * which covers both showDeleted=true and false variants via TanStack Query prefix matching.
+ *
  * @param tradeId - Trade UUID.
  * @param includeDeleted - When true, include soft-deleted executions (task 8.4).
  */
-export function useTradeExecutions(tradeId: string, includeDeleted = false) {
+export function useTradeExecutions(tradeId: string, portfolioId?: string | null, includeDeleted = false) {
   return useQuery<LogicalExecution[], Error>({
-    queryKey: ["executions", tradeId, { includeDeleted }],
+    queryKey: ["executions", portfolioId, tradeId, { includeDeleted }],
     queryFn: async () => {
-      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-      const envelope = await listTradeExecutionsApiV1TradesTradeIdExecutionsGet<true>({
-        path: { trade_id: tradeId },
+      const { data, error } = await listTradeExecutions({
+        path: { portfolio_id: portfolioId!, trade_id: tradeId },
         query: includeDeleted ? { include_deleted: true } : undefined,
-        baseUrl: "/api/proxy",
-        auth: token ?? undefined,
-        throwOnError: true,
-        responseStyle: "data",
       });
-
-      return (envelope as unknown as { data: GeneratedLogicalExecutionRead[] }).data.map(mapGeneratedExecution);
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data.data as GeneratedLogicalExecutionRead[]).map(mapGeneratedExecution);
     },
     staleTime: 5 * 1000, // 5 seconds to ensure fresh data after updates
-    enabled: Boolean(tradeId),
+    enabled: Boolean(tradeId) && Boolean(portfolioId),
   });
 }
 
 /** Restore a soft-deleted execution (task 8.5). */
 export function useRestoreExecution() {
   const qc = useQueryClient();
-  return useMutation<LogicalExecution, Error, { executionId: string; tradeId: string }>({
-    mutationFn: async ({ executionId }) => {
-      const res = await apiClient.post<ResponseEnvelope<LogicalExecution>>(
-        `/api/v1/executions/${executionId}/restore`
-      );
-      return res.data.data;
+  return useMutation<LogicalExecution, Error, { executionId: string; tradeId: string; portfolioId: string }>({
+    mutationFn: async ({ executionId, portfolioId }) => {
+      const { data, error } = await restoreExecution({
+        path: { portfolio_id: portfolioId, execution_id: executionId },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return mapGeneratedExecution(data.data);
     },
-    onSuccess: (_, { tradeId }) => {
-      // Refetch both the regular and deleted-included execution lists
-      void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
+    onSuccess: (_, { tradeId, portfolioId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
@@ -93,20 +99,19 @@ export function useRestoreExecution() {
 }
 
 /** Create a new manual execution for a trade. */
-export function useCreateExecution(tradeId: string) {
+export function useCreateExecution() {
   const qc = useQueryClient();
-  return useMutation<LogicalExecution, Error, LogicalExecutionCreate>({
-    mutationFn: async (payload) => {
-      const res = await apiClient.post<ResponseEnvelope<LogicalExecution>>(
-        `/api/v1/trades/${tradeId}/executions`,
-        payload
-      );
-      return res.data.data;
+  return useMutation<LogicalExecution, Error, { tradeId: string; portfolioId: string; data: LogicalExecutionCreate }>({
+    mutationFn: async ({ tradeId, portfolioId, data: payload }) => {
+      const { data, error } = await createManualExecution({
+        path: { portfolio_id: portfolioId, trade_id: tradeId },
+        body: payload,
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return mapGeneratedExecution(data.data);
     },
-    onSuccess: () => {
-      // Force immediate refetch of executions
-      void qc.refetchQueries({ queryKey: ["executions", tradeId], type: "all" });
-      // Force immediate refetch of trade (P&L, etc will be re-calculated server-side)
+    onSuccess: (_, { tradeId, portfolioId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
@@ -119,19 +124,18 @@ export function useUpdateExecution() {
   return useMutation<
     LogicalExecution,
     Error,
-    { executionId: string; tradeId: string; data: LogicalExecutionUpdate }
+    { executionId: string; tradeId: string; portfolioId: string; data: LogicalExecutionUpdate }
   >({
-    mutationFn: async ({ executionId, data }) => {
-      const res = await apiClient.patch<ResponseEnvelope<LogicalExecution>>(
-        `/api/v1/executions/${executionId}`,
-        data
-      );
-      return res.data.data;
+    mutationFn: async ({ executionId, portfolioId, data }) => {
+      const { data: resData, error } = await updateExecution({
+        path: { portfolio_id: portfolioId, execution_id: executionId },
+        body: data,
+      });
+      if (error || !resData) throw error ?? new Error("Request failed: no data returned");
+      return mapGeneratedExecution(resData.data);
     },
-    onSuccess: (_, { tradeId }) => {
-      // Force immediate refetch of executions (pnl field will be updated)
-      void qc.refetchQueries({ queryKey: ["executions", tradeId], type: "all" });
-      // Force immediate refetch of trade (P&L, etc will be re-calculated server-side)
+    onSuccess: (_, { tradeId, portfolioId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
@@ -148,18 +152,19 @@ export function useUpdateExecution() {
  */
 export function useDeleteExecution() {
   const qc = useQueryClient();
-  return useMutation<LogicalExecution | null, Error, { executionId: string; tradeId: string }>({
-    mutationFn: async ({ executionId }) => {
-      const res = await apiClient.delete<ResponseEnvelope<LogicalExecution> | "">(
-        `/api/v1/executions/${executionId}`
-      );
-      // 204 → empty body; 200 → envelope with soft-deleted execution
-      if (res.status === 204 || !res.data) return null;
-      return (res.data as ResponseEnvelope<LogicalExecution>).data;
+  return useMutation<LogicalExecution | null, Error, { executionId: string; tradeId: string; portfolioId: string }>({
+    mutationFn: async ({ executionId, portfolioId }) => {
+      const { data, error, response } = await deleteExecution({
+        path: { portfolio_id: portfolioId, execution_id: executionId },
+      });
+      if (error) throw error;
+      // 204 = hard-delete of manual execution (no body); @hey-api returns { data: {}, ... } for 204
+      if (response?.status === 204) return null;
+      if (!data?.data) return null;
+      return mapGeneratedExecution(data.data);
     },
-    onSuccess: (_, { tradeId }) => {
-      // Invalidate all execution query variants (include_deleted true/false)
-      void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
+    onSuccess: (_, { tradeId, portfolioId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
@@ -172,20 +177,20 @@ export function useReassignExecution() {
   return useMutation<
     LogicalExecution,
     Error,
-    { executionId: string; sourceTradeId: string } & ReassignExecutionRequest
+    { executionId: string; sourceTradeId: string; portfolioId: string } & ReassignExecutionRequest
   >({
-    mutationFn: async ({ executionId, target_trade_id }) => {
-      const res = await apiClient.post<ResponseEnvelope<LogicalExecution>>(
-        `/api/v1/executions/${executionId}/reassign`,
-        { target_trade_id }
-      );
-      return res.data.data;
+    mutationFn: async ({ executionId, portfolioId, target_trade_id }) => {
+      const { data, error } = await reassignExecution({
+        path: { portfolio_id: portfolioId, execution_id: executionId },
+        body: { target_trade_id },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      // reassign returns ReassignExecutionResponse { execution, message } — hence .execution
+      return mapGeneratedExecution(data.data.execution);
     },
-    onSuccess: (_, { sourceTradeId, target_trade_id }) => {
-      // Force immediate refetch of both execution lists
-      void qc.refetchQueries({ queryKey: ["executions", sourceTradeId], type: "all" });
-      void qc.refetchQueries({ queryKey: ["executions", target_trade_id], type: "all" });
-      // Force immediate refetch of both trades (P&L will be re-calculated server-side)
+    onSuccess: (_, { sourceTradeId, portfolioId, target_trade_id }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, sourceTradeId], type: "all" });
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, target_trade_id], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", target_trade_id], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
@@ -196,24 +201,22 @@ export function useReassignExecution() {
 /** Detach an execution into a new trade. */
 export function useDetachExecution() {
   const qc = useQueryClient();
-  return useMutation<
-    Trade,
-    Error,
-    { executionId: string; sourceTradeId: string }
-  >({
-    mutationFn: async ({ executionId }) => {
-      const res = await apiClient.post<ResponseEnvelope<Trade>>(
-        `/api/v1/executions/${executionId}/detach`
-      );
-      return res.data.data;
+  // The backend returns the newly created Trade (200 ResponseEnvelope[TradeRead]) to enable
+  // post-detach navigation, but we intentionally discard it here — the product design is
+  // "stay on current view and refresh". If post-detach navigation is added in future,
+  // update the return type to Trade and surface data.data to the caller.
+  return useMutation<void, Error, { executionId: string; sourceTradeId: string; portfolioId: string }>({
+    mutationFn: async ({ executionId, portfolioId }) => {
+      const { error } = await detachExecution({
+        path: { portfolio_id: portfolioId, execution_id: executionId },
+      });
+      if (error) throw error ?? new Error("Request failed");
     },
-      onSuccess: (_, { sourceTradeId }) => {
-        // Force immediate refetch of executions
-        void qc.refetchQueries({ queryKey: ["executions", sourceTradeId], type: "all" });
-        // Force immediate refetch of trade (P&L will be re-calculated server-side)
-        void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
-        void qc.invalidateQueries({ queryKey: ["trades"] });
-      },
+    onSuccess: (_, { sourceTradeId, portfolioId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, sourceTradeId], type: "all" });
+      void qc.refetchQueries({ queryKey: ["trade", sourceTradeId], type: "all" });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+    },
   });
 }
 
@@ -223,18 +226,22 @@ export function useSplitExecution() {
   return useMutation<
     SplitExecutionResponse,
     Error,
-    { executionId: string; tradeId: string; data: SplitExecutionRequest }
+    { executionId: string; tradeId: string; portfolioId: string; data: SplitExecutionRequest }
   >({
-    mutationFn: async ({ executionId, data }) => {
-      const res = await apiClient.post<ResponseEnvelope<SplitExecutionResponse>>(
-        `/api/v1/executions/${executionId}/split`,
-        data
-      );
-      return res.data.data;
+    mutationFn: async ({ executionId, portfolioId, data }) => {
+      const { data: resData, error } = await splitExecution({
+        path: { portfolio_id: portfolioId, execution_id: executionId },
+        body: data,
+      });
+      if (error || !resData) throw error ?? new Error("Request failed: no data returned");
+      return {
+        execution_a: mapGeneratedExecution(resData.data.execution_a),
+        execution_b: mapGeneratedExecution(resData.data.execution_b),
+        original: mapGeneratedExecution(resData.data.original),
+      };
     },
-    onSuccess: (_, { tradeId }) => {
-      // Invalidate all execution query variants (deleted included or not)
-      void qc.invalidateQueries({ queryKey: ["executions", tradeId] });
+    onSuccess: (_, { tradeId, portfolioId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },

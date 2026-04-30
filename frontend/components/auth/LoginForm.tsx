@@ -11,7 +11,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { OIDCSignInButton } from "@/components/auth/OIDCSignInButton";
 import { useAuthConfig } from "@/hooks/useAuth";
-import type { AxiosError } from "axios";
+import { extractApiError } from "@/lib/api/errors";
 
 export function LoginForm() {
   const [username, setUsername] = useState("");
@@ -20,11 +20,7 @@ export function LoginForm() {
 
   const errorMessage = (() => {
     if (!error) return null;
-    const axiosErr = error as AxiosError<{ detail?: string }>;
-    return (
-      axiosErr.response?.data?.detail ??
-      "Login failed. Please check your credentials."
-    );
+    return extractApiError(error, "Login failed. Please check your credentials.");
   })();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {

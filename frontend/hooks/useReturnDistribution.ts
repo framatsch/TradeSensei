@@ -5,18 +5,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/api";
-import type { ReturnDistribution, ResponseEnvelope } from "@/lib/types";
+import { getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet } from "@/lib/api/index";
+import type { ReturnDistribution } from "@/lib/types";
 
-export function useReturnDistribution() {
+export function useReturnDistribution(portfolioId?: string) {
   return useQuery<ReturnDistribution[], Error>({
-    queryKey: ["metrics", "return-distribution"],
+    queryKey: ["metrics", "return-distribution", portfolioId],
     queryFn: async () => {
-      const res = await apiClient.get<ResponseEnvelope<ReturnDistribution[]>>(
-        "/api/v1/timeseries/return-distribution"
-      );
-      return res.data.data;
+      const { data, error } = await getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet({
+        path: { portfolio_id: portfolioId! },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as ReturnDistribution[];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: !!portfolioId,
   });
 }

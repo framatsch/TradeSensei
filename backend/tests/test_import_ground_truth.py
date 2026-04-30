@@ -24,8 +24,7 @@ from tests.integration.ground_truth_aggregator import aggregate_files_yearly
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
-_ACCOUNTS_URL = "/api/v1/accounts"
-_IMPORT_URL = "/api/v1/imports/upload"
+_PORTFOLIOS_URL = "/api/v1/portfolios"
 
 
 def _historical_xml_paths() -> list[Path]:
@@ -79,20 +78,29 @@ async def _register_and_login(client: AsyncClient) -> tuple[str, uuid.UUID]:
     return token, user_id
 
 
-async def _create_account(client: AsyncClient, token: str) -> uuid.UUID:
-    """Create an IBKR account for imports and return account UUID."""
+async def _create_account(client: AsyncClient, token: str) -> tuple[uuid.UUID, uuid.UUID]:
+    """Create portfolio + IBKR account for imports and return their UUIDs."""
+    portfolio = await client.post(
+        _PORTFOLIOS_URL,
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Ground Truth Portfolio", "base_currency": "USD"},
+    )
+    assert portfolio.status_code == 201, portfolio.text
+    portfolio_id = uuid.UUID(portfolio.json()["data"]["id"])
+
     resp = await client.post(
-        _ACCOUNTS_URL,
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         headers={"Authorization": f"Bearer {token}"},
         json={"name": "IBKR Ground Truth", "type": "ibkr", "currency": "USD"},
     )
     assert resp.status_code == 201, resp.text
-    return uuid.UUID(resp.json()["data"]["id"])
+    return portfolio_id, uuid.UUID(resp.json()["data"]["id"])
 
 
 async def _import_xml_files(
     client: AsyncClient,
     token: str,
+    portfolio_id: uuid.UUID,
     account_id: uuid.UUID,
     xml_paths: list[Path],
 ) -> None:
@@ -108,7 +116,10 @@ async def _import_xml_files(
                 "account_id": str(account_id),
             }
             resp = await client.post(
-                _IMPORT_URL, headers=headers, data=data, files=files
+                f"/api/v1/portfolios/{portfolio_id}/imports/upload",
+                headers=headers,
+                data=data,
+                files=files,
             )
             assert resp.status_code == 200, (
                 f"Import failed for {xml_path.name}: {resp.status_code} {resp.text}"
@@ -159,9 +170,9 @@ async def test_historical_xml_import_matches_ground_truth(
     """DB yearly PnL must exactly match standalone ground-truth output."""
     xml_paths = _historical_xml_paths()
     token, user_id = await _register_and_login(client)
-    account_id = await _create_account(client, token)
+    portfolio_id, account_id = await _create_account(client, token)
 
-    await _import_xml_files(client, token, account_id, xml_paths)
+    await _import_xml_files(client, token, portfolio_id, account_id, xml_paths)
 
     db_yearly = await _db_yearly_totals(db_session, user_id, account_id)
     gt_yearly = aggregate_files_yearly(xml_paths)

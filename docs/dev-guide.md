@@ -226,6 +226,29 @@ uv run alembic downgrade -1
 The `DATABASE_URL` env var must be set before running any Alembic command.
 In local development this is picked up automatically from `backend/.env`.
 
+### Portfolio migration notes
+
+The portfolio core data model introduces a mandatory `portfolio_id` on every
+account and adds portfolio-scoped API paths.
+
+- `alembic upgrade head` creates one `Default Portfolio` per existing user and
+  links all existing accounts to it.
+- After the migration, `accounts.portfolio_id` is enforced as non-null.
+- The previous unscoped endpoints now return `410 Gone`; update clients to the
+  new portfolio-scoped URLs.
+
+Examples:
+
+```text
+GET  /api/v1/portfolios
+POST /api/v1/portfolios
+GET  /api/v1/portfolios/{portfolio_id}/accounts
+GET  /api/v1/portfolios/{portfolio_id}/trades
+GET  /api/v1/portfolios/{portfolio_id}/metrics/summary
+GET  /api/v1/portfolios/{portfolio_id}/timeseries/daily-pnl
+POST /api/v1/portfolios/{portfolio_id}/imports/upload
+```
+
 ---
 
 ## Running tests

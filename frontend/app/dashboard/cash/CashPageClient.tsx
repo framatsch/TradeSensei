@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import { useSettings } from "@/hooks/useSettings";
 import { useAccounts } from "@/hooks/useAccounts";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import {
   useCashTransactions,
   useAccountMetrics,
@@ -346,7 +347,8 @@ export function CashPageClient() {
     }
   }, [settings, cashEnabled, router]);
 
-  const { data: accounts, isLoading: accountsLoading } = useAccounts();
+  const { activePortfolioId } = useActivePortfolio();
+  const { data: accounts, isLoading: accountsLoading } = useAccounts(activePortfolioId ?? undefined);
 
   const PAGE_SIZE = 20;
 
@@ -357,9 +359,16 @@ export function CashPageClient() {
   const [showModal, setShowModal] = useState(false);
   const [editingTx, setEditingTx] = useState<CashTransaction | null>(null);
 
-  // Auto-select first account when accounts load
+  // Auto-select first account when accounts load or clear if missing
   useEffect(() => {
-    if (accounts && accounts.length === 1 && !selectedAccountId) {
+    if (!accounts) return;
+    
+    if (selectedAccountId) {
+      const exists = accounts.some(a => a.id === selectedAccountId);
+      if (!exists) {
+        setSelectedAccountId(accounts.length > 0 ? accounts[0].id : "");
+      }
+    } else if (accounts.length > 0) {
       setSelectedAccountId(accounts[0].id);
     }
   }, [accounts, selectedAccountId]);

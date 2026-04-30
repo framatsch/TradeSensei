@@ -19,7 +19,11 @@ from httpx import AsyncClient
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
-_ACCOUNTS_URL = "/api/v1/accounts"
+_PORTFOLIOS_URL = "/api/v1/portfolios"
+
+
+def _accounts_url(portfolio_id: str) -> str:
+    return f"/api/v1/portfolios/{portfolio_id}/accounts"
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +75,22 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _create_portfolio(
+    client: AsyncClient,
+    token: str,
+    *,
+    name: str,
+    base_currency: str = "USD",
+) -> str:
+    resp = await client.post(
+        _PORTFOLIOS_URL,
+        json={"name": name, "base_currency": base_currency},
+        headers=_auth(token),
+    )
+    assert resp.status_code == 201, resp.text
+    return str(resp.json()["data"]["id"])
+
+
 _DEFAULT_ACCOUNT_PAYLOAD = {
     "name": "IBKR Main",
     "type": "ibkr",
@@ -84,7 +104,7 @@ _DEFAULT_ACCOUNT_PAYLOAD = {
 
 
 class TestCreateAccount:
-    """Integration tests for ``POST /api/v1/accounts``."""
+    """Integration tests for ``POST /api/v1/portfolios/{id}/accounts``."""
 
     @pytest.mark.integration
     async def test_create_account_success(self, client: AsyncClient) -> None:
@@ -97,8 +117,13 @@ class TestCreateAccount:
         token = await _register_and_get_token(
             client, username="acc_creator", email="creator@example.com"
         )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Creator Portfolio",
+        )
         resp = await client.post(
-            _ACCOUNTS_URL,
+            _accounts_url(portfolio_id),
             json=_DEFAULT_ACCOUNT_PAYLOAD,
             headers=_auth(token),
         )
@@ -116,8 +141,11 @@ class TestCreateAccount:
 
     @pytest.mark.integration
     async def test_create_account_requires_auth(self, client: AsyncClient) -> None:
-        """POST /accounts without a token must return 401."""
-        resp = await client.post(_ACCOUNTS_URL, json=_DEFAULT_ACCOUNT_PAYLOAD)
+        """POST scoped accounts without a token must return 401."""
+        resp = await client.post(
+            _accounts_url(str(uuid.uuid4())),
+            json=_DEFAULT_ACCOUNT_PAYLOAD,
+        )
         assert resp.status_code == 401
 
     @pytest.mark.integration
@@ -128,8 +156,13 @@ class TestCreateAccount:
         token = await _register_and_get_token(
             client, username="acc_noname", email="noname@example.com"
         )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="No Name Portfolio",
+        )
         resp = await client.post(
-            _ACCOUNTS_URL,
+            _accounts_url(portfolio_id),
             json={"broker": "IBKR", "currency": "USD"},  # missing name
             headers=_auth(token),
         )
@@ -137,7 +170,7 @@ class TestCreateAccount:
 
 
 class TestListAccounts:
-    """Integration tests for ``GET /api/v1/accounts``."""
+    """Integration tests for ``GET /api/v1/portfolios/{id}/accounts``."""
 
     @pytest.mark.integration
     async def test_list_accounts(self, client: AsyncClient) -> None:
@@ -150,11 +183,24 @@ class TestListAccounts:
             client, username="acc_lister", email="lister@example.com"
         )
         headers = _auth(token)
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Lister Portfolio",
+        )
 
-        await client.post(_ACCOUNTS_URL, json={"name": "Account A"}, headers=headers)
-        await client.post(_ACCOUNTS_URL, json={"name": "Account B"}, headers=headers)
+        await client.post(
+            _accounts_url(portfolio_id),
+            json={"name": "Account A"},
+            headers=headers,
+        )
+        await client.post(
+            _accounts_url(portfolio_id),
+            json={"name": "Account B"},
+            headers=headers,
+        )
 
-        resp = await client.get(_ACCOUNTS_URL, headers=headers)
+        resp = await client.get(_accounts_url(portfolio_id), headers=headers)
         assert resp.status_code == 200
 
         page = resp.json()["data"]
@@ -170,14 +216,19 @@ class TestListAccounts:
         token = await _register_and_get_token(
             client, username="acc_empty", email="empty@example.com"
         )
-        resp = await client.get(_ACCOUNTS_URL, headers=_auth(token))
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Empty Portfolio",
+        )
+        resp = await client.get(_accounts_url(portfolio_id), headers=_auth(token))
         assert resp.status_code == 200
         assert resp.json()["data"]["items"] == []
         assert resp.json()["data"]["total"] == 0
 
 
 class TestGetAccount:
-    """Integration tests for ``GET /api/v1/accounts/{account_id}``."""
+    """Integration tests for ``GET /api/v1/portfolios/{id}/accounts/{account_id}``."""
 
     @pytest.mark.integration
     async def test_get_account_success(self, client: AsyncClient) -> None:
@@ -190,13 +241,20 @@ class TestGetAccount:
             client, username="acc_getter", email="getter@example.com"
         )
         headers = _auth(token)
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Getter Portfolio",
+        )
 
         create_resp = await client.post(
-            _ACCOUNTS_URL, json={"name": "Fetch Me"}, headers=headers
+            _accounts_url(portfolio_id), json={"name": "Fetch Me"}, headers=headers
         )
         account_id = create_resp.json()["data"]["id"]
 
-        resp = await client.get(f"{_ACCOUNTS_URL}/{account_id}", headers=headers)
+        resp = await client.get(
+            f"{_accounts_url(portfolio_id)}/{account_id}", headers=headers
+        )
         assert resp.status_code == 200
         assert resp.json()["data"]["name"] == "Fetch Me"
         assert resp.json()["data"]["id"] == account_id
@@ -211,13 +269,20 @@ class TestGetAccount:
         token = await _register_and_get_token(
             client, username="acc_404", email="notfound@example.com"
         )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Not Found Portfolio",
+        )
         unknown_id = uuid.uuid4()
-        resp = await client.get(f"{_ACCOUNTS_URL}/{unknown_id}", headers=_auth(token))
+        resp = await client.get(
+            f"{_accounts_url(portfolio_id)}/{unknown_id}", headers=_auth(token)
+        )
         assert resp.status_code == 404
 
 
 class TestUpdateAccount:
-    """Integration tests for ``PATCH /api/v1/accounts/{account_id}``."""
+    """Integration tests for scoped account update endpoints."""
 
     @pytest.mark.integration
     async def test_update_account_success(self, client: AsyncClient) -> None:
@@ -230,16 +295,21 @@ class TestUpdateAccount:
             client, username="acc_updater", email="updater@example.com"
         )
         headers = _auth(token)
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Updater Portfolio",
+        )
 
         create_resp = await client.post(
-            _ACCOUNTS_URL,
+            _accounts_url(portfolio_id),
             json={"name": "Before Update", "type": "ibkr", "currency": "USD"},
             headers=headers,
         )
         account_id = create_resp.json()["data"]["id"]
 
         resp = await client.patch(
-            f"{_ACCOUNTS_URL}/{account_id}",
+            f"{_accounts_url(portfolio_id)}/{account_id}",
             json={"name": "After Update"},
             headers=headers,
         )
@@ -258,9 +328,14 @@ class TestUpdateAccount:
         token = await _register_and_get_token(
             client, username="acc_upd404", email="upd404@example.com"
         )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Update 404 Portfolio",
+        )
         unknown_id = uuid.uuid4()
         resp = await client.patch(
-            f"{_ACCOUNTS_URL}/{unknown_id}",
+            f"{_accounts_url(portfolio_id)}/{unknown_id}",
             json={"name": "Ghost"},
             headers=_auth(token),
         )
@@ -268,7 +343,7 @@ class TestUpdateAccount:
 
 
 class TestDeleteAccount:
-    """Integration tests for ``DELETE /api/v1/accounts/{account_id}``."""
+    """Integration tests for scoped account delete endpoints."""
 
     @pytest.mark.integration
     async def test_delete_account_success(self, client: AsyncClient) -> None:
@@ -281,17 +356,26 @@ class TestDeleteAccount:
             client, username="acc_deleter", email="deleter@example.com"
         )
         headers = _auth(token)
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Delete Portfolio",
+        )
 
         create_resp = await client.post(
-            _ACCOUNTS_URL, json={"name": "Delete Me"}, headers=headers
+            _accounts_url(portfolio_id), json={"name": "Delete Me"}, headers=headers
         )
         account_id = create_resp.json()["data"]["id"]
 
-        del_resp = await client.delete(f"{_ACCOUNTS_URL}/{account_id}", headers=headers)
+        del_resp = await client.delete(
+            f"{_accounts_url(portfolio_id)}/{account_id}", headers=headers
+        )
         assert del_resp.status_code == 204
 
         # Confirm the account is truly gone
-        get_resp = await client.get(f"{_ACCOUNTS_URL}/{account_id}", headers=headers)
+        get_resp = await client.get(
+            f"{_accounts_url(portfolio_id)}/{account_id}", headers=headers
+        )
         assert get_resp.status_code == 404
 
     @pytest.mark.integration
@@ -302,9 +386,14 @@ class TestDeleteAccount:
         token = await _register_and_get_token(
             client, username="acc_del404", email="del404@example.com"
         )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Delete 404 Portfolio",
+        )
         unknown_id = uuid.uuid4()
         resp = await client.delete(
-            f"{_ACCOUNTS_URL}/{unknown_id}", headers=_auth(token)
+            f"{_accounts_url(portfolio_id)}/{unknown_id}", headers=_auth(token)
         )
         assert resp.status_code == 404
 
@@ -332,9 +421,20 @@ class TestAccountIsolation:
             client, username="user_beta", email="beta@example.com"
         )
 
+        portfolio_a = await _create_portfolio(
+            client,
+            token_a,
+            name="Alpha Portfolio",
+        )
+        portfolio_b = await _create_portfolio(
+            client,
+            token_b,
+            name="Beta Portfolio",
+        )
+
         # User B creates an account
         create_resp = await client.post(
-            _ACCOUNTS_URL,
+            _accounts_url(portfolio_b),
             json={"name": "User B's Secret Account"},
             headers=_auth(token_b),
         )
@@ -343,7 +443,7 @@ class TestAccountIsolation:
 
         # User A tries to GET User B's account by UUID — must get 404
         resp_a = await client.get(
-            f"{_ACCOUNTS_URL}/{b_account_id}",
+            f"{_accounts_url(portfolio_a)}/{b_account_id}",
             headers=_auth(token_a),
         )
         assert resp_a.status_code == 404
@@ -364,18 +464,29 @@ class TestAccountIsolation:
             client, username="user_delta", email="delta@example.com"
         )
 
+        portfolio_a = await _create_portfolio(
+            client,
+            token_a,
+            name="Gamma Portfolio",
+        )
+        portfolio_b = await _create_portfolio(
+            client,
+            token_b,
+            name="Delta Portfolio",
+        )
+
         await client.post(
-            _ACCOUNTS_URL,
+            _accounts_url(portfolio_a),
             json={"name": "Gamma's Account"},
             headers=_auth(token_a),
         )
         await client.post(
-            _ACCOUNTS_URL,
+            _accounts_url(portfolio_b),
             json={"name": "Delta's Account"},
             headers=_auth(token_b),
         )
 
-        resp = await client.get(_ACCOUNTS_URL, headers=_auth(token_a))
+        resp = await client.get(_accounts_url(portfolio_a), headers=_auth(token_a))
         assert resp.status_code == 200
 
         items = resp.json()["data"]["items"]

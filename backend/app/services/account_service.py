@@ -42,6 +42,9 @@ def _build_account_read(account: object, has_props: bool) -> AccountRead:
     else:
         item.settings = AccountSettings()
     item.has_api_keys = has_props
+    portfolio = getattr(account, "portfolio", None)
+    if portfolio is not None:
+        item.portfolio_name = getattr(portfolio, "name", None)
     return item
 
 
@@ -64,7 +67,11 @@ class AccountService:
         self._repo = AccountRepository(session)
         self._session = session
 
-    async def list_accounts(self, user_id: uuid.UUID) -> CursorPage[AccountRead]:
+    async def list_accounts(
+        self,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> CursorPage[AccountRead]:
         """Return all accounts owned by the given user.
 
         Each :class:`~app.schemas.account.AccountRead` item has its
@@ -82,7 +89,7 @@ class AccountService:
         """
         # TODO: Implement true cursor-based pagination — currently all accounts
         # are returned in a single page without any cursor filtering.
-        accounts = await self._repo.list_by_user(user_id)
+        accounts = await self._repo.list_by_user(user_id, portfolio_id)
         items: list[AccountRead] = [
             _build_account_read(a, len(a.properties) > 0) for a in accounts
         ]
@@ -96,6 +103,7 @@ class AccountService:
         self,
         account_id: uuid.UUID,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> AccountRead:
         """Retrieve a single account by ID, scoped to the requesting user.
 
@@ -113,7 +121,7 @@ class AccountService:
             :class:`~app.core.exceptions.AccountNotFoundError`: If no
                 account with that ID exists for the requesting user.
         """
-        account = await self._repo.get_by_id(account_id, user_id)
+        account = await self._repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         return _build_account_read(account, len(account.properties) > 0)
@@ -140,10 +148,15 @@ class AccountService:
         account = await self._repo.create(data, user_id)
         if data.properties:
             for key, value in data.properties.items():
-                await self._repo.upsert_property(account.id, key, encrypt_token(value))
+                await self._repo.upsert_property(
+                    account.id,
+                    user_id,
+                    key,
+                    encrypt_token(value),
+                )
         # Persist settings if provided
         if data.settings is not None:
-            await self._repo.update_settings(account.id, data.settings)
+            await self._repo.update_settings(account.id, user_id, data.settings)
         await self._session.commit()
         # Re-fetch with selectinload so that account.properties is eagerly
         # loaded in the async context — bare refresh() does not load relations.
@@ -159,6 +172,7 @@ class AccountService:
         account_id: uuid.UUID,
         data: AccountUpdate,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> AccountRead:
         """Apply a partial update to an account owned by the given user.
 
@@ -180,16 +194,21 @@ class AccountService:
             :class:`~app.core.exceptions.AccountNotFoundError`: If no
                 account with that ID exists for the requesting user.
         """
-        account = await self._repo.get_by_id(account_id, user_id)
+        account = await self._repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         updated = await self._repo.update(account, data)
         if data.properties:
             for key, value in data.properties.items():
-                await self._repo.upsert_property(updated.id, key, encrypt_token(value))
+                await self._repo.upsert_property(
+                    updated.id,
+                    user_id,
+                    key,
+                    encrypt_token(value),
+                )
         # Persist settings if provided (merge with existing via repo)
         if data.settings is not None:
-            await self._repo.update_settings(updated.id, data.settings)
+            await self._repo.update_settings(updated.id, user_id, data.settings)
         await self._session.commit()
         # Re-fetch with selectinload so that updated.properties is eagerly
         # loaded in the async context — bare refresh() does not load relations.
@@ -204,6 +223,7 @@ class AccountService:
         self,
         account_id: uuid.UUID,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> None:
         """Delete an account owned by the given user.
 
@@ -215,7 +235,7 @@ class AccountService:
             :class:`~app.core.exceptions.AccountNotFoundError`: If no
                 account with that ID exists for the requesting user.
         """
-        account = await self._repo.get_by_id(account_id, user_id)
+        account = await self._repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         await self._repo.delete(account)
@@ -225,6 +245,7 @@ class AccountService:
         self,
         account_id: uuid.UUID,
         user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
     ) -> AccountMetrics:
         """Calculate and return aggregate cash metrics for a single account.
 
@@ -239,7 +260,7 @@ class AccountService:
             :class:`~app.core.exceptions.AccountNotFoundError`: If no
                 account with that ID exists for the requesting user.
         """
-        account = await self._repo.get_by_id(account_id, user_id)
+        account = await self._repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
 

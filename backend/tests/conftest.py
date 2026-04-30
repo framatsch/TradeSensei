@@ -271,13 +271,23 @@ async def other_users_account(
     Returns:
         The account ``data`` dict from the 201 response.
     """
+    p_resp = await client.post(
+        "/api/v1/portfolios",
+        json={"name": "Other Portfolio", "base_currency": "USD"},
+        headers=other_user["headers"],
+    )
+    assert p_resp.status_code == 201, p_resp.text
+    portfolio_id = p_resp.json()["data"]["id"]
+
     resp = await client.post(
-        "/api/v1/accounts",
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
         json={"name": "Other Account", "type": "manual", "currency": "USD"},
         headers=other_user["headers"],
     )
     assert resp.status_code == 201, resp.text
-    return dict(resp.json()["data"])
+    data = dict(resp.json()["data"])
+    data["portfolio_id"] = portfolio_id
+    return data
 
 
 @pytest_asyncio.fixture()
@@ -297,7 +307,7 @@ async def other_users_trade(
         The trade ``data`` dict from the 201 response.
     """
     resp = await client.post(
-        "/api/v1/trades",
+        f"/api/v1/portfolios/{other_users_account['portfolio_id']}/trades",
         json={
             "account_id": other_users_account["id"],
             "symbol": "OTH",
@@ -311,7 +321,9 @@ async def other_users_trade(
         headers=other_user["headers"],
     )
     assert resp.status_code == 201, resp.text
-    return dict(resp.json()["data"])
+    data = dict(resp.json()["data"])
+    data["portfolio_id"] = other_users_account["portfolio_id"]
+    return data
 
 
 @pytest_asyncio.fixture()
@@ -389,6 +401,7 @@ async def other_users_execution(
     client: AsyncClient,
     other_user: dict[str, Any],
     other_users_trade: dict[str, Any],
+    other_users_account: dict[str, Any],
 ) -> dict[str, Any]:
     """Create a manual execution owned by ``other_user``; return its data dict.
 
@@ -406,7 +419,7 @@ async def other_users_execution(
     """
     trade_id = other_users_trade["id"]
     resp = await client.post(
-        f"/api/v1/trades/{trade_id}/executions",
+        f"/api/v1/portfolios/{other_users_account['portfolio_id']}/trades/{trade_id}/executions",
         json={
             "quantity": "1",
             "price": "10",
@@ -417,4 +430,6 @@ async def other_users_execution(
         headers=other_user["headers"],
     )
     assert resp.status_code == 201, resp.text
-    return dict(resp.json()["data"])
+    data = dict(resp.json()["data"])
+    data["portfolio_id"] = other_users_account["portfolio_id"]
+    return data
