@@ -274,6 +274,12 @@ def main():
                         tf.flush()
                         notes_file = tf.name
                         tf.close()
+                    elif release_notes:
+                        tf = tempfile.NamedTemporaryFile(mode="w", delete=False)
+                        tf.write(release_notes)
+                        tf.flush()
+                        notes_file = tf.name
+                        tf.close()
                     else:
                         # default minimal notes
                         tf = tempfile.NamedTemporaryFile(mode="w", delete=False)

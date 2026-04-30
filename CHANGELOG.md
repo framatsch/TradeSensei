@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Convert `if/else` assignments to ternary expressions across core services and parsers for conciseness (Ruff SIM108)
+
+### Changed
+- [backend] Increase Ruff `line-length` to 160 to reduce unnecessary multi-line wrapping in Python code
+
 ## [0.27.0] - 2026-04-30
 
 ### Added
