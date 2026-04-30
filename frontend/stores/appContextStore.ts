@@ -30,6 +30,9 @@ export const useAppContextStore = create<AppContextState>((set) => ({
       const stored = localStorage.getItem('active_app_context');
       if (isValidContext(stored)) {
         context = stored;
+      } else {
+        // Invalid or missing value — normalize to default and persist it
+        localStorage.setItem('active_app_context', context);
       }
     } catch (err) {
       console.error('Failed to read active_app_context from localStorage', err);

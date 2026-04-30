@@ -6,6 +6,7 @@ export const usePortfolios = () => {
     queryKey: ['portfolios'],
     queryFn: async () => {
       const response = await listPortfoliosApiV1PortfoliosGet();
+      if (response.error) throw response.error;
       return response.data?.data || [];
     },
     staleTime: 60000,

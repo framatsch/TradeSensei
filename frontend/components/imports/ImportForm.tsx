@@ -12,6 +12,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
+import { usePortfolioStore } from "@/stores/portfolioStore";
 import { Spinner } from "@/components/ui/Spinner";
 import { FileQueue, FileQueueSummary } from "@/components/imports/FileQueue";
 import { DateRangeVisualizer } from "@/components/imports/DateRangeVisualizer";
@@ -92,7 +93,8 @@ export function ImportForm() {
   const [flexCustomDate, setFlexCustomDate] = useState<string>(getYTDFromDate());
   const [saveSettingsLabel, setSaveSettingsLabel] = useState<"save" | "saving" | "saved">("save");
 
-  const { data: accounts, isLoading: loadingAccounts } = useAccounts();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
+  const { data: accounts, isLoading: loadingAccounts } = useAccounts(portfolioId ?? undefined);
   const updateAccount = useUpdateAccount(accountId);
 
   const selectedAccount = accounts?.find((a) => a.id === accountId) ?? null;
@@ -166,7 +168,7 @@ export function ImportForm() {
           formData.append("file", qf.file);
           if (overwrite) formData.append("overwrite_manually_edited", "true");
 
-          const res = (await (await client.post({ url: "/api/v1/imports/upload" as any, body: formData as any })).data) as any;
+          const res = (await (await client.post({ url: `/api/v1/portfolios/${portfolioId}/imports/upload` as any, body: formData as any })).data) as any;
           const result = res.data.data;
 
           setQueuedFiles((prev) =>
@@ -235,7 +237,7 @@ export function ImportForm() {
       formData.append("acknowledged", "true");
       formData.append("file", freshStartFile);
 
-      const res = (await (await client.post({ url: `/api/v1/imports/${accountId}/fresh-start` as any, body: formData as any })).data) as any;
+      const res = (await (await client.post({ url: `/api/v1/portfolios/${portfolioId}/imports/${accountId}/fresh-start` as any, body: formData as any })).data) as any;
       setFreshStartResult(res.data.data);
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["metrics"] });

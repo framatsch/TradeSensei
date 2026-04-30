@@ -53,36 +53,17 @@ frontend/
 
 ## UI & Design System (Dual-Theme)
 
-We use a strict **Dual-Theme (Light & Dark) Design System** driven by CSS variables in `globals.css`.
+Read `docs/styleguide.md` before writing any UI code. It is the single source of
+truth for tokens, component utility classes, typography, spacing, and forbidden patterns.
 
-- **Semantic Tokens Only:** NEVER use hardcoded colors like `bg-zinc-900`, `text-gray-500`, `border-slate-800`, or `bg-white/10`. You must ALWAYS use semantic variables:
-  - `bg-background`, `bg-sidebar`, `bg-card`, `bg-popover`
-  - `text-foreground`, `text-muted-foreground`
-  - `border-border`
-  - `bg-primary`, `bg-secondary`, `bg-muted`
-  - `text-success`, `text-danger`
-- **No `dark:` modifiers:** Do NOT use Tailwind's `dark:` modifier on individual classes (e.g. `dark:bg-zinc-800`). The theme switches automatically based on CSS variables mapped in `tailwind.config.ts`.
-- **Opacity with CSS Variables:** Standard Tailwind opacity modifiers don't work natively with our CSS hex variables. To add opacity, use `color-mix`:
-  - `bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)]`
-  - or use our utility classes.
-- **Utility Classes (from globals.css):** Use these predefined classes for complex, radiant surfaces:
-  - `.radiant-card` or `.card-glossy`: For cards and panels. Provides the correct translucent background, blur, and border for both modes.
-  - `.nav-active`: For active states in navigation or list items.
-  - `.metric-toggle-bar`, `.metric-toggle-active`, `.metric-toggle-inactive`: For segmented controls.
-  - `.radiant-table`: For tables.
-- **Light Mode Explicit Colors (use with `dark:` override):** Some components (e.g. chart overlays) are built with hardcoded dark backgrounds and require explicit light mode overrides using Tailwind's `dark:` modifier. In these cases, use the following fixed values:
-  - **Selected / active button background:** `bg-[#6063dd]` with `text-white`
-  - **Selected / active button border:** `border-[#6063dd]/80`
-  - **Primary filled button (CTA):** `bg-[#6063dd] text-white hover:opacity-90`
-  - **Unselected button / inactive text:** `text-[#717174]`
-  - **Toolbar / pill container background:** `bg-[#e9e9e9]`
-  - **Toolbar border:** `border-black/5`
-  - **Primary link/button accent (text, border, tint):** `#6063dd` — e.g. `text-[#6063dd]`, `border-[#6063dd]/20`, `bg-[#6063dd]/10`
-  - These values are only used when semantic CSS variables are unavailable (chart canvas overlays, third-party embeds). For all other UI, prefer semantic tokens.
-- **Tables & Typography:**
-  - Table separators: `border-b border-border` (no zebra striping).
-  - Table headers: `text-[10px] font-bold uppercase tracking-widest text-muted-foreground`.
-  - Numerics: Add `font-mono` for numbers (P&L, metrics).
+Key rules (full details in the styleguide):
+
+- **Semantic tokens only** — never hardcode colors (`bg-zinc-900`, `text-gray-500`, etc.)
+- **No `dark:` modifiers** — the theme switches via CSS variables automatically
+- **Opacity via `color-mix`** — standard `/10` opacity modifiers break with hex variables
+- **Use utility classes** — `.radiant-card`, `.btn-primary`, `.nav-active`, `.radiant-table`, etc.
+- **`font-mono` for all numbers** — P&L, metrics, prices
+- **`text-success` / `text-danger`** for positive/negative values
 
 ## Data Fetching
 

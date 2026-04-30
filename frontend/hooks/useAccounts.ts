@@ -6,6 +6,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/api/client.gen";
+import { usePortfolioStore } from "@/stores/portfolioStore";
 import type {
   Account,
   AccountCreate,
@@ -34,10 +35,14 @@ export function useAccounts(portfolioId?: string) {
 
 export function useCreateAccount() {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Account, Error, AccountCreate>({
     mutationFn: async (payload) => {
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts`
+        : "/api/v1/accounts";
       const { data, error } = await client.post<ResponseEnvelope<Account>, unknown, false>({
-        url: "/api/v1/accounts",
+        url,
         body: payload,
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
@@ -55,11 +60,14 @@ export function useCreateAccount() {
 
 export function useUpdateAccount(id: string) {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Account, Error, AccountUpdate>({
     mutationFn: async (payload) => {
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts/${id}`
+        : `/api/v1/accounts/${id}`;
       const { data, error } = await client.patch<ResponseEnvelope<Account>, unknown, false>({
-        url: "/api/v1/accounts/{account_id}",
-        path: { account_id: id },
+        url,
         body: payload,
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
@@ -77,11 +85,14 @@ export function useUpdateAccount(id: string) {
 
 export function useDeleteAccount() {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
+      const url = portfolioId
+        ? `/api/v1/portfolios/${portfolioId}/accounts/${id}`
+        : `/api/v1/accounts/${id}`;
       const { error } = await client.delete<unknown, unknown, false>({
-        url: "/api/v1/accounts/{account_id}",
-        path: { account_id: id },
+        url,
       });
       if (error) throw error ?? new Error("Request failed");
     },

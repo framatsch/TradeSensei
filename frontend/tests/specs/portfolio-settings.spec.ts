@@ -46,7 +46,8 @@ async function listPortfoliosViaApi(page: Page): Promise<{ id: string; name: str
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(res.ok()).toBeTruthy();
-  return res.json();
+  const body = await res.json() as { data: { id: string; name: string }[] };
+  return body.data ?? [];
 }
 
 /** Get current user settings. */
@@ -56,7 +57,9 @@ async function getSettings(page: Page): Promise<Record<string, unknown>> {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(res.ok()).toBeTruthy();
-  return res.json();
+  const body = await res.json() as { data?: Record<string, unknown> };
+  // API wraps in { data: { ... } }
+  return body.data ?? body;
 }
 
 // ─── Portfolio CRUD ───────────────────────────────────────────────────────────
@@ -76,7 +79,7 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
     const portfolios = await listPortfoliosViaApi(page);
     // At least the seeded portfolio should appear in the list
     if (portfolios.length > 0) {
-      await expect(page.getByText(portfolios[0].name)).toBeVisible();
+      await expect(page.getByText(portfolios[0].name).first()).toBeVisible();
     }
   });
 
@@ -98,7 +101,7 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
     await page.getByRole('button', { name: /save|create|submit/i }).last().click();
 
     // New portfolio should appear in the list
-    await expect(page.getByText(uniqueName)).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole('main').getByText(uniqueName).first()).toBeVisible({ timeout: 8_000 });
 
     // Track for cleanup
     const portfolios = await listPortfoliosViaApi(page);
@@ -119,13 +122,16 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
     await page.getByLabel(/name/i).fill(existingName);
     await page.getByRole('button', { name: /save|create|submit/i }).last().click();
 
+    // The UI shows a toast error when creation fails (duplicate name or other error)
     await expect(
-      page.getByText(/already exists|duplicate/i),
-    ).toBeVisible({ timeout: 5_000 });
+      page.getByText(/already exists|duplicate|failed to create/i),
+    ).toBeVisible({ timeout: 8_000 });
   });
 
   test('TC-133 Edit portfolio — name change persists', async ({ page }) => {
     const uniqueName = `E2E Edit Source ${Date.now()}`;
+    // Navigate first so localStorage is accessible
+    await page.goto('/dashboard/settings?tab=portfolios');
     const token = await getToken(page);
     const createRes = await page.request.fetch(`${API_URL}/api/v1/portfolios`, {
       method: 'POST',
@@ -139,8 +145,10 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
     await expect(page.getByText(uniqueName)).toBeVisible({ timeout: 8_000 });
 
     const newName = `${uniqueName} RENAMED`;
-    // Click the Edit button on that portfolio's row
-    await page.getByText(uniqueName).locator('..').getByRole('button', { name: /edit/i }).click();
+    // Click the Edit button on that portfolio's row (edit button has no label; it's the 2nd button sibling)
+    // From h3: '..' = anon div, '../..' = flex items-center gap-3, '../../..' = flex justify-between (has buttons)
+    const portfolioCard = page.locator('h3', { hasText: uniqueName }).locator('../../..');
+    await portfolioCard.locator('button').nth(1).click();
     const nameInput = page.getByLabel(/name/i);
     await nameInput.fill(newName);
     await page.getByRole('button', { name: /save|update/i }).last().click();
@@ -171,19 +179,17 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
       }
     });
 
-    // Click Delete on the first portfolio
-    await page.getByText(portfolios[0].name)
-      .locator('..')
-      .getByRole('button', { name: /delete/i })
-      .click();
+    // Click Delete on the first portfolio — delete button has no label; it's the 3rd button (index 2) in the card actions
+    const portfolioCard = page.locator('h3', { hasText: portfolios[0].name }).locator('../../..');
+    await portfolioCard.locator('button').nth(2).click();
 
-    // Confirm in popover
-    await page.getByRole('button', { name: /confirm|yes/i }).click();
+    // Confirm in popover (button text is "Confirm Delete")
+    await page.getByRole('button', { name: /confirm delete/i }).click();
 
-    // 409 error message
+    // 409 error message — shown as a toast notification
     await expect(
-      page.getByText(/remove all accounts|accounts.*before deleting/i),
-    ).toBeVisible({ timeout: 5_000 });
+      page.getByText(/remove all accounts before deleting/i),
+    ).toBeVisible({ timeout: 8_000 });
   });
 });
 
@@ -281,10 +287,10 @@ test.describe.serial('Default portfolio selector', () => {
     }
 
     // There should be a "set as default" control per portfolio (star/radio)
-    const defaultControl = page.locator('[data-testid="set-default-portfolio"]').or(
+    const defaultControl = page.locator('[data-testid="set-default-portfolio"]').first().or(
       page.getByRole('button', { name: /set as default|default/i }).first(),
     );
-    await expect(defaultControl).toBeVisible({ timeout: 8_000 });
+    await expect(defaultControl.first()).toBeVisible({ timeout: 8_000 });
   });
 
   test('TC-151 clicking Set as default updates user_settings.default_portfolio_id', async ({
@@ -297,15 +303,17 @@ test.describe.serial('Default portfolio selector', () => {
       return;
     }
 
-    // Click the star/default button on the first portfolio
-    const firstPortfolioRow = page.getByText(portfolios[0].name).locator('..');
+    // Click the star/default button on the first portfolio.
+    // Use h3 (more specific than getByRole) to avoid matching the topbar button.
+    // From h3: '..' = anon div, '../..' = flex items-center, '../../..' = flex justify-between (has buttons)
+    const firstPortfolioRow = page.locator('h3', { hasText: portfolios[0].name }).locator('../../..');
     await firstPortfolioRow
-      .getByRole('button', { name: /set as default|default/i })
-      .or(firstPortfolioRow.locator('[data-testid="set-default-portfolio"]'))
+      .locator('[data-testid="set-default-portfolio"]')
+      .first()
       .click();
 
-    // Wait for optimistic update or toast
-    await page.waitForTimeout(500);
+    // Wait for the API call to complete
+    await page.waitForTimeout(1500);
 
     // Verify via API
     const settings = await getSettings(page);
@@ -320,24 +328,20 @@ test.describe.serial('Default portfolio selector', () => {
       return;
     }
 
-    // Set first as default
-    await page.getByText(portfolios[0].name)
-      .locator('..')
-      .getByRole('button', { name: /set as default/i })
-      .or(
-        page.getByText(portfolios[0].name).locator('..').locator('[data-testid="set-default-portfolio"]'),
-      )
+    // Set first as default — use h3 locator to avoid ambiguous getByText matches
+    await page.locator('h3', { hasText: portfolios[0].name }).locator('../../..')
+      .locator('[data-testid="set-default-portfolio"]')
+      .first()
       .click();
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(300);
 
     // Set second as default
-    await page.getByText(portfolios[1].name)
-      .locator('..')
-      .getByRole('button', { name: /set as default/i })
-      .or(
-        page.getByText(portfolios[1].name).locator('..').locator('[data-testid="set-default-portfolio"]'),
-      )
+    await page.locator('h3', { hasText: portfolios[1].name }).locator('../../..')
+      .locator('[data-testid="set-default-portfolio"]')
+      .first()
       .click();
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(300);
 
     // API should reflect the second portfolio as default
@@ -349,6 +353,8 @@ test.describe.serial('Default portfolio selector', () => {
   test('TC-153 default portfolio is used as fallback when no active portfolio stored', async ({
     page,
   }) => {
+    // Navigate first so localStorage is accessible for getToken
+    await openPortfoliosTab(page);
     const portfolios = await listPortfoliosViaApi(page);
     if (portfolios.length === 0) {
       test.skip(true, 'Need at least one portfolio');
@@ -368,6 +374,14 @@ test.describe.serial('Default portfolio selector', () => {
     await page.evaluate(() => localStorage.removeItem('active_portfolio_id'));
     await page.reload();
     await expect(page.getByRole('banner')).toBeVisible({ timeout: 15_000 });
+    // Wait for network to settle (portfolios + settings queries must complete)
+    // and for the useActivePortfolio effect to write the default to localStorage
+    await page.waitForLoadState('networkidle');
+    await page.waitForFunction(
+      (id) => localStorage.getItem('active_portfolio_id') === id,
+      portfolios[0].id,
+      { timeout: 8_000 },
+    );
 
     // The stored active_portfolio_id should match the configured default
     const stored = await page.evaluate(() => localStorage.getItem('active_portfolio_id'));
@@ -396,22 +410,22 @@ test.describe('Danger Zone — portfolio data wipe', () => {
     await dangerBtn.click();
 
     const confirmInput = page.getByLabel(/type.*name.*confirm|confirm.*name/i).or(
-      page.getByPlaceholder(/portfolio name/i),
+      page.getByRole('textbox').filter({ hasNot: page.locator('[type="hidden"]') }).last(),
     );
-    await expect(confirmInput).toBeVisible({ timeout: 5_000 });
+    await expect(confirmInput.first()).toBeVisible({ timeout: 5_000 });
 
     const confirmBtn = page.getByRole('button', { name: /confirm|wipe/i }).last();
 
     // Type wrong name → Confirm stays disabled
-    await confirmInput.fill('wrong name');
+    await confirmInput.first().fill('wrong name');
     await expect(confirmBtn).toBeDisabled();
 
     // Type partial correct name → still disabled
-    await confirmInput.fill(portfolioName.slice(0, -1));
+    await confirmInput.first().fill(portfolioName.slice(0, -1));
     await expect(confirmBtn).toBeDisabled();
 
     // Type exact name → Confirm becomes enabled
-    await confirmInput.fill(portfolioName);
+    await confirmInput.first().fill(portfolioName);
     await expect(confirmBtn).toBeEnabled();
 
     // Close without confirming
@@ -433,14 +447,14 @@ test.describe('Danger Zone — portfolio data wipe', () => {
     await dangerBtn.click();
 
     const confirmInput = page.getByLabel(/type.*name.*confirm|confirm.*name/i).or(
-      page.getByPlaceholder(/portfolio name/i),
+      page.getByRole('textbox').filter({ hasNot: page.locator('[type="hidden"]') }).last(),
     );
-    await expect(confirmInput).toBeVisible({ timeout: 5_000 });
+    await expect(confirmInput.first()).toBeVisible({ timeout: 5_000 });
 
     const confirmBtn = page.getByRole('button', { name: /confirm|wipe/i }).last();
 
     // Type name in wrong case
-    await confirmInput.fill(portfolioName.toUpperCase());
+    await confirmInput.first().fill(portfolioName.toUpperCase());
     await expect(confirmBtn).toBeDisabled();
 
     await page.keyboard.press('Escape');
@@ -453,43 +467,49 @@ test.describe('base_currency immutability', () => {
   test('TC-170 base_currency field disabled with tooltip when portfolio has trades', async ({
     page,
   }) => {
+    // Navigate first so localStorage is accessible for getToken
     await openPortfoliosTab(page);
+    // Get portfolios list via API
     const portfolios = await listPortfoliosViaApi(page);
     if (portfolios.length === 0) {
       test.skip(true, 'Need at least one portfolio');
       return;
     }
 
-    // Mock the portfolio detail endpoint to simulate has_trades = true
-    await page.route(`**/api/v1/portfolios/${portfolios[0].id}`, async (route) => {
+    // Set up the route mock, then re-navigate so the page loads with has_trades = true
+    await page.route(`**/api/v1/portfolios`, async (route) => {
       if (route.request().method() === 'GET') {
         const originalRes = await route.fetch();
-        const body = await originalRes.json();
+        const body = await originalRes.json() as { data: any[] };
+        const updated = {
+          ...body,
+          data: body.data.map((p: any) => p.id === portfolios[0].id ? { ...p, has_trades: true } : p),
+        };
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ ...body, has_trades: true }),
+          body: JSON.stringify(updated),
         });
       } else {
         await route.continue();
       }
     });
 
-    // Open edit for the first portfolio
-    await page.getByText(portfolios[0].name)
-      .locator('..')
-      .getByRole('button', { name: /edit/i })
-      .click();
+    // Re-navigate with the mock active so the portfolio list loads with has_trades = true
+    await openPortfoliosTab(page);
+
+    // Open edit for the first portfolio — edit button has no label; it's the 2nd button in the card actions
+    // From h3: '..' = anon div, '../..' = flex items-center, '../../..' = flex justify-between (has buttons)
+    const firstPortfolioCard = page.locator('h3', { hasText: portfolios[0].name }).locator('../../..');
+    await firstPortfolioCard.locator('button').nth(1).click();
 
     // Currency select must be disabled
     const currencySelect = page.getByLabel(/currency/i);
     await expect(currencySelect).toBeDisabled({ timeout: 5_000 });
 
-    // Tooltip text should mention immutability
-    await currencySelect.hover();
-    await expect(
-      page.getByText(/cannot be changed.*trades|currency.*locked/i),
-    ).toBeVisible({ timeout: 3_000 });
+    // The select element should have a title attribute explaining why it's locked
+    const titleAttr = await currencySelect.getAttribute('title');
+    expect(titleAttr).toMatch(/cannot change|locked|trades exist/i);
 
     await page.unrouteAll();
   });

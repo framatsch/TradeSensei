@@ -18,6 +18,8 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import type { LogicalExecution } from "@/lib/types";
 import { useSplitExecution } from "@/hooks/useExecutions";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { extractApiError } from "@/lib/api/errors";
 
 interface Props {
   execution: LogicalExecution;
@@ -39,6 +41,7 @@ function fromDatetimeLocal(localStr: string): string {
 }
 
 export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
+  const { activePortfolioId } = useActivePortfolio();
   const originalQty = parseFloat(execution.quantity);
   const halfQty = (originalQty / 2).toFixed(4).replace(/\.?0+$/, "");
   const otherHalf = (originalQty - parseFloat(halfQty)).toFixed(4).replace(/\.?0+$/, "");
@@ -51,6 +54,7 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
   const [executedAtB, setExecutedAtB] = useState(toDatetimeLocal(execution.executed_at));
 
   const splitMutation = useSplitExecution();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const qtyANum = parseFloat(qtyA) || 0;
   const qtyBNum = parseFloat(qtyB) || 0;
@@ -58,11 +62,13 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
   const qtyValid = Math.abs(qtySum - originalQty) < 0.00001 && qtyANum > 0 && qtyBNum > 0;
 
   function handleConfirm() {
-    if (!qtyValid) return;
+    if (!qtyValid || !activePortfolioId) return;
+    setErrorMsg(null);
     splitMutation.mutate(
       {
         executionId: execution.id,
         tradeId,
+        portfolioId: activePortfolioId,
         data: {
           quantity_a: qtyA,
           quantity_b: qtyB,
@@ -72,7 +78,10 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
           executed_at_b: executedAtB ? fromDatetimeLocal(executedAtB) : null,
         },
       },
-      { onSuccess: () => onClose() }
+      {
+        onSuccess: () => onClose(),
+        onError: (err) => setErrorMsg(extractApiError(err, "Failed to split execution.")),
+      }
     );
   }
 
@@ -117,8 +126,9 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
             <div className="space-y-2">
               <p className="text-xs font-medium text-foreground">Execution A</p>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Quantity</label>
+                <label htmlFor="split-qty-a" className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Quantity</label>
                 <input
+                  id="split-qty-a"
                   type="number"
                   step="any"
                   min="0"
@@ -128,8 +138,9 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Price</label>
+                <label htmlFor="split-price-a" className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Price</label>
                 <input
+                  id="split-price-a"
                   type="number"
                   step="any"
                   min="0"
@@ -139,8 +150,9 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Executed At</label>
+                <label htmlFor="split-executed-at-a" className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Executed At</label>
                 <input
+                  id="split-executed-at-a"
                   type="datetime-local"
                   value={executedAtA}
                   onChange={(e) => setExecutedAtA(e.target.value)}
@@ -153,8 +165,9 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
             <div className="space-y-2">
               <p className="text-xs font-medium text-foreground">Execution B</p>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Quantity</label>
+                <label htmlFor="split-qty-b" className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Quantity</label>
                 <input
+                  id="split-qty-b"
                   type="number"
                   step="any"
                   min="0"
@@ -164,8 +177,9 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Price</label>
+                <label htmlFor="split-price-b" className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Price</label>
                 <input
+                  id="split-price-b"
                   type="number"
                   step="any"
                   min="0"
@@ -175,8 +189,9 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Executed At</label>
+                <label htmlFor="split-executed-at-b" className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Executed At</label>
                 <input
+                  id="split-executed-at-b"
                   type="datetime-local"
                   value={executedAtB}
                   onChange={(e) => setExecutedAtB(e.target.value)}
@@ -188,9 +203,14 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
 
           {/* Validation warning */}
           {!qtyValid && (qtyA !== "" || qtyB !== "") && (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-destructive">
               Quantities must be positive and sum to {execution.quantity} (currently {qtySum.toFixed(4)}).
             </p>
+          )}
+
+          {/* API error */}
+          {errorMsg && (
+            <p className="text-xs text-destructive">{errorMsg}</p>
           )}
 
           {/* Preview table */}
@@ -198,7 +218,7 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
             <div className="border border-border rounded-lg overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-border bg-muted/40">
+                  <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">
                     <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Leg</th>
                     <th className="px-3 py-1.5 text-right font-medium text-muted-foreground">Qty</th>
                     <th className="px-3 py-1.5 text-right font-medium text-muted-foreground">Price</th>
@@ -236,8 +256,8 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!qtyValid || splitMutation.isPending}
-            className="rounded-md bg-[#6063dd] px-4 py-1.5 text-sm text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+            disabled={!qtyValid || splitMutation.isPending || !activePortfolioId}
+            className="rounded-md bg-primary px-4 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-opacity"
           >
             {splitMutation.isPending ? "Splitting…" : "Confirm Split"}
           </button>

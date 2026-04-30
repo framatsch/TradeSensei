@@ -40,6 +40,7 @@ export function BentoMenu() {
             <button
               onClick={() => handleSelect("portfolio", "/dashboard")}
               className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative"
+              aria-current={activeContext === "portfolio" ? "true" : undefined}
             >
               <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground" />
               <span className="flex-1 font-medium">Portfolio Workspace</span>

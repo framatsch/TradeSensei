@@ -33,15 +33,16 @@ test.describe('Dashboard Overview', () => {
   });
 
   test('TC-032 equity curve chart is visible', async ({ page }) => {
-    // Recharts renders an svg inside the chart wrapper
-    await expect(page.locator('svg').first()).toBeVisible({ timeout: 15_000 });
+    // Recharts renders an svg inside the chart wrapper — wait for network to settle
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.recharts-wrapper, svg.recharts-surface').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-033 drawdown chart is visible', async ({ page }) => {
-    // Both charts are in a grid — at least 2 SVGs should be present
-    const svgs = page.locator('svg');
-    await expect(svgs.first()).toBeVisible({ timeout: 15_000 });
-    await expect(svgs).toHaveCount(await svgs.count()); // at least renders without error
+    // Both charts are in a grid — at least 1 recharts wrapper should be present
+    await page.waitForLoadState('networkidle');
+    const chartWrapper = page.locator('.recharts-wrapper').first();
+    await expect(chartWrapper).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-034 daily PnL bar chart section is present', async ({ page }) => {

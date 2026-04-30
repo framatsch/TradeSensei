@@ -18,7 +18,7 @@ export function PortfolioSwitcher() {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button className="flex items-center gap-2 h-8 px-2 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button data-testid="portfolio-switcher" className="flex items-center gap-2 h-8 px-2 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div
             className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ backgroundColor: activePortfolio.color_hex || "#6b7280" }}

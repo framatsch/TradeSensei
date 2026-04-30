@@ -5,10 +5,13 @@ import { ThemeProvider } from "next-themes";
 import { useState, useEffect } from "react";
 import { useAppContextStore } from "@/stores/appContextStore";
 import { usePortfolioStore } from "@/stores/portfolioStore";
-import { initializeApiClient } from "@/lib/api/init";
+import { registerApiInterceptors } from "@/lib/api/init";
 
-// Configure the @hey-api SDK once at module load (base URL + JWT interceptors)
-initializeApiClient();
+// Register JWT injection + 401 → logout interceptors at module scope so they are
+// active before TanStack Query fires its first requests on mount.
+// SSR-safe: registerApiInterceptors() no-ops when typeof window === "undefined".
+// Idempotent: the interceptorsRegistered module flag prevents double-registration.
+registerApiInterceptors();
 
 interface Props {
   children: React.ReactNode;

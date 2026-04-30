@@ -10,7 +10,7 @@ import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 
 export default function CalendarPage() {
   const { activePortfolioId } = useActivePortfolio();
-  const { calendarData, isLoading, isError } = useReportData(activePortfolioId ?? undefined);
+  const { calendarData, isLoading, isError } = useReportData();
   const router = useRouter();
 
   const handleDayClick = useCallback((date: string) => {

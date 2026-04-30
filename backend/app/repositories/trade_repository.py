@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import delete, func, nullslast, select
+from sqlalchemy import delete, func, nullslast, or_, select
 from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -461,11 +461,13 @@ class TradeRepository:
         )
         if portfolio_id is not None:
             stmt = (
-                stmt.join(Account, Trade.account_id == Account.id)
-                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                stmt.outerjoin(Account, Trade.account_id == Account.id)
+                .outerjoin(Portfolio, Account.portfolio_id == Portfolio.id)
                 .where(
-                    Account.portfolio_id == portfolio_id,
-                    Portfolio.user_id == user_id,
+                    or_(
+                        Trade.account_id.is_(None),
+                        Account.portfolio_id == portfolio_id,
+                    )
                 )
             )
         result = await self._session.execute(stmt)

@@ -13,7 +13,6 @@ import { BarChart2 } from "lucide-react";
 
 import { useReportData } from "@/hooks/useReportData";
 import { useSettings } from "@/hooks/useSettings";
-import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { Spinner } from "@/components/ui/Spinner";
 import { TimeAnalysisTab } from "./TimeAnalysisTab";
 import { StrategyAnalysisTab } from "./StrategyAnalysisTab";
@@ -45,11 +44,9 @@ export default function AnalyticsHubPage() {
       ? "risk"
       : "time";
 
-  const { activePortfolioId } = useActivePortfolio();
-
-  // Fetch all report data once at page level
+  // Fetch all report data once at page level — no account filter here
   const { trades, getAggregated, isLoading, isError } =
-    useReportData(activePortfolioId ?? undefined);
+    useReportData();
 
   return (
     <div className="flex flex-col gap-4">

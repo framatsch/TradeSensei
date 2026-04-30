@@ -30,7 +30,11 @@ export function PortfolioSettings() {
   const defaultPortfolioId = settings?.default_portfolio_id;
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => createPortfolioApiV1PortfoliosPost({ body: data }),
+    mutationFn: async (data: any) => {
+      const res = await createPortfolioApiV1PortfoliosPost({ body: data });
+      if (res.error) throw res.error;
+      return res.data;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portfolios"] });
       setCreating(false);
@@ -51,14 +55,18 @@ export function PortfolioSettings() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deletePortfolioApiV1PortfoliosPortfolioIdDelete({ path: { portfolio_id: id } }),
+    mutationFn: async (id: string) => {
+      const res = await deletePortfolioApiV1PortfoliosPortfolioIdDelete({ path: { portfolio_id: id } });
+      if (res.error) throw res.error;
+      return res;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portfolios"] });
       setDeleteConfirmId(null);
       toast.success("Portfolio deleted");
     },
     onError: (error: any) => {
-      if (error?.status === 409) {
+      if (error?.status === 409 || (typeof error?.detail === 'string' && error.detail.toLowerCase().includes('account'))) {
         toast.error("Remove all accounts before deleting this portfolio");
       } else {
         toast.error("Failed to delete portfolio");
@@ -130,6 +138,8 @@ export function PortfolioSettings() {
                     <button
                       onClick={() => updateSettings.mutate({ default_portfolio_id: portfolio.id })}
                       title="Set as default"
+                      aria-label="Set as default"
+                      data-testid="set-default-portfolio"
                       className="p-1.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors"
                     >
                       <Star className={`h-5 w-5 ${defaultPortfolioId === portfolio.id ? "fill-[#eab308] text-[#eab308]" : ""}`} />
@@ -251,6 +261,9 @@ function PortfolioForm({ initialData, onSubmit, onCancel }: { initialData?: any,
             <button
               key={c}
               type="button"
+              data-testid="color-chip"
+              aria-label={`color ${c}`}
+              aria-pressed={color === c}
               onClick={() => setColor(c)}
               className={`w-6 h-6 rounded-full transition-all ${color === c ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110" : "hover:scale-110 opacity-80"}`}
               style={{ backgroundColor: c }}

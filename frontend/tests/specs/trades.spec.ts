@@ -666,6 +666,18 @@ test.describe('Trades List — Empty State', () => {
     const loginData = (await loginRes.json()) as { access_token: string };
     emptyUserToken = loginData.access_token;
 
+    // Create a portfolio for the empty user so EmptyPortfolioGate doesn't block the trades page
+    const portfolioRes = await fetch(`${API_URL}/api/v1/portfolios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${emptyUserToken}` },
+      body: JSON.stringify({ name: 'Empty Portfolio', base_currency: 'USD', color_hex: '#6366f1' }),
+    });
+    let emptyPortfolioId = '';
+    if (portfolioRes.ok) {
+      const portfolioBody = (await portfolioRes.json()) as { data: { id: string } };
+      emptyPortfolioId = portfolioBody.data.id;
+    }
+
     // Launch one shared browser + context, inject the token once.
     sharedBrowser = await chromium.launch({ headless: true });
     const context = await sharedBrowser.newContext({ baseURL: BASE_URL });
@@ -673,8 +685,11 @@ test.describe('Trades List — Empty State', () => {
 
     await sharedPage.goto('/dashboard/trades');
     await sharedPage.evaluate(
-      (token) => localStorage.setItem('access_token', token),
-      emptyUserToken
+      ({ token, portfolioId }: { token: string; portfolioId: string }) => {
+        localStorage.setItem('access_token', token);
+        if (portfolioId) localStorage.setItem('active_portfolio_id', portfolioId);
+      },
+      { token: emptyUserToken, portfolioId: emptyPortfolioId }
     );
     await sharedPage.goto('/dashboard/trades');
     await sharedPage.waitForLoadState('networkidle');

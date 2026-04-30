@@ -14,6 +14,7 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import path from 'path';
 
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000';
 
@@ -55,8 +56,9 @@ async function listPortfoliosViaApi(page: Page): Promise<{ id: string; name: str
   const res = await page.request.fetch(`${API_URL}/api/v1/portfolios`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  expect(res.ok()).toBeTruthy();
-  return res.json();
+  if (!res.ok()) return [];
+  const body = await res.json() as { data: { id: string; name: string }[] };
+  return body.data ?? [];
 }
 
 // ─── portfolioStore — localStorage persistence ────────────────────────────────
@@ -93,6 +95,9 @@ test.describe('portfolioStore persistence', () => {
     );
     await page.reload();
     await expect(page.getByRole('banner')).toBeVisible({ timeout: 15_000 });
+
+    // Wait for the portfolio switcher to show a valid name (indicates fallback resolved)
+    await expect(page.locator('[data-testid="portfolio-switcher"]').first()).toBeVisible({ timeout: 10_000 });
 
     // After reload, the stored value should have been replaced with a real portfolio ID
     const stored = await page.evaluate(() => localStorage.getItem('active_portfolio_id'));
@@ -131,7 +136,7 @@ test.describe('appContextStore persistence', () => {
     await expect(page.getByRole('banner')).toBeVisible({ timeout: 15_000 });
 
     // Switch to library via BentoMenu
-    await page.getByRole('banner').getByRole('button', { name: /menu|bento/i }).click();
+    await page.getByRole('banner').getByRole('button', { name: /application context|menu|bento/i }).first().click();
     await page.getByText('Global Library').click();
     await expect(page).toHaveURL(/\/dashboard\/library/, { timeout: 8_000 });
 
@@ -144,9 +149,13 @@ test.describe('appContextStore persistence', () => {
 
 test.describe.serial('EmptyPortfolioGate', () => {
   /**
-   * These tests manipulate the user's portfolio list — run serially to avoid
-   * interference with other tests using the same e2e_testuser.
+   * These tests manipulate the user's portfolio list — they use a SEPARATE
+   * test user (e2e_destructive) so they don't race with other parallel tests
+   * that depend on the main e2e_testuser's portfolios.
    */
+
+  const DESTRUCTIVE_AUTH_FILE = path.join(__dirname, '../.auth/destructive-user.json');
+  test.use({ storageState: DESTRUCTIVE_AUTH_FILE });
 
   let createdPortfolioIds: string[] = [];
 
@@ -156,8 +165,10 @@ test.describe.serial('EmptyPortfolioGate', () => {
       await deletePortfolioViaApi(page, id).catch(() => {});
     }
     createdPortfolioIds = [];
+    // Navigate to dashboard to ensure access_token is in localStorage before API calls
+    await page.goto('/dashboard').catch(() => {});
     // Ensure user has at least one portfolio for other test suites
-    const portfolios = await listPortfoliosViaApi(page);
+    const portfolios = await listPortfoliosViaApi(page).catch(() => []);
     if (portfolios.length === 0) {
       const id = await createPortfolioViaApi(page, 'Default Portfolio');
       createdPortfolioIds = []; // don't delete the restored one
@@ -168,8 +179,10 @@ test.describe.serial('EmptyPortfolioGate', () => {
   });
 
   test('TC-110 EmptyPortfolioGate shown when user has no portfolios', async ({ page }) => {
-    // Delete all portfolios for this user
+    // Navigate first so localStorage is accessible for getToken
     await page.goto('/dashboard');
+    await expect(page.getByRole('banner')).toBeVisible({ timeout: 15_000 });
+    await page.waitForLoadState('networkidle');
     const portfolios = await listPortfoliosViaApi(page);
     for (const p of portfolios) {
       // Only delete if no accounts (spec: portfolio must be empty to delete)

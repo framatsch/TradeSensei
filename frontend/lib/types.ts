@@ -589,11 +589,13 @@ export interface LogicalExecution {
   account_id: string | null;
   symbol: string;
   asset_class: AssetClass;
+  conid: string | null;
   direction: Direction;
   quantity: string;
   price: string;
   commission: string;
   pnl: string | null;
+  pnl_eur: string | null;
   executed_at: string;
   /** @deprecated Use `origin` instead. */
   status?: ExecutionOrigin;

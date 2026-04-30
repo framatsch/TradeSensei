@@ -77,15 +77,9 @@ test.describe('Import Page', () => {
     const select = page.getByRole('combobox');
     await expect(select).toBeVisible();
 
-    // The seeded account should appear in the dropdown
-    // Wait for options to be populated
-    await page.waitForTimeout(500);
-    
-    // Look for the option text directly - option elements are attached but not "visible"
-    // so we check for the DOM element instead of visibility
-    const accountOption = page.locator('select option:has-text("E2E Test Account")').first();
-    await expect(accountOption).toBeDefined();
-    // Verify the option has the expected text
+    // Wait for options to be populated — accounts are fetched asynchronously
+    const accountOption = page.locator('select option').filter({ hasText: 'E2E Test Account' }).first();
+    await expect(accountOption).toBeAttached({ timeout: 10_000 });
     const optionText = await accountOption.textContent();
     expect(optionText).toContain('E2E Test Account');
   });
