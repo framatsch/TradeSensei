@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-04-30
+
 ### Added
 - [frontend] Portfolios tab in Settings — full CRUD for portfolios with colour chip picker, default portfolio selector, and Danger Zone (data wipe)
 - [frontend] Look & Feel settings tab — chart display defaults (`chart_candles_before`, `chart_candles_after`, `chart_show_post_exit`) stored in user settings
@@ -251,6 +253,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[0.27.0]: https://github.com/scheffold/TradeSensei/compare/v0.26.2...v0.27.0
 [0.24.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.22.0...v0.24.0
 [0.22.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.21.0...v0.22.0
 [0.17.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.16.0...v0.17.0
@@ -263,6 +266,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.24.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v0.27.0...HEAD
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
