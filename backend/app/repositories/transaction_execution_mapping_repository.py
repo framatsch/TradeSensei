@@ -26,9 +26,7 @@ class TransactionExecutionMappingRepository:
     async def exists_for_raw_transaction(self, raw_transaction_id: str) -> bool:
         """Return whether a raw transaction already has a logical mapping."""
         result = await self._session.execute(
-            select(TransactionExecutionMapping.raw_transaction_id).where(
-                TransactionExecutionMapping.raw_transaction_id == raw_transaction_id
-            )
+            select(TransactionExecutionMapping.raw_transaction_id).where(TransactionExecutionMapping.raw_transaction_id == raw_transaction_id)
         )
         return result.scalar_one_or_none() is not None
 
@@ -38,8 +36,6 @@ class TransactionExecutionMappingRepository:
     ) -> list[uuid.UUID]:
         """Return mapped logical execution IDs for one raw transaction."""
         result = await self._session.execute(
-            select(TransactionExecutionMapping.logical_execution_id).where(
-                TransactionExecutionMapping.raw_transaction_id == raw_transaction_id
-            )
+            select(TransactionExecutionMapping.logical_execution_id).where(TransactionExecutionMapping.raw_transaction_id == raw_transaction_id)
         )
         return list(result.scalars().all())

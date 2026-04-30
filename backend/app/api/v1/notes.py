@@ -42,9 +42,7 @@ def _get_service(
     response_model=ResponseEnvelope[list[TradeNoteRead]],
     summary="List Trade Notes",
     description=(
-        "Return all notes attached to the specified trade, ordered by "
-        "``created_at`` ascending. Only notes belonging to the authenticated "
-        "user are returned."
+        "Return all notes attached to the specified trade, ordered by ``created_at`` ascending. Only notes belonging to the authenticated user are returned."
     ),
     response_description="A list of trade notes wrapped in a response envelope.",
     responses={
@@ -78,20 +76,12 @@ async def list_notes(
     response_model=ResponseEnvelope[TradeNoteRead],
     status_code=status.HTTP_201_CREATED,
     summary="Add a Trade Note",
-    description=(
-        "Attach a new note to the specified trade. The note is scoped to the "
-        "authenticated user."
-    ),
+    description=("Attach a new note to the specified trade. The note is scoped to the authenticated user."),
     response_description="The newly created trade note wrapped in a response envelope.",
     responses={
         201: {"description": "Note created successfully."},
         401: {"description": "Missing or invalid Bearer token."},
-        422: {
-            "description": (
-                "Request payload failed schema validation, or ``trade_id`` is "
-                "not a valid UUID."
-            )
-        },
+        422: {"description": ("Request payload failed schema validation, or ``trade_id`` is not a valid UUID.")},
     },
 )
 async def create_note(
@@ -125,9 +115,7 @@ async def create_note(
         "body are modified. Returns 404 if the note does not exist, belongs to "
         "a different trade, or belongs to a different user."
     ),
-    response_description=(
-        "The note after applying the partial update, wrapped in a response envelope."
-    ),
+    response_description=("The note after applying the partial update, wrapped in a response envelope."),
     responses={
         200: {"description": "Note updated successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -161,9 +149,7 @@ async def update_note(
     try:
         note = await service.update_note(note_id, trade_id, payload, current_user.id)
     except NoteNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found.") from exc
     return ResponseEnvelope[TradeNoteRead](data=note)
 
 
@@ -171,20 +157,13 @@ async def update_note(
     "/{note_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a Trade Note",
-    description=(
-        "Permanently delete a trade note. Returns 404 if the note does not "
-        "exist, belongs to a different trade, or belongs to a different user."
-    ),
+    description=("Permanently delete a trade note. Returns 404 if the note does not exist, belongs to a different trade, or belongs to a different user."),
     response_description="No content — the note has been deleted.",
     responses={
         204: {"description": "Note deleted successfully."},
         401: {"description": "Missing or invalid Bearer token."},
         404: {"description": "Note not found."},
-        422: {
-            "description": (
-                "The supplied ``trade_id`` or ``note_id`` is not a valid UUID."
-            )
-        },
+        422: {"description": ("The supplied ``trade_id`` or ``note_id`` is not a valid UUID.")},
     },
 )
 async def delete_note(
@@ -207,6 +186,4 @@ async def delete_note(
     try:
         await service.delete_note(note_id, trade_id, current_user.id)
     except NoteNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found.") from exc

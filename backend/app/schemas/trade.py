@@ -79,40 +79,26 @@ class TradeCreate(BaseModel):
     user_id: uuid.UUID | None = None
     position_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "Stable business-position identifier shared across split-derived trades. "
-            "When omitted, a new position is created."
-        ),
+        description=("Stable business-position identifier shared across split-derived trades. When omitted, a new position is created."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
-    broker_conid: str | None = Field(
-        default=None, description="Broker contract identifier."
-    )
+    broker_conid: str | None = Field(default=None, description="Broker contract identifier.")
     multiplier: int = Field(default=1, description="Contract multiplier.")
     symbol: str = Field(
         ...,
         min_length=SYMBOL_MIN_LENGTH,
         max_length=SYMBOL_MAX_LENGTH,
-        description=(
-            "Ticker symbol of the traded instrument. "
-            "Maximum 30 characters (e.g. 'AAPL', 'EURUSD', 'CHTR  251003P00240000')."
-        ),
+        description=("Ticker symbol of the traded instrument. Maximum 30 characters (e.g. 'AAPL', 'EURUSD', 'CHTR  251003P00240000')."),
         examples=["AAPL", "EURUSD", "BTCUSDT", "ES"],
     )
     direction: Direction = Field(
         ...,
-        description=(
-            "Trade direction — 'LONG' for a buy position, 'SHORT' for a sell position."
-        ),
+        description=("Trade direction — 'LONG' for a buy position, 'SHORT' for a sell position."),
         examples=["LONG", "SHORT"],
     )
     asset_class: AssetClass | None = Field(
         default=None,
-        description=(
-            "Asset class of the traded instrument. "
-            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO. "
-            "Null for COMBO trades."
-        ),
+        description=("Asset class of the traded instrument. One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO. Null for COMBO trades."),
         examples=["EQUITY", "FOREX", "CRYPTO", None],
     )
     is_combo: bool = Field(
@@ -123,61 +109,42 @@ class TradeCreate(BaseModel):
     quantity: Decimal | None = Field(
         default=None,
         gt=Decimal("0"),
-        description=(
-            "Number of units, shares, or contracts traded. Must be greater than zero."
-        ),
+        description=("Number of units, shares, or contracts traded. Must be greater than zero."),
         examples=["100", "1.5", "0.01", None],
     )
     entry_price: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Execution price at which the position was opened. "
-            "Must be greater than zero."
-        ),
+        description=("Execution price at which the position was opened. Must be greater than zero."),
         examples=["150.25", "1.0823", "42350.00", None],
     )
     exit_price: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Execution price at which the position was closed. "
-            "Omit or set to null for trades that are still open."
-        ),
+        description=("Execution price at which the position was closed. Omit or set to null for trades that are still open."),
         examples=["155.00", "1.0901", None],
     )
     stop_loss: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Stop-loss price level for the trade. "
-            "Omit or set to null if no stop-loss was set."
-        ),
+        description=("Stop-loss price level for the trade. Omit or set to null if no stop-loss was set."),
         examples=["148.00", "1.0780", None],
     )
     take_profit: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Take-profit price level for the trade. "
-            "Omit or set to null if no take-profit was set."
-        ),
+        description=("Take-profit price level for the trade. Omit or set to null if no take-profit was set."),
         examples=["158.00", "1.0950", None],
     )
     opened_at: datetime = Field(
         ...,
-        description=(
-            "Timezone-aware UTC timestamp of when the position was opened. "
-            "Naive datetimes (without timezone info) are rejected."
-        ),
+        description=("Timezone-aware UTC timestamp of when the position was opened. Naive datetimes (without timezone info) are rejected."),
         examples=["2024-03-15T09:30:00Z", "2024-03-15T09:30:00+00:00"],
     )
     closed_at: datetime | None = Field(
         default=None,
         description=(
-            "Timezone-aware UTC timestamp of when the position was closed. "
-            "Omit or set to null for trades that are still open. "
-            "Naive datetimes are rejected."
+            "Timezone-aware UTC timestamp of when the position was closed. Omit or set to null for trades that are still open. Naive datetimes are rejected."
         ),
         examples=["2024-03-15T15:45:00Z", None],
     )
@@ -192,10 +159,7 @@ class TradeCreate(BaseModel):
     )
     net_pnl: Decimal | None = Field(
         default=None,
-        description=(
-            "Realised net profit or loss for this trade in account currency. "
-            "Null for open trades."
-        ),
+        description=("Realised net profit or loss for this trade in account currency. Null for open trades."),
         examples=["473.50", "-123.70", None],
     )
     commission: Decimal = Field(
@@ -207,20 +171,14 @@ class TradeCreate(BaseModel):
     notes: str | None = Field(
         default=None,
         max_length=NOTES_MAX_LENGTH,
-        description=(
-            "Free-text notes attached to this trade, e.g. trade rationale, "
-            "emotional state, or post-trade review."
-        ),
+        description=("Free-text notes attached to this trade, e.g. trade rationale, emotional state, or post-trade review."),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
     )
     user_rating: int | None = Field(
         default=None,
         ge=1,
         le=5,
-        description=(
-            "Optional user rating for this trade on a 1-5 scale. "
-            "Null if no rating was set."
-        ),
+        description=("Optional user rating for this trade on a 1-5 scale. Null if no rating was set."),
         examples=[1, 3, 5, None],
     )
     tradingview_link: str | None = Field(
@@ -237,50 +195,36 @@ class TradeCreate(BaseModel):
         default=None,
         min_length=3,
         max_length=3,
-        description=(
-            "ISO-4217 currency code of the trade (e.g. 'USD'). "
-            "Set automatically by broker importers."
-        ),
+        description=("ISO-4217 currency code of the trade (e.g. 'USD'). Set automatically by broker importers."),
         examples=["USD", None],
     )
     pnl_eur: Decimal | None = Field(
         default=None,
         description=(
-            "Realised P&L converted to EUR at the official Bundesbank daily rate "
-            "on the trade date. Null for open trades or when the rate is unavailable."
+            "Realised P&L converted to EUR at the official Bundesbank daily rate on the trade date. Null for open trades or when the rate is unavailable."
         ),
         examples=["432.50", "-98.20", None],
     )
     net_pnl_eur: Decimal | None = Field(
         default=None,
         description=(
-            "Realised net P&L converted to EUR at the official Bundesbank daily rate "
-            "on the trade date. Null for open trades or when the rate is unavailable."
+            "Realised net P&L converted to EUR at the official Bundesbank daily rate on the trade date. Null for open trades or when the rate is unavailable."
         ),
         examples=["430.50", "-100.20", None],
     )
     account_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the broker account this trade belongs to. "
-            "Omit to create an unassigned trade."
-        ),
+        description=("UUID of the broker account this trade belongs to. Omit to create an unassigned trade."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the playbook (strategy) to associate with this trade. "
-            "Omit or set to null for no playbook."
-        ),
+        description=("UUID of the playbook (strategy) to associate with this trade. Omit or set to null for no playbook."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     tag_ids: list[uuid.UUID] = Field(
         default_factory=list,
-        description=(
-            "List of tag UUIDs to attach to this trade. "
-            "All UUIDs must belong to the authenticated user."
-        ),
+        description=("List of tag UUIDs to attach to this trade. All UUIDs must belong to the authenticated user."),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
     )
     executions: list[LogicalExecutionCreate] | None = Field(
@@ -290,18 +234,12 @@ class TradeCreate(BaseModel):
     broker_order_id: str | None = Field(
         default=None,
         max_length=100,
-        description=(
-            "External broker order identifier used for deduplication during "
-            "live broker syncs. Set automatically by broker importers."
-        ),
+        description=("External broker order identifier used for deduplication during live broker syncs. Set automatically by broker importers."),
         examples=["1234567890", None],
     )
     is_manually_edited: bool = Field(
         default=False,
-        description=(
-            "When True, this trade was manually corrected and will be "
-            "skipped on subsequent broker re-imports."
-        ),
+        description=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
         examples=[False, True],
     )
     db_trade_id: uuid.UUID | None = Field(
@@ -316,10 +254,7 @@ class TradeCreate(BaseModel):
     is_mixed_execution: bool = Field(
         default=False,
         exclude=True,
-        description=(
-            "Internal flag — set when IBKR openCloseIndicator='C;O'. "
-            "Tells the aggregator this execution flips the position."
-        ),
+        description=("Internal flag — set when IBKR openCloseIndicator='C;O'. Tells the aggregator this execution flips the position."),
     )
     source_execution_id: uuid.UUID | str | None = Field(
         default=None,
@@ -346,10 +281,7 @@ class TradeCreate(BaseModel):
     source_qty_factor: Decimal = Field(
         default=Decimal("1"),
         exclude=True,
-        description=(
-            "Internal multiplier for quantity matching. "
-            "Accounts for stock splits during FIFO aggregation."
-        ),
+        description=("Internal multiplier for quantity matching. Accounts for stock splits during FIFO aggregation."),
     )
     commission_used_open: Decimal | None = Field(
         default=None,
@@ -364,10 +296,7 @@ class TradeCreate(BaseModel):
     source_commission: Decimal | None = Field(
         default=None,
         exclude=True,
-        description=(
-            "Internal field — original execution commission before aggregation. "
-            "Used to proportionally allocate commission during split-linking."
-        ),
+        description=("Internal field — original execution commission before aggregation. Used to proportionally allocate commission during split-linking."),
     )
 
     @field_validator("opened_at", "closed_at", mode="after")
@@ -448,26 +377,17 @@ class TradeCreateRequest(BaseModel):
         ...,
         min_length=SYMBOL_MIN_LENGTH,
         max_length=SYMBOL_MAX_LENGTH,
-        description=(
-            "Ticker symbol of the traded instrument. "
-            "Maximum 30 characters (e.g. 'AAPL', 'EURUSD', 'CHTR  251003P00240000')."
-        ),
+        description=("Ticker symbol of the traded instrument. Maximum 30 characters (e.g. 'AAPL', 'EURUSD', 'CHTR  251003P00240000')."),
         examples=["AAPL", "EURUSD", "BTCUSDT", "ES"],
     )
     direction: Direction = Field(
         ...,
-        description=(
-            "Trade direction — 'LONG' for a buy position, 'SHORT' for a sell position."
-        ),
+        description=("Trade direction — 'LONG' for a buy position, 'SHORT' for a sell position."),
         examples=["LONG", "SHORT"],
     )
     asset_class: AssetClass | None = Field(
         default=None,
-        description=(
-            "Asset class of the traded instrument. "
-            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO. "
-            "Null for COMBO trades."
-        ),
+        description=("Asset class of the traded instrument. One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO. Null for COMBO trades."),
         examples=["EQUITY", "FOREX", "CRYPTO", None],
     )
     is_combo: bool = Field(
@@ -478,61 +398,42 @@ class TradeCreateRequest(BaseModel):
     quantity: Decimal | None = Field(
         default=None,
         gt=Decimal("0"),
-        description=(
-            "Number of units, shares, or contracts traded. Must be greater than zero."
-        ),
+        description=("Number of units, shares, or contracts traded. Must be greater than zero."),
         examples=["100", "1.5", "0.01", None],
     )
     entry_price: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Execution price at which the position was opened. "
-            "Must be greater than zero."
-        ),
+        description=("Execution price at which the position was opened. Must be greater than zero."),
         examples=["150.25", "1.0823", "42350.00", None],
     )
     exit_price: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Execution price at which the position was closed. "
-            "Omit or set to null for trades that are still open."
-        ),
+        description=("Execution price at which the position was closed. Omit or set to null for trades that are still open."),
         examples=["155.00", "1.0901", None],
     )
     stop_loss: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Stop-loss price level for the trade. "
-            "Omit or set to null if no stop-loss was set."
-        ),
+        description=("Stop-loss price level for the trade. Omit or set to null if no stop-loss was set."),
         examples=["148.00", "1.0780", None],
     )
     take_profit: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
-        description=(
-            "Take-profit price level for the trade. "
-            "Omit or set to null if no take-profit was set."
-        ),
+        description=("Take-profit price level for the trade. Omit or set to null if no take-profit was set."),
         examples=["158.00", "1.0950", None],
     )
     opened_at: datetime = Field(
         ...,
-        description=(
-            "Timezone-aware UTC timestamp of when the position was opened. "
-            "Naive datetimes (without timezone info) are rejected."
-        ),
+        description=("Timezone-aware UTC timestamp of when the position was opened. Naive datetimes (without timezone info) are rejected."),
         examples=["2024-03-15T09:30:00Z", "2024-03-15T09:30:00+00:00"],
     )
     closed_at: datetime | None = Field(
         default=None,
         description=(
-            "Timezone-aware UTC timestamp of when the position was closed. "
-            "Omit or set to null for trades that are still open. "
-            "Naive datetimes are rejected."
+            "Timezone-aware UTC timestamp of when the position was closed. Omit or set to null for trades that are still open. Naive datetimes are rejected."
         ),
         examples=["2024-03-15T15:45:00Z", None],
     )
@@ -547,10 +448,7 @@ class TradeCreateRequest(BaseModel):
     )
     net_pnl: Decimal | None = Field(
         default=None,
-        description=(
-            "Realised net profit or loss for this trade in account currency. "
-            "Null for open trades."
-        ),
+        description=("Realised net profit or loss for this trade in account currency. Null for open trades."),
         examples=["473.50", "-123.70", None],
     )
     commission: Decimal = Field(
@@ -562,10 +460,7 @@ class TradeCreateRequest(BaseModel):
     notes: str | None = Field(
         default=None,
         max_length=NOTES_MAX_LENGTH,
-        description=(
-            "Free-text notes attached to this trade, e.g. trade rationale, "
-            "emotional state, or post-trade review."
-        ),
+        description=("Free-text notes attached to this trade, e.g. trade rationale, emotional state, or post-trade review."),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
     )
     user_rating: int | None = Field(
@@ -589,50 +484,34 @@ class TradeCreateRequest(BaseModel):
         default=None,
         min_length=3,
         max_length=3,
-        description=(
-            "ISO-4217 currency code of the trade (e.g. 'USD'). "
-            "Set automatically by broker importers; can also be set manually."
-        ),
+        description=("ISO-4217 currency code of the trade (e.g. 'USD'). Set automatically by broker importers; can also be set manually."),
         examples=["USD", None],
     )
     pnl_eur: Decimal | None = Field(
         default=None,
-        description=(
-            "Realised P&L converted to EUR. Set automatically by broker importers "
-            "at the official Bundesbank daily rate; can also be set manually."
-        ),
+        description=("Realised P&L converted to EUR. Set automatically by broker importers at the official Bundesbank daily rate; can also be set manually."),
         examples=["432.50", "-98.20", None],
     )
     net_pnl_eur: Decimal | None = Field(
         default=None,
         description=(
-            "Realised net P&L converted to EUR. Set automatically by broker importers "
-            "at the official Bundesbank daily rate; can also be set manually."
+            "Realised net P&L converted to EUR. Set automatically by broker importers at the official Bundesbank daily rate; can also be set manually."
         ),
         examples=["430.50", "-100.20", None],
     )
     account_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the broker account this trade belongs to. "
-            "Omit to create an unassigned trade."
-        ),
+        description=("UUID of the broker account this trade belongs to. Omit to create an unassigned trade."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the playbook (strategy) to associate with this trade. "
-            "Omit or set to null for no playbook."
-        ),
+        description=("UUID of the playbook (strategy) to associate with this trade. Omit or set to null for no playbook."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     tag_ids: list[uuid.UUID] = Field(
         default_factory=list,
-        description=(
-            "List of tag UUIDs to attach to this trade. "
-            "All UUIDs must belong to the authenticated user."
-        ),
+        description=("List of tag UUIDs to attach to this trade. All UUIDs must belong to the authenticated user."),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
     )
     executions: list[LogicalExecutionCreate] | None = Field(
@@ -722,16 +601,12 @@ class TradeUpdate(BaseModel):
         default=None,
         min_length=SYMBOL_MIN_LENGTH,
         max_length=SYMBOL_MAX_LENGTH,
-        description=(
-            "Updated ticker symbol. Maximum 30 characters. Omit to leave unchanged."
-        ),
+        description=("Updated ticker symbol. Maximum 30 characters. Omit to leave unchanged."),
         examples=["AAPL", "EURUSD", None],
     )
     direction: Direction | None = Field(
         default=None,
-        description=(
-            "Updated trade direction — 'LONG' or 'SHORT'. Omit to leave unchanged."
-        ),
+        description=("Updated trade direction — 'LONG' or 'SHORT'. Omit to leave unchanged."),
         examples=["LONG", "SHORT", None],
     )
     asset_class: AssetClass | None = Field(
@@ -770,43 +645,29 @@ class TradeUpdate(BaseModel):
     notes: str | None = Field(
         default=None,
         max_length=NOTES_MAX_LENGTH,
-        description=(
-            "Updated free-text notes. Set to null to clear existing notes. "
-            "Omit to leave unchanged."
-        ),
+        description=("Updated free-text notes. Set to null to clear existing notes. Omit to leave unchanged."),
         examples=["Revised entry — slippage on open.", None],
     )
     user_rating: int | None = Field(
         default=None,
         ge=1,
         le=5,
-        description=(
-            "Updated user rating on a 1-5 scale. "
-            "Set to null to clear existing rating. Omit to leave unchanged."
-        ),
+        description=("Updated user rating on a 1-5 scale. Set to null to clear existing rating. Omit to leave unchanged."),
         examples=[1, 3, 5, None],
     )
     tradingview_link: str | None = Field(
         default=None,
-        description=(
-            "Updated TradingView link. Set to null to clear. Omit to leave unchanged."
-        ),
+        description=("Updated TradingView link. Set to null to clear. Omit to leave unchanged."),
         examples=["https://www.tradingview.com/chart/...", None],
     )
     screenshots: list[str] | None = Field(
         default=None,
-        description=(
-            "Updated list of screenshot URLs. Set to null to clear. "
-            "Omit to leave unchanged."
-        ),
+        description=("Updated list of screenshot URLs. Set to null to clear. Omit to leave unchanged."),
         examples=[["https://example.com/screenshot1.png"], None],
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "Updated playbook UUID. Omit to leave unchanged. "
-            "Set to null to detach the current playbook."
-        ),
+        description=("Updated playbook UUID. Omit to leave unchanged. Set to null to detach the current playbook."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     tag_ids: list[uuid.UUID] | None = Field(
@@ -849,9 +710,7 @@ class TradeRead(BaseModel):
 
     id: uuid.UUID = Field(
         ...,
-        description=(
-            "Unique identifier (UUID v4) assigned to this trade by the database."
-        ),
+        description=("Unique identifier (UUID v4) assigned to this trade by the database."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
     )
     position_id: uuid.UUID | None = Field(
@@ -866,9 +725,7 @@ class TradeRead(BaseModel):
     )
     direction: Direction = Field(
         ...,
-        description=(
-            "Trade direction: 'LONG' for a buy position, 'SHORT' for a sell position."
-        ),
+        description=("Trade direction: 'LONG' for a buy position, 'SHORT' for a sell position."),
         examples=["LONG", "SHORT"],
     )
     asset_class: AssetClass | None = Field(
@@ -893,10 +750,7 @@ class TradeRead(BaseModel):
     )
     exit_price: Decimal | None = Field(
         ...,
-        description=(
-            "Execution price at which the position was closed. "
-            "Null if the trade is still open."
-        ),
+        description=("Execution price at which the position was closed. Null if the trade is still open."),
         examples=["155.00", "1.0901", None],
     )
     stop_loss: Decimal | None = Field(
@@ -916,26 +770,17 @@ class TradeRead(BaseModel):
     )
     closed_at: datetime | None = Field(
         ...,
-        description=(
-            "Timezone-aware UTC timestamp of when the position was closed. "
-            "Null if the trade is still open."
-        ),
+        description=("Timezone-aware UTC timestamp of when the position was closed. Null if the trade is still open."),
         examples=["2024-03-15T15:45:00Z", None],
     )
     pnl: Decimal | None = Field(
         ...,
-        description=(
-            "Realised profit or loss in account currency. "
-            "Null if the trade is still open or PnL has not been calculated."
-        ),
+        description=("Realised profit or loss in account currency. Null if the trade is still open or PnL has not been calculated."),
         examples=["475.00", "-120.50", None],
     )
     net_pnl: Decimal | None = Field(
         default=None,
-        description=(
-            "Realised net profit or loss in account currency. "
-            "Null if the trade is still open or PnL has not been calculated."
-        ),
+        description=("Realised net profit or loss in account currency. Null if the trade is still open or PnL has not been calculated."),
         examples=["473.50", "-123.70", None],
     )
     commission: Decimal = Field(
@@ -945,9 +790,7 @@ class TradeRead(BaseModel):
     )
     notes: str | None = Field(
         ...,
-        description=(
-            "Free-text notes attached to this trade. Null if no notes were added."
-        ),
+        description=("Free-text notes attached to this trade. Null if no notes were added."),
         examples=["Breakout above 50-day MA.", None],
     )
     user_rating: int | None = Field(
@@ -967,74 +810,51 @@ class TradeRead(BaseModel):
     )
     currency: str | None = Field(
         default=None,
-        description=(
-            "ISO-4217 currency code of the trade (e.g. 'USD'). "
-            "Null for legacy trades imported before EUR-reporting was added."
-        ),
+        description=("ISO-4217 currency code of the trade (e.g. 'USD'). Null for legacy trades imported before EUR-reporting was added."),
         examples=["USD", None],
     )
     pnl_eur: Decimal | None = Field(
         default=None,
         description=(
-            "Realised P&L converted to EUR at the official Bundesbank daily rate "
-            "on the trade date. Null for open trades or when the rate is unavailable."
+            "Realised P&L converted to EUR at the official Bundesbank daily rate on the trade date. Null for open trades or when the rate is unavailable."
         ),
         examples=["432.50", "-98.20", None],
     )
     net_pnl_eur: Decimal | None = Field(
         default=None,
         description=(
-            "Realised net P&L converted to EUR at the official Bundesbank daily rate "
-            "on the trade date. Null for open trades or when the rate is unavailable."
+            "Realised net P&L converted to EUR at the official Bundesbank daily rate on the trade date. Null for open trades or when the rate is unavailable."
         ),
         examples=["430.50", "-100.20", None],
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the playbook associated with this trade. "
-            "Null if no playbook is assigned."
-        ),
+        description=("UUID of the playbook associated with this trade. Null if no playbook is assigned."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     playbook_name: str | None = Field(
         default=None,
-        description=(
-            "Name of the playbook associated with this trade, resolved from the "
-            "joined playbook relationship. Null if no playbook is assigned."
-        ),
+        description=("Name of the playbook associated with this trade, resolved from the joined playbook relationship. Null if no playbook is assigned."),
         examples=["Breakout long", None],
     )
     account_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the broker account this trade belongs to. "
-            "Null if no account is assigned."
-        ),
+        description=("UUID of the broker account this trade belongs to. Null if no account is assigned."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     portfolio_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the portfolio this trade belongs to via its account. "
-            "Null if no account is assigned."
-        ),
+        description=("UUID of the portfolio this trade belongs to via its account. Null if no account is assigned."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
     account_name: str | None = Field(
         default=None,
-        description=(
-            "Human-readable name of the broker account, resolved from the "
-            "joined account relationship. Null if no account is assigned."
-        ),
+        description=("Human-readable name of the broker account, resolved from the joined account relationship. Null if no account is assigned."),
         examples=["Interactive Brokers Main", None],
     )
     account_type: str | None = Field(
         default=None,
-        description=(
-            "Type of the broker account (e.g. 'ibkr', 'schwab', 'manual'), "
-            "resolved from the joined account relationship."
-        ),
+        description=("Type of the broker account (e.g. 'ibkr', 'schwab', 'manual'), resolved from the joined account relationship."),
         examples=["ibkr", "schwab", "manual", None],
     )
     tags: list[TagRead] = Field(
@@ -1051,10 +871,7 @@ class TradeRead(BaseModel):
     )
     is_manually_edited: bool = Field(
         default=False,
-        description=(
-            "When True, this trade was manually corrected and will be "
-            "skipped on subsequent broker re-imports."
-        ),
+        description=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
         examples=[False, True],
     )
     created_at: datetime = Field(
@@ -1118,11 +935,7 @@ class TradeRead(BaseModel):
                     with contextlib.suppress(Exception):
                         raw_type = account.type
                         # AccountType is a StrEnum — .value gives the string
-                        data.__dict__["account_type"] = (
-                            raw_type.value
-                            if hasattr(raw_type, "value")
-                            else str(raw_type)
-                        )
+                        data.__dict__["account_type"] = raw_type.value if hasattr(raw_type, "value") else str(raw_type)
                 if getattr(data, "portfolio_id", None) is None:
                     with contextlib.suppress(Exception):
                         data.__dict__["portfolio_id"] = account.portfolio_id
@@ -1196,9 +1009,7 @@ class TradeFilterParams(BaseModel):
     )
     opened_at_to: datetime | None = Field(
         default=None,
-        description=(
-            "Filter trades opened at or before this datetime (timezone-aware)"
-        ),
+        description=("Filter trades opened at or before this datetime (timezone-aware)"),
     )
     closed_at_from: datetime | None = Field(
         default=None,
@@ -1206,9 +1017,7 @@ class TradeFilterParams(BaseModel):
     )
     closed_at_to: datetime | None = Field(
         default=None,
-        description=(
-            "Filter trades closed at or before this datetime (timezone-aware)"
-        ),
+        description=("Filter trades closed at or before this datetime (timezone-aware)"),
     )
     pnl_positive: bool | None = Field(
         default=None,
@@ -1216,10 +1025,7 @@ class TradeFilterParams(BaseModel):
     )
     status: Literal["open", "closed"] | None = Field(
         default=None,
-        description=(
-            "'open' = trades without a close date (closed_at IS NULL), "
-            "'closed' = trades that have been closed (closed_at IS NOT NULL)."
-        ),
+        description=("'open' = trades without a close date (closed_at IS NULL), 'closed' = trades that have been closed (closed_at IS NOT NULL)."),
     )
     account_id: uuid.UUID | None = Field(
         default=None,
@@ -1235,10 +1041,7 @@ class TradeFilterParams(BaseModel):
         default=None,
         ge=0,
         le=6,
-        description=(
-            "Filter trades by ISO day of week of opened_at: "
-            "0 = Monday, 1 = Tuesday, …, 6 = Sunday."
-        ),
+        description=("Filter trades by ISO day of week of opened_at: 0 = Monday, 1 = Tuesday, …, 6 = Sunday."),
     )
 
     @field_validator(

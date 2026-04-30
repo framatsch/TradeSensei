@@ -187,9 +187,7 @@ class TimeSeriesRepository:
         """
         total_pnl_col = func.sum(cast(Trade.pnl, Numeric)).label("total_pnl")
         total_count_col = func.count(Trade.id).label("total_count")
-        win_count_col = (
-            func.count(Trade.id).filter(cast(Trade.pnl, Numeric) > 0).label("win_count")
-        )
+        win_count_col = func.count(Trade.id).filter(cast(Trade.pnl, Numeric) > 0).label("win_count")
 
         stmt = (
             select(Trade.symbol, total_pnl_col, total_count_col, win_count_col)
@@ -210,10 +208,7 @@ class TimeSeriesRepository:
 
         result = await self._session.execute(stmt)
         rows = result.all()
-        return [
-            (str(row[0]), Decimal(str(row[1])), int(row[2]), int(row[3]))
-            for row in rows
-        ]
+        return [(str(row[0]), Decimal(str(row[1])), int(row[2]), int(row[3])) for row in rows]
 
     async def get_pnl_by_asset_class(
         self,
@@ -237,9 +232,7 @@ class TimeSeriesRepository:
         """
         total_pnl_col = func.sum(cast(Trade.pnl, Numeric)).label("total_pnl")
         total_count_col = func.count(Trade.id).label("total_count")
-        win_count_col = (
-            func.count(Trade.id).filter(cast(Trade.pnl, Numeric) > 0).label("win_count")
-        )
+        win_count_col = func.count(Trade.id).filter(cast(Trade.pnl, Numeric) > 0).label("win_count")
 
         stmt = (
             select(
@@ -264,7 +257,4 @@ class TimeSeriesRepository:
 
         result = await self._session.execute(stmt)
         rows = result.all()
-        return [
-            (str(row[0]), Decimal(str(row[1])), int(row[2]), int(row[3]))
-            for row in rows
-        ]
+        return [(str(row[0]), Decimal(str(row[1])), int(row[2]), int(row[3])) for row in rows]

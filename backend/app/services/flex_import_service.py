@@ -115,14 +115,10 @@ class FlexImportService:
                 portfolio_id,
             )
             if account is None:
-                raise AccountNotFoundError(
-                    f"Account {account_id} not found for user {user_id}."
-                )
+                raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
 
         xml_string = await self._fetch_flex_xml(query_id, from_date)
-        parsed_trades, parsed_cash_txs = self._parser.parse(
-            xml_string.encode("utf-8"), filename="flex_query.xml"
-        )
+        parsed_trades, parsed_cash_txs = self._parser.parse(xml_string.encode("utf-8"), filename="flex_query.xml")
         parser_warnings: list[str] = list(self._parser.warnings)
         portfolio_base_currency: str | None = None
         portfolio = await self._portfolio_repo.get_by_id(portfolio_id, user_id)
@@ -131,11 +127,7 @@ class FlexImportService:
 
         # Load manually-edited keys once for the whole batch (skip when
         # overwrite_manually_edited is requested).
-        manually_edited_keys = (
-            await self._trade_repo.list_manually_edited_keys(user_id, portfolio_id)
-            if not overwrite_manually_edited
-            else set()
-        )
+        manually_edited_keys = await self._trade_repo.list_manually_edited_keys(user_id, portfolio_id) if not overwrite_manually_edited else set()
 
         trades_created = 0
         trades_skipped = 0
@@ -144,17 +136,14 @@ class FlexImportService:
         create_warnings: list[str] = []
 
         for trade_data in parsed_trades:
-            trade_with_owner = trade_data.model_copy(
-                update={"account_id": account_id, "user_id": user_id}
-            )
+            trade_with_owner = trade_data.model_copy(update={"account_id": account_id, "user_id": user_id})
 
             # Skip trades the user has manually corrected (unless overwriting).
             match_key = (trade_with_owner.broker_conid, trade_with_owner.opened_at)
             if match_key in manually_edited_keys:
                 trades_skipped += 1
                 logger.debug(
-                    "Skipping re-import of manually-edited trade: "
-                    "symbol=%s opened_at=%s",
+                    "Skipping re-import of manually-edited trade: symbol=%s opened_at=%s",
                     trade_with_owner.symbol,
                     trade_with_owner.opened_at,
                 )
@@ -179,10 +168,7 @@ class FlexImportService:
                 await self._trade_repo.create(trade_with_owner)
                 trades_created += 1
             except Exception as exc:  # noqa: BLE001
-                msg = (
-                    f"Failed to persist trade {trade_data.symbol} "
-                    f"opened at {trade_data.opened_at}: {exc}"
-                )
+                msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                 logger.warning(msg)
                 create_warnings.append(msg)
                 trades_skipped += 1
@@ -224,10 +210,7 @@ class FlexImportService:
                     )
                     cash_txs_created += 1
                 except Exception as exc:  # noqa: BLE001
-                    msg = (
-                        f"Failed to persist cash transaction "
-                        f"at {cash_tx_data.date}: {exc}"
-                    )
+                    msg = f"Failed to persist cash transaction at {cash_tx_data.date}: {exc}"
                     logger.warning(msg)
                     create_warnings.append(msg)
                     cash_txs_skipped += 1
@@ -237,12 +220,7 @@ class FlexImportService:
         all_warnings = parser_warnings + create_warnings
 
         if portfolio_base_currency is not None:
-            mismatched_count = sum(
-                1
-                for trade_data in parsed_trades
-                if trade_data.currency is not None
-                and trade_data.currency != portfolio_base_currency
-            )
+            mismatched_count = sum(1 for trade_data in parsed_trades if trade_data.currency is not None and trade_data.currency != portfolio_base_currency)
             if mismatched_count > 0:
                 all_warnings.append(
                     "currency_mismatch: "
@@ -323,9 +301,7 @@ class FlexImportService:
         try:
             root = ET.fromstring(response.text)
         except ET.ParseError as exc:
-            raise FlexAPIError(
-                f"Invalid XML in Flex SendRequest response: {exc}"
-            ) from exc
+            raise FlexAPIError(f"Invalid XML in Flex SendRequest response: {exc}") from exc
 
         status_elem = root.find("Status")
         if status_elem is None or status_elem.text != "Success":
@@ -339,9 +315,7 @@ class FlexImportService:
         ref_elem = root.find("ReferenceCode")
         ref_code = _text(ref_elem)
         if not ref_code:
-            raise FlexAPIError(
-                "Invalid Flex SendRequest response: missing ReferenceCode."
-            )
+            raise FlexAPIError("Invalid Flex SendRequest response: missing ReferenceCode.")
 
         logger.info("Flex Query generation requested; reference code: %s", ref_code)
         return ref_code
@@ -387,9 +361,7 @@ class FlexImportService:
             try:
                 root = ET.fromstring(response.text)
             except ET.ParseError as exc:
-                raise FlexAPIError(
-                    f"Invalid XML in Flex GetStatement response: {exc}"
-                ) from exc
+                raise FlexAPIError(f"Invalid XML in Flex GetStatement response: {exc}") from exc
 
             # Report is ready when the root element is FlexQueryResponse.
             if root.tag == "FlexQueryResponse":
@@ -407,9 +379,7 @@ class FlexImportService:
 
             raise FlexAPIError(f"Flex GetStatement error (status={status}): {msg}")
 
-        raise FlexAPIError(
-            f"Flex report not ready after {FLEX_POLL_MAX_ATTEMPTS} polling attempts."
-        )
+        raise FlexAPIError(f"Flex report not ready after {FLEX_POLL_MAX_ATTEMPTS} polling attempts.")
 
 
 # ─── Module-level helpers ─────────────────────────────────────────────────────

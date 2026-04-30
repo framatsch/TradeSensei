@@ -37,13 +37,8 @@ def _get_service(
     "/me",
     response_model=ResponseEnvelope[UserRead],
     summary="Get Current User Profile",
-    description=(
-        "Return the profile of the currently authenticated user. "
-        "Requires a valid ``Authorization: Bearer <token>`` header."
-    ),
-    response_description=(
-        "The authenticated user's profile wrapped in a response envelope."
-    ),
+    description=("Return the profile of the currently authenticated user. Requires a valid ``Authorization: Bearer <token>`` header."),
+    response_description=("The authenticated user's profile wrapped in a response envelope."),
     responses={
         200: {"description": "User profile returned successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -121,10 +116,7 @@ async def update_me(
     "/me/settings",
     response_model=ResponseEnvelope[UserSettingsRead],
     summary="Get User Settings",
-    description=(
-        "Return the UI preferences of the currently authenticated user. "
-        "Missing keys are returned with their default values."
-    ),
+    description=("Return the UI preferences of the currently authenticated user. Missing keys are returned with their default values."),
     response_description="The user's settings wrapped in a response envelope.",
     responses={
         200: {"description": "Settings returned successfully."},
@@ -153,10 +145,7 @@ async def get_settings(
     "/me/settings",
     response_model=ResponseEnvelope[UserSettingsRead],
     summary="Update User Settings",
-    description=(
-        "Partially update the UI preferences of the currently authenticated user. "
-        "Only fields present in the request body are modified."
-    ),
+    description=("Partially update the UI preferences of the currently authenticated user. Only fields present in the request body are modified."),
     response_description="The updated settings wrapped in a response envelope.",
     responses={
         200: {"description": "Settings updated successfully."},
@@ -195,9 +184,7 @@ async def update_settings(
         "After deletion, any existing access or refresh tokens for this user "
         "will be rejected by the API."
     ),
-    response_description=(
-        "No content — the account and all associated data have been deleted."
-    ),
+    response_description=("No content — the account and all associated data have been deleted."),
     responses={
         204: {"description": "User account and all associated data deleted."},
         401: {"description": "Missing or invalid Bearer token."},

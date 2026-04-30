@@ -37,9 +37,7 @@ class CorporateActionService:
         self._repo = CorporateActionRepository(session)
         self._session = session
 
-    async def list_corporate_actions(
-        self, user_id: uuid.UUID
-    ) -> list[CorporateActionRead]:
+    async def list_corporate_actions(self, user_id: uuid.UUID) -> list[CorporateActionRead]:
         """Return all corporate actions owned by the given user.
 
         Args:
@@ -87,9 +85,7 @@ class CorporateActionService:
         """
         action = await self._repo.get_by_id(action_id, user_id)
         if action is None:
-            raise CorporateActionNotFoundError(
-                f"Corporate action {action_id} not found."
-            )
+            raise CorporateActionNotFoundError(f"Corporate action {action_id} not found.")
         return CorporateActionRead.model_validate(action)
 
     async def create_corporate_action(
@@ -137,9 +133,7 @@ class CorporateActionService:
         """
         action = await self._repo.get_by_id(action_id, user_id)
         if action is None:
-            raise CorporateActionNotFoundError(
-                f"Corporate action {action_id} not found."
-            )
+            raise CorporateActionNotFoundError(f"Corporate action {action_id} not found.")
         action = await self._repo.update(action, data)
         await self._session.commit()
         await self._session.refresh(action)
@@ -165,8 +159,6 @@ class CorporateActionService:
         """
         action = await self._repo.get_by_id(action_id, user_id)
         if action is None:
-            raise CorporateActionNotFoundError(
-                f"Corporate action {action_id} not found."
-            )
+            raise CorporateActionNotFoundError(f"Corporate action {action_id} not found.")
         await self._repo.delete(action)
         await self._session.commit()

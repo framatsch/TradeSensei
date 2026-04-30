@@ -45,11 +45,7 @@ class SchwabClient:
         """
         client_id = settings.schwab_client_id
         if not client_id:
-            raise ConfigurationError(
-                "SCHWAB_CLIENT_ID is not configured. "
-                "Set the SCHWAB_CLIENT_ID environment variable "
-                "to enable Schwab integration."
-            )
+            raise ConfigurationError("SCHWAB_CLIENT_ID is not configured. Set the SCHWAB_CLIENT_ID environment variable to enable Schwab integration.")
         return client_id
 
     def get_authorization_url(self, state: str, code_challenge: str) -> str:
@@ -111,10 +107,7 @@ class SchwabClient:
         client_id = self._require_client_id()
         client_secret = settings.schwab_client_secret
         if not client_secret:
-            raise ConfigurationError(
-                "SCHWAB_CLIENT_SECRET is not configured. "
-                "Set the SCHWAB_CLIENT_SECRET environment variable."
-            )
+            raise ConfigurationError("SCHWAB_CLIENT_SECRET is not configured. Set the SCHWAB_CLIENT_SECRET environment variable.")
         payload: dict[str, str] = {
             "grant_type": "authorization_code",
             "code": code,
@@ -148,10 +141,7 @@ class SchwabClient:
         client_id = self._require_client_id()
         client_secret = settings.schwab_client_secret
         if not client_secret:
-            raise ConfigurationError(
-                "SCHWAB_CLIENT_SECRET is not configured. "
-                "Set the SCHWAB_CLIENT_SECRET environment variable."
-            )
+            raise ConfigurationError("SCHWAB_CLIENT_SECRET is not configured. Set the SCHWAB_CLIENT_SECRET environment variable.")
         payload: dict[str, str] = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,

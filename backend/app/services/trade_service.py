@@ -88,9 +88,7 @@ class TradeService:
         """
         max_size = SCREENSHOT_MAX_FILE_SIZE_MB * 1024 * 1024
         if len(content) > max_size:
-            raise ValueError(
-                f"File too large. Maximum size is {SCREENSHOT_MAX_FILE_SIZE_MB} MB."
-            )
+            raise ValueError(f"File too large. Maximum size is {SCREENSHOT_MAX_FILE_SIZE_MB} MB.")
 
         safe_suffix = suffix if suffix.startswith(".") else f".{suffix}"
         filename = f"{uuid.uuid4()}{safe_suffix}"
@@ -169,11 +167,7 @@ class TradeService:
         exec_repo = ExecutionRepository(self._session)
 
         # Determine the exit direction (opposite of trade direction).
-        exit_direction = (
-            TradeDirection.SHORT
-            if trade.direction == TradeDirection.LONG
-            else TradeDirection.LONG
-        )
+        exit_direction = TradeDirection.SHORT if trade.direction == TradeDirection.LONG else TradeDirection.LONG
 
         if data.executions:
             # Bypass auto-generation and create manual execution legs
@@ -189,9 +183,7 @@ class TradeService:
                     leg_asset_class = trade.asset_class
                     leg_multiplier = trade.multiplier
                 if leg_asset_class is None:
-                    raise ValueError(
-                        "asset_class is required for execution legs on COMBO trades"
-                    )
+                    raise ValueError("asset_class is required for execution legs on COMBO trades")
                 await exec_repo.create(
                     user_id=trade.user_id,
                     account_id=trade.account_id,
@@ -251,11 +243,7 @@ class TradeService:
         # API can include explicit exit/PnL values that cannot be reconstructed from
         # a single synthetic execution.
         should_reaggregate = bool(data.executions) or (
-            not trade.is_combo
-            and trade.closed_at is None
-            and trade.exit_price is None
-            and trade.pnl is None
-            and trade.net_pnl is None
+            not trade.is_combo and trade.closed_at is None and trade.exit_price is None and trade.pnl is None and trade.net_pnl is None
         )
         if should_reaggregate:
             await self._re_aggregate_trade(trade.id)
@@ -373,20 +361,15 @@ class TradeService:
         should_propagate = bool(propagation_fields & data.model_fields_set)
         propagated_count = 0
         if should_propagate:
-            propagated_count = (
-                await self._repo.propagate_metadata_to_open_position_group(
-                    source_trade=updated,
-                    data=data,
-                    user_id=user_id,
-                    compare_updated_at=pre_update_updated_at,
-                )
+            propagated_count = await self._repo.propagate_metadata_to_open_position_group(
+                source_trade=updated,
+                data=data,
+                user_id=user_id,
+                compare_updated_at=pre_update_updated_at,
             )
             if propagated_count > 0:
                 logger.info(
-                    (
-                        "trade_metadata.propagated user_id=%s trade_id=%s "
-                        "position_id=%s fields=%s siblings=%d"
-                    ),
+                    ("trade_metadata.propagated user_id=%s trade_id=%s position_id=%s fields=%s siblings=%d"),
                     user_id,
                     trade_id,
                     updated.position_id,
@@ -431,9 +414,7 @@ class TradeService:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
 
         # Process child executions before deleting the parent trade
-        executions = await self._exec_repo.list_by_trade_id(
-            trade_id, include_deleted=True
-        )
+        executions = await self._exec_repo.list_by_trade_id(trade_id, include_deleted=True)
         for ex in executions:
             if ex.origin == EXECUTION_ORIGIN_MANUAL:
                 await self._exec_repo.delete(ex.id)
@@ -567,16 +548,9 @@ class TradeService:
             if (
                 t.symbol != ref_trade.symbol
                 or t.account_id != ref_trade.account_id
-                or (
-                    not t.is_combo
-                    and not ref_trade.is_combo
-                    and t.asset_class != ref_trade.asset_class
-                )
+                or (not t.is_combo and not ref_trade.is_combo and t.asset_class != ref_trade.asset_class)
             ):
-                raise ValueError(
-                    "Trades must have the same symbol, account, "
-                    "and asset class to be merged."
-                )
+                raise ValueError("Trades must have the same symbol, account, and asset class to be merged.")
 
         # Sort trades by opened_at
         trades.sort(key=lambda t: t.opened_at)
@@ -658,10 +632,7 @@ class TradeService:
             raise ValueError("Cannot partially close a trade without quantity.")
 
         if request.quantity > trade.quantity:
-            raise ValueError(
-                f"Close quantity ({request.quantity}) exceeds "
-                f"available quantity ({trade.quantity})."
-            )
+            raise ValueError(f"Close quantity ({request.quantity}) exceeds available quantity ({trade.quantity}).")
 
         # 1. Handle Full Close edge case.
         if request.quantity == trade.quantity:
@@ -669,9 +640,7 @@ class TradeService:
             from app.schemas.execution import LogicalExecutionCreate
 
             # Instead of updating TradeUpdate, we create an exit leg
-            exit_direction = (
-                Direction.SHORT if trade.direction == Direction.LONG else Direction.LONG
-            )
+            exit_direction = Direction.SHORT if trade.direction == Direction.LONG else Direction.LONG
             new_leg = LogicalExecutionCreate(
                 direction=exit_direction,
                 price=request.exit_price,

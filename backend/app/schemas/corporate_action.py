@@ -55,19 +55,13 @@ class CorporateActionCreate(BaseModel):
     old_conid: str | None = Field(
         default=None,
         max_length=_CONID_MAX_LENGTH,
-        description=(
-            "Broker contract ID before the split (IBKR conid). "
-            "Required when the broker assigns a new instrument ID after the split."
-        ),
+        description=("Broker contract ID before the split (IBKR conid). Required when the broker assigns a new instrument ID after the split."),
         examples=["357194941", None],
     )
     new_conid: str | None = Field(
         default=None,
         max_length=_CONID_MAX_LENGTH,
-        description=(
-            "Broker contract ID after the split (IBKR conid). "
-            "Required when the broker assigns a new instrument ID after the split."
-        ),
+        description=("Broker contract ID after the split (IBKR conid). Required when the broker assigns a new instrument ID after the split."),
         examples=["690184975", None],
     )
 
@@ -125,19 +119,13 @@ class CorporateActionCreateRequest(BaseModel):
     old_conid: str | None = Field(
         default=None,
         max_length=_CONID_MAX_LENGTH,
-        description=(
-            "Broker contract ID before the split (IBKR conid). "
-            "Required when the broker assigns a new instrument ID after the split."
-        ),
+        description=("Broker contract ID before the split (IBKR conid). Required when the broker assigns a new instrument ID after the split."),
         examples=["357194941", None],
     )
     new_conid: str | None = Field(
         default=None,
         max_length=_CONID_MAX_LENGTH,
-        description=(
-            "Broker contract ID after the split (IBKR conid). "
-            "Required when the broker assigns a new instrument ID after the split."
-        ),
+        description=("Broker contract ID after the split (IBKR conid). Required when the broker assigns a new instrument ID after the split."),
         examples=["690184975", None],
     )
 
@@ -181,9 +169,7 @@ class CorporateActionUpdate(BaseModel):
     ratio: Decimal | None = Field(
         default=None,
         gt=Decimal("0"),
-        description=(
-            f"Updated split ratio. {_RATIO_DESCRIPTION}  Omit to leave unchanged."
-        ),
+        description=(f"Updated split ratio. {_RATIO_DESCRIPTION}  Omit to leave unchanged."),
         examples=["0.05", "2.0", None],
     )
     old_conid: str | None = Field(
@@ -219,9 +205,7 @@ class CorporateActionRead(BaseModel):
 
     id: uuid.UUID = Field(
         ...,
-        description=(
-            "Unique identifier (UUID v4) assigned to this record by the database."
-        ),
+        description=("Unique identifier (UUID v4) assigned to this record by the database."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
     )
     user_id: uuid.UUID = Field(

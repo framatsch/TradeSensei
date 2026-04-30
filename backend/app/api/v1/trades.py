@@ -105,9 +105,7 @@ async def bulk_delete_trades(
         user_id=current_user.id,
         portfolio_id=portfolio_id,
     )
-    return ResponseEnvelope[BulkDeleteResponse](
-        data=BulkDeleteResponse(deleted_count=deleted_count)
-    )
+    return ResponseEnvelope[BulkDeleteResponse](data=BulkDeleteResponse(deleted_count=deleted_count))
 
 
 @router.post(
@@ -169,9 +167,7 @@ async def bulk_assign_tags(
             detail=str(exc),
         ) from exc
 
-    return ResponseEnvelope[BulkUpdateResponse](
-        data=BulkUpdateResponse(updated_count=updated_count)
-    )
+    return ResponseEnvelope[BulkUpdateResponse](data=BulkUpdateResponse(updated_count=updated_count))
 
 
 @router.post(
@@ -232,9 +228,7 @@ async def bulk_assign_playbook(
             detail=str(exc),
         ) from exc
 
-    return ResponseEnvelope[BulkUpdateResponse](
-        data=BulkUpdateResponse(updated_count=updated_count)
-    )
+    return ResponseEnvelope[BulkUpdateResponse](data=BulkUpdateResponse(updated_count=updated_count))
 
 
 @router.post(
@@ -289,10 +283,7 @@ async def create_trade(
         "results. Pass the ``next_cursor`` value from the previous response as "
         "the ``cursor`` query parameter to fetch the next page."
     ),
-    response_description=(
-        "A page of trades wrapped in a response envelope, including a "
-        "``next_cursor`` token and optional total count."
-    ),
+    response_description=("A page of trades wrapped in a response envelope, including a ``next_cursor`` token and optional total count."),
     responses={
         200: {"description": "Paginated list of trades."},
         400: {"description": "Cursor token is malformed or expired."},
@@ -319,12 +310,7 @@ async def list_trades(
     ] = PAGINATION_DEFAULT_LIMIT,
     include_total: Annotated[
         bool,
-        Query(
-            description=(
-                "When true, include the total row count across all pages. "
-                "Adds a COUNT(*) query; omit for best performance."
-            )
-        ),
+        Query(description=("When true, include the total row count across all pages. Adds a COUNT(*) query; omit for best performance.")),
     ] = False,
     account_id: Annotated[
         uuid.UUID | None,
@@ -332,12 +318,7 @@ async def list_trades(
     ] = None,
     tag_ids: Annotated[
         list[uuid.UUID] | None,
-        Query(
-            description=(
-                "Filter trades by tag UUIDs "
-                "(OR logic: returns trades with any of the given tags)"
-            )
-        ),
+        Query(description=("Filter trades by tag UUIDs (OR logic: returns trades with any of the given tags)")),
     ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
@@ -388,10 +369,7 @@ async def list_trades(
     "/{trade_id}",
     response_model=ResponseEnvelope[TradeRead],
     summary="Get a single trade",
-    description=(
-        "Retrieve the full details of a single trade by its UUID. "
-        "Returns 404 if no trade with the supplied ID exists."
-    ),
+    description=("Retrieve the full details of a single trade by its UUID. Returns 404 if no trade with the supplied ID exists."),
     response_description="The requested trade wrapped in a response envelope.",
     responses={
         200: {"description": "Trade found and returned."},
@@ -435,9 +413,7 @@ async def get_trade(
         "values. Suitable for closing an open trade by supplying `exit_price`, "
         "`closed_at`, and `pnl`."
     ),
-    response_description=(
-        "The trade after applying the partial update, wrapped in a response envelope."
-    ),
+    response_description=("The trade after applying the partial update, wrapped in a response envelope."),
     responses={
         200: {"description": "Trade updated successfully."},
         404: {"description": "Trade not found."},
@@ -484,10 +460,7 @@ async def update_trade(
     "/{trade_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a trade",
-    description=(
-        "Permanently delete a trade record by its UUID. "
-        "This operation is irreversible. Returns 204 No Content on success."
-    ),
+    description=("Permanently delete a trade record by its UUID. This operation is irreversible. Returns 204 No Content on success."),
     responses={
         204: {"description": "Trade deleted successfully. No content returned."},
         404: {"description": "Trade not found."},
@@ -529,9 +502,7 @@ async def delete_trade(
         "new trade. Entry commissions are split "
         "proportionally."
     ),
-    response_description=(
-        "The newly created closed trade wrapped in a response envelope."
-    ),
+    response_description=("The newly created closed trade wrapped in a response envelope."),
     responses={
         200: {"description": "Trade partially closed successfully."},
         400: {"description": "Invalid partial close request (e.g. quantity too high)."},
@@ -583,9 +554,7 @@ async def partial_close_trade(
     response_model=ResponseEnvelope[TradeRead],
     status_code=status.HTTP_200_OK,
     summary="Merge multiple trades",
-    description=(
-        "Merge multiple trades of the same symbol and account into a single trade."
-    ),
+    description=("Merge multiple trades of the same symbol and account into a single trade."),
 )
 async def merge_trades(
     portfolio_id: uuid.UUID,

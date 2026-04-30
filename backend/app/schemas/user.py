@@ -36,9 +36,7 @@ class UserCreate(BaseModel):
     password: str = Field(
         ...,
         min_length=PASSWORD_MIN_LENGTH,
-        description=(
-            "Plain-text password (minimum 8 characters). Never stored or returned."
-        ),
+        description=("Plain-text password (minimum 8 characters). Never stored or returned."),
         examples=["S3cur3P@ss!"],
     )
 
@@ -125,10 +123,7 @@ class UserSettingsRead(BaseModel):
     )
     default_date_range: Literal["all", "ytd", "last30"] = Field(
         default="all",
-        description=(
-            "Default date range filter for the trades page and dashboard. "
-            "Applied when no URL query parameters are present."
-        ),
+        description=("Default date range filter for the trades page and dashboard. Applied when no URL query parameters are present."),
         examples=["all", "ytd", "last30"],
     )
     features: dict[str, bool] = Field(
@@ -140,9 +135,7 @@ class UserSettingsRead(BaseModel):
     chart_candles_after: int = Field(default=10, ge=1)
     chart_show_post_exit: bool = Field(default=False)
     default_portfolio_id: uuid.UUID | None = Field(default=None)
-    home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] = (
-        Field(default="/dashboard")
-    )
+    home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] = Field(default="/dashboard")
 
 
 class UserSettingsUpdate(BaseModel):
@@ -174,9 +167,7 @@ class UserSettingsUpdate(BaseModel):
     chart_candles_after: int | None = Field(default=None, ge=1)
     chart_show_post_exit: bool | None = Field(default=None)
     default_portfolio_id: uuid.UUID | None = Field(default=None)
-    home_route: (
-        Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] | None
-    ) = Field(default=None)
+    home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library"] | None = Field(default=None)
 
 
 class UserLogin(BaseModel):

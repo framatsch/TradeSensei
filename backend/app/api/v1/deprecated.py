@@ -4,10 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 router = APIRouter(tags=["deprecated"])
 
-_DETAIL = (
-    "This endpoint is deprecated. Use portfolio-scoped paths under "
-    "/api/v1/portfolios/{portfolio_id}/..."
-)
+_DETAIL = "This endpoint is deprecated. Use portfolio-scoped paths under /api/v1/portfolios/{portfolio_id}/..."
 
 
 def _gone() -> None:

@@ -51,10 +51,7 @@ class AccountProperty(Base):
     key: Mapped[str] = mapped_column(
         String(ACCOUNT_PROPERTY_KEY_MAX_LENGTH),
         nullable=False,
-        comment=(
-            "Property key identifier, e.g. 'SCHWAB_APP_KEY', 'SCHWAB_APP_SECRET', "
-            "'IBKR_FLEX_TOKEN', 'IBKR_FLEX_QUERY_ID'."
-        ),
+        comment=("Property key identifier, e.g. 'SCHWAB_APP_KEY', 'SCHWAB_APP_SECRET', 'IBKR_FLEX_TOKEN', 'IBKR_FLEX_QUERY_ID'."),
     )
     value: Mapped[str] = mapped_column(
         Text,
@@ -83,7 +80,4 @@ class AccountProperty(Base):
         Returns:
             A debug string containing the id, account_id, and key.
         """
-        return (
-            f"<AccountProperty id={self.id} "
-            f"account_id={self.account_id} key={self.key!r}>"
-        )
+        return f"<AccountProperty id={self.id} account_id={self.account_id} key={self.key!r}>"

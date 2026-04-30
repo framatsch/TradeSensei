@@ -53,12 +53,7 @@ class BrokerRawTransactionRepository:
             :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`
             instance, or ``None`` if the row already existed.
         """
-        stmt = (
-            pg_insert(BrokerRawTransaction)
-            .values(**data.model_dump())
-            .on_conflict_do_nothing(index_elements=["id"])
-            .returning(BrokerRawTransaction)
-        )
+        stmt = pg_insert(BrokerRawTransaction).values(**data.model_dump()).on_conflict_do_nothing(index_elements=["id"]).returning(BrokerRawTransaction)
         result = await self._session.execute(stmt)
         row = result.scalar_one_or_none()
         return row
@@ -117,11 +112,7 @@ class BrokerRawTransactionRepository:
             List of :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`
             ordered by ``executed_at`` ascending.
         """
-        stmt = (
-            select(BrokerRawTransaction)
-            .where(BrokerRawTransaction.user_id == user_id)
-            .order_by(BrokerRawTransaction.executed_at)
-        )
+        stmt = select(BrokerRawTransaction).where(BrokerRawTransaction.user_id == user_id).order_by(BrokerRawTransaction.executed_at)
         if account_id is not None:
             stmt = stmt.where(BrokerRawTransaction.account_id == account_id)
         result = await self._session.execute(stmt)
@@ -144,9 +135,7 @@ class BrokerRawTransactionRepository:
         Returns:
             Set of ``id`` strings already in the database.
         """
-        stmt = select(BrokerRawTransaction.id).where(
-            BrokerRawTransaction.user_id == user_id
-        )
+        stmt = select(BrokerRawTransaction.id).where(BrokerRawTransaction.user_id == user_id)
         if account_id is not None:
             stmt = stmt.where(BrokerRawTransaction.account_id == account_id)
         result = await self._session.execute(stmt)
@@ -162,11 +151,7 @@ class BrokerRawTransactionRepository:
         Returns:
             True if the row was found and updated, False otherwise.
         """
-        stmt = (
-            update(BrokerRawTransaction)
-            .where(BrokerRawTransaction.id == raw_id)
-            .values(suppressed=suppressed)
-        )
+        stmt = update(BrokerRawTransaction).where(BrokerRawTransaction.id == raw_id).values(suppressed=suppressed)
         result = await self._session.execute(stmt)
         await self._session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)

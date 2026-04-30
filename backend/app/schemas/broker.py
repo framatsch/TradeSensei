@@ -17,18 +17,12 @@ class BrokerStatusResponse(BaseModel):
 
     connected: bool = Field(
         ...,
-        description=(
-            "True if an active connection exists for this broker. "
-            "False if the user has not connected or has disconnected."
-        ),
+        description=("True if an active connection exists for this broker. False if the user has not connected or has disconnected."),
         examples=[True, False],
     )
     last_sync_at: datetime | None = Field(
         ...,
-        description=(
-            "UTC timestamp of the most recent successful trade sync. "
-            "Null if no sync has been performed since connecting."
-        ),
+        description=("UTC timestamp of the most recent successful trade sync. Null if no sync has been performed since connecting."),
         examples=["2024-03-15T09:30:00Z", None],
     )
 
@@ -55,9 +49,7 @@ class BrokerSyncResult(BaseModel):
     skipped_count: int = Field(
         ...,
         ge=0,
-        description=(
-            "Number of orders skipped (already imported or could not be normalised)."
-        ),
+        description=("Number of orders skipped (already imported or could not be normalised)."),
         examples=[2, 0],
     )
     errors: list[str] = Field(

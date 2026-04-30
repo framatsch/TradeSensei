@@ -24,10 +24,7 @@ class DailyPnl(BaseModel):
     )
     pnl: Decimal = Field(
         ...,
-        description=(
-            "Total realised PnL for this day, summed across all closed trades "
-            "whose ``closed_at`` date matches this day."
-        ),
+        description=("Total realised PnL for this day, summed across all closed trades whose ``closed_at`` date matches this day."),
         examples=["475.00", "-120.50"],
     )
     trade_count: int = Field(
@@ -37,10 +34,7 @@ class DailyPnl(BaseModel):
     )
     cumulative_pnl: Decimal = Field(
         ...,
-        description=(
-            "Running cumulative PnL up to and including this trading day, "
-            "computed from the earliest available closed trade in the result set."
-        ),
+        description=("Running cumulative PnL up to and including this trading day, computed from the earliest available closed trade in the result set."),
         examples=["1250.00", "-45.00"],
     )
 
@@ -78,10 +72,7 @@ class MonthlyPnl(BaseModel):
     )
     win_rate: Decimal = Field(
         ...,
-        description=(
-            "Fraction of winning trades (PnL > 0) over the total trade count "
-            "for this month (0.0–1.0). Zero when ``trade_count`` is zero."
-        ),
+        description=("Fraction of winning trades (PnL > 0) over the total trade count for this month (0.0–1.0). Zero when ``trade_count`` is zero."),
         examples=["0.6667", "0.7500", "0.0000"],
     )
 
@@ -99,9 +90,7 @@ class PnlBySymbol(BaseModel):
 
     symbol: str = Field(
         ...,
-        description=(
-            "Ticker symbol of the traded instrument (e.g. 'AAPL', 'ES', 'EURUSD')."
-        ),
+        description=("Ticker symbol of the traded instrument (e.g. 'AAPL', 'ES', 'EURUSD')."),
         examples=["AAPL", "ES", "EURUSD"],
     )
     total_pnl: Decimal = Field(
@@ -116,17 +105,12 @@ class PnlBySymbol(BaseModel):
     )
     win_rate: Decimal = Field(
         ...,
-        description=(
-            "Fraction of trades with a positive PnL for this symbol (0.0–1.0)."
-        ),
+        description=("Fraction of trades with a positive PnL for this symbol (0.0–1.0)."),
         examples=["0.7222", "0.4000"],
     )
     avg_pnl: Decimal = Field(
         ...,
-        description=(
-            "Average PnL per trade for this symbol "
-            "(``total_pnl / trade_count`` when ``trade_count > 0``, else zero)."
-        ),
+        description=("Average PnL per trade for this symbol (``total_pnl / trade_count`` when ``trade_count > 0``, else zero)."),
         examples=["236.11", "-64.00"],
     )
 
@@ -143,31 +127,22 @@ class PnlByAssetClass(BaseModel):
 
     asset_class: str = Field(
         ...,
-        description=(
-            "Asset class of the traded instrument. "
-            "One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO."
-        ),
+        description=("Asset class of the traded instrument. One of: EQUITY, OPTION, FUTURE, FOREX, CRYPTO."),
         examples=["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"],
     )
     total_pnl: Decimal = Field(
         ...,
-        description=(
-            "Sum of realised PnL across all closed trades for this asset class."
-        ),
+        description=("Sum of realised PnL across all closed trades for this asset class."),
         examples=["6800.00", "-1200.00"],
     )
     trade_count: int = Field(
         ...,
-        description=(
-            "Total number of closed trades with a PnL value for this asset class."
-        ),
+        description=("Total number of closed trades with a PnL value for this asset class."),
         examples=[32, 8],
     )
     win_rate: Decimal = Field(
         ...,
-        description=(
-            "Fraction of trades with a positive PnL for this asset class (0.0–1.0)."
-        ),
+        description=("Fraction of trades with a positive PnL for this asset class (0.0–1.0)."),
         examples=["0.6875", "0.3750"],
     )
 
@@ -185,17 +160,12 @@ class ReturnDistribution(BaseModel):
 
     bucket_min: Decimal = Field(
         ...,
-        description=(
-            "Inclusive lower bound of this PnL histogram bucket in account currency."
-        ),
+        description=("Inclusive lower bound of this PnL histogram bucket in account currency."),
         examples=["-500.00", "0.00", "250.00"],
     )
     bucket_max: Decimal = Field(
         ...,
-        description=(
-            "Exclusive upper bound of this PnL histogram bucket in account currency. "
-            "The final bucket is inclusive on the upper bound."
-        ),
+        description=("Exclusive upper bound of this PnL histogram bucket in account currency. The final bucket is inclusive on the upper bound."),
         examples=["-250.00", "250.00", "500.00"],
     )
     count: int = Field(
@@ -205,10 +175,7 @@ class ReturnDistribution(BaseModel):
     )
     frequency: Decimal = Field(
         ...,
-        description=(
-            "Fraction of total closed trades that fall within this bucket (0.0–1.0). "
-            "Sum of all bucket frequencies equals 1.0 when trades exist."
-        ),
+        description=("Fraction of total closed trades that fall within this bucket (0.0–1.0). Sum of all bucket frequencies equals 1.0 when trades exist."),
         examples=["0.0952", "0.2857", "0.0238"],
     )
 
@@ -238,18 +205,12 @@ class MonthlyWinratePoint(BaseModel):
     )
     label: str = Field(
         ...,
-        description=(
-            "Human-readable month label formatted as ``'Mon YYYY'`` "
-            "(e.g. ``'May 2024'``)."
-        ),
+        description=("Human-readable month label formatted as ``'Mon YYYY'`` (e.g. ``'May 2024'``)."),
         examples=["May 2024", "Jan 2025"],
     )
     win_rate: Decimal = Field(
         ...,
-        description=(
-            "Fraction of winning trades (PnL > 0) over the total trade count "
-            "for this month (0.0–1.0). Zero when ``trade_count`` is zero."
-        ),
+        description=("Fraction of winning trades (PnL > 0) over the total trade count for this month (0.0–1.0). Zero when ``trade_count`` is zero."),
         examples=["0.6667", "0.7500", "0.0000"],
     )
     win_count: int = Field(
@@ -285,10 +246,7 @@ class RollingWinratePoint(BaseModel):
 
     trade_index: int = Field(
         ...,
-        description=(
-            "Zero-based ordinal position of the trade in the chronological "
-            "closed-trade series."
-        ),
+        description=("Zero-based ordinal position of the trade in the chronological closed-trade series."),
         examples=[0, 19, 42],
     )
     closed_at: dt.datetime = Field(
@@ -298,10 +256,7 @@ class RollingWinratePoint(BaseModel):
     )
     rolling_winrate: Decimal = Field(
         ...,
-        description=(
-            "Fraction of winning trades (PnL > 0) over the ``window`` most "
-            "recent trades ending at this index (0.0–1.0)."
-        ),
+        description=("Fraction of winning trades (PnL > 0) over the ``window`` most recent trades ending at this index (0.0–1.0)."),
         examples=["0.6500", "0.4000", "1.0000"],
     )
     window: int = Field(

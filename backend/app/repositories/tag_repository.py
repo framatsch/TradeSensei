@@ -92,9 +92,7 @@ class TagRepository:
         Returns:
             A list of :class:`Tag` ORM instances (may be empty).
         """
-        result = await self._session.execute(
-            select(Tag).where(Tag.user_id == user_id).order_by(Tag.name.asc())
-        )
+        result = await self._session.execute(select(Tag).where(Tag.user_id == user_id).order_by(Tag.name.asc()))
         return list(result.scalars().all())
 
     async def create(self, data: TagCreate, user_id: uuid.UUID) -> Tag:

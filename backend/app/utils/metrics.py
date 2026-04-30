@@ -41,12 +41,7 @@ def compute_trade_metrics(trades: "list[TradeRead]") -> TradeMetrics:
     """
     # Filter to trades that have a realised PnL.
     # Prefer net_pnl when available (net of commissions); fall back to pnl.
-    closed = [
-        t
-        for t in trades
-        if (getattr(t, "net_pnl", None) is not None)
-        or (getattr(t, "pnl", None) is not None)
-    ]
+    closed = [t for t in trades if (getattr(t, "net_pnl", None) is not None) or (getattr(t, "pnl", None) is not None)]
     total = len(closed)
 
     if total == 0:
@@ -103,11 +98,7 @@ def compute_trade_metrics(trades: "list[TradeRead]") -> TradeMetrics:
     max_cons_wins, max_cons_losses = compute_consecutive_runs(pnl_series)
 
     # Duration: only trades where both opened_at and closed_at are available.
-    durations = [
-        (t.closed_at - t.opened_at).total_seconds()
-        for t in closed
-        if t.closed_at is not None and t.opened_at is not None
-    ]
+    durations = [(t.closed_at - t.opened_at).total_seconds() for t in closed if t.closed_at is not None and t.opened_at is not None]
     avg_duration: float | None = sum(durations) / len(durations) if durations else None
 
     sharpe = compute_sharpe_ratio(closed)
@@ -156,11 +147,7 @@ def compute_equity_curve(
     eligible: list[tuple[datetime, Decimal]] = []
     for t in trades:
         # Prefer net_pnl for equity updates when available.
-        pnl_value = (
-            getattr(t, "net_pnl", None)
-            if getattr(t, "net_pnl", None) is not None
-            else getattr(t, "pnl", None)
-        )
+        pnl_value = getattr(t, "net_pnl", None) if getattr(t, "net_pnl", None) is not None else getattr(t, "pnl", None)
         if pnl_value is not None and t.closed_at is not None:
             eligible.append((t.closed_at, pnl_value))
 
@@ -173,9 +160,7 @@ def compute_equity_curve(
     for closed_at, pnl in eligible:
         running_equity = running_equity + pnl
         # Ensure the timestamp is timezone-aware.
-        ts = (
-            closed_at if closed_at.tzinfo is not None else closed_at.replace(tzinfo=UTC)
-        )
+        ts = closed_at if closed_at.tzinfo is not None else closed_at.replace(tzinfo=UTC)
         points.append(EquityCurvePoint(timestamp=ts, equity=running_equity, pnl=pnl))
 
     return points

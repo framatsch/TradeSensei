@@ -19,19 +19,13 @@ class TagCreate(BaseModel):
         ...,
         min_length=TAG_NAME_MIN_LENGTH,
         max_length=TAG_NAME_MAX_LENGTH,
-        description=(
-            "Tag label, unique per user. Maximum 50 characters. "
-            "For example: 'gap-and-go', 'revenge-trade', 'oversize'."
-        ),
+        description=("Tag label, unique per user. Maximum 50 characters. For example: 'gap-and-go', 'revenge-trade', 'oversize'."),
         examples=["gap-and-go", "revenge-trade", "high-conviction"],
     )
     color: str | None = Field(
         default=None,
         pattern=r"^#[0-9a-fA-F]{6}$",
-        description=(
-            "Optional hex colour for UI display. Must match the pattern "
-            "``#RRGGBB`` (e.g. ``'#3b82f6'``). Omit or set to null for no colour."
-        ),
+        description=("Optional hex colour for UI display. Must match the pattern ``#RRGGBB`` (e.g. ``'#3b82f6'``). Omit or set to null for no colour."),
         examples=["#3b82f6", "#ef4444", None],
     )
 
@@ -56,10 +50,7 @@ class TagUpdate(BaseModel):
     color: str | None = Field(
         default=None,
         pattern=r"^#[0-9a-fA-F]{6}$",
-        description=(
-            "Updated hex colour. Omit to leave unchanged. "
-            "Set to null to remove the colour."
-        ),
+        description=("Updated hex colour. Omit to leave unchanged. Set to null to remove the colour."),
         examples=["#22c55e", None],
     )
 

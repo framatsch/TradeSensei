@@ -38,10 +38,7 @@ def _get_service(
     "",
     response_model=ResponseEnvelope[list[TagRead]],
     summary="List Tags",
-    description=(
-        "Return all tags owned by the currently authenticated user, "
-        "ordered by name ascending."
-    ),
+    description=("Return all tags owned by the currently authenticated user, ordered by name ascending."),
     response_description="A list of tags wrapped in a response envelope.",
     responses={
         200: {"description": "Tag list returned successfully."},
@@ -71,10 +68,7 @@ async def list_tags(
     response_model=ResponseEnvelope[TagRead],
     status_code=status.HTTP_201_CREATED,
     summary="Create a Tag",
-    description=(
-        "Create a new tag owned by the currently authenticated user. "
-        "Tag names must be unique per user."
-    ),
+    description=("Create a new tag owned by the currently authenticated user. Tag names must be unique per user."),
     response_description="The newly created tag wrapped in a response envelope.",
     responses={
         201: {"description": "Tag created successfully."},
@@ -106,10 +100,7 @@ async def create_tag(
     "/{tag_id}",
     response_model=ResponseEnvelope[TagRead],
     summary="Get a Tag",
-    description=(
-        "Retrieve a single tag by its UUID. Returns 404 if the tag does not "
-        "exist or belongs to a different user."
-    ),
+    description=("Retrieve a single tag by its UUID. Returns 404 if the tag does not exist or belongs to a different user."),
     response_description="The requested tag wrapped in a response envelope.",
     responses={
         200: {"description": "Tag found and returned."},
@@ -139,9 +130,7 @@ async def get_tag(
     try:
         tag = await service.get_tag(tag_id, current_user.id)
     except TagNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found.") from exc
     return ResponseEnvelope[TagRead](data=tag)
 
 
@@ -149,13 +138,8 @@ async def get_tag(
     "/{tag_id}",
     response_model=ResponseEnvelope[TagRead],
     summary="Update a Tag",
-    description=(
-        "Apply a partial update to a tag owned by the authenticated user. "
-        "Only fields present in the request body are modified."
-    ),
-    response_description=(
-        "The tag after applying the partial update, wrapped in a response envelope."
-    ),
+    description=("Apply a partial update to a tag owned by the authenticated user. Only fields present in the request body are modified."),
+    response_description=("The tag after applying the partial update, wrapped in a response envelope."),
     responses={
         200: {"description": "Tag updated successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -187,9 +171,7 @@ async def update_tag(
     try:
         tag = await service.update_tag(tag_id, payload, current_user.id)
     except TagNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found.") from exc
     return ResponseEnvelope[TagRead](data=tag)
 
 
@@ -228,6 +210,4 @@ async def delete_tag(
     try:
         await service.delete_tag(tag_id, current_user.id)
     except TagNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found.") from exc

@@ -17,20 +17,14 @@ class LogicalExecutionBase(BaseModel):
     """Shared properties for all LogicalExecution schemas."""
 
     direction: Direction
-    quantity: Decimal = Field(
-        gt=0, description="Execution quantity (absolute, always positive)"
-    )
+    quantity: Decimal = Field(gt=0, description="Execution quantity (absolute, always positive)")
     price: Decimal = Field(ge=0, description="Execution price per unit")
-    commission: Decimal = Field(
-        default=Decimal("0.0"), description="Commission for this execution leg"
-    )
+    commission: Decimal = Field(default=Decimal("0.0"), description="Commission for this execution leg")
     executed_at: datetime = Field(
         description="Timestamp of the execution (UTC)",
         json_schema_extra={"format": "date-time-tz"},
     )
-    pnl: Decimal | None = Field(
-        default=None, description="Broker-reported realised P&L (None for opening legs)"
-    )
+    pnl: Decimal | None = Field(default=None, description="Broker-reported realised P&L (None for opening legs)")
 
     @field_validator("executed_at", mode="after")
     @classmethod
@@ -50,18 +44,12 @@ class LogicalExecutionCreate(LogicalExecutionBase):
 
     asset_class: AssetClass | None = Field(
         default=None,
-        description=(
-            "Optional per-leg asset class override for COMBO trades. "
-            "Ignored for non-COMBO parent trades."
-        ),
+        description=("Optional per-leg asset class override for COMBO trades. Ignored for non-COMBO parent trades."),
     )
     multiplier: int | None = Field(
         default=None,
         gt=0,
-        description=(
-            "Optional per-leg multiplier override for COMBO trades. "
-            "Ignored for non-COMBO parent trades."
-        ),
+        description=("Optional per-leg multiplier override for COMBO trades. Ignored for non-COMBO parent trades."),
     )
 
 
@@ -118,24 +106,12 @@ class SplitExecutionRequest(BaseModel):
         executed_at_b: Timestamp for the second execution (defaults to original).
     """
 
-    quantity_a: Decimal = Field(
-        gt=0, description="Quantity of the first resulting execution"
-    )
-    quantity_b: Decimal = Field(
-        gt=0, description="Quantity of the second resulting execution"
-    )
-    price_a: Decimal | None = Field(
-        default=None, ge=0, description="Price for the first execution"
-    )
-    price_b: Decimal | None = Field(
-        default=None, ge=0, description="Price for the second execution"
-    )
-    executed_at_a: datetime | None = Field(
-        default=None, description="Timestamp for the first execution (UTC)"
-    )
-    executed_at_b: datetime | None = Field(
-        default=None, description="Timestamp for the second execution (UTC)"
-    )
+    quantity_a: Decimal = Field(gt=0, description="Quantity of the first resulting execution")
+    quantity_b: Decimal = Field(gt=0, description="Quantity of the second resulting execution")
+    price_a: Decimal | None = Field(default=None, ge=0, description="Price for the first execution")
+    price_b: Decimal | None = Field(default=None, ge=0, description="Price for the second execution")
+    executed_at_a: datetime | None = Field(default=None, description="Timestamp for the first execution (UTC)")
+    executed_at_b: datetime | None = Field(default=None, description="Timestamp for the second execution (UTC)")
 
     @field_validator("executed_at_a", "executed_at_b", mode="after")
     @classmethod
@@ -184,26 +160,15 @@ class MergeExecutionsRequest(BaseModel):
         min_length=2,
         description="IDs of all executions to merge (at least 2 required).",
     )
-    primary_id: uuid.UUID = Field(
-        description=(
-            "The execution whose metadata is used as the base. "
-            "Must be included in execution_ids."
-        )
-    )
+    primary_id: uuid.UUID = Field(description=("The execution whose metadata is used as the base. Must be included in execution_ids."))
     price: Decimal | None = Field(
         default=None,
         ge=0,
-        description=(
-            "Override price for the merged execution. "
-            "When omitted, the weighted-average price is used."
-        ),
+        description=("Override price for the merged execution. When omitted, the weighted-average price is used."),
     )
     executed_at: datetime | None = Field(
         default=None,
-        description=(
-            "Override timestamp for the merged execution (UTC). "
-            "When omitted, the primary execution's timestamp is used."
-        ),
+        description=("Override timestamp for the merged execution (UTC). When omitted, the primary execution's timestamp is used."),
     )
 
     @field_validator("executed_at", mode="after")
@@ -241,13 +206,9 @@ class LogicalExecutionRead(LogicalExecutionBase):
     pnl_eur: Decimal | None = None
     multiplier: int
     currency: str | None = None
-    origin: ExecutionOrigin = Field(
-        description="Immutable provenance: imported | manual | merged | split"
-    )
+    origin: ExecutionOrigin = Field(description="Immutable provenance: imported | manual | merged | split")
     deleted: bool = Field(description="True when this execution has been soft-deleted")
-    user_modified: bool = Field(
-        description="True when the user has patched an imported execution"
-    )
+    user_modified: bool = Field(description="True when the user has patched an imported execution")
     parent_id: uuid.UUID | None = Field(
         default=None,
         description="FK to original execution for split/merge lineage",

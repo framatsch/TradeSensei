@@ -28,6 +28,4 @@ class UsedOtt(Base):
     __tablename__ = "used_otts"
 
     jti: Mapped[str] = mapped_column(String, primary_key=True)
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

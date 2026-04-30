@@ -24,19 +24,13 @@ class PlaybookCreate(BaseModel):
         ...,
         min_length=PLAYBOOK_NAME_MIN_LENGTH,
         max_length=PLAYBOOK_NAME_MAX_LENGTH,
-        description=(
-            "Human-readable playbook name, unique per user. "
-            "For example: 'Breakout Long', 'Mean Reversion'."
-        ),
+        description=("Human-readable playbook name, unique per user. For example: 'Breakout Long', 'Mean Reversion'."),
         examples=["Breakout Long", "VWAP Fade"],
     )
     description: str | None = Field(
         default=None,
         max_length=PLAYBOOK_DESCRIPTION_MAX_LENGTH,
-        description=(
-            "Optional long-form description of the strategy or setup. "
-            "Maximum 2 000 characters."
-        ),
+        description=("Optional long-form description of the strategy or setup. Maximum 2 000 characters."),
         examples=["Enter on a confirmed breakout above the prior day high.", None],
     )
 
@@ -62,10 +56,7 @@ class PlaybookUpdate(BaseModel):
     description: str | None = Field(
         default=None,
         max_length=PLAYBOOK_DESCRIPTION_MAX_LENGTH,
-        description=(
-            "Updated description. Omit to leave unchanged. "
-            "Set to null to clear the existing description."
-        ),
+        description=("Updated description. Omit to leave unchanged. Set to null to clear the existing description."),
         examples=["Revised criteria for entry.", None],
     )
     is_active: bool | None = Field(

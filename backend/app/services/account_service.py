@@ -90,9 +90,7 @@ class AccountService:
         # TODO: Implement true cursor-based pagination — currently all accounts
         # are returned in a single page without any cursor filtering.
         accounts = await self._repo.list_by_user(user_id, portfolio_id)
-        items: list[AccountRead] = [
-            _build_account_read(a, len(a.properties) > 0) for a in accounts
-        ]
+        items: list[AccountRead] = [_build_account_read(a, len(a.properties) > 0) for a in accounts]
         return CursorPage[AccountRead](
             items=items,
             next_cursor=None,
@@ -162,9 +160,7 @@ class AccountService:
         # loaded in the async context — bare refresh() does not load relations.
         refreshed = await self._repo.get_by_id(account.id, user_id)
         if refreshed is None:
-            raise RuntimeError(
-                f"Account {account.id} disappeared after creation/update."
-            )
+            raise RuntimeError(f"Account {account.id} disappeared after creation/update.")
         return _build_account_read(refreshed, len(refreshed.properties) > 0)
 
     async def update_account(
@@ -214,9 +210,7 @@ class AccountService:
         # loaded in the async context — bare refresh() does not load relations.
         refreshed = await self._repo.get_by_id(updated.id, user_id)
         if refreshed is None:
-            raise RuntimeError(
-                f"Account {updated.id} disappeared after creation/update."
-            )
+            raise RuntimeError(f"Account {updated.id} disappeared after creation/update.")
         return _build_account_read(refreshed, len(refreshed.properties) > 0)
 
     async def delete_account(

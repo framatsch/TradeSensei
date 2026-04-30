@@ -124,9 +124,7 @@ class Account(Base):
         nullable=True,
         default=None,
         comment=(
-            "Per-account import/sync settings stored as JSON. "
-            "Keys: sync_days (int), flex_from_date_preset (str), "
-            "flex_custom_from_date (str YYYYMMDD or null)."
+            "Per-account import/sync settings stored as JSON. Keys: sync_days (int), flex_from_date_preset (str), flex_custom_from_date (str YYYYMMDD or null)."
         ),
     )
     created_at: Mapped[datetime] = mapped_column(

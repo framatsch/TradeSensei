@@ -88,9 +88,7 @@ async def list_trade_executions(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Trade not found.",
         ) from exc
-    return ResponseEnvelope(
-        data=[LogicalExecutionRead.model_validate(e) for e in executions]
-    )
+    return ResponseEnvelope(data=[LogicalExecutionRead.model_validate(e) for e in executions])
 
 
 @router.post(

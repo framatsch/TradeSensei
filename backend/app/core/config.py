@@ -62,15 +62,9 @@ class Settings(BaseSettings):
             return self.database_url
 
         if not self.db_user or not self.db_password:
-            raise ValueError(
-                "Either DATABASE_URL or both DB_USER and DB_PASSWORD "
-                "must be configured."
-            )
+            raise ValueError("Either DATABASE_URL or both DB_USER and DB_PASSWORD must be configured.")
 
-        return (
-            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-        )
+        return f"postgresql+asyncpg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
     secret_key: str
     environment: str = "development"
@@ -137,9 +131,7 @@ class Settings(BaseSettings):
             ``True`` if all required SMTP fields are set and local auth is
             enabled; ``False`` otherwise.
         """
-        smtp_ready = bool(
-            self.smtp_host and self.smtp_user and self.smtp_password and self.email_from
-        )
+        smtp_ready = bool(self.smtp_host and self.smtp_user and self.smtp_password and self.email_from)
         google_enabled = bool(self.google_client_id and self.google_client_secret)
         oidc_active = self.oidc_enabled and bool(self.oidc_configuration_url)
         any_external = google_enabled or oidc_active
@@ -197,9 +189,7 @@ class Settings(BaseSettings):
                 return []
             if stripped_value.startswith("["):
                 return stripped_value
-            return [
-                origin.strip() for origin in stripped_value.split(",") if origin.strip()
-            ]
+            return [origin.strip() for origin in stripped_value.split(",") if origin.strip()]
         return value
 
     @field_validator("environment")

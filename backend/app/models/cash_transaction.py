@@ -99,10 +99,7 @@ class CashTransaction(Base):
     amount_eur: Mapped[Decimal | None] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
         nullable=True,
-        comment=(
-            "Amount converted to EUR at the Bundesbank daily rate "
-            "on the transaction date."
-        ),
+        comment=("Amount converted to EUR at the Bundesbank daily rate on the transaction date."),
     )
     description: Mapped[str | None] = mapped_column(
         Text,
@@ -134,7 +131,4 @@ class CashTransaction(Base):
 
     def __repr__(self) -> str:
         """Return a human-readable string representation."""
-        return (
-            f"<CashTransaction id={self.id} type={self.type} "
-            f"amount={self.amount} {self.currency}>"
-        )
+        return f"<CashTransaction id={self.id} type={self.type} amount={self.amount} {self.currency}>"

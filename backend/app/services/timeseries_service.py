@@ -271,9 +271,7 @@ class TimeSeriesService:
 
         result: list[PnlBySymbol] = []
         for symbol, total_pnl, total_count, win_count in rows:
-            win_rate = (
-                Decimal(win_count) / Decimal(total_count) if total_count > 0 else _ZERO
-            )
+            win_rate = Decimal(win_count) / Decimal(total_count) if total_count > 0 else _ZERO
             avg_pnl = total_pnl / Decimal(total_count) if total_count > 0 else _ZERO
             result.append(
                 PnlBySymbol(
@@ -316,9 +314,7 @@ class TimeSeriesService:
 
         result: list[PnlByAssetClass] = []
         for asset_class, total_pnl, total_count, win_count in rows:
-            win_rate = (
-                Decimal(win_count) / Decimal(total_count) if total_count > 0 else _ZERO
-            )
+            win_rate = Decimal(win_count) / Decimal(total_count) if total_count > 0 else _ZERO
             result.append(
                 PnlByAssetClass(
                     asset_class=asset_class,

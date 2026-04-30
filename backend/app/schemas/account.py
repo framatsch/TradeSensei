@@ -39,26 +39,17 @@ class AccountSettings(BaseModel):
         default=30,
         ge=1,
         le=365,
-        description=(
-            "Number of past days to pull via broker API sync. Must be between 1–365."
-        ),
+        description=("Number of past days to pull via broker API sync. Must be between 1–365."),
         examples=[7, 30, 90, 180, 365],
     )
     flex_from_date_preset: FlexFromDatePreset = Field(
         default="ytd",
-        description=(
-            "Controls the Flex import date-range mode: "
-            "'ytd' = January 1st of the current year, "
-            "'custom' = the explicit flex_custom_from_date value."
-        ),
+        description=("Controls the Flex import date-range mode: 'ytd' = January 1st of the current year, 'custom' = the explicit flex_custom_from_date value."),
         examples=["ytd", "custom"],
     )
     flex_custom_from_date: str | None = Field(
         default=None,
-        description=(
-            "Explicit Flex import start date in YYYYMMDD format. "
-            "Only used when flex_from_date_preset is 'custom'."
-        ),
+        description=("Explicit Flex import start date in YYYYMMDD format. Only used when flex_from_date_preset is 'custom'."),
         examples=["20250101", None],
     )
 
@@ -103,10 +94,7 @@ class AccountCreate(BaseModel):
     )
     type: AccountType = Field(
         default=AccountType.MANUAL,
-        description=(
-            "Account/broker type. Use 'schwab' for Charles Schwab, "
-            "'ibkr' for Interactive Brokers, or 'manual' for a manual account."
-        ),
+        description=("Account/broker type. Use 'schwab' for Charles Schwab, 'ibkr' for Interactive Brokers, or 'manual' for a manual account."),
         examples=["manual", "schwab", "ibkr"],
     )
     currency: str = Field(
@@ -189,8 +177,7 @@ class AccountUpdate(BaseModel):
     properties: dict[str, str] | None = Field(
         default=None,
         description=(
-            "Optional map of broker credential keys to updated plaintext values. "
-            "Upserts each supplied key-value pair; keys not listed here are unchanged."
+            "Optional map of broker credential keys to updated plaintext values. Upserts each supplied key-value pair; keys not listed here are unchanged."
         ),
         examples=[
             {"SCHWAB_APP_KEY": "new-key-value"},
@@ -270,9 +257,7 @@ class AccountRead(BaseModel):
     )
     settings: AccountSettings = Field(
         default_factory=AccountSettings,
-        description=(
-            "Per-account import/sync settings. Returns defaults if not yet configured."
-        ),
+        description=("Per-account import/sync settings. Returns defaults if not yet configured."),
         validate_default=True,
     )
 
@@ -291,10 +276,7 @@ class AccountRead(BaseModel):
     )
     has_api_keys: bool = Field(
         default=False,
-        description=(
-            "True if the account has at least one stored broker credential. "
-            "Computed by the service layer."
-        ),
+        description=("True if the account has at least one stored broker credential. Computed by the service layer."),
         examples=[True, False],
     )
 

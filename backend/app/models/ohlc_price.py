@@ -41,38 +41,21 @@ class OhlcPrice(Base):
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    open: Mapped[Decimal] = mapped_column(
-        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False
-    )
-    high: Mapped[Decimal] = mapped_column(
-        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False
-    )
-    low: Mapped[Decimal] = mapped_column(
-        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False
-    )
-    close: Mapped[Decimal] = mapped_column(
-        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False
-    )
-    volume: Mapped[Decimal | None] = mapped_column(
-        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=True
-    )
+    open: Mapped[Decimal] = mapped_column(Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False)
+    high: Mapped[Decimal] = mapped_column(Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False)
+    low: Mapped[Decimal] = mapped_column(Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False)
+    close: Mapped[Decimal] = mapped_column(Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=False)
+    volume: Mapped[Decimal | None] = mapped_column(Numeric(NUMERIC_PRECISION, NUMERIC_SCALE), nullable=True)
 
     meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     __table_args__ = (
-        UniqueConstraint(
-            "symbol", "interval", "provider", "start", name="uq_ohlc_price_bar"
-        ),
+        UniqueConstraint("symbol", "interval", "provider", "start", name="uq_ohlc_price_bar"),
         Index("ix_ohlc_prices_symbol_interval", "symbol", "interval"),
         Index("ix_ohlc_prices_start", "start"),
     )
 
     def __repr__(self) -> str:
         """Return a debug string for the OHLC bar."""
-        return (
-            f"<OhlcPrice symbol={self.symbol!r} interval={self.interval!r} "
-            f"start={self.start}>"
-        )
+        return f"<OhlcPrice symbol={self.symbol!r} interval={self.interval!r} start={self.start}>"

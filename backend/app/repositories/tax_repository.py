@@ -93,9 +93,7 @@ class TaxRepository:
             Decimal("0"),
         )
 
-        trade_count_expr = func.count(
-            Trade.pnl
-        )  # COUNT ignores NULLs; pnl is always set for closed trades.
+        trade_count_expr = func.count(Trade.pnl)  # COUNT ignores NULLs; pnl is always set for closed trades.
 
         missing_count_expr = func.count(
             case(
@@ -127,9 +125,7 @@ class TaxRepository:
 
         result = await session.execute(stmt)
         rows = result.all()
-        output: list[
-            tuple[uuid.UUID | None, str | None, bool, Decimal, Decimal, int, int]
-        ] = [
+        output: list[tuple[uuid.UUID | None, str | None, bool, Decimal, Decimal, int, int]] = [
             (
                 row.account_id,
                 row.account_name,

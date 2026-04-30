@@ -249,9 +249,7 @@ def aggregate_executions_fifo(
     sorted_execs = sorted(executions, key=lambda x: x.opened_at)
 
     # Sort corporate actions chronologically (earliest first)
-    sorted_cas: list[CorporateActionLike] = (
-        sorted(corporate_actions, key=lambda c: c.date) if corporate_actions else []
-    )
+    sorted_cas: list[CorporateActionLike] = sorted(corporate_actions, key=lambda c: c.date) if corporate_actions else []
 
     # open_lots: queue keyed by (symbol, conid, asset_class)
     open_lots: dict[tuple[str, str | None, str], deque[TradeCreate]] = {}
@@ -402,11 +400,7 @@ def aggregate_executions_fifo(
             else:
                 # It's an orphaned closing leg (open leg was before the export period).
                 # Reconstruct a closed trade.
-                orig_direction = (
-                    Direction.LONG
-                    if exec_trade.direction == Direction.SHORT
-                    else Direction.SHORT
-                )
+                orig_direction = Direction.LONG if exec_trade.direction == Direction.SHORT else Direction.SHORT
                 opened_at = exec_trade.opened_at
                 closed_at = exec_trade.closed_at or exec_trade.opened_at
                 if closed_at <= opened_at:
@@ -437,11 +431,7 @@ def aggregate_executions_fifo(
         # If the closing execution quantity significantly exceeds what is in the queue,
         # emit a warning so the user knows to check for a missed split event.
         total_open_qty = sum(cast(Decimal, lot.quantity) for lot in queue)
-        if (
-            exec_trade.pnl is not None
-            and total_open_qty > 0
-            and exec_qty_remaining > total_open_qty * Decimal("2")
-        ):
+        if exec_trade.pnl is not None and total_open_qty > 0 and exec_qty_remaining > total_open_qty * Decimal("2"):
             logger.warning(
                 "Possible unregistered split for symbol '%s': "
                 "closing execution quantity "
@@ -460,16 +450,8 @@ def aggregate_executions_fifo(
             open_lot_commission = open_lot.commission
             if open_lot_commission is None:
                 open_lot_commission = Decimal("0")
-            lot_comm = (
-                (open_lot_commission * match_qty) / open_lot_qty
-                if open_lot_qty > 0
-                else Decimal("0")
-            )
-            exec_comm = (
-                (exec_commission_remaining * match_qty) / exec_qty_remaining
-                if exec_qty_remaining > 0
-                else Decimal("0")
-            )
+            lot_comm = (open_lot_commission * match_qty) / open_lot_qty if open_lot_qty > 0 else Decimal("0")
+            exec_comm = (exec_commission_remaining * match_qty) / exec_qty_remaining if exec_qty_remaining > 0 else Decimal("0")
 
             matched_pnl: Decimal | None = None
             matched_pnl_eur: Decimal | None = None
@@ -482,32 +464,17 @@ def aggregate_executions_fifo(
                 lot_multiplier = Decimal(open_lot.multiplier)
                 open_lot_entry_price = cast(Decimal, open_lot.entry_price)
                 if open_lot.direction == Direction.LONG:
-                    matched_pnl = (
-                        (exit_price - open_lot_entry_price) * match_qty * lot_multiplier
-                    )
+                    matched_pnl = (exit_price - open_lot_entry_price) * match_qty * lot_multiplier
                 else:
-                    matched_pnl = (
-                        (open_lot_entry_price - exit_price) * match_qty * lot_multiplier
-                    )
+                    matched_pnl = (open_lot_entry_price - exit_price) * match_qty * lot_multiplier
                 matched_net_pnl = matched_pnl - (lot_comm + exec_comm)
                 exec_trade_pnl_eur = exec_trade.pnl_eur
                 exec_trade_pnl = exec_trade.pnl
-                if (
-                    exec_trade_pnl_eur is not None
-                    and exec_trade_pnl is not None
-                    and exec_trade_pnl != Decimal("0")
-                ):
+                if exec_trade_pnl_eur is not None and exec_trade_pnl is not None and exec_trade_pnl != Decimal("0"):
                     # Scale EUR PnL proportionally by the fraction of gross PnL
                     # this match represents.
-                    matched_pnl_eur = (
-                        exec_trade_pnl_eur * match_qty
-                    ) / exec_qty_remaining
-                    if matched_pnl and matched_pnl != Decimal("0"):
-                        matched_net_pnl_eur = matched_net_pnl * (
-                            matched_pnl_eur / matched_pnl
-                        )
-                    else:
-                        matched_net_pnl_eur = matched_net_pnl
+                    matched_pnl_eur = (exec_trade_pnl_eur * match_qty) / exec_qty_remaining
+                    matched_net_pnl_eur = matched_net_pnl * (matched_pnl_eur / matched_pnl) if matched_pnl and matched_pnl != Decimal("0") else matched_net_pnl
 
             closed_at = exec_trade.opened_at
             if closed_at <= open_lot.opened_at:
@@ -552,11 +519,7 @@ def aggregate_executions_fifo(
         if exec_qty_remaining > Decimal("0"):
             if is_closing_leg and not getattr(exec_trade, "is_mixed_execution", False):
                 # Orphaned closing remainder
-                orig_direction = (
-                    Direction.LONG
-                    if exec_trade.direction == Direction.SHORT
-                    else Direction.SHORT
-                )
+                orig_direction = Direction.LONG if exec_trade.direction == Direction.SHORT else Direction.SHORT
                 opened_at = exec_trade.opened_at
                 closed_at = exec_trade.closed_at or exec_trade.opened_at
                 if closed_at <= opened_at:
@@ -630,16 +593,8 @@ def aggregate_executions_fifo(
             o_lot_commission = o_lot.commission
             if o_lot_commission is None:
                 o_lot_commission = Decimal("0")
-            lot_comm = (
-                (open_lot_commission * match_qty) / open_lot_qty
-                if open_lot_qty > 0
-                else Decimal("0")
-            )
-            o_lot_comm = (
-                (o_lot_commission * match_qty) / o_lot_qty
-                if o_lot_qty > 0
-                else Decimal("0")
-            )
+            lot_comm = (open_lot_commission * match_qty) / open_lot_qty if open_lot_qty > 0 else Decimal("0")
+            o_lot_comm = (o_lot_commission * match_qty) / o_lot_qty if o_lot_qty > 0 else Decimal("0")
 
             matched_pnl = None
             matched_pnl_eur = None
@@ -651,29 +606,16 @@ def aggregate_executions_fifo(
                 lot_multiplier = Decimal(open_lot.multiplier)
                 open_lot_entry_price = cast(Decimal, open_lot.entry_price)
                 if open_lot.direction == Direction.LONG:
-                    matched_pnl = (
-                        (o_exit_price - open_lot_entry_price)
-                        * match_qty
-                        * lot_multiplier
-                    )
+                    matched_pnl = (o_exit_price - open_lot_entry_price) * match_qty * lot_multiplier
                 else:
-                    matched_pnl = (
-                        (open_lot_entry_price - o_exit_price)
-                        * match_qty
-                        * lot_multiplier
-                    )
+                    matched_pnl = (open_lot_entry_price - o_exit_price) * match_qty * lot_multiplier
                 if matched_pnl is not None:
                     matched_net_pnl = matched_pnl - (lot_comm + o_lot_comm)
             o_lot_pnl_eur = o_lot.pnl_eur
             if o_lot_pnl_eur is not None and o_lot_qty > 0:
                 matched_pnl_eur = (o_lot_pnl_eur * match_qty) / o_lot_qty
                 if matched_net_pnl is not None:
-                    if matched_pnl and matched_pnl != Decimal("0"):
-                        matched_net_pnl_eur = matched_net_pnl * (
-                            matched_pnl_eur / matched_pnl
-                        )
-                    else:
-                        matched_net_pnl_eur = matched_net_pnl
+                    matched_net_pnl_eur = matched_net_pnl * (matched_pnl_eur / matched_pnl) if matched_pnl and matched_pnl != Decimal("0") else matched_net_pnl
 
             # Create the filled orphaned lot by taking the
             # exit details from the orphaned lot
@@ -741,9 +683,7 @@ def _apply_split_event(
         open_lots: The mutable open-lots dictionary from the aggregator loop.
         ca: An object satisfying :class:`CorporateActionLike` to apply.
     """
-    keys_to_remap: list[
-        tuple[tuple[str, str | None, str], tuple[str, str | None, str]]
-    ] = []
+    keys_to_remap: list[tuple[tuple[str, str | None, str], tuple[str, str | None, str]]] = []
 
     for key, queue in open_lots.items():
         key_symbol, key_conid, key_asset_class = key
@@ -817,8 +757,7 @@ def _apply_split_event(
             # Merge: extend the existing new-key queue (shouldn't happen in practice)
             open_lots[new_key].extend(existing_queue)
             logger.warning(
-                "Conid remap collision: merging queues for old_key=%s into new_key=%s. "
-                "This may indicate duplicate corporate actions.",
+                "Conid remap collision: merging queues for old_key=%s into new_key=%s. This may indicate duplicate corporate actions.",
                 old_key,
                 new_key,
             )
@@ -958,11 +897,7 @@ def aggregate_executions_fifo_with_sources(
             execution_usage_count[exec_id] = execution_usage_count.get(exec_id, 0) + 1
 
     # Log split detection summary
-    executions_needing_split = {
-        exec_id
-        for exec_id, usage_count in execution_usage_count.items()
-        if usage_count > 1
-    }
+    executions_needing_split = {exec_id for exec_id, usage_count in execution_usage_count.items() if usage_count > 1}
 
     if executions_needing_split:
         logger.info(

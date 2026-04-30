@@ -87,11 +87,7 @@ class PlaybookRepository:
         Returns:
             A list of :class:`Playbook` ORM instances (may be empty).
         """
-        result = await self._session.execute(
-            select(Playbook)
-            .where(Playbook.user_id == user_id)
-            .order_by(Playbook.created_at.asc())
-        )
+        result = await self._session.execute(select(Playbook).where(Playbook.user_id == user_id).order_by(Playbook.created_at.asc()))
         return list(result.scalars().all())
 
     async def create(self, data: PlaybookCreate, user_id: uuid.UUID) -> Playbook:

@@ -68,23 +68,11 @@ def _get_service(
         "the result by `closed_at`. Omitting both returns all-time data.\n\n"
         "**Authentication:** a valid Bearer token is required."
     ),
-    response_description=(
-        "An ordered list (ascending by date) of daily PnL aggregates, "
-        "wrapped in a ResponseEnvelope."
-    ),
+    response_description=("An ordered list (ascending by date) of daily PnL aggregates, wrapped in a ResponseEnvelope."),
     responses={
         200: {"description": "Daily PnL aggregates successfully returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. "
-                "Check that dates are valid ISO-8601 strings."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. Check that dates are valid ISO-8601 strings.")},
     },
 )
 async def get_daily_pnl(
@@ -94,20 +82,14 @@ async def get_daily_pnl(
     account_id: Annotated[
         uuid.UUID | None,
         Query(
-            description=(
-                "Optional account UUID to restrict results to a single account. "
-                "When omitted, trades from all of the user's accounts are included."
-            )
+            description=("Optional account UUID to restrict results to a single account. When omitted, trades from all of the user's accounts are included.")
         ),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -115,10 +97,7 @@ async def get_daily_pnl(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -174,23 +153,11 @@ async def get_daily_pnl(
         "the result by `closed_at`. Omitting both returns all-time data.\n\n"
         "**Authentication:** a valid Bearer token is required."
     ),
-    response_description=(
-        "An ordered list (ascending by year/month) of monthly PnL aggregates, "
-        "wrapped in a ResponseEnvelope."
-    ),
+    response_description=("An ordered list (ascending by year/month) of monthly PnL aggregates, wrapped in a ResponseEnvelope."),
     responses={
         200: {"description": "Monthly PnL aggregates successfully returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. "
-                "Check that dates are valid ISO-8601 strings."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. Check that dates are valid ISO-8601 strings.")},
     },
 )
 async def get_monthly_pnl(
@@ -199,21 +166,13 @@ async def get_monthly_pnl(
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
         uuid.UUID | None,
-        Query(
-            description=(
-                "Optional account UUID to restrict results to a single account. "
-                "When omitted, all of the user's accounts are included."
-            )
-        ),
+        Query(description=("Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.")),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -221,10 +180,7 @@ async def get_monthly_pnl(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -281,23 +237,11 @@ async def get_monthly_pnl(
         "the result by `closed_at`. Omitting both returns all-time data.\n\n"
         "**Authentication:** a valid Bearer token is required."
     ),
-    response_description=(
-        "A list of per-symbol PnL aggregates sorted by ``total_pnl`` "
-        "descending, wrapped in a ResponseEnvelope."
-    ),
+    response_description=("A list of per-symbol PnL aggregates sorted by ``total_pnl`` descending, wrapped in a ResponseEnvelope."),
     responses={
         200: {"description": "Per-symbol PnL aggregates successfully returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. "
-                "Check that dates are valid ISO-8601 strings."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. Check that dates are valid ISO-8601 strings.")},
     },
 )
 async def get_pnl_by_symbol(
@@ -306,21 +250,13 @@ async def get_pnl_by_symbol(
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
         uuid.UUID | None,
-        Query(
-            description=(
-                "Optional account UUID to restrict results to a single account. "
-                "When omitted, all of the user's accounts are included."
-            )
-        ),
+        Query(description=("Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.")),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -328,10 +264,7 @@ async def get_pnl_by_symbol(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -387,22 +320,11 @@ async def get_pnl_by_symbol(
         "the result by `closed_at`. Omitting both returns all-time data.\n\n"
         "**Authentication:** a valid Bearer token is required."
     ),
-    response_description=(
-        "A list of per-asset-class PnL aggregates, wrapped in a ResponseEnvelope."
-    ),
+    response_description=("A list of per-asset-class PnL aggregates, wrapped in a ResponseEnvelope."),
     responses={
         200: {"description": "Per-asset-class PnL aggregates successfully returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. "
-                "Check that dates are valid ISO-8601 strings."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. Check that dates are valid ISO-8601 strings.")},
     },
 )
 async def get_pnl_by_asset_class(
@@ -411,21 +333,13 @@ async def get_pnl_by_asset_class(
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
         uuid.UUID | None,
-        Query(
-            description=(
-                "Optional account UUID to restrict results to a single account. "
-                "When omitted, all of the user's accounts are included."
-            )
-        ),
+        Query(description=("Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.")),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -433,10 +347,7 @@ async def get_pnl_by_asset_class(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -494,16 +405,11 @@ async def get_pnl_by_asset_class(
         "**Authentication:** a valid Bearer token is required."
     ),
     response_description=(
-        "A list of histogram buckets for the PnL return distribution, "
-        "wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
+        "A list of histogram buckets for the PnL return distribution, wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
     ),
     responses={
         200: {"description": "Return distribution histogram successfully returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
         422: {
             "description": (
                 "Query parameter validation error. Check that dates are valid "
@@ -520,21 +426,13 @@ async def get_return_distribution(
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
         uuid.UUID | None,
-        Query(
-            description=(
-                "Optional account UUID to restrict results to a single account. "
-                "When omitted, all of the user's accounts are included."
-            )
-        ),
+        Query(description=("Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.")),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -542,10 +440,7 @@ async def get_return_distribution(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -623,16 +518,11 @@ async def get_return_distribution(
         "**Authentication:** a valid Bearer token is required."
     ),
     response_description=(
-        "A chronologically ordered list of rolling win-rate data points, "
-        "wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
+        "A chronologically ordered list of rolling win-rate data points, wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
     ),
     responses={
         200: {"description": "Rolling win-rate series successfully returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
         422: {
             "description": (
                 "Query parameter validation error. Check that dates are valid "
@@ -662,21 +552,13 @@ async def get_rolling_winrate(
     ] = ROLLING_WINRATE_DEFAULT_WINDOW,
     account_id: Annotated[
         uuid.UUID | None,
-        Query(
-            description=(
-                "Optional account UUID to restrict results to a single account. "
-                "When omitted, all of the user's accounts are included."
-            )
-        ),
+        Query(description=("Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.")),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -684,10 +566,7 @@ async def get_rolling_winrate(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -748,16 +627,11 @@ async def get_rolling_winrate(
         "**Authentication:** a valid Bearer token is required."
     ),
     response_description=(
-        "A chronologically ordered list of monthly win-rate data points, "
-        "wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
+        "A chronologically ordered list of monthly win-rate data points, wrapped in a ResponseEnvelope. Empty list when no closed trades exist."
     ),
     responses={
         200: {"description": "Monthly win-rate series successfully returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
     },
 )
 async def get_monthly_winrate(
@@ -766,21 +640,13 @@ async def get_monthly_winrate(
     current_user: Annotated[User, Depends(get_current_user)],
     account_id: Annotated[
         uuid.UUID | None,
-        Query(
-            description=(
-                "Optional account UUID to restrict results to a single account. "
-                "When omitted, all of the user's accounts are included."
-            )
-        ),
+        Query(description=("Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.")),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -788,10 +654,7 @@ async def get_monthly_winrate(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,

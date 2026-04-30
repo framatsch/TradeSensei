@@ -96,9 +96,7 @@ async def get_price_history(
     end_dt = datetime.fromisoformat(end.replace("Z", "+00:00")) if end else None
 
     # Try to serve from cache if we have the full range
-    cached_bars = await service.get_cached_prices(
-        symbol, interval, provider, start_dt, end_dt
-    )
+    cached_bars = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
 
     # Simplified coverage check: if we have bars and the first/last match
     # our requested range (with some tolerance for weekend/market hours),
@@ -127,9 +125,7 @@ async def get_price_history(
         upstream = await client.get(target_url, params=params)
     except httpx.RequestError as exc:
         # On Hub failure, serve from cache as fallback
-        cached = await service.get_cached_prices(
-            symbol, interval, provider, start_dt, end_dt
-        )
+        cached = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
         if cached:
             return OHLCResponse.model_validate({"data": service.format_bars(cached)})
         raise HTTPException(
@@ -139,9 +135,7 @@ async def get_price_history(
 
     if not upstream.is_success:
         # Same here: if Hub fails, maybe we have cached data?
-        cached = await service.get_cached_prices(
-            symbol, interval, provider, start_dt, end_dt
-        )
+        cached = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
         if cached:
             return OHLCResponse.model_validate({"data": service.format_bars(cached)})
         raise HTTPException(

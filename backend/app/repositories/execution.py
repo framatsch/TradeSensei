@@ -69,9 +69,7 @@ class ExecutionRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_by_ids(
-        self, execution_ids: list[uuid.UUID]
-    ) -> list[LogicalExecution]:
+    async def list_by_ids(self, execution_ids: list[uuid.UUID]) -> list[LogicalExecution]:
         """Fetch executions by primary keys.
 
         Args:
@@ -82,9 +80,7 @@ class ExecutionRepository:
         """
         if not execution_ids:
             return []
-        result = await self.session.execute(
-            select(LogicalExecution).where(LogicalExecution.id.in_(execution_ids))
-        )
+        result = await self.session.execute(select(LogicalExecution).where(LogicalExecution.id.in_(execution_ids)))
         return list(result.scalars().all())
 
     async def list_by_user(
@@ -141,9 +137,7 @@ class ExecutionRepository:
         await self.session.flush()
         return execution
 
-    async def update(
-        self, execution: LogicalExecution, **kwargs: object
-    ) -> LogicalExecution:
+    async def update(self, execution: LogicalExecution, **kwargs: object) -> LogicalExecution:
         """Update an existing execution record in-place.
 
         Args:
@@ -169,11 +163,7 @@ class ExecutionRepository:
         Returns:
             True if the execution was found and soft-deleted, False otherwise.
         """
-        stmt = (
-            update(LogicalExecution)
-            .where(LogicalExecution.id == execution_id)
-            .values(deleted=True)
-        )
+        stmt = update(LogicalExecution).where(LogicalExecution.id == execution_id).values(deleted=True)
         result = await self.session.execute(stmt)
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)
@@ -187,11 +177,7 @@ class ExecutionRepository:
         Returns:
             True if the execution was found and restored, False otherwise.
         """
-        stmt = (
-            update(LogicalExecution)
-            .where(LogicalExecution.id == execution_id)
-            .values(deleted=False)
-        )
+        stmt = update(LogicalExecution).where(LogicalExecution.id == execution_id).values(deleted=False)
         result = await self.session.execute(stmt)
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)
@@ -210,9 +196,7 @@ class ExecutionRepository:
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)
 
-    async def reassign_to_trade(
-        self, execution_ids: list[uuid.UUID], trade_id: uuid.UUID | None
-    ) -> int:
+    async def reassign_to_trade(self, execution_ids: list[uuid.UUID], trade_id: uuid.UUID | None) -> int:
         """Update the trade_id for multiple executions simultaneously.
 
         Useful for merges and splits.
@@ -227,11 +211,7 @@ class ExecutionRepository:
         if not execution_ids:
             return 0
 
-        stmt = (
-            update(LogicalExecution)
-            .where(LogicalExecution.id.in_(execution_ids))
-            .values(trade_id=trade_id)
-        )
+        stmt = update(LogicalExecution).where(LogicalExecution.id.in_(execution_ids)).values(trade_id=trade_id)
         result = await self.session.execute(stmt)
         await self.session.flush()
         # Expire any session-cached execution instances so that subsequent
@@ -241,9 +221,7 @@ class ExecutionRepository:
                 self.session.expire(instance)
         return int(getattr(result, "rowcount", 0))
 
-    async def update_trade_id(
-        self, execution_id: uuid.UUID, trade_id: uuid.UUID
-    ) -> bool:
+    async def update_trade_id(self, execution_id: uuid.UUID, trade_id: uuid.UUID) -> bool:
         """Update trade_id for a single execution (used in split-aware linking).
 
         Args:
@@ -253,11 +231,7 @@ class ExecutionRepository:
         Returns:
             True if the execution was found and updated, False otherwise.
         """
-        stmt = (
-            update(LogicalExecution)
-            .where(LogicalExecution.id == execution_id)
-            .values(trade_id=trade_id)
-        )
+        stmt = update(LogicalExecution).where(LogicalExecution.id == execution_id).values(trade_id=trade_id)
         result = await self.session.execute(stmt)
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)
@@ -271,17 +245,11 @@ class ExecutionRepository:
         Returns:
             List of child executions with the specified parent_id.
         """
-        stmt = (
-            select(LogicalExecution)
-            .where(LogicalExecution.parent_id == parent_id)
-            .order_by(LogicalExecution.executed_at.asc())
-        )
+        stmt = select(LogicalExecution).where(LogicalExecution.parent_id == parent_id).order_by(LogicalExecution.executed_at.asc())
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def find_orphaned_children(
-        self, user_id: uuid.UUID, account_id: uuid.UUID
-    ) -> list[LogicalExecution]:
+    async def find_orphaned_children(self, user_id: uuid.UUID, account_id: uuid.UUID) -> list[LogicalExecution]:
         """Find execution children with trade_id=NULL after import (cleanup helper).
 
         Args:
@@ -307,9 +275,7 @@ class ExecutionRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def bulk_update_trade_ids(
-        self, execution_trade_pairs: list[tuple[uuid.UUID, uuid.UUID]]
-    ) -> int:
+    async def bulk_update_trade_ids(self, execution_trade_pairs: list[tuple[uuid.UUID, uuid.UUID]]) -> int:
         """Bulk update trade_ids for multiple executions for performance.
 
         Args:
@@ -333,11 +299,7 @@ class ExecutionRepository:
         # Execute updates in batched chunks per trade_id.
         for trade_id, execution_ids in trade_groups.items():
             for execution_id_batch in self.iter_batches(execution_ids):
-                stmt = (
-                    update(LogicalExecution)
-                    .where(LogicalExecution.id.in_(execution_id_batch))
-                    .values(trade_id=trade_id)
-                )
+                stmt = update(LogicalExecution).where(LogicalExecution.id.in_(execution_id_batch)).values(trade_id=trade_id)
                 result = await self.session.execute(stmt)
                 total_updated += getattr(result, "rowcount", 0)
 
@@ -346,17 +308,12 @@ class ExecutionRepository:
         # Expire cached instances
         all_execution_ids = [pair[0] for pair in execution_trade_pairs]
         for instance in list(self.session.identity_map.values()):
-            if (
-                isinstance(instance, LogicalExecution)
-                and instance.id in all_execution_ids
-            ):
+            if isinstance(instance, LogicalExecution) and instance.id in all_execution_ids:
                 self.session.expire(instance)
 
         return total_updated
 
-    async def delete_all_for_account(
-        self, user_id: uuid.UUID, account_id: uuid.UUID
-    ) -> int:
+    async def delete_all_for_account(self, user_id: uuid.UUID, account_id: uuid.UUID) -> int:
         """Hard-delete all executions for a user+account (used in fresh-start).
 
         Args:

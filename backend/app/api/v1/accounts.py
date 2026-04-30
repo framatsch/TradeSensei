@@ -53,10 +53,7 @@ def _get_service(
         "currently authenticated user, ordered by creation date descending. "
         "Accounts belonging to other users are never included in the response."
     ),
-    response_description=(
-        "A paginated list of accounts wrapped in a response envelope, "
-        "with a ``next_cursor`` token when further pages exist."
-    ),
+    response_description=("A paginated list of accounts wrapped in a response envelope, with a ``next_cursor`` token when further pages exist."),
     responses={
         200: {"description": "Account list returned successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -171,9 +168,7 @@ async def get_account(
     try:
         account = await service.get_account(account_id, current_user.id, portfolio_id)
     except AccountNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.") from exc
     return ResponseEnvelope[AccountRead](data=account)
 
 
@@ -187,9 +182,7 @@ async def get_account(
         "fields retain their current values. "
         "Returns 404 if the account does not exist or belongs to a different user."
     ),
-    response_description=(
-        "The account after applying the partial update, wrapped in a response envelope."
-    ),
+    response_description=("The account after applying the partial update, wrapped in a response envelope."),
     responses={
         200: {"description": "Account updated successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -231,9 +224,7 @@ async def update_account(
             portfolio_id,
         )
     except AccountNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.") from exc
     return ResponseEnvelope[AccountRead](data=account)
 
 
@@ -288,10 +279,7 @@ async def delete_account(
     "/{account_id}/metrics",
     response_model=ResponseEnvelope[AccountMetrics],
     summary="Get Account Cash Metrics",
-    description=(
-        "Calculate and return aggregate cash metrics (e.g. total dividends "
-        "and withholding tax) for the specified account."
-    ),
+    description=("Calculate and return aggregate cash metrics (e.g. total dividends and withholding tax) for the specified account."),
     response_description="Aggregate metrics wrapped in a response envelope.",
     responses={
         200: {"description": "Metrics calculated successfully."},
@@ -319,6 +307,4 @@ async def get_account_metrics(
         metrics = await service.get_metrics(account_id, current_user.id, portfolio_id)
         return ResponseEnvelope[AccountMetrics](data=metrics)
     except AccountNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.") from exc

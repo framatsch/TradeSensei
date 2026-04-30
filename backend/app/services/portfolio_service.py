@@ -16,9 +16,7 @@ class PortfolioService:
         self._session = session
         self._repo = PortfolioRepository(session)
 
-    async def create_portfolio(
-        self, db: AsyncSession, user_id: uuid.UUID, data: PortfolioCreate
-    ) -> PortfolioRead:
+    async def create_portfolio(self, db: AsyncSession, user_id: uuid.UUID, data: PortfolioCreate) -> PortfolioRead:
         del db
         existing = await self._repo.get_by_name(user_id, data.name)
         if existing is not None:
@@ -30,9 +28,7 @@ class PortfolioService:
         await self._session.commit()
         return PortfolioRead.model_validate(item)
 
-    async def get_portfolio(
-        self, db: AsyncSession, portfolio_id: uuid.UUID, user_id: uuid.UUID
-    ) -> PortfolioRead:
+    async def get_portfolio(self, db: AsyncSession, portfolio_id: uuid.UUID, user_id: uuid.UUID) -> PortfolioRead:
         del db
         item = await self._repo.get_by_id(portfolio_id, user_id)
         if item is None:
@@ -42,9 +38,7 @@ class PortfolioService:
             )
         return PortfolioRead.model_validate(item)
 
-    async def list_portfolios(
-        self, db: AsyncSession, user_id: uuid.UUID
-    ) -> list[PortfolioRead]:
+    async def list_portfolios(self, db: AsyncSession, user_id: uuid.UUID) -> list[PortfolioRead]:
         del db
         items = await self._repo.list_by_user(user_id)
         return [PortfolioRead.model_validate(item) for item in items]
@@ -72,11 +66,7 @@ class PortfolioService:
                     detail="Portfolio name already exists.",
                 )
 
-        if (
-            data.base_currency is not None
-            and data.base_currency != item.base_currency
-            and await self._repo.has_trades(item.id)
-        ):
+        if data.base_currency is not None and data.base_currency != item.base_currency and await self._repo.has_trades(item.id):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Cannot change base_currency after trades exist.",
@@ -86,9 +76,7 @@ class PortfolioService:
         await self._session.commit()
         return PortfolioRead.model_validate(updated)
 
-    async def delete_portfolio(
-        self, db: AsyncSession, portfolio_id: uuid.UUID, user_id: uuid.UUID
-    ) -> None:
+    async def delete_portfolio(self, db: AsyncSession, portfolio_id: uuid.UUID, user_id: uuid.UUID) -> None:
         del db
         item = await self._repo.get_by_id(portfolio_id, user_id)
         if item is None:

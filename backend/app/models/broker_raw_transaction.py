@@ -83,11 +83,7 @@ class BrokerRawTransaction(Base):
     id: Mapped[str] = mapped_column(
         String(EXEC_ID_MAX_LENGTH),
         primary_key=True,
-        comment=(
-            "Composite broker execution ID: "
-            "'{user_id}:{broker_type}:{transaction_id}'. "
-            "Used as idempotency key for re-imports."
-        ),
+        comment=("Composite broker execution ID: '{user_id}:{broker_type}:{transaction_id}'. Used as idempotency key for re-imports."),
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -169,10 +165,7 @@ class BrokerRawTransaction(Base):
         Boolean(),
         nullable=False,
         server_default="false",
-        comment=(
-            "When True, this raw transaction is permanently excluded from "
-            "all future imports (including fresh-start imports)."
-        ),
+        comment=("When True, this raw transaction is permanently excluded from all future imports (including fresh-start imports)."),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -212,7 +205,4 @@ class BrokerRawTransaction(Base):
         Returns:
             A string with id, symbol, direction, and quantity.
         """
-        return (
-            f"<BrokerRawTransaction id={self.id!r} symbol={self.symbol!r} "
-            f"direction={self.direction} qty={self.quantity}>"
-        )
+        return f"<BrokerRawTransaction id={self.id!r} symbol={self.symbol!r} direction={self.direction} qty={self.quantity}>"

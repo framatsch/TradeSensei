@@ -74,15 +74,11 @@ class CashTransactionService:
                 create_schema.amount_eur = create_schema.amount
             elif create_schema.currency == "USD":
                 fx_service = FxRateService()
-                rate = await fx_service.get_usd_to_eur(
-                    self._session, create_schema.date.date()
-                )
+                rate = await fx_service.get_usd_to_eur(self._session, create_schema.date.date())
                 if rate:
                     create_schema.amount_eur = create_schema.amount * rate
 
-        transaction = await CashTransactionRepository.create(
-            self._session, create_schema
-        )
+        transaction = await CashTransactionRepository.create(self._session, create_schema)
         return transaction
 
     async def get(
@@ -116,9 +112,7 @@ class CashTransactionService:
             transaction_id,
         )
         if not transaction:
-            raise CashTransactionNotFoundError(
-                f"Cash transaction {transaction_id} not found."
-            )
+            raise CashTransactionNotFoundError(f"Cash transaction {transaction_id} not found.")
 
         return transaction
 
@@ -199,24 +193,10 @@ class CashTransactionService:
 
         # Re-compute EUR amount if amount or currency changed and no explicit
         # EUR amount provided
-        if update_schema.amount_eur is None and (
-            update_schema.amount is not None or update_schema.currency is not None
-        ):
-            new_amount = (
-                update_schema.amount
-                if update_schema.amount is not None
-                else transaction.amount
-            )
-            new_currency = (
-                update_schema.currency
-                if update_schema.currency is not None
-                else transaction.currency
-            )
-            new_date = (
-                update_schema.date
-                if update_schema.date is not None
-                else transaction.date
-            )
+        if update_schema.amount_eur is None and (update_schema.amount is not None or update_schema.currency is not None):
+            new_amount = update_schema.amount if update_schema.amount is not None else transaction.amount
+            new_currency = update_schema.currency if update_schema.currency is not None else transaction.currency
+            new_date = update_schema.date if update_schema.date is not None else transaction.date
 
             if new_currency == "EUR":
                 update_schema.amount_eur = new_amount
@@ -230,9 +210,7 @@ class CashTransactionService:
             else:
                 update_schema.amount_eur = None
 
-        updated_transaction = await CashTransactionRepository.update(
-            self._session, transaction, update_schema
-        )
+        updated_transaction = await CashTransactionRepository.update(self._session, transaction, update_schema)
         return updated_transaction
 
     async def delete(

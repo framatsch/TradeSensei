@@ -73,10 +73,7 @@ class CorporateAction(Base):
     ratio: Mapped[Decimal] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
         nullable=False,
-        comment=(
-            "Split ratio: >1 for a forward split (e.g. 2.0 = 2:1), "
-            "<1 for a reverse split (e.g. 0.05 = 1:20)."
-        ),
+        comment=("Split ratio: >1 for a forward split (e.g. 2.0 = 2:1), <1 for a reverse split (e.g. 0.05 = 1:20)."),
     )
     old_conid: Mapped[str | None] = mapped_column(
         String(CONID_MAX_LENGTH),
@@ -118,7 +115,4 @@ class CorporateAction(Base):
         Returns:
             A debug string with id, symbol, date, and ratio.
         """
-        return (
-            f"<CorporateAction id={self.id} symbol={self.symbol!r} "
-            f"date={self.date} ratio={self.ratio}>"
-        )
+        return f"<CorporateAction id={self.id} symbol={self.symbol!r} date={self.date} ratio={self.ratio}>"

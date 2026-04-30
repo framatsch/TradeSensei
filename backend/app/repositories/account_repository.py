@@ -213,11 +213,7 @@ class AccountRepository:
             settings: Validated :class:`AccountSettings` to persist.
         """
         settings_dict: dict[str, Any] = settings.model_dump()
-        stmt = (
-            sa_update(Account)
-            .where(Account.id == account_id, Account.user_id == user_id)
-            .values(settings=settings_dict)
-        )
+        stmt = sa_update(Account).where(Account.id == account_id, Account.user_id == user_id).values(settings=settings_dict)
         await self._session.execute(stmt)
         await self._session.flush()
 
@@ -291,17 +287,13 @@ class AccountRepository:
         stmt = (
             select(
                 CashTransaction.type,
-                func.sum(
-                    func.coalesce(CashTransaction.amount_eur, CashTransaction.amount)
-                ).label("total"),
+                func.sum(func.coalesce(CashTransaction.amount_eur, CashTransaction.amount)).label("total"),
             )
             .join(Account)
             .where(
                 Account.id == account_id,
                 Account.user_id == user_id,
-                CashTransaction.type.in_(
-                    [CashTransactionType.DIVIDEND, CashTransactionType.WITHHOLDING_TAX]
-                ),
+                CashTransaction.type.in_([CashTransactionType.DIVIDEND, CashTransactionType.WITHHOLDING_TAX]),
             )
             .group_by(CashTransaction.type)
         )
@@ -310,7 +302,5 @@ class AccountRepository:
 
         return AccountMetrics(
             total_dividends=totals.get(CashTransactionType.DIVIDEND, Decimal("0.0")),
-            total_withholding_tax=totals.get(
-                CashTransactionType.WITHHOLDING_TAX, Decimal("0.0")
-            ),
+            total_withholding_tax=totals.get(CashTransactionType.WITHHOLDING_TAX, Decimal("0.0")),
         )

@@ -26,18 +26,12 @@ class TaxCategoryBlock(BaseModel):
 
     gains_eur: Decimal = Field(
         ...,
-        description=(
-            "Total realised gains in EUR for this category (sum of positive pnl_eur). "
-            "Always >= 0."
-        ),
+        description=("Total realised gains in EUR for this category (sum of positive pnl_eur). Always >= 0."),
         examples=["1200.50"],
     )
     losses_eur: Decimal = Field(
         ...,
-        description=(
-            "Total realised losses in EUR for this category (sum of negative pnl_eur). "
-            "Always <= 0."
-        ),
+        description=("Total realised losses in EUR for this category (sum of negative pnl_eur). Always <= 0."),
         examples=["-300.00"],
     )
     net_eur: Decimal = Field(
@@ -57,9 +51,7 @@ class AccountTaxSummary(BaseModel):
 
     account_id: uuid.UUID | None = Field(
         ...,
-        description=(
-            "The account ID. Can be null if trades are not linked to an account."
-        ),
+        description=("The account ID. Can be null if trades are not linked to an account."),
     )
     account_name: str | None = Field(
         ...,
@@ -68,17 +60,11 @@ class AccountTaxSummary(BaseModel):
     )
     equities: TaxCategoryBlock = Field(
         ...,
-        description=(
-            "§20 Abs. 2 Nr. 1 EStG — realised gains and losses from "
-            "equity trades for this account."
-        ),
+        description=("§20 Abs. 2 Nr. 1 EStG — realised gains and losses from equity trades for this account."),
     )
     derivatives: TaxCategoryBlock = Field(
         ...,
-        description=(
-            "§20 Abs. 2 Nr. 3 EStG — realised gains and losses from derivatives "
-            "and other instruments for this account."
-        ),
+        description=("§20 Abs. 2 Nr. 3 EStG — realised gains and losses from derivatives and other instruments for this account."),
     )
     total_net_eur: Decimal = Field(
         ...,
@@ -87,34 +73,22 @@ class AccountTaxSummary(BaseModel):
     )
     trades_missing_eur: int = Field(
         default=0,
-        description=(
-            "Number of closed trades in this account/year where pnl_eur could not be "
-            "determined."
-        ),
+        description=("Number of closed trades in this account/year where pnl_eur could not be determined."),
         examples=[0, 3],
     )
     dividends_eur: Decimal = Field(
         default=_ZERO,
-        description=(
-            "Total dividends received in EUR for this account/year "
-            "(§20 Abs. 1 Nr. 1 EStG)."
-        ),
+        description=("Total dividends received in EUR for this account/year (§20 Abs. 1 Nr. 1 EStG)."),
         examples=["120.50"],
     )
     withholding_tax_eur: Decimal = Field(
         default=_ZERO,
-        description=(
-            "Total withholding tax (Quellensteuer) paid in EUR for this account/year. "
-            "Always <= 0."
-        ),
+        description=("Total withholding tax (Quellensteuer) paid in EUR for this account/year. Always <= 0."),
         examples=["-18.08"],
     )
     interest_eur: Decimal = Field(
         default=_ZERO,
-        description=(
-            "Total interest income in EUR for this account/year "
-            "(§20 Abs. 1 Nr. 7 EStG)."
-        ),
+        description=("Total interest income in EUR for this account/year (§20 Abs. 1 Nr. 7 EStG)."),
         examples=["3.20"],
     )
 
@@ -147,16 +121,11 @@ class TaxAnnualSummary(BaseModel):
     )
     equities: TaxCategoryBlock = Field(
         ...,
-        description=(
-            "§20 Abs. 2 Nr. 1 EStG — realised gains and losses from equity trades."
-        ),
+        description=("§20 Abs. 2 Nr. 1 EStG — realised gains and losses from equity trades."),
     )
     derivatives: TaxCategoryBlock = Field(
         ...,
-        description=(
-            "§20 Abs. 2 Nr. 3 EStG — realised gains and losses from derivatives "
-            "and other instruments (options, futures, forex, crypto)."
-        ),
+        description=("§20 Abs. 2 Nr. 3 EStG — realised gains and losses from derivatives and other instruments (options, futures, forex, crypto)."),
     )
     total_net_eur: Decimal = Field(
         ...,
@@ -165,25 +134,17 @@ class TaxAnnualSummary(BaseModel):
     )
     trades_missing_eur: int = Field(
         default=0,
-        description=(
-            "Number of closed trades in this year where pnl_eur could not be "
-            "determined (exchange rate was unavailable at import time)."
-        ),
+        description=("Number of closed trades in this year where pnl_eur could not be determined (exchange rate was unavailable at import time)."),
         examples=[0, 3],
     )
     dividends_eur: Decimal = Field(
         default=_ZERO,
-        description=(
-            "Total dividends received in EUR across all accounts for this year."
-        ),
+        description=("Total dividends received in EUR across all accounts for this year."),
         examples=["120.50"],
     )
     withholding_tax_eur: Decimal = Field(
         default=_ZERO,
-        description=(
-            "Total withholding tax (Quellensteuer) paid in EUR across all accounts "
-            "for this year. Always <= 0."
-        ),
+        description=("Total withholding tax (Quellensteuer) paid in EUR across all accounts for this year. Always <= 0."),
         examples=["-18.08"],
     )
     interest_eur: Decimal = Field(
