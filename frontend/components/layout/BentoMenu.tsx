@@ -62,11 +62,10 @@ export function BentoMenu() {
 
             <button
               onClick={() => handleSelect("checkin", "/dashboard/checkin")}
-              className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative opacity-60"
+              className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative"
             >
               <Clock className="w-4 h-4 mr-3 text-muted-foreground" />
               <span className="flex-1 font-medium">Market Check-in</span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground ml-2">Coming Soon</span>
               {activeContext === "checkin" && (
                 <span className="w-2 h-2 rounded-full bg-primary absolute right-3" />
               )}

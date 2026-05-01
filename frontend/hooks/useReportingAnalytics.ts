@@ -18,7 +18,7 @@ import {
   getEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGet,
   getDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGet,
   getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet,
-} from "@/lib/api/services.gen";
+} from "@/lib/api";
 import type {
   AnalyticsSummary,
   AnalyticsSummaryRequest,

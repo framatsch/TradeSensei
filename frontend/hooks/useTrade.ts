@@ -80,7 +80,7 @@ export function useTradeImageUploadUrl() {
   return useMutation<TradeImageUploadUrlResult, Error, { filename: string; contentType: string }>({
     mutationFn: async ({ filename, contentType }) => {
       const { data, error } = await getTradeImageUploadUrlApiV1TradesUploadUrlPost({
-        requestBody: {
+        body: {
           filename,
           content_type: contentType,
         },

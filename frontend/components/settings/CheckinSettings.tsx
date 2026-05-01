@@ -246,7 +246,7 @@ function MarketPhaseSection() {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">MARKT-PHASEN</h3>
+          <h3 className="text-sm font-semibold text-foreground">MARKET PHASES</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Define market phases (e.g. bullish, bearish) for check-in entries.
           </p>
@@ -264,14 +264,19 @@ function MarketPhaseSection() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          + Neue Phase
+          + New Phase
         </button>
       </div>
 
       {isLoading ? (
         <div className="py-10 text-center text-sm text-muted-foreground">Loading...</div>
       ) : isError ? (
-        <div className="py-10 text-center text-sm text-red-500">Failed to load market phases.</div>
+        <div className="py-10 text-center rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-sm text-red-600 dark:text-red-400 px-6">
+          <p className="font-medium">Could not load market phases.</p>
+          <p className="mt-1 text-xs text-red-500 dark:text-red-500/80">
+            Check your connection and try refreshing the page.
+          </p>
+        </div>
       ) : !phases || phases.length === 0 ? (
         <div className="py-10 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
           No market phases defined yet.{" "}
@@ -294,7 +299,7 @@ function MarketPhaseSection() {
               <tr className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
                 <th className="px-4 py-3 text-left w-1/4">Key</th>
                 <th className="px-4 py-3 text-left w-1/4">Label</th>
-                <th className="px-4 py-3 text-left w-1/4">Farbe</th>
+                <th className="px-4 py-3 text-left w-1/4">Color</th>
                 <th className="px-4 py-3 text-center w-1/4">Status</th>
               </tr>
             </thead>
@@ -321,7 +326,7 @@ function MarketPhaseSection() {
                         <span className="text-foreground">{phase.label}</span>
                       )}
                     </td>
-                    {/* Farbe — editable inline */}
+                    {/* Color — editable inline */}
                     <td className="px-4 py-3">
                       {isEditing ? (
                         <ColorPickerButton
@@ -346,7 +351,7 @@ function MarketPhaseSection() {
                           onChange={() => toggleActive(phase.id, phase.is_active)}
                         />
                         <span className="text-xs text-muted-foreground w-10 text-left">
-                          {phase.is_active ? "Aktiv" : "Inaktiv"}
+                          {phase.is_active ? "Active" : "Inactive"}
                         </span>
                         {isEditing ? (
                           <div className="flex items-center gap-1 ml-2">
@@ -429,7 +434,7 @@ function MarketPhaseSection() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Farbe
+                  Color
                 </label>
                 <ColorPickerButton
                   color={addForm.color_hex}
@@ -529,7 +534,7 @@ function CustomMetricsSection() {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">EIGENE METRIKEN</h3>
+          <h3 className="text-sm font-semibold text-foreground">CUSTOM METRICS</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Define custom metrics (integer or boolean) for check-in entries.
           </p>
@@ -547,14 +552,19 @@ function CustomMetricsSection() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          + Neue Metrik
+          + New Metric
         </button>
       </div>
 
       {isLoading ? (
         <div className="py-10 text-center text-sm text-muted-foreground">Loading...</div>
       ) : isError ? (
-        <div className="py-10 text-center text-sm text-red-500">Failed to load custom metrics.</div>
+        <div className="py-10 text-center rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-sm text-red-600 dark:text-red-400 px-6">
+          <p className="font-medium">Could not load custom metrics.</p>
+          <p className="mt-1 text-xs text-red-500 dark:text-red-500/80">
+            Check your connection and try refreshing the page.
+          </p>
+        </div>
       ) : !fields || fields.length === 0 ? (
         <div className="py-10 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
           No custom metrics defined yet.{" "}
@@ -576,7 +586,7 @@ function CustomMetricsSection() {
             <thead>
               <tr className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
                 <th className="px-4 py-3 text-left w-1/3">Key</th>
-                <th className="px-4 py-3 text-left w-1/3">Typ</th>
+                <th className="px-4 py-3 text-left w-1/3">Type</th>
                 <th className="px-4 py-3 text-center w-1/3">Status</th>
               </tr>
             </thead>
@@ -587,7 +597,7 @@ function CustomMetricsSection() {
                   <td className="px-4 py-3 font-mono text-sm text-muted-foreground">
                     {field.field_name}
                   </td>
-                  {/* Typ — immutable */}
+                  {/* Type — immutable */}
                   <td className="px-4 py-3">
                     <FieldTypeBadge fieldType={field.field_type} />
                   </td>
@@ -599,7 +609,7 @@ function CustomMetricsSection() {
                         onChange={() => toggleActive(field.id, field.is_active, field.field_name)}
                       />
                       <span className="text-xs text-muted-foreground w-10 text-left">
-                        {field.is_active ? "Aktiv" : "Inaktiv"}
+                        {field.is_active ? "Active" : "Inactive"}
                       </span>
                     </div>
                   </td>
@@ -643,7 +653,7 @@ function CustomMetricsSection() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Typ <span className="text-red-500">*</span>
+                  Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={addForm.field_type}

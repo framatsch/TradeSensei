@@ -200,7 +200,7 @@ function buildNavItems(context: AppContext): NavItem[] {
   
   if (context === "checkin") {
     return [
-      { kind: "leaf", href: "/dashboard/checkin", label: "Timeline", icon: Icons.clock, disabled: true }
+      { kind: "leaf", href: "/dashboard/checkin", label: "Timeline", icon: Icons.clock }
     ];
   }
   

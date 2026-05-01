@@ -13,7 +13,7 @@ import {
   createSavedDashboardViewApiV1PortfoliosPortfolioIdViewsPost,
   updateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdPatch,
   deleteSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdDelete,
-} from "@/lib/api/services.gen";
+} from "@/lib/api";
 import type {
   SavedDashboardViewRead,
   SavedDashboardViewCreate,
