@@ -24,6 +24,8 @@ export function RegisterForm() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const setToken = useAuthStore((s) => s.setToken);
   const setUser = useAuthStore((s) => s.setUser);
@@ -50,12 +52,18 @@ export function RegisterForm() {
   });
 
   const errorMessage = (() => {
+    if (validationError) return validationError;
     if (!error) return null;
     return extractApiError(error, "Registration failed. Please try again.");
   })();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setValidationError(null);
+    if (password !== confirmPassword) {
+      setValidationError("Passwords do not match.");
+      return;
+    }
     register({ username, email, password });
   };
 
@@ -138,6 +146,26 @@ export function RegisterForm() {
           placeholder="••••••••"
         />
         <p className="text-xs text-muted-foreground mt-1">Minimum 8 characters.</p>
+      </div>
+
+      <div>
+        <label
+          htmlFor="confirmPassword"
+          className="block text-sm font-medium text-muted-foreground mb-1"
+        >
+          Confirm Password
+        </label>
+        <input
+          id="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          required
+          minLength={8}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="••••••••"
+        />
       </div>
 
       {errorMessage && (
