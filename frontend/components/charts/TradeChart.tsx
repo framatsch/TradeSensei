@@ -460,7 +460,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   const [interval, setInterval] = useState<Interval>(() =>
     smartDefaultInterval(entryDate, exitDate),
   );
-  const [showAfterTrade, setShowAfterTrade] = useState(true);
+  const [chartMode, setChartMode] = useState<"full" | "to-exit" | "to-entry">(
+    "full",
+  );
   // If no Hub URL is configured we go straight to fallback — no loading needed
   const [loading, setLoading] = useState(true);
   const [useFallback, setUseFallback] = useState(false);
@@ -560,8 +562,11 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             );
           }
 
-          if (!showAfterTrade && exitTs !== null) {
+          if (chartMode === "to-exit" && exitTs !== null) {
             const cutoff = exitTs + 10 * INTERVAL_SECONDS[iv]; // include 10 candles after exit for context
+            candles = candles.filter((c) => (c.time as number) <= cutoff);
+          } else if (chartMode === "to-entry") {
+            const cutoff = entryTs + 10 * INTERVAL_SECONDS[iv]; // include 10 candles after entry for context
             candles = candles.filter((c) => (c.time as number) <= cutoff);
           }
 
@@ -636,7 +641,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
       trade.closed_at,
       trade.direction,
       executions,
-      showAfterTrade,
+      chartMode,
     ],
   );
 
@@ -765,19 +770,29 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           ))}
         </div>
 
-        {trade.closed_at && (
-          <button
-            onClick={() => setShowAfterTrade(!showAfterTrade)}
-            className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border ${
-              showAfterTrade
-                ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-                : "bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80"
-            }`}
-            title="Toggle candles after trade closed"
+        <div className="relative">
+          <select
+            value={chartMode}
+            onChange={(e) => setChartMode(e.target.value as any)}
+            className="appearance-none px-3 pr-7 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80 outline-none cursor-pointer shadow-inner"
+            title="Chart Data Range"
           >
-            {showAfterTrade ? "Showing After" : "Hiding After"}
-          </button>
-        )}
+            <option value="full">Full Chart</option>
+            {trade.closed_at && <option value="to-exit">Up to Exit</option>}
+            <option value="to-entry">Up to Entry</option>
+          </select>
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="w-3 h-3"
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
 
         <div className="flex-1" />
         {/* Open in TradingView */}
