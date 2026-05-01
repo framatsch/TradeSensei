@@ -101,6 +101,10 @@ class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
 
 
+class PersonalAccessTokenNotFoundError(Exception):
+    """Raised when a personal access token is not found for the user."""
+
+
 class Spec5NotDeployedError(Exception):
     """Raised when Daily Check-in schema artifacts are unavailable."""
 

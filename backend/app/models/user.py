@@ -20,6 +20,7 @@ if TYPE_CHECKING:
         MarketPhaseDefinition,
     )
     from app.models.logical_execution import LogicalExecution
+    from app.models.pat import PersonalAccessToken
     from app.models.portfolio import Portfolio
     from app.models.saved_dashboard_view import SavedDashboardView
     from app.models.saved_trade_filter import SavedTradeFilter
@@ -168,6 +169,11 @@ class User(Base):
     daily_checkins: Mapped[list["DailyCheckin"]] = relationship(
         "DailyCheckin",
         back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    personal_access_tokens: Mapped[list["PersonalAccessToken"]] = relationship(
+        "PersonalAccessToken",
+        back_populates="owner",
         cascade="all, delete-orphan",
     )
 

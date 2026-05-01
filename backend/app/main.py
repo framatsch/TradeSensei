@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.api.mcp import router as mcp_router
 from app.api.v1.router import router as v1_router
 from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
@@ -102,6 +103,7 @@ def create_app() -> FastAPI:
 
     # ── API routers ───────────────────────────────────────────────────────────
     application.include_router(v1_router)
+    application.include_router(mcp_router)
 
     return application
 

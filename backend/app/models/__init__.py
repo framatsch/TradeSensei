@@ -34,6 +34,7 @@ from app.models.logical_execution import (
 )
 from app.models.logical_execution import LogicalExecution as LogicalExecution
 from app.models.ohlc_price import OhlcPrice as OhlcPrice
+from app.models.pat import PersonalAccessToken as PersonalAccessToken
 from app.models.playbook import Playbook as Playbook
 from app.models.portfolio import Portfolio as Portfolio
 from app.models.saved_dashboard_view import SavedDashboardView as SavedDashboardView

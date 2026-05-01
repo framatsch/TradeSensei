@@ -15,12 +15,20 @@ import { CorporateActionsSettings } from "@/components/settings/CorporateActions
 import FeaturesSettings from "@/components/settings/FeaturesSettings";
 import { PortfolioSettings } from "@/components/settings/PortfolioSettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
+import { ApiTokensSettings } from "@/components/settings/ApiTokensSettings";
 
-type Tab = "general" | "integrations" | "corporate-actions" | "features" | "portfolios";
+type Tab =
+  | "general"
+  | "integrations"
+  | "api-tokens"
+  | "corporate-actions"
+  | "features"
+  | "portfolios";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "integrations", label: "Accounts & Integrations" },
+  { id: "api-tokens", label: "API & Tokens" },
   { id: "corporate-actions", label: "Corporate Actions" },
   { id: "features", label: "Features" },
   { id: "portfolios", label: "Portfolios" },
@@ -35,6 +43,8 @@ export function SettingsPageClient() {
     const tabParam = searchParams.get("tab");
     if (tabParam === "integrations") {
       setActiveTab("integrations");
+    } else if (tabParam === "api-tokens") {
+      setActiveTab("api-tokens");
     } else if (tabParam === "corporate-actions") {
       setActiveTab("corporate-actions");
     } else if (tabParam === "features") {
@@ -78,6 +88,7 @@ export function SettingsPageClient() {
       <div className="pt-2">
         {activeTab === "general" && <GeneralSettings />}
         {activeTab === "integrations" && <AccountSettings />}
+        {activeTab === "api-tokens" && <ApiTokensSettings />}
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
         {activeTab === "features" && <FeaturesSettings />}
         {activeTab === "portfolios" && <PortfolioSettings />}

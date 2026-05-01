@@ -1743,6 +1743,84 @@ export type OffsetPage_CashTransactionRead_ = {
 };
 
 /**
+ * Request payload for creating a new personal access token.
+ */
+export type PatGenerateRequest = {
+    /**
+     * Human-readable token name shown in settings.
+     */
+    name: string;
+    /**
+     * Optional UTC expiration timestamp for the token.
+     */
+    expires_at?: (string | null);
+};
+
+/**
+ * Response payload returned once when a token is created.
+ */
+export type PatGenerateResponse = {
+    /**
+     * Unique token identifier.
+     */
+    id: string;
+    /**
+     * User-defined token name.
+     */
+    name: string;
+    /**
+     * UTC token creation timestamp.
+     */
+    created_at: string;
+    /**
+     * UTC token expiry timestamp, or null if no expiry.
+     */
+    expires_at: (string | null);
+    /**
+     * Whether the token has been revoked.
+     */
+    is_revoked: boolean;
+    /**
+     * UTC timestamp of last successful use, if any.
+     */
+    last_used_at: (string | null);
+    /**
+     * Plaintext token shown exactly once. It is never returned again after creation.
+     */
+    token: string;
+};
+
+/**
+ * Response payload for listing personal access tokens.
+ */
+export type PatRead = {
+    /**
+     * Unique token identifier.
+     */
+    id: string;
+    /**
+     * User-defined token name.
+     */
+    name: string;
+    /**
+     * UTC token creation timestamp.
+     */
+    created_at: string;
+    /**
+     * UTC token expiry timestamp, or null if no expiry.
+     */
+    expires_at: (string | null);
+    /**
+     * Whether the token has been revoked.
+     */
+    is_revoked: boolean;
+    /**
+     * UTC timestamp of last successful use, if any.
+     */
+    last_used_at: (string | null);
+};
+
+/**
  * Monetary summary for one currency bucket in NATIVE mixed mode.
  */
 export type PerCurrencySummary = {
@@ -2283,6 +2361,19 @@ export type ResponseEnvelope_OffsetPage_CashTransactionRead__ = {
     };
 };
 
+export type ResponseEnvelope_PatGenerateResponse_ = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: PatGenerateResponse;
+    /**
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
 export type ResponseEnvelope_PlaybookRead_ = {
     /**
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
@@ -2602,6 +2693,19 @@ export type ResponseEnvelope_list_MonthlyWinratePoint__ = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: Array<MonthlyWinratePoint>;
+    /**
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+export type ResponseEnvelope_list_PatRead__ = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<PatRead>;
     /**
      * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
      */
@@ -5008,6 +5112,20 @@ export type DeleteCheckinApiV1CheckinsCheckinDateDeleteData = {
 
 export type DeleteCheckinApiV1CheckinsCheckinDateDeleteResponse = (void);
 
+export type ListTokensApiV1SettingsTokensGetResponse = (ResponseEnvelope_list_PatRead__);
+
+export type CreateTokenApiV1SettingsTokensPostData = {
+    requestBody: PatGenerateRequest;
+};
+
+export type CreateTokenApiV1SettingsTokensPostResponse = (ResponseEnvelope_PatGenerateResponse_);
+
+export type RevokeTokenApiV1SettingsTokensTokenIdDeleteData = {
+    tokenId: string;
+};
+
+export type RevokeTokenApiV1SettingsTokensTokenIdDeleteResponse = (void);
+
 export type ListSavedTradeFiltersApiV1SavedTradeFiltersGetResponse = (ResponseEnvelope_Sequence_SavedTradeFilterRead__);
 
 export type CreateSavedTradeFilterApiV1SavedTradeFiltersPostData = {
@@ -5028,3 +5146,15 @@ export type DeleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDeleteData = {
 };
 
 export type DeleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDeleteResponse = (void);
+
+export type McpSseMcpSseGetResponse = (unknown);
+
+export type McpMessagesMcpMessagesPostData = {
+    requestBody: {
+        [key: string]: unknown;
+    };
+};
+
+export type McpMessagesMcpMessagesPostResponse = ({
+    [key: string]: unknown;
+});

@@ -8,6 +8,7 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any  # JWT payload values are heterogeneous (str, int, float)
@@ -59,6 +60,16 @@ def verify_password(plain: str, hashed: str) -> bool:
     """
     result: bool = _pwd_context.verify(plain, hashed)
     return result
+
+
+def generate_pat() -> str:
+    """Generate a high-entropy personal access token string."""
+    return secrets.token_urlsafe(48)
+
+
+def hash_pat(token: str) -> str:
+    """Return a SHA-256 hex digest for a personal access token."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 # ---------------------------------------------------------------------------

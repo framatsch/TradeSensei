@@ -10,22 +10,32 @@ The :func:`get_session_with_rls` dependency builds on top of
 automatically for the authenticated user.
 """
 
+import hmac
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+    OAuth2PasswordBearer,
+)
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.exceptions import InvalidTokenError
-from app.core.security import decode_token
+from app.core.security import decode_token, hash_pat
 from app.models.user import User
+from app.repositories.pat_repository import PersonalAccessTokenRepository
 from app.repositories.user_repository import UserRepository
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 """OAuth2 bearer scheme pointing at the token endpoint."""
+
+pat_bearer_scheme = HTTPBearer(auto_error=False)
+"""HTTP Bearer scheme used for personal access token authentication."""
 
 
 async def get_current_user(
@@ -101,3 +111,55 @@ async def get_session_with_rls(
         text(f"SET LOCAL app.current_user_id = '{uid}'")  # noqa: S608
     )
     yield session
+
+
+async def get_current_user_from_pat(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(pat_bearer_scheme),
+    ],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> User:
+    """Authenticate a user from a personal access token in Bearer auth."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    provided_token_hash = hash_pat(credentials.credentials)
+    pat_repo = PersonalAccessTokenRepository(session)
+    pat = await pat_repo.get_by_hash_with_owner(provided_token_hash)
+    if pat is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not hmac.compare_digest(pat.token_hash, provided_token_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    now = datetime.now(UTC)
+    if pat.is_revoked or (pat.expires_at is not None and pat.expires_at <= now):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = pat.owner
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    await pat_repo.mark_used(pat, used_at=now)
+    return user

@@ -3729,6 +3729,156 @@ export const OffsetPage_CashTransactionRead_Schema = {
     title: 'OffsetPage[CashTransactionRead]'
 } as const;
 
+export const PatGenerateRequestSchema = {
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 255,
+            minLength: 1,
+            title: 'Name',
+            description: 'Human-readable token name shown in settings.',
+            examples: ['Claude Desktop', 'Cursor Local']
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            description: 'Optional UTC expiration timestamp for the token.',
+            examples: ['2026-08-01T00:00:00Z', null]
+        }
+    },
+    type: 'object',
+    required: ['name'],
+    title: 'PatGenerateRequest',
+    description: 'Request payload for creating a new personal access token.'
+} as const;
+
+export const PatGenerateResponseSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id',
+            description: 'Unique token identifier.'
+        },
+        name: {
+            type: 'string',
+            title: 'Name',
+            description: 'User-defined token name.'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At',
+            description: 'UTC token creation timestamp.'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            description: 'UTC token expiry timestamp, or null if no expiry.'
+        },
+        is_revoked: {
+            type: 'boolean',
+            title: 'Is Revoked',
+            description: 'Whether the token has been revoked.'
+        },
+        last_used_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Used At',
+            description: 'UTC timestamp of last successful use, if any.'
+        },
+        token: {
+            type: 'string',
+            title: 'Token',
+            description: 'Plaintext token shown exactly once. It is never returned again after creation.'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name', 'created_at', 'expires_at', 'is_revoked', 'last_used_at', 'token'],
+    title: 'PatGenerateResponse',
+    description: 'Response payload returned once when a token is created.'
+} as const;
+
+export const PatReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id',
+            description: 'Unique token identifier.'
+        },
+        name: {
+            type: 'string',
+            title: 'Name',
+            description: 'User-defined token name.'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At',
+            description: 'UTC token creation timestamp.'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            description: 'UTC token expiry timestamp, or null if no expiry.'
+        },
+        is_revoked: {
+            type: 'boolean',
+            title: 'Is Revoked',
+            description: 'Whether the token has been revoked.'
+        },
+        last_used_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Used At',
+            description: 'UTC timestamp of last successful use, if any.'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name', 'created_at', 'expires_at', 'is_revoked', 'last_used_at'],
+    title: 'PatRead',
+    description: 'Response payload for listing personal access tokens.'
+} as const;
+
 export const PerCurrencySummarySchema = {
     properties: {
         currency: {
@@ -4773,6 +4923,31 @@ export const ResponseEnvelope_OffsetPage_CashTransactionRead__Schema = {
     title: 'ResponseEnvelope[OffsetPage[CashTransactionRead]]'
 } as const;
 
+export const ResponseEnvelope_PatGenerateResponse_Schema = {
+    properties: {
+        data: {
+            '$ref': '#/components/schemas/PatGenerateResponse',
+            description: 'The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.'
+        },
+        meta: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Meta',
+            description: 'Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.',
+            examples: [
+                {},
+                {
+                    duration_ms: 12,
+                    request_id: 'abc-123'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['data'],
+    title: 'ResponseEnvelope[PatGenerateResponse]'
+} as const;
+
 export const ResponseEnvelope_PlaybookRead_Schema = {
     properties: {
         data: {
@@ -5440,6 +5615,35 @@ export const ResponseEnvelope_list_MonthlyWinratePoint__Schema = {
     type: 'object',
     required: ['data'],
     title: 'ResponseEnvelope[list[MonthlyWinratePoint]]'
+} as const;
+
+export const ResponseEnvelope_list_PatRead__Schema = {
+    properties: {
+        data: {
+            items: {
+                '$ref': '#/components/schemas/PatRead'
+            },
+            type: 'array',
+            title: 'Data',
+            description: 'The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.'
+        },
+        meta: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Meta',
+            description: 'Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.',
+            examples: [
+                {},
+                {
+                    duration_ms: 12,
+                    request_id: 'abc-123'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['data'],
+    title: 'ResponseEnvelope[list[PatRead]]'
 } as const;
 
 export const ResponseEnvelope_list_PlaybookRead__Schema = {

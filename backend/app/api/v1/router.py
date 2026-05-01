@@ -26,6 +26,7 @@ from app.api.v1 import (
     portfolios,
     saved_trade_filters,
     screenshots,
+    settings,
     tags,
     tax,
     timeseries,
@@ -61,6 +62,7 @@ router.include_router(market_data.router)
 router.include_router(checkin_fields.router)
 router.include_router(market_phases.router)
 router.include_router(checkins.router)
+router.include_router(settings.router)
 router.include_router(
     saved_trade_filters.router,
     prefix="/saved-trade-filters",
