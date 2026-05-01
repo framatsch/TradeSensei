@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { LayoutDashboard, Library, Clock } from "lucide-react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { LayoutDashboard, Library, Clock, LineChart } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { useAppContext } from "@/hooks/useAppContext";
 import { AppContext } from "@/stores/appContextStore";
@@ -10,14 +11,16 @@ import { LauncherIcon } from "@/components/icons/LauncherIcon";
 
 export function BentoMenu() {
   const { activeContext, setActiveContext } = useAppContext();
-  const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const handleSelect = (ctx: AppContext, route: string) => {
+  const handleSelect = (ctx: AppContext) => {
     setActiveContext(ctx);
     setOpen(false);
-    router.push(route);
   };
+
+  const isPortfolio = activeContext === "portfolio" && !pathname.startsWith("/dashboard/trades");
+  const isTradingLog = activeContext === "portfolio" && pathname.startsWith("/dashboard/trades");
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen} modal={false}>
@@ -37,39 +40,57 @@ export function BentoMenu() {
           sideOffset={8}
         >
           <div className="flex flex-col gap-1">
-            <button
-              onClick={() => handleSelect("portfolio", "/dashboard")}
+            <Link
+              href="/dashboard"
+              onClick={() => handleSelect("portfolio")}
               className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative"
-              aria-current={activeContext === "portfolio" ? "true" : undefined}
+              aria-current={isPortfolio ? "true" : undefined}
             >
               <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground" />
               <span className="flex-1 font-medium">Portfolio Workspace</span>
-              {activeContext === "portfolio" && (
+              {isPortfolio && (
                 <span className="w-2 h-2 rounded-full bg-primary absolute right-3" />
               )}
-            </button>
+            </Link>
 
-            <button
-              onClick={() => handleSelect("library", "/dashboard/library")}
+            <Link
+              href="/dashboard/trades"
+              onClick={() => handleSelect("portfolio")}
               className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative"
+              aria-current={isTradingLog ? "true" : undefined}
+            >
+              <LineChart className="w-4 h-4 mr-3 text-muted-foreground" />
+              <span className="flex-1 font-medium">Trading Log</span>
+              {isTradingLog && (
+                <span className="w-2 h-2 rounded-full bg-primary absolute right-3" />
+              )}
+            </Link>
+
+            <Link
+              href="/dashboard/library"
+              onClick={() => handleSelect("library")}
+              className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative"
+              aria-current={activeContext === "library" ? "true" : undefined}
             >
               <Library className="w-4 h-4 mr-3 text-muted-foreground" />
               <span className="flex-1 font-medium">Global Library</span>
               {activeContext === "library" && (
                 <span className="w-2 h-2 rounded-full bg-primary absolute right-3" />
               )}
-            </button>
+            </Link>
 
-            <button
-              onClick={() => handleSelect("checkin", "/dashboard/checkin")}
+            <Link
+              href="/dashboard/checkin"
+              onClick={() => handleSelect("checkin")}
               className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative"
+              aria-current={activeContext === "checkin" ? "true" : undefined}
             >
               <Clock className="w-4 h-4 mr-3 text-muted-foreground" />
               <span className="flex-1 font-medium">Market Check-in</span>
               {activeContext === "checkin" && (
                 <span className="w-2 h-2 rounded-full bg-primary absolute right-3" />
               )}
-            </button>
+            </Link>
           </div>
         </Popover.Content>
       </Popover.Portal>

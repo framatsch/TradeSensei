@@ -12,13 +12,15 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useTags } from "@/hooks/useTags";
+import { useSavedViews, useSaveView, useDeleteView } from "@/hooks/useReportingViews";
 import { useReportingFilterStore } from "@/stores/reportingFilterStore";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Save, Trash2 } from "lucide-react";
 import type { Playbook, Tag } from "@/lib/types";
+import type { DashboardFilterConfig } from "@/lib/api/types.gen";
 
 // ─── Shared input style ───────────────────────────────────────────────────────
 
@@ -149,17 +151,84 @@ export function ReportFilterBar() {
     playbookIds,
     tagIds,
     includeOpenTrades,
+    viewId,
     setPortfolioId,
     setDateFrom,
     setDateTo,
     setPlaybookIds,
     setTagIds,
     setIncludeOpenTrades,
+    setViewId,
+    setFilters,
   } = useReportingFilterStore();
 
   const { portfolios } = usePortfolios();
   const { data: playbooks } = usePlaybooks();
   const { data: tags } = useTags();
+
+  // ── Saved views logic ────────────────────────────────────────────────────
+  const { data: savedViews } = useSavedViews(portfolioId);
+  const saveViewMutation = useSaveView(portfolioId);
+  const deleteViewMutation = useDeleteView(portfolioId);
+
+  const [saveViewName, setSaveViewName] = useState("");
+  const [showSaveInput, setShowSaveInput] = useState(false);
+
+  const filterConfig = useMemo(() => {
+    const config: DashboardFilterConfig = {};
+    if (dateFrom) config.date_from = dateFrom;
+    if (dateTo) config.date_to = dateTo;
+    if (playbookIds.length > 0) config.playbook_ids = playbookIds;
+    if (tagIds.length > 0) config.tag_ids = tagIds;
+    return config;
+  }, [dateFrom, dateTo, playbookIds, tagIds]);
+
+  const handleSaveView = useCallback(() => {
+    if (!saveViewName.trim() || !portfolioId) return;
+    saveViewMutation.mutate(
+      {
+        name: saveViewName.trim(),
+        filter_config: filterConfig,
+      },
+      {
+        onSuccess: (newView) => {
+          setViewId(newView.id);
+          setSaveViewName("");
+          setShowSaveInput(false);
+        },
+      },
+    );
+  }, [saveViewName, portfolioId, filterConfig, saveViewMutation, setViewId]);
+
+  const handleDeleteView = useCallback(
+    (id: string) => {
+      if (!confirm("Delete this saved view?")) return;
+      deleteViewMutation.mutate(id, {
+        onSuccess: () => {
+          if (viewId === id) {
+            setViewId(null);
+          }
+        },
+      });
+    },
+    [deleteViewMutation, viewId, setViewId],
+  );
+
+  const handleViewSelect = useCallback(
+    (id: string) => {
+      const view = savedViews?.find((v) => v.id === id);
+      if (view) {
+        setViewId(view.id);
+        setFilters({
+          dateFrom: view.filter_config.date_from ?? null,
+          dateTo: view.filter_config.date_to ?? null,
+          playbookIds: view.filter_config.playbook_ids ?? [],
+          tagIds: view.filter_config.tag_ids ?? [],
+        });
+      }
+    },
+    [savedViews, setViewId, setFilters],
+  );
 
   const handlePortfolioChange = useCallback(
     (id: string) => {
@@ -169,39 +238,144 @@ export function ReportFilterBar() {
   );
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="w-full bg-card border border-border rounded-md shadow-sm">
       {/* Header bar with toggle */}
-      <button
-        type="button"
-        onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors"
-      >
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            Filter Configuration
+            {((playbookIds.length > 0 ? 1 : 0) +
+              (tagIds.length > 0 ? 1 : 0) +
+              (dateFrom || dateTo ? 1 : 0) +
+              (includeOpenTrades ? 1 : 0)) > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
+                {(playbookIds.length > 0 ? 1 : 0) +
+                  (tagIds.length > 0 ? 1 : 0) +
+                  (dateFrom || dateTo ? 1 : 0) +
+                  (includeOpenTrades ? 1 : 0)}
+              </span>
+            )}
+          </button>
+
+          {/* Saved View Select in Header */}
+          <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
+            <span className="text-xs text-muted-foreground font-medium">View:</span>
+            <select
+              value={viewId ?? ""}
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleViewSelect(e.target.value);
+                } else {
+                  setViewId(null);
+                }
+              }}
+              className="px-2 py-1 bg-transparent border-none text-foreground text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer"
+            >
+              <option value="">Unsaved view</option>
+              {(savedViews ?? []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Save Controls in Header */}
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-foreground">Filters</h2>
-          {/* Active filter count badge */}
-          {((playbookIds.length > 0 ? 1 : 0) +
-            (tagIds.length > 0 ? 1 : 0) +
-            (dateFrom || dateTo ? 1 : 0) +
-            (includeOpenTrades ? 1 : 0)) > 0 && (
-            <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
-              {(playbookIds.length > 0 ? 1 : 0) +
-                (tagIds.length > 0 ? 1 : 0) +
-                (dateFrom || dateTo ? 1 : 0) +
-                (includeOpenTrades ? 1 : 0)}
-            </span>
+          {showSaveInput ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={saveViewName}
+                onChange={(e) => setSaveViewName(e.target.value)}
+                placeholder="View name..."
+                className="w-32 sm:w-40 px-2 py-1 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveView();
+                  if (e.key === "Escape") {
+                    setShowSaveInput(false);
+                    setSaveViewName("");
+                  }
+                }}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleSaveView}
+                disabled={!saveViewName.trim() || saveViewMutation.isPending}
+                className="px-2 py-1 text-xs rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {saveViewMutation.isPending ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSaveInput(false);
+                  setSaveViewName("");
+                }}
+                className="px-2 py-1 text-xs rounded-md bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowSaveInput(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 bg-primary/10 rounded-md"
+              >
+                <Save className="w-3.5 h-3.5" />
+                Save View
+              </button>
+              {viewId && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteView(viewId)}
+                  disabled={deleteViewMutation.isPending}
+                  className="flex items-center gap-1.5 text-xs font-medium text-danger hover:text-danger/80 transition-colors px-3 py-1.5 bg-destructive/10 rounded-md disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Clear Filters (always available if there are active filters) */}
+          {((playbookIds.length > 0 ||
+            tagIds.length > 0 ||
+            dateFrom ||
+            dateTo ||
+            includeOpenTrades) ? 1 : 0) > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setDateFrom(null);
+                setDateTo(null);
+                setPlaybookIds([]);
+                setTagIds([]);
+                setIncludeOpenTrades(false);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors rounded-md ml-2 border-l border-border/50 pl-4"
+            >
+              <X className="w-3.5 h-3.5" />
+              Clear Filters
+            </button>
           )}
         </div>
-        {collapsed ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        ) : (
-          <ChevronUp className="w-4 h-4 text-muted-foreground" />
-        )}
-      </button>
+      </div>
 
       {/* Collapsible filter body */}
       {!collapsed && (
-        <div className="px-5 pb-4 border-t border-border">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-4">
+        <div className="p-4 border-t border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {/* Portfolio selector */}
             <div>
               <label className={LABEL_CLASS}>Portfolio</label>
@@ -296,28 +470,6 @@ export function ReportFilterBar() {
               </div>
             </div>
           </div>
-
-          {/* Clear all filters */}
-          {(playbookIds.length > 0 ||
-            tagIds.length > 0 ||
-            dateFrom ||
-            dateTo ||
-            includeOpenTrades) && (
-            <button
-              type="button"
-              onClick={() => {
-                setDateFrom(null);
-                setDateTo(null);
-                setPlaybookIds([]);
-                setTagIds([]);
-                setIncludeOpenTrades(false);
-              }}
-              className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="w-3 h-3" />
-              Clear all filters
-            </button>
-          )}
         </div>
       )}
     </div>

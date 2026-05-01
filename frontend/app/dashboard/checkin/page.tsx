@@ -8,6 +8,8 @@ import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
 import { useCheckinFields } from "@/hooks/useCheckinDefinitions";
 import type { DailyCheckinRead, DailyCheckinCreate, DailyCheckinUpdate } from "@/lib/api/types.gen";
 import { Calendar, PlusCircle, Trash2, X, Link2, Loader2, Check, AlertCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { ScreenshotUploader } from "@/components/checkin/ScreenshotUploader";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -137,7 +139,9 @@ function CheckinForm({
   const [notes, setNotes] = useState(entry?.notes ?? "");
   const [newsLink, setNewsLink] = useState("");
   const [newsLinks, setNewsLinks] = useState<string[]>(entry?.news_links ?? []);
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>(entry?.screenshot_urls ?? []);
   const [metrics, setMetrics] = useState<Record<string, number | boolean>>(entry?.custom_metrics ?? {});
+  const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
 
   const isNew = !entry;
   const activePhases = marketPhases.filter((p) => p.is_active);
@@ -166,6 +170,7 @@ function CheckinForm({
         market_phase: showPhase,
         notes: showNotes,
         news_links: newsLinks.length > 0 ? newsLinks : undefined,
+        screenshot_urls: screenshotUrls.length > 0 ? screenshotUrls : undefined,
         custom_metrics: Object.keys(metrics).length > 0 ? metrics : undefined,
       };
       onSave(payload);
@@ -174,6 +179,7 @@ function CheckinForm({
         market_phase: showPhase,
         notes: showNotes,
         news_links: newsLinks,
+        screenshot_urls: screenshotUrls,
         custom_metrics: metrics,
       };
       onSave(payload);
@@ -187,57 +193,110 @@ function CheckinForm({
         <label className="block text-sm font-medium text-foreground mb-2">
           Market Phase
         </label>
-        <select
-          value={marketPhase}
-          onChange={(e) => setMarketPhase(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-        >
-          <option value="">— None —</option>
-          {activePhases.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        {marketPhase && (
-          <div className="mt-2 flex items-center gap-2">
-            {(() => {
-              const phase = activePhases.find((p) => p.name === marketPhase);
-              if (!phase) return null;
-              return (
+        <div className="flex flex-wrap gap-2">
+          {activePhases.map((p) => {
+            const isActive = marketPhase === p.name;
+            return (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => setMarketPhase(isActive ? "" : p.name)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: isActive ? p.color_hex + "20" : "transparent",
+                  color: isActive ? p.color_hex : "var(--muted-foreground)",
+                  borderColor: isActive ? p.color_hex + "40" : "var(--border)",
+                  borderWidth: 1,
+                }}
+              >
                 <span
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium"
-                  style={{
-                    backgroundColor: phase.color_hex + "20",
-                    color: phase.color_hex,
-                    borderColor: phase.color_hex + "40",
-                    borderWidth: 1,
-                  }}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: phase.color_hex }}
-                  />
-                  {phase.label}
-                </span>
-              );
-            })()}
-          </div>
-        )}
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: isActive ? p.color_hex : "var(--muted-foreground)" }}
+                />
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Notes */}
       <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-foreground">
+            Notes
+          </label>
+          <div className="flex bg-muted/50 p-0.5 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setNotesTab("write")}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                notesTab === "write"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              onClick={() => setNotesTab("preview")}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                notesTab === "preview"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+        {notesTab === "write" ? (
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={6}
+            placeholder="How did the market feel today? Any macro events? Psychological state?"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-y"
+          />
+        ) : (
+          <div className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-foreground min-h-[148px] prose prose-sm dark:prose-invert max-w-none">
+            {notes.trim() ? (
+              <ReactMarkdown>{notes}</ReactMarkdown>
+            ) : (
+              <span className="text-muted-foreground/50 italic">Nothing to preview.</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Screenshots */}
+      <div>
         <label className="block text-sm font-medium text-foreground mb-2">
-          Notes
+          Screenshots
         </label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={4}
-          placeholder="How did the market feel today? Any macro events? Psychological state?"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
-        />
+        {screenshotUrls.length > 0 && (
+          <div className="flex flex-wrap gap-3 mb-3">
+            {screenshotUrls.map((url, i) => (
+              <div key={i} className="relative group w-32 h-20 rounded-md overflow-hidden border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`Screenshot ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setScreenshotUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="absolute top-1 right-1 bg-background/80 hover:bg-destructive hover:text-destructive-foreground text-foreground p-1 rounded-sm opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <ScreenshotUploader onUploaded={(url) => setScreenshotUrls((prev) => [...prev, url])} />
       </div>
 
       {/* News Links */}
@@ -325,31 +384,27 @@ function CheckinForm({
                     <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-background after:border after:border-border after:rounded-full after:h-4 after:w-4 after:transition-all" />
                   </label>
                 ) : (
-                  <input
-                    type="number"
-                    value={
-                      metrics[field.field_name] !== undefined
-                        ? Number(metrics[field.field_name])
-                        : ""
-                    }
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "") {
-                        setMetrics((prev) => {
-                          const next = { ...prev };
-                          delete next[field.field_name];
-                          return next;
-                        });
-                      } else {
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={
+                        metrics[field.field_name] !== undefined
+                          ? Number(metrics[field.field_name])
+                          : 5
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
                         setMetrics((prev) => ({
                           ...prev,
                           [field.field_name]: parseInt(v, 10),
                         }));
-                      }
-                    }}
-                    placeholder="—"
-                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                  />
+                      }}
+                      className="w-32 accent-primary"
+                    />
+                    <span className="text-sm w-4">
+                      {metrics[field.field_name] !== undefined ? metrics[field.field_name] : 5}
+                    </span>
                 )}
               </div>
             ))}

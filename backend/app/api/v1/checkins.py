@@ -80,6 +80,7 @@ async def list_checkins(
     service: Annotated[DailyCheckinService, Depends(_get_service)],
     from_date: date | None = None,
     to_date: date | None = None,
+    market_phase: str | None = None,
     cursor: date | None = None,
     limit: int = 30,
 ) -> ResponseEnvelope[DailyCheckinListResponse]:
@@ -87,6 +88,7 @@ async def list_checkins(
         user_id=current_user.id,
         from_date=from_date,
         to_date=to_date,
+        market_phase=market_phase,
         cursor=cursor,
         limit=limit,
     )

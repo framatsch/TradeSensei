@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { client } from "@/lib/api/client.gen";
 import { usePortfolioStore } from "@/stores/portfolioStore";
 import type { Trade, CursorPage } from "@/lib/types";
-import type { PerformanceDataPoint } from "@/components/trades/PerformanceAnalysisDashboard";
+import type { PerformanceDataPoint } from "@/components/analytics/PerformanceAnalysisDashboard";
 import type { DailyTradeData } from "@/components/calendar/types";
 
 export type ReportDimension = "Hourly" | "Weekday" | "Monthly" | "Yearly";

@@ -563,10 +563,10 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           }
 
           if (chartMode === "to-exit" && exitTs !== null) {
-            const cutoff = exitTs + 10 * INTERVAL_SECONDS[iv]; // include 10 candles after exit for context
+            const cutoff = exitTs;
             candles = candles.filter((c) => (c.time as number) <= cutoff);
           } else if (chartMode === "to-entry") {
-            const cutoff = entryTs + 10 * INTERVAL_SECONDS[iv]; // include 10 candles after entry for context
+            const cutoff = entryTs;
             candles = candles.filter((c) => (c.time as number) <= cutoff);
           }
 
@@ -620,9 +620,16 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
           // ── Fit visible range with context ───────────────────────────────
           const secs = INTERVAL_SECONDS[iv];
+          let toTime = (exitTs ?? Math.floor(Date.now() / 1000)) + 5 * secs;
+          if (chartMode === "to-entry") {
+            toTime = entryTs + 5 * secs;
+          } else if (chartMode === "to-exit" && exitTs !== null) {
+            toTime = exitTs + 5 * secs;
+          }
+
           chartRef.current?.timeScale().setVisibleRange({
             from: (entryTs - 30 * secs) as Time,
-            to: ((exitTs ?? Math.floor(Date.now() / 1000)) + 10 * secs) as Time,
+            to: toTime as Time,
           });
         }
 

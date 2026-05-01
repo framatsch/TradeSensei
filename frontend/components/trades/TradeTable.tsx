@@ -57,7 +57,7 @@ const ALL_COLUMNS = [
   "notes",
 ] as const;
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 function SortIcon({ column, sort }: { column: string; sort?: TradeSortConfig }) {
   if (sort?.sort_by !== column) {
@@ -88,7 +88,7 @@ export function TradeTable({
   selectedIds,
   onSelectionChange,
   onSelectedTradesChange,
-  limit = 20,
+  limit = 25,
   onLimitChange,
 }: Props) {
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
@@ -285,22 +285,25 @@ export function TradeTable({
           </div>
 
           {/* Previous / Next */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrev}
-              disabled={cursorStack.length <= 1}
-              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors border border-border"
-            >
-              Previous
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={!data?.next_cursor}
-              className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors border border-border"
-            >
-              Next
-            </button>
-          </div>
+          {(cursorStack.length > 1 || data?.next_cursor) && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground mr-2">Page {cursorStack.length}</span>
+              <button
+                onClick={handlePrev}
+                disabled={cursorStack.length <= 1}
+                className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors border border-border"
+              >
+                Previous
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={!data?.next_cursor}
+                className="px-3 py-1.5 text-sm text-muted-foreground bg-secondary hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors border border-border"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

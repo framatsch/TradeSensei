@@ -18,9 +18,8 @@ import { Logo } from "@/components/ui/Logo";
 import { AboutModal } from "@/components/ui/AboutModal";
 import { AppConfig } from "@/lib/appConfig";
 import { useSettings } from "@/hooks/useSettings";
-import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
-import type { SavedTradeFilterRead } from "@/lib/types";
-import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
+import { useSavedViews } from "@/hooks/useReportingViews";
+import type { SavedDashboardViewRead } from "@/lib/api/types.gen";
 import FeatureGatedNavItems from "@/components/dashboard/FeatureGatedNavItems";
 import { TopBar } from "@/components/layout/TopBar";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -172,15 +171,6 @@ function buildNavItems(context: AppContext): NavItem[] {
       },
       { kind: "leaf", href: "/dashboard/reporting", label: "Reporting Hub", icon: Icons.analytics },
       { kind: "leaf", href: "/dashboard/analytics", label: "Analytics", icon: Icons.analytics },
-      {
-        kind: "group",
-        label: "TRADING LOG",
-        defaultOpen: true,
-        children: [
-          { kind: "leaf", href: "/dashboard/trades", label: "Trades", icon: Icons.trades },
-          { kind: "leaf", href: "/dashboard/import", label: "Quick Import", icon: Icons.import },
-        ],
-      },
     ];
   }
   
@@ -218,183 +208,79 @@ const L1_INACTIVE =
 const L2_INACTIVE =
   "rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60";
 
-// ─── Trades sidebar views ─────────────────────────────────────────────────────
+// ─── Reporting Hub sub-tabs ──────────────────────────────────────────────────
 
-const META_PARAMS = new Set(["view_id", "sort_by", "sort_dir", "limit", "cursor"]);
-
-function isViewModified(
-  view: SavedTradeFilterRead,
-  searchParams: URLSearchParams
-): boolean {
-  const savedParams = definitionToSearchParams(view.definition);
-  const currentParams = new URLSearchParams();
-  for (const [k, v] of searchParams.entries()) {
-    if (!META_PARAMS.has(k)) currentParams.set(k, v);
-  }
-  const sortEntries = (p: URLSearchParams) =>
-    [...p.entries()].sort(([a], [b]) => a.localeCompare(b));
-
-  return (
-    JSON.stringify(sortEntries(savedParams)) !==
-    JSON.stringify(sortEntries(currentParams))
-  );
-}
-
-function ViewItem({
-  view,
-  activeViewId,
-  isModified,
-  onClick,
-}: {
-  view: SavedTradeFilterRead;
-  activeViewId: string | null;
-  isModified?: boolean;
-  onClick: () => void;
-}) {
-  const isActive = activeViewId === view.id;
-
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2 pl-[46px] pr-4 py-1.5 text-sm transition-all duration-150 text-left ${
-        isActive ? "nav-active font-medium" : L2_INACTIVE
-      }`}
-    >
-      <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>
-        {view.scope === "SYSTEM" ? (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        )}
-      </span>
-
-      <span className="truncate flex-1">{view.name}</span>
-
-      {isActive && isModified && (
-        <span
-          title="Unsaved changes"
-          className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"
-        />
-      )}
-    </button>
-  );
-}
-
-function TradesNavItem({
-  tradeLeaf,
+function ReportingNavSection({
   pathname,
   onClick,
+  portfolioId,
 }: {
-  tradeLeaf: NavLeaf;
   pathname: string;
   onClick: () => void;
+  portfolioId: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isOnReportingPage = pathname.startsWith("/dashboard/reporting");
+  
   const activeViewId = searchParams.get("view_id");
-  const isOnTradesPage = pathname.startsWith(tradeLeaf.href);
-
-  const [viewsOpen, setViewsOpen] = useState(true);
-
-  const { data: views } = useSavedTradeFilters();
-  const SYSTEM_VIEW_ORDER = [
-    "Open Trades",
-    "All Winners",
-    "All Losers",
-    "Long Trades",
-    "Short Trades",
-    "Needs Review",
-  ];
-  const systemViews = (views?.filter((v) => v.scope === "SYSTEM") ?? []).sort(
-    (a, b) => {
-      const ai = SYSTEM_VIEW_ORDER.indexOf(a.name);
-      const bi = SYSTEM_VIEW_ORDER.indexOf(b.name);
-      const aIdx = ai === -1 ? SYSTEM_VIEW_ORDER.length : ai;
-      const bIdx = bi === -1 ? SYSTEM_VIEW_ORDER.length : bi;
-      return aIdx - bIdx;
-    },
-  );
-  const sortedViews = [
-    ...systemViews,
-    ...(views?.filter((v) => v.scope === "USER") ?? []),
-  ];
-  const hasViews = sortedViews.length > 0;
-
-  const isMainActive = isOnTradesPage && !activeViewId;
+  
+  const { data: views } = useSavedViews(portfolioId);
+  const hasViews = views && views.length > 0;
 
   const handleMainClick = () => {
-    router.push(tradeLeaf.href, { scroll: false });
+    router.push("/dashboard/reporting", { scroll: false });
     onClick();
   };
 
-  const handleViewClick = (view: SavedTradeFilterRead) => {
-    const params = definitionToSearchParams(view.definition);
-    params.set("view_id", view.id);
-    router.push(`${tradeLeaf.href}?${params.toString()}`, { scroll: false });
+  const handleViewClick = (viewId: string) => {
+    router.push(`/dashboard/reporting?view_id=${viewId}`, { scroll: false });
     onClick();
   };
+
+  const isMainActive = isOnReportingPage && !activeViewId;
 
   return (
     <div>
-      <div className="flex items-center">
-        <button
-          onClick={handleMainClick}
-          className={`flex flex-1 items-center gap-3 px-4 py-2 text-sm font-normal transition-all duration-150 ${
-            isMainActive ? "nav-active" : L1_INACTIVE
-          }`}
-        >
-          <span className={`shrink-0 ${isMainActive ? "opacity-100" : "opacity-50"}`}>
-            {tradeLeaf.icon}
-          </span>
-          {tradeLeaf.label}
-        </button>
+      <button
+        onClick={handleMainClick}
+        className={`flex w-full items-center gap-3 px-4 py-2 text-sm font-normal transition-all duration-150 ${
+          isMainActive ? "nav-active" : L1_INACTIVE
+        }`}
+      >
+        <span className={`shrink-0 ${isMainActive ? "opacity-100" : "opacity-50"}`}>
+          {Icons.analytics}
+        </span>
+        Reporting Hub
+      </button>
 
-        {hasViews && (
-          <button
-            onClick={() => setViewsOpen((o) => !o)}
-            aria-label={viewsOpen ? "Collapse views" : "Expand views"}
-            className="shrink-0 p-1.5 mr-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className={`w-3 h-3 opacity-50 transition-transform ${viewsOpen ? "rotate-180" : ""}`}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-        )}
-      </div>
-
-      {viewsOpen && hasViews && (
+      {hasViews && (
         <div className="mt-1 space-y-0.5">
-          {sortedViews.map((view) => (
-            <ViewItem
-              key={view.id}
-              view={view}
-              activeViewId={activeViewId}
-              isModified={
-                view.id === activeViewId &&
-                isViewModified(view, searchParams)
-              }
-              onClick={() => handleViewClick(view)}
-            />
-          ))}
+          {views.map((view) => {
+            const isActive = isOnReportingPage && activeViewId === view.id;
+            return (
+              <button
+                key={view.id}
+                onClick={() => handleViewClick(view.id)}
+                className={`w-full flex items-center gap-2 pl-[46px] pr-4 py-1.5 text-sm font-normal transition-all duration-150 text-left ${
+                  isActive ? "nav-active font-medium" : L2_INACTIVE
+                }`}
+              >
+                <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </span>
+                <span className="truncate flex-1">{view.name}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-
-// ─── Analytics sub-tabs ────────────────────────────────────────────────────────
 
 const ANALYTICS_TABS = [
   { id: "time", label: "Time", icon: Icons.clock },
@@ -510,16 +396,6 @@ function NavGroupItem({
 
       <div className="space-y-0.5">
         {item.children.map((child) => {
-          if (child.href === "/dashboard/trades") {
-            return (
-              <TradesNavItem
-                key={child.href}
-                tradeLeaf={child}
-                pathname={pathname}
-                onClick={onClick}
-              />
-            );
-          }
           return (
             <NavLeafItem
               key={child.href}
@@ -559,6 +435,10 @@ export default function DashboardLayout({ children }: Props) {
 
   const { activeContext } = useAppContext();
   const { portfolios, isLoading: isPortfolioLoading, isError: isPortfolioError } = useActivePortfolio();
+  
+  const { activePortfolioId } = useActivePortfolio();
+
+  const hideGlobalSidebar = pathname.startsWith("/dashboard/trades") || pathname.startsWith("/dashboard/checkins");
 
   const toggleDesktopSidebar = () => {
     setDesktopSidebarOpen((prev) => {
@@ -610,12 +490,6 @@ export default function DashboardLayout({ children }: Props) {
   }
 
   const NAV_ITEMS = buildNavItems(activeContext);
-  
-  const getContextLabel = () => {
-    if (activeContext === 'portfolio') return "— WORKSPACE —";
-    if (activeContext === 'library') return "— LIBRARY —";
-    return "— CHECK-IN —";
-  };
 
   const renderContent = () => {
     if (activeContext === 'portfolio' && !pathname.startsWith("/dashboard/settings")) {
@@ -661,65 +535,74 @@ export default function DashboardLayout({ children }: Props) {
         )}
 
         {/* Sidebar */}
-        <aside
-          className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 flex flex-col bg-sidebar border-border transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
-            sidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
-          } ${
-            desktopSidebarOpen
-              ? "lg:w-56 lg:border-r lg:opacity-100 lg:visible"
-              : "lg:w-0 lg:border-r-0 lg:opacity-0 lg:invisible"
-          }`}
-        >
-          <div className="w-56 h-full flex flex-col">
-            {/* Nav */}
-            <nav className="flex-1 py-3 overflow-y-auto">
-              <div className="px-4 pt-3 pb-1 text-xs text-muted-foreground uppercase tracking-widest select-none">
-                {getContextLabel()}
-              </div>
-              {NAV_ITEMS.map((item, i) => {
-                if (item.kind === "group") {
+        {!hideGlobalSidebar && (
+          <aside
+            className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 flex flex-col bg-sidebar border-border transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
+              sidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
+            } ${
+              desktopSidebarOpen
+                ? "lg:w-56 lg:border-r lg:opacity-100 lg:visible"
+                : "lg:w-0 lg:border-r-0 lg:opacity-0 lg:invisible"
+            }`}
+          >
+            <div className="w-56 h-full flex flex-col">
+              {/* Nav */}
+              <nav className="flex-1 py-3 overflow-y-auto">
+                {NAV_ITEMS.map((item, i) => {
+                  if (item.kind === "group") {
+                    return (
+                      <NavGroupItem
+                        key={i}
+                        item={item}
+                        pathname={pathname}
+                        onClick={closeSidebar}
+                      />
+                    );
+                  }
+                  if (item.kind === "leaf" && item.href === "/dashboard/reporting") {
                   return (
-                    <NavGroupItem
-                      key={i}
-                      item={item}
+                    <ReportingNavSection
+                      key={item.href}
                       pathname={pathname}
                       onClick={closeSidebar}
+                      portfolioId={activePortfolioId}
                     />
                   );
                 }
                 if (item.kind === "leaf" && item.href === "/dashboard/analytics") {
-                  return (
-                    <AnalyticsNavSection
-                      key={item.href}
-                      pathname={pathname}
-                      onClick={closeSidebar}
-                      showRisk={showRisk}
-                    />
-                  );
-                }
-                if (item.kind === "leaf") {
-                  return (
-                    <NavLeafItem
-                      key={item.href}
-                      item={item}
-                      pathname={pathname}
-                      onClick={closeSidebar}
-                    />
-                  );
-                }
-                return null;
-              })}
-              {/* Client-side injected per-user feature nav items (Cash / Tax) */}
-              {activeContext === 'portfolio' && (
-                <FeatureGatedNavItems showCash={showCash} showTax={showTax} />
-              )}
-            </nav>
-          </div>
-        </aside>
+                    return (
+                      <AnalyticsNavSection
+                        key={item.href}
+                        pathname={pathname}
+                        onClick={closeSidebar}
+                        showRisk={showRisk}
+                      />
+                    );
+                  }
+                  if (item.kind === "leaf") {
+                    return (
+                      <NavLeafItem
+                        key={item.href}
+                        item={item}
+                        pathname={pathname}
+                        onClick={closeSidebar}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+                {/* Client-side injected per-user feature nav items (Cash / Tax) */}
+                {activeContext === 'portfolio' && (
+                  <FeatureGatedNavItems showCash={showCash} showTax={showTax} />
+                )}
+              </nav>
+            </div>
+          </aside>
+        )}
 
         {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-          <main className="flex-1 overflow-y-auto p-6 pt-14 bg-background text-foreground">
+          <main className={`flex-1 overflow-y-auto bg-background text-foreground ${hideGlobalSidebar ? "" : "p-6 pt-14"}`}>
             {renderContent()}
           </main>
         </div>

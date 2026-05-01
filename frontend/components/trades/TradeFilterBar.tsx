@@ -11,6 +11,7 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { TagBadge } from "@/components/tags/TagBadge";
 import type { TradeFilters } from "@/hooks/useTrades";
 import type { SavedTradeFilterRead } from "@/lib/types";
+import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
 
 export type { TradeFilters };
 
@@ -175,56 +176,99 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
       : "";
 
   return (
-    <div className="bg-card rounded-xl border border-border">
+    <div className="bg-card rounded-md border border-border shadow-sm">
       {/* Toggle row */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="w-4 h-4"
-          >
-            <line x1="4" y1="6" x2="20" y2="6" />
-            <line x1="8" y1="12" x2="16" y2="12" />
-            <line x1="11" y1="18" x2="13" y2="18" />
-          </svg>
-          Filters
-          {activeCount > 0 && (
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs font-bold">
-              {activeCount}
-            </span>
-          )}
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-
-        {activeCount > 0 && (
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={handleClearAll}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
           >
-            Clear All
+            {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Filter Configuration
+            {activeCount > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
+                {activeCount}
+              </span>
+            )}
           </button>
-        )}
+          
+          {activeView && (
+            <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
+              <span className="text-xs text-muted-foreground font-medium">View:</span>
+              <span className="text-sm font-medium text-foreground">{activeView.name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Header Right Actions */}
+        <div className="flex items-center gap-2">
+          {onSaveView && (
+            <button
+              type="button"
+              onClick={onSaveView}
+              className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 bg-primary/10 rounded-md"
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save View
+            </button>
+          )}
+
+          {/* Update View — only for active User views */}
+          {activeView?.scope === "USER" && onUpdateView && (
+            <button
+              type="button"
+              onClick={onUpdateView}
+              disabled={isUpdating}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 rounded-md"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              {isUpdating ? "Updating…" : "Update"}
+            </button>
+          )}
+
+          {/* Rename View — only for active User views */}
+          {activeView?.scope === "USER" && onRenameView && (
+            <button
+              type="button"
+              onClick={onRenameView}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors rounded-md"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              Rename
+            </button>
+          )}
+
+          {/* Delete View — only for active User views */}
+          {activeView?.scope === "USER" && onDeleteView && (
+            <button
+              type="button"
+              onClick={onDeleteView}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors rounded-md"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete View
+            </button>
+          )}
+
+          {/* Clear Filters (always available if there are active filters) */}
+          {activeCount > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors rounded-md ml-2 border-l border-border/50 pl-4"
+            >
+              <X className="w-3.5 h-3.5" />
+              Clear Filters
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Collapsible panel */}
       {open && (
-        <div className="px-4 pb-4 border-t border-border pt-4">
+        <div className="p-4 border-t border-border">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">          {/* Symbol */}
           <div>
             <label className={LABEL_CLASS}>Symbol</label>
@@ -423,76 +467,6 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
             </div>
           )}
           </div>
-
-          {/* ── View actions footer ──────────────────────────────────────────── */}
-          {/* Only rendered when at least one action is available */}
-          {onSaveView && (
-            <div className="flex flex-wrap items-center gap-2 pt-4 mt-4 border-t border-border">
-              {/* Save as View — always shown */}
-              <button
-                type="button"
-                onClick={onSaveView}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
-              >
-                {/* Floppy-disk icon */}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                  <polyline points="17 21 17 13 7 13 7 21" />
-                  <polyline points="7 3 7 8 15 8" />
-                </svg>
-                Save as View
-              </button>
-
-              {/* Update View — only for active User views */}
-              {activeView?.scope === "USER" && onUpdateView && (
-                <button
-                  type="button"
-                  onClick={onUpdateView}
-                  disabled={isUpdating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-md transition-colors disabled:opacity-50"
-                >
-                  {/* Refresh/update icon */}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
-                    <polyline points="1 4 1 10 7 10" />
-                    <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
-                  </svg>
-                  {isUpdating ? "Updating…" : "Update View"}
-                </button>
-              )}
-
-              {/* Rename View — only for active User views */}
-              {activeView?.scope === "USER" && onRenameView && (
-                <button
-                  type="button"
-                  onClick={onRenameView}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-md transition-colors"
-                >
-                  {/* Pencil icon */}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  Rename View
-                </button>
-              )}
-
-              {/* Delete View — only for active User views */}
-              {activeView?.scope === "USER" && onDeleteView && (
-                <button
-                  type="button"
-                  onClick={onDeleteView}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                >
-                  {/* Trash icon */}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 shrink-0">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                  </svg>
-                  Delete View
-                </button>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

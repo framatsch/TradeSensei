@@ -154,6 +154,7 @@ class DailyCheckinService:
         user_id: uuid.UUID,
         from_date: date | None = None,
         to_date: date | None = None,
+        market_phase: str | None = None,
         cursor: date | None = None,
         limit: int = 30,
     ) -> DailyCheckinListResponse:
@@ -162,6 +163,7 @@ class DailyCheckinService:
             user_id=user_id,
             from_date=from_date,
             to_date=to_date,
+            market_phase=market_phase,
             cursor=cursor,
             limit=limit,
         )

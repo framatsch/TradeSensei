@@ -6,9 +6,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveFilterModal } from "@/components/trades/SaveFilterModal";
 import { TradeTable } from "@/components/trades/TradeTable";
 import { TradeFilterBar } from "@/components/trades/TradeFilterBar";
@@ -469,17 +467,7 @@ export function TradesPageClient() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <PageHeader title="Trades" subtitle="All recorded trading positions" />
-        <Link
-          href="/dashboard/trades/new"
-          className="flex-shrink-0 px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-md transition-colors"
-        >
-          + New Trade
-        </Link>
-      </div>
-
+    <div className="space-y-2 mt-[-8px]">
       <BulkActionToolbar
         selectedCount={selectedIds.size}
         onDelete={handleDelete}

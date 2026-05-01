@@ -11,8 +11,8 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PerformanceAnalysisDashboard } from "@/components/trades/PerformanceAnalysisDashboard";
-import type { PerformanceDataPoint } from "@/components/trades/PerformanceAnalysisDashboard";
+import { PerformanceAnalysisDashboard } from "@/components/analytics/PerformanceAnalysisDashboard";
+import type { PerformanceDataPoint } from "@/components/analytics/PerformanceAnalysisDashboard";
 import { Spinner } from "@/components/ui/Spinner";
 import type { Trade } from "@/lib/types";
 import type { ReportDimension } from "@/hooks/useReportData";

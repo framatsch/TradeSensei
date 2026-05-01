@@ -56,6 +56,7 @@ class DailyCheckinRepository:
         user_id: uuid.UUID,
         from_date: date | None = None,
         to_date: date | None = None,
+        market_phase: str | None = None,
         cursor: date | None = None,
         limit: int = 30,
     ) -> tuple[Sequence[DailyCheckin], date | None, int]:
@@ -66,6 +67,8 @@ class DailyCheckinRepository:
             base_stmt = base_stmt.where(DailyCheckin.date >= from_date)
         if to_date is not None:
             base_stmt = base_stmt.where(DailyCheckin.date <= to_date)
+        if market_phase is not None:
+            base_stmt = base_stmt.where(DailyCheckin.market_phase == market_phase)
 
         page_stmt = base_stmt
         if cursor is not None:

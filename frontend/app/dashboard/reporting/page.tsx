@@ -13,7 +13,7 @@
 
 "use client";
 
-import { useEffect, useCallback, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useReportingFilterStore } from "@/stores/reportingFilterStore";
 import { usePortfolioStore } from "@/stores/portfolioStore";
@@ -26,7 +26,6 @@ import {
   useReturnDistribution,
   useScatterAnalytics,
 } from "@/hooks/useReportingAnalytics";
-import { useSavedViews, useSaveView, useDeleteView } from "@/hooks/useReportingViews";
 import { ReportFilterBar } from "@/components/reporting/ReportFilterBar";
 import { WidgetGridSkeleton, MetricsSkeleton } from "@/components/reporting/ReportingSkeletons";
 import { GlobalEmptyState } from "@/components/reporting/Widgets";
@@ -293,61 +292,6 @@ export default function ReportingHubPage() {
   const isInitialLoad =
     summaryLoading && !summary;
 
-  // ── Saved views ──────────────────────────────────────────────────────────
-  const { data: savedViews } = useSavedViews(portfolioId);
-  const saveViewMutation = useSaveView(portfolioId);
-  const deleteViewMutation = useDeleteView(portfolioId);
-
-  const [saveViewName, setSaveViewName] = useState("");
-  const [showSaveInput, setShowSaveInput] = useState(false);
-
-  const handleSaveView = useCallback(() => {
-    if (!saveViewName.trim() || !portfolioId) return;
-    saveViewMutation.mutate(
-      {
-        name: saveViewName.trim(),
-        filter_config: filterConfig,
-      },
-      {
-        onSuccess: (newView) => {
-          setViewId(newView.id);
-          setSaveViewName("");
-          setShowSaveInput(false);
-        },
-      },
-    );
-  }, [saveViewName, portfolioId, filterConfig, saveViewMutation, setViewId]);
-
-  const handleDeleteView = useCallback(
-    (id: string) => {
-      if (!confirm("Delete this saved view?")) return;
-      deleteViewMutation.mutate(id, {
-        onSuccess: () => {
-          if (viewId === id) {
-            setViewId(null);
-          }
-        },
-      });
-    },
-    [deleteViewMutation, viewId, setViewId],
-  );
-
-  const handleViewSelect = useCallback(
-    (id: string) => {
-      const view = savedViews?.find((v) => v.id === id);
-      if (view) {
-        setViewId(view.id);
-        setFilters({
-          dateFrom: view.filter_config.date_from ?? null,
-          dateTo: view.filter_config.date_to ?? null,
-          playbookIds: view.filter_config.playbook_ids ?? [],
-          tagIds: view.filter_config.tag_ids ?? [],
-        });
-      }
-    },
-    [savedViews, setViewId, setFilters],
-  );
-
   // ── No portfolio state ───────────────────────────────────────────────────
   if (!portfolioId) {
     return (
@@ -361,109 +305,6 @@ export default function ReportingHubPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Reporting Hub
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Analytics dashboard with saved views and global filters
-          </p>
-        </div>
-      </div>
-
-      {/* ── View Management bar ──────────────────────────────────────────── */}
-      <div className="bg-card rounded-xl border border-border p-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Saved View
-            </label>
-            <select
-              value={viewId ?? ""}
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleViewSelect(e.target.value);
-                } else {
-                  setViewId(null);
-                }
-              }}
-              className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Unsaved view</option>
-              {(savedViews ?? []).map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2 pt-5">
-            {showSaveInput ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={saveViewName}
-                  onChange={(e) => setSaveViewName(e.target.value)}
-                  placeholder="View name..."
-                  className="w-40 px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveView();
-                    if (e.key === "Escape") {
-                      setShowSaveInput(false);
-                      setSaveViewName("");
-                    }
-                  }}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={handleSaveView}
-                  disabled={!saveViewName.trim() || saveViewMutation.isPending}
-                  className="px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-                >
-                  {saveViewMutation.isPending ? "Saving..." : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSaveInput(false);
-                    setSaveViewName("");
-                  }}
-                  className="px-3 py-2 text-sm rounded-md bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowSaveInput(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-md bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  Save View
-                </button>
-                {viewId && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteView(viewId)}
-                    disabled={deleteViewMutation.isPending}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-md bg-secondary text-danger hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Delete
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* ── Global Filters ───────────────────────────────────────────────── */}
       <ReportFilterBar />
 
