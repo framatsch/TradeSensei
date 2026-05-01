@@ -37,8 +37,12 @@ The frontend SHALL NOT perform client-side aggregations and SHALL request server
 - **THEN** the frontend API request parameters or the backend response structure inherently triggers/returns hexbinned data instead of raw data points, preventing browser crashes.
 
 ### Requirement: View Management State
-The system SHALL provide View Management capabilities to save, load, and share filter configurations.
+The system SHALL provide View Management capabilities to save, load, and share filter configurations. Views are persisted server-side via the `SavedDashboardView` API (`POST /api/v1/portfolios/{portfolio_id}/views` for save, `GET /api/v1/portfolios/{portfolio_id}/views` for list). The frontend SHALL use saved views to populate the view management dropdown and SHALL append the active `view_id` to the URL search params for shareability.
 
 #### Scenario: Save View
 - **WHEN** the user configures a set of filters and clicks "Save As..."
-- **THEN** the system saves the filter combination as a named view (e.g., "Q1 Breakout Strategies").
+- **THEN** the frontend calls `POST /api/v1/portfolios/{portfolio_id}/views` with the current `filter_config` and a user-provided name, and the view is persisted server-side
+
+#### Scenario: Load Saved View
+- **WHEN** the user selects a saved view from the View Management dropdown
+- **THEN** the frontend calls `GET /api/v1/portfolios/{portfolio_id}/views/{view_id}` to load the `filter_config` and applies it to the global filter state

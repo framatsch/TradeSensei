@@ -11,7 +11,7 @@
 ## 2. Pydantic Schemas
 
 - [x] 2.1 Create `CheckinFieldDefinitionCreate` schema: `field_name` (str, max 100, kebab-case validated), `field_type` (FieldTypeEnum: `integer | boolean`)
-- [x] 2.2 Create `CheckinFieldDefinitionUpdate` schema: optional `field_name`, optional `is_active`; `field_type` excluded (immutable)
+- [x] 2.2 Create `CheckinFieldDefinitionUpdate` schema: optional `is_active` only; `field_name` and `field_type` excluded (both immutable — `field_name` references stored JSONB keys in `custom_metrics` and must not change post-creation)
 - [x] 2.3 Create `CheckinFieldDefinitionRead` schema: all fields including `id`, `user_id`, `created_at`
 - [x] 2.4 Create `MarketPhaseDefinitionCreate` schema: `name` (str, max 50, kebab-case validated), `label` (str, max 100), optional `color_hex` (6-digit hex, default `#6366f1`)
 - [x] 2.5 Create `MarketPhaseDefinitionUpdate` schema: optional `label`, optional `color_hex`, optional `is_active`; `name` excluded (immutable)
@@ -30,7 +30,7 @@
 
 ## 4. Service Layer
 
-- [x] 4.1 Create `CheckinFieldDefinitionService` with methods: `create_field`, `list_fields`, `update_field` (enforce `field_type` immutability; enforce `field_name` unique globally per user including inactive)
+- [x] 4.1 Create `CheckinFieldDefinitionService` with methods: `create_field`, `list_fields`, `update_field` (enforce `field_name` and `field_type` immutability — only `is_active` is updatable via PATCH; enforce `field_name` unique globally per user including inactive)
 - [x] 4.2 Create `MarketPhaseDefinitionService` with methods: `create_phase`, `list_phases`, `update_phase` (enforce `name` immutability; enforce `name` unique globally per user including inactive)
 - [x] 4.3 Create `DailyCheckinService` with methods: `create_checkin`, `get_checkin`, `list_checkins`, `update_checkin`, `delete_checkin`
 - [x] 4.4 Implement `_validate_market_phase(user_id, market_phase, session)` private method in `DailyCheckinService`: called **only when `market_phase` is non-null**. Load active `MarketPhaseDefinition` records within the same transaction, validate `market_phase` matches a `name` — raise HTTP 422 with the unknown phase name identified on failure. When `market_phase` is `null` or omitted, skip validation entirely.

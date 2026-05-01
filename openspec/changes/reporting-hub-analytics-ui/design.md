@@ -12,11 +12,10 @@ The Reporting Hub frontend requires complex state management and handles signifi
 
 **Non-Goals:**
 - Client-side data aggregation or math beyond simple formatting.
-- Modifying the existing Analytics API or Attribution API endpoints.
 
 ## Decisions
 
-- **State Management**: Use URL search parameters combined with a lightweight store (e.g., React Context or Zustand) to manage View Management state. This allows views to be easily shareable via URL while keeping component coupling low.
+- **State Management**: Use URL search parameters combined with a lightweight store (e.g., React Context or Zustand) to manage View Management state. Views are persisted server-side via `POST/GET /api/v1/portfolios/{portfolio_id}/views` (SavedDashboardView API). The active `view_id` is reflected in URL search params, making views shareable via URL.
 - **Data Fetching**: Use TanStack Query (React Query) to fetch data. Its built-in `isLoading`, `isError`, and `data` states map perfectly to our requirements for Loading Skeletons and Empty States.
 - **Charts**: Use `recharts` for visualizations (Performance Classic, MAE/MFE Scatterplot, Attribution). For scatterplots, the component will observe the data format returned by the API; if the backend returns clustered/hexbin data for >500 points, the chart will render accordingly.
 - **Loading Skeletons**: Implement bespoke skeleton components that mirror the layout of the widgets to prevent cumulative layout shift (CLS) during long-running analytical queries.

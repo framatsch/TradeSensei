@@ -5,8 +5,8 @@ Integration of the Check-in configuration into the central settings module of th
 ## What Changes
 
 - Dedicated "Check-in" tab within the global settings.
-- Section "Marktphasen" (Market Phases): CRUD interface for `MarketPhaseDefinition`.
-- Section "Metriken" (Metrics): CRUD interface for `CheckinFieldDefinition`.
+- Section "Marktphasen" (Market Phases): CRU interface for `MarketPhaseDefinition` (Create, Read, Update — no Delete; deactivation via `is_active`).
+- Section "Metriken" (Metrics): CRU interface for `CheckinFieldDefinition` (Create, Read, Update — no Delete; deactivation via `is_active`).
 - Live state management: Changes are immediately validated and saved via the backend's PATCH endpoints.
 - UX additions: Warning when deactivating fields that historical data will remain but no new entries will be possible.
 

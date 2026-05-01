@@ -27,7 +27,7 @@ The system SHALL allow an authenticated user to list their `CheckinFieldDefiniti
 - **THEN** the system SHALL return only definitions with `is_active=true`
 
 ### Requirement: Update a field definition
-The system SHALL allow an authenticated user to update `is_active` or `field_name` of an existing definition via PATCH `/api/v1/checkin-fields/{id}`. `field_type` SHALL NOT be changeable after creation to preserve historical type integrity. Changing `field_name` to a name already used by another definition for the same user SHALL be rejected.
+The system SHALL allow an authenticated user to update `is_active` of an existing definition via PATCH `/api/v1/checkin-fields/{id}`. The `field_name` and `field_type` fields SHALL be immutable after creation — `field_name` references stored JSONB keys in `DailyCheckin.custom_metrics` and changing it would orphan historical data. `field_type` immutability preserves historical metric type contracts. The PATCH endpoint SHALL reject any attempt to modify `field_name` or `field_type` with HTTP 422.
 
 #### Scenario: Deactivate a field
 - **WHEN** an authenticated user sends PATCH `/api/v1/checkin-fields/{id}` with `{"is_active": false}`

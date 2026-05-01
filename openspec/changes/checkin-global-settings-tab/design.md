@@ -12,7 +12,7 @@ The Check-in configuration needs to be integrated into the central settings modu
 
 **Non-Goals:**
 - Changes to the Check-in Hub's standard views (Calendar, Model Book, Journal) are out of scope for this specific settings task.
-- Backend implementation of the PATCH/CRUD endpoints is assumed to be either existing or handled separately (though API integration is needed).
+- Backend implementation of the PATCH/CRU endpoints is handled by Spec 5 (Daily Check-in System) — see `daily-checkin-system/specs/checkin-field-definitions/spec.md`, `daily-checkin-system/specs/market-phase-definitions/spec.md`, and the routes `/api/v1/checkin-fields` and `/api/v1/market-phases`. This tab is a consumer of those existing API contracts.
 
 ## Decisions
 

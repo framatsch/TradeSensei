@@ -7,9 +7,9 @@
 
 ## 2. API Integration & View Management
 
-- [ ] 2.1 Integrate TanStack Query for data fetching, connecting to the existing Analytics and Attribution APIs.
+- [ ] 2.1 Integrate TanStack Query for data fetching, connecting to the existing Analytics API (`POST /api/v1/portfolios/{portfolio_id}/analytics/summary`), Attribution API (`GET /api/v1/portfolios/{portfolio_id}/analytics/correlations/market-phase`), and SavedDashboardView API (`/api/v1/portfolios/{portfolio_id}/views`).
 - [ ] 2.2 Create custom hooks for fetching aggregated metrics, performance data, and scatterplot data.
-- [ ] 2.3 Implement the "Save View" functionality to persist current filter parameters as named views.
+- [ ] 2.3 Implement the "Save View" functionality using `POST /api/v1/portfolios/{portfolio_id}/views` to persist current filter parameters as named views, and `GET /api/v1/portfolios/{portfolio_id}/views` to populate the view management dropdown.
 - [ ] 2.4 Add debouncing to filter changes to prevent excessive API requests.
 
 ## 3. UI Components & Skeletons

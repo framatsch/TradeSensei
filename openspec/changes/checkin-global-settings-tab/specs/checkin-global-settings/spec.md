@@ -10,7 +10,7 @@ The system SHALL provide a dedicated "Check-in" tab within the global settings m
 - **THEN** the configuration view for Market Phases and Custom Metrics is displayed
 
 ### Requirement: Market Phases Management (MarketPhaseDefinition)
-The system SHALL allow users to create, read, update, and manage the state of Market Phases. The `name` field MUST be immutable after creation.
+The system SHALL allow users to create, read (list), and update the state of Market Phases. The `name` field MUST be immutable after creation. DELETE is intentionally excluded — deactivation via `is_active=false` preserves historical check-in references. PATCH is limited to `label`, `color_hex`, and `is_active`.
 
 #### Scenario: Creating a new Market Phase
 - **WHEN** the user clicks "+ Neue Phase" and enters a valid name, label, and hex color
@@ -35,7 +35,7 @@ The system SHALL allow users to create, read, update, and manage the state of Ma
   ```
 
 ### Requirement: Custom Metrics Management (CheckinFieldDefinition)
-The system SHALL allow users to create, read, update, and manage the state of Custom Metrics. The `field_name` and `field_type` MUST be immutable after creation.
+The system SHALL allow users to create, read (list), and update the is_active state of Custom Metrics. The `field_name` and `field_type` MUST be immutable after creation. DELETE is intentionally excluded — `field_name` references stored JSONB keys in `DailyCheckin.custom_metrics` and removing a definition would orphan historical data. Deactivation via `is_active=false` is the correct mechanism. PATCH is limited to `is_active`.
 
 #### Scenario: Creating a new Custom Metric
 - **WHEN** the user clicks "+ Neue Metrik" and specifies a key and type (Integer/Boolean)
@@ -62,6 +62,15 @@ The system SHALL allow users to create, read, update, and manage the state of Cu
 
 ### Requirement: UI Standards and Testing
 All components MUST adhere to the project's UI standards, utilizing Tailwind CSS and React components consistently. Automated tests MUST be provided to verify component rendering and state transitions.
+
+**Backend API Dependencies**: This tab relies on the following backend endpoints (see Spec 5 — Daily Check-in System):
+- `GET /api/v1/market-phases` — fetch market phase definitions (with optional `?is_active=` filter)
+- `POST /api/v1/market-phases` — create a new market phase definition
+- `PATCH /api/v1/market-phases/{id}` — update label, color_hex, or is_active (name immutable)
+- `GET /api/v1/checkin-fields` — fetch check-in field definitions (with optional `?is_active=` filter)
+- `POST /api/v1/checkin-fields` — create a new field definition
+- `PATCH /api/v1/checkin-fields/{id}` — update is_active only (field_name and field_type immutable)
+No DELETE endpoint exists for either entity — deactivation is the correct mechanism.
 
 #### Scenario: UI component rendering test
 - **WHEN** the Check-in settings tab is rendered in a test environment

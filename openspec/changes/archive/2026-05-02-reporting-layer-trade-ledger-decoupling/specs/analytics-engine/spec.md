@@ -30,8 +30,29 @@ The analytics engine SHALL accept a `view_id` as an alias for its `filter_config
 - **WHEN** the `view_id` does not exist or belongs to a different portfolio
 - **THEN** the system SHALL return HTTP 404
 
-### Requirement: Analytics endpoint serves equity curve and drawdown curve
-The analytics summary response SHALL include equity curve and drawdown curve data, bounded at `EQUITY_CURVE_MAX_POINTS`.
+### Requirement: Server-side hexbinning / clustering for scatterplot metrics
+
+The analytics engine SHALL support a request parameter `scatter_aggregation` (object, optional) to request server-side clustering when the matching trade count exceeds a safe rendering threshold. When `scatter_aggregation.enabled = true` (or when the matching trade count exceeds `SCATTER_CLUSTER_THRESHOLD = 500`), the engine SHALL return aggregated buckets instead of individual `(x, y)` coordinate pairs for the MAE/MFE and Duration vs. P&L scatterplot metrics.
+
+Each bucket in the response SHALL contain: `x_center`, `y_center` (the centroid of the cluster), `count` (number of trades in the bucket), `avg_win` (average P&L of trades in the bucket, for color intensity mapping).
+
+The frontend SHALL NOT receive raw individual trade coordinates beyond the clustering threshold — this prevents browser crashes from excessive DOM nodes (e.g., 5,000+ SVG `<circle>` elements rendering simultaneously).
+
+#### Scenario: Below threshold — raw point data returned
+- **WHEN** the filter matches fewer than 500 trades
+- **THEN** individual `(x, y)` coordinate pairs are returned for scatterplot rendering
+
+#### Scenario: Above threshold — hexbinned data returned
+- **WHEN** the filter matches 500 or more trades and `scatter_aggregation.enabled` is unset or `true`
+- **THEN** the response SHALL contain aggregated bucket data instead of individual coordinate pairs
+
+#### Scenario: Explicit opt-out of clustering
+- **WHEN** `scatter_aggregation.enabled` is explicitly set to `false`
+- **THEN** raw coordinate data is returned regardless of trade count (caller accepts the risk); a warning field `scatter_truncation_warning` is included in the response when the count exceeds 500
+
+#### Scenario: No closed trades in range
+- **WHEN** the filter produces zero closed trades
+- **THEN** scatterplot data SHALL be empty lists for both modes
 
 #### Scenario: Large trade count
 - **WHEN** the filter matches more trades than `EQUITY_CURVE_MAX_POINTS`
