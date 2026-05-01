@@ -221,7 +221,7 @@ An S3-compatible storage backend must be configured. Set the following environme
 | `STORAGE_SECRET_KEY` | S3 secret key |
 | `STORAGE_ENDPOINT_URL` | Custom endpoint for S3-compatible services (e.g. MinIO at `http://minio:9000`) |
 
-If these variables are not set, the upload endpoint returns HTTP 501 and the image upload UI is unavailable. Existing `image_urls` values on trades are still displayed.
+If these variables are not set, the upload endpoint returns HTTP 503 and the image upload UI is unavailable. Existing `image_urls` values on trades are still displayed.
 
 ### Local MinIO example
 

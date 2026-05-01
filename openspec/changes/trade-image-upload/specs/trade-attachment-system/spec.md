@@ -9,7 +9,7 @@ The system SHALL provide an endpoint to generate a presigned PUT URL for uploadi
 
 #### Scenario: Storage not configured
 - **WHEN** the system lacks S3 configuration (`STORAGE_PUBLIC_URL` is empty)
-- **THEN** requesting a presigned URL fails with HTTP 501 Not Implemented
+- **THEN** requesting a presigned URL fails with HTTP 503 Service Unavailable
 
 ### Requirement: Trade Image URL Validation
 The system SHALL accept a list of `image_urls` when updating or creating a trade, and validate their provenance.

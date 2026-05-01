@@ -83,7 +83,7 @@ async def test_generate_trade_image_upload_url_storage_not_configured(
         json={"filename": "chart.png", "content_type": "image/png"},
         headers=headers,
     )
-    assert response.status_code == 501
+    assert response.status_code == 503
 
 
 def test_schema_validation_success(override_storage_settings):

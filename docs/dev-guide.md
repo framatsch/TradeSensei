@@ -490,7 +490,7 @@ configured `STORAGE_PUBLIC_URL` prefix.
    rejects non-empty lists when `settings.storage_public_url` is falsy and
    validates the URL prefix otherwise.
 3. Add an `upload-url` POST endpoint that calls `StorageService.generate_upload_url()`.
-   Return HTTP 501 when `STORAGE_PUBLIC_URL` is not set.
+   Return HTTP 503 when `STORAGE_PUBLIC_URL` is not set.
 4. The frontend uses the standard two-step flow: request URL → PUT file → PATCH entity.
 
 ### Environment variables

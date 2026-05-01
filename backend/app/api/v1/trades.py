@@ -54,7 +54,7 @@ global_router = APIRouter(
     responses={
         200: {"description": "Presigned URL generated successfully."},
         422: {"description": "Validation error or unsupported content type."},
-        501: {"description": "Object storage is not configured."},
+        503: {"description": "Object storage is not configured."},
     },
 )
 async def get_trade_image_upload_url(
