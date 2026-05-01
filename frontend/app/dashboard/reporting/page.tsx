@@ -24,6 +24,7 @@ import {
   useEquityCurve,
   useDrawdownCurve,
   useReturnDistribution,
+  useScatterAnalytics,
 } from "@/hooks/useReportingAnalytics";
 import { useSavedViews, useSaveView, useDeleteView } from "@/hooks/useReportingViews";
 import { ReportFilterBar } from "@/components/reporting/ReportFilterBar";
@@ -257,6 +258,11 @@ export default function ReportingHubPage() {
 
   const { data: returnDistribution, isLoading: distributionLoading } =
     useReturnDistribution(portfolioId);
+
+  const {
+    data: scatterData,
+    isLoading: scatterLoading,
+  } = useScatterAnalytics(portfolioId, filterConfig);
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const heatmapCells = useMemo(
@@ -585,8 +591,14 @@ export default function ReportingHubPage() {
 
           {/* Execution Analysis: MAE/MFE + Duration vs P&L */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <MaeMfeScatterWidget data={undefined} isLoading={false} />
-            <DurationVsPnlScatterWidget data={undefined} isLoading={false} />
+            <MaeMfeScatterWidget
+              data={scatterData?.maeMfe}
+              isLoading={scatterLoading}
+            />
+            <DurationVsPnlScatterWidget
+              data={scatterData?.durationVsPnl}
+              isLoading={scatterLoading}
+            />
           </div>
         </div>
       )}
