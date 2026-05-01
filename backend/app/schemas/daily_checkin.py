@@ -39,25 +39,10 @@ class CheckinFieldDefinitionUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    field_name: str | None = Field(
-        default=None,
-        max_length=100,
-        description="Updated lowercase kebab-case field key.",
-    )
     is_active: bool | None = Field(
         default=None,
         description="Whether this field can be used in new check-ins.",
     )
-
-    @field_validator("field_name")
-    @classmethod
-    def validate_kebab_case(cls, value: str | None) -> str | None:
-        """Validate that a key is lowercase kebab-case when provided."""
-        if value is None:
-            return None
-        if not _KEBAB_CASE_RE.fullmatch(value):
-            raise ValueError("field_name must be lowercase kebab-case")
-        return value
 
 
 class CheckinFieldDefinitionRead(BaseModel):

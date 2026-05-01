@@ -73,20 +73,9 @@ class CheckinFieldDefinitionService:
                 detail="check-in field definition not found",
             )
 
-        if payload.field_name is not None and payload.field_name != model.field_name:
-            existing = await self._repo.get_by_name_and_user(
-                user_id, payload.field_name
-            )
-            if existing is not None and existing.id != model.id:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="field_name already exists for this user",
-                )
-
         try:
             updated = await self._repo.update(
                 model=model,
-                field_name=payload.field_name,
                 is_active=payload.is_active,
             )
             await self._session.commit()

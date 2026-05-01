@@ -30,13 +30,13 @@ class StorageService:
 
         if not settings.storage_backend:
             raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="object storage is not configured",
             )
 
         if not settings.storage_bucket or not settings.storage_public_url:
             raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="object storage is not configured",
             )
 
@@ -86,13 +86,13 @@ class StorageService:
 
         if not settings.storage_backend:
             raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="object storage is not configured",
             )
 
         if not settings.storage_bucket or not settings.storage_public_url:
             raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="object storage is not configured",
             )
 
