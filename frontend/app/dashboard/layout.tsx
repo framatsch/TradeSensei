@@ -601,7 +601,7 @@ export default function DashboardLayout({ children }: Props) {
 
   const closeSidebar = () => setSidebarOpen(false);
 
-  if (!hydrated) {
+  if (!hydrated || !token) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />

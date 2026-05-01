@@ -88,7 +88,7 @@ describe("ExecutionRow", () => {
   });
 
   it("shows lineage and allocated quantity markers for split child execution", () => {
-    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" portfolioId="portfolio-1" /></tbody></table>);
+    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
 
     expect(screen.getByText("Allocated")).toBeInTheDocument();
     expect(screen.getByText("↳ 0b18cd17")).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("ExecutionRow", () => {
 
   it("does not mutate when activePortfolioId is null", () => {
     (useActivePortfolio as jest.Mock).mockReturnValue({ activePortfolioId: null });
-    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" portfolioId="" /></tbody></table>);
+    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
 
     // For example, clicking delete and confirm
     const overflowButton = screen.getByRole("button", { name: "" }); // or find by icon
@@ -104,7 +104,7 @@ describe("ExecutionRow", () => {
     // Actually, it's easier to verify that the disabled state or early return works.
     // Let's just simulate a restore on a deleted row
     const deletedExecution = { ...splitExecution, deleted: true };
-    render(<table><tbody><ExecutionRow execution={deletedExecution} trade={baseTrade} tradeId="trade-1" portfolioId="" /></tbody></table>);
+    render(<table><tbody><ExecutionRow execution={deletedExecution} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
     
     // There is a Restore button
     const restoreBtn = screen.getByRole("button", { name: /restore/i });

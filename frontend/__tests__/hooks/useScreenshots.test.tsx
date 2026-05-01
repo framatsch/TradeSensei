@@ -74,7 +74,7 @@ describe("useUploadScreenshot", () => {
     });
 
     expect(caughtError).toBeTruthy();
-    expect((caughtError as Error).message).toBe("Storage not configured");
+    expect((caughtError as unknown as Error).message).toBe("Storage not configured");
   });
 });
 
