@@ -25,6 +25,12 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
+from app.repositories.checkin_field_definition_repository import (
+    CheckinFieldDefinitionRepository,
+)
+from app.repositories.market_phase_definition_repository import (
+    MarketPhaseDefinitionRepository,
+)
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin
 
@@ -48,6 +54,8 @@ class AuthService:
         """
         self._session = session
         self._repo = UserRepository(session)
+        self._checkin_field_repo = CheckinFieldDefinitionRepository(session)
+        self._market_phase_repo = MarketPhaseDefinitionRepository(session)
 
     async def register(self, data: UserCreate) -> User:
         """Register a new user account.
@@ -72,7 +80,10 @@ class AuthService:
         if await self._repo.get_by_email(data.email) is not None:
             raise UserAlreadyExistsError(f"Email {data.email!r} is already registered.")
         hashed = hash_password(data.password)
-        return await self._repo.create(data, hashed)
+        user = await self._repo.create(data, hashed)
+        await self._checkin_field_repo.seed_defaults(user.id)
+        await self._market_phase_repo.seed_defaults(user.id)
+        return user
 
     async def login(self, data: UserLogin) -> tuple[str, str]:
         """Authenticate a user and return a token pair.

@@ -230,7 +230,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
     handleFiles(e.dataTransfer.files);
   };
 
-  const screenshots = trade.screenshots ?? [];
+  const screenshots = trade.image_urls ?? [];
 
   return (
     <>
@@ -334,7 +334,7 @@ type Tab = "tradingview" | "screenshots";
 
 export function MediaChartsCard({ trade, executions }: { trade: Trade; executions?: LogicalExecution[] }) {
   const [activeTab, setActiveTab] = useState<Tab>("tradingview");
-  const screenshotCount = trade.screenshots?.length ?? 0;
+  const screenshotCount = trade.image_urls?.length ?? 0;
 
   return (
     <div

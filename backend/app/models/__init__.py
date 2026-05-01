@@ -11,6 +11,14 @@ from app.models.broker_raw_transaction import (
 )
 from app.models.cash_transaction import CashTransaction as CashTransaction
 from app.models.corporate_action import CorporateAction as CorporateAction
+from app.models.daily_checkin import (
+    CheckinFieldDefinition as CheckinFieldDefinition,
+)
+from app.models.daily_checkin import DailyCheckin as DailyCheckin
+from app.models.daily_checkin import FieldTypeEnum as FieldTypeEnum
+from app.models.daily_checkin import (
+    MarketPhaseDefinition as MarketPhaseDefinition,
+)
 from app.models.fx_rate import FxRate as FxRate
 from app.models.logical_execution import (
     EXECUTION_ORIGIN_IMPORTED as EXECUTION_ORIGIN_IMPORTED,

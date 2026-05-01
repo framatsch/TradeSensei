@@ -6,6 +6,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/api/client.gen";
+import { getTradeImageUploadUrlApiV1TradesUploadUrlPost } from "@/lib/api/index";
 import { usePortfolioStore } from "@/stores/portfolioStore";
 import type { ResponseEnvelope, Trade, TradeCreate, TradeUpdate } from "@/lib/types";
 
@@ -66,6 +67,26 @@ export function useUpdateTrade(id: string) {
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["metrics"] });
       void qc.invalidateQueries({ queryKey: ["tax"] });
+    },
+  });
+}
+
+export interface TradeImageUploadUrlResult {
+  presigned_url: string;
+  public_url: string;
+}
+
+export function useTradeImageUploadUrl() {
+  return useMutation<TradeImageUploadUrlResult, Error, { filename: string; contentType: string }>({
+    mutationFn: async ({ filename, contentType }) => {
+      const { data, error } = await getTradeImageUploadUrlApiV1TradesUploadUrlPost({
+        requestBody: {
+          filename,
+          content_type: contentType,
+        },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data;
     },
   });
 }

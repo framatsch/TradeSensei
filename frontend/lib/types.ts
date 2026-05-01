@@ -190,6 +190,7 @@ export interface Trade {
   pnl_eur: string | null;
   net_pnl_eur: string | null;
   tradingview_link: string | null;
+  image_urls?: string[];
   screenshots: string[];
   playbook_id: string | null;
   playbook_name: string | null;
@@ -220,6 +221,7 @@ export interface TradeCreate {
   commission?: string;
   currency?: string | null;
   notes?: string | null;
+  image_urls?: string[];
   account_id?: string | null;
   playbook_id?: string | null;
   tag_ids?: string[];
@@ -237,6 +239,7 @@ export interface TradeUpdate {
   notes?: string | null;
   user_rating?: number | null;
   tradingview_link?: string | null;
+  image_urls?: string[] | null;
   playbook_id?: string | null;
   tag_ids?: string[] | null;
   is_manually_edited?: boolean | null;

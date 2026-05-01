@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { MediaChartsCard } from "@/components/trades/MediaChartsCard";
 import { ExecutionSummaryCard } from "@/components/trades/ExecutionSummaryCard";
 import { ExecutionLegsTable } from "@/components/trades/ExecutionLegsTable";
+import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import { CorrectTradeModal } from "@/components/trades/CorrectTradeModal";
 import { TradePickerModal } from "@/components/trades/TradePickerModal";
@@ -559,6 +560,8 @@ export default function TradeDetailPage() {
 
           {/* Execution Summary */}
           <ExecutionSummaryCard trade={trade} executions={executions} />
+
+          <TradeImageGallery imageUrls={trade.image_urls ?? []} />
 
           {/* Execution Legs Table */}
           <ExecutionLegsTable tradeId={trade.id} trade={trade} />

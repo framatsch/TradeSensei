@@ -67,6 +67,21 @@ services:
       SMTP_TLS: "${SMTP_TLS:-true}"
       BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-daJEwBPiYPyToA8tPYgcN9IZqaZpJFUCOjIgA6FbWl4=}"
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
+      # S3-compatible storage for trade image uploads and check-in screenshots.
+      # Leave all STORAGE_* vars empty to disable uploads (upload endpoints return HTTP 501).
+      # Example for a local MinIO instance:
+      #   STORAGE_BACKEND=s3
+      #   STORAGE_BUCKET=tradesensei
+      #   STORAGE_PUBLIC_URL=http://localhost:9000/tradesensei
+      #   STORAGE_ACCESS_KEY=minioadmin
+      #   STORAGE_SECRET_KEY=minioadmin
+      #   STORAGE_ENDPOINT_URL=http://minio:9000
+      STORAGE_BACKEND: "${STORAGE_BACKEND:-}"
+      STORAGE_BUCKET: "${STORAGE_BUCKET:-}"
+      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-}"
+      STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-}"
+      STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-}"
+      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-}"
     ports:
       - "8000:8000"
     volumes:

@@ -25,11 +25,14 @@ from app.schemas.trade import (
     MergeTradesRequest,
     TradeCreateRequest,
     TradeFilterParams,
+    TradeImageUploadUrlRequest,
+    TradeImageUploadUrlResponse,
     TradePartialCloseRequest,
     TradeRead,
     TradeSortParams,
     TradeUpdate,
 )
+from app.services.storage_service import StorageService
 from app.services.trade_service import TradeService
 
 router = APIRouter(
@@ -37,6 +40,46 @@ router = APIRouter(
     tags=["trades"],
     dependencies=[Depends(require_portfolio_owner)],
 )
+
+global_router = APIRouter(
+    prefix="/trades",
+    tags=["trades"],
+)
+
+@global_router.post(
+    "/upload-url",
+    response_model=ResponseEnvelope[TradeImageUploadUrlResponse],
+    summary="Get trade image upload URL",
+    responses={
+        200: {"description": "Presigned URL generated successfully."},
+        422: {"description": "Validation error or unsupported content type."},
+        501: {"description": "Object storage is not configured."},
+    },
+)
+async def get_trade_image_upload_url(
+    payload: TradeImageUploadUrlRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ResponseEnvelope[TradeImageUploadUrlResponse]:
+    """Generate a presigned PUT URL for uploading a trade image.
+
+    The client must upload the file directly to the returned `presigned_url`
+    using an HTTP PUT request with the exact `content_type`.
+
+    Once uploaded, the `public_url` can be stored in the trade's `image_urls` list.
+    """
+    service = StorageService()
+    presigned_url, public_url = service.generate_trade_image_upload_url(
+        user_id=current_user.id,
+        filename=payload.filename,
+        content_type=payload.content_type,
+    )
+
+    return ResponseEnvelope(
+        data=TradeImageUploadUrlResponse(
+            presigned_url=presigned_url,
+            public_url=public_url,
+        )
+    )
 
 
 def _raise_not_found() -> NoReturn:

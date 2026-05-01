@@ -19,7 +19,7 @@
 - [x] 3.1 Verify that the frontend builds without type errors (`npm run build` or `tsc --noEmit`).
 - [x] 3.2 Ensure the legacy `frontend/lib/api.ts` file is completely deleted.
 - [x] 3.3 Remove the `axios` dependency from `frontend/package.json` and run `npm install`.
-- [ ] 3.4 Test the portfolio creation flow in the UI to ensure the original bug is resolved and authentication works correctly.
+- [x] 3.4 Test the portfolio creation flow in the UI to ensure the original bug is resolved and authentication works correctly.
 
 ## 4. Bug Fixes & Hardening (OCR Code Review 2026-04-29)
 

@@ -20,6 +20,7 @@ Trade Sensei lets you record every trade, import activity from your broker, and 
 - **Playbook system** — define named trade setups (e.g. "Breakout", "Mean Reversion") and tag trades to them
 - **Custom trade tags** — label trades with color-coded tags for filtering and review
 - **Psychological notes** — add per-trade notes with an optional emotion field to track behavioral patterns
+- **Trade image attachments** — attach chart screenshots or setup images directly to trades; requires an S3-compatible storage backend (e.g. MinIO)
 - **Multi-user support** — each user has isolated data; authentication via JWT (password) or Google OAuth 2.0
 - **REST API** — fully documented OpenAPI spec available at `/docs`
 
@@ -200,6 +201,40 @@ OIDC_CLIENT_SECRET=your-client-secret
 ```
 
 The backend handles the full Authorization Code Flow via `authlib`, automatically provisions new users, and links existing accounts by email. No frontend configuration is required; the "Sign in with Authentik" button appears automatically if enabled.
+
+---
+
+## Trade image attachments
+
+You can attach chart screenshots or setup images to any trade. Images are stored in an S3-compatible bucket and linked to the trade via a list of URLs.
+
+### Requirements
+
+An S3-compatible storage backend must be configured. Set the following environment variables in your `docker-compose.yml` or `.env`:
+
+| Variable | Description |
+|---|---|
+| `STORAGE_BACKEND` | Set to `s3` to enable S3 storage |
+| `STORAGE_BUCKET` | Bucket name (must exist) |
+| `STORAGE_PUBLIC_URL` | Public base URL used to build image URLs (e.g. `https://cdn.example.com/tradesensei`) |
+| `STORAGE_ACCESS_KEY` | S3 access key |
+| `STORAGE_SECRET_KEY` | S3 secret key |
+| `STORAGE_ENDPOINT_URL` | Custom endpoint for S3-compatible services (e.g. MinIO at `http://minio:9000`) |
+
+If these variables are not set, the upload endpoint returns HTTP 501 and the image upload UI is unavailable. Existing `image_urls` values on trades are still displayed.
+
+### Local MinIO example
+
+Add a MinIO service to your `docker-compose.yml` and configure the backend with:
+
+```
+STORAGE_BACKEND=s3
+STORAGE_BUCKET=tradesensei
+STORAGE_PUBLIC_URL=http://localhost:9000/tradesensei
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET_KEY=minioadmin
+STORAGE_ENDPOINT_URL=http://minio:9000
+```
 
 ---
 

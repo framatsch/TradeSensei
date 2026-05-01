@@ -19,6 +19,7 @@ dependencies = [
     "httpx>=0.27",
     "cryptography>=42",
     "itsdangerous>=2.2.0",
+    "boto3>=1.43.1",
 ]
 
 [dependency-groups]

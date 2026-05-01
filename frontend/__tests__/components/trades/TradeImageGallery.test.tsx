@@ -1,0 +1,69 @@
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
+
+describe("TradeImageGallery", () => {
+  it("shows empty state when no images are provided", () => {
+    render(<TradeImageGallery imageUrls={[]} />);
+    expect(screen.getByText("No images attached.")).toBeInTheDocument();
+    expect(screen.getByText("Trade Images")).toBeInTheDocument();
+  });
+
+  it("renders thumbnails for each image URL", () => {
+    const urls = [
+      "https://storage.example.com/trade/img1.png",
+      "https://storage.example.com/trade/img2.png",
+    ];
+    render(<TradeImageGallery imageUrls={urls} />);
+
+    const imgs = screen.getAllByRole("img", { name: "Trade image" });
+    expect(imgs).toHaveLength(2);
+    expect(imgs[0]).toHaveAttribute("src", urls[0]);
+    expect(imgs[1]).toHaveAttribute("src", urls[1]);
+  });
+
+  it("opens lightbox when a thumbnail button is clicked", () => {
+    const urls = ["https://storage.example.com/trade/chart.png"];
+    render(<TradeImageGallery imageUrls={urls} />);
+
+    // Lightbox not visible initially
+    expect(screen.getAllByRole("img", { name: "Trade image" })).toHaveLength(1);
+
+    // Click the thumbnail button
+    const btn = screen.getByRole("button");
+    fireEvent.click(btn);
+
+    // Now there should be 2 img elements: thumbnail + lightbox
+    expect(screen.getAllByRole("img", { name: "Trade image" })).toHaveLength(2);
+  });
+
+  it("closes lightbox when Escape key is pressed (second test variant)", () => {
+    const urls = ["https://storage.example.com/trade/chart.png"];
+    const { container } = render(<TradeImageGallery imageUrls={urls} />);
+
+    // Open lightbox
+    fireEvent.click(screen.getByRole("button"));
+    expect(screen.getAllByRole("img", { name: "Trade image" })).toHaveLength(2);
+
+    // Find the fixed backdrop (has class "fixed") and click it
+    const backdrop = container.querySelector(".fixed");
+    if (backdrop) fireEvent.click(backdrop);
+
+    // Lightbox closed
+    expect(screen.getAllByRole("img", { name: "Trade image" })).toHaveLength(1);
+  });
+
+  it("closes lightbox on Escape key", () => {
+    const urls = ["https://storage.example.com/trade/chart.png"];
+    render(<TradeImageGallery imageUrls={urls} />);
+
+    // Open lightbox
+    fireEvent.click(screen.getByRole("button"));
+    expect(screen.getAllByRole("img", { name: "Trade image" })).toHaveLength(2);
+
+    // Press Escape
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.getAllByRole("img", { name: "Trade image" })).toHaveLength(1);
+  });
+});

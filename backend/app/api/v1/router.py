@@ -11,11 +11,14 @@ from app.api.v1 import (
     auth,
     broker,
     cash_transactions,
+    checkin_fields,
+    checkins,
     corporate_actions,
     deprecated,
     executions,
     imports,
     market_data,
+    market_phases,
     metrics,
     notes,
     playbooks,
@@ -37,6 +40,7 @@ router.include_router(portfolios.router)
 router.include_router(accounts.router)
 router.include_router(executions.router)
 router.include_router(trades.router)
+router.include_router(trades.global_router)
 router.include_router(metrics.router)
 router.include_router(imports.router)
 router.include_router(timeseries.router)
@@ -50,6 +54,9 @@ router.include_router(cash_transactions.router)
 router.include_router(deprecated.router)
 router.include_router(corporate_actions.router)
 router.include_router(market_data.router)
+router.include_router(checkin_fields.router)
+router.include_router(market_phases.router)
+router.include_router(checkins.router)
 router.include_router(
     saved_trade_filters.router,
     prefix="/saved-trade-filters",

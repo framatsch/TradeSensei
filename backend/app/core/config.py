@@ -170,6 +170,14 @@ class Settings(BaseSettings):
     market_data_hub_url: str | None = None
     """Base URL of the Market Data Hub (LSEG provider), e.g. https://market-data-hub.example.com"""
 
+    # Object Storage
+    storage_backend: str | None = None
+    storage_bucket: str | None = None
+    storage_public_url: str | None = None
+    storage_access_key: str | None = None
+    storage_secret_key: str | None = None
+    storage_endpoint_url: str | None = None
+
     # Fresh-Start Import
     fresh_start_timeout: int = 60
     """Wall-clock statement timeout (seconds) for the fresh-start DB transaction.

@@ -6,7 +6,7 @@ import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass, LogicalExecutionCreate } from "@/lib/types";
-import { useCreateTrade, useUpdateTrade } from "@/hooks/useTrade";
+import { useCreateTrade, useTradeImageUploadUrl, useUpdateTrade } from "@/hooks/useTrade";
 import { useTags } from "@/hooks/useTags";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Trash2, Plus } from "lucide-react";
 import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
 import { extractApiError } from "@/lib/api/errors";
+import { uploadTradeImages } from "@/lib/tradeImageUpload";
 
 const DIRECTIONS: Direction[] = ["LONG", "SHORT"];
 const ASSET_CLASSES: AssetClass[] = [
@@ -105,6 +106,9 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     trade?.tags.map((t) => t.id) ?? []
   );
+  const [imageUrls, setImageUrls] = useState<string[]>(trade?.image_urls ?? []);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(isEditing ? formSchema : createSchema),
@@ -225,14 +229,43 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
   const createMutation = useCreateTrade();
   const updateMutation = useUpdateTrade(trade?.id ?? "");
+  const uploadUrlMutation = useTradeImageUploadUrl();
 
   const isPending = isEditing ? updateMutation.isPending : createMutation.isPending;
+  const formIsBusy = isPending || isUploadingImages;
   const mutError = isEditing ? updateMutation.error : createMutation.error;
 
   const serverError = (() => {
+    if (uploadError) return uploadError;
     if (!mutError) return null;
     return extractApiError(mutError, mutError.message);
   })();
+
+  const handleImageFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const validFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    if (validFiles.length === 0) return;
+
+    setUploadError(null);
+    setIsUploadingImages(true);
+    try {
+      const uploaded = await uploadTradeImages(
+        validFiles,
+        async (filename, contentType) => {
+          return uploadUrlMutation.mutateAsync({ filename, contentType });
+        }
+      );
+      setImageUrls((prev) => [...prev, ...uploaded]);
+    } catch (error) {
+      setUploadError(extractApiError(error, "Failed to upload image."));
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const removeImage = (url: string) => {
+    setImageUrls((prev) => prev.filter((item) => item !== url));
+  };
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
     const payloadBase = {
@@ -254,6 +287,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       user_rating: data.user_rating ? Number(data.user_rating) : null,
       playbook_id: data.playbook_id || null,
       tag_ids: selectedTagIds,
+      image_urls: imageUrls,
     };
 
     let payloadExecutions = null;
@@ -278,6 +312,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         user_rating: data.user_rating ? Number(data.user_rating) : null,
         playbook_id: data.playbook_id || null,
         tag_ids: selectedTagIds,
+        image_urls: imageUrls,
       };
       updateMutation.mutate(payload, {
         onSuccess: (updated) => {
@@ -732,13 +767,53 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         />
       </div>
 
+      <div className="bg-card rounded-xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Images</h3>
+        <div className="space-y-3">
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            disabled={formIsBusy}
+            onChange={(e) => {
+              void handleImageFiles(e.target.files);
+              e.currentTarget.value = "";
+            }}
+            className={inputCls}
+          />
+          {isUploadingImages && (
+            <p className="text-xs text-muted-foreground">Uploading images...</p>
+          )}
+          {imageUrls.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {imageUrls.map((url) => (
+                <div key={url} className="relative rounded-md overflow-hidden border border-border bg-secondary">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Trade attachment" className="w-full h-28 object-cover cursor-pointer" onClick={() => window.open(url, "_blank", "noopener,noreferrer")} />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(url)}
+                    disabled={formIsBusy}
+                    className="absolute top-1 right-1 rounded bg-black/60 text-white px-2 py-0.5 text-xs hover:bg-black/80 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No images attached.</p>
+          )}
+        </div>
+      </div>
+
       {/* ── Actions ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 justify-end">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            disabled={isPending}
+            disabled={formIsBusy}
             className="px-4 py-2 text-sm text-muted-foreground bg-secondary hover:bg-zinc-200 dark:bg-zinc-600 disabled:opacity-50 rounded-md transition-colors"
           >
             Cancel
@@ -746,11 +821,11 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         )}
         <button
           type="submit"
-          disabled={isPending}
+          disabled={formIsBusy}
           className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-md transition-colors font-medium"
         >
-          {isPending && <Spinner size="sm" />}
-          {isPending
+          {formIsBusy && <Spinner size="sm" />}
+          {formIsBusy
             ? isEditing ? "Saving…" : "Creating…"
             : isEditing ? "Save Changes" : "Create Trade"}
         </button>

@@ -14,6 +14,11 @@ if TYPE_CHECKING:
     from app.models.account import Account
     from app.models.broker_raw_transaction import BrokerRawTransaction
     from app.models.corporate_action import CorporateAction
+    from app.models.daily_checkin import (
+        CheckinFieldDefinition,
+        DailyCheckin,
+        MarketPhaseDefinition,
+    )
     from app.models.logical_execution import LogicalExecution
     from app.models.portfolio import Portfolio
     from app.models.saved_trade_filter import SavedTradeFilter
@@ -141,6 +146,21 @@ class User(Base):
     )
     logical_executions: Mapped[list["LogicalExecution"]] = relationship(
         "LogicalExecution",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    checkin_fields: Mapped[list["CheckinFieldDefinition"]] = relationship(
+        "CheckinFieldDefinition",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    market_phases: Mapped[list["MarketPhaseDefinition"]] = relationship(
+        "MarketPhaseDefinition",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    daily_checkins: Mapped[list["DailyCheckin"]] = relationship(
+        "DailyCheckin",
         back_populates="user",
         cascade="all, delete-orphan",
     )

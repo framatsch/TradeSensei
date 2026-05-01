@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.config import settings
 from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
 from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionRead
@@ -19,6 +20,28 @@ from app.schemas.tag import TagRead
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
 _UNSET: object = object()
+
+
+class TradeImageUploadUrlRequest(BaseModel):
+    """Request schema to obtain a trade image upload URL."""
+
+    filename: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Original file name.",
+    )
+    content_type: str = Field(
+        ...,
+        description="MIME type of the file to upload.",
+    )
+
+
+class TradeImageUploadUrlResponse(BaseModel):
+    """Response schema containing presigned and public URLs."""
+
+    presigned_url: str = Field(..., description="Short-lived presigned PUT URL.")
+    public_url: str = Field(..., description="Public URL to store in image_urls.")
 
 
 class TradePartialCloseRequest(BaseModel):
@@ -228,10 +251,10 @@ class TradeCreate(BaseModel):
         description="Optional link to a TradingView chart for this trade.",
         examples=["https://www.tradingview.com/chart/...", None],
     )
-    screenshots: list[str] | None = Field(
+    image_urls: list[str] = Field(
         default_factory=list,
-        description="List of screenshot URLs for this trade.",
-        examples=[["https://example.com/screenshot1.png"], []],
+        description="List of image URLs for this trade.",
+        examples=[["https://example.com/image1.png"], []],
     )
     currency: str | None = Field(
         default=None,
@@ -580,10 +603,10 @@ class TradeCreateRequest(BaseModel):
         description="Optional link to a TradingView chart for this trade.",
         examples=["https://www.tradingview.com/chart/...", None],
     )
-    screenshots: list[str] | None = Field(
+    image_urls: list[str] = Field(
         default_factory=list,
-        description="List of screenshot URLs for this trade.",
-        examples=[["https://example.com/screenshot1.png"], []],
+        description="List of image URLs for this trade.",
+        examples=[["https://example.com/image1.png"], []],
     )
     currency: str | None = Field(
         default=None,
@@ -678,6 +701,20 @@ class TradeCreateRequest(BaseModel):
             if self.entry_price is None:
                 raise ValueError("entry_price is required when is_combo is false")
         return self
+
+    @field_validator("image_urls")
+    @classmethod
+    def validate_image_urls(cls, v: list[str] | None) -> list[str] | None:
+        if v:
+            if not settings.storage_public_url:
+                raise ValueError("storage_public_url is not configured")
+            public_url = settings.storage_public_url.rstrip("/")
+            for url in v:
+                if not url.startswith(f"{public_url}/"):
+                    raise ValueError(
+                        f"image URL must start with {public_url}/"
+                    )
+        return v
 
     def to_trade_create(self, user_id: uuid.UUID) -> "TradeCreate":
         """Convert this request to an internal :class:`TradeCreate` with user_id set.
@@ -793,13 +830,13 @@ class TradeUpdate(BaseModel):
         ),
         examples=["https://www.tradingview.com/chart/...", None],
     )
-    screenshots: list[str] | None = Field(
+    image_urls: list[str] | None = Field(
         default=None,
         description=(
-            "Updated list of screenshot URLs. Set to null to clear. "
+            "Updated list of image URLs. Set to null to clear. "
             "Omit to leave unchanged."
         ),
-        examples=[["https://example.com/screenshot1.png"], None],
+        examples=[["https://example.com/image1.png"], None],
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,
@@ -818,6 +855,20 @@ class TradeUpdate(BaseModel):
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], [], None],
     )
+
+    @field_validator("image_urls")
+    @classmethod
+    def validate_image_urls(cls, v: list[str] | None) -> list[str] | None:
+        if v:
+            if not settings.storage_public_url:
+                raise ValueError("storage_public_url is not configured")
+            public_url = settings.storage_public_url.rstrip("/")
+            for url in v:
+                if not url.startswith(f"{public_url}/"):
+                    raise ValueError(
+                        f"image URL must start with {public_url}/"
+                    )
+        return v
 
 
 class TradeRead(BaseModel):
@@ -960,10 +1011,10 @@ class TradeRead(BaseModel):
         description="Optional link to a TradingView chart.",
         examples=["https://www.tradingview.com/chart/...", None],
     )
-    screenshots: list[str] = Field(
+    image_urls: list[str] = Field(
         default_factory=list,
-        description="List of screenshot URLs for this trade.",
-        examples=[["https://example.com/screenshot1.png"]],
+        description="List of image URLs for this trade.",
+        examples=[["https://example.com/image1.png"]],
     )
     currency: str | None = Field(
         default=None,

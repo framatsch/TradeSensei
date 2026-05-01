@@ -201,9 +201,9 @@ class Trade(Base):
         String,
         nullable=True,
     )
-    screenshots: Mapped[list[str] | None] = mapped_column(
+    image_urls: Mapped[list[str]] = mapped_column(
         JSONB,
-        nullable=True,
+        nullable=False,
         server_default="[]",
     )
     broker_order_id: Mapped[str | None] = mapped_column(

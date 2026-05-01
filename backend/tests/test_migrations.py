@@ -1,12 +1,16 @@
 """Tests for runtime database migration helpers."""
 
 import subprocess
+import uuid
 from pathlib import Path
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core import migrations
+from app.core.config import settings
 
 
 def test_build_migration_command_uses_project_paths() -> None:
@@ -81,3 +85,101 @@ def test_alembic_upgrade_and_downgrade_commands_succeed() -> None:
     )
     _skip_if_db_unavailable(reupgrade)
     assert reupgrade.returncode == 0, reupgrade.stderr
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_backfill_migration_seeds_defaults_for_existing_user() -> None:
+    """Backfill migration should seed defaults for users created before it runs."""
+    backend_dir = Path(__file__).resolve().parents[1]
+
+    def _run_alembic(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["uv", "run", "alembic", *args],
+            capture_output=True,
+            text=True,
+            cwd=backend_dir,
+            check=False,
+        )
+
+    def _skip_if_db_unavailable(result: subprocess.CompletedProcess[str]) -> None:
+        if result.returncode != 0 and "Connect call failed" in result.stderr:
+            pytest.skip("Database is unavailable for migration integration test.")
+
+    to_schema_only = _run_alembic("downgrade", "a7c3f61b9d20")
+    _skip_if_db_unavailable(to_schema_only)
+    assert to_schema_only.returncode == 0, to_schema_only.stderr
+
+    user_id = uuid.uuid4()
+    username = f"seedbackfill_{user_id.hex[:8]}"
+    email = f"{username}@example.com"
+
+    engine = create_async_engine(settings.async_database_url, echo=False)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        id,
+                        username,
+                        email,
+                        hashed_password,
+                        provider,
+                        is_active,
+                        refresh_token_version
+                    )
+                    VALUES (
+                        :id,
+                        :username,
+                        :email,
+                        :hashed_password,
+                        'local',
+                        true,
+                        0
+                    )
+                    """
+                ),
+                {
+                    "id": user_id,
+                    "username": username,
+                    "email": email,
+                    "hashed_password": "test-hash",
+                },
+            )
+
+        apply_seed = _run_alembic("upgrade", "c5d8e9f2a311")
+        _skip_if_db_unavailable(apply_seed)
+        assert apply_seed.returncode == 0, apply_seed.stderr
+
+        async with engine.connect() as conn:
+            field_count = await conn.scalar(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM checkin_field_definitions
+                    WHERE user_id = :user_id
+                    """
+                ),
+                {"user_id": user_id},
+            )
+            phase_count = await conn.scalar(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM market_phase_definitions
+                    WHERE user_id = :user_id
+                    """
+                ),
+                {"user_id": user_id},
+            )
+        assert field_count == 3
+        assert phase_count == 4
+    finally:
+        async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+        await engine.dispose()
+
+        restore_head = _run_alembic("upgrade", "head")
+        _skip_if_db_unavailable(restore_head)
+        assert restore_head.returncode == 0, restore_head.stderr

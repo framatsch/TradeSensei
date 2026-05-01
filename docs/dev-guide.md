@@ -448,3 +448,58 @@ uv run alembic upgrade head
 
 Check the generated migration manually — autogenerate does not detect
 TimescaleDB hypertable calls or custom index types. Add those by hand if needed.
+
+
+---
+
+## S3 image upload pattern
+
+Trade Sensei uses a two-step presigned-URL flow for attaching images to domain
+entities (currently **trades** and **daily check-ins**). The same service
+class (`StorageService`) is reused by both domains.
+
+### Flow
+
+```
+1. Client  →  POST /api/v1/trades/upload-url  { content_type, filename }
+             ← { presigned_url, public_url }
+
+2. Client  →  PUT <presigned_url>  (binary file, no auth header)
+             ← 200 from S3
+
+3. Client  →  PATCH /api/v1/trades/{id}  { image_urls: [..., public_url] }
+```
+
+The backend is stateless throughout — it only generates the presigned URL and
+validates that any `image_urls` array submitted by the client starts with the
+configured `STORAGE_PUBLIC_URL` prefix.
+
+### Backend files
+
+| File | Role |
+|------|------|
+| `app/services/storage_service.py` | Generates presigned PUT URLs via `boto3` |
+| `app/api/v1/trades.py` — `POST /upload-url` | Trade image upload URL endpoint |
+| `app/api/v1/checkins.py` — `POST /screenshot-upload-url` | Check-in screenshot upload URL endpoint |
+| `app/schemas/trade.py` — `validate_image_urls` | Validates `image_urls` prefix against `STORAGE_PUBLIC_URL` |
+
+### Adding the pattern to a new entity
+
+1. Add a JSONB `image_urls` column (default `[]`) via an Alembic migration.
+2. Add a `field_validator("image_urls")` in the Pydantic update schema that
+   rejects non-empty lists when `settings.storage_public_url` is falsy and
+   validates the URL prefix otherwise.
+3. Add an `upload-url` POST endpoint that calls `StorageService.generate_upload_url()`.
+   Return HTTP 501 when `STORAGE_PUBLIC_URL` is not set.
+4. The frontend uses the standard two-step flow: request URL → PUT file → PATCH entity.
+
+### Environment variables
+
+| Variable | Description |
+|---|---|
+| `STORAGE_BACKEND` | `s3` to enable; empty to disable |
+| `STORAGE_BUCKET` | S3 bucket name |
+| `STORAGE_PUBLIC_URL` | Public base URL returned to the client (e.g. `https://cdn.example.com/bucket`) |
+| `STORAGE_ACCESS_KEY` | S3 access key ID |
+| `STORAGE_SECRET_KEY` | S3 secret access key |
+| `STORAGE_ENDPOINT_URL` | Override endpoint for S3-compatible services (MinIO, Cloudflare R2, etc.) |
