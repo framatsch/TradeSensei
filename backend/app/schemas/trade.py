@@ -711,9 +711,7 @@ class TradeCreateRequest(BaseModel):
             public_url = settings.storage_public_url.rstrip("/")
             for url in v:
                 if not url.startswith(f"{public_url}/"):
-                    raise ValueError(
-                        f"image URL must start with {public_url}/"
-                    )
+                    raise ValueError(f"image URL must start with {public_url}/")
         return v
 
     def to_trade_create(self, user_id: uuid.UUID) -> "TradeCreate":
@@ -833,8 +831,7 @@ class TradeUpdate(BaseModel):
     image_urls: list[str] | None = Field(
         default=None,
         description=(
-            "Updated list of image URLs. Set to null to clear. "
-            "Omit to leave unchanged."
+            "Updated list of image URLs. Set to null to clear. Omit to leave unchanged."
         ),
         examples=[["https://example.com/image1.png"], None],
     )
@@ -865,9 +862,7 @@ class TradeUpdate(BaseModel):
             public_url = settings.storage_public_url.rstrip("/")
             for url in v:
                 if not url.startswith(f"{public_url}/"):
-                    raise ValueError(
-                        f"image URL must start with {public_url}/"
-                    )
+                    raise ValueError(f"image URL must start with {public_url}/")
         return v
 
 

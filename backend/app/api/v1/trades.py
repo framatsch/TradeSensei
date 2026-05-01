@@ -46,6 +46,7 @@ global_router = APIRouter(
     tags=["trades"],
 )
 
+
 @global_router.post(
     "/upload-url",
     response_model=ResponseEnvelope[TradeImageUploadUrlResponse],

@@ -14,12 +14,15 @@ def _gone() -> None:
     raise HTTPException(status_code=status.HTTP_410_GONE, detail=_DETAIL)
 
 
-@router.api_route("/trades", methods=["GET", "POST"])
+@router.get("/trades", operation_id="deprecated_trades_list")
+@router.post("/trades", operation_id="deprecated_trades_create")
 @router.post("/trades/bulk/delete")
 @router.post("/trades/bulk/assign-tags")
 @router.post("/trades/bulk/assign-playbook")
 @router.post("/trades/merge")
-@router.api_route("/trades/{trade_id}", methods=["GET", "PATCH", "DELETE"])
+@router.get("/trades/{trade_id}", operation_id="deprecated_trades_get")
+@router.patch("/trades/{trade_id}", operation_id="deprecated_trades_patch")
+@router.delete("/trades/{trade_id}", operation_id="deprecated_trades_delete")
 @router.post("/trades/{trade_id}/partial-close")
 def deprecated_trades() -> None:
     _gone()
@@ -52,8 +55,11 @@ def deprecated_imports() -> None:
     _gone()
 
 
-@router.api_route("/accounts", methods=["GET", "POST"])
-@router.api_route("/accounts/{account_id}", methods=["GET", "PATCH", "DELETE"])
+@router.get("/accounts", operation_id="deprecated_accounts_list")
+@router.post("/accounts", operation_id="deprecated_accounts_create")
+@router.get("/accounts/{account_id}", operation_id="deprecated_accounts_get")
+@router.patch("/accounts/{account_id}", operation_id="deprecated_accounts_patch")
+@router.delete("/accounts/{account_id}", operation_id="deprecated_accounts_delete")
 @router.get("/accounts/{account_id}/metrics")
 def deprecated_accounts() -> None:
     _gone()
@@ -72,13 +78,25 @@ def deprecated_executions() -> None:
     _gone()
 
 
-@router.api_route(
+@router.get(
     "/accounts/{account_id}/cash-transactions",
-    methods=["GET", "POST"],
+    operation_id="deprecated_cash_transactions_list",
 )
-@router.api_route(
+@router.post(
+    "/accounts/{account_id}/cash-transactions",
+    operation_id="deprecated_cash_transactions_create",
+)
+@router.get(
     "/accounts/{account_id}/cash-transactions/{transaction_id}",
-    methods=["GET", "PATCH", "DELETE"],
+    operation_id="deprecated_cash_transactions_get",
+)
+@router.patch(
+    "/accounts/{account_id}/cash-transactions/{transaction_id}",
+    operation_id="deprecated_cash_transactions_patch",
+)
+@router.delete(
+    "/accounts/{account_id}/cash-transactions/{transaction_id}",
+    operation_id="deprecated_cash_transactions_delete",
 )
 def deprecated_cash_transactions() -> None:
     _gone()

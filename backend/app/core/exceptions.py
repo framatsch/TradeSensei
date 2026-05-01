@@ -29,6 +29,14 @@ class SavedTradeFilterValidationError(ValueError):
     """Raised when a saved trade filter definition is invalid."""
 
 
+class SavedDashboardViewNotFoundError(Exception):
+    """Raised when a saved dashboard view cannot be found."""
+
+
+class SavedDashboardViewPermissionError(PermissionError):
+    """Raised when a user cannot modify a saved dashboard view."""
+
+
 class InvalidCursorError(ValueError):
     """Raised when a pagination cursor cannot be decoded."""
 
@@ -91,6 +99,10 @@ class ImportNotAllowedError(ValueError):
 
 class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
+
+
+class Spec5NotDeployedError(Exception):
+    """Raised when Daily Check-in schema artifacts are unavailable."""
 
 
 class FlexAPIError(Exception):

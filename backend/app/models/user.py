@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     )
     from app.models.logical_execution import LogicalExecution
     from app.models.portfolio import Portfolio
+    from app.models.saved_dashboard_view import SavedDashboardView
     from app.models.saved_trade_filter import SavedTradeFilter
     from app.models.trade import Trade
     from app.models.user_setting import UserSetting
@@ -126,6 +127,11 @@ class User(Base):
     )
     saved_trade_filters: Mapped[list["SavedTradeFilter"]] = relationship(
         "SavedTradeFilter",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+    )
+    saved_dashboard_views: Mapped[list["SavedDashboardView"]] = relationship(
+        "SavedDashboardView",
         back_populates="owner",
         cascade="all, delete-orphan",
     )

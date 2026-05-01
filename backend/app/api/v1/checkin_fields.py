@@ -48,8 +48,7 @@ async def create_checkin_field(
     response_model=ResponseEnvelope[list[CheckinFieldDefinitionRead]],
     summary="List check-in field definitions",
     description=(
-        "List user-scoped check-in field definitions "
-        "with optional active filter."
+        "List user-scoped check-in field definitions with optional active filter."
     ),
 )
 async def list_checkin_fields(

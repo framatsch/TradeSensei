@@ -2,7 +2,7 @@
 
 Files are stored under ``uploads/screenshots/<trade_id>/`` inside the
 configured UPLOAD_DIR and the URL path is appended to / removed from
-``trade.screenshots`` (JSONB list).
+``trade.image_urls``.
 """
 
 import uuid
@@ -52,7 +52,7 @@ async def upload_screenshot(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TradeService, Depends(_get_service)],
 ) -> ResponseEnvelope[TradeRead]:
-    """Upload a screenshot and append its URL to trade.screenshots.
+    """Upload a screenshot and append its URL to trade.image_urls.
 
     Args:
         trade_id: UUID path parameter identifying the parent trade.
@@ -106,7 +106,7 @@ async def delete_screenshot(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TradeService, Depends(_get_service)],
 ) -> ResponseEnvelope[TradeRead]:
-    """Delete a screenshot file and remove its URL from trade.screenshots.
+    """Delete a screenshot file and remove its URL from trade.image_urls.
 
     Args:
         trade_id: UUID path parameter identifying the parent trade.
@@ -134,7 +134,7 @@ async def delete_screenshot(
         ) from exc
 
     url = f"/uploads/screenshots/{trade_id}/{filename}"
-    remaining = [s for s in (trade.screenshots or []) if s != url]
+    remaining = [s for s in (trade.image_urls or []) if s != url]
 
     # Delete file from disk
     file_path = _upload_dir(trade_id) / filename
@@ -144,7 +144,7 @@ async def delete_screenshot(
 
     updated = await service.update_trade(
         trade_id,
-        TradeUpdate(screenshots=remaining),
+        TradeUpdate(image_urls=remaining),
         current_user.id,
     )
     return ResponseEnvelope[TradeRead](data=updated)

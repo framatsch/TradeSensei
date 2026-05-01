@@ -48,8 +48,7 @@ async def create_market_phase(
     response_model=ResponseEnvelope[list[MarketPhaseDefinitionRead]],
     summary="List market phase definitions",
     description=(
-        "List user-scoped market phase definitions "
-        "with optional active filter."
+        "List user-scoped market phase definitions with optional active filter."
     ),
 )
 async def list_market_phases(

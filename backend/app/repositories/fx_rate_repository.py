@@ -7,7 +7,7 @@ No business logic lives here — only data access.
 import datetime as dt
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -88,3 +88,35 @@ class FxRateRepository:
             },
         )
         await session.execute(stmt)
+
+    async def get_nearest_within_window(
+        self,
+        session: AsyncSession,
+        date: dt.date,
+        base: str,
+        quote: str,
+        days: int,
+    ) -> Decimal | None:
+        """Return nearest FX rate within +/- ``days`` around ``date``.
+
+        Tie-breaker prefers dates on or before the requested date when absolute
+        distance is equal.
+        """
+        start = date - dt.timedelta(days=days)
+        end = date + dt.timedelta(days=days)
+        abs_delta = func.abs(FxRate.date - date)
+        prefer_past = case((FxRate.date <= date, 0), else_=1)
+
+        stmt = (
+            select(FxRate.rate)
+            .where(
+                FxRate.base == base,
+                FxRate.quote == quote,
+                and_(FxRate.date >= start, FxRate.date <= end),
+            )
+            .order_by(abs_delta.asc(), prefer_past.asc(), FxRate.date.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        row = result.scalar_one_or_none()
+        return Decimal(str(row)) if row is not None else None

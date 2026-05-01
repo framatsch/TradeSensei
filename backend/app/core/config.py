@@ -178,6 +178,9 @@ class Settings(BaseSettings):
     storage_secret_key: str | None = None
     storage_endpoint_url: str | None = None
 
+    # Cache
+    redis_url: str | None = None
+
     # Fresh-Start Import
     fresh_start_timeout: int = 60
     """Wall-clock statement timeout (seconds) for the fresh-start DB transaction.

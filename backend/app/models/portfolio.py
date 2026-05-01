@@ -21,6 +21,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.account import Account
+    from app.models.saved_dashboard_view import SavedDashboardView
     from app.models.user import User
 
 
@@ -67,6 +68,11 @@ class Portfolio(Base):
     accounts: Mapped[list["Account"]] = relationship(
         "Account",
         back_populates="portfolio",
+    )
+    saved_dashboard_views: Mapped[list["SavedDashboardView"]] = relationship(
+        "SavedDashboardView",
+        back_populates="portfolio",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (

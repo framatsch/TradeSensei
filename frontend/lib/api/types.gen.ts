@@ -272,9 +272,139 @@ export type AccountUpdate = {
 };
 
 /**
+ * Computed analytics summary response.
+ */
+export type AnalyticsSummary = {
+    /**
+     * Winning trade ratio from 0 to 1.
+     */
+    win_rate: string;
+    /**
+     * Gross profit divided by absolute gross loss.
+     */
+    profit_factor: (string | null);
+    /**
+     * Expected PnL per trade in the reported currency.
+     */
+    expectancy: (string | null);
+    /**
+     * Annualized Sharpe ratio; null when undefined.
+     */
+    sharpe_ratio: (string | null);
+    /**
+     * Number of included trades.
+     */
+    total_trades: number;
+    /**
+     * Trades with positive PnL.
+     */
+    winning_trades: number;
+    /**
+     * Trades with negative PnL.
+     */
+    losing_trades: number;
+    /**
+     * Sum of positive PnL values in reported currency.
+     */
+    gross_profit: (string | null);
+    /**
+     * Sum of negative PnL values in reported currency.
+     */
+    gross_loss: (string | null);
+    /**
+     * Average winning trade PnL.
+     */
+    avg_win: (string | null);
+    /**
+     * Average losing trade PnL.
+     */
+    avg_loss: (string | null);
+    /**
+     * Longest consecutive winning streak.
+     */
+    max_consecutive_wins: number;
+    /**
+     * Longest consecutive losing streak.
+     */
+    max_consecutive_losses: number;
+    /**
+     * Average trade duration in hours.
+     */
+    avg_trade_duration_hours: (string | null);
+    /**
+     * Server-side computed and downsampled equity curve.
+     */
+    equity_curve: Array<app__schemas__analytics__EquityCurvePoint>;
+    /**
+     * Drawdown curve derived from the equity curve.
+     */
+    drawdown_curve: Array<app__schemas__analytics__DrawdownPoint>;
+    /**
+     * Worst drawdown percentage.
+     */
+    max_drawdown: string;
+    /**
+     * Worst absolute drawdown.
+     */
+    max_drawdown_abs: string;
+    /**
+     * Single response currency, or null for mixed native mode.
+     */
+    currency: (string | null);
+    /**
+     * True when response spans multiple currencies in NATIVE mode.
+     */
+    multi_currency_warning?: boolean;
+    /**
+     * Per-currency monetary summaries for mixed native mode.
+     */
+    currencies?: (Array<PerCurrencySummary> | null);
+    /**
+     * Trades excluded due to missing FX rates in NORMALIZED mode.
+     */
+    fx_rate_missing_trade_ids?: (Array<(string)> | null);
+};
+
+/**
+ * Request body for analytics summary computation.
+ */
+export type AnalyticsSummaryRequest = {
+    /**
+     * Inline filter configuration.
+     */
+    filter_config?: (DashboardFilterConfig | null);
+    /**
+     * Saved dashboard view ID used as filter alias.
+     */
+    view_id?: (string | null);
+};
+
+/**
  * Asset class of the traded instrument.
  */
 export type AssetClass = 'EQUITY' | 'OPTION' | 'FUTURE' | 'FOREX' | 'CRYPTO';
+
+/**
+ * Response payload for market phase attribution endpoint.
+ */
+export type AttributionResponse = {
+    /**
+     * Attribution buckets grouped by market phase.
+     */
+    buckets: Array<MarketPhaseCorrelation>;
+    /**
+     * Trades without a check-in on close date.
+     */
+    unmatched_trade_count: number;
+    /**
+     * Trades with check-in but null market_phase.
+     */
+    phase_unset_trade_count: number;
+    /**
+     * Common currency when available; null for mixed buckets.
+     */
+    currency: (string | null);
+};
 
 /**
  * Response schema for available authentication methods.
@@ -934,56 +1064,56 @@ export type DailyPnl = {
 };
 
 /**
+ * Validated analytics filter configuration stored in saved views.
+ */
+export type DashboardFilterConfig = {
+    /**
+     * Optional inclusive start date for closed trade filtering.
+     */
+    date_from?: (string | null);
+    /**
+     * Optional inclusive end date for closed trade filtering.
+     */
+    date_to?: (string | null);
+    /**
+     * Optional list of playbook IDs used to filter trades.
+     */
+    playbook_ids?: (Array<(string)> | null);
+    /**
+     * Optional list of tag IDs used to filter trades.
+     */
+    tag_ids?: (Array<(string)> | null);
+    /**
+     * Optional trade direction filter.
+     */
+    direction?: (Direction | null);
+    /**
+     * Optional list of account IDs used to filter trades.
+     */
+    account_ids?: (Array<(string)> | null);
+    /**
+     * Currency handling mode for monetary analytics fields.
+     */
+    currency_mode?: 'NATIVE' | 'NORMALIZED';
+    /**
+     * ISO-4217 target currency used when currency_mode is NORMALIZED.
+     */
+    normalize_to?: (string | null);
+    /**
+     * Filter schema version for future compatibility handling.
+     */
+    _schema_version?: string;
+};
+
+/**
+ * Currency handling mode for monetary analytics fields.
+ */
+export type currency_mode = 'NATIVE' | 'NORMALIZED';
+
+/**
  * Trade direction — long (buy) or short (sell).
  */
 export type Direction = 'LONG' | 'SHORT';
-
-/**
- * A single point in the portfolio drawdown time series.
- *
- * Attributes:
- * timestamp: UTC timestamp of the trade that caused this drawdown reading.
- * drawdown: Drawdown as a fraction of the peak equity (0.0 to -1.0).
- * For example, -0.15 represents a 15 % drawdown from the peak.
- * drawdown_abs: Absolute drawdown in account currency (always <= 0).
- */
-export type DrawdownPoint = {
-    /**
-     * Timezone-aware UTC timestamp of the trade that caused this drawdown data point.
-     */
-    timestamp: string;
-    /**
-     * Drawdown as a fraction of the peak equity (range: 0.0 to -1.0). -0.15 means a 15 % drawdown from the running equity peak.
-     */
-    drawdown: string;
-    /**
-     * Absolute drawdown in account currency. Always zero or negative. For example, -1500.00 means the portfolio is $1 500 below its peak.
-     */
-    drawdown_abs: string;
-};
-
-/**
- * A single point in the cumulative equity curve.
- *
- * Attributes:
- * timestamp: UTC timestamp of the trade that updated the equity value.
- * equity: Cumulative PnL from the starting capital at this point.
- * pnl: The PnL contribution of the individual trade at this point.
- */
-export type EquityCurvePoint = {
-    /**
-     * Timezone-aware UTC timestamp of the trade that produced this equity curve data point.
-     */
-    timestamp: string;
-    /**
-     * Cumulative PnL from the starting capital up to and including this trade. Equal to starting_capital + sum(pnl up to this point).
-     */
-    equity: string;
-    /**
-     * PnL of the individual trade that caused this equity curve update.
-     */
-    pnl: string;
-};
 
 /**
  * Supported value types for custom daily check-in metrics.
@@ -1253,6 +1383,48 @@ export type LogicalExecutionUpdate = {
 };
 
 /**
+ * Attribution bucket grouped by market phase.
+ */
+export type MarketPhaseCorrelation = {
+    /**
+     * Raw market phase name from DailyCheckin.market_phase.
+     */
+    market_phase: string;
+    /**
+     * Display label resolved from MarketPhaseDefinition or fallback.
+     */
+    label: string;
+    /**
+     * Display color resolved from MarketPhaseDefinition.
+     */
+    color_hex?: (string | null);
+    /**
+     * Matched trades in this bucket.
+     */
+    trade_count: number;
+    /**
+     * Winning trade ratio for this bucket.
+     */
+    win_rate: string;
+    /**
+     * Profit factor for this bucket.
+     */
+    profit_factor: (string | null);
+    /**
+     * Average trade PnL in this bucket.
+     */
+    avg_pnl: string;
+    /**
+     * Total PnL in this bucket.
+     */
+    total_pnl: string;
+    /**
+     * Currency of bucket monetary values.
+     */
+    currency: string;
+};
+
+/**
  * Payload for creating a market phase definition.
  */
 export type MarketPhaseDefinitionCreate = {
@@ -1411,11 +1583,11 @@ export type MetricsSummary = {
     /**
      * Ordered list of equity curve data points, one per closed trade, capped at EQUITY_CURVE_MAX_POINTS entries.
      */
-    equity_curve: Array<EquityCurvePoint>;
+    equity_curve: Array<app__schemas__metrics__EquityCurvePoint>;
     /**
      * Ordered list of drawdown data points corresponding to each equity curve entry.
      */
-    drawdown_curve: Array<DrawdownPoint>;
+    drawdown_curve: Array<app__schemas__metrics__DrawdownPoint>;
 };
 
 /**
@@ -1568,6 +1740,48 @@ export type OffsetPage_CashTransactionRead_ = {
      * The offset used.
      */
     offset: number;
+};
+
+/**
+ * Monetary summary for one currency bucket in NATIVE mixed mode.
+ */
+export type PerCurrencySummary = {
+    /**
+     * ISO-4217 currency code for this bucket.
+     */
+    currency: string;
+    /**
+     * Number of trades in this currency.
+     */
+    total_trades: number;
+    /**
+     * Winning trades in this currency.
+     */
+    winning_trades: number;
+    /**
+     * Losing trades in this currency.
+     */
+    losing_trades: number;
+    /**
+     * Gross profit in this currency.
+     */
+    gross_profit: string;
+    /**
+     * Gross loss in this currency.
+     */
+    gross_loss: string;
+    /**
+     * Average winning PnL in this currency.
+     */
+    avg_win: string;
+    /**
+     * Average losing PnL in this currency.
+     */
+    avg_loss: string;
+    /**
+     * Expectancy in this currency.
+     */
+    expectancy: string;
 };
 
 /**
@@ -1801,6 +2015,32 @@ export type ResponseEnvelope_AccountRead_ = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: AccountRead;
+    /**
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+export type ResponseEnvelope_AnalyticsSummary_ = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: AnalyticsSummary;
+    /**
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+export type ResponseEnvelope_AttributionResponse_ = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: AttributionResponse;
     /**
      * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
      */
@@ -2082,6 +2322,19 @@ export type ResponseEnvelope_ReassignExecutionResponse_ = {
     };
 };
 
+export type ResponseEnvelope_SavedDashboardViewRead_ = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: SavedDashboardViewRead;
+    /**
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
 export type ResponseEnvelope_SavedTradeFilterRead_ = {
     /**
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
@@ -2283,7 +2536,7 @@ export type ResponseEnvelope_list_DrawdownPoint__ = {
     /**
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
-    data: Array<DrawdownPoint>;
+    data: Array<app__schemas__metrics__DrawdownPoint>;
     /**
      * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
      */
@@ -2296,7 +2549,7 @@ export type ResponseEnvelope_list_EquityCurvePoint__ = {
     /**
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
-    data: Array<EquityCurvePoint>;
+    data: Array<app__schemas__metrics__EquityCurvePoint>;
     /**
      * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
      */
@@ -2435,6 +2688,19 @@ export type ResponseEnvelope_list_RollingWinratePoint__ = {
     };
 };
 
+export type ResponseEnvelope_list_SavedDashboardViewRead__ = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<SavedDashboardViewRead>;
+    /**
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
 export type ResponseEnvelope_list_TagRead__ = {
     /**
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
@@ -2520,6 +2786,68 @@ export type RollingWinratePoint = {
      * Number of trades in the sliding window used for this point.
      */
     window: number;
+};
+
+/**
+ * Request body for creating a saved dashboard view.
+ */
+export type SavedDashboardViewCreate = {
+    /**
+     * User-facing view name.
+     */
+    name: string;
+    /**
+     * Persisted analytics filter configuration for this view.
+     */
+    filter_config: DashboardFilterConfig;
+};
+
+/**
+ * Response schema for saved dashboard views.
+ */
+export type SavedDashboardViewRead = {
+    /**
+     * Saved view ID.
+     */
+    id: string;
+    /**
+     * Owner user ID.
+     */
+    user_id: string;
+    /**
+     * Bound portfolio ID.
+     */
+    portfolio_id: string;
+    /**
+     * User-facing view name.
+     */
+    name: string;
+    /**
+     * Persisted analytics filter configuration.
+     */
+    filter_config: DashboardFilterConfig;
+    /**
+     * Creation timestamp in UTC.
+     */
+    created_at: string;
+    /**
+     * Last update timestamp in UTC.
+     */
+    updated_at: string;
+};
+
+/**
+ * Request body for patching a saved dashboard view.
+ */
+export type SavedDashboardViewUpdate = {
+    /**
+     * Updated user-facing view name.
+     */
+    name?: (string | null);
+    /**
+     * Updated analytics filter configuration.
+     */
+    filter_config?: (DashboardFilterConfig | null);
 };
 
 /**
@@ -3586,6 +3914,89 @@ export type ValidationError = {
     };
 };
 
+/**
+ * A single point in an analytics drawdown curve.
+ */
+export type app__schemas__analytics__DrawdownPoint = {
+    /**
+     * Calendar date for this drawdown point.
+     */
+    date: string;
+    /**
+     * Drawdown fraction from running equity peak (0 to -1).
+     */
+    drawdown_pct: string;
+    /**
+     * Absolute drawdown value in the reported currency.
+     */
+    drawdown_abs: string;
+};
+
+/**
+ * A single point in an analytics equity curve.
+ */
+export type app__schemas__analytics__EquityCurvePoint = {
+    /**
+     * Calendar date for this equity point.
+     */
+    date: string;
+    /**
+     * Cumulative PnL at this point in the reported currency.
+     */
+    equity: string;
+    /**
+     * ISO-4217 currency of this equity value.
+     */
+    currency: string;
+};
+
+/**
+ * A single point in the portfolio drawdown time series.
+ *
+ * Attributes:
+ * timestamp: UTC timestamp of the trade that caused this drawdown reading.
+ * drawdown: Drawdown as a fraction of the peak equity (0.0 to -1.0).
+ * For example, -0.15 represents a 15 % drawdown from the peak.
+ * drawdown_abs: Absolute drawdown in account currency (always <= 0).
+ */
+export type app__schemas__metrics__DrawdownPoint = {
+    /**
+     * Timezone-aware UTC timestamp of the trade that caused this drawdown data point.
+     */
+    timestamp: string;
+    /**
+     * Drawdown as a fraction of the peak equity (range: 0.0 to -1.0). -0.15 means a 15 % drawdown from the running equity peak.
+     */
+    drawdown: string;
+    /**
+     * Absolute drawdown in account currency. Always zero or negative. For example, -1500.00 means the portfolio is $1 500 below its peak.
+     */
+    drawdown_abs: string;
+};
+
+/**
+ * A single point in the cumulative equity curve.
+ *
+ * Attributes:
+ * timestamp: UTC timestamp of the trade that updated the equity value.
+ * equity: Cumulative PnL from the starting capital at this point.
+ * pnl: The PnL contribution of the individual trade at this point.
+ */
+export type app__schemas__metrics__EquityCurvePoint = {
+    /**
+     * Timezone-aware UTC timestamp of the trade that produced this equity curve data point.
+     */
+    timestamp: string;
+    /**
+     * Cumulative PnL from the starting capital up to and including this trade. Equal to starting_capital + sum(pnl up to this point).
+     */
+    equity: string;
+    /**
+     * PnL of the individual trade that caused this equity curve update.
+     */
+    pnl: string;
+};
+
 export type HealthHealthGetResponse = (ResponseEnvelope_dict_str__str__);
 
 export type GetConfigApiV1AuthConfigGetResponse = (AuthConfigResponse);
@@ -3973,6 +4384,66 @@ export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetData = {
 
 export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetResponse = (ResponseEnvelope_list_DrawdownPoint__);
 
+export type CreateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsPostData = {
+    portfolioId: string;
+    requestBody: SavedDashboardViewCreate;
+};
+
+export type CreateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsPostResponse = (ResponseEnvelope_SavedDashboardViewRead_);
+
+export type ListSavedDashboardViewsApiV1PortfoliosPortfolioIdViewsGetData = {
+    portfolioId: string;
+};
+
+export type ListSavedDashboardViewsApiV1PortfoliosPortfolioIdViewsGetResponse = (ResponseEnvelope_list_SavedDashboardViewRead__);
+
+export type GetSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdGetData = {
+    portfolioId: string;
+    viewId: string;
+};
+
+export type GetSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdGetResponse = (ResponseEnvelope_SavedDashboardViewRead_);
+
+export type UpdateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdPatchData = {
+    portfolioId: string;
+    requestBody: SavedDashboardViewUpdate;
+    viewId: string;
+};
+
+export type UpdateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdPatchResponse = (ResponseEnvelope_SavedDashboardViewRead_);
+
+export type DeleteSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdDeleteData = {
+    portfolioId: string;
+    viewId: string;
+};
+
+export type DeleteSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdDeleteResponse = (void);
+
+export type GetAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPostData = {
+    portfolioId: string;
+    requestBody: AnalyticsSummaryRequest;
+};
+
+export type GetAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPostResponse = (ResponseEnvelope_AnalyticsSummary_);
+
+export type GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetData = {
+    /**
+     * Optional inclusive start date for trade close date filter.
+     */
+    fromDate?: (string | null);
+    portfolioId: string;
+    /**
+     * Optional inclusive end date for trade close date filter.
+     */
+    toDate?: (string | null);
+    /**
+     * Optional saved dashboard view ID to reuse filter config.
+     */
+    viewId?: (string | null);
+};
+
+export type GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetResponse = (ResponseEnvelope_AttributionResponse_);
+
 export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostData = {
     formData: Body_upload_import_api_v1_portfolios__portfolio_id__imports_upload_post;
     portfolioId: string;
@@ -4339,11 +4810,11 @@ export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCash
 
 export type DeprecatedTradesApiV1TradesTradeIdPartialClosePostResponse = (unknown);
 
-export type DeprecatedTradesApiV1TradesTradeIdGetResponse = (unknown);
+export type DeprecatedTradesGetResponse = (unknown);
 
-export type DeprecatedTradesApiV1TradesTradeIdGet1Response = (unknown);
+export type DeprecatedTradesDeleteResponse = (unknown);
 
-export type DeprecatedTradesApiV1TradesTradeIdGet2Response = (unknown);
+export type DeprecatedTradesPatchResponse = (unknown);
 
 export type DeprecatedTradesApiV1TradesMergePostResponse = (unknown);
 
@@ -4353,9 +4824,9 @@ export type DeprecatedTradesApiV1TradesBulkAssignTagsPostResponse = (unknown);
 
 export type DeprecatedTradesApiV1TradesBulkDeletePostResponse = (unknown);
 
-export type DeprecatedTradesApiV1TradesPostResponse = (unknown);
+export type DeprecatedTradesListResponse = (unknown);
 
-export type DeprecatedTradesApiV1TradesPost1Response = (unknown);
+export type DeprecatedTradesCreateResponse = (unknown);
 
 export type DeprecatedMetricsApiV1MetricsDrawdownGetResponse = (unknown);
 
@@ -4389,15 +4860,15 @@ export type DeprecatedImportsApiV1ImportsUploadPostResponse = (unknown);
 
 export type DeprecatedAccountsApiV1AccountsAccountIdMetricsGetResponse = (unknown);
 
-export type DeprecatedAccountsApiV1AccountsAccountIdGetResponse = (unknown);
+export type DeprecatedAccountsGetResponse = (unknown);
 
-export type DeprecatedAccountsApiV1AccountsAccountIdGet1Response = (unknown);
+export type DeprecatedAccountsDeleteResponse = (unknown);
 
-export type DeprecatedAccountsApiV1AccountsAccountIdGet2Response = (unknown);
+export type DeprecatedAccountsPatchResponse = (unknown);
 
-export type DeprecatedAccountsApiV1AccountsPostResponse = (unknown);
+export type DeprecatedAccountsListResponse = (unknown);
 
-export type DeprecatedAccountsApiV1AccountsPost1Response = (unknown);
+export type DeprecatedAccountsCreateResponse = (unknown);
 
 export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDetachPostResponse = (unknown);
 
@@ -4417,15 +4888,15 @@ export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsGetResponse = (unkno
 
 export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsPostResponse = (unknown);
 
-export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdGetResponse = (unknown);
+export type DeprecatedCashTransactionsGetResponse = (unknown);
 
-export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdGet1Response = (unknown);
+export type DeprecatedCashTransactionsDeleteResponse = (unknown);
 
-export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsTransactionIdGet2Response = (unknown);
+export type DeprecatedCashTransactionsPatchResponse = (unknown);
 
-export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsPostResponse = (unknown);
+export type DeprecatedCashTransactionsListResponse = (unknown);
 
-export type DeprecatedCashTransactionsApiV1AccountsAccountIdCashTransactionsPost1Response = (unknown);
+export type DeprecatedCashTransactionsCreateResponse = (unknown);
 
 export type ListCorporateActionsApiV1CorporateActionsGetResponse = (ResponseEnvelope_list_CorporateActionRead__);
 

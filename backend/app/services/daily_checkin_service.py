@@ -22,6 +22,7 @@ from app.schemas.daily_checkin import (
     DailyCheckinRead,
     DailyCheckinUpdate,
 )
+from app.services.cache_service import CacheService
 
 
 class DailyCheckinService:
@@ -32,6 +33,7 @@ class DailyCheckinService:
         self._repo = DailyCheckinRepository(session)
         self._field_repo = CheckinFieldDefinitionRepository(session)
         self._phase_repo = MarketPhaseDefinitionRepository(session)
+        self._cache = CacheService()
 
     async def _validate_market_phase(
         self,
@@ -96,8 +98,7 @@ class DailyCheckinService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
-                    "screenshot_urls is not available: "
-                    "object storage is not configured"
+                    "screenshot_urls is not available: object storage is not configured"
                 ),
             )
 
@@ -122,6 +123,7 @@ class DailyCheckinService:
         try:
             model = await self._repo.create(user_id=user_id, data=payload)
             await self._session.commit()
+            await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
             raise HTTPException(
@@ -195,6 +197,7 @@ class DailyCheckinService:
 
         updated = await self._repo.update(model=model, data=payload)
         await self._session.commit()
+        await self._cache.invalidate_user(user_id)
         return DailyCheckinRead.model_validate(updated)
 
     async def delete_checkin(self, user_id: uuid.UUID, checkin_date: date) -> None:
@@ -206,3 +209,4 @@ class DailyCheckinService:
                 detail="daily check-in not found",
             )
         await self._session.commit()
+        await self._cache.invalidate_user(user_id)

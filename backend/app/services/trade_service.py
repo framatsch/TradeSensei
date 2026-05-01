@@ -30,6 +30,7 @@ from app.schemas.trade import (
     TradeSortParams,
     TradeUpdate,
 )
+from app.services.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class TradeService:
         self._tag_repo = TagRepository(session)
         self._playbook_repo = PlaybookRepository(session)
         self._account_repo = AccountRepository(session)
+        self._cache = CacheService()
 
     def _screenshot_dir(self, trade_id: uuid.UUID) -> Path:
         """Return the filesystem directory used for trade screenshots."""
@@ -100,11 +102,11 @@ class TradeService:
 
         try:
             trade = await self.get_trade(trade_id, user_id)
-            current_screenshots: list[str] = list(trade.screenshots or [])
-            current_screenshots.append(url)
+            current_image_urls: list[str] = list(trade.image_urls or [])
+            current_image_urls.append(url)
             return await self.update_trade(
                 trade_id,
-                TradeUpdate(screenshots=current_screenshots),
+                TradeUpdate(image_urls=current_image_urls),
                 user_id,
             )
         except TradeNotFoundError:
@@ -262,6 +264,17 @@ class TradeService:
 
         if trade.user_id is None:
             raise TradeNotFoundError(f"Trade {trade.id} has no owner.")
+        if trade.account_id is not None and trade.user_id is not None:
+            account = await self._account_repo.get_by_id(
+                trade.account_id,
+                trade.user_id,
+                portfolio_id,
+            )
+            if account is not None and account.portfolio_id is not None:
+                await self._cache.invalidate_portfolio(
+                    account.portfolio_id,
+                    trade.user_id,
+                )
         trade_reloaded = await self._repo.get_by_id(trade.id, trade.user_id)
 
         return TradeRead.model_validate(trade_reloaded)
@@ -401,6 +414,14 @@ class TradeService:
         should_reaggregate = bool(reaggregate_fields & data.model_fields_set)
         if should_reaggregate:
             await self._re_aggregate_trade(trade_id)
+        if updated.account_id is not None:
+            account = await self._account_repo.get_by_id(
+                updated.account_id,
+                user_id,
+                portfolio_id,
+            )
+            if account is not None and account.portfolio_id is not None:
+                await self._cache.invalidate_portfolio(account.portfolio_id, user_id)
         await self._session.commit()
         return TradeRead.model_validate(updated)
 
@@ -441,6 +462,14 @@ class TradeService:
                 await self._exec_repo.soft_delete(ex.id)
 
         await self._repo.delete(trade)
+        if trade.account_id is not None:
+            account = await self._account_repo.get_by_id(
+                trade.account_id,
+                user_id,
+                portfolio_id,
+            )
+            if account is not None and account.portfolio_id is not None:
+                await self._cache.invalidate_portfolio(account.portfolio_id, user_id)
 
     async def bulk_delete_trades(
         self,
@@ -459,7 +488,10 @@ class TradeService:
         Returns:
             Number of deleted trades.
         """
-        return await self._repo.bulk_delete(trade_ids, user_id, portfolio_id)
+        deleted = await self._repo.bulk_delete(trade_ids, user_id, portfolio_id)
+        if portfolio_id is not None:
+            await self._cache.invalidate_portfolio(portfolio_id, user_id)
+        return deleted
 
     async def bulk_assign_tags(
         self,
@@ -490,13 +522,16 @@ class TradeService:
             raise ValueError("One or more tags not found.")
         if any(tag.user_id != user_id for tag in tags):
             raise PermissionError("One or more tags do not belong to this user.")
-        return await self._repo.bulk_assign_tags(
+        updated = await self._repo.bulk_assign_tags(
             trade_ids,
             tag_ids,
             mode,
             user_id,
             portfolio_id,
         )
+        if portfolio_id is not None:
+            await self._cache.invalidate_portfolio(portfolio_id, user_id)
+        return updated
 
     async def bulk_assign_playbook(
         self,
@@ -525,12 +560,15 @@ class TradeService:
                 raise ValueError("Playbook not found.")
             if playbook.user_id != user_id:
                 raise PermissionError("Playbook does not belong to this user.")
-        return await self._repo.bulk_assign_playbook(
+        updated = await self._repo.bulk_assign_playbook(
             trade_ids,
             playbook_id,
             user_id,
             portfolio_id,
         )
+        if portfolio_id is not None:
+            await self._cache.invalidate_portfolio(portfolio_id, user_id)
+        return updated
 
     async def merge_trades(
         self,
@@ -620,6 +658,8 @@ class TradeService:
 
         # Reload survivor
         survivor_reloaded = await self._repo.get_by_id(survivor.id, user_id)
+        if portfolio_id is not None:
+            await self._cache.invalidate_portfolio(portfolio_id, user_id)
         return TradeRead.model_validate(survivor_reloaded)
 
     async def partial_close_trade(
@@ -706,6 +746,17 @@ class TradeService:
 
             # Reaggregate trade using the execution service logic
             await self._re_aggregate_trade(trade.id)
+            if trade.account_id is not None:
+                account = await self._account_repo.get_by_id(
+                    trade.account_id,
+                    user_id,
+                    portfolio_id,
+                )
+                if account is not None and account.portfolio_id is not None:
+                    await self._cache.invalidate_portfolio(
+                        account.portfolio_id,
+                        user_id,
+                    )
             await self._session.commit()
             updated = await self._repo.get_by_id(trade.id, user_id)
             return TradeRead.model_validate(updated)
@@ -772,5 +823,8 @@ class TradeService:
 
         await self._session.flush()
         await self._session.refresh(new_trade_orm, attribute_names=["trade_notes"])
+
+        if portfolio_id is not None:
+            await self._cache.invalidate_portfolio(portfolio_id, user_id)
 
         return TradeRead.model_validate(new_trade_orm)

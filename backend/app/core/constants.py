@@ -44,7 +44,10 @@ SECONDS_PER_DAY: int = 86_400
 ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
     __import__("os").environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
 )
-"""Lifetime of an access JWT in minutes. Override via ACCESS_TOKEN_EXPIRE_MINUTES env var."""
+"""Lifetime of an access JWT in minutes.
+
+Override via ACCESS_TOKEN_EXPIRE_MINUTES env var.
+"""
 
 REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 """Lifetime of a refresh JWT in days."""

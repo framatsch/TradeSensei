@@ -14,6 +14,7 @@ from app.schemas.daily_checkin import (
     MarketPhaseDefinitionRead,
     MarketPhaseDefinitionUpdate,
 )
+from app.services.cache_service import CacheService
 
 
 class MarketPhaseDefinitionService:
@@ -22,6 +23,7 @@ class MarketPhaseDefinitionService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._repo = MarketPhaseDefinitionRepository(session)
+        self._cache = CacheService()
 
     async def create_phase(
         self,
@@ -44,6 +46,7 @@ class MarketPhaseDefinitionService:
                 color_hex=payload.color_hex,
             )
             await self._session.commit()
+            await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
             raise HTTPException(
@@ -83,6 +86,7 @@ class MarketPhaseDefinitionService:
                 is_active=payload.is_active,
             )
             await self._session.commit()
+            await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
             raise HTTPException(

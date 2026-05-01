@@ -508,11 +508,303 @@ Attributes:
         settings (partial update semantics).`
 } as const;
 
+export const AnalyticsSummarySchema = {
+    properties: {
+        win_rate: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Win Rate',
+            description: 'Winning trade ratio from 0 to 1.'
+        },
+        profit_factor: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Profit Factor',
+            description: 'Gross profit divided by absolute gross loss.'
+        },
+        expectancy: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expectancy',
+            description: 'Expected PnL per trade in the reported currency.'
+        },
+        sharpe_ratio: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Sharpe Ratio',
+            description: 'Annualized Sharpe ratio; null when undefined.'
+        },
+        total_trades: {
+            type: 'integer',
+            title: 'Total Trades',
+            description: 'Number of included trades.'
+        },
+        winning_trades: {
+            type: 'integer',
+            title: 'Winning Trades',
+            description: 'Trades with positive PnL.'
+        },
+        losing_trades: {
+            type: 'integer',
+            title: 'Losing Trades',
+            description: 'Trades with negative PnL.'
+        },
+        gross_profit: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gross Profit',
+            description: 'Sum of positive PnL values in reported currency.'
+        },
+        gross_loss: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gross Loss',
+            description: 'Sum of negative PnL values in reported currency.'
+        },
+        avg_win: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avg Win',
+            description: 'Average winning trade PnL.'
+        },
+        avg_loss: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avg Loss',
+            description: 'Average losing trade PnL.'
+        },
+        max_consecutive_wins: {
+            type: 'integer',
+            title: 'Max Consecutive Wins',
+            description: 'Longest consecutive winning streak.'
+        },
+        max_consecutive_losses: {
+            type: 'integer',
+            title: 'Max Consecutive Losses',
+            description: 'Longest consecutive losing streak.'
+        },
+        avg_trade_duration_hours: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avg Trade Duration Hours',
+            description: 'Average trade duration in hours.'
+        },
+        equity_curve: {
+            items: {
+                '$ref': '#/components/schemas/app__schemas__analytics__EquityCurvePoint'
+            },
+            type: 'array',
+            title: 'Equity Curve',
+            description: 'Server-side computed and downsampled equity curve.'
+        },
+        drawdown_curve: {
+            items: {
+                '$ref': '#/components/schemas/app__schemas__analytics__DrawdownPoint'
+            },
+            type: 'array',
+            title: 'Drawdown Curve',
+            description: 'Drawdown curve derived from the equity curve.'
+        },
+        max_drawdown: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Max Drawdown',
+            description: 'Worst drawdown percentage.'
+        },
+        max_drawdown_abs: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Max Drawdown Abs',
+            description: 'Worst absolute drawdown.'
+        },
+        currency: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Currency',
+            description: 'Single response currency, or null for mixed native mode.'
+        },
+        multi_currency_warning: {
+            type: 'boolean',
+            title: 'Multi Currency Warning',
+            description: 'True when response spans multiple currencies in NATIVE mode.',
+            default: false
+        },
+        currencies: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/PerCurrencySummary'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Currencies',
+            description: 'Per-currency monetary summaries for mixed native mode.'
+        },
+        fx_rate_missing_trade_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Fx Rate Missing Trade Ids',
+            description: 'Trades excluded due to missing FX rates in NORMALIZED mode.'
+        }
+    },
+    type: 'object',
+    required: ['win_rate', 'profit_factor', 'expectancy', 'sharpe_ratio', 'total_trades', 'winning_trades', 'losing_trades', 'gross_profit', 'gross_loss', 'avg_win', 'avg_loss', 'max_consecutive_wins', 'max_consecutive_losses', 'avg_trade_duration_hours', 'equity_curve', 'drawdown_curve', 'max_drawdown', 'max_drawdown_abs', 'currency'],
+    title: 'AnalyticsSummary',
+    description: 'Computed analytics summary response.'
+} as const;
+
+export const AnalyticsSummaryRequestSchema = {
+    properties: {
+        filter_config: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DashboardFilterConfig'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Inline filter configuration.'
+        },
+        view_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'View Id',
+            description: 'Saved dashboard view ID used as filter alias.'
+        }
+    },
+    type: 'object',
+    title: 'AnalyticsSummaryRequest',
+    description: 'Request body for analytics summary computation.'
+} as const;
+
 export const AssetClassSchema = {
     type: 'string',
     enum: ['EQUITY', 'OPTION', 'FUTURE', 'FOREX', 'CRYPTO'],
     title: 'AssetClass',
     description: 'Asset class of the traded instrument.'
+} as const;
+
+export const AttributionResponseSchema = {
+    properties: {
+        buckets: {
+            items: {
+                '$ref': '#/components/schemas/MarketPhaseCorrelation'
+            },
+            type: 'array',
+            title: 'Buckets',
+            description: 'Attribution buckets grouped by market phase.'
+        },
+        unmatched_trade_count: {
+            type: 'integer',
+            title: 'Unmatched Trade Count',
+            description: 'Trades without a check-in on close date.'
+        },
+        phase_unset_trade_count: {
+            type: 'integer',
+            title: 'Phase Unset Trade Count',
+            description: 'Trades with check-in but null market_phase.'
+        },
+        currency: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Currency',
+            description: 'Common currency when available; null for mixed buckets.'
+        }
+    },
+    type: 'object',
+    required: ['buckets', 'unmatched_trade_count', 'phase_unset_trade_count', 'currency'],
+    title: 'AttributionResponse',
+    description: 'Response payload for market phase attribution endpoint.'
 } as const;
 
 export const AuthConfigResponseSchema = {
@@ -2041,82 +2333,131 @@ Attributes:
         ordered chronologically from the earliest available trade.`
 } as const;
 
+export const DashboardFilterConfigSchema = {
+    properties: {
+        date_from: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Date From',
+            description: 'Optional inclusive start date for closed trade filtering.'
+        },
+        date_to: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Date To',
+            description: 'Optional inclusive end date for closed trade filtering.'
+        },
+        playbook_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Playbook Ids',
+            description: 'Optional list of playbook IDs used to filter trades.'
+        },
+        tag_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Tag Ids',
+            description: 'Optional list of tag IDs used to filter trades.'
+        },
+        direction: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/Direction'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Optional trade direction filter.'
+        },
+        account_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Account Ids',
+            description: 'Optional list of account IDs used to filter trades.'
+        },
+        currency_mode: {
+            type: 'string',
+            enum: ['NATIVE', 'NORMALIZED'],
+            title: 'Currency Mode',
+            description: 'Currency handling mode for monetary analytics fields.',
+            default: 'NATIVE'
+        },
+        normalize_to: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 3,
+                    minLength: 3
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Normalize To',
+            description: 'ISO-4217 target currency used when currency_mode is NORMALIZED.'
+        },
+        _schema_version: {
+            type: 'string',
+            title: 'Schema Version',
+            description: 'Filter schema version for future compatibility handling.',
+            default: '1'
+        }
+    },
+    type: 'object',
+    title: 'DashboardFilterConfig',
+    description: 'Validated analytics filter configuration stored in saved views.'
+} as const;
+
 export const DirectionSchema = {
     type: 'string',
     enum: ['LONG', 'SHORT'],
     title: 'Direction',
     description: 'Trade direction — long (buy) or short (sell).'
-} as const;
-
-export const DrawdownPointSchema = {
-    properties: {
-        timestamp: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Timestamp',
-            description: 'Timezone-aware UTC timestamp of the trade that caused this drawdown data point.',
-            examples: ['2024-05-10T14:30:00Z']
-        },
-        drawdown: {
-            type: 'string',
-            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
-            title: 'Drawdown',
-            description: 'Drawdown as a fraction of the peak equity (range: 0.0 to -1.0). -0.15 means a 15 % drawdown from the running equity peak.',
-            examples: ['-0.1500']
-        },
-        drawdown_abs: {
-            type: 'string',
-            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
-            title: 'Drawdown Abs',
-            description: 'Absolute drawdown in account currency. Always zero or negative. For example, -1500.00 means the portfolio is $1 500 below its peak.',
-            examples: ['-1500.00']
-        }
-    },
-    type: 'object',
-    required: ['timestamp', 'drawdown', 'drawdown_abs'],
-    title: 'DrawdownPoint',
-    description: `A single point in the portfolio drawdown time series.
-
-Attributes:
-    timestamp: UTC timestamp of the trade that caused this drawdown reading.
-    drawdown: Drawdown as a fraction of the peak equity (0.0 to -1.0).
-        For example, -0.15 represents a 15 % drawdown from the peak.
-    drawdown_abs: Absolute drawdown in account currency (always <= 0).`
-} as const;
-
-export const EquityCurvePointSchema = {
-    properties: {
-        timestamp: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Timestamp',
-            description: 'Timezone-aware UTC timestamp of the trade that produced this equity curve data point.',
-            examples: ['2024-05-10T14:30:00Z']
-        },
-        equity: {
-            type: 'string',
-            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
-            title: 'Equity',
-            description: 'Cumulative PnL from the starting capital up to and including this trade. Equal to starting_capital + sum(pnl up to this point).',
-            examples: ['10475.00']
-        },
-        pnl: {
-            type: 'string',
-            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
-            title: 'Pnl',
-            description: 'PnL of the individual trade that caused this equity curve update.',
-            examples: ['475.00', '-120.50']
-        }
-    },
-    type: 'object',
-    required: ['timestamp', 'equity', 'pnl'],
-    title: 'EquityCurvePoint',
-    description: `A single point in the cumulative equity curve.
-
-Attributes:
-    timestamp: UTC timestamp of the trade that updated the equity value.
-    equity: Cumulative PnL from the starting capital at this point.
-    pnl: The PnL contribution of the individual trade at this point.`
 } as const;
 
 export const FieldTypeEnumSchema = {
@@ -2740,6 +3081,80 @@ by the API consumer.  \`\`user_modified\`\` is set automatically by the
 service when patching an imported execution.`
 } as const;
 
+export const MarketPhaseCorrelationSchema = {
+    properties: {
+        market_phase: {
+            type: 'string',
+            title: 'Market Phase',
+            description: 'Raw market phase name from DailyCheckin.market_phase.'
+        },
+        label: {
+            type: 'string',
+            title: 'Label',
+            description: 'Display label resolved from MarketPhaseDefinition or fallback.'
+        },
+        color_hex: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Color Hex',
+            description: 'Display color resolved from MarketPhaseDefinition.'
+        },
+        trade_count: {
+            type: 'integer',
+            title: 'Trade Count',
+            description: 'Matched trades in this bucket.'
+        },
+        win_rate: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Win Rate',
+            description: 'Winning trade ratio for this bucket.'
+        },
+        profit_factor: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Profit Factor',
+            description: 'Profit factor for this bucket.'
+        },
+        avg_pnl: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Avg Pnl',
+            description: 'Average trade PnL in this bucket.'
+        },
+        total_pnl: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Total Pnl',
+            description: 'Total PnL in this bucket.'
+        },
+        currency: {
+            type: 'string',
+            maxLength: 3,
+            minLength: 3,
+            title: 'Currency',
+            description: 'Currency of bucket monetary values.'
+        }
+    },
+    type: 'object',
+    required: ['market_phase', 'label', 'trade_count', 'win_rate', 'profit_factor', 'avg_pnl', 'total_pnl', 'currency'],
+    title: 'MarketPhaseCorrelation',
+    description: 'Attribution bucket grouped by market phase.'
+} as const;
+
 export const MarketPhaseDefinitionCreateSchema = {
     properties: {
         name: {
@@ -3020,7 +3435,7 @@ export const MetricsSummarySchema = {
         },
         equity_curve: {
             items: {
-                '$ref': '#/components/schemas/EquityCurvePoint'
+                '$ref': '#/components/schemas/app__schemas__metrics__EquityCurvePoint'
             },
             type: 'array',
             title: 'Equity Curve',
@@ -3040,7 +3455,7 @@ export const MetricsSummarySchema = {
         },
         drawdown_curve: {
             items: {
-                '$ref': '#/components/schemas/DrawdownPoint'
+                '$ref': '#/components/schemas/app__schemas__metrics__DrawdownPoint'
             },
             type: 'array',
             title: 'Drawdown Curve',
@@ -3312,6 +3727,67 @@ export const OffsetPage_CashTransactionRead_Schema = {
     type: 'object',
     required: ['items', 'total', 'limit', 'offset'],
     title: 'OffsetPage[CashTransactionRead]'
+} as const;
+
+export const PerCurrencySummarySchema = {
+    properties: {
+        currency: {
+            type: 'string',
+            maxLength: 3,
+            minLength: 3,
+            title: 'Currency',
+            description: 'ISO-4217 currency code for this bucket.'
+        },
+        total_trades: {
+            type: 'integer',
+            title: 'Total Trades',
+            description: 'Number of trades in this currency.'
+        },
+        winning_trades: {
+            type: 'integer',
+            title: 'Winning Trades',
+            description: 'Winning trades in this currency.'
+        },
+        losing_trades: {
+            type: 'integer',
+            title: 'Losing Trades',
+            description: 'Losing trades in this currency.'
+        },
+        gross_profit: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Gross Profit',
+            description: 'Gross profit in this currency.'
+        },
+        gross_loss: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Gross Loss',
+            description: 'Gross loss in this currency.'
+        },
+        avg_win: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Avg Win',
+            description: 'Average winning PnL in this currency.'
+        },
+        avg_loss: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Avg Loss',
+            description: 'Average losing PnL in this currency.'
+        },
+        expectancy: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Expectancy',
+            description: 'Expectancy in this currency.'
+        }
+    },
+    type: 'object',
+    required: ['currency', 'total_trades', 'winning_trades', 'losing_trades', 'gross_profit', 'gross_loss', 'avg_win', 'avg_loss', 'expectancy'],
+    title: 'PerCurrencySummary',
+    description: 'Monetary summary for one currency bucket in NATIVE mixed mode.'
 } as const;
 
 export const PlaybookCreateSchema = {
@@ -3795,6 +4271,56 @@ export const ResponseEnvelope_AccountRead_Schema = {
     type: 'object',
     required: ['data'],
     title: 'ResponseEnvelope[AccountRead]'
+} as const;
+
+export const ResponseEnvelope_AnalyticsSummary_Schema = {
+    properties: {
+        data: {
+            '$ref': '#/components/schemas/AnalyticsSummary',
+            description: 'The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.'
+        },
+        meta: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Meta',
+            description: 'Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.',
+            examples: [
+                {},
+                {
+                    duration_ms: 12,
+                    request_id: 'abc-123'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['data'],
+    title: 'ResponseEnvelope[AnalyticsSummary]'
+} as const;
+
+export const ResponseEnvelope_AttributionResponse_Schema = {
+    properties: {
+        data: {
+            '$ref': '#/components/schemas/AttributionResponse',
+            description: 'The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.'
+        },
+        meta: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Meta',
+            description: 'Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.',
+            examples: [
+                {},
+                {
+                    duration_ms: 12,
+                    request_id: 'abc-123'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['data'],
+    title: 'ResponseEnvelope[AttributionResponse]'
 } as const;
 
 export const ResponseEnvelope_BrokerRawTransactionRead_Schema = {
@@ -4322,6 +4848,31 @@ export const ResponseEnvelope_ReassignExecutionResponse_Schema = {
     title: 'ResponseEnvelope[ReassignExecutionResponse]'
 } as const;
 
+export const ResponseEnvelope_SavedDashboardViewRead_Schema = {
+    properties: {
+        data: {
+            '$ref': '#/components/schemas/SavedDashboardViewRead',
+            description: 'The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.'
+        },
+        meta: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Meta',
+            description: 'Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.',
+            examples: [
+                {},
+                {
+                    duration_ms: 12,
+                    request_id: 'abc-123'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['data'],
+    title: 'ResponseEnvelope[SavedDashboardViewRead]'
+} as const;
+
 export const ResponseEnvelope_SavedTradeFilterRead_Schema = {
     properties: {
         data: {
@@ -4721,7 +5272,7 @@ export const ResponseEnvelope_list_DrawdownPoint__Schema = {
     properties: {
         data: {
             items: {
-                '$ref': '#/components/schemas/DrawdownPoint'
+                '$ref': '#/components/schemas/app__schemas__metrics__DrawdownPoint'
             },
             type: 'array',
             title: 'Data',
@@ -4750,7 +5301,7 @@ export const ResponseEnvelope_list_EquityCurvePoint__Schema = {
     properties: {
         data: {
             items: {
-                '$ref': '#/components/schemas/EquityCurvePoint'
+                '$ref': '#/components/schemas/app__schemas__metrics__EquityCurvePoint'
             },
             type: 'array',
             title: 'Data',
@@ -5065,6 +5616,35 @@ export const ResponseEnvelope_list_RollingWinratePoint__Schema = {
     title: 'ResponseEnvelope[list[RollingWinratePoint]]'
 } as const;
 
+export const ResponseEnvelope_list_SavedDashboardViewRead__Schema = {
+    properties: {
+        data: {
+            items: {
+                '$ref': '#/components/schemas/SavedDashboardViewRead'
+            },
+            type: 'array',
+            title: 'Data',
+            description: 'The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.'
+        },
+        meta: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Meta',
+            description: 'Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.',
+            examples: [
+                {},
+                {
+                    duration_ms: 12,
+                    request_id: 'abc-123'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['data'],
+    title: 'ResponseEnvelope[list[SavedDashboardViewRead]]'
+} as const;
+
 export const ResponseEnvelope_list_TagRead__Schema = {
     properties: {
         data: {
@@ -5209,6 +5789,107 @@ Attributes:
     rolling_winrate: Win rate (fraction of wins) over the sliding window
         ending at this trade (0.0–1.0).
     window: The window size used for this computation.`
+} as const;
+
+export const SavedDashboardViewCreateSchema = {
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 255,
+            minLength: 1,
+            title: 'Name',
+            description: 'User-facing view name.'
+        },
+        filter_config: {
+            '$ref': '#/components/schemas/DashboardFilterConfig',
+            description: 'Persisted analytics filter configuration for this view.'
+        }
+    },
+    type: 'object',
+    required: ['name', 'filter_config'],
+    title: 'SavedDashboardViewCreate',
+    description: 'Request body for creating a saved dashboard view.'
+} as const;
+
+export const SavedDashboardViewReadSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id',
+            description: 'Saved view ID.'
+        },
+        user_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'User Id',
+            description: 'Owner user ID.'
+        },
+        portfolio_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Portfolio Id',
+            description: 'Bound portfolio ID.'
+        },
+        name: {
+            type: 'string',
+            title: 'Name',
+            description: 'User-facing view name.'
+        },
+        filter_config: {
+            '$ref': '#/components/schemas/DashboardFilterConfig',
+            description: 'Persisted analytics filter configuration.'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At',
+            description: 'Creation timestamp in UTC.'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At',
+            description: 'Last update timestamp in UTC.'
+        }
+    },
+    type: 'object',
+    required: ['id', 'user_id', 'portfolio_id', 'name', 'filter_config', 'created_at', 'updated_at'],
+    title: 'SavedDashboardViewRead',
+    description: 'Response schema for saved dashboard views.'
+} as const;
+
+export const SavedDashboardViewUpdateSchema = {
+    properties: {
+        name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 255,
+                    minLength: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name',
+            description: 'Updated user-facing view name.'
+        },
+        filter_config: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DashboardFilterConfig'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Updated analytics filter configuration.'
+        }
+    },
+    type: 'object',
+    title: 'SavedDashboardViewUpdate',
+    description: 'Request body for patching a saved dashboard view.'
 } as const;
 
 export const SavedTradeFilterCreateSchema = {
@@ -7566,4 +8247,130 @@ export const ValidationErrorSchema = {
     type: 'object',
     required: ['loc', 'msg', 'type'],
     title: 'ValidationError'
+} as const;
+
+export const app__schemas__analytics__DrawdownPointSchema = {
+    properties: {
+        date: {
+            type: 'string',
+            format: 'date',
+            title: 'Date',
+            description: 'Calendar date for this drawdown point.'
+        },
+        drawdown_pct: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Drawdown Pct',
+            description: 'Drawdown fraction from running equity peak (0 to -1).'
+        },
+        drawdown_abs: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Drawdown Abs',
+            description: 'Absolute drawdown value in the reported currency.'
+        }
+    },
+    type: 'object',
+    required: ['date', 'drawdown_pct', 'drawdown_abs'],
+    title: 'DrawdownPoint',
+    description: 'A single point in an analytics drawdown curve.'
+} as const;
+
+export const app__schemas__analytics__EquityCurvePointSchema = {
+    properties: {
+        date: {
+            type: 'string',
+            format: 'date',
+            title: 'Date',
+            description: 'Calendar date for this equity point.'
+        },
+        equity: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Equity',
+            description: 'Cumulative PnL at this point in the reported currency.'
+        },
+        currency: {
+            type: 'string',
+            maxLength: 3,
+            minLength: 3,
+            title: 'Currency',
+            description: 'ISO-4217 currency of this equity value.'
+        }
+    },
+    type: 'object',
+    required: ['date', 'equity', 'currency'],
+    title: 'EquityCurvePoint',
+    description: 'A single point in an analytics equity curve.'
+} as const;
+
+export const app__schemas__metrics__DrawdownPointSchema = {
+    properties: {
+        timestamp: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Timestamp',
+            description: 'Timezone-aware UTC timestamp of the trade that caused this drawdown data point.',
+            examples: ['2024-05-10T14:30:00Z']
+        },
+        drawdown: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Drawdown',
+            description: 'Drawdown as a fraction of the peak equity (range: 0.0 to -1.0). -0.15 means a 15 % drawdown from the running equity peak.',
+            examples: ['-0.1500']
+        },
+        drawdown_abs: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Drawdown Abs',
+            description: 'Absolute drawdown in account currency. Always zero or negative. For example, -1500.00 means the portfolio is $1 500 below its peak.',
+            examples: ['-1500.00']
+        }
+    },
+    type: 'object',
+    required: ['timestamp', 'drawdown', 'drawdown_abs'],
+    title: 'DrawdownPoint',
+    description: `A single point in the portfolio drawdown time series.
+
+Attributes:
+    timestamp: UTC timestamp of the trade that caused this drawdown reading.
+    drawdown: Drawdown as a fraction of the peak equity (0.0 to -1.0).
+        For example, -0.15 represents a 15 % drawdown from the peak.
+    drawdown_abs: Absolute drawdown in account currency (always <= 0).`
+} as const;
+
+export const app__schemas__metrics__EquityCurvePointSchema = {
+    properties: {
+        timestamp: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Timestamp',
+            description: 'Timezone-aware UTC timestamp of the trade that produced this equity curve data point.',
+            examples: ['2024-05-10T14:30:00Z']
+        },
+        equity: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Equity',
+            description: 'Cumulative PnL from the starting capital up to and including this trade. Equal to starting_capital + sum(pnl up to this point).',
+            examples: ['10475.00']
+        },
+        pnl: {
+            type: 'string',
+            pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$',
+            title: 'Pnl',
+            description: 'PnL of the individual trade that caused this equity curve update.',
+            examples: ['475.00', '-120.50']
+        }
+    },
+    type: 'object',
+    required: ['timestamp', 'equity', 'pnl'],
+    title: 'EquityCurvePoint',
+    description: `A single point in the cumulative equity curve.
+
+Attributes:
+    timestamp: UTC timestamp of the trade that updated the equity value.
+    equity: Cumulative PnL from the starting capital at this point.
+    pnl: The PnL contribution of the individual trade at this point.`
 } as const;

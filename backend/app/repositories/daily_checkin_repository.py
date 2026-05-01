@@ -75,9 +75,9 @@ class DailyCheckinRepository:
         count_result = await self._session.execute(count_stmt)
         total = int(count_result.scalar_one() or 0)
 
-        page_stmt = page_stmt.order_by(
-            DailyCheckin.date.desc()
-        ).limit(clamped_limit + 1)
+        page_stmt = page_stmt.order_by(DailyCheckin.date.desc()).limit(
+            clamped_limit + 1
+        )
         page_result = await self._session.execute(page_stmt)
         rows = list(page_result.scalars().all())
 

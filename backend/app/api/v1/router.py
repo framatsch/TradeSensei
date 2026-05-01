@@ -8,6 +8,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     accounts,
+    analytics,
     auth,
     broker,
     cash_transactions,
@@ -30,6 +31,7 @@ from app.api.v1 import (
     timeseries,
     trades,
     users,
+    views,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -42,6 +44,8 @@ router.include_router(executions.router)
 router.include_router(trades.router)
 router.include_router(trades.global_router)
 router.include_router(metrics.router)
+router.include_router(views.router)
+router.include_router(analytics.router)
 router.include_router(imports.router)
 router.include_router(timeseries.router)
 router.include_router(playbooks.router)

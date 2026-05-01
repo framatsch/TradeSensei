@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import require_portfolio_owner
@@ -20,6 +20,13 @@ router = APIRouter(
     tags=["metrics"],
     dependencies=[Depends(require_portfolio_owner)],
 )
+
+_METRICS_SUNSET = "Sat, 01 Nov 2026 00:00:00 GMT"
+
+
+def _set_deprecation_headers(response: Response) -> None:
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = _METRICS_SUNSET
 
 
 def _get_service(
@@ -78,11 +85,13 @@ def _get_service(
             )
         },
     },
+    deprecated=True,
 )
 async def get_metrics_summary(
     portfolio_id: uuid.UUID,
     service: Annotated[MetricsService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
+    response: Response,
     account_id: Annotated[
         uuid.UUID | None,
         Query(
@@ -156,6 +165,7 @@ async def get_metrics_summary(
         HTTPException: 401 if the Bearer token is missing, expired, or
             otherwise invalid.
     """
+    _set_deprecation_headers(response)
     try:
         summary = await service.get_summary(
             user_id=current_user.id,
@@ -213,11 +223,13 @@ async def get_metrics_summary(
             )
         },
     },
+    deprecated=True,
 )
 async def get_equity_curve(
     portfolio_id: uuid.UUID,
     service: Annotated[MetricsService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
+    response: Response,
     account_id: Annotated[
         uuid.UUID | None,
         Query(
@@ -289,6 +301,7 @@ async def get_equity_curve(
         HTTPException: 401 if the Bearer token is missing, expired, or
             otherwise invalid.
     """
+    _set_deprecation_headers(response)
     try:
         curve = await service.get_equity_curve(
             user_id=current_user.id,
@@ -351,11 +364,13 @@ async def get_equity_curve(
             )
         },
     },
+    deprecated=True,
 )
 async def get_drawdown_curve(
     portfolio_id: uuid.UUID,
     service: Annotated[MetricsService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
+    response: Response,
     account_id: Annotated[
         uuid.UUID | None,
         Query(
@@ -429,6 +444,7 @@ async def get_drawdown_curve(
         HTTPException: 401 if the Bearer token is missing, expired, or
             otherwise invalid.
     """
+    _set_deprecation_headers(response)
     try:
         curve = await service.get_drawdown_curve(
             user_id=current_user.id,
