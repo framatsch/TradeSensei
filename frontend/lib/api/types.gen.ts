@@ -4103,1054 +4103,1580 @@ export type app__schemas__metrics__EquityCurvePoint = {
 
 export type HealthHealthGetResponse = (ResponseEnvelope_dict_str__str__);
 
+export type HealthHealthGetError = unknown;
+
 export type GetConfigApiV1AuthConfigGetResponse = (AuthConfigResponse);
 
+export type GetConfigApiV1AuthConfigGetError = unknown;
+
 export type RegisterApiV1AuthRegisterPostData = {
-    requestBody: UserCreate;
+    body: UserCreate;
 };
 
 export type RegisterApiV1AuthRegisterPostResponse = (ResponseEnvelope_UserRead_);
 
+export type RegisterApiV1AuthRegisterPostError = (unknown);
+
 export type LoginApiV1AuthTokenPostData = {
-    formData: Body_login_api_v1_auth_token_post;
+    body: Body_login_api_v1_auth_token_post;
 };
 
 export type LoginApiV1AuthTokenPostResponse = (TokenResponse);
 
-export type RefreshTokenApiV1AuthRefreshPostData = {
-    refreshToken?: (string | null);
-};
+export type LoginApiV1AuthTokenPostError = (unknown);
+
+export type RefreshTokenApiV1AuthRefreshPostData = unknown;
 
 export type RefreshTokenApiV1AuthRefreshPostResponse = (TokenResponse);
 
+export type RefreshTokenApiV1AuthRefreshPostError = (unknown | HTTPValidationError);
+
 export type LogoutApiV1AuthLogoutPostResponse = (void);
 
+export type LogoutApiV1AuthLogoutPostError = (unknown);
+
 export type GoogleExchangeApiV1AuthGoogleExchangePostData = {
-    requestBody: OAuthExchangeRequest;
+    body: OAuthExchangeRequest;
 };
 
 export type GoogleExchangeApiV1AuthGoogleExchangePostResponse = (TokenResponse);
 
+export type GoogleExchangeApiV1AuthGoogleExchangePostError = (unknown);
+
 export type ForgotPasswordApiV1AuthForgotPasswordPostData = {
-    requestBody: ForgotPasswordRequest;
+    body: ForgotPasswordRequest;
 };
 
 export type ForgotPasswordApiV1AuthForgotPasswordPostResponse = ({
     [key: string]: (string);
 });
 
+export type ForgotPasswordApiV1AuthForgotPasswordPostError = (HTTPValidationError | unknown);
+
 export type ResetPasswordApiV1AuthResetPasswordPostData = {
-    requestBody: ResetPasswordRequest;
+    body: ResetPasswordRequest;
 };
 
 export type ResetPasswordApiV1AuthResetPasswordPostResponse = ({
     [key: string]: (string);
 });
 
+export type ResetPasswordApiV1AuthResetPasswordPostError = (unknown);
+
 export type OidcExchangeApiV1AuthOidcExchangePostData = {
-    requestBody: OAuthExchangeRequest;
+    body: OAuthExchangeRequest;
 };
 
 export type OidcExchangeApiV1AuthOidcExchangePostResponse = (TokenResponse);
 
+export type OidcExchangeApiV1AuthOidcExchangePostError = (HTTPValidationError);
+
 export type GetMeApiV1UsersMeGetResponse = (ResponseEnvelope_UserRead_);
+
+export type GetMeApiV1UsersMeGetError = (unknown);
 
 export type DeleteMeApiV1UsersMeDeleteResponse = (void);
 
+export type DeleteMeApiV1UsersMeDeleteError = (unknown);
+
 export type UpdateMeApiV1UsersMePatchData = {
-    requestBody: UserUpdate;
+    body: UserUpdate;
 };
 
 export type UpdateMeApiV1UsersMePatchResponse = (ResponseEnvelope_UserRead_);
 
+export type UpdateMeApiV1UsersMePatchError = (unknown);
+
 export type GetSettingsApiV1UsersMeSettingsGetResponse = (ResponseEnvelope_UserSettingsRead_);
 
+export type GetSettingsApiV1UsersMeSettingsGetError = (unknown);
+
 export type UpdateSettingsApiV1UsersMeSettingsPutData = {
-    requestBody: UserSettingsUpdate;
+    body: UserSettingsUpdate;
 };
 
 export type UpdateSettingsApiV1UsersMeSettingsPutResponse = (ResponseEnvelope_UserSettingsRead_);
 
+export type UpdateSettingsApiV1UsersMeSettingsPutError = (unknown);
+
 export type ListPortfoliosApiV1PortfoliosGetResponse = (ResponseEnvelope_list_PortfolioRead__);
 
+export type ListPortfoliosApiV1PortfoliosGetError = unknown;
+
 export type CreatePortfolioApiV1PortfoliosPostData = {
-    requestBody: PortfolioCreate;
+    body: PortfolioCreate;
 };
 
 export type CreatePortfolioApiV1PortfoliosPostResponse = (ResponseEnvelope_PortfolioRead_);
 
+export type CreatePortfolioApiV1PortfoliosPostError = (HTTPValidationError);
+
 export type GetPortfolioApiV1PortfoliosPortfolioIdGetData = {
-    portfolioId: string;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type GetPortfolioApiV1PortfoliosPortfolioIdGetResponse = (ResponseEnvelope_PortfolioRead_);
 
+export type GetPortfolioApiV1PortfoliosPortfolioIdGetError = (HTTPValidationError);
+
 export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchData = {
-    portfolioId: string;
-    requestBody: PortfolioUpdate;
+    body: PortfolioUpdate;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchResponse = (ResponseEnvelope_PortfolioRead_);
 
+export type UpdatePortfolioApiV1PortfoliosPortfolioIdPatchError = (HTTPValidationError);
+
 export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteData = {
-    portfolioId: string;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteResponse = (void);
 
+export type DeletePortfolioApiV1PortfoliosPortfolioIdDeleteError = (HTTPValidationError);
+
 export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetData = {
-    portfolioId: string;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetResponse = (ResponseEnvelope_CursorPage_AccountRead__);
 
+export type ListAccountsApiV1PortfoliosPortfolioIdAccountsGetError = (unknown | HTTPValidationError);
+
 export type CreateAccountApiV1PortfoliosPortfolioIdAccountsPostData = {
-    portfolioId: string;
-    requestBody: AccountCreate;
+    body: AccountCreate;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type CreateAccountApiV1PortfoliosPortfolioIdAccountsPostResponse = (ResponseEnvelope_AccountRead_);
 
+export type CreateAccountApiV1PortfoliosPortfolioIdAccountsPostError = (unknown);
+
 export type GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetData = {
-    accountId: string;
-    portfolioId: string;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetResponse = (ResponseEnvelope_AccountRead_);
 
+export type GetAccountApiV1PortfoliosPortfolioIdAccountsAccountIdGetError = (unknown);
+
 export type UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchData = {
-    accountId: string;
-    portfolioId: string;
-    requestBody: AccountUpdate;
+    body: AccountUpdate;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchResponse = (ResponseEnvelope_AccountRead_);
 
+export type UpdateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatchError = (unknown);
+
 export type DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteData = {
-    accountId: string;
-    portfolioId: string;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteResponse = (void);
 
+export type DeleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDeleteError = (unknown);
+
 export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetData = {
-    accountId: string;
-    portfolioId: string;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetResponse = (ResponseEnvelope_AccountMetrics_);
 
+export type GetAccountMetricsApiV1PortfoliosPortfolioIdAccountsAccountIdMetricsGetError = (unknown | HTTPValidationError);
+
 export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetData = {
-    /**
-     * When true, include soft-deleted executions in the response. Defaults to false. This is useful to inspect split lineage, because original parent executions are soft-deleted after split allocation.
-     */
-    includeDeleted?: boolean;
-    portfolioId: string;
-    tradeId: string;
+    path: {
+        portfolio_id: string;
+        trade_id: string;
+    };
+    query?: {
+        /**
+         * When true, include soft-deleted executions in the response. Defaults to false. This is useful to inspect split lineage, because original parent executions are soft-deleted after split allocation.
+         */
+        include_deleted?: boolean;
+    };
 };
 
 export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetResponse = (ResponseEnvelope_list_LogicalExecutionRead__);
 
+export type ListTradeExecutionsApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsGetError = (HTTPValidationError);
+
 export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostData = {
-    portfolioId: string;
-    requestBody: LogicalExecutionCreate;
-    tradeId: string;
+    body: LogicalExecutionCreate;
+    path: {
+        portfolio_id: string;
+        trade_id: string;
+    };
 };
 
 export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostResponse = (ResponseEnvelope_LogicalExecutionRead_);
 
+export type CreateManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecutionsPostError = (HTTPValidationError);
+
 export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchData = {
-    executionId: string;
-    portfolioId: string;
-    requestBody: LogicalExecutionUpdate;
+    body: LogicalExecutionUpdate;
+    path: {
+        execution_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchResponse = (ResponseEnvelope_LogicalExecutionRead_);
 
+export type UpdateExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdPatchError = (HTTPValidationError);
+
 export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteData = {
-    executionId: string;
-    portfolioId: string;
+    path: {
+        execution_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteResponse = (ResponseEnvelope_LogicalExecutionRead_ | void);
 
+export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDeleteError = (unknown | HTTPValidationError);
+
 export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostData = {
-    executionId: string;
-    portfolioId: string;
+    path: {
+        execution_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponse = (ResponseEnvelope_LogicalExecutionRead_);
 
+export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostError = (unknown | HTTPValidationError);
+
 export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostData = {
-    executionId: string;
-    portfolioId: string;
-    requestBody: SplitExecutionRequest;
+    body: SplitExecutionRequest;
+    path: {
+        execution_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostResponse = (ResponseEnvelope_SplitExecutionResponse_);
 
+export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostError = (unknown | HTTPValidationError);
+
 export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostData = {
-    portfolioId: string;
-    requestBody: MergeExecutionsRequest;
+    body: MergeExecutionsRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostResponse = (ResponseEnvelope_MergeExecutionsResponse_);
 
+export type MergeExecutionsApiV1PortfoliosPortfolioIdExecutionsMergePostError = (unknown | HTTPValidationError);
+
 export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostData = {
-    executionId: string;
-    portfolioId: string;
-    requestBody: ReassignExecutionRequest;
+    body: ReassignExecutionRequest;
+    path: {
+        execution_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostResponse = (ResponseEnvelope_ReassignExecutionResponse_);
 
+export type ReassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPostError = (HTTPValidationError);
+
 export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostData = {
-    executionId: string;
-    portfolioId: string;
+    path: {
+        execution_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostResponse = (ResponseEnvelope_TradeRead_);
 
+export type DetachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPostError = (HTTPValidationError);
+
 export type BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostData = {
-    portfolioId: string;
-    requestBody: BulkDeleteRequest;
+    body: BulkDeleteRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostResponse = (ResponseEnvelope_BulkDeleteResponse_);
 
+export type BulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePostError = (unknown);
+
 export type BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostData = {
-    portfolioId: string;
-    requestBody: BulkAssignTagsRequest;
+    body: BulkAssignTagsRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostResponse = (ResponseEnvelope_BulkUpdateResponse_);
 
+export type BulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPostError = (unknown);
+
 export type BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostData = {
-    portfolioId: string;
-    requestBody: BulkAssignPlaybookRequest;
+    body: BulkAssignPlaybookRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostResponse = (ResponseEnvelope_BulkUpdateResponse_);
 
+export type BulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPostError = (unknown);
+
 export type CreateTradeApiV1PortfoliosPortfolioIdTradesPostData = {
-    portfolioId: string;
-    requestBody: TradeCreateRequest;
+    body: TradeCreateRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type CreateTradeApiV1PortfoliosPortfolioIdTradesPostResponse = (ResponseEnvelope_TradeRead_);
 
+export type CreateTradeApiV1PortfoliosPortfolioIdTradesPostError = (unknown);
+
 export type ListTradesApiV1PortfoliosPortfolioIdTradesGetData = {
-    accountId?: (string | null);
-    assetClass?: (AssetClass | null);
-    closedAtFrom?: (string | null);
-    closedAtTo?: (string | null);
-    /**
-     * Opaque pagination cursor from a previous response
-     */
-    cursor?: (string | null);
-    dayOfWeek?: (number | null);
-    direction?: (Direction | null);
-    hourOfDay?: (number | null);
-    /**
-     * When true, include the total row count across all pages. Adds a COUNT(*) query; omit for best performance.
-     */
-    includeTotal?: boolean;
-    /**
-     * Number of items per page
-     */
-    limit?: number;
-    openedAtFrom?: (string | null);
-    openedAtTo?: (string | null);
-    playbookId?: (string | null);
-    pnlPositive?: (boolean | null);
-    portfolioId: string;
-    positionId?: (string | null);
-    requestBody?: (Array<(string)> | null);
-    sortBy?: TradeSortField;
-    sortDir?: 'asc' | 'desc';
-    status?: ('open' | 'closed' | null);
-    symbol?: (string | null);
-    tagFilterMode?: 'and' | 'or';
-    /**
-     * Filter trades by tag UUIDs (OR logic: returns trades with any of the given tags)
-     */
-    tagIds?: (Array<(string)> | null);
+    body?: (Array<(string)> | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        account_id?: (string | null);
+        asset_class?: (AssetClass | null);
+        closed_at_from?: (string | null);
+        closed_at_to?: (string | null);
+        /**
+         * Opaque pagination cursor from a previous response
+         */
+        cursor?: (string | null);
+        day_of_week?: (number | null);
+        direction?: (Direction | null);
+        hour_of_day?: (number | null);
+        /**
+         * When true, include the total row count across all pages. Adds a COUNT(*) query; omit for best performance.
+         */
+        include_total?: boolean;
+        /**
+         * Number of items per page
+         */
+        limit?: number;
+        opened_at_from?: (string | null);
+        opened_at_to?: (string | null);
+        playbook_id?: (string | null);
+        pnl_positive?: (boolean | null);
+        position_id?: (string | null);
+        sort_by?: TradeSortField;
+        sort_dir?: 'asc' | 'desc';
+        status?: ('open' | 'closed' | null);
+        symbol?: (string | null);
+        tag_filter_mode?: 'and' | 'or';
+        /**
+         * Filter trades by tag UUIDs (OR logic: returns trades with any of the given tags)
+         */
+        tag_ids?: (Array<(string)> | null);
+    };
 };
 
 export type ListTradesApiV1PortfoliosPortfolioIdTradesGetResponse = (ResponseEnvelope_CursorPage_TradeRead__);
 
+export type ListTradesApiV1PortfoliosPortfolioIdTradesGetError = (unknown);
+
 export type GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetData = {
-    portfolioId: string;
-    tradeId: string;
+    path: {
+        portfolio_id: string;
+        trade_id: string;
+    };
 };
 
 export type GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetResponse = (ResponseEnvelope_TradeRead_);
 
+export type GetTradeApiV1PortfoliosPortfolioIdTradesTradeIdGetError = (unknown);
+
 export type UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchData = {
-    portfolioId: string;
-    requestBody: TradeUpdate;
-    tradeId: string;
+    body: TradeUpdate;
+    path: {
+        portfolio_id: string;
+        trade_id: string;
+    };
 };
 
 export type UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchResponse = (ResponseEnvelope_TradeRead_);
 
+export type UpdateTradeApiV1PortfoliosPortfolioIdTradesTradeIdPatchError = (unknown);
+
 export type DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteData = {
-    portfolioId: string;
-    tradeId: string;
+    path: {
+        portfolio_id: string;
+        trade_id: string;
+    };
 };
 
 export type DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteResponse = (void);
 
+export type DeleteTradeApiV1PortfoliosPortfolioIdTradesTradeIdDeleteError = (unknown);
+
 export type PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostData = {
-    portfolioId: string;
-    requestBody: TradePartialCloseRequest;
-    tradeId: string;
+    body: TradePartialCloseRequest;
+    path: {
+        portfolio_id: string;
+        trade_id: string;
+    };
 };
 
 export type PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostResponse = (ResponseEnvelope_TradeRead_);
 
+export type PartialCloseTradeApiV1PortfoliosPortfolioIdTradesTradeIdPartialClosePostError = (unknown);
+
 export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostData = {
-    portfolioId: string;
-    requestBody: MergeTradesRequest;
+    body: MergeTradesRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponse = (ResponseEnvelope_TradeRead_);
 
+export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostError = (HTTPValidationError);
+
 export type GetTradeImageUploadUrlApiV1TradesUploadUrlPostData = {
-    requestBody: TradeImageUploadUrlRequest;
+    body: TradeImageUploadUrlRequest;
 };
 
 export type GetTradeImageUploadUrlApiV1TradesUploadUrlPostResponse = (ResponseEnvelope_TradeImageUploadUrlResponse_);
 
+export type GetTradeImageUploadUrlApiV1TradesUploadUrlPostError = (unknown);
+
 export type GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetData = {
-    /**
-     * Optional account UUID to restrict metrics to a single account. When omitted, all accounts belonging to the user are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Starting capital used as the equity baseline for the equity and drawdown curves. Defaults to zero, which means the curves show cumulative PnL only.
-     */
-    startingCapital?: (number | string);
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict metrics to a single account. When omitted, all accounts belonging to the user are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Starting capital used as the equity baseline for the equity and drawdown curves. Defaults to zero, which means the curves show cumulative PnL only.
+         */
+        starting_capital?: (number | string);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetResponse = (ResponseEnvelope_MetricsSummary_);
 
+export type GetMetricsSummaryApiV1PortfoliosPortfolioIdMetricsSummaryGetError = (unknown);
+
 export type GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetData = {
-    /**
-     * Optional account UUID to restrict the curve to a single account. When omitted, trades from all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Starting capital used as the equity baseline. The first point's ``equity`` value equals ``starting_capital + first_trade_pnl``. Defaults to zero.
-     */
-    startingCapital?: (number | string);
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict the curve to a single account. When omitted, trades from all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Starting capital used as the equity baseline. The first point's ``equity`` value equals ``starting_capital + first_trade_pnl``. Defaults to zero.
+         */
+        starting_capital?: (number | string);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetResponse = (ResponseEnvelope_list_EquityCurvePoint__);
 
+export type GetEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGetError = (unknown);
+
 export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetData = {
-    /**
-     * Optional account UUID to restrict the drawdown curve to a single account. When omitted, all accounts belonging to the user are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Starting capital used to seed the equity peak baseline. A higher value reduces the measured drawdown depth when early losses are small relative to capital. Defaults to zero.
-     */
-    startingCapital?: (number | string);
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict the drawdown curve to a single account. When omitted, all accounts belonging to the user are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Starting capital used to seed the equity peak baseline. A higher value reduces the measured drawdown depth when early losses are small relative to capital. Defaults to zero.
+         */
+        starting_capital?: (number | string);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetResponse = (ResponseEnvelope_list_DrawdownPoint__);
 
+export type GetDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGetError = (unknown);
+
 export type CreateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsPostData = {
-    portfolioId: string;
-    requestBody: SavedDashboardViewCreate;
+    body: SavedDashboardViewCreate;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type CreateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsPostResponse = (ResponseEnvelope_SavedDashboardViewRead_);
 
+export type CreateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsPostError = (HTTPValidationError);
+
 export type ListSavedDashboardViewsApiV1PortfoliosPortfolioIdViewsGetData = {
-    portfolioId: string;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type ListSavedDashboardViewsApiV1PortfoliosPortfolioIdViewsGetResponse = (ResponseEnvelope_list_SavedDashboardViewRead__);
 
+export type ListSavedDashboardViewsApiV1PortfoliosPortfolioIdViewsGetError = (HTTPValidationError);
+
 export type GetSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdGetData = {
-    portfolioId: string;
-    viewId: string;
+    path: {
+        portfolio_id: string;
+        view_id: string;
+    };
 };
 
 export type GetSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdGetResponse = (ResponseEnvelope_SavedDashboardViewRead_);
 
+export type GetSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdGetError = (HTTPValidationError);
+
 export type UpdateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdPatchData = {
-    portfolioId: string;
-    requestBody: SavedDashboardViewUpdate;
-    viewId: string;
+    body: SavedDashboardViewUpdate;
+    path: {
+        portfolio_id: string;
+        view_id: string;
+    };
 };
 
 export type UpdateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdPatchResponse = (ResponseEnvelope_SavedDashboardViewRead_);
 
+export type UpdateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdPatchError = (HTTPValidationError);
+
 export type DeleteSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdDeleteData = {
-    portfolioId: string;
-    viewId: string;
+    path: {
+        portfolio_id: string;
+        view_id: string;
+    };
 };
 
 export type DeleteSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdDeleteResponse = (void);
 
+export type DeleteSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdDeleteError = (HTTPValidationError);
+
 export type GetAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPostData = {
-    portfolioId: string;
-    requestBody: AnalyticsSummaryRequest;
+    body: AnalyticsSummaryRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type GetAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPostResponse = (ResponseEnvelope_AnalyticsSummary_);
 
+export type GetAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPostError = (HTTPValidationError);
+
 export type GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetData = {
-    /**
-     * Optional inclusive start date for trade close date filter.
-     */
-    fromDate?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional inclusive end date for trade close date filter.
-     */
-    toDate?: (string | null);
-    /**
-     * Optional saved dashboard view ID to reuse filter config.
-     */
-    viewId?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional inclusive start date for trade close date filter.
+         */
+        from_date?: (string | null);
+        /**
+         * Optional inclusive end date for trade close date filter.
+         */
+        to_date?: (string | null);
+        /**
+         * Optional saved dashboard view ID to reuse filter config.
+         */
+        view_id?: (string | null);
+    };
 };
 
 export type GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetResponse = (ResponseEnvelope_AttributionResponse_);
 
+export type GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetError = (HTTPValidationError);
+
 export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostData = {
-    formData: Body_upload_import_api_v1_portfolios__portfolio_id__imports_upload_post;
-    portfolioId: string;
+    body: Body_upload_import_api_v1_portfolios__portfolio_id__imports_upload_post;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostResponse = (ResponseEnvelope_ImportResult_);
 
+export type UploadImportApiV1PortfoliosPortfolioIdImportsUploadPostError = (unknown);
+
 export type FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostData = {
-    accountId: string;
-    formData: Body_fresh_start_import_api_v1_portfolios__portfolio_id__imports__account_id__fresh_start_post;
-    portfolioId: string;
+    body: Body_fresh_start_import_api_v1_portfolios__portfolio_id__imports__account_id__fresh_start_post;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostResponse = (ResponseEnvelope_FreshStartResult_);
 
+export type FreshStartImportApiV1PortfoliosPortfolioIdImportsAccountIdFreshStartPostError = (unknown);
+
 export type ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostData = {
-    /**
-     * UUID of the Schwab account to import into.
-     */
-    accountId: string;
-    portfolioId: string;
-    requestBody: Array<{
+    body: Array<{
         [key: string]: unknown;
     }>;
+    path: {
+        portfolio_id: string;
+    };
+    query: {
+        /**
+         * UUID of the Schwab account to import into.
+         */
+        account_id: string;
+    };
 };
 
 export type ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostResponse = (ResponseEnvelope_ImportResult_);
 
+export type ImportSchwabJsonApiV1PortfoliosPortfolioIdImportsSchwabJsonPostError = (unknown);
+
 export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchData = {
-    portfolioId: string;
-    rawId: string;
-    /**
-     * New value for the suppressed flag. True to suppress, False to restore.
-     */
-    suppressed?: boolean;
+    path: {
+        portfolio_id: string;
+        raw_id: string;
+    };
+    query?: {
+        /**
+         * New value for the suppressed flag. True to suppress, False to restore.
+         */
+        suppressed?: boolean;
+    };
 };
 
 export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchResponse = (ResponseEnvelope_BrokerRawTransactionRead_);
 
+export type SuppressRawTransactionApiV1PortfoliosPortfolioIdImportsBrokerRawTransactionsRawIdSuppressPatchError = (unknown | HTTPValidationError);
+
 export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostData = {
-    portfolioId: string;
-    requestBody: FlexImportRequest;
+    body: FlexImportRequest;
+    path: {
+        portfolio_id: string;
+    };
 };
 
 export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostResponse = (ResponseEnvelope_ImportResult_);
 
+export type FlexImportApiV1PortfoliosPortfolioIdImportsFlexPostError = (unknown | HTTPValidationError);
+
 export type GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetData = {
-    /**
-     * Optional account UUID to restrict results to a single account. When omitted, trades from all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict results to a single account. When omitted, trades from all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetResponse = (ResponseEnvelope_list_DailyPnl__);
 
+export type GetDailyPnlApiV1PortfoliosPortfolioIdTimeseriesDailyPnlGetError = (unknown);
+
 export type GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetData = {
-    /**
-     * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetResponse = (ResponseEnvelope_list_MonthlyPnl__);
 
+export type GetMonthlyPnlApiV1PortfoliosPortfolioIdTimeseriesMonthlyPnlGetError = (unknown);
+
 export type GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetData = {
-    /**
-     * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetResponse = (ResponseEnvelope_list_PnlBySymbol__);
 
+export type GetPnlBySymbolApiV1PortfoliosPortfolioIdTimeseriesPnlBySymbolGetError = (unknown);
+
 export type GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetData = {
-    /**
-     * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetResponse = (ResponseEnvelope_list_PnlByAssetClass__);
 
+export type GetPnlByAssetClassApiV1PortfoliosPortfolioIdTimeseriesPnlByAssetClassGetError = (unknown);
+
 export type GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetData = {
-    /**
-     * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Number of equal-width histogram bins. Must be between 5 and 100. Defaults to 20.
-     */
-    buckets?: number;
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Number of equal-width histogram bins. Must be between 5 and 100. Defaults to 20.
+         */
+        buckets?: number;
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetResponse = (ResponseEnvelope_list_ReturnDistribution__);
 
+export type GetReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGetError = (unknown);
+
 export type GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetData = {
-    /**
-     * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
-    /**
-     * Sliding window size in number of trades. Must be between 5 and 100. Defaults to 20.
-     */
-    windowTrades?: number;
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+        /**
+         * Sliding window size in number of trades. Must be between 5 and 100. Defaults to 20.
+         */
+        window_trades?: number;
+    };
 };
 
 export type GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetResponse = (ResponseEnvelope_list_RollingWinratePoint__);
 
+export type GetRollingWinrateApiV1PortfoliosPortfolioIdTimeseriesRollingWinrateGetError = (unknown);
+
 export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetData = {
-    /**
-     * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
-     */
-    accountId?: (string | null);
-    /**
-     * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
-     */
-    fromDt?: (string | null);
-    portfolioId: string;
-    /**
-     * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
-     */
-    toDt?: (string | null);
+    path: {
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Optional account UUID to restrict results to a single account. When omitted, all of the user's accounts are included.
+         */
+        account_id?: (string | null);
+        /**
+         * Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied.
+         */
+        from_dt?: (string | null);
+        /**
+         * Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied.
+         */
+        to_dt?: (string | null);
+    };
 };
 
 export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetResponse = (ResponseEnvelope_list_MonthlyWinratePoint__);
 
+export type GetMonthlyWinrateApiV1PortfoliosPortfolioIdTimeseriesMonthlyWinrateGetError = (unknown | HTTPValidationError);
+
 export type ListPlaybooksApiV1PlaybooksGetResponse = (ResponseEnvelope_list_PlaybookRead__);
 
+export type ListPlaybooksApiV1PlaybooksGetError = (unknown);
+
 export type CreatePlaybookApiV1PlaybooksPostData = {
-    requestBody: PlaybookCreate;
+    body: PlaybookCreate;
 };
 
 export type CreatePlaybookApiV1PlaybooksPostResponse = (ResponseEnvelope_PlaybookRead_);
 
+export type CreatePlaybookApiV1PlaybooksPostError = (unknown);
+
 export type GetPlaybookApiV1PlaybooksPlaybookIdGetData = {
-    playbookId: string;
+    path: {
+        playbook_id: string;
+    };
 };
 
 export type GetPlaybookApiV1PlaybooksPlaybookIdGetResponse = (ResponseEnvelope_PlaybookRead_);
 
+export type GetPlaybookApiV1PlaybooksPlaybookIdGetError = (unknown);
+
 export type UpdatePlaybookApiV1PlaybooksPlaybookIdPatchData = {
-    playbookId: string;
-    requestBody: PlaybookUpdate;
+    body: PlaybookUpdate;
+    path: {
+        playbook_id: string;
+    };
 };
 
 export type UpdatePlaybookApiV1PlaybooksPlaybookIdPatchResponse = (ResponseEnvelope_PlaybookRead_);
 
+export type UpdatePlaybookApiV1PlaybooksPlaybookIdPatchError = (unknown);
+
 export type DeletePlaybookApiV1PlaybooksPlaybookIdDeleteData = {
-    playbookId: string;
+    path: {
+        playbook_id: string;
+    };
 };
 
 export type DeletePlaybookApiV1PlaybooksPlaybookIdDeleteResponse = (void);
 
+export type DeletePlaybookApiV1PlaybooksPlaybookIdDeleteError = (unknown);
+
 export type ListTagsApiV1TagsGetResponse = (ResponseEnvelope_list_TagRead__);
 
+export type ListTagsApiV1TagsGetError = (unknown);
+
 export type CreateTagApiV1TagsPostData = {
-    requestBody: TagCreate;
+    body: TagCreate;
 };
 
 export type CreateTagApiV1TagsPostResponse = (ResponseEnvelope_TagRead_);
 
+export type CreateTagApiV1TagsPostError = (unknown);
+
 export type GetTagApiV1TagsTagIdGetData = {
-    tagId: string;
+    path: {
+        tag_id: string;
+    };
 };
 
 export type GetTagApiV1TagsTagIdGetResponse = (ResponseEnvelope_TagRead_);
 
+export type GetTagApiV1TagsTagIdGetError = (unknown);
+
 export type UpdateTagApiV1TagsTagIdPatchData = {
-    requestBody: TagUpdate;
-    tagId: string;
+    body: TagUpdate;
+    path: {
+        tag_id: string;
+    };
 };
 
 export type UpdateTagApiV1TagsTagIdPatchResponse = (ResponseEnvelope_TagRead_);
 
+export type UpdateTagApiV1TagsTagIdPatchError = (unknown);
+
 export type DeleteTagApiV1TagsTagIdDeleteData = {
-    tagId: string;
+    path: {
+        tag_id: string;
+    };
 };
 
 export type DeleteTagApiV1TagsTagIdDeleteResponse = (void);
 
+export type DeleteTagApiV1TagsTagIdDeleteError = (unknown);
+
 export type ListNotesApiV1TradesTradeIdNotesGetData = {
-    tradeId: string;
+    path: {
+        trade_id: string;
+    };
 };
 
 export type ListNotesApiV1TradesTradeIdNotesGetResponse = (ResponseEnvelope_list_TradeNoteRead__);
 
+export type ListNotesApiV1TradesTradeIdNotesGetError = (unknown);
+
 export type CreateNoteApiV1TradesTradeIdNotesPostData = {
-    requestBody: TradeNoteCreate;
-    tradeId: string;
+    body: TradeNoteCreate;
+    path: {
+        trade_id: string;
+    };
 };
 
 export type CreateNoteApiV1TradesTradeIdNotesPostResponse = (ResponseEnvelope_TradeNoteRead_);
 
+export type CreateNoteApiV1TradesTradeIdNotesPostError = (unknown);
+
 export type UpdateNoteApiV1TradesTradeIdNotesNoteIdPatchData = {
-    noteId: string;
-    requestBody: TradeNoteUpdate;
-    tradeId: string;
+    body: TradeNoteUpdate;
+    path: {
+        note_id: string;
+        trade_id: string;
+    };
 };
 
 export type UpdateNoteApiV1TradesTradeIdNotesNoteIdPatchResponse = (ResponseEnvelope_TradeNoteRead_);
 
+export type UpdateNoteApiV1TradesTradeIdNotesNoteIdPatchError = (unknown);
+
 export type DeleteNoteApiV1TradesTradeIdNotesNoteIdDeleteData = {
-    noteId: string;
-    tradeId: string;
+    path: {
+        note_id: string;
+        trade_id: string;
+    };
 };
 
 export type DeleteNoteApiV1TradesTradeIdNotesNoteIdDeleteResponse = (void);
 
+export type DeleteNoteApiV1TradesTradeIdNotesNoteIdDeleteError = (unknown);
+
 export type UploadScreenshotApiV1TradesTradeIdScreenshotsPostData = {
-    formData: Body_upload_screenshot_api_v1_trades__trade_id__screenshots_post;
-    tradeId: string;
+    body: Body_upload_screenshot_api_v1_trades__trade_id__screenshots_post;
+    path: {
+        trade_id: string;
+    };
 };
 
 export type UploadScreenshotApiV1TradesTradeIdScreenshotsPostResponse = (ResponseEnvelope_TradeRead_);
 
+export type UploadScreenshotApiV1TradesTradeIdScreenshotsPostError = (HTTPValidationError);
+
 export type DeleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDeleteData = {
-    filename: string;
-    tradeId: string;
+    path: {
+        filename: string;
+        trade_id: string;
+    };
 };
 
 export type DeleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDeleteResponse = (ResponseEnvelope_TradeRead_);
 
+export type DeleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDeleteError = (HTTPValidationError);
+
 export type GetAnnualSummaryApiV1TaxAnnualSummaryGetData = {
-    /**
-     * Calendar year for which to compute the tax summary (e.g. ``2025``). Must be between 1900 and 2200.
-     */
-    year: number;
+    query: {
+        /**
+         * Calendar year for which to compute the tax summary (e.g. ``2025``). Must be between 1900 and 2200.
+         */
+        year: number;
+    };
 };
 
 export type GetAnnualSummaryApiV1TaxAnnualSummaryGetResponse = (ResponseEnvelope_TaxAnnualSummary_);
 
+export type GetAnnualSummaryApiV1TaxAnnualSummaryGetError = (unknown);
+
 export type GetAnnualSummaryCsvApiV1TaxAnnualSummaryCsvGetData = {
-    /**
-     * Calendar year for which to generate the CSV export (e.g. ``2025``). Must be between 1900 and 2200.
-     */
-    year: number;
+    query: {
+        /**
+         * Calendar year for which to generate the CSV export (e.g. ``2025``). Must be between 1900 and 2200.
+         */
+        year: number;
+    };
 };
 
 export type GetAnnualSummaryCsvApiV1TaxAnnualSummaryCsvGetResponse = (unknown);
 
+export type GetAnnualSummaryCsvApiV1TaxAnnualSummaryCsvGetError = (unknown);
+
 export type SyncAccountApiV1BrokerSyncAccountIdPostData = {
-    accountId: string;
-    /**
-     * Number of past days to include when from_date is omitted.
-     */
-    days?: number;
-    /**
-     * Optional YYYYMMDD start date that overrides days.
-     */
-    fromDate?: (string | null);
-    /**
-     * When true, overwrite trades marked as manually edited.
-     */
-    overwriteManuallyEdited?: boolean;
+    path: {
+        account_id: string;
+    };
+    query?: {
+        /**
+         * Number of past days to include when from_date is omitted.
+         */
+        days?: number;
+        /**
+         * Optional YYYYMMDD start date that overrides days.
+         */
+        from_date?: (string | null);
+        /**
+         * When true, overwrite trades marked as manually edited.
+         */
+        overwrite_manually_edited?: boolean;
+    };
 };
 
 export type SyncAccountApiV1BrokerSyncAccountIdPostResponse = (ResponseEnvelope_BrokerSyncResult_);
 
+export type SyncAccountApiV1BrokerSyncAccountIdPostError = (unknown | HTTPValidationError);
+
 export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostData = {
-    accountId: string;
-    portfolioId: string;
-    requestBody: CashTransactionCreateRequest;
+    body: CashTransactionCreateRequest;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+    };
 };
 
 export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostResponse = (ResponseEnvelope_CashTransactionRead_);
 
+export type CreateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsPostError = (HTTPValidationError);
+
 export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetData = {
-    accountId: string;
-    fromDate?: (string | null);
-    /**
-     * Maximum number of items to return.
-     */
-    limit?: number;
-    /**
-     * Number of items to skip before returning results.
-     */
-    offset?: number;
-    portfolioId: string;
-    symbol?: (string | null);
-    toDate?: (string | null);
-    type?: (CashTransactionType | null);
+    path: {
+        account_id: string;
+        portfolio_id: string;
+    };
+    query?: {
+        from_date?: (string | null);
+        /**
+         * Maximum number of items to return.
+         */
+        limit?: number;
+        /**
+         * Number of items to skip before returning results.
+         */
+        offset?: number;
+        symbol?: (string | null);
+        to_date?: (string | null);
+        type?: (CashTransactionType | null);
+    };
 };
 
 export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetResponse = (ResponseEnvelope_OffsetPage_CashTransactionRead__);
 
+export type ListCashTransactionsApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsGetError = (HTTPValidationError);
+
 export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetData = {
-    accountId: string;
-    portfolioId: string;
-    transactionId: string;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+        transaction_id: string;
+    };
 };
 
 export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetResponse = (ResponseEnvelope_CashTransactionRead_);
 
+export type GetCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdGetError = (HTTPValidationError);
+
 export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchData = {
-    accountId: string;
-    portfolioId: string;
-    requestBody: CashTransactionUpdate;
-    transactionId: string;
+    body: CashTransactionUpdate;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+        transaction_id: string;
+    };
 };
 
 export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchResponse = (ResponseEnvelope_CashTransactionRead_);
 
+export type UpdateCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdPatchError = (HTTPValidationError);
+
 export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteData = {
-    accountId: string;
-    portfolioId: string;
-    transactionId: string;
+    path: {
+        account_id: string;
+        portfolio_id: string;
+        transaction_id: string;
+    };
 };
 
 export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteResponse = (void);
 
+export type DeleteCashTransactionApiV1PortfoliosPortfolioIdAccountsAccountIdCashTransactionsTransactionIdDeleteError = (HTTPValidationError);
+
 export type DeprecatedTradesApiV1TradesTradeIdPartialClosePostResponse = (unknown);
+
+export type DeprecatedTradesApiV1TradesTradeIdPartialClosePostError = unknown;
 
 export type DeprecatedTradesGetResponse = (unknown);
 
+export type DeprecatedTradesGetError = unknown;
+
 export type DeprecatedTradesDeleteResponse = (unknown);
+
+export type DeprecatedTradesDeleteError = unknown;
 
 export type DeprecatedTradesPatchResponse = (unknown);
 
+export type DeprecatedTradesPatchError = unknown;
+
 export type DeprecatedTradesApiV1TradesMergePostResponse = (unknown);
+
+export type DeprecatedTradesApiV1TradesMergePostError = unknown;
 
 export type DeprecatedTradesApiV1TradesBulkAssignPlaybookPostResponse = (unknown);
 
+export type DeprecatedTradesApiV1TradesBulkAssignPlaybookPostError = unknown;
+
 export type DeprecatedTradesApiV1TradesBulkAssignTagsPostResponse = (unknown);
+
+export type DeprecatedTradesApiV1TradesBulkAssignTagsPostError = unknown;
 
 export type DeprecatedTradesApiV1TradesBulkDeletePostResponse = (unknown);
 
+export type DeprecatedTradesApiV1TradesBulkDeletePostError = unknown;
+
 export type DeprecatedTradesListResponse = (unknown);
+
+export type DeprecatedTradesListError = unknown;
 
 export type DeprecatedTradesCreateResponse = (unknown);
 
+export type DeprecatedTradesCreateError = unknown;
+
 export type DeprecatedMetricsApiV1MetricsDrawdownGetResponse = (unknown);
+
+export type DeprecatedMetricsApiV1MetricsDrawdownGetError = unknown;
 
 export type DeprecatedMetricsApiV1MetricsEquityCurveGetResponse = (unknown);
 
+export type DeprecatedMetricsApiV1MetricsEquityCurveGetError = unknown;
+
 export type DeprecatedMetricsApiV1MetricsSummaryGetResponse = (unknown);
+
+export type DeprecatedMetricsApiV1MetricsSummaryGetError = unknown;
 
 export type DeprecatedTimeseriesApiV1TimeseriesMonthlyWinrateGetResponse = (unknown);
 
+export type DeprecatedTimeseriesApiV1TimeseriesMonthlyWinrateGetError = unknown;
+
 export type DeprecatedTimeseriesApiV1TimeseriesRollingWinrateGetResponse = (unknown);
+
+export type DeprecatedTimeseriesApiV1TimeseriesRollingWinrateGetError = unknown;
 
 export type DeprecatedTimeseriesApiV1TimeseriesReturnDistributionGetResponse = (unknown);
 
+export type DeprecatedTimeseriesApiV1TimeseriesReturnDistributionGetError = unknown;
+
 export type DeprecatedTimeseriesApiV1TimeseriesPnlByAssetClassGetResponse = (unknown);
+
+export type DeprecatedTimeseriesApiV1TimeseriesPnlByAssetClassGetError = unknown;
 
 export type DeprecatedTimeseriesApiV1TimeseriesPnlBySymbolGetResponse = (unknown);
 
+export type DeprecatedTimeseriesApiV1TimeseriesPnlBySymbolGetError = unknown;
+
 export type DeprecatedTimeseriesApiV1TimeseriesMonthlyPnlGetResponse = (unknown);
+
+export type DeprecatedTimeseriesApiV1TimeseriesMonthlyPnlGetError = unknown;
 
 export type DeprecatedTimeseriesApiV1TimeseriesDailyPnlGetResponse = (unknown);
 
+export type DeprecatedTimeseriesApiV1TimeseriesDailyPnlGetError = unknown;
+
 export type DeprecatedImportsApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchResponse = (unknown);
+
+export type DeprecatedImportsApiV1ImportsBrokerRawTransactionsRawIdSuppressPatchError = unknown;
 
 export type DeprecatedImportsApiV1ImportsSchwabJsonPostResponse = (unknown);
 
+export type DeprecatedImportsApiV1ImportsSchwabJsonPostError = unknown;
+
 export type DeprecatedImportsApiV1ImportsFlexPostResponse = (unknown);
+
+export type DeprecatedImportsApiV1ImportsFlexPostError = unknown;
 
 export type DeprecatedImportsApiV1ImportsAccountIdFreshStartPostResponse = (unknown);
 
+export type DeprecatedImportsApiV1ImportsAccountIdFreshStartPostError = unknown;
+
 export type DeprecatedImportsApiV1ImportsUploadPostResponse = (unknown);
+
+export type DeprecatedImportsApiV1ImportsUploadPostError = unknown;
 
 export type DeprecatedAccountsApiV1AccountsAccountIdMetricsGetResponse = (unknown);
 
+export type DeprecatedAccountsApiV1AccountsAccountIdMetricsGetError = unknown;
+
 export type DeprecatedAccountsGetResponse = (unknown);
+
+export type DeprecatedAccountsGetError = unknown;
 
 export type DeprecatedAccountsDeleteResponse = (unknown);
 
+export type DeprecatedAccountsDeleteError = unknown;
+
 export type DeprecatedAccountsPatchResponse = (unknown);
+
+export type DeprecatedAccountsPatchError = unknown;
 
 export type DeprecatedAccountsListResponse = (unknown);
 
+export type DeprecatedAccountsListError = unknown;
+
 export type DeprecatedAccountsCreateResponse = (unknown);
+
+export type DeprecatedAccountsCreateError = unknown;
 
 export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDetachPostResponse = (unknown);
 
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDetachPostError = unknown;
+
 export type DeprecatedExecutionsApiV1ExecutionsExecutionIdReassignPostResponse = (unknown);
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdReassignPostError = unknown;
 
 export type DeprecatedExecutionsApiV1ExecutionsMergePostResponse = (unknown);
 
+export type DeprecatedExecutionsApiV1ExecutionsMergePostError = unknown;
+
 export type DeprecatedExecutionsApiV1ExecutionsExecutionIdSplitPostResponse = (unknown);
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdSplitPostError = unknown;
 
 export type DeprecatedExecutionsApiV1ExecutionsExecutionIdRestorePostResponse = (unknown);
 
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdRestorePostError = unknown;
+
 export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDeleteResponse = (unknown);
+
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdDeleteError = unknown;
 
 export type DeprecatedExecutionsApiV1ExecutionsExecutionIdPatchResponse = (unknown);
 
+export type DeprecatedExecutionsApiV1ExecutionsExecutionIdPatchError = unknown;
+
 export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsGetResponse = (unknown);
+
+export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsGetError = unknown;
 
 export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsPostResponse = (unknown);
 
+export type DeprecatedExecutionsApiV1TradesTradeIdExecutionsPostError = unknown;
+
 export type DeprecatedCashTransactionsGetResponse = (unknown);
+
+export type DeprecatedCashTransactionsGetError = unknown;
 
 export type DeprecatedCashTransactionsDeleteResponse = (unknown);
 
+export type DeprecatedCashTransactionsDeleteError = unknown;
+
 export type DeprecatedCashTransactionsPatchResponse = (unknown);
+
+export type DeprecatedCashTransactionsPatchError = unknown;
 
 export type DeprecatedCashTransactionsListResponse = (unknown);
 
+export type DeprecatedCashTransactionsListError = unknown;
+
 export type DeprecatedCashTransactionsCreateResponse = (unknown);
+
+export type DeprecatedCashTransactionsCreateError = unknown;
 
 export type ListCorporateActionsApiV1CorporateActionsGetResponse = (ResponseEnvelope_list_CorporateActionRead__);
 
+export type ListCorporateActionsApiV1CorporateActionsGetError = (unknown);
+
 export type CreateCorporateActionApiV1CorporateActionsPostData = {
-    requestBody: CorporateActionCreateRequest;
+    body: CorporateActionCreateRequest;
 };
 
 export type CreateCorporateActionApiV1CorporateActionsPostResponse = (ResponseEnvelope_CorporateActionRead_);
 
+export type CreateCorporateActionApiV1CorporateActionsPostError = (unknown);
+
 export type UpdateCorporateActionApiV1CorporateActionsCorporateActionIdPutData = {
-    corporateActionId: string;
-    requestBody: CorporateActionUpdate;
+    body: CorporateActionUpdate;
+    path: {
+        corporate_action_id: string;
+    };
 };
 
 export type UpdateCorporateActionApiV1CorporateActionsCorporateActionIdPutResponse = (ResponseEnvelope_CorporateActionRead_);
 
+export type UpdateCorporateActionApiV1CorporateActionsCorporateActionIdPutError = (unknown);
+
 export type DeleteCorporateActionApiV1CorporateActionsCorporateActionIdDeleteData = {
-    corporateActionId: string;
+    path: {
+        corporate_action_id: string;
+    };
 };
 
 export type DeleteCorporateActionApiV1CorporateActionsCorporateActionIdDeleteResponse = (void);
 
+export type DeleteCorporateActionApiV1CorporateActionsCorporateActionIdDeleteError = (unknown);
+
 export type GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetData = {
-    end?: (string | null);
-    interval?: string;
-    provider?: string;
-    secType?: (string | null);
-    start?: (string | null);
-    symbol: string;
+    path: {
+        symbol: string;
+    };
+    query?: {
+        end?: (string | null);
+        interval?: string;
+        provider?: string;
+        sec_type?: (string | null);
+        start?: (string | null);
+    };
 };
 
 export type GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetResponse = (OHLCResponse);
 
+export type GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetError = (HTTPValidationError);
+
 export type CreateCheckinFieldApiV1CheckinFieldsPostData = {
-    requestBody: CheckinFieldDefinitionCreate;
+    body: CheckinFieldDefinitionCreate;
 };
 
 export type CreateCheckinFieldApiV1CheckinFieldsPostResponse = (ResponseEnvelope_CheckinFieldDefinitionRead_);
 
+export type CreateCheckinFieldApiV1CheckinFieldsPostError = (HTTPValidationError);
+
 export type ListCheckinFieldsApiV1CheckinFieldsGetData = {
-    isActive?: (boolean | null);
+    query?: {
+        is_active?: (boolean | null);
+    };
 };
 
 export type ListCheckinFieldsApiV1CheckinFieldsGetResponse = (ResponseEnvelope_list_CheckinFieldDefinitionRead__);
 
+export type ListCheckinFieldsApiV1CheckinFieldsGetError = (HTTPValidationError);
+
 export type UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchData = {
-    fieldId: string;
-    requestBody: CheckinFieldDefinitionUpdate;
+    body: CheckinFieldDefinitionUpdate;
+    path: {
+        field_id: string;
+    };
 };
 
 export type UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchResponse = (ResponseEnvelope_CheckinFieldDefinitionRead_);
 
+export type UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchError = (HTTPValidationError);
+
 export type CreateMarketPhaseApiV1MarketPhasesPostData = {
-    requestBody: MarketPhaseDefinitionCreate;
+    body: MarketPhaseDefinitionCreate;
 };
 
 export type CreateMarketPhaseApiV1MarketPhasesPostResponse = (ResponseEnvelope_MarketPhaseDefinitionRead_);
 
+export type CreateMarketPhaseApiV1MarketPhasesPostError = (HTTPValidationError);
+
 export type ListMarketPhasesApiV1MarketPhasesGetData = {
-    isActive?: (boolean | null);
+    query?: {
+        is_active?: (boolean | null);
+    };
 };
 
 export type ListMarketPhasesApiV1MarketPhasesGetResponse = (ResponseEnvelope_list_MarketPhaseDefinitionRead__);
 
+export type ListMarketPhasesApiV1MarketPhasesGetError = (HTTPValidationError);
+
 export type UpdateMarketPhaseApiV1MarketPhasesPhaseIdPatchData = {
-    phaseId: string;
-    requestBody: MarketPhaseDefinitionUpdate;
+    body: MarketPhaseDefinitionUpdate;
+    path: {
+        phase_id: string;
+    };
 };
 
 export type UpdateMarketPhaseApiV1MarketPhasesPhaseIdPatchResponse = (ResponseEnvelope_MarketPhaseDefinitionRead_);
 
+export type UpdateMarketPhaseApiV1MarketPhasesPhaseIdPatchError = (HTTPValidationError);
+
 export type GenerateScreenshotUploadUrlApiV1CheckinsScreenshotUploadUrlPostData = {
-    requestBody: ScreenshotUploadUrlRequest;
+    body: ScreenshotUploadUrlRequest;
 };
 
 export type GenerateScreenshotUploadUrlApiV1CheckinsScreenshotUploadUrlPostResponse = (ResponseEnvelope_ScreenshotUploadUrlResponse_);
 
+export type GenerateScreenshotUploadUrlApiV1CheckinsScreenshotUploadUrlPostError = (HTTPValidationError);
+
 export type CreateCheckinApiV1CheckinsPostData = {
-    requestBody: DailyCheckinCreate;
+    body: DailyCheckinCreate;
 };
 
 export type CreateCheckinApiV1CheckinsPostResponse = (ResponseEnvelope_DailyCheckinRead_);
 
+export type CreateCheckinApiV1CheckinsPostError = (HTTPValidationError);
+
 export type ListCheckinsApiV1CheckinsGetData = {
-    cursor?: (string | null);
-    fromDate?: (string | null);
-    limit?: number;
-    toDate?: (string | null);
+    query?: {
+        cursor?: (string | null);
+        from_date?: (string | null);
+        limit?: number;
+        to_date?: (string | null);
+    };
 };
 
 export type ListCheckinsApiV1CheckinsGetResponse = (ResponseEnvelope_DailyCheckinListResponse_);
 
+export type ListCheckinsApiV1CheckinsGetError = (HTTPValidationError);
+
 export type GetCheckinApiV1CheckinsCheckinDateGetData = {
-    checkinDate: string;
+    path: {
+        checkin_date: string;
+    };
 };
 
 export type GetCheckinApiV1CheckinsCheckinDateGetResponse = (ResponseEnvelope_DailyCheckinRead_);
 
+export type GetCheckinApiV1CheckinsCheckinDateGetError = (HTTPValidationError);
+
 export type UpdateCheckinApiV1CheckinsCheckinDatePatchData = {
-    checkinDate: string;
-    requestBody: DailyCheckinUpdate;
+    body: DailyCheckinUpdate;
+    path: {
+        checkin_date: string;
+    };
 };
 
 export type UpdateCheckinApiV1CheckinsCheckinDatePatchResponse = (ResponseEnvelope_DailyCheckinRead_);
 
+export type UpdateCheckinApiV1CheckinsCheckinDatePatchError = (HTTPValidationError);
+
 export type DeleteCheckinApiV1CheckinsCheckinDateDeleteData = {
-    checkinDate: string;
+    path: {
+        checkin_date: string;
+    };
 };
 
 export type DeleteCheckinApiV1CheckinsCheckinDateDeleteResponse = (void);
 
+export type DeleteCheckinApiV1CheckinsCheckinDateDeleteError = (HTTPValidationError);
+
 export type ListTokensApiV1SettingsTokensGetResponse = (ResponseEnvelope_list_PatRead__);
 
+export type ListTokensApiV1SettingsTokensGetError = unknown;
+
 export type CreateTokenApiV1SettingsTokensPostData = {
-    requestBody: PatGenerateRequest;
+    body: PatGenerateRequest;
 };
 
 export type CreateTokenApiV1SettingsTokensPostResponse = (ResponseEnvelope_PatGenerateResponse_);
 
+export type CreateTokenApiV1SettingsTokensPostError = (HTTPValidationError);
+
 export type RevokeTokenApiV1SettingsTokensTokenIdDeleteData = {
-    tokenId: string;
+    path: {
+        token_id: string;
+    };
 };
 
 export type RevokeTokenApiV1SettingsTokensTokenIdDeleteResponse = (void);
 
+export type RevokeTokenApiV1SettingsTokensTokenIdDeleteError = (HTTPValidationError);
+
 export type ListSavedTradeFiltersApiV1SavedTradeFiltersGetResponse = (ResponseEnvelope_Sequence_SavedTradeFilterRead__);
 
+export type ListSavedTradeFiltersApiV1SavedTradeFiltersGetError = unknown;
+
 export type CreateSavedTradeFilterApiV1SavedTradeFiltersPostData = {
-    requestBody: SavedTradeFilterCreate;
+    body: SavedTradeFilterCreate;
 };
 
 export type CreateSavedTradeFilterApiV1SavedTradeFiltersPostResponse = (ResponseEnvelope_SavedTradeFilterRead_);
 
+export type CreateSavedTradeFilterApiV1SavedTradeFiltersPostError = (HTTPValidationError);
+
 export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchData = {
-    filterId: string;
-    requestBody: SavedTradeFilterUpdate;
+    body: SavedTradeFilterUpdate;
+    path: {
+        filter_id: string;
+    };
 };
 
 export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponse = (ResponseEnvelope_SavedTradeFilterRead_);
 
+export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchError = (HTTPValidationError);
+
 export type DeleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDeleteData = {
-    filterId: string;
+    path: {
+        filter_id: string;
+    };
 };
 
 export type DeleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDeleteResponse = (void);
 
+export type DeleteSavedTradeFilterApiV1SavedTradeFiltersFilterIdDeleteError = (HTTPValidationError);
+
 export type McpSseMcpSseGetResponse = (unknown);
 
+export type McpSseMcpSseGetError = (unknown);
+
 export type McpMessagesMcpMessagesPostData = {
-    requestBody: {
+    body: {
         [key: string]: unknown;
     };
 };
@@ -5158,3 +5684,5 @@ export type McpMessagesMcpMessagesPostData = {
 export type McpMessagesMcpMessagesPostResponse = ({
     [key: string]: unknown;
 });
+
+export type McpMessagesMcpMessagesPostError = (unknown | HTTPValidationError);

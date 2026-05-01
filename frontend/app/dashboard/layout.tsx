@@ -170,6 +170,7 @@ function buildNavItems(context: AppContext): NavItem[] {
           { kind: "leaf", href: "/dashboard/reports/calendar", label: "Calendar", icon: Icons.calendar },
         ],
       },
+      { kind: "leaf", href: "/dashboard/reporting", label: "Reporting Hub", icon: Icons.analytics },
       { kind: "leaf", href: "/dashboard/analytics", label: "Analytics", icon: Icons.analytics },
       {
         kind: "group",
