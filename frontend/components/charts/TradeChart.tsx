@@ -60,7 +60,14 @@ const INTERVAL_SECONDS: Record<Interval, number> = {
 
 // Well-known index tickers (without the ^ prefix used by some data sources)
 const INDEX_TICKERS = new Set([
-  "SPX", "RUT", "NDX", "DJI", "COMP", "VIX", "OEX", "MID",
+  "SPX",
+  "RUT",
+  "NDX",
+  "DJI",
+  "COMP",
+  "VIX",
+  "OEX",
+  "MID",
   "SPY", // technically ETF but often treated as index for data
 ]);
 
@@ -71,7 +78,10 @@ function isIndexSymbol(symbol: string, assetClass: AssetClass): boolean {
   return (assetClass as string) === "INDEX" || INDEX_TICKERS.has(upper);
 }
 
-function smartDefaultInterval(entryDate: Date, exitDate: Date | null): Interval {
+function smartDefaultInterval(
+  entryDate: Date,
+  exitDate: Date | null,
+): Interval {
   const now = Date.now();
   // If the trade is very old (entry is > 60 days ago), intraday data is likely unavailable.
   // The LSEG hub only keeps ~1000 bars of 1h data (approx 2.5 months).
@@ -95,9 +105,7 @@ function buildApiUrl(
 ): string {
   const secs = INTERVAL_SECONDS[interval];
   // Buffer start by 30 candles
-  const start = new Date(
-    entryDate.getTime() - 30 * secs * 1000,
-  ).toISOString();
+  const start = new Date(entryDate.getTime() - 30 * secs * 1000).toISOString();
 
   // We deliberately do NOT send `end` to the Market Data Hub.
   // The LSEG provider has a bug where if `end` is too far in the past,
@@ -232,7 +240,13 @@ function TradingViewFallback({ symbol }: { symbol: string }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-primary transition-colors"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-3 h-3"
+          >
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
             <polyline points="15 3 21 3 21 9" />
             <line x1="10" y1="14" x2="21" y2="3" />
@@ -255,7 +269,9 @@ function OptionOverlay({ occ }: { occ: ReturnType<typeof parseOccSymbol> }) {
 
   return (
     <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-900/80 backdrop-blur-sm border border-border/50 text-xs">
-      <span className={`px-1.5 py-0.5 rounded text-xs font-bold border ${typeColor}`}>
+      <span
+        className={`px-1.5 py-0.5 rounded text-xs font-bold border ${typeColor}`}
+      >
         {occ.optionType}
       </span>
       <span className="text-zinc-300 font-mono">{occ.strikeFormatted}</span>
@@ -293,9 +309,17 @@ interface MarkerGroup {
 }
 
 /** Marker style for an entry execution: cyan arrow ↑ below the bar. */
-const ENTRY_STYLE = { position: "belowBar" as const, shape: "arrowUp"   as const, color: "#00d2ff" };
+const ENTRY_STYLE = {
+  position: "belowBar" as const,
+  shape: "arrowUp" as const,
+  color: "#00d2ff",
+};
 /** Marker style for an exit execution:  orange arrow ↓ above the bar. */
-const EXIT_STYLE  = { position: "aboveBar" as const, shape: "arrowDown" as const, color: "#f97316" };
+const EXIT_STYLE = {
+  position: "aboveBar" as const,
+  shape: "arrowDown" as const,
+  color: "#f97316",
+};
 
 /**
  * Return true when `exec` is an opening (entry) execution for the given trade
@@ -303,10 +327,15 @@ const EXIT_STYLE  = { position: "aboveBar" as const, shape: "arrowDown" as const
  *   LONG  trade: entry = LONG/BUY execution
  *   SHORT trade: entry = SHORT/SELL execution
  */
-function isEntryExecution(exec: LogicalExecution, tradeDirection: string): boolean {
+function isEntryExecution(
+  exec: LogicalExecution,
+  tradeDirection: string,
+): boolean {
   const td = tradeDirection.toUpperCase();
   const ed = exec.direction.toUpperCase();
-  return td === "LONG" ? (ed === "LONG" || ed === "BUY") : (ed === "SHORT" || ed === "SELL");
+  return td === "LONG"
+    ? ed === "LONG" || ed === "BUY"
+    : ed === "SHORT" || ed === "SELL";
 }
 
 /**
@@ -322,7 +351,10 @@ function buildExecutionMarkers(
   if (executions.length === 0) return [];
 
   // Group by snapped candle time + role (entry vs exit)
-  const groups = new Map<string, { isEntry: boolean; qtys: string[]; prices: string[]; time: Time }>();
+  const groups = new Map<
+    string,
+    { isEntry: boolean; qtys: string[]; prices: string[]; time: Time }
+  >();
 
   for (const exec of executions) {
     const ts = Math.floor(new Date(exec.executed_at).getTime() / 1000);
@@ -352,7 +384,10 @@ function buildExecutionMarkers(
       group.qtys.length === 1
         ? `${Number(group.qtys[0]).toFixed(2)} @ $${Number(group.prices[0]).toFixed(2)}`
         : group.qtys
-            .map((q, i) => `${Number(q).toFixed(2)} @ $${Number(group.prices[i]).toFixed(2)}`)
+            .map(
+              (q, i) =>
+                `${Number(q).toFixed(2)} @ $${Number(group.prices[i]).toFixed(2)}`,
+            )
             .join(", ");
 
     const style = group.isEntry ? ENTRY_STYLE : EXIT_STYLE;
@@ -423,8 +458,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   const exitDate = trade.closed_at ? new Date(trade.closed_at) : null;
 
   const [interval, setInterval] = useState<Interval>(() =>
-    smartDefaultInterval(entryDate, exitDate)
+    smartDefaultInterval(entryDate, exitDate),
   );
+  const [showAfterTrade, setShowAfterTrade] = useState(true);
   // If no Hub URL is configured we go straight to fallback — no loading needed
   const [loading, setLoading] = useState(true);
   const [useFallback, setUseFallback] = useState(false);
@@ -439,7 +475,13 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
     async (iv: Interval) => {
       setLoading(true);
       try {
-        const url = buildApiUrl(chartSymbol, iv, entryDate, exitDate, assetClass);
+        const url = buildApiUrl(
+          chartSymbol,
+          iv,
+          entryDate,
+          exitDate,
+          assetClass,
+        );
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -448,10 +490,10 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         const rawBars: OhlcBar[] = Array.isArray(json)
           ? json
           : Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json?.prices)
-          ? json.prices
-          : [];
+            ? json.data
+            : Array.isArray(json?.prices)
+              ? json.prices
+              : [];
 
         if (rawBars.length === 0) throw new Error("No data returned");
 
@@ -460,20 +502,27 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         if (seriesRef.current) {
           // ── Marker timestamps ─────────────────────────────────────────────
           const entryTs = Math.floor(entryDate.getTime() / 1000);
-          const exitTs = exitDate ? Math.floor(exitDate.getTime() / 1000) : null;
+          const exitTs = exitDate
+            ? Math.floor(exitDate.getTime() / 1000)
+            : null;
 
           // Collect all execution timestamps that need markers
-          const markerTimestamps: number[] = executions && executions.length > 0
-            ? executions.map(e => Math.floor(new Date(e.executed_at).getTime() / 1000))
-            : [entryTs, ...(exitTs !== null ? [exitTs] : [])];
+          const markerTimestamps: number[] =
+            executions && executions.length > 0
+              ? executions.map((e) =>
+                  Math.floor(new Date(e.executed_at).getTime() / 1000),
+                )
+              : [entryTs, ...(exitTs !== null ? [exitTs] : [])];
 
           // For 1d charts, normalise timestamps to midnight UTC so they align
           // with daily bars (LSEG bars always open at 00:00 UTC).
           const SECS_PER_DAY = 86400;
           const normalise = (ts: number): number =>
-            interval === "1d" ? Math.floor(ts / SECS_PER_DAY) * SECS_PER_DAY : ts;
+            interval === "1d"
+              ? Math.floor(ts / SECS_PER_DAY) * SECS_PER_DAY
+              : ts;
 
-          const candleSet = new Set(candles.map(c => c.time as number));
+          const candleSet = new Set(candles.map((c) => c.time as number));
 
           // Insert synthetic flat candles for any marker timestamp not covered
           // by an existing bar.  This guarantees the marker is rendered at the
@@ -488,10 +537,19 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
               let bestDiff = Math.abs((candles[0].time as number) - ts);
               for (const c of candles) {
                 const d = Math.abs((c.time as number) - ts);
-                if (d < bestDiff) { nearest = c; bestDiff = d; }
+                if (d < bestDiff) {
+                  nearest = c;
+                  bestDiff = d;
+                }
               }
               const p = nearest.close;
-              synthetics.push({ time: ts as Time, open: p, high: p, low: p, close: p });
+              synthetics.push({
+                time: ts as Time,
+                open: p,
+                high: p,
+                low: p,
+                close: p,
+              });
               candleSet.add(ts);
             }
           }
@@ -500,6 +558,11 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             candles = [...candles, ...synthetics].sort(
               (a, b) => (a.time as number) - (b.time as number),
             );
+          }
+
+          if (!showAfterTrade && exitTs !== null) {
+            const cutoff = exitTs + 10 * INTERVAL_SECONDS[iv]; // include 10 candles after exit for context
+            candles = candles.filter((c) => (c.time as number) <= cutoff);
           }
 
           seriesRef.current.setData(candles);
@@ -514,7 +577,10 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             let bestDiff = Math.abs(norm - best);
             for (const c of candles) {
               const d = Math.abs(norm - (c.time as number));
-              if (d < bestDiff) { best = c.time as number; bestDiff = d; }
+              if (d < bestDiff) {
+                best = c.time as number;
+                bestDiff = d;
+              }
             }
             return best as Time;
           };
@@ -522,21 +588,29 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           // Use per-execution markers when available; fall back to trade-level timestamps
           const markers: SeriesMarker<Time>[] =
             executions && executions.length > 0
-              ? buildExecutionMarkers(executions, trade.direction, candles, snap)
+              ? buildExecutionMarkers(
+                  executions,
+                  trade.direction,
+                  candles,
+                  snap,
+                )
               : buildFallbackMarkers(entryTs, exitTs, trade.direction, snap);
 
           // Spacing and overall marker styling
           seriesRef.current.applyOptions({
             markers: {
               offset: 20, // Even more space to clear the wicks
-            }
+            },
           } as any);
 
           // createSeriesMarkers is the v5 API (replaces series.setMarkers)
           if (markersRef.current) {
             markersRef.current.setMarkers(markers);
           } else if (seriesRef.current) {
-            markersRef.current = createSeriesMarkers(seriesRef.current, markers);
+            markersRef.current = createSeriesMarkers(
+              seriesRef.current,
+              markers,
+            );
           }
 
           // ── Fit visible range with context ───────────────────────────────
@@ -544,7 +618,8 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           chartRef.current?.timeScale().setVisibleRange({
             from: (entryTs - 30 * secs) as Time,
             to: ((exitTs ?? Math.floor(Date.now() / 1000)) + 10 * secs) as Time,
-          });        }
+          });
+        }
 
         setUseFallback(false);
       } catch {
@@ -554,7 +629,15 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chartSymbol, assetClass, trade.opened_at, trade.closed_at, trade.direction, executions]
+    [
+      chartSymbol,
+      assetClass,
+      trade.opened_at,
+      trade.closed_at,
+      trade.direction,
+      executions,
+      showAfterTrade,
+    ],
   );
 
   // ── Create chart instance ──────────────────────────────────────────────────
@@ -572,8 +655,14 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         horzLines: { color: "rgba(255,255,255,0.04)" },
       },
       crosshair: {
-        vertLine: { color: "rgba(255,255,255,0.15)", labelBackgroundColor: "#1e1e2e" },
-        horzLine: { color: "rgba(255,255,255,0.15)", labelBackgroundColor: "#1e1e2e" },
+        vertLine: {
+          color: "rgba(255,255,255,0.15)",
+          labelBackgroundColor: "#1e1e2e",
+        },
+        horzLine: {
+          color: "rgba(255,255,255,0.15)",
+          labelBackgroundColor: "#1e1e2e",
+        },
       },
       rightPriceScale: {
         borderColor: "rgba(255,255,255,0.08)",
@@ -675,6 +764,21 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             </button>
           ))}
         </div>
+
+        {trade.closed_at && (
+          <button
+            onClick={() => setShowAfterTrade(!showAfterTrade)}
+            className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border ${
+              showAfterTrade
+                ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                : "bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80"
+            }`}
+            title="Toggle candles after trade closed"
+          >
+            {showAfterTrade ? "Showing After" : "Hiding After"}
+          </button>
+        )}
+
         <div className="flex-1" />
         {/* Open in TradingView */}
         <a
@@ -684,7 +788,13 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           title="Open in TradingView"
           className="group inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold bg-primary text-primary-foreground hover:opacity-90 border border-primary/80 transition-all duration-300 shadow-sm"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            className="w-3 h-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+          >
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
             <polyline points="15 3 21 3 21 9" />
             <line x1="10" y1="14" x2="21" y2="3" />
