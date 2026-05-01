@@ -1,14 +1,52 @@
 """MCP transport endpoints secured by personal access tokens."""
 
+import asyncio
 import json
+from collections.abc import AsyncGenerator
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from app.core.deps import get_current_user_from_pat
 from app.models.user import User
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
+
+_KEEPALIVE_INTERVAL = 15
+
+
+def _sse_event_stream(
+    session_id: str | None,
+    user_id: str,
+) -> StreamingResponse:
+    base = {
+        "message_endpoint": "/mcp/messages",
+        "user_id": user_id,
+    }
+    if session_id:
+        base["message_endpoint"] = f"/mcp/messages?session_id={session_id}"
+        base["session_id"] = session_id
+
+    init_payload = json.dumps(base)
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        yield f"event: ready\ndata: {init_payload}\n\n"
+        while True:
+            await asyncio.sleep(_KEEPALIVE_INTERVAL)
+            yield ": keepalive\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers=headers,
+    )
 
 
 @router.get(
@@ -18,18 +56,11 @@ router = APIRouter(prefix="/mcp", tags=["mcp"])
 )
 async def mcp_sse(
     current_user: Annotated[User, Depends(get_current_user_from_pat)],
-) -> Response:
-    payload = json.dumps(
-        {
-            "message_endpoint": "/mcp/messages",
-            "user_id": str(current_user.id),
-        }
-    )
-    body = f"event: ready\ndata: {payload}\n\n"
-    return Response(
-        content=body,
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache"},
+    session_id: str | None = Query(default=None, description="MCP session identifier"),
+) -> StreamingResponse:
+    return _sse_event_stream(
+        session_id=session_id,
+        user_id=str(current_user.id),
     )
 
 
@@ -41,6 +72,7 @@ async def mcp_sse(
 async def mcp_messages(
     payload: dict[str, Any],
     current_user: Annotated[User, Depends(get_current_user_from_pat)],
+    session_id: str | None = Query(default=None, description="MCP session identifier"),
 ) -> dict[str, Any]:
     if payload.get("jsonrpc") != "2.0":
         raise HTTPException(
