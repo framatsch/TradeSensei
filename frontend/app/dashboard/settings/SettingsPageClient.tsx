@@ -10,13 +10,12 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { AccountSettings } from "@/components/settings/AccountSettings";
 import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
 import FeaturesSettings from "@/components/settings/FeaturesSettings";
-import { PortfolioSettings } from "@/components/settings/PortfolioSettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { ApiTokensSettings } from "@/components/settings/ApiTokensSettings";
 import { CheckinSettings } from "@/components/settings/CheckinSettings";
+import { PortfoliosBrokersHub } from "@/components/settings/PortfoliosBrokersHub";
 
 type Tab =
   | "general"
@@ -24,16 +23,15 @@ type Tab =
   | "api-tokens"
   | "corporate-actions"
   | "features"
-  | "portfolios"
+  | "portfolios-brokers"
   | "checkin";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
-  { id: "integrations", label: "Accounts & Integrations" },
+  { id: "portfolios-brokers", label: "Portfolios & Brokers" },
   { id: "api-tokens", label: "API & Tokens" },
   { id: "corporate-actions", label: "Corporate Actions" },
   { id: "features", label: "Features" },
-  { id: "portfolios", label: "Portfolios" },
   { id: "checkin", label: "Check-in" },
 ];
 
@@ -44,21 +42,13 @@ export function SettingsPageClient() {
   // Allow linking to a specific tab via ?tab=integrations, ?tab=features, etc.
   useEffect(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam === "integrations") {
-      setActiveTab("integrations");
-    } else if (tabParam === "api-tokens") {
-      setActiveTab("api-tokens");
-    } else if (tabParam === "corporate-actions") {
-      setActiveTab("corporate-actions");
-    } else if (tabParam === "features") {
-      setActiveTab("features");
-    } else if (tabParam === "portfolios") {
-      setActiveTab("portfolios");
-    } else if (tabParam === "checkin") {
-      setActiveTab("checkin");
-    } else if (tabParam === "general") {
-      setActiveTab("general");
-    }
+    if (tabParam === "api-tokens") setActiveTab("api-tokens");
+    else if (tabParam === "corporate-actions") setActiveTab("corporate-actions");
+    else if (tabParam === "features") setActiveTab("features");
+    else if (tabParam === "portfolios" || tabParam === "integrations") setActiveTab("portfolios-brokers");
+    else if (tabParam === "portfolios-brokers") setActiveTab("portfolios-brokers");
+    else if (tabParam === "checkin") setActiveTab("checkin");
+    else if (tabParam === "general") setActiveTab("general");
   }, [searchParams]);
 
   return (
@@ -92,11 +82,10 @@ export function SettingsPageClient() {
       {/* Tab content */}
       <div className="pt-2">
         {activeTab === "general" && <GeneralSettings />}
-        {activeTab === "integrations" && <AccountSettings />}
+        {activeTab === "portfolios-brokers" && <PortfoliosBrokersHub />}
         {activeTab === "api-tokens" && <ApiTokensSettings />}
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
         {activeTab === "features" && <FeaturesSettings />}
-        {activeTab === "portfolios" && <PortfolioSettings />}
         {activeTab === "checkin" && <CheckinSettings />}
       </div>
     </div>
