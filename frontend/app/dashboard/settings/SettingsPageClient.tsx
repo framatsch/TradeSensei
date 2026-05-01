@@ -16,6 +16,7 @@ import FeaturesSettings from "@/components/settings/FeaturesSettings";
 import { PortfolioSettings } from "@/components/settings/PortfolioSettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import { ApiTokensSettings } from "@/components/settings/ApiTokensSettings";
+import { CheckinSettings } from "@/components/settings/CheckinSettings";
 
 type Tab =
   | "general"
@@ -23,7 +24,8 @@ type Tab =
   | "api-tokens"
   | "corporate-actions"
   | "features"
-  | "portfolios";
+  | "portfolios"
+  | "checkin";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
@@ -32,6 +34,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "corporate-actions", label: "Corporate Actions" },
   { id: "features", label: "Features" },
   { id: "portfolios", label: "Portfolios" },
+  { id: "checkin", label: "Check-in" },
 ];
 
 export function SettingsPageClient() {
@@ -51,6 +54,8 @@ export function SettingsPageClient() {
       setActiveTab("features");
     } else if (tabParam === "portfolios") {
       setActiveTab("portfolios");
+    } else if (tabParam === "checkin") {
+      setActiveTab("checkin");
     } else if (tabParam === "general") {
       setActiveTab("general");
     }
@@ -92,6 +97,7 @@ export function SettingsPageClient() {
         {activeTab === "corporate-actions" && <CorporateActionsSettings />}
         {activeTab === "features" && <FeaturesSettings />}
         {activeTab === "portfolios" && <PortfolioSettings />}
+        {activeTab === "checkin" && <CheckinSettings />}
       </div>
     </div>
   );
