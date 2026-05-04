@@ -33,6 +33,7 @@ from app.models.logical_execution import (
     EXECUTION_ORIGIN_SPLIT as EXECUTION_ORIGIN_SPLIT,
 )
 from app.models.logical_execution import LogicalExecution as LogicalExecution
+from app.models.market_index import MarketIndexDefinition as MarketIndexDefinition
 from app.models.ohlc_price import OhlcPrice as OhlcPrice
 from app.models.pat import PersonalAccessToken as PersonalAccessToken
 from app.models.playbook import Playbook as Playbook

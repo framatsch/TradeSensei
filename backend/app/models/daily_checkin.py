@@ -20,8 +20,10 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.market_index import checkin_market_indices
 
 if TYPE_CHECKING:
+    from app.models.market_index import MarketIndexDefinition
     from app.models.user import User
 
 
@@ -172,3 +174,8 @@ class DailyCheckin(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="daily_checkins")
+    target_indices: Mapped[list["MarketIndexDefinition"]] = relationship(
+        "MarketIndexDefinition",
+        secondary=checkin_market_indices,
+        back_populates="checkins",
+    )

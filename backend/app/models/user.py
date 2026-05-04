@@ -20,6 +20,7 @@ if TYPE_CHECKING:
         MarketPhaseDefinition,
     )
     from app.models.logical_execution import LogicalExecution
+    from app.models.market_index import MarketIndexDefinition
     from app.models.pat import PersonalAccessToken
     from app.models.portfolio import Portfolio
     from app.models.saved_dashboard_view import SavedDashboardView
@@ -163,6 +164,11 @@ class User(Base):
     )
     market_phases: Mapped[list["MarketPhaseDefinition"]] = relationship(
         "MarketPhaseDefinition",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    market_indices: Mapped[list["MarketIndexDefinition"]] = relationship(
+        "MarketIndexDefinition",
         back_populates="user",
         cascade="all, delete-orphan",
     )

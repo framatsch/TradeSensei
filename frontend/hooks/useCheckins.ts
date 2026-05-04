@@ -76,6 +76,10 @@ export function useCreateCheckin() {
   });
 }
 
+export function useCreateCheckinWithTargetIndices() {
+  return useCreateCheckin();
+}
+
 export function useUpdateCheckin() {
   const qc = useQueryClient();
   return useMutation<DailyCheckinRead, Error, { date: string; payload: DailyCheckinUpdate }>({
@@ -91,6 +95,10 @@ export function useUpdateCheckin() {
       void qc.invalidateQueries({ queryKey: CHECKINS_KEY });
     },
   });
+}
+
+export function useUpdateCheckinWithTargetIndices() {
+  return useUpdateCheckin();
 }
 
 export function useDeleteCheckin() {

@@ -6,8 +6,10 @@ from datetime import date
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.daily_checkin import DailyCheckin
+from app.models.market_index import MarketIndexDefinition
 from app.schemas.daily_checkin import DailyCheckinCreate, DailyCheckinUpdate
 
 
@@ -32,6 +34,14 @@ class DailyCheckinRepository:
             screenshot_urls=data.screenshot_urls,
             custom_metrics=data.custom_metrics,
         )
+        if data.target_index_ids:
+            result = await self._session.execute(
+                select(MarketIndexDefinition).where(
+                    MarketIndexDefinition.user_id == user_id,
+                    MarketIndexDefinition.id.in_(data.target_index_ids),
+                )
+            )
+            model.target_indices = list(result.scalars().all())
         self._session.add(model)
         await self._session.flush()
         await self._session.refresh(model)
@@ -44,10 +54,12 @@ class DailyCheckinRepository:
     ) -> DailyCheckin | None:
         """Fetch one check-in by unique (user_id, date)."""
         result = await self._session.execute(
-            select(DailyCheckin).where(
+            select(DailyCheckin)
+            .where(
                 DailyCheckin.user_id == user_id,
                 DailyCheckin.date == checkin_date,
             )
+            .options(selectinload(DailyCheckin.target_indices))
         )
         return result.scalar_one_or_none()
 
@@ -62,7 +74,11 @@ class DailyCheckinRepository:
     ) -> tuple[Sequence[DailyCheckin], date | None, int]:
         """Cursor-paginated check-ins ordered by date descending."""
         clamped_limit = max(1, min(limit, 90))
-        base_stmt = select(DailyCheckin).where(DailyCheckin.user_id == user_id)
+        base_stmt = (
+            select(DailyCheckin)
+            .where(DailyCheckin.user_id == user_id)
+            .options(selectinload(DailyCheckin.target_indices))
+        )
         if from_date is not None:
             base_stmt = base_stmt.where(DailyCheckin.date >= from_date)
         if to_date is not None:
@@ -100,8 +116,20 @@ class DailyCheckinRepository:
             update_data["news_links"] = [
                 str(link) for link in update_data["news_links"]
             ]
+        target_index_ids = update_data.pop("target_index_ids", None)
         for field, value in update_data.items():
             setattr(model, field, value)
+        if target_index_ids is not None:
+            if target_index_ids:
+                result = await self._session.execute(
+                    select(MarketIndexDefinition).where(
+                        MarketIndexDefinition.user_id == model.user_id,
+                        MarketIndexDefinition.id.in_(target_index_ids),
+                    )
+                )
+                model.target_indices = list(result.scalars().all())
+            else:
+                model.target_indices = []
         self._session.add(model)
         await self._session.flush()
         await self._session.refresh(model)

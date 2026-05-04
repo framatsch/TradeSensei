@@ -7,7 +7,7 @@ import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 
 export function TimelineView() {
@@ -45,6 +45,19 @@ export function TimelineView() {
                 <h2 className="text-lg font-semibold">
                   {format(new Date(`${checkin.date}T12:00:00Z`), "MMMM d, yyyy")}
                 </h2>
+                {checkin.target_indices && checkin.target_indices.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {checkin.target_indices.map((index) => (
+                      <span
+                        key={index.id}
+                        className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border"
+                        title={index.name}
+                      >
+                        {index.symbol}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <Link
                   href={`/dashboard/checkins/${checkin.date}`}
                   className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
@@ -70,6 +83,25 @@ export function TimelineView() {
             {checkin.notes && (
               <div className="prose prose-sm dark:prose-invert max-w-none mb-4">
                 <ReactMarkdown>{checkin.notes}</ReactMarkdown>
+              </div>
+            )}
+
+            {checkin.target_indices && checkin.target_indices.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {checkin.target_indices.map((index) => (
+                  index.tradingview_url ? (
+                    <a
+                      key={index.id}
+                      href={index.tradingview_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      {index.symbol}
+                    </a>
+                  ) : null
+                ))}
               </div>
             )}
 

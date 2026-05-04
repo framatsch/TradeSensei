@@ -1345,6 +1345,12 @@ export type DailyCheckinCreate = {
      */
     market_phase?: string | null;
     /**
+     * Target Index Ids
+     *
+     * List of Market Index Definition UUIDs associated with this checkin.
+     */
+    target_index_ids?: Array<string>;
+    /**
      * Notes
      *
      * Optional free-form note for the day.
@@ -1455,6 +1461,12 @@ export type DailyCheckinRead = {
         [key: string]: number | boolean;
     } | null;
     /**
+     * Target Indices
+     *
+     * Associated market indices for this check-in.
+     */
+    target_indices?: Array<TargetIndexRead>;
+    /**
      * Created At
      *
      * UTC creation timestamp.
@@ -1480,6 +1492,12 @@ export type DailyCheckinUpdate = {
      * Updated market phase name; validated at service layer.
      */
     market_phase?: string | null;
+    /**
+     * Target Index Ids
+     *
+     * List of Market Index Definition UUIDs associated with this checkin.
+     */
+    target_index_ids?: Array<string> | null;
     /**
      * Notes
      *
@@ -2016,6 +2034,110 @@ export type LogicalExecutionUpdate = {
      * Pnl
      */
     pnl?: number | string | null;
+};
+
+/**
+ * MarketIndexDefinitionCreate
+ *
+ * Schema for creating a Market Index Definition.
+ */
+export type MarketIndexDefinitionCreate = {
+    /**
+     * Symbol
+     *
+     * The ticker symbol (e.g. SPX)
+     */
+    symbol: string;
+    /**
+     * Name
+     *
+     * The display name
+     */
+    name: string;
+    /**
+     * Tradingview Url
+     *
+     * Link to TV
+     */
+    tradingview_url?: string | null;
+    /**
+     * Is Active
+     *
+     * Whether it is active
+     */
+    is_active?: boolean;
+};
+
+/**
+ * MarketIndexDefinitionResponse
+ *
+ * Schema for returning a Market Index Definition.
+ */
+export type MarketIndexDefinitionResponse = {
+    /**
+     * Symbol
+     *
+     * The ticker symbol (e.g. SPX)
+     */
+    symbol: string;
+    /**
+     * Name
+     *
+     * The display name
+     */
+    name: string;
+    /**
+     * Tradingview Url
+     *
+     * Link to TV
+     */
+    tradingview_url?: string | null;
+    /**
+     * Is Active
+     *
+     * Whether it is active
+     */
+    is_active?: boolean;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * MarketIndexDefinitionUpdate
+ *
+ * Schema for updating a Market Index Definition.
+ */
+export type MarketIndexDefinitionUpdate = {
+    /**
+     * Symbol
+     */
+    symbol?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Tradingview Url
+     */
+    tradingview_url?: string | null;
+    /**
+     * Is Active
+     */
+    is_active?: boolean | null;
 };
 
 /**
@@ -3364,6 +3486,24 @@ export type ResponseEnvelopeLogicalExecutionRead = {
 };
 
 /**
+ * ResponseEnvelope[MarketIndexDefinitionResponse]
+ */
+export type ResponseEnvelopeMarketIndexDefinitionResponse = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: MarketIndexDefinitionResponse;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ResponseEnvelope[MarketPhaseDefinitionRead]
  */
 export type ResponseEnvelopeMarketPhaseDefinitionRead = {
@@ -3857,6 +3997,26 @@ export type ResponseEnvelopeListLogicalExecutionRead = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: Array<LogicalExecutionRead>;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ResponseEnvelope[list[MarketIndexDefinitionResponse]]
+ */
+export type ResponseEnvelopeListMarketIndexDefinitionResponse = {
+    /**
+     * Data
+     *
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<MarketIndexDefinitionResponse>;
     /**
      * Meta
      *
@@ -4572,6 +4732,38 @@ export type TagUpdate = {
      * Updated hex colour. Omit to leave unchanged. Set to null to remove the colour.
      */
     color?: string | null;
+};
+
+/**
+ * TargetIndexRead
+ *
+ * Embedded target market index in check-in responses.
+ */
+export type TargetIndexRead = {
+    /**
+     * Id
+     *
+     * Unique market index identifier.
+     */
+    id: string;
+    /**
+     * Symbol
+     *
+     * Ticker symbol.
+     */
+    symbol: string;
+    /**
+     * Name
+     *
+     * Display name.
+     */
+    name: string;
+    /**
+     * Tradingview Url
+     *
+     * TradingView URL.
+     */
+    tradingview_url: string | null;
 };
 
 /**
@@ -10261,6 +10453,121 @@ export type UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchResponses = {
 
 export type UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchResponse = UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchResponses[keyof UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchResponses];
 
+export type ListMarketIndexesApiV1MarketIndexesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Is Active
+         */
+        is_active?: boolean | null;
+    };
+    url: '/api/v1/market-indexes';
+};
+
+export type ListMarketIndexesApiV1MarketIndexesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListMarketIndexesApiV1MarketIndexesGetError = ListMarketIndexesApiV1MarketIndexesGetErrors[keyof ListMarketIndexesApiV1MarketIndexesGetErrors];
+
+export type ListMarketIndexesApiV1MarketIndexesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeListMarketIndexDefinitionResponse;
+};
+
+export type ListMarketIndexesApiV1MarketIndexesGetResponse = ListMarketIndexesApiV1MarketIndexesGetResponses[keyof ListMarketIndexesApiV1MarketIndexesGetResponses];
+
+export type CreateMarketIndexApiV1MarketIndexesPostData = {
+    body: MarketIndexDefinitionCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/market-indexes';
+};
+
+export type CreateMarketIndexApiV1MarketIndexesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateMarketIndexApiV1MarketIndexesPostError = CreateMarketIndexApiV1MarketIndexesPostErrors[keyof CreateMarketIndexApiV1MarketIndexesPostErrors];
+
+export type CreateMarketIndexApiV1MarketIndexesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ResponseEnvelopeMarketIndexDefinitionResponse;
+};
+
+export type CreateMarketIndexApiV1MarketIndexesPostResponse = CreateMarketIndexApiV1MarketIndexesPostResponses[keyof CreateMarketIndexApiV1MarketIndexesPostResponses];
+
+export type DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Index Id
+         */
+        index_id: string;
+    };
+    query?: never;
+    url: '/api/v1/market-indexes/{index_id}';
+};
+
+export type DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteError = DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteErrors[keyof DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteErrors];
+
+export type DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponse = DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponses[keyof DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponses];
+
+export type UpdateMarketIndexApiV1MarketIndexesIndexIdPutData = {
+    body: MarketIndexDefinitionUpdate;
+    path: {
+        /**
+         * Index Id
+         */
+        index_id: string;
+    };
+    query?: never;
+    url: '/api/v1/market-indexes/{index_id}';
+};
+
+export type UpdateMarketIndexApiV1MarketIndexesIndexIdPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateMarketIndexApiV1MarketIndexesIndexIdPutError = UpdateMarketIndexApiV1MarketIndexesIndexIdPutErrors[keyof UpdateMarketIndexApiV1MarketIndexesIndexIdPutErrors];
+
+export type UpdateMarketIndexApiV1MarketIndexesIndexIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeMarketIndexDefinitionResponse;
+};
+
+export type UpdateMarketIndexApiV1MarketIndexesIndexIdPutResponse = UpdateMarketIndexApiV1MarketIndexesIndexIdPutResponses[keyof UpdateMarketIndexApiV1MarketIndexesIndexIdPutResponses];
+
 export type ListMarketPhasesApiV1MarketPhasesGetData = {
     body?: never;
     path?: never;
@@ -10703,82 +11010,3 @@ export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses =
 };
 
 export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponse = UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses[keyof UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses];
-
-export type McpSseMcpSseGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Session Id
-         *
-         * MCP session identifier
-         */
-        session_id?: string | null;
-    };
-    url: '/mcp/sse';
-};
-
-export type McpSseMcpSseGetErrors = {
-    /**
-     * Missing or invalid PAT.
-     */
-    401: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type McpSseMcpSseGetError = McpSseMcpSseGetErrors[keyof McpSseMcpSseGetErrors];
-
-export type McpSseMcpSseGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type McpMessagesMcpMessagesPostData = {
-    /**
-     * Payload
-     */
-    body: {
-        [key: string]: unknown;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Session Id
-         *
-         * MCP session identifier
-         */
-        session_id?: string | null;
-    };
-    url: '/mcp/messages';
-};
-
-export type McpMessagesMcpMessagesPostErrors = {
-    /**
-     * Missing or invalid PAT.
-     */
-    401: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type McpMessagesMcpMessagesPostError = McpMessagesMcpMessagesPostErrors[keyof McpMessagesMcpMessagesPostErrors];
-
-export type McpMessagesMcpMessagesPostResponses = {
-    /**
-     * Response Mcp Messages Mcp Messages Post
-     *
-     * Successful Response
-     */
-    200: {
-        [key: string]: unknown;
-    };
-};
-
-export type McpMessagesMcpMessagesPostResponse = McpMessagesMcpMessagesPostResponses[keyof McpMessagesMcpMessagesPostResponses];

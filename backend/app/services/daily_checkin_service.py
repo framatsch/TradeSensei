@@ -13,6 +13,7 @@ from app.repositories.checkin_field_definition_repository import (
     CheckinFieldDefinitionRepository,
 )
 from app.repositories.daily_checkin_repository import DailyCheckinRepository
+from app.repositories.market_index_repository import MarketIndexDefinitionRepository
 from app.repositories.market_phase_definition_repository import (
     MarketPhaseDefinitionRepository,
 )
@@ -33,7 +34,26 @@ class DailyCheckinService:
         self._repo = DailyCheckinRepository(session)
         self._field_repo = CheckinFieldDefinitionRepository(session)
         self._phase_repo = MarketPhaseDefinitionRepository(session)
+        self._index_repo = MarketIndexDefinitionRepository(session)
         self._cache = CacheService()
+
+    async def _validate_target_indices(
+        self,
+        user_id: uuid.UUID,
+        target_index_ids: list[uuid.UUID] | None,
+    ) -> None:
+        """Validate that all target indices belong to the user."""
+        if target_index_ids is None:
+            return
+        if not target_index_ids:
+            return
+        unique_ids = list(dict.fromkeys(target_index_ids))
+        found = await self._index_repo.get_by_ids_for_user(user_id, unique_ids)
+        if len(found) != len(unique_ids):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="target_index_ids contains unknown ids",
+            )
 
     async def _validate_market_phase(
         self,
@@ -117,6 +137,7 @@ class DailyCheckinService:
     ) -> DailyCheckinRead:
         """Create a new daily check-in with all validations."""
         await self._validate_market_phase(user_id, payload.market_phase)
+        await self._validate_target_indices(user_id, payload.target_index_ids)
         await self._validate_custom_metrics(user_id, payload.custom_metrics)
         self._validate_screenshot_urls(payload.screenshot_urls)
 
@@ -194,6 +215,8 @@ class DailyCheckinService:
             await self._validate_market_phase(user_id, payload.market_phase)
         if "custom_metrics" in payload.model_fields_set:
             await self._validate_custom_metrics(user_id, payload.custom_metrics)
+        if "target_index_ids" in payload.model_fields_set:
+            await self._validate_target_indices(user_id, payload.target_index_ids)
         if "screenshot_urls" in payload.model_fields_set:
             self._validate_screenshot_urls(payload.screenshot_urls)
 

@@ -143,6 +143,7 @@ export function ScreenshotUploader({ onUploaded }: Props) {
               <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border dark:border-border rounded">⌘V</kbd> to paste
             </span>
             <span className="text-xs text-zinc-400">PNG, JPG, GIF, WebP · max 20 MB</span>
+            <span className="text-xs text-muted-foreground">Only static screenshots are supported. Live chart embeds are not used.</span>
           </>
         )}
       </div>

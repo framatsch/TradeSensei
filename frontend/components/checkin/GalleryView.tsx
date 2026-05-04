@@ -81,6 +81,20 @@ export function GalleryView() {
                   )}
                 </div>
 
+                {checkin.target_indices && checkin.target_indices.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {checkin.target_indices.map((index) => (
+                      <span
+                        key={index.id}
+                        className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border"
+                        title={index.name}
+                      >
+                        {index.symbol}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 {checkin.notes ? (
                   <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                     {checkin.notes.replace(/[#*`_~\[\]()>-]/g, "")}

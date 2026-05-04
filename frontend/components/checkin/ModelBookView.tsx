@@ -71,12 +71,27 @@ export function ModelBookView() {
                      alt={`Model Book Screenshot ${format(new Date(`${checkin.date}T12:00:00Z`), "MM/dd")}`}
                      className="w-full h-48 object-cover group-hover:opacity-90 transition-opacity"
                    />
-                   <div className="p-4 flex items-center justify-between border-t border-border bg-muted/20">
-                     <span className="text-sm font-medium">
-                       {format(new Date(`${checkin.date}T12:00:00Z`), "MMM d, yyyy")}
-                     </span>
-                     {phase && (
-                        <span 
+                    <div className="p-4 flex items-center justify-between border-t border-border bg-muted/20">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium">
+                          {format(new Date(`${checkin.date}T12:00:00Z`), "MMM d, yyyy")}
+                        </span>
+                        {checkin.target_indices && checkin.target_indices.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {checkin.target_indices.map((index) => (
+                              <span
+                                key={index.id}
+                                className="text-[10px] px-1.5 py-0.5 rounded-full border bg-muted/40 text-muted-foreground border-border"
+                                title={index.name}
+                              >
+                                {index.symbol}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {phase && (
+                        <span
                           className="text-xs px-2 py-0.5 rounded-full border"
                           style={{
                             backgroundColor: `${colorHex}15`,
@@ -86,8 +101,8 @@ export function ModelBookView() {
                         >
                           {phase.label}
                         </span>
-                     )}
-                   </div>
+                      )}
+                    </div>
                  </div>
               );
             })}

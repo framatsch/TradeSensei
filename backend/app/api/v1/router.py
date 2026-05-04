@@ -19,6 +19,7 @@ from app.api.v1 import (
     executions,
     imports,
     market_data,
+    market_indexes,
     market_phases,
     metrics,
     notes,
@@ -60,6 +61,7 @@ router.include_router(deprecated.router)
 router.include_router(corporate_actions.router)
 router.include_router(market_data.router)
 router.include_router(checkin_fields.router)
+router.include_router(market_indexes.router)
 router.include_router(market_phases.router)
 router.include_router(checkins.router)
 router.include_router(settings.router)

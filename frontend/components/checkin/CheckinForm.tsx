@@ -5,6 +5,7 @@ import { type DailyCheckinRead, type DailyCheckinCreate, type DailyCheckinUpdate
 import { X, Link2, Loader2, Check, PlusCircle, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ScreenshotUploader } from "@/components/checkin/ScreenshotUploader";
+import { useMarketIndexes } from "@/hooks/useCheckinDefinitions";
 
 export function CheckinForm({
   date,
@@ -26,11 +27,16 @@ export function CheckinForm({
   isDeleting: boolean;
 }) {
   const [marketPhase, setMarketPhase] = useState(entry?.market_phase ?? "");
+  const [targetIndexIds, setTargetIndexIds] = useState<string[]>(
+    entry?.target_indices?.map((index) => index.id) ?? []
+  );
   const [notes, setNotes] = useState(entry?.notes ?? "");
   const [newsLink, setNewsLink] = useState("");
   const [newsLinks, setNewsLinks] = useState<string[]>(entry?.news_links ?? []);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(entry?.screenshot_urls ?? []);
   const activePhases = marketPhases.filter((p) => p.is_active);
+  const { data: marketIndexes } = useMarketIndexes();
+  const activeIndexes = (marketIndexes ?? []).filter((idx) => idx.is_active);
   const activeFields = customFields.filter((f) => f.is_active);
 
   const [metrics, setMetrics] = useState<Record<string, number | boolean>>(() => {
@@ -71,6 +77,7 @@ export function CheckinForm({
       const payload: DailyCheckinCreate = {
         date,
         market_phase: showPhase,
+        target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks.length > 0 ? newsLinks : undefined,
         screenshot_urls: screenshotUrls.length > 0 ? screenshotUrls : undefined,
@@ -80,6 +87,7 @@ export function CheckinForm({
     } else {
       const payload: DailyCheckinUpdate = {
         market_phase: showPhase,
+        target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks,
         screenshot_urls: screenshotUrls,
@@ -117,6 +125,37 @@ export function CheckinForm({
                   style={{ backgroundColor: isActive ? p.color_hex : "var(--muted-foreground)" }}
                 />
                 {p.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Target Market Indexes */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Target Market Indexes
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {activeIndexes.map((idx) => {
+            const selected = targetIndexIds.includes(idx.id);
+            return (
+              <button
+                key={idx.id}
+                type="button"
+                onClick={() => {
+                  setTargetIndexIds((prev) =>
+                    selected ? prev.filter((id) => id !== idx.id) : [...prev, idx.id]
+                  );
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  selected
+                    ? "bg-muted text-foreground border-border"
+                    : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/50"
+                }`}
+                title={idx.name}
+              >
+                {idx.symbol}
               </button>
             );
           })}

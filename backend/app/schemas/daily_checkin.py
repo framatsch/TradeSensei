@@ -148,6 +148,12 @@ class DailyCheckinCreate(BaseModel):
         max_length=50,
         description="Optional market phase name; validated at service layer.",
     )
+    target_index_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        description=(
+            "List of Market Index Definition UUIDs associated with this checkin."
+        ),
+    )
     notes: str | None = Field(
         default=None,
         max_length=10_000,
@@ -176,6 +182,12 @@ class DailyCheckinUpdate(BaseModel):
         max_length=50,
         description="Updated market phase name; validated at service layer.",
     )
+    target_index_ids: list[uuid.UUID] | None = Field(
+        default=None,
+        description=(
+            "List of Market Index Definition UUIDs associated with this checkin."
+        ),
+    )
     notes: str | None = Field(
         default=None,
         max_length=10_000,
@@ -196,6 +208,17 @@ class DailyCheckinUpdate(BaseModel):
     )
 
 
+class TargetIndexRead(BaseModel):
+    """Embedded target market index in check-in responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID = Field(..., description="Unique market index identifier.")
+    symbol: str = Field(..., description="Ticker symbol.")
+    name: str = Field(..., description="Display name.")
+    tradingview_url: str | None = Field(..., description="TradingView URL.")
+
+
 class DailyCheckinRead(BaseModel):
     """Response schema for a daily check-in."""
 
@@ -210,6 +233,10 @@ class DailyCheckinRead(BaseModel):
     screenshot_urls: list[str] = Field(..., description="Stored screenshot URLs.")
     custom_metrics: dict[str, int | bool] | None = Field(
         ..., description="Stored custom metric values."
+    )
+    target_indices: list[TargetIndexRead] = Field(
+        default_factory=list,
+        description="Associated market indices for this check-in.",
     )
     created_at: dt.datetime = Field(..., description="UTC creation timestamp.")
     updated_at: dt.datetime = Field(..., description="UTC last update timestamp.")

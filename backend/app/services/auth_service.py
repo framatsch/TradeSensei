@@ -28,6 +28,9 @@ from app.models.user import User
 from app.repositories.checkin_field_definition_repository import (
     CheckinFieldDefinitionRepository,
 )
+from app.repositories.market_index_repository import (
+    MarketIndexDefinitionRepository,
+)
 from app.repositories.market_phase_definition_repository import (
     MarketPhaseDefinitionRepository,
 )
@@ -56,6 +59,7 @@ class AuthService:
         self._repo = UserRepository(session)
         self._checkin_field_repo = CheckinFieldDefinitionRepository(session)
         self._market_phase_repo = MarketPhaseDefinitionRepository(session)
+        self._market_index_repo = MarketIndexDefinitionRepository(session)
 
     async def register(self, data: UserCreate) -> User:
         """Register a new user account.
@@ -83,6 +87,7 @@ class AuthService:
         user = await self._repo.create(data, hashed)
         await self._checkin_field_repo.seed_defaults(user.id)
         await self._market_phase_repo.seed_defaults(user.id)
+        await self._market_index_repo.seed_defaults(user.id)
         return user
 
     async def login(self, data: UserLogin) -> tuple[str, str]:
@@ -120,6 +125,7 @@ class AuthService:
             raise InvalidCredentialsError("Invalid username/email or password.")
         if not user.is_active:
             raise InvalidCredentialsError("User account is disabled.")
+        await self._market_index_repo.seed_defaults(user.id)
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id, user.refresh_token_version)
         return access_token, refresh_token
@@ -150,6 +156,7 @@ class AuthService:
         user = await self._repo.get_by_id(user_id)
         if user is None or not user.is_active:
             raise InvalidCredentialsError("User not found or inactive.")
+        await self._market_index_repo.seed_defaults(user.id)
         if token_version != user.refresh_token_version:
             raise InvalidCredentialsError("Refresh token has been revoked.")
         # Rotate: increment version so the old token is invalidated
@@ -226,6 +233,7 @@ class AuthService:
         if not user.is_active:
             raise InvalidCredentialsError("User account is disabled.")
 
+        await self._market_index_repo.seed_defaults(user.id)
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id, user.refresh_token_version)
         one_time_token = create_one_time_token(user.id)
@@ -253,6 +261,7 @@ class AuthService:
         user = await self._repo.get_by_id(user_id)
         if user is None or not user.is_active:
             raise InvalidCredentialsError("User not found or inactive.")
+        await self._market_index_repo.seed_defaults(user.id)
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id, user.refresh_token_version)
         return access_token, refresh_token
