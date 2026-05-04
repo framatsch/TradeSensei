@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-import boto3  # type: ignore
+import boto3
 from fastapi import HTTPException, status
 
 from app.core.config import settings

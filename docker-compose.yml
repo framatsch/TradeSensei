@@ -100,6 +100,60 @@ services:
       timeout: 5s
       retries: 10
 
+  mcp:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    restart: unless-stopped
+    environment:
+      DB_USER: tradesensei
+      DB_PASSWORD: tradesensei
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: tradesensei
+      ENVIRONMENT: development
+      LOG_LEVEL: DEBUG
+      SECRET_KEY: dev-secret-key-change-in-production
+      ACCESS_TOKEN_EXPIRE_MINUTES: "120"
+      CORS_ORIGINS: "http://localhost:3000"
+      # Reuse same auth env vars as backend
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      OIDC_ENABLED: "${OIDC_ENABLED:-false}"
+      OIDC_PROVIDER_NAME: "${OIDC_PROVIDER_NAME:-}"
+      OIDC_CONFIGURATION_URL: "${OIDC_CONFIGURATION_URL:-}"
+      OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-}"
+      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-}"
+      GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
+      LOCAL_AUTH_DISABLED: "${LOCAL_AUTH_DISABLED:-false}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      EMAIL_FROM: "${EMAIL_FROM:-}"
+      SMTP_TLS: "${SMTP_TLS:-true}"
+      BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-daJEwBPiYPyToA8tPYgcN9IZqaZpJFUCOjIgA6FbWl4=}"
+      MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
+      STORAGE_BACKEND: "${STORAGE_BACKEND:-}"
+      STORAGE_BUCKET: "${STORAGE_BUCKET:-}"
+      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-}"
+      STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-}"
+      STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-}"
+      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-}"
+    command: uvicorn app.mcp_main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8001/health || exit 1"]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # ─────────────────────────────────────────────
   # Next.js Frontend
   # ─────────────────────────────────────────────

@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Reporting Hub', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/dashboard/reporting');
+    await page.goto('/dashboard/workspace/reporting');
     await page.waitForLoadState('networkidle');
   });
 
@@ -147,9 +147,14 @@ test.describe('Reporting Hub', () => {
     const reportingLink = page.getByRole('link', { name: 'Reporting Hub' });
     if (await reportingLink.isVisible()) {
       await reportingLink.click();
-      await expect(page).toHaveURL(/\/dashboard\/reporting/, {
+      await expect(page).toHaveURL(/\/dashboard\/workspace\/reporting/, {
         timeout: 10_000,
       });
     }
+  });
+
+  test('legacy /dashboard/reporting route redirects to workspace', async ({ page }) => {
+    await page.goto('/dashboard/reporting');
+    await expect(page).toHaveURL(/\/dashboard\/workspace\/reporting/);
   });
 });

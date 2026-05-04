@@ -51,4 +51,9 @@ test.describe('Sidebar Navigation', () => {
     const overviewLink = page.getByRole('link', { name: 'Overview' }).first();
     await expect(overviewLink).not.toHaveClass(/nav-active/);
   });
+
+  test('TC-047 /dashboard/analytics redirects to workspace strategy', async ({ page }) => {
+    await page.goto('/dashboard/analytics');
+    await expect(page).toHaveURL(/\/dashboard\/workspace\/performance\/strategy/);
+  });
 });

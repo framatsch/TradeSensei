@@ -157,37 +157,20 @@ const Icons = {
 
 // ─── Build nav items (respects feature flags and context) ─────────────────────
 
-function buildNavItems(context: AppContext, showReporting: boolean): NavItem[] {
+function buildNavItems(context: AppContext): NavItem[] {
   if (context === "portfolio") {
-    const items: NavItem[] = [
-      {
-        kind: "group",
-        label: "DASHBOARD",
-        defaultOpen: true,
-        children: [
-          { kind: "leaf", href: "/dashboard", label: "Overview", icon: Icons.dashboard },
-          { kind: "leaf", href: "/dashboard/reports/calendar", label: "Calendar", icon: Icons.calendar },
-        ],
-      },
-    ];
-
-    if (showReporting) {
-      items.push({ kind: "leaf", href: "/dashboard/reporting", label: "Reporting Hub", icon: Icons.analytics });
-    }
-
-    items.push({ kind: "leaf", href: "/dashboard/analytics", label: "Analytics", icon: Icons.analytics });
-    return items;
+    return []; // Handled entirely by WorkspaceSidebarNav now
   }
   
   if (context === "library") {
     return [
       {
         kind: "group",
-        label: "LIBRARY",
+        label: "TRADING",
         defaultOpen: true,
         children: [
-          { kind: "leaf", href: "/dashboard/library/playbooks", label: "Playbooks", icon: Icons.playbooks },
-          { kind: "leaf", href: "/dashboard/library/tags", label: "Tags", icon: Icons.tags },
+          { kind: "leaf", href: "/dashboard/trades", label: "Trade Log", icon: Icons.trades },
+          { kind: "leaf", href: "/dashboard/checkins", label: "Daily Check-in", icon: Icons.clock },
         ],
       }
     ];
@@ -214,133 +197,6 @@ const L2_INACTIVE =
   "rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60";
 
 // ─── Reporting Hub sub-tabs ──────────────────────────────────────────────────
-
-function ReportingNavSection({
-  pathname,
-  onClick,
-  portfolioId,
-}: {
-  pathname: string;
-  onClick: () => void;
-  portfolioId: string | null;
-}) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const isOnReportingPage = pathname.startsWith("/dashboard/reporting");
-  
-  const activeViewId = searchParams.get("view_id");
-  
-  const { data: views } = useSavedViews(portfolioId);
-  const hasViews = views && views.length > 0;
-
-  const handleMainClick = () => {
-    router.push("/dashboard/reporting", { scroll: false });
-    onClick();
-  };
-
-  const handleViewClick = (viewId: string) => {
-    router.push(`/dashboard/reporting?view_id=${viewId}`, { scroll: false });
-    onClick();
-  };
-
-  const isMainActive = isOnReportingPage && !activeViewId;
-
-  return (
-    <div>
-      <button
-        onClick={handleMainClick}
-        className={`flex w-full items-center gap-3 px-4 py-2 text-sm font-normal transition-all duration-150 ${
-          isMainActive ? "nav-active" : L1_INACTIVE
-        }`}
-      >
-        <span className={`shrink-0 ${isMainActive ? "opacity-100" : "opacity-50"}`}>
-          {Icons.analytics}
-        </span>
-        Reporting Hub
-      </button>
-
-      {hasViews && (
-        <div className="mt-1 space-y-0.5">
-          {views.map((view) => {
-            const isActive = isOnReportingPage && activeViewId === view.id;
-            return (
-              <button
-                key={view.id}
-                onClick={() => handleViewClick(view.id)}
-                className={`w-full flex items-center gap-2 pl-[46px] pr-4 py-1.5 text-sm font-normal transition-all duration-150 text-left ${
-                  isActive ? "nav-active font-medium" : L2_INACTIVE
-                }`}
-              >
-                <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>
-                  <Filter className="w-3.5 h-3.5" />
-                </span>
-                <span className="truncate flex-1">{view.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const ANALYTICS_TABS = [
-  { id: "time", label: "Time", icon: Icons.clock },
-  { id: "strategy", label: "Strategy", icon: Icons.strategy },
-  { id: "risk", label: "Risk", icon: Icons.risk },
-  { id: "behavior", label: "Behavior", icon: Icons.behavior },
-] as const;
-
-function AnalyticsNavSection({
-  pathname,
-  onClick,
-  showRisk,
-}: {
-  pathname: string;
-  onClick: () => void;
-  showRisk: boolean;
-}) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const isOnAnalyticsPage = pathname.startsWith("/dashboard/analytics");
-
-  const activeTab = searchParams.get("tab") ?? "time";
-
-  const handleTabClick = (tabId: string) => {
-    router.push(`/dashboard/analytics?tab=${tabId}`, { scroll: false });
-    onClick();
-  };
-
-  const visibleTabs = ANALYTICS_TABS.filter((t) => t.id !== "risk" || showRisk);
-
-  return (
-    <div>
-      <div className={SECTION_HEADER_CLASS}>Performance</div>
-
-      <div className="space-y-0.5">
-        {visibleTabs.map((tab) => {
-          const isActive = isOnAnalyticsPage && activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabClick(tab.id)}
-              className={`w-full flex items-center gap-2 pl-[46px] pr-4 py-1.5 text-sm font-normal transition-all duration-150 text-left ${
-                isActive ? "nav-active" : L2_INACTIVE
-              }`}
-            >
-              <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>
-                {tab.icon}
-              </span>
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function NavLeafItem({
   item,
@@ -413,6 +269,8 @@ function NavGroupItem({
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
+
+import { WorkspaceSidebarNav } from "@/components/workspace/WorkspaceSidebarNav";
 
 interface Props {
   children: React.ReactNode;
@@ -492,7 +350,7 @@ export default function DashboardLayout({ children }: Props) {
     );
   }
 
-  const NAV_ITEMS = buildNavItems(activeContext, showReporting);
+  const NAV_ITEMS = buildNavItems(activeContext);
 
   const renderContent = () => {
     if (activeContext === 'portfolio' && !pathname.startsWith("/dashboard/settings")) {
@@ -562,26 +420,6 @@ export default function DashboardLayout({ children }: Props) {
                       />
                     );
                   }
-                  if (item.kind === "leaf" && item.href === "/dashboard/reporting") {
-                  return (
-                    <ReportingNavSection
-                      key={item.href}
-                      pathname={pathname}
-                      onClick={closeSidebar}
-                      portfolioId={activePortfolioId}
-                    />
-                  );
-                }
-                if (item.kind === "leaf" && item.href === "/dashboard/analytics") {
-                    return (
-                      <AnalyticsNavSection
-                        key={item.href}
-                        pathname={pathname}
-                        onClick={closeSidebar}
-                        showRisk={showRisk}
-                      />
-                    );
-                  }
                   if (item.kind === "leaf") {
                     return (
                       <NavLeafItem
@@ -594,6 +432,10 @@ export default function DashboardLayout({ children }: Props) {
                   }
                   return null;
                 })}
+                {/* Render the new workspace nav directly for the portfolio context */}
+                {activeContext === 'portfolio' && (
+                  <WorkspaceSidebarNav />
+                )}
                 {/* Client-side injected per-user feature nav items (Cash / Tax) */}
                 {activeContext === 'portfolio' && (
                   <FeatureGatedNavItems showCash={showCash} showTax={showTax} />

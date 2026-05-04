@@ -56,6 +56,64 @@ Copy `.env.example` to `.env` and fill in the required values:
 cp .env.example .env
 ```
 
+The complete variables:
+
+```dotenv
+# Database connection (either DATABASE_URL OR the DB_* variables)
+DATABASE_URL=                      # optional, e.g. postgresql+asyncpg://user:pass@db:5432/db
+DB_USER=tradesensei               # required if DATABASE_URL is empty
+DB_PASSWORD=tradesensei           # required if DATABASE_URL is empty
+DB_HOST=db                         # defaults to 'db'
+DB_PORT=5432                       # defaults to 5432
+DB_NAME=tradesensei               # defaults to 'tradesensei'
+
+# Required
+SECRET_KEY=                        # generate: python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+**3. Start the stack**
+
+```bash
+docker compose up -d
+```
+
+**Services:**
+
+| Service       | URL                             |
+|---------------|---------------------------------|
+| Frontend      | http://localhost:3000           |
+| Backend API   | http://localhost:8000           |
+| MCP API       | http://localhost:8001 (MCP)    |
+| Swagger UI    | http://localhost:8000/docs      |
+| ReDoc         | http://localhost:8000/redoc     |
+
+**4. First steps**
+
+1. Open the frontend at `http://localhost:3000`
+2. Register a new account
+3. Go to **Accounts** and create a broker account (e.g., "IBKR Main")
+4. Import trades from a CSV file, or add your first trade manually from the dashboard
+
+---
+
+
+The fastest way to run the full stack locally is with Docker Compose.
+
+**1. Clone the repository**
+
+```bash
+git clone <repo-url>
+cd tradesensei
+```
+
+**2. Create your `.env` file**
+
+Copy `.env.example` to `.env` and fill in the required values:
+
+```bash
+cp .env.example .env
+```
+
 The complete set of variables:
 
 ```dotenv

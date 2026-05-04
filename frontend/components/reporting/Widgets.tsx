@@ -332,6 +332,8 @@ function renderScatterTooltip(value: unknown, name: unknown) {
   return [String(value), String(name)];
 }
 
+export const SCATTER_MAX_RAW_POINTS = 500;
+
 export function MaeMfeScatterWidget({
   data,
   isLoading,
@@ -341,13 +343,19 @@ export function MaeMfeScatterWidget({
 }) {
   if (isLoading) return <ChartSkeleton />;
 
+  const exceeded = data && data.length > SCATTER_MAX_RAW_POINTS;
+
   return (
     <ChartShell
       title="MAE / MFE"
-      isEmpty={!data || data.length === 0}
-      emptyMessage="No execution data available."
+      isEmpty={!data || data.length === 0 || !!exceeded}
+      emptyMessage={
+        exceeded
+          ? `Too many points (${data.length}). Please narrow your filter to view this chart.`
+          : "No execution data available."
+      }
     >
-      {data && data.length > 0 && (
+      {!exceeded && data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
           <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -416,13 +424,19 @@ export function DurationVsPnlScatterWidget({
 }) {
   if (isLoading) return <ChartSkeleton />;
 
+  const exceeded = data && data.length > SCATTER_MAX_RAW_POINTS;
+
   return (
     <ChartShell
       title="Duration vs P&L"
-      isEmpty={!data || data.length === 0}
-      emptyMessage="No execution data available."
+      isEmpty={!data || data.length === 0 || !!exceeded}
+      emptyMessage={
+        exceeded
+          ? `Too many points (${data.length}). Please narrow your filter to view this chart.`
+          : "No execution data available."
+      }
     >
-      {data && data.length > 0 && (
+      {!exceeded && data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
           <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -472,7 +486,7 @@ export function DurationVsPnlScatterWidget({
   );
 }
 
-// ─── Attribution: Playbook vs Market Phase Heatmap ─────────────────────────────
+// ─── Attribution: Playbook vs Market Regime Heatmap ─────────────────────────────
 
 const HEATMAP_COLORS = [
   "#f3f4f6",
@@ -503,7 +517,7 @@ export function PlaybookPhaseHeatmapWidget({
   if (!hasData) {
     return (
       <ChartShell
-        title="Playbook vs Market Phase"
+        title="Playbook vs Market Regime"
         isEmpty
         emptyMessage="No attribution data available."
       >
@@ -517,7 +531,7 @@ export function PlaybookPhaseHeatmapWidget({
   const maxCount = Math.max(...data!.map((d) => d.trade_count), 1);
 
   return (
-    <ChartShell title="Playbook vs Market Phase" isEmpty={false}>
+    <ChartShell title="Playbook vs Market Regime" isEmpty={false}>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -646,7 +660,7 @@ export function UncategorizedBanner({
       {phaseUnsetCount > 0 && (
         <span>
           <span className="font-medium text-foreground">{phaseUnsetCount}</span>{" "}
-          trades with unset market phase
+          trades with unset market regime
         </span>
       )}
     </div>

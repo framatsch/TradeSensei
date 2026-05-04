@@ -48,7 +48,7 @@ export function useAnalyticsSummary(
       filterConfig ? JSON.stringify(filterConfig) : null,
       viewId ?? null,
     ],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!portfolioId) throw new Error("No portfolio selected");
 
       const body: AnalyticsSummaryRequest = {};
@@ -62,14 +62,15 @@ export function useAnalyticsSummary(
         await getAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPost({
           path: { portfolio_id: portfolioId },
           body,
-        });
+          signal,
+        } as any);
 
       if (error || !data) {
         throw error ?? new Error("Request failed: no data returned");
       }
       return data.data;
     },
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     enabled: !!portfolioId,
   });
 }
@@ -91,25 +92,28 @@ export function useMarketPhaseCorrelation(
       filterConfig ? JSON.stringify(filterConfig) : null,
       viewId ?? null,
     ],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!portfolioId) throw new Error("No portfolio selected");
 
       const { data, error } =
-        await getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet({
-          path: { portfolio_id: portfolioId },
-          query: {
-            from_date: viewId ? undefined : (filterConfig?.date_from ?? undefined),
-            to_date: viewId ? undefined : (filterConfig?.date_to ?? undefined),
-            view_id: viewId ?? undefined,
-          },
-        });
+        await getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet(
+          {
+            path: { portfolio_id: portfolioId },
+            query: {
+              from_date: viewId ? undefined : filterConfig?.date_from ?? undefined,
+              to_date: viewId ? undefined : filterConfig?.date_to ?? undefined,
+              view_id: viewId ?? undefined,
+            },
+            signal,
+          } as any
+        );
 
       if (error || !data) {
         throw error ?? new Error("Request failed: no data returned");
       }
       return data.data;
     },
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     enabled: !!portfolioId,
   });
 }
@@ -131,17 +135,24 @@ export function useReturnDistribution(
       portfolioId,
       filterConfig ? JSON.stringify(filterConfig) : null,
     ],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!portfolioId) throw new Error("No portfolio selected");
 
       const { data, error } =
-        await getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet({
-          path: { portfolio_id: portfolioId },
-          query: {
-            from_dt: filterConfig?.date_from ? `${filterConfig.date_from}T00:00:00Z` : undefined,
-            to_dt: filterConfig?.date_to ? `${filterConfig.date_to}T23:59:59Z` : undefined,
-          },
-        });
+        await getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet(
+          {
+            path: { portfolio_id: portfolioId },
+            query: {
+              from_dt: filterConfig?.date_from
+                ? `${filterConfig.date_from}T00:00:00Z`
+                : undefined,
+              to_dt: filterConfig?.date_to
+                ? `${filterConfig.date_to}T23:59:59Z`
+                : undefined,
+            },
+            signal,
+          } as any
+        );
 
       if (error || !data) {
         throw error ?? new Error("Request failed: no data returned");

@@ -55,7 +55,7 @@ function sortResult(result: PerformanceDataPoint[], dimension: ReportDimension):
  * Fetch all trades by walking the cursor-pagination (API hard-limit is 100
  * per page). Accumulates every page and returns the full list.
  */
-async function fetchAllTrades(portfolioId?: string): Promise<Trade[]> {
+async function fetchAllTrades(portfolioId?: string, signal?: AbortSignal): Promise<Trade[]> {
   const PAGE_SIZE = 100;
   const allItems: Trade[] = [];
   let cursor: string | null = null;
@@ -67,7 +67,7 @@ async function fetchAllTrades(portfolioId?: string): Promise<Trade[]> {
     const url = portfolioId
       ? `/api/v1/portfolios/${portfolioId}/trades`
       : "/api/v1/trades";
-    const response = await client.get({ url, query });
+    const response = await client.get({ url, query, signal } as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pageData = ((response as any).data?.data ?? (response as any).data) as CursorPage<Trade>;
     allItems.push(...pageData.items);
@@ -80,8 +80,8 @@ async function fetchAllTrades(portfolioId?: string): Promise<Trade[]> {
 export function useReportData(accountId?: string | null) {
   const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   const { data: allTrades, isLoading, isError } = useQuery<Trade[], Error>({
-    queryKey: ["trades-all-for-reports", portfolioId],
-    queryFn: () => fetchAllTrades(portfolioId ?? undefined),
+    queryKey: ["trades-all-for-reports", portfolioId, accountId ?? null],
+    queryFn: ({ signal }) => fetchAllTrades(portfolioId ?? undefined, signal),
     staleTime: 5 * 60 * 1000,
     enabled: Boolean(portfolioId),
   });
