@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Check-in sidebar renders mini calendar at top and view toggles at bottom
 The Check-in sidebar SHALL render the mini month calendar in the upper section and the view-toggle buttons (Timeline / Model Book) in the lower section. The calendar SHALL be the first visible element inside the sidebar; the toggle buttons SHALL be the last.
