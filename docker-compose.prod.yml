@@ -14,10 +14,10 @@ name: tradesensei-prod
 
 services:
   # ─────────────────────────────────────────────
-  # TimescaleDB
+  # Postgre SQL
   # ─────────────────────────────────────────────
   db:
-    image: timescale/timescaledb:latest-pg16
+    image: postgres:18
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER:?DB_USER is required}

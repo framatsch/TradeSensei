@@ -7,7 +7,7 @@ name: tradesensei-test
 # Usage in GitHub Actions:
 #   services:
 #     db:
-#       image: timescale/timescaledb:latest-pg16
+#       image: postgres:18
 #       ... (see ci.yml)
 #
 # For local pre-flight test run:
