@@ -166,11 +166,11 @@ function buildNavItems(context: AppContext): NavItem[] {
     return [
       {
         kind: "group",
-        label: "TRADING",
+        label: "LIBRARY",
         defaultOpen: true,
         children: [
-          { kind: "leaf", href: "/dashboard/trades", label: "Trade Log", icon: Icons.trades },
-          { kind: "leaf", href: "/dashboard/checkins", label: "Daily Check-in", icon: Icons.clock },
+          { kind: "leaf", href: "/dashboard/library/playbooks", label: "Playbooks", icon: Icons.playbooks },
+          { kind: "leaf", href: "/dashboard/library/tags", label: "Tags", icon: Icons.tags },
         ],
       }
     ];
@@ -178,7 +178,7 @@ function buildNavItems(context: AppContext): NavItem[] {
   
   if (context === "checkin") {
     return [
-      { kind: "leaf", href: "/dashboard/checkin", label: "Timeline", icon: Icons.clock }
+      { kind: "leaf", href: "/dashboard/checkins", label: "Timeline", icon: Icons.clock }
     ];
   }
   
@@ -298,7 +298,7 @@ export default function DashboardLayout({ children }: Props) {
   
   const { activePortfolioId } = useActivePortfolio();
 
-  const hideGlobalSidebar = pathname.startsWith("/dashboard/trades") || pathname.startsWith("/dashboard/checkins");
+  const hideGlobalSidebar = pathname.startsWith("/dashboard/trades") || pathname.startsWith("/dashboard/checkins") || pathname.startsWith("/dashboard/settings");
 
   const toggleDesktopSidebar = () => {
     setDesktopSidebarOpen((prev) => {

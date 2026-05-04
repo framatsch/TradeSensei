@@ -7,7 +7,12 @@ Create or edit `claude_desktop_config.json` to include the following `sse_proxy`
 ```json
 {
   "sse_proxy": {
-    "command": "npx @modelcontextprotocol/sse-proxy http://localhost:8001/mcp/sse",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/sse-proxy",
+      "http://localhost:8000/mcp/sse"
+    ],
     "env": {
       "AUTHORIZATION": "Bearer <YOUR_PAT>"
     }
@@ -23,7 +28,7 @@ For OpenCode, set the `AUTHORIZATION` environment variable before invoking the c
 
 ```bash
 export AUTHORIZATION="Bearer <YOUR_PAT>"
-opencode --mcp http://localhost:8001/mcp/sse
+opencode --mcp http://localhost:8000/mcp/sse
 ```
 
 ## Generating a Personal Access Token (PAT)

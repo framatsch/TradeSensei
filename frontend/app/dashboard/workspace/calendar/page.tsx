@@ -1,12 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import { useWorkspaceFilter } from "@/components/workspace/WorkspaceFilterContext";
 import { useReportData } from "@/hooks/useReportData";
 import { Calendar } from "@/components/calendar/Calendar";
 import { Spinner } from "@/components/ui/Spinner";
-import type { CalendarDayData } from "@/components/calendar/types";
 
 export default function CalendarPage() {
   const router = useRouter();
@@ -16,7 +14,6 @@ export default function CalendarPage() {
   const handleDayClick = (dateStr: string, dayData?: any) => {
     // Only navigate to trades log if there are actually trades on this day
     if (dayData && dayData.trade_count > 0) {
-      const dateStr = format(date, "yyyy-MM-dd");
       router.push(`/dashboard/trades?date_from=${dateStr}&date_to=${dateStr}`);
     }
   };

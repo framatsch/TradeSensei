@@ -50,7 +50,12 @@ class CheckinFieldDefinition(Base):
     )
     field_name: Mapped[str] = mapped_column(String(100), nullable=False)
     field_type: Mapped[FieldTypeEnum] = mapped_column(
-        Enum(FieldTypeEnum, name="checkin_field_type_enum", native_enum=False),
+        Enum(
+            FieldTypeEnum,
+            name="checkin_field_type_enum",
+            native_enum=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(

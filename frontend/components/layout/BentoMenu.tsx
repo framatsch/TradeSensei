@@ -80,7 +80,7 @@ export function BentoMenu() {
             </Link>
 
             <Link
-              href="/dashboard/checkin"
+              href="/dashboard/checkins"
               onClick={() => handleSelect("checkin")}
               className="flex items-center w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors relative"
               aria-current={activeContext === "checkin" ? "true" : undefined}

@@ -52,41 +52,43 @@ export function SettingsPageClient() {
   }, [searchParams]);
 
   return (
-    <div className="space-y-6 max-w-4xl bg-card border border-border p-6 rounded-xl">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Manage your preferences, accounts, and broker integrations.
-        </p>
-      </div>
+    <div className="w-full min-h-full p-6 md:p-12 flex justify-center items-start">
+      <div className="space-y-6 w-full max-w-4xl bg-card border border-border p-6 md:p-8 rounded-xl shadow-sm">
+        {/* Page header */}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Settings</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage your preferences, accounts, and broker integrations.
+          </p>
+        </div>
 
-      {/* Tab bar */}
-      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-secondary p-1">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+        {/* Tab bar */}
+        <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-secondary p-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                activeTab === tab.id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Tab content */}
-      <div className="pt-2">
-        {activeTab === "general" && <GeneralSettings />}
-        {activeTab === "portfolios-brokers" && <PortfoliosBrokersHub />}
-        {activeTab === "api-tokens" && <ApiTokensSettings />}
-        {activeTab === "corporate-actions" && <CorporateActionsSettings />}
-        {activeTab === "features" && <FeaturesSettings />}
-        {activeTab === "checkin" && <CheckinSettings />}
+        {/* Tab content */}
+        <div className="pt-2">
+          {activeTab === "general" && <GeneralSettings />}
+          {activeTab === "portfolios-brokers" && <PortfoliosBrokersHub />}
+          {activeTab === "api-tokens" && <ApiTokensSettings />}
+          {activeTab === "corporate-actions" && <CorporateActionsSettings />}
+          {activeTab === "features" && <FeaturesSettings />}
+          {activeTab === "checkin" && <CheckinSettings />}
+        </div>
       </div>
     </div>
   );

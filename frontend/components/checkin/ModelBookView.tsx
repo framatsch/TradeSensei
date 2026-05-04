@@ -7,6 +7,7 @@ import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
 import { format } from "date-fns";
 import { CheckinLightbox } from "./CheckinLightbox";
 import { ModelBookFilterBar } from "./ModelBookFilterBar";
+import { Image as ImageIcon } from "lucide-react";
 
 export function ModelBookView() {
   const { regime, fromDate, setFromDate, toDate, setToDate, page, perPage, setPage, setPerPage } = useCheckinParams();
@@ -19,6 +20,14 @@ export function ModelBookView() {
     return <div className="p-8 text-center text-muted-foreground">Loading model book...</div>;
   }
 
+  // Extract all screenshots from the fetched check-ins
+  const screenshots = data?.items?.flatMap(checkin => 
+    (checkin.screenshot_urls || []).map(url => ({
+      url,
+      checkin
+    }))
+  ) || [];
+
   return (
     <div className="space-y-6">
       <ModelBookFilterBar
@@ -30,30 +39,35 @@ export function ModelBookView() {
         setPerPage={setPerPage}
       />
 
-      {(!data?.items || data.items.length === 0) ? (
-        <div className="p-12 text-center text-muted-foreground border rounded-xl border-dashed">
-          No screenshots found for the current filters.
+      {screenshots.length === 0 ? (
+        <div className="p-12 flex flex-col items-center justify-center text-center border rounded-xl border-dashed bg-muted/10">
+          <div className="w-12 h-12 mb-4 rounded-full bg-muted flex items-center justify-center">
+            <ImageIcon className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-medium text-foreground mb-1">Your Model Book is empty</h3>
+          <p className="text-sm text-muted-foreground max-w-md">
+            The Model Book is a visual gallery of your trades and setups. Add screenshots to your daily check-ins to build a library of chart patterns and market conditions.
+          </p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
-            {data.items.map((checkin) => {
-              // Only show checkins that have screenshots in Model Book view
-              if (!checkin.screenshot_urls || checkin.screenshot_urls.length === 0) return null;
-
+            {screenshots.map((item, i) => {
+              const checkin = item.checkin;
               const phase = phases?.find((p) => p.name === checkin.market_phase);
-              const colorHex = phase?.color_hex ?? "#94a3b8";
+              const colorHex = phase?.color_hex ?? "var(--border)";
 
-              return checkin.screenshot_urls.map((url, i) => (
+              return (
                  <div
                    key={`${checkin.id}-${i}`}
-                   className="relative bg-card border rounded-xl overflow-hidden shadow-sm flex flex-col group cursor-pointer"
+                   className="relative bg-card border rounded-xl overflow-hidden shadow-sm flex flex-col group cursor-pointer hover:border-primary/50 transition-colors"
                    style={{ borderTopWidth: "4px", borderTopColor: colorHex }}
-                   onClick={() => setLightboxUrl(url)}
+                   onClick={() => setLightboxUrl(item.url)}
                  >
+                   {/* eslint-disable-next-line @next/next/no-img-element */}
                    <img
                      loading="lazy"
-                     src={url}
+                     src={item.url}
                      alt={`Model Book Screenshot ${format(new Date(`${checkin.date}T12:00:00Z`), "MM/dd")}`}
                      className="w-full h-48 object-cover group-hover:opacity-90 transition-opacity"
                    />
@@ -75,7 +89,7 @@ export function ModelBookView() {
                      )}
                    </div>
                  </div>
-              ));
+              );
             })}
           </div>
 
@@ -84,10 +98,10 @@ export function ModelBookView() {
           )}
 
           {/* Pagination placeholder */}
-          {data.total > perPage && (
-            <div className="flex items-center justify-between pt-4 border-t">
+          {data && data.total > perPage && (
+            <div className="flex items-center justify-between pt-4 border-t border-border">
                <div className="text-sm text-muted-foreground">
-                 Showing {data.items.length} of {data.total}
+                 Showing Check-ins page {page}
                </div>
                <div className="flex gap-2">
                  <button 

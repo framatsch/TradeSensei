@@ -73,16 +73,13 @@ export function CheckinMiniCalendar() {
       days.push(
         <button
           key={dateStr}
-          disabled={!hasCheckin}
           onClick={() => {
-            if (hasCheckin) {
-              router.push(`/dashboard/checkins/${dateStr}`);
-            }
+            router.push(`/dashboard/checkins/${dateStr}`);
           }}
-          className={`relative h-8 w-8 flex items-center justify-center rounded-full text-sm transition-colors ${
+          className={`relative h-8 w-8 flex items-center justify-center rounded-full text-sm transition-colors cursor-pointer hover:bg-muted ${
             hasCheckin
-              ? "hover:bg-muted cursor-pointer text-foreground font-medium"
-              : "text-muted-foreground/50 cursor-default"
+              ? "text-foreground font-medium"
+              : "text-muted-foreground/70"
           } ${isToday && !hasCheckin ? "bg-secondary text-foreground" : ""} ${isToday && hasCheckin ? "ring-1 ring-primary" : ""}`}
         >
           {i}

@@ -1,7 +1,7 @@
 ## Purpose
 Market check-in pillar for tradesensei.
 
-## UI Mockup — Market Check-in Pillar (`/dashboard/checkin`)
+## UI Mockup — Market Check-in Pillar (`/dashboard/checkins`)
 
 The prompt does not provide an ASCII mockup for this pillar, but specifies the following UI
 components which together define the layout:

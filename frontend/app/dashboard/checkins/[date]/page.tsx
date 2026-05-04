@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { CheckinsPageClient } from "../CheckinsPageClient";
+import { CheckinDateClient } from "./CheckinDateClient";
 import { Spinner } from "@/components/ui/Spinner";
 
 interface Props {
@@ -24,7 +24,7 @@ export default async function CheckinDatePage({ params }: Props) {
         </div>
       }
     >
-      <CheckinsPageClient initialDate={date} />
+      <CheckinDateClient date={date} />
     </Suspense>
   );
 }

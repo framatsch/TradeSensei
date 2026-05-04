@@ -1,122 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { ContextSetter } from "@/components/layout/ContextSetter";
-import { useCheckinEntries, useCheckinEntry, useCreateCheckin, useUpdateCheckin, useDeleteCheckin } from "@/hooks/useCheckins";
-import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
-import { useCheckinFields } from "@/hooks/useCheckinDefinitions";
-import type { DailyCheckinRead, DailyCheckinCreate, DailyCheckinUpdate } from "@/lib/api/types.gen";
-import { Calendar, PlusCircle, Trash2, X, Link2, Loader2, Check, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { type DailyCheckinRead, type DailyCheckinCreate, type DailyCheckinUpdate } from "@/lib/api/types.gen";
+import { X, Link2, Loader2, Check, PlusCircle, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ScreenshotUploader } from "@/components/checkin/ScreenshotUploader";
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function fmtDate(d: string): string {
-  return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-// ─── Timeline ─────────────────────────────────────────────────────────────────
-
-function TimelineEntry({
-  date,
-  isSelected,
-  hasEntry,
-  marketPhase,
-  onClick,
-}: {
-  date: string;
-  isSelected: boolean;
-  hasEntry: boolean;
-  marketPhase?: string | null;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
-        isSelected
-          ? "bg-primary/10 text-primary font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-      }`}
-    >
-      <span
-        className={`w-2 h-2 rounded-full shrink-0 ${
-          hasEntry
-            ? "bg-emerald-400"
-            : "bg-muted-foreground/30"
-        }`}
-      />
-      <span className="flex-1 truncate">{fmtDate(date)}</span>
-      {marketPhase && (
-        <span className="text-[11px] text-muted-foreground truncate max-w-[80px]">
-          {marketPhase}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function TimelinePanel({
-  entries,
-  selectedDate,
-  onSelect,
-  dateRange,
-  isLoading,
-}: {
-  entries: DailyCheckinRead[];
-  selectedDate: string;
-  onSelect: (d: string) => void;
-  dateRange: string[];
-  isLoading: boolean;
-}) {
-  const entryMap = useMemo(() => {
-    const m = new Map<string, DailyCheckinRead>();
-    for (const e of entries) m.set(e.date, e);
-    return m;
-  }, [entries]);
-
-  return (
-    <div className="bg-card border border-border rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-muted-foreground" />
-        Timeline
-      </h3>
-      {isLoading ? (
-        <div className="flex justify-center py-6">
-          <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
-        </div>
-      ) : (
-        <div className="space-y-0.5 max-h-[500px] overflow-y-auto">
-          {dateRange.map((d) => {
-            const e = entryMap.get(d);
-            return (
-              <TimelineEntry
-                key={d}
-                date={d}
-                isSelected={d === selectedDate}
-                hasEntry={!!e}
-                marketPhase={e?.market_phase}
-                onClick={() => onSelect(d)}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Form ─────────────────────────────────────────────────────────────────────
-
-function CheckinForm({
+export function CheckinForm({
   date,
   entry,
   marketPhases,
@@ -140,12 +30,25 @@ function CheckinForm({
   const [newsLink, setNewsLink] = useState("");
   const [newsLinks, setNewsLinks] = useState<string[]>(entry?.news_links ?? []);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(entry?.screenshot_urls ?? []);
-  const [metrics, setMetrics] = useState<Record<string, number | boolean>>(entry?.custom_metrics ?? {});
-  const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
-
-  const isNew = !entry;
   const activePhases = marketPhases.filter((p) => p.is_active);
   const activeFields = customFields.filter((f) => f.is_active);
+
+  const [metrics, setMetrics] = useState<Record<string, number | boolean>>(() => {
+    if (entry?.custom_metrics) return entry.custom_metrics;
+    
+    const initial: Record<string, number | boolean> = {};
+    for (const field of activeFields) {
+      if (field.field_type === "boolean") {
+        initial[field.field_name] = false;
+      } else {
+        initial[field.field_name] = 5;
+      }
+    }
+    return initial;
+  });
+  
+  const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
+  const isNew = !entry;
 
   const addNewsLink = () => {
     const trimmed = newsLink.trim();
@@ -445,127 +348,5 @@ function CheckinForm({
         )}
       </div>
     </form>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function CheckinPage() {
-  const [selectedDate, setSelectedDate] = useState<string>(today());
-
-  const { data: listData, isLoading: isListLoading } = useCheckinEntries();
-  const { data: entryData, isLoading: isEntryLoading } = useCheckinEntry(selectedDate);
-  const { data: phases, isLoading: isPhasesLoading } = useMarketPhases();
-  const { data: fields, isLoading: isFieldsLoading } = useCheckinFields();
-  const createMutation = useCreateCheckin();
-  const updateMutation = useUpdateCheckin();
-  const deleteMutation = useDeleteCheckin();
-
-  const entries = listData?.items ?? [];
-  const entry = entryData;
-
-  const dateRange = useMemo(() => {
-    const dates: string[] = [];
-    const end = new Date();
-    for (let i = 0; i < 60; i++) {
-      const d = new Date(end);
-      d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().slice(0, 10));
-    }
-    return dates;
-  }, []);
-
-  const handleSave = (data: DailyCheckinCreate | DailyCheckinUpdate) => {
-    if (!entry) {
-      createMutation.mutate(data as DailyCheckinCreate);
-    } else {
-      updateMutation.mutate({ date: selectedDate, payload: data as DailyCheckinUpdate });
-    }
-  };
-
-  const handleDelete = () => {
-    if (confirm("Delete this check-in? This cannot be undone.")) {
-      deleteMutation.mutate(selectedDate);
-    }
-  };
-
-  const isLoading = isListLoading || isEntryLoading || isPhasesLoading || isFieldsLoading;
-
-  return (
-    <div className="space-y-6">
-      <ContextSetter context="checkin" />
-      <PageHeader
-        title="Market Check-in"
-        subtitle="Daily macro and psychological journal"
-      />
-
-      <div className="flex gap-6 items-start flex-col lg:flex-row">
-        {/* Form */}
-        <div className="flex-1 min-w-0 w-full lg:max-w-2xl">
-          <div className="bg-card border border-border rounded-xl p-6">
-            {/* Date selector */}
-            <div className="flex items-center gap-3 mb-6">
-              <label className="text-sm font-medium text-foreground">
-                Date
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                max={today()}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-              />
-              {entry && (
-                <span className="text-xs text-muted-foreground ml-auto">
-                  Updated {new Date(entry.updated_at).toLocaleString()}
-                </span>
-              )}
-            </div>
-
-            {isLoading && !entry ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-              </div>
-            ) : (
-              <CheckinForm
-                date={selectedDate}
-                entry={entry}
-                marketPhases={phases ?? []}
-                customFields={fields ?? []}
-                onSave={handleSave}
-                onDelete={handleDelete}
-                isSaving={createMutation.isPending || updateMutation.isPending}
-                isDeleting={deleteMutation.isPending}
-              />
-            )}
-
-            {/* Status messages */}
-            {createMutation.isError && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                <AlertCircle className="w-4 h-4" />
-                {createMutation.error?.message ?? "Failed to create check-in"}
-              </div>
-            )}
-            {updateMutation.isError && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                <AlertCircle className="w-4 h-4" />
-                {updateMutation.error?.message ?? "Failed to update check-in"}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div className="w-full lg:w-64 shrink-0">
-          <TimelinePanel
-            entries={entries}
-            selectedDate={selectedDate}
-            onSelect={setSelectedDate}
-            dateRange={dateRange}
-            isLoading={isListLoading}
-          />
-        </div>
-      </div>
-    </div>
   );
 }

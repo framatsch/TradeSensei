@@ -103,7 +103,8 @@ def create_app() -> FastAPI:
 
     # ── API routers ───────────────────────────────────────────────────────────
     application.include_router(v1_router)
-    application.include_router(mcp_router)
+    if settings.MCP_ENABLED:
+        application.include_router(mcp_router)
 
     return application
 

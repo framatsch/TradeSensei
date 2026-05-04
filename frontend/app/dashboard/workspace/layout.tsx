@@ -3,6 +3,7 @@
 import { WorkspaceFilterProvider } from "@/components/workspace/WorkspaceFilterContext";
 import { WorkspaceFilterBar } from "@/components/workspace/WorkspaceFilterBar";
 import { usePathname } from "next/navigation";
+import { ContextSetter } from "@/components/layout/ContextSetter";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -10,6 +11,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   return (
     <WorkspaceFilterProvider>
+      <ContextSetter context="portfolio" />
       <div className="flex flex-col min-h-full">
         {!isCalendar && (
           <div className="p-6 pb-0">

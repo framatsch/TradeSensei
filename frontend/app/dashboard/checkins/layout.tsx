@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
 import { CheckinSidebar } from "@/components/checkin/CheckinSidebar";
+import { ContextSetter } from "@/components/layout/ContextSetter";
 
 export default function CheckinLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex w-full h-full">
+      <ContextSetter context="checkin" />
       <div className="w-[220px] shrink-0 border-r border-border bg-sidebar">
         <CheckinSidebar />
       </div>

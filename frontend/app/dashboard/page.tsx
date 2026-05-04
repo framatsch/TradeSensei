@@ -20,6 +20,7 @@ import { DrawdownChart } from "@/components/charts/DrawdownChart";
 import { DailyPnlBarChart } from "@/components/charts/DailyPnlBarChart";
 import { ReturnDistributionChart } from "@/components/charts/ReturnDistributionChart";
 import { Spinner } from "@/components/ui/Spinner";
+import { ContextSetter } from "@/components/layout/ContextSetter";
 
 function ChartSkeleton() {
   return (
@@ -75,6 +76,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <ContextSetter context="portfolio" />
       {/* 1 — Hero */}
       <DashboardHeader summary={summary} />
 

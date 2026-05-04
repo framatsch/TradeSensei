@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AppContext = 'portfolio' | 'library' | 'checkin';
+export type AppContext = 'portfolio' | 'library' | 'checkin' | 'none';
 
 export interface AppContextState {
   activeContext: AppContext;
@@ -10,7 +10,7 @@ export interface AppContextState {
 }
 
 const isValidContext = (ctx: any): ctx is AppContext => {
-  return ['portfolio', 'library', 'checkin'].includes(ctx);
+  return ['portfolio', 'library', 'checkin', 'none'].includes(ctx);
 };
 
 export const useAppContextStore = create<AppContextState>((set) => ({
@@ -18,10 +18,13 @@ export const useAppContextStore = create<AppContextState>((set) => ({
   hydrated: false,
   setActiveContext: (ctx: AppContext) => {
     set({ activeContext: ctx });
-    try {
-      localStorage.setItem('active_app_context', ctx);
-    } catch (err) {
-      console.error('Failed to save active_app_context to localStorage', err);
+    // Don't persist 'none' so that returning to the app defaults back to real context
+    if (ctx !== 'none') {
+      try {
+        localStorage.setItem('active_app_context', ctx);
+      } catch (err) {
+        console.error('Failed to save active_app_context to localStorage', err);
+      }
     }
   },
   hydrate: () => {

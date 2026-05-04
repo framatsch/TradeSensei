@@ -6,13 +6,11 @@ import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 
-interface Props {
-  initialDate?: string;
-}
-
-export function TimelineView({ initialDate: _initialDate }: Props) {
+export function TimelineView() {
   const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
   
   const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage);
@@ -43,9 +41,18 @@ export function TimelineView({ initialDate: _initialDate }: Props) {
             style={{ borderLeftWidth: "4px", borderLeftColor: colorHex }}
           >
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-lg font-semibold">
-                {format(new Date(`${checkin.date}T12:00:00Z`), "MMMM d, yyyy")}
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold">
+                  {format(new Date(`${checkin.date}T12:00:00Z`), "MMMM d, yyyy")}
+                </h2>
+                <Link
+                  href={`/dashboard/checkins/${checkin.date}`}
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                  title="Edit Check-in"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Link>
+              </div>
               {phase && (
                 <div
                   className="px-2.5 py-0.5 rounded-full text-xs font-medium border"

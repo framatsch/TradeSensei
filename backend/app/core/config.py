@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    MCP_ENABLED: bool = False
     """Central configuration object.
 
     All values are read from environment variables (case-insensitive).
