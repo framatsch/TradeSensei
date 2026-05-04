@@ -68,14 +68,17 @@ services:
       BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-daJEwBPiYPyToA8tPYgcN9IZqaZpJFUCOjIgA6FbWl4=}"
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
       # S3-compatible storage for trade image uploads and check-in screenshots.
-      # Leave all STORAGE_* vars empty to disable uploads (upload endpoints return HTTP 501).
-      # Example for a local MinIO instance:
+      # Leave all STORAGE_* vars empty to disable uploads (upload endpoints return HTTP 503).
+      # To enable bundled self-hosted storage, start with: docker compose --profile storage up -d
+      # Then set these values (STORAGE_PUBLIC_URL must use the host-reachable address,
+      # NOT the internal Docker hostname, because presigned URLs are accessed by the browser):
       #   STORAGE_BACKEND=s3
       #   STORAGE_BUCKET=tradesensei
-      #   STORAGE_PUBLIC_URL=http://localhost:9000/tradesensei
-      #   STORAGE_ACCESS_KEY=minioadmin
-      #   STORAGE_SECRET_KEY=minioadmin
-      #   STORAGE_ENDPOINT_URL=http://minio:9000
+      #   STORAGE_PUBLIC_URL=http://localhost:8333/tradesensei
+      #   STORAGE_ACCESS_KEY=any
+      #   STORAGE_SECRET_KEY=any
+      #   STORAGE_ENDPOINT_URL=http://seaweedfs:8333
+      # For cloud providers (AWS S3, Cloudflare R2, Hetzner, Backblaze B2) see docs/dev-guide.md
       STORAGE_BACKEND: "${STORAGE_BACKEND:-}"
       STORAGE_BUCKET: "${STORAGE_BUCKET:-}"
       STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-}"
@@ -118,7 +121,50 @@ services:
       backend:
         condition: service_healthy
 
+  # ─────────────────────────────────────────────
+  # SeaweedFS (S3-compatible object storage, optional)
+  # Start with: docker compose --profile storage up -d
+  # ─────────────────────────────────────────────
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.23
+    profiles: [storage]
+    restart: unless-stopped
+    environment:
+      - WEED_JWT_FILER_SIGNING_KEY=${WEED_JWT_FILER_SIGNING_KEY:-7a8f9c1b2d3e4f5a6b7c8d9e0f1a2b3c}
+    command: server -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/security.json -dir=/data
+    ports:
+      - "8333:8333"
+      - "8888:8888"
+      - "9333:9333"
+    volumes:
+      - seaweedfs_data:/data
+      - ./security.json:/etc/seaweedfs/security.json
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:9333/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  storage-init:
+    image: amazon/aws-cli:latest
+    profiles: [storage]
+    restart: on-failure
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: any
+      AWS_SECRET_ACCESS_KEY: any
+      AWS_EC2_METADATA_DISABLED: "true"
+    entrypoint: >
+      /bin/sh -c "
+        aws --endpoint-url http://seaweedfs:8333 s3 mb s3://tradesensei --region us-east-1 || true &&
+        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-acl --bucket tradesensei --acl public-read --region us-east-1
+      "
+
 volumes:
   db_data:
   backend_venv:
   frontend_node_modules:
+  seaweedfs_data:

@@ -45,6 +45,16 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://tradesensei.example.com}
+      # Object storage for screenshots and trade images.
+      # Supports any S3-compatible provider (AWS S3, Cloudflare R2, Hetzner, Backblaze B2,
+      # or bundled SeaweedFS via --profile storage). See docs/dev-guide.md for setup.
+      # IMPORTANT: STORAGE_PUBLIC_URL must be browser-reachable (not a Docker-internal hostname).
+      STORAGE_BACKEND: "${STORAGE_BACKEND:-}"
+      STORAGE_BUCKET: "${STORAGE_BUCKET:-}"
+      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-}"
+      STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-}"
+      STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-}"
+      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-}"
     depends_on:
       db:
         condition: service_healthy
@@ -79,6 +89,8 @@ services:
   nginx:
     image: nginx:alpine
     restart: always
+    # Note: when using --profile storage (SeaweedFS), add a proxy_pass for /storage/ → http://seaweedfs:8333
+    # in nginx.conf so presigned URLs are browser-reachable. See docs/dev-guide.md for the config snippet.
     ports:
       - "80:80"
       - "443:443"
@@ -91,6 +103,48 @@ services:
       - internal
       - external
 
+  # ─────────────────────────────────────────────
+  # SeaweedFS (S3-compatible object storage, optional)
+  # Start with: docker compose -f docker-compose.prod.yml --profile storage up -d
+  # ─────────────────────────────────────────────
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.23
+    profiles: [storage]
+    restart: always
+    environment:
+      - WEED_JWT_FILER_SIGNING_KEY=${WEED_JWT_FILER_SIGNING_KEY:-7a8f9c1b2d3e4f5a6b7c8d9e0f1a2b3c}
+    command: server -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/security.json -dir=/data
+    volumes:
+      - seaweedfs_data:/data
+      - ./security.json:/etc/seaweedfs/security.json
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9333/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - internal
+
+  storage-init:
+    image: amazon/aws-cli:latest
+    profiles: [storage]
+    restart: on-failure
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: any
+      AWS_SECRET_ACCESS_KEY: any
+      AWS_EC2_METADATA_DISABLED: "true"
+    entrypoint: >
+      /bin/sh -c "
+        aws --endpoint-url http://seaweedfs:8333 s3 mb s3://tradesensei --region us-east-1 || true &&
+        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-acl --bucket tradesensei --acl public-read --region us-east-1
+      "
+    networks:
+      - internal
+
 networks:
   internal:
     driver: bridge
@@ -99,3 +153,4 @@ networks:
 
 volumes:
   db_data:
+  seaweedfs_data:

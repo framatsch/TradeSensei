@@ -503,3 +503,113 @@ configured `STORAGE_PUBLIC_URL` prefix.
 | `STORAGE_ACCESS_KEY` | S3 access key ID |
 | `STORAGE_SECRET_KEY` | S3 secret access key |
 | `STORAGE_ENDPOINT_URL` | Override endpoint for S3-compatible services (MinIO, Cloudflare R2, etc.) |
+
+---
+
+## Object Storage
+
+Screenshots (daily check-ins) and trade images are uploaded via a presigned S3-compatible flow. The feature is **optional** — leaving `STORAGE_BACKEND` empty disables uploads gracefully (all upload endpoints return HTTP 503). The rest of the application functions normally without storage configured.
+
+The backend reads six environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `STORAGE_BACKEND` | Set to `s3` to enable; leave empty to disable |
+| `STORAGE_BUCKET` | Bucket name |
+| `STORAGE_PUBLIC_URL` | Base URL for public file access — **must be browser-reachable** |
+| `STORAGE_ACCESS_KEY` | Access key / key ID |
+| `STORAGE_SECRET_KEY` | Secret key |
+| `STORAGE_ENDPOINT_URL` | S3 endpoint URL (leave empty for AWS S3) |
+
+> **Important:** `STORAGE_PUBLIC_URL` must use a hostname reachable from the user's browser — not a Docker-internal hostname like `seaweedfs:8333`. Presigned PUT URLs are submitted directly by the browser, so the URL must resolve outside the Docker network.
+
+### Option 1: SeaweedFS (self-hosted, bundled)
+
+SeaweedFS is included in the Docker Compose stack as a zero-config self-hosted option. Start it with the `storage` profile:
+
+```bash
+docker compose --profile storage up -d
+```
+
+Then set these variables in `backend/.env` or your shell:
+
+```dotenv
+STORAGE_BACKEND=s3
+STORAGE_BUCKET=tradesensei
+STORAGE_PUBLIC_URL=http://localhost:8333/tradesensei
+STORAGE_ACCESS_KEY=any
+STORAGE_SECRET_KEY=any
+STORAGE_ENDPOINT_URL=http://seaweedfs:8333
+```
+
+`STORAGE_ENDPOINT_URL` uses the Docker-internal hostname (`seaweedfs:8333`) so the backend container can reach SeaweedFS. `STORAGE_PUBLIC_URL` uses `localhost` so presigned URLs are reachable from the browser.
+
+For production with SeaweedFS, proxy `/storage/` via Nginx to `http://seaweedfs:8333` and set:
+
+```dotenv
+STORAGE_PUBLIC_URL=https://yourdomain.com/storage/tradesensei
+```
+
+### Option 2: AWS S3
+
+1. Create a bucket in the [AWS S3 console](https://s3.console.aws.amazon.com/).
+2. Create an IAM user with `s3:PutObject` and `s3:GetObject` permissions on the bucket.
+3. Set:
+
+```dotenv
+STORAGE_BACKEND=s3
+STORAGE_BUCKET=your-bucket-name
+STORAGE_PUBLIC_URL=https://your-bucket-name.s3.<region>.amazonaws.com
+STORAGE_ACCESS_KEY=<IAM access key>
+STORAGE_SECRET_KEY=<IAM secret key>
+STORAGE_ENDPOINT_URL=   # leave empty for AWS
+```
+
+### Option 3: Cloudflare R2
+
+R2 has no egress fees. Setup:
+
+1. In the [R2 dashboard](https://dash.cloudflare.com/), create a bucket and an API token with "Object Read & Write" permissions.
+2. Find your Account ID in the R2 dashboard sidebar.
+3. Set:
+
+```dotenv
+STORAGE_BACKEND=s3
+STORAGE_BUCKET=your-bucket-name
+STORAGE_PUBLIC_URL=https://pub-<hash>.r2.dev   # or your custom domain
+STORAGE_ACCESS_KEY=<R2 Access Key ID>
+STORAGE_SECRET_KEY=<R2 Secret Access Key>
+STORAGE_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+```
+
+Enable "Public access" on the bucket for the `r2.dev` public URL to work, or configure a custom domain instead.
+
+### Option 4: Hetzner Object Storage
+
+```dotenv
+STORAGE_BACKEND=s3
+STORAGE_BUCKET=your-bucket-name
+STORAGE_PUBLIC_URL=https://your-bucket-name.<region>.your-objectstorage.com
+STORAGE_ACCESS_KEY=<access key>
+STORAGE_SECRET_KEY=<secret key>
+STORAGE_ENDPOINT_URL=https://<region>.your-objectstorage.com
+```
+
+Available regions: `nbg1`, `fsn1`, `hel1`.
+
+### Option 5: Backblaze B2
+
+Create an App Key with "Read and Write" access to the bucket in the [B2 dashboard](https://secure.backblaze.com/b2_buckets.htm).
+
+```dotenv
+STORAGE_BACKEND=s3
+STORAGE_BUCKET=your-bucket-name
+STORAGE_PUBLIC_URL=https://f<number>.backblazeb2.com/file/your-bucket-name
+STORAGE_ACCESS_KEY=<keyID>
+STORAGE_SECRET_KEY=<applicationKey>
+STORAGE_ENDPOINT_URL=https://s3.<region>.backblazeb2.com
+```
+
+### Disabling uploads
+
+Leave `STORAGE_BACKEND` empty (the default). All upload endpoints return HTTP 503 and no storage credentials are required. The rest of the application — trade journaling, metrics, playbooks — functions normally. This is the default behaviour for new deployments.
