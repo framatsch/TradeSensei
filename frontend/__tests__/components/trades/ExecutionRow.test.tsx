@@ -41,7 +41,7 @@ const baseTrade: Trade = {
   pnl_eur: null,
   net_pnl_eur: null,
   tradingview_link: null,
-  screenshots: [],
+    image_urls: [],
   playbook_id: null,
   playbook_name: null,
   account_id: "account-1",

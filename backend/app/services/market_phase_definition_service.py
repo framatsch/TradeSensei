@@ -2,10 +2,13 @@
 
 import uuid
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import (
+    MarketPhaseDefinitionNotFoundError,
+    MarketPhaseDefinitionValidationError,
+)
 from app.repositories.market_phase_definition_repository import (
     MarketPhaseDefinitionRepository,
 )
@@ -33,9 +36,8 @@ class MarketPhaseDefinitionService:
         """Create a new phase definition with uniqueness enforcement."""
         existing = await self._repo.get_by_name_and_user(user_id, payload.name)
         if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="name already exists for this user",
+            raise MarketPhaseDefinitionValidationError(
+                "name already exists for this user"
             )
 
         try:
@@ -49,9 +51,8 @@ class MarketPhaseDefinitionService:
             await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="name already exists for this user",
+            raise MarketPhaseDefinitionValidationError(
+                "name already exists for this user"
             ) from exc
         return MarketPhaseDefinitionRead.model_validate(model)
 
@@ -73,9 +74,8 @@ class MarketPhaseDefinitionService:
         """Update mutable phase-definition columns only."""
         model = await self._repo.get_by_id(definition_id=phase_id, user_id=user_id)
         if model is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="market phase definition not found",
+            raise MarketPhaseDefinitionNotFoundError(
+                "market phase definition not found"
             )
 
         try:
@@ -89,8 +89,7 @@ class MarketPhaseDefinitionService:
             await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="name already exists for this user",
+            raise MarketPhaseDefinitionValidationError(
+                "name already exists for this user"
             ) from exc
         return MarketPhaseDefinitionRead.model_validate(updated)

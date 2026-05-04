@@ -1,7 +1,10 @@
 import asyncio
+
 from sqlalchemy import select
+
 from app.core.database import async_session_factory
 from app.models.logical_execution import LogicalExecution
+
 
 async def run():
     async with async_session_factory() as s:

@@ -3,10 +3,11 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
+from app.core.exceptions import PortfolioNotFoundError, PortfolioValidationError
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.portfolio import PortfolioCreate, PortfolioRead, PortfolioUpdate
@@ -42,8 +43,11 @@ async def create_portfolio(
     service: Annotated[PortfolioService, Depends(_get_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> ResponseEnvelope[PortfolioRead]:
-    item = await service.create_portfolio(session, current_user.id, payload)
-    return ResponseEnvelope(data=item)
+    try:
+        item = await service.create_portfolio(session, current_user.id, payload)
+        return ResponseEnvelope(data=item)
+    except PortfolioValidationError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
 
 @router.get("/{portfolio_id}", response_model=ResponseEnvelope[PortfolioRead])
@@ -53,8 +57,11 @@ async def get_portfolio(
     service: Annotated[PortfolioService, Depends(_get_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> ResponseEnvelope[PortfolioRead]:
-    item = await service.get_portfolio(session, portfolio_id, current_user.id)
-    return ResponseEnvelope(data=item)
+    try:
+        item = await service.get_portfolio(session, portfolio_id, current_user.id)
+        return ResponseEnvelope(data=item)
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
 @router.patch("/{portfolio_id}", response_model=ResponseEnvelope[PortfolioRead])
@@ -65,13 +72,24 @@ async def update_portfolio(
     service: Annotated[PortfolioService, Depends(_get_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> ResponseEnvelope[PortfolioRead]:
-    item = await service.update_portfolio(
-        session,
-        portfolio_id,
-        current_user.id,
-        payload,
-    )
-    return ResponseEnvelope(data=item)
+    try:
+        item = await service.update_portfolio(
+            session,
+            portfolio_id,
+            current_user.id,
+            payload,
+        )
+        return ResponseEnvelope(data=item)
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except PortfolioValidationError as e:
+        # Some are 409, some are 422 depending on the error message
+        status_code = (
+            status.HTTP_422_UNPROCESSABLE_CONTENT
+            if "Base currency" in str(e)
+            else status.HTTP_409_CONFLICT
+        )
+        raise HTTPException(status_code=status_code, detail=str(e)) from e
 
 
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -81,5 +99,10 @@ async def delete_portfolio(
     service: Annotated[PortfolioService, Depends(_get_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> Response:
-    await service.delete_portfolio(session, portfolio_id, current_user.id)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    try:
+        await service.delete_portfolio(session, portfolio_id, current_user.id)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except PortfolioValidationError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e

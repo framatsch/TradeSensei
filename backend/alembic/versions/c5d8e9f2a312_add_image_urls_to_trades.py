@@ -8,8 +8,9 @@ Create Date: 2024-05-01 10:00:00.000000
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'c5d8e9f2a312'
@@ -20,6 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.add_column('trades', sa.Column('image_urls', postgresql.JSONB(astext_type=sa.Text()), server_default='[]', nullable=False))
+    op.execute("UPDATE trades SET image_urls = COALESCE(screenshots, '[]'::jsonb)")
     op.drop_column('trades', 'screenshots')
 
 

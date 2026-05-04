@@ -3,7 +3,6 @@
 import uuid
 from decimal import Decimal
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import Spec5NotDeployedError
@@ -63,10 +62,8 @@ class AttributionService:
                 session=self._session,
             )
         except Spec5NotDeployedError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="daily_checkins table not available — deploy Spec 5 first",
-            ) from exc
+            # Re-raise the exception to be handled by the route or middleware
+            raise exc
 
         definitions = await self._phases.list_by_user(user_id=user_id, is_active=None)
         phase_map = {definition.name: definition for definition in definitions}

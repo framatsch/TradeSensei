@@ -751,7 +751,7 @@ class ExecutionService:
 
         from app.models.trade import (
             Direction,
-        )  # Deferred import to break circular dependency: trade -> execution
+        )
 
         is_long = trade.direction == Direction.LONG
 

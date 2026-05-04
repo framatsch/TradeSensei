@@ -128,7 +128,7 @@ describe("CheckinSettings", () => {
   describe("rendering", () => {
     it("renders the Market Phases section header and table", () => {
       renderComponent();
-      expect(screen.getByText("MARKT-PHASEN")).toBeInTheDocument();
+      expect(screen.getByText("MARKET PHASES")).toBeInTheDocument();
       expect(screen.getByText("Bullish")).toBeInTheDocument();
       expect(screen.getByText("Bearish")).toBeInTheDocument();
       expect(screen.getByText("Sideways")).toBeInTheDocument();
@@ -136,19 +136,19 @@ describe("CheckinSettings", () => {
 
     it("renders the Custom Metrics section header and table", () => {
       renderComponent();
-      expect(screen.getByText("EIGENE METRIKEN")).toBeInTheDocument();
+      expect(screen.getByText("CUSTOM METRICS")).toBeInTheDocument();
       expect(screen.getByText("mood-level")).toBeInTheDocument();
       expect(screen.getByText("rule-followed")).toBeInTheDocument();
     });
 
-    it("renders '+ Neue Phase' button", () => {
+    it("renders '+ New Phase' button", () => {
       renderComponent();
-      expect(screen.getByText("+ Neue Phase")).toBeInTheDocument();
+      expect(screen.getByText("+ New Phase")).toBeInTheDocument();
     });
 
-    it("renders '+ Neue Metrik' button", () => {
+    it("renders '+ New Metric' button", () => {
       renderComponent();
-      expect(screen.getByText("+ Neue Metrik")).toBeInTheDocument();
+      expect(screen.getByText("+ New Metric")).toBeInTheDocument();
     });
 
     it("renders Key column as immutable text for market phases", () => {
@@ -163,12 +163,12 @@ describe("CheckinSettings", () => {
       expect(screen.getByText("Boolean")).toBeInTheDocument();
     });
 
-    it("shows Aktiv/Inaktiv status labels", () => {
+    it("shows Active/Inactive status labels", () => {
       renderComponent();
-      const aktivLabels = screen.getAllByText("Aktiv");
-      const inaktivLabels = screen.getAllByText("Inaktiv");
-      expect(aktivLabels.length).toBeGreaterThanOrEqual(2);
-      expect(inaktivLabels.length).toBeGreaterThanOrEqual(1);
+      const activeLabels = screen.getAllByText("Active");
+      const inactiveLabels = screen.getAllByText("Inactive");
+      expect(activeLabels.length).toBeGreaterThanOrEqual(2);
+      expect(inactiveLabels.length).toBeGreaterThanOrEqual(1);
     });
 
     it("renders Status toggles as switches", () => {

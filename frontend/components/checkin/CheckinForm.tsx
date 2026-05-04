@@ -199,7 +199,7 @@ export function CheckinForm({
             onChange={(e) => setNotes(e.target.value)}
             rows={6}
             placeholder="How did the market feel today? Any macro events? Psychological state?"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-y"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,hsl(var(--primary))_20%,transparent)] focus:border-primary transition-colors resize-y"
           />
         ) : (
           <div className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-foreground min-h-[148px] prose prose-sm dark:prose-invert max-w-none">
@@ -231,6 +231,7 @@ export function CheckinForm({
                   type="button"
                   onClick={() => setScreenshotUrls((prev) => prev.filter((_, idx) => idx !== i))}
                   className="absolute top-1 right-1 bg-background/80 hover:bg-destructive hover:text-destructive-foreground text-foreground p-1 rounded-sm opacity-0 group-hover:opacity-100 transition-all"
+                  aria-label="Remove screenshot"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -266,6 +267,7 @@ export function CheckinForm({
                   type="button"
                   onClick={() => removeNewsLink(i)}
                   className="text-muted-foreground hover:text-destructive shrink-0"
+                  aria-label="Remove news link"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -279,7 +281,7 @@ export function CheckinForm({
             value={newsLink}
             onChange={(e) => setNewsLink(e.target.value)}
             placeholder="https://..."
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,hsl(var(--primary))_20%,transparent)] focus:border-primary transition-colors"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -375,7 +377,7 @@ export function CheckinForm({
             type="button"
             onClick={onDelete}
             disabled={isDeleting}
-            className="inline-flex items-center gap-2 border border-destructive/30 text-destructive hover:bg-destructive/10 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 border border-[color-mix(in_srgb,hsl(var(--destructive))_30%,transparent)] text-destructive hover:bg-[color-mix(in_srgb,hsl(var(--destructive))_10%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDeleting ? (
               <Loader2 className="w-4 h-4 animate-spin" />

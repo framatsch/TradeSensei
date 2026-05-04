@@ -10,12 +10,11 @@ The :func:`get_session_with_rls` dependency builds on top of
 automatically for the authenticated user.
 """
 
-import hmac
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
@@ -114,6 +113,7 @@ async def get_session_with_rls(
 
 
 async def get_current_user_from_pat(
+    request: Request,
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
         Depends(pat_bearer_scheme),
@@ -138,13 +138,6 @@ async def get_current_user_from_pat(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not hmac.compare_digest(pat.token_hash, provided_token_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
     now = datetime.now(UTC)
     if pat.is_revoked or (pat.expires_at is not None and pat.expires_at <= now):
         raise HTTPException(
@@ -161,5 +154,6 @@ async def get_current_user_from_pat(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    request.state.user_id = str(user.id)
     await pat_repo.mark_used(pat, used_at=now)
     return user

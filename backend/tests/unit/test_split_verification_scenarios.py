@@ -14,16 +14,15 @@ Each test is purely in-memory with mocked repositories — no DB required.
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.models.trade import AssetClass, Direction, Trade
-from app.schemas.trade import TradeCreate, TradeUpdate
+from app.schemas.trade import TradeUpdate
 from app.services.import_service import ImportService
 from app.services.trade_service import TradeService
 from app.utils.parsers.aggregator import ExecutionAllocation, TradeCreateWithSources
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -38,6 +37,7 @@ def _make_trade_orm(
     playbook_id: uuid.UUID | None = None,
     notes: str | None = None,
     user_rating: int | None = None,
+    image_urls: list[str] | None = None,
     closed_at: datetime | None = None,
 ) -> Trade:
     """Construct a minimal detached Trade ORM instance."""
@@ -63,7 +63,7 @@ def _make_trade_orm(
     trade.notes = notes  # type: ignore[assignment]
     trade.playbook_id = playbook_id  # type: ignore[assignment]
     trade.user_rating = user_rating  # type: ignore[assignment]
-    trade.screenshots = []  # type: ignore[assignment]
+    trade.image_urls = []  # type: ignore[assignment]
     trade.is_manually_edited = False  # type: ignore[assignment]
     trade.tags = []  # type: ignore[assignment]
     trade.trade_notes = []  # type: ignore[assignment]

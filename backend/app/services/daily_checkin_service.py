@@ -3,11 +3,14 @@
 import uuid
 from datetime import date
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.exceptions import (
+    DailyCheckinNotFoundError,
+    DailyCheckinValidationError,
+)
 from app.models.daily_checkin import FieldTypeEnum
 from app.repositories.checkin_field_definition_repository import (
     CheckinFieldDefinitionRepository,
@@ -66,10 +69,7 @@ class DailyCheckinService:
         active = await self._phase_repo.list_by_user(user_id=user_id, is_active=True)
         active_names = {item.name for item in active}
         if market_phase not in active_names:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"unknown market_phase: {market_phase}",
-            )
+            raise DailyCheckinValidationError(f"unknown market_phase: {market_phase}")
 
     async def _validate_custom_metrics(
         self,
@@ -100,10 +100,7 @@ class DailyCheckinService:
                 errors.append(f"custom_metrics.{key}: expected boolean")
 
         if errors:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=errors,
-            )
+            raise DailyCheckinValidationError(errors)
 
     def _validate_screenshot_urls(self, screenshot_urls: list[str] | None) -> None:
         """Validate screenshot URLs against configured storage public URL."""
@@ -115,19 +112,15 @@ class DailyCheckinService:
 
         storage_public_url = settings.storage_public_url
         if not storage_public_url:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=(
-                    "screenshot_urls is not available: object storage is not configured"
-                ),
+            raise DailyCheckinValidationError(
+                "screenshot_urls is not available: object storage is not configured"
             )
 
         allowed_prefix = storage_public_url.rstrip("/") + "/"
         for url in screenshot_urls:
             if not url.startswith(allowed_prefix):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="screenshot_url must use configured storage domain",
+                raise DailyCheckinValidationError(
+                    "screenshot_url must use configured storage domain"
                 )
 
     async def create_checkin(
@@ -147,9 +140,8 @@ class DailyCheckinService:
             await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="daily check-in already exists for this date",
+            raise DailyCheckinValidationError(
+                "daily check-in already exists for this date"
             ) from exc
         return DailyCheckinRead.model_validate(model)
 
@@ -164,10 +156,7 @@ class DailyCheckinService:
             checkin_date=checkin_date,
         )
         if model is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="daily check-in not found",
-            )
+            raise DailyCheckinNotFoundError("daily check-in not found")
         return DailyCheckinRead.model_validate(model)
 
     async def list_checkins(
@@ -206,10 +195,7 @@ class DailyCheckinService:
             checkin_date=checkin_date,
         )
         if model is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="daily check-in not found",
-            )
+            raise DailyCheckinNotFoundError("daily check-in not found")
 
         if "market_phase" in payload.model_fields_set:
             await self._validate_market_phase(user_id, payload.market_phase)
@@ -229,9 +215,6 @@ class DailyCheckinService:
         """Delete a check-in by date for the user."""
         deleted = await self._repo.delete(user_id=user_id, checkin_date=checkin_date)
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="daily check-in not found",
-            )
+            raise DailyCheckinNotFoundError("daily check-in not found")
         await self._session.commit()
         await self._cache.invalidate_user(user_id)

@@ -1,14 +1,13 @@
 """Tests for trade image upload endpoints and schema validation."""
 
-import uuid
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.schemas.trade import TradeCreateRequest, TradeUpdate
 from tests.test_trades_api import _get_auth_headers
+
 
 @pytest.fixture
 def override_storage_settings(monkeypatch: pytest.MonkeyPatch):

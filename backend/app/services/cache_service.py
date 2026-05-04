@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 class CacheService:
     """Best-effort cache service with a no-op fallback."""
 
+    _logged_missing = False
+
     def __init__(self) -> None:
         self._redis_url = getattr(settings, "redis_url", None)
         self._enabled = bool(self._redis_url)
@@ -29,9 +31,12 @@ class CacheService:
                 )
             except Exception:
                 self._enabled = False
-                logger.warning("REDIS_URL configured but redis client unavailable")
-        if not self._enabled:
-            logger.warning("REDIS_URL not configured; analytics cache disabled")
+                if not CacheService._logged_missing:
+                    logger.warning("REDIS_URL configured but redis client unavailable")
+                    CacheService._logged_missing = True
+        if not self._enabled and not CacheService._logged_missing:
+            logger.info("REDIS_URL not configured; analytics cache disabled")
+            CacheService._logged_missing = True
 
     @staticmethod
     def canonical_json(payload: dict[str, object]) -> str:

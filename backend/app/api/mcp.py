@@ -2,10 +2,11 @@
 
 import asyncio
 import json
+import re
 from collections.abc import AsyncGenerator
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 
 from app.core.deps import get_current_user_from_pat
@@ -17,9 +18,16 @@ _KEEPALIVE_INTERVAL = 15
 
 
 def _sse_event_stream(
+    request: Request,
     session_id: str | None,
     user_id: str,
 ) -> StreamingResponse:
+    if session_id and not re.match(r"^[A-Za-z0-9_-]{1,64}$", session_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid session_id format.",
+        )
+
     base = {
         "message_endpoint": "/mcp/messages",
         "user_id": user_id,
@@ -38,7 +46,7 @@ def _sse_event_stream(
 
     async def event_generator() -> AsyncGenerator[str, None]:
         yield f"event: ready\ndata: {init_payload}\n\n"
-        while True:
+        while not await request.is_disconnected():
             await asyncio.sleep(_KEEPALIVE_INTERVAL)
             yield ": keepalive\n\n"
 
@@ -55,10 +63,12 @@ def _sse_event_stream(
     responses={401: {"description": "Missing or invalid PAT."}},
 )
 async def mcp_sse(
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user_from_pat)],
     session_id: str | None = Query(default=None, description="MCP session identifier"),
 ) -> StreamingResponse:
     return _sse_event_stream(
+        request=request,
         session_id=session_id,
         user_id=str(current_user.id),
     )
@@ -74,6 +84,12 @@ async def mcp_messages(
     current_user: Annotated[User, Depends(get_current_user_from_pat)],
     session_id: str | None = Query(default=None, description="MCP session identifier"),
 ) -> dict[str, Any]:
+    if session_id and not re.match(r"^[A-Za-z0-9_-]{1,64}$", session_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid session_id format.",
+        )
+
     if payload.get("jsonrpc") != "2.0":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -111,12 +111,14 @@ export function CheckinMiniCalendar() {
           <button
             onClick={handlePrevMonth}
             className="p-1 hover:bg-muted rounded-md transition-colors"
+            aria-label="Previous month"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={handleNextMonth}
             className="p-1 hover:bg-muted rounded-md transition-colors"
+            aria-label="Next month"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

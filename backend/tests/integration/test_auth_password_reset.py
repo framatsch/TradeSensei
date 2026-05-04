@@ -149,8 +149,6 @@ class TestForgotPasswordEndpoint:
         # Simplest approach: register, then attempt with a different email
         # that is known but has no hashed_password.  We create the record
         # through the DB session injected by the ``client`` fixture.
-        from app.core.security import hash_password
-        from app.models.user import User
 
         # Retrieve the session bound to this client via the dependency override
         # by extracting it from the override generator.

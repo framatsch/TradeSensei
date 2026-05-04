@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
+from app.core.exceptions import Spec5NotDeployedError
 from app.models.user import User
 from app.repositories.portfolio_repository import PortfolioRepository
 from app.repositories.saved_dashboard_view_repository import (
@@ -124,9 +125,14 @@ async def get_market_phase_correlation(
     else:
         filter_config = DashboardFilterConfig(date_from=from_date, date_to=to_date)
 
-    data = await service.get_market_phase_correlation(
-        portfolio_id=portfolio_id,
-        user_id=current_user.id,
-        filter_config=filter_config,
-    )
+    try:
+        data = await service.get_market_phase_correlation(
+            portfolio_id=portfolio_id,
+            user_id=current_user.id,
+            filter_config=filter_config,
+        )
+    except Spec5NotDeployedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
+        ) from e
     return ResponseEnvelope[AttributionResponse](data=data)

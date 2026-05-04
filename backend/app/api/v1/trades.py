@@ -13,7 +13,12 @@ from app.core.constants import (
 )
 from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
-from app.core.exceptions import InvalidCursorError, TradeNotFoundError
+from app.core.exceptions import (
+    ConfigurationError,
+    InvalidCursorError,
+    TradeNotFoundError,
+    UnsupportedContentTypeError,
+)
 from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.schemas.trade import (
@@ -69,11 +74,22 @@ async def get_trade_image_upload_url(
     Once uploaded, the `public_url` can be stored in the trade's `image_urls` list.
     """
     service = StorageService()
-    presigned_url, public_url = service.generate_trade_image_upload_url(
-        user_id=current_user.id,
-        filename=payload.filename,
-        content_type=payload.content_type,
-    )
+    try:
+        presigned_url, public_url = service.generate_trade_image_upload_url(
+            user_id=current_user.id,
+            filename=payload.filename,
+            content_type=payload.content_type,
+        )
+    except UnsupportedContentTypeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    except ConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
     return ResponseEnvelope(
         data=TradeImageUploadUrlResponse(

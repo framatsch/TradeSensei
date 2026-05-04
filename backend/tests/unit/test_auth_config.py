@@ -9,12 +9,11 @@ Tests cover:
 
 from unittest.mock import patch
 
-import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.v1.auth import router
 from app.core.config import Settings
-from fastapi import FastAPI
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -7,10 +7,14 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import EQUITY_CURVE_MAX_POINTS, FX_ECB_FALLBACK_DAYS
+from app.core.exceptions import (
+    PlaybookNotFoundError,
+    SavedDashboardViewNotFoundError,
+    TagNotFoundError,
+)
 from app.models.saved_dashboard_view import SavedDashboardView
 from app.repositories.analytics_repository import AnalyticsRepository, EquityRow
 from app.repositories.fx_rate_repository import FxRateRepository
@@ -70,10 +74,7 @@ class AnalyticsService:
     ) -> SavedDashboardView:
         view = await self._views.get_by_id(view_id)
         if view is None or view.user_id != user_id or view.portfolio_id != portfolio_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="view not found",
-            )
+            raise SavedDashboardViewNotFoundError("view not found")
         return view
 
     async def _resolve_filter_config(
@@ -86,7 +87,8 @@ class AnalyticsService:
         if request.filter_config is not None:
             cfg = request.filter_config
         else:
-            assert request.view_id is not None
+            if request.view_id is None:
+                raise ValueError("view_id must be provided if filter_config is null")
             view = await self._get_owned_view(
                 portfolio_id=portfolio_id,
                 user_id=user_id,
@@ -101,20 +103,14 @@ class AnalyticsService:
                 if playbook is None:
                     missing.append(str(playbook_id))
             if missing:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail={"invalid_playbook_ids": missing},
-                )
+                raise PlaybookNotFoundError(f"invalid_playbook_ids: {missing}")
 
         if cfg.tag_ids:
             tags = await self._tags.get_many_by_ids(cfg.tag_ids, user_id)
             if len(tags) != len(cfg.tag_ids):
                 found = {tag.id for tag in tags}
                 missing = [str(tag_id) for tag_id in cfg.tag_ids if tag_id not in found]
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail={"invalid_tag_ids": missing},
-                )
+                raise TagNotFoundError(f"invalid_tag_ids: {missing}")
 
         return cfg
 
@@ -332,7 +328,10 @@ class AnalyticsService:
         avg_trade_duration = raw["avg_trade_duration_hours"]
 
         if filter_config.currency_mode == "NORMALIZED":
-            assert filter_config.normalize_to is not None
+            if filter_config.normalize_to is None:
+                raise ValueError(
+                    "normalize_to is required when currency_mode is NORMALIZED"
+                )
             normalized_rows, missing_ids = await self._normalize_rows(
                 rows=source_rows,
                 normalize_to=filter_config.normalize_to,

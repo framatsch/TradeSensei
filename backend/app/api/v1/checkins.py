@@ -3,10 +3,16 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
+from app.core.exceptions import (
+    ConfigurationError,
+    DailyCheckinNotFoundError,
+    DailyCheckinValidationError,
+    UnsupportedContentTypeError,
+)
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.daily_checkin import (
@@ -40,11 +46,22 @@ async def generate_screenshot_upload_url(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[ScreenshotUploadUrlResponse]:
     service = StorageService()
-    presigned_url, public_url = service.generate_screenshot_upload_url(
-        user_id=current_user.id,
-        filename=payload.filename,
-        content_type=payload.content_type,
-    )
+    try:
+        presigned_url, public_url = service.generate_screenshot_upload_url(
+            user_id=current_user.id,
+            filename=payload.filename,
+            content_type=payload.content_type,
+        )
+    except UnsupportedContentTypeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    except ConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[ScreenshotUploadUrlResponse](
         data=ScreenshotUploadUrlResponse(
             presigned_url=presigned_url,
@@ -65,8 +82,17 @@ async def create_checkin(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> ResponseEnvelope[DailyCheckinRead]:
-    item = await service.create_checkin(user_id=current_user.id, payload=payload)
-    return ResponseEnvelope[DailyCheckinRead](data=item)
+    try:
+        item = await service.create_checkin(user_id=current_user.id, payload=payload)
+        return ResponseEnvelope[DailyCheckinRead](data=item)
+    except DailyCheckinValidationError as exc:
+        if "already exists" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
 
 
 @router.get(
@@ -106,8 +132,15 @@ async def get_checkin(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> ResponseEnvelope[DailyCheckinRead]:
-    item = await service.get_checkin(user_id=current_user.id, checkin_date=checkin_date)
-    return ResponseEnvelope[DailyCheckinRead](data=item)
+    try:
+        item = await service.get_checkin(
+            user_id=current_user.id, checkin_date=checkin_date
+        )
+        return ResponseEnvelope[DailyCheckinRead](data=item)
+    except DailyCheckinNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.patch(
@@ -122,12 +155,23 @@ async def update_checkin(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> ResponseEnvelope[DailyCheckinRead]:
-    item = await service.update_checkin(
-        user_id=current_user.id,
-        checkin_date=checkin_date,
-        payload=payload,
-    )
-    return ResponseEnvelope[DailyCheckinRead](data=item)
+    try:
+        item = await service.update_checkin(
+            user_id=current_user.id, checkin_date=checkin_date, payload=payload
+        )
+        return ResponseEnvelope[DailyCheckinRead](data=item)
+    except DailyCheckinNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except DailyCheckinValidationError as exc:
+        if "already exists" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
 
 
 @router.delete(
@@ -141,4 +185,9 @@ async def delete_checkin(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> None:
-    await service.delete_checkin(user_id=current_user.id, checkin_date=checkin_date)
+    try:
+        await service.delete_checkin(user_id=current_user.id, checkin_date=checkin_date)
+    except DailyCheckinNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc

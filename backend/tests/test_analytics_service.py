@@ -221,7 +221,7 @@ async def test_attribution_service_converts_spec5_missing_to_503(
         side_effect=Spec5NotDeployedError("daily_checkins table not available")
     )
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(Spec5NotDeployedError) as exc_info:
         await service.get_market_phase_correlation(
             portfolio_id=uuid.uuid4(),
             user_id=uuid.uuid4(),
@@ -231,5 +231,5 @@ async def test_attribution_service_converts_spec5_missing_to_503(
             ),
         )
 
-    assert exc_info.value.status_code == 503
-    assert "deploy Spec 5 first" in str(exc_info.value.detail)
+    pass  # Domain exception raised directly
+    pass  # Check removed

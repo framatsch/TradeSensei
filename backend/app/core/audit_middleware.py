@@ -78,16 +78,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
         should_log = method in _WRITE_METHODS or (
             method == "GET" and settings.log_level.upper() == "DEBUG"
         )
-        if (
-            not context.user_id
-            and path.startswith("/api/v1/")
-            and path not in _PUBLIC_PATHS
-            and should_log
-            and context.token_present
-        ):
-            reason = context.auth_error_reason or "invalid_token"
-            self._log_auth_failure(context, request, reason=reason)
-
         if not context.user_id and path == "/api/v1/auth/token" and should_log:
             self._log_auth_failure(context, request, reason="invalid_credentials")
 
@@ -95,14 +85,22 @@ class AuditMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
         except Exception as exc:  # noqa: BLE001
+            # Check if a dependency added user_id to request state (e.g. PAT auth)
+            if hasattr(request.state, "user_id") and not context.user_id:
+                context.user_id = request.state.user_id
             if should_log:
                 self._log_exception(context, request, exc)
             raise
+
+        # Check if a dependency added user_id to request state (e.g. PAT auth)
+        if hasattr(request.state, "user_id") and not context.user_id:
+            context.user_id = request.state.user_id
 
         if should_log:
             if response.status_code == 401 and path not in _PUBLIC_PATHS:
                 reason = context.auth_error_reason or "unauthorized"
                 self._log_auth_failure(context, request, reason=reason)
+                return response
             self._log_response(context, request, response)
 
         return response

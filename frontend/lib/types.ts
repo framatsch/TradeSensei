@@ -190,8 +190,7 @@ export interface Trade {
   pnl_eur: string | null;
   net_pnl_eur: string | null;
   tradingview_link: string | null;
-  image_urls?: string[];
-  screenshots: string[];
+  image_urls: string[];
   playbook_id: string | null;
   playbook_name: string | null;
   account_id: string | null;

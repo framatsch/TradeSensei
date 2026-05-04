@@ -2,10 +2,13 @@
 
 import uuid
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import (
+    CheckinFieldDefinitionNotFoundError,
+    CheckinFieldDefinitionValidationError,
+)
 from app.repositories.checkin_field_definition_repository import (
     CheckinFieldDefinitionRepository,
 )
@@ -31,9 +34,8 @@ class CheckinFieldDefinitionService:
         """Create a new field definition with uniqueness enforcement."""
         existing = await self._repo.get_by_name_and_user(user_id, payload.field_name)
         if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="field_name already exists for this user",
+            raise CheckinFieldDefinitionValidationError(
+                "field_name already exists for this user"
             )
         try:
             model = await self._repo.create(
@@ -44,9 +46,8 @@ class CheckinFieldDefinitionService:
             await self._session.commit()
         except IntegrityError as exc:
             await self._session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="field_name already exists for this user",
+            raise CheckinFieldDefinitionValidationError(
+                "field_name already exists for this user"
             ) from exc
         return CheckinFieldDefinitionRead.model_validate(model)
 
@@ -68,9 +69,8 @@ class CheckinFieldDefinitionService:
         """Update mutable field-definition columns only."""
         model = await self._repo.get_by_id(definition_id=field_id, user_id=user_id)
         if model is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="check-in field definition not found",
+            raise CheckinFieldDefinitionNotFoundError(
+                "check-in field definition not found"
             )
 
         try:
@@ -81,8 +81,7 @@ class CheckinFieldDefinitionService:
             await self._session.commit()
         except IntegrityError as exc:
             await self._session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="field_name already exists for this user",
+            raise CheckinFieldDefinitionValidationError(
+                "field_name already exists for this user"
             ) from exc
         return CheckinFieldDefinitionRead.model_validate(updated)

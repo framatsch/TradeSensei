@@ -41,7 +41,7 @@ def _make_trade(
         created_at=now,
         updated_at=now,
     )
-    trade.screenshots = []
+    trade.image_urls = []
     trade.is_manually_edited = False
     trade.tags = []
     trade.notes = None

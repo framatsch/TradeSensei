@@ -101,6 +101,10 @@ class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
 
 
+class UnsupportedContentTypeError(ValueError):
+    """Raised when an uploaded file has an unsupported content type."""
+
+
 class PersonalAccessTokenNotFoundError(Exception):
     """Raised when a personal access token is not found for the user."""
 
@@ -130,3 +134,39 @@ class RateLimitError(FlexAPIError):
         """
         super().__init__(message)
         self.wait_seconds = wait_seconds
+
+
+class CheckinFieldDefinitionNotFoundError(Exception):
+    """Raised when a check-in field definition is not found."""
+
+
+class CheckinFieldDefinitionValidationError(ValueError):
+    """Raised when a check-in field definition validation fails."""
+
+
+class AttributionNotFoundError(Exception):
+    """Raised when an attribution is not found."""
+
+
+class MarketPhaseDefinitionNotFoundError(Exception):
+    """Raised when a market phase definition is not found."""
+
+
+class MarketPhaseDefinitionValidationError(ValueError):
+    """Raised when a market phase definition validation fails."""
+
+
+class DailyCheckinNotFoundError(Exception):
+    """Raised when a daily check-in is not found."""
+
+
+class DailyCheckinValidationError(ValueError):
+    """Raised when a daily check-in validation fails."""
+
+
+class PortfolioNotFoundError(Exception):
+    """Raised when a portfolio is not found."""
+
+
+class PortfolioValidationError(ValueError):
+    """Raised when a portfolio validation fails."""

@@ -10,11 +10,10 @@ don't have any. For each trade, we create:
 - Exit leg (if closed): opposite direction, price=exit_price, executed_at=closed_at
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = "4e095dd6e4c5"

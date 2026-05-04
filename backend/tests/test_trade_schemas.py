@@ -187,7 +187,7 @@ class TestTradeRead:
         trade.user_rating = 4
         trade.created_at = datetime(2025, 6, 1, tzinfo=UTC)
         trade.updated_at = datetime(2025, 6, 2, tzinfo=UTC)
-        trade.screenshots = []
+        trade.image_urls = []
         trade.is_manually_edited = False
         trade.tags = []
         trade.trade_notes = []

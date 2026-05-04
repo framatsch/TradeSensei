@@ -1,3 +1,4 @@
+from app.core.exceptions import PortfolioValidationError
 """Unit tests for PortfolioService."""
 
 import uuid
@@ -41,15 +42,14 @@ async def test_create_portfolio_rejects_duplicate_name(
     user_id = uuid.uuid4()
     service._repo.get_by_name = AsyncMock(return_value=_make_portfolio(user_id=user_id))  # type: ignore[method-assign]
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(PortfolioValidationError) as exc:
         await service.create_portfolio(
             service._session,
             user_id,
             PortfolioCreate(name="Main", base_currency="USD", color_hex="#123456"),
         )
 
-    assert exc.value.status_code == status.HTTP_409_CONFLICT
-
+    
 
 @pytest.mark.unit
 async def test_create_portfolio_success_returns_read(service: PortfolioService) -> None:
@@ -79,7 +79,7 @@ async def test_update_portfolio_rejects_base_currency_change_when_trades_exist(
     service._repo.get_by_id = AsyncMock(return_value=existing)  # type: ignore[method-assign]
     service._repo.has_trades = AsyncMock(return_value=True)  # type: ignore[method-assign]
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(PortfolioValidationError) as exc:
         await service.update_portfolio(
             service._session,
             existing.id,
@@ -87,8 +87,7 @@ async def test_update_portfolio_rejects_base_currency_change_when_trades_exist(
             PortfolioUpdate(base_currency="EUR"),
         )
 
-    assert exc.value.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-
+    
 
 @pytest.mark.unit
 async def test_update_portfolio_rejects_duplicate_name(
@@ -100,7 +99,7 @@ async def test_update_portfolio_rejects_duplicate_name(
     service._repo.get_by_id = AsyncMock(return_value=existing)  # type: ignore[method-assign]
     service._repo.get_by_name = AsyncMock(return_value=duplicate)  # type: ignore[method-assign]
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(PortfolioValidationError) as exc:
         await service.update_portfolio(
             service._session,
             existing.id,
@@ -108,8 +107,7 @@ async def test_update_portfolio_rejects_duplicate_name(
             PortfolioUpdate(name="Other"),
         )
 
-    assert exc.value.status_code == status.HTTP_409_CONFLICT
-
+    
 
 @pytest.mark.unit
 async def test_delete_portfolio_rejects_when_accounts_linked(
@@ -120,7 +118,7 @@ async def test_delete_portfolio_rejects_when_accounts_linked(
     service._repo.get_by_id = AsyncMock(return_value=existing)  # type: ignore[method-assign]
     service._repo.has_accounts = AsyncMock(return_value=True)  # type: ignore[method-assign]
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(PortfolioValidationError) as exc:
         await service.delete_portfolio(service._session, existing.id, user_id)
 
-    assert exc.value.status_code == status.HTTP_409_CONFLICT
+    

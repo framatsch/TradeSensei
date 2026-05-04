@@ -59,20 +59,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    bind.execute(
-        sa.text(
-            """
-            DELETE FROM checkin_field_definitions
-            WHERE field_name IN ('mood-level', 'focus', 'rule-followed')
-            """
-        )
-    )
-    bind.execute(
-        sa.text(
-            """
-            DELETE FROM market_phase_definitions
-            WHERE name IN ('bullish', 'bearish', 'sideways', 'volatile')
-            """
-        )
-    )
+    # Intentional no-op: seeded defaults cannot be safely removed
+    # without risking destruction of user-customized rows with the same names.
+    pass

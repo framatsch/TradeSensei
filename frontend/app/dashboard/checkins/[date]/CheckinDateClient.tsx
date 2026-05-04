@@ -72,6 +72,7 @@ export function CheckinDateClient({ date }: Props) {
           </div>
         ) : (
           <CheckinForm
+            key={date}
             date={date}
             entry={entry}
             marketPhases={phases ?? []}

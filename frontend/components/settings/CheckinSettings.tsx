@@ -97,8 +97,8 @@ function ColorPickerButton({ color, onChange }: { color: string; onChange: (c: s
 
 function FieldTypeBadge({ fieldType }: { fieldType: FieldTypeEnum }) {
   const colors: Record<FieldTypeEnum, string> = {
-    integer: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-    boolean: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+    integer: "bg-[color-mix(in_srgb,hsl(var(--primary))_10%,transparent)] text-primary border-[color-mix(in_srgb,hsl(var(--primary))_20%,transparent)]",
+    boolean: "bg-[color-mix(in_srgb,hsl(var(--secondary))_10%,transparent)] text-secondary-foreground border-[color-mix(in_srgb,hsl(var(--secondary))_20%,transparent)]",
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${colors[fieldType]}`}>
@@ -492,7 +492,7 @@ function MarketPhaseSection() {
       {isLoading ? (
         <div className="py-10 text-center text-sm text-muted-foreground">Loading...</div>
       ) : isError ? (
-        <div className="py-10 text-center rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-sm text-red-600 dark:text-red-400 px-6">
+        <div className="py-10 text-center rounded-xl border border-dashed border-destructive/30 bg-[color-mix(in_srgb,hsl(var(--destructive))_10%,transparent)] text-sm text-destructive px-6">
           <p className="font-medium">Could not load market phases.</p>
           <p className="mt-1 text-xs text-red-500 dark:text-red-500/80">
             Check your connection and try refreshing the page.
@@ -524,7 +524,7 @@ function MarketPhaseSection() {
                 <th className="px-4 py-3 text-center w-1/4">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+            <tbody className="divide-y divide-border">
               {phases.map((phase) => {
                 const isEditing = editingId === phase.id;
                 return (
@@ -619,7 +619,7 @@ function MarketPhaseSection() {
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -780,7 +780,7 @@ function CustomMetricsSection() {
       {isLoading ? (
         <div className="py-10 text-center text-sm text-muted-foreground">Loading...</div>
       ) : isError ? (
-        <div className="py-10 text-center rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-sm text-red-600 dark:text-red-400 px-6">
+        <div className="py-10 text-center rounded-xl border border-dashed border-destructive/30 bg-[color-mix(in_srgb,hsl(var(--destructive))_10%,transparent)] text-sm text-destructive px-6">
           <p className="font-medium">Could not load custom metrics.</p>
           <p className="mt-1 text-xs text-red-500 dark:text-red-500/80">
             Check your connection and try refreshing the page.
@@ -811,7 +811,7 @@ function CustomMetricsSection() {
                 <th className="px-4 py-3 text-center w-1/3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+            <tbody className="divide-y divide-border">
               {fields.map((field) => (
                 <tr key={field.id} className="bg-card hover:bg-muted/50 transition-colors">
                   {/* Key — immutable */}
@@ -850,7 +850,7 @@ function CustomMetricsSection() {
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
                   <line x1="18" y1="6" x2="6" y2="18" />

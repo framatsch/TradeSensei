@@ -25,14 +25,16 @@ const TestComponent = () => {
 
 describe('WorkspaceFilterContext', () => {
   let mockRouterPush: jest.Mock;
+  let mockRouterReplace: jest.Mock;
   let mockSearchParams: URLSearchParams;
 
   beforeEach(() => {
     jest.useFakeTimers();
     mockRouterPush = jest.fn();
+    mockRouterReplace = jest.fn();
     mockSearchParams = new URLSearchParams();
 
-    (useRouter as jest.Mock).mockReturnValue({ push: mockRouterPush });
+    (useRouter as jest.Mock).mockReturnValue({ push: mockRouterPush, replace: mockRouterReplace });
     (usePathname as jest.Mock).mockReturnValue('/dashboard/workspace/reporting');
     (useSearchParams as jest.Mock).mockImplementation(() => mockSearchParams);
   });
@@ -73,12 +75,12 @@ describe('WorkspaceFilterContext', () => {
     act(() => {
       jest.advanceTimersByTime(200);
     });
-    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(mockRouterReplace).not.toHaveBeenCalled();
 
     // URL should be updated after debounce
     act(() => {
       jest.advanceTimersByTime(150);
     });
-    expect(mockRouterPush).toHaveBeenCalledWith('/dashboard/workspace/reporting?date_from=2024-02-01', { scroll: false });
+    expect(mockRouterReplace).toHaveBeenCalledWith('/dashboard/workspace/reporting?date_from=2024-02-01', { scroll: false });
   });
 });

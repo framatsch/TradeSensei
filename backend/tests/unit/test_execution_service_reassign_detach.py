@@ -18,6 +18,7 @@ def _make_trade(
     symbol: str = "AAPL",
 ) -> Trade:
     return Trade(
+        image_urls=[],
         id=id or uuid.uuid4(),
         user_id=user_id or uuid.uuid4(),
         account_id=account_id or uuid.uuid4(),

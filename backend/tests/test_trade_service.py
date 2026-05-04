@@ -35,6 +35,7 @@ def _make_trade(
     currency: str | None = None,
     notes: str | None = None,
     user_rating: int | None = None,
+    image_urls: list[str] | None = None,
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
 ) -> Trade:
@@ -97,7 +98,7 @@ def _make_trade(
     trade.user_rating = user_rating  # type: ignore[assignment]
     trade.created_at = created_at if created_at is not None else now  # type: ignore[assignment]
     trade.updated_at = updated_at if updated_at is not None else now  # type: ignore[assignment]
-    trade.screenshots = []  # type: ignore[assignment]
+    trade.image_urls = []  # type: ignore[assignment]
     trade.is_manually_edited = False  # type: ignore[assignment]
     trade.tags = []  # type: ignore[assignment]
     trade.trade_notes = []  # type: ignore[assignment]
@@ -148,6 +149,11 @@ class TestCreateTrade:
                 return_value=trade,
             ),
             patch(
+                "app.services.trade_service.AccountRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "app.repositories.execution.ExecutionRepository.create",
                 new_callable=AsyncMock,
             ) as mock_exec_create,
@@ -194,6 +200,11 @@ class TestCreateTrade:
                 "app.services.trade_service.TradeRepository.create",
                 new_callable=AsyncMock,
                 return_value=trade,
+            ),
+            patch(
+                "app.services.trade_service.AccountRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
             patch(
                 "app.repositories.execution.ExecutionRepository.create",
@@ -283,6 +294,11 @@ class TestCreateTrade:
                 return_value=trade,
             ),
             patch(
+                "app.services.trade_service.AccountRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "app.repositories.execution.ExecutionRepository.create",
                 new_callable=AsyncMock,
             ) as mock_exec_create,
@@ -352,6 +368,11 @@ class TestCreateTrade:
                 "app.services.trade_service.TradeRepository.create",
                 new_callable=AsyncMock,
                 return_value=trade,
+            ),
+            patch(
+                "app.services.trade_service.AccountRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
             patch(
                 "app.repositories.execution.ExecutionRepository.create",
