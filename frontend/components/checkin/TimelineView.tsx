@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
-import { CheckinLightbox } from "./CheckinLightbox";
+import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 
 interface Props {
   initialDate?: string;
@@ -15,7 +14,6 @@ interface Props {
 
 export function TimelineView({ initialDate: _initialDate }: Props) {
   const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   
   const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage);
   const { data: phases } = useMarketPhases();
@@ -69,32 +67,13 @@ export function TimelineView({ initialDate: _initialDate }: Props) {
             )}
 
             {checkin.screenshot_urls && checkin.screenshot_urls.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-4">
-                 {checkin.screenshot_urls.map((url, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setLightboxUrl(url)}
-                    className="overflow-hidden rounded-md border border-border bg-muted relative group"
-                  >
-                    <Image
-                      loading="lazy"
-                      width={120}
-                      height={90}
-                      className="object-cover rounded group-hover:opacity-90 transition-opacity"
-                      src={url}
-                      alt={`Screenshot ${i + 1}`}
-                    />
-                  </button>
-                ))}
+              <div className="mt-4">
+                <TradeImageGallery imageUrls={checkin.screenshot_urls} />
               </div>
             )}
           </div>
         );
       })}
-
-      {lightboxUrl && (
-        <CheckinLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-      )}
 
       {/* Pagination placeholder */}
       {data.total > perPage && (
