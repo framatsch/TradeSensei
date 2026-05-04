@@ -186,7 +186,7 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
             className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
           >
             {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            Filter Configuration
+            Filter
             {activeCount > 0 && (
               <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
                 {activeCount}

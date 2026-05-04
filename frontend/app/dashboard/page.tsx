@@ -5,7 +5,6 @@
  *   1. DashboardHeader  — hero PnL + equity mini-chart
  *   2. DashboardStats   — bento-grid metrics tiles
  *   3. Charts           — equity curve, drawdown, daily PnL, return distribution
- *   4. RecentTradeLog   — last 10 closed trades
  */
 
 "use client";
@@ -16,7 +15,6 @@ import { useDailyPnl } from "@/hooks/useDailyPnl";
 import { useReturnDistribution } from "@/hooks/useReturnDistribution";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
-import { RecentTradeLog } from "@/components/dashboard/RecentTradeLog";
 import { EquityCurveChart } from "@/components/charts/EquityCurveChart";
 import { DrawdownChart } from "@/components/charts/DrawdownChart";
 import { DailyPnlBarChart } from "@/components/charts/DailyPnlBarChart";
@@ -93,9 +91,6 @@ export default function DashboardPage() {
         {loadingDaily ? <ChartSkeleton /> : <DailyPnlBarChart data={dailyPnl ?? []} />}
         {loadingReturnDist ? <ChartSkeleton /> : <ReturnDistributionChart data={returnDist ?? []} />}
       </div>
-
-      {/* 4 — Recent trade log */}
-      <RecentTradeLog />
     </div>
   );
 }

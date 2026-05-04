@@ -21,26 +21,28 @@ import { useDebounce } from "@/hooks/useDebounce";
 import {
   useAnalyticsSummary,
   useMarketPhaseCorrelation,
-  useEquityCurve,
-  useDrawdownCurve,
   useReturnDistribution,
   useScatterAnalytics,
 } from "@/hooks/useReportingAnalytics";
 import { ReportFilterBar } from "@/components/reporting/ReportFilterBar";
 import { WidgetGridSkeleton, MetricsSkeleton } from "@/components/reporting/ReportingSkeletons";
 import { GlobalEmptyState } from "@/components/reporting/Widgets";
+import dynamic from "next/dynamic";
 import {
   MetricCard,
   PayoffRatio,
-  EquityCurveWidget,
-  DrawdownWidget,
-  RMultipleDistributionWidget,
-  MaeMfeScatterWidget,
-  DurationVsPnlScatterWidget,
-  PlaybookPhaseHeatmapWidget,
-  PsychologicalAttributionWidget,
   UncategorizedBanner,
 } from "@/components/reporting/Widgets";
+
+// Lazy-load heavy Recharts widgets to prevent main-thread blocking during initial render
+const EquityCurveWidget = dynamic(() => import("@/components/reporting/Widgets").then(mod => mod.EquityCurveWidget), { ssr: false });
+const DrawdownWidget = dynamic(() => import("@/components/reporting/Widgets").then(mod => mod.DrawdownWidget), { ssr: false });
+const RMultipleDistributionWidget = dynamic(() => import("@/components/reporting/Widgets").then(mod => mod.RMultipleDistributionWidget), { ssr: false });
+const MaeMfeScatterWidget = dynamic(() => import("@/components/reporting/Widgets").then(mod => mod.MaeMfeScatterWidget), { ssr: false });
+const DurationVsPnlScatterWidget = dynamic(() => import("@/components/reporting/Widgets").then(mod => mod.DurationVsPnlScatterWidget), { ssr: false });
+const PlaybookPhaseHeatmapWidget = dynamic(() => import("@/components/reporting/Widgets").then(mod => mod.PlaybookPhaseHeatmapWidget), { ssr: false });
+const PsychologicalAttributionWidget = dynamic(() => import("@/components/reporting/Widgets").then(mod => mod.PsychologicalAttributionWidget), { ssr: false });
+
 import type {
   HeatmapCell,
   AttributionBar,
@@ -249,14 +251,8 @@ export default function ReportingHubPage() {
     isLoading: attributionLoading,
   } = useMarketPhaseCorrelation(portfolioId, filterConfig, viewId);
 
-  const { data: equityCurve, isLoading: equityLoading } =
-    useEquityCurve(portfolioId);
-
-  const { data: drawdownCurve, isLoading: drawdownLoading } =
-    useDrawdownCurve(portfolioId);
-
   const { data: returnDistribution, isLoading: distributionLoading } =
-    useReturnDistribution(portfolioId);
+    useReturnDistribution(portfolioId, filterConfig);
 
   const {
     data: scatterData,
@@ -278,6 +274,20 @@ export default function ReportingHubPage() {
       ),
     [attribution],
   );
+
+  const equityCurveData = useMemo(() => {
+    return summary?.equity_curve?.map((p) => ({
+      date: p.date,
+      equity: parseFloat(p.equity),
+    }));
+  }, [summary?.equity_curve]);
+
+  const drawdownCurveData = useMemo(() => {
+    return summary?.drawdown_curve?.map((p) => ({
+      date: p.date,
+      drawdown: parseFloat(p.drawdown_pct),
+    }));
+  }, [summary?.drawdown_curve]);
 
   const rMultipleData: RMultipleBucket[] | undefined = useMemo(
     () =>
@@ -397,12 +407,12 @@ export default function ReportingHubPage() {
           {/* Performance Classic: Equity Curve + Drawdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <EquityCurveWidget
-              data={equityCurve as EquityCurvePoint[] | undefined}
-              isLoading={equityLoading}
+              data={equityCurveData}
+              isLoading={summaryLoading}
             />
             <DrawdownWidget
-              data={drawdownCurve as DrawdownPoint[] | undefined}
-              isLoading={drawdownLoading}
+              data={drawdownCurveData}
+              isLoading={summaryLoading}
             />
           </div>
 

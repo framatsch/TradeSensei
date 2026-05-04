@@ -15,8 +15,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPost,
   getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet,
-  getEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGet,
-  getDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGet,
   getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet,
 } from "@/lib/api";
 import type {
@@ -54,11 +52,10 @@ export function useAnalyticsSummary(
       if (!portfolioId) throw new Error("No portfolio selected");
 
       const body: AnalyticsSummaryRequest = {};
-      if (filterConfig) {
-        body.filter_config = filterConfig;
-      }
       if (viewId) {
         body.view_id = viewId;
+      } else {
+        body.filter_config = filterConfig || {};
       }
 
       const { data, error } =
@@ -101,9 +98,9 @@ export function useMarketPhaseCorrelation(
         await getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet({
           path: { portfolio_id: portfolioId },
           query: {
-            from_date: filterConfig?.date_from ?? null,
-            to_date: filterConfig?.date_to ?? null,
-            view_id: viewId ?? null,
+            from_date: viewId ? undefined : (filterConfig?.date_from ?? undefined),
+            to_date: viewId ? undefined : (filterConfig?.date_to ?? undefined),
+            view_id: viewId ?? undefined,
           },
         });
 
@@ -119,70 +116,31 @@ export function useMarketPhaseCorrelation(
 
 // ─── Equity Curve (standalone) ────────────────────────────────────────────────
 
-/**
- * Fetch the equity curve time series for a portfolio.
- */
-export function useEquityCurve(portfolioId: string | null) {
-  return useQuery<EquityCurvePoint[], Error>({
-    queryKey: ["equity-curve", portfolioId],
-    queryFn: async () => {
-      if (!portfolioId) throw new Error("No portfolio selected");
-
-      const { data, error } =
-        await getEquityCurveApiV1PortfoliosPortfolioIdMetricsEquityCurveGet({
-          path: { portfolio_id: portfolioId },
-        });
-
-      if (error || !data) {
-        throw error ?? new Error("Request failed: no data returned");
-      }
-      return data.data;
-    },
-    staleTime: 60 * 1000,
-    enabled: !!portfolioId,
-  });
-}
-
-// ─── Drawdown Curve (standalone) ──────────────────────────────────────────────
-
-/**
- * Fetch the drawdown curve time series for a portfolio.
- */
-export function useDrawdownCurve(portfolioId: string | null) {
-  return useQuery<DrawdownPoint[], Error>({
-    queryKey: ["drawdown-curve", portfolioId],
-    queryFn: async () => {
-      if (!portfolioId) throw new Error("No portfolio selected");
-
-      const { data, error } =
-        await getDrawdownCurveApiV1PortfoliosPortfolioIdMetricsDrawdownGet({
-          path: { portfolio_id: portfolioId },
-        });
-
-      if (error || !data) {
-        throw error ?? new Error("Request failed: no data returned");
-      }
-      return data.data;
-    },
-    staleTime: 60 * 1000,
-    enabled: !!portfolioId,
-  });
-}
-
 // ─── Return Distribution ──────────────────────────────────────────────────────
 
 /**
  * Fetch the return distribution histogram for a portfolio.
  */
-export function useReturnDistribution(portfolioId: string | null) {
+export function useReturnDistribution(
+  portfolioId: string | null,
+  filterConfig: DashboardFilterConfig | null,
+) {
   return useQuery<ReturnDistribution[], Error>({
-    queryKey: ["return-distribution", portfolioId],
+    queryKey: [
+      "return-distribution",
+      portfolioId,
+      filterConfig ? JSON.stringify(filterConfig) : null,
+    ],
     queryFn: async () => {
       if (!portfolioId) throw new Error("No portfolio selected");
 
       const { data, error } =
         await getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet({
           path: { portfolio_id: portfolioId },
+          query: {
+            from_dt: filterConfig?.date_from ? `${filterConfig.date_from}T00:00:00Z` : undefined,
+            to_dt: filterConfig?.date_to ? `${filterConfig.date_to}T23:59:59Z` : undefined,
+          },
         });
 
       if (error || !data) {

@@ -384,6 +384,7 @@ function CheckinForm({
                     <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-background after:border after:border-border after:rounded-full after:h-4 after:w-4 after:transition-all" />
                   </label>
                 ) : (
+                  <>
                     <input
                       type="range"
                       min="1"
@@ -405,6 +406,7 @@ function CheckinForm({
                     <span className="text-sm w-4">
                       {metrics[field.field_name] !== undefined ? metrics[field.field_name] : 5}
                     </span>
+                  </>
                 )}
               </div>
             ))}

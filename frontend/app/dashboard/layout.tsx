@@ -27,7 +27,7 @@ import type { AppContext } from "@/stores/appContextStore";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { EmptyPortfolioGate } from "@/components/layout/EmptyPortfolioGate";
 
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Filter } from "lucide-react";
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
@@ -157,9 +157,9 @@ const Icons = {
 
 // ─── Build nav items (respects feature flags and context) ─────────────────────
 
-function buildNavItems(context: AppContext): NavItem[] {
+function buildNavItems(context: AppContext, showReporting: boolean): NavItem[] {
   if (context === "portfolio") {
-    return [
+    const items: NavItem[] = [
       {
         kind: "group",
         label: "DASHBOARD",
@@ -169,9 +169,14 @@ function buildNavItems(context: AppContext): NavItem[] {
           { kind: "leaf", href: "/dashboard/reports/calendar", label: "Calendar", icon: Icons.calendar },
         ],
       },
-      { kind: "leaf", href: "/dashboard/reporting", label: "Reporting Hub", icon: Icons.analytics },
-      { kind: "leaf", href: "/dashboard/analytics", label: "Analytics", icon: Icons.analytics },
     ];
+
+    if (showReporting) {
+      items.push({ kind: "leaf", href: "/dashboard/reporting", label: "Reporting Hub", icon: Icons.analytics });
+    }
+
+    items.push({ kind: "leaf", href: "/dashboard/analytics", label: "Analytics", icon: Icons.analytics });
+    return items;
   }
   
   if (context === "library") {
@@ -267,10 +272,7 @@ function ReportingNavSection({
                 }`}
               >
                 <span className={`shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
+                  <Filter className="w-3.5 h-3.5" />
                 </span>
                 <span className="truncate flex-1">{view.name}</span>
               </button>
@@ -468,6 +470,7 @@ export default function DashboardLayout({ children }: Props) {
   const showCash = features["cash_and_dividends"] ?? false;
   const showTax = features["tax_report"] ?? false;
   const showRisk = features["risk_analytics"] ?? false;
+  const showReporting = features["reporting_hub"] ?? false;
 
   useEffect(() => {
     hydrate();
@@ -489,7 +492,7 @@ export default function DashboardLayout({ children }: Props) {
     );
   }
 
-  const NAV_ITEMS = buildNavItems(activeContext);
+  const NAV_ITEMS = buildNavItems(activeContext, showReporting);
 
   const renderContent = () => {
     if (activeContext === 'portfolio' && !pathname.startsWith("/dashboard/settings")) {

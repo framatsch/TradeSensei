@@ -7,6 +7,8 @@ import { toast } from "react-hot-toast";
 import * as api from "@/lib/api/index";
 import "@testing-library/jest-dom";
 
+import { PortfolioRead } from "@/lib/api";
+
 jest.mock("@/lib/api/index");
 jest.mock("react-hot-toast", () => ({
   toast: {
@@ -15,7 +17,7 @@ jest.mock("react-hot-toast", () => ({
   },
 }));
 
-const mockPortfolio = {
+const mockPortfolio: PortfolioRead = {
   id: "port-1",
   user_id: "user-1",
   name: "Day Trading",

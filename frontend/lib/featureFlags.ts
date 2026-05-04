@@ -1,7 +1,8 @@
 export type FeatureFlagKey =
   | "risk_analytics"
   | "cash_and_dividends"
-  | "tax_report";
+  | "tax_report"
+  | "reporting_hub";
 
 export const FEATURE_FLAGS: { key: FeatureFlagKey; label: string; description: string; comingSoon?: boolean }[] = [
   {
@@ -18,6 +19,11 @@ export const FEATURE_FLAGS: { key: FeatureFlagKey; label: string; description: s
     key: "tax_report",
     label: "Tax Report",
     description: "Show the Tax Report page and export.",
+  },
+  {
+    key: "reporting_hub",
+    label: "Reporting Hub",
+    description: "Show Reporting Hub in the dashboard.",
   },
 ];
 

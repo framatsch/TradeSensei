@@ -54,12 +54,14 @@ function formatNumber(value: number | null | undefined): string {
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 export interface EquityCurvePoint {
-  timestamp: string;
+  date?: string;
+  timestamp?: string; // keeping timestamp for fallback
   equity: number;
 }
 
 export interface DrawdownPoint {
-  timestamp: string;
+  date?: string;
+  timestamp?: string; // keeping timestamp for fallback
   drawdown: number;
 }
 
@@ -182,13 +184,13 @@ export function EquityCurveWidget({
             </defs>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
-              dataKey="timestamp"
+              dataKey={(d: any) => d.date || d.timestamp || ""}
               tick={{ fontSize: 11 }}
               tickFormatter={(d: string) =>
-                new Date(d).toLocaleDateString("en-US", {
+                d ? new Date(d).toLocaleDateString("en-US", {
                   month: "short",
                   year: "2-digit",
-                })
+                }) : ""
               }
             />
             <YAxis
@@ -244,13 +246,13 @@ export function DrawdownWidget({
             </defs>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
-              dataKey="timestamp"
+              dataKey={(d: any) => d.date || d.timestamp || ""}
               tick={{ fontSize: 11 }}
               tickFormatter={(d: string) =>
-                new Date(d).toLocaleDateString("en-US", {
+                d ? new Date(d).toLocaleDateString("en-US", {
                   month: "short",
                   year: "2-digit",
-                })
+                }) : ""
               }
             />
             <YAxis
