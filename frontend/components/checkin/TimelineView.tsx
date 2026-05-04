@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
@@ -8,11 +9,15 @@ import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
 import { CheckinLightbox } from "./CheckinLightbox";
 
-export function TimelineView() {
-  const { regime, page, perPage, setPage } = useCheckinParams();
+interface Props {
+  initialDate?: string;
+}
+
+export function TimelineView({ initialDate: _initialDate }: Props) {
+  const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   
-  const { data, isLoading } = useCheckinEntries(undefined, undefined, regime ?? undefined, perPage);
+  const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage);
   const { data: phases } = useMarketPhases();
 
   if (isLoading) {
@@ -65,15 +70,17 @@ export function TimelineView() {
 
             {checkin.screenshot_urls && checkin.screenshot_urls.length > 0 && (
               <div className="flex flex-wrap gap-3 mt-4">
-                {checkin.screenshot_urls.map((url, i) => (
+                 {checkin.screenshot_urls.map((url, i) => (
                   <button
                     key={i}
                     onClick={() => setLightboxUrl(url)}
                     className="overflow-hidden rounded-md border border-border bg-muted relative group"
                   >
-                    <img
+                    <Image
                       loading="lazy"
-                      className="max-w-[120px] h-auto object-cover group-hover:opacity-90 transition-opacity"
+                      width={120}
+                      height={90}
+                      className="object-cover rounded group-hover:opacity-90 transition-opacity"
                       src={url}
                       alt={`Screenshot ${i + 1}`}
                     />

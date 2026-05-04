@@ -11,6 +11,8 @@ export function useCheckinParams() {
   const view = searchParams.get("view") ?? "timeline";
   const month = searchParams.get("month") ?? new Date().toISOString().slice(0, 7); // YYYY-MM
   const regime = searchParams.get("regime") ?? null;
+  const fromDate = searchParams.get("from_date") ?? null;
+  const toDate = searchParams.get("to_date") ?? null;
   
   const pageStr = searchParams.get("page");
   const page = pageStr ? parseInt(pageStr, 10) : 1;
@@ -28,8 +30,8 @@ export function useCheckinParams() {
         params.set(key, value);
       }
 
-      // Automatically reset page to 1 if we change regime or month
-      if (key === "regime" || key === "month") {
+      // Automatically reset page to 1 if we change regime, month, or date range
+      if (key === "regime" || key === "month" || key === "from_date" || key === "to_date") {
         params.set("page", "1");
       }
 
@@ -45,6 +47,10 @@ export function useCheckinParams() {
     setMonth: (m: string) => setParam("month", m),
     regime,
     setRegime: (r: string | null) => setParam("regime", r),
+    fromDate,
+    setFromDate: (d: string | null) => setParam("from_date", d),
+    toDate,
+    setToDate: (d: string | null) => setParam("to_date", d),
     page,
     setPage: (p: number) => setParam("page", p.toString()),
     perPage,
