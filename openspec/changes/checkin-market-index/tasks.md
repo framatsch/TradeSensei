@@ -40,4 +40,4 @@
 ## 7. Testing & Review
 
 - [x] 7.1 Write backend unit tests verifying the many-to-many junction table logic and CRUD operations.
-- [ ] 7.2 Run full `safe-commit` checks (lint, format, typecheck).
+- [x] 7.2 Run full `safe-commit` checks (lint, format, typecheck).

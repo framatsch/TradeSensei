@@ -479,3 +479,34 @@ async def test_cache_hit_short_circuits_analytics_repo(mock_session: AsyncMock) 
 
     assert result.total_trades == 0
     service._repo.compute_summary.assert_not_awaited()
+
+
+@pytest.mark.integration
+async def test_analytics_summary_non_owner_gets_404(client: AsyncClient) -> None:
+    """Non-owner receives 404 on summary endpoint."""
+    owner_headers = await _auth_headers(client, prefix="summary_owner")
+    intruder_headers = await _auth_headers(client, prefix="summary_intruder")
+    portfolio_id = await _create_portfolio(client, owner_headers, "Summary Owner Portfolio")
+
+    response = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/analytics/summary",
+        headers=intruder_headers,
+        json={"filter_config": {"currency_mode": "NATIVE"}},
+    )
+
+    assert response.status_code == 404, response.text
+
+
+@pytest.mark.integration
+async def test_attribution_non_owner_gets_404(client: AsyncClient) -> None:
+    """Non-owner receives 404 on attribution endpoint."""
+    owner_headers = await _auth_headers(client, prefix="attrib_owner")
+    intruder_headers = await _auth_headers(client, prefix="attrib_intruder")
+    portfolio_id = await _create_portfolio(client, owner_headers, "Attrib Owner Portfolio")
+
+    response = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/analytics/correlations/market-phase",
+        headers=intruder_headers,
+    )
+
+    assert response.status_code == 404, response.text

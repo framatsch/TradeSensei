@@ -19,6 +19,18 @@ class DailyCheckinRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def _get_by_id_with_target_indices(
+        self,
+        checkin_id: uuid.UUID,
+    ) -> DailyCheckin:
+        """Fetch a check-in with target indices eagerly loaded."""
+        result = await self._session.execute(
+            select(DailyCheckin)
+            .where(DailyCheckin.id == checkin_id)
+            .options(selectinload(DailyCheckin.target_indices))
+        )
+        return result.scalar_one()
+
     async def create(
         self,
         user_id: uuid.UUID,
@@ -44,8 +56,7 @@ class DailyCheckinRepository:
             model.target_indices = list(result.scalars().all())
         self._session.add(model)
         await self._session.flush()
-        await self._session.refresh(model)
-        return model
+        return await self._get_by_id_with_target_indices(model.id)
 
     async def get_by_date_and_user(
         self,
@@ -132,8 +143,7 @@ class DailyCheckinRepository:
                 model.target_indices = []
         self._session.add(model)
         await self._session.flush()
-        await self._session.refresh(model)
-        return model
+        return await self._get_by_id_with_target_indices(model.id)
 
     async def delete(self, user_id: uuid.UUID, checkin_date: date) -> bool:
         """Delete a check-in by date for a user."""

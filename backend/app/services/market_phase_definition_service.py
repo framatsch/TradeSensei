@@ -39,6 +39,11 @@ class MarketPhaseDefinitionService:
             raise MarketPhaseDefinitionValidationError(
                 "name already exists for this user"
             )
+        existing_label = await self._repo.get_by_label_and_user(user_id, payload.label)
+        if existing_label is not None:
+            raise MarketPhaseDefinitionValidationError(
+                "label already exists for this user"
+            )
 
         try:
             model = await self._repo.create(
@@ -93,3 +98,13 @@ class MarketPhaseDefinitionService:
                 "name already exists for this user"
             ) from exc
         return MarketPhaseDefinitionRead.model_validate(updated)
+
+    async def delete_phase(self, user_id: uuid.UUID, phase_id: uuid.UUID) -> None:
+        """Delete one market phase definition by id for the requesting user."""
+        model = await self._repo.get_by_id(definition_id=phase_id, user_id=user_id)
+        if model is None:
+            raise MarketPhaseDefinitionNotFoundError("market phase definition not found")
+
+        await self._repo.delete(model)
+        await self._session.commit()
+        await self._cache.invalidate_user(user_id)

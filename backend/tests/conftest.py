@@ -20,6 +20,8 @@ os.environ.setdefault(
 )
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-minimum-32chars")
 os.environ.setdefault("UPLOAD_DIR", "./uploads")
+os.environ.setdefault("STORAGE_PUBLIC_URL", "/uploads")
+os.environ.setdefault("MCP_ENABLED", "true")
 
 from collections.abc import AsyncGenerator  # noqa: E402
 from typing import Any  # noqa: E402

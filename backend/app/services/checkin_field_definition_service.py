@@ -85,3 +85,12 @@ class CheckinFieldDefinitionService:
                 "field_name already exists for this user"
             ) from exc
         return CheckinFieldDefinitionRead.model_validate(updated)
+
+    async def delete_field(self, user_id: uuid.UUID, field_id: uuid.UUID) -> None:
+        """Delete one field definition by id for the requesting user."""
+        model = await self._repo.get_by_id(definition_id=field_id, user_id=user_id)
+        if model is None:
+            raise CheckinFieldDefinitionNotFoundError("check-in field definition not found")
+
+        await self._repo.delete(model)
+        await self._session.commit()

@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.core.constants import EQUITY_CURVE_MAX_POINTS
-from app.core.exceptions import Spec5NotDeployedError
+from app.core.exceptions import SavedDashboardViewNotFoundError, Spec5NotDeployedError
 from app.repositories.analytics_repository import EquityRow
-from app.schemas.analytics import AnalyticsSummaryRequest, DashboardFilterConfig
+from app.schemas.analytics import AnalyticsSummary, AnalyticsSummaryRequest, DashboardFilterConfig
 from app.services.analytics_service import AnalyticsService
 from app.services.attribution_service import AttributionService
 
@@ -232,3 +232,160 @@ async def test_attribution_service_converts_spec5_missing_to_503(
 
     pass  # Domain exception raised directly
     pass  # Check removed
+
+
+@pytest.mark.unit
+async def test_analytics_service_cache_miss_sets_cache(mock_session: AsyncMock) -> None:
+    """Cache miss computes summary and stores serialized payload."""
+    service = AnalyticsService(mock_session)
+    service._cache.get = AsyncMock(return_value=None)
+    service._cache.set = AsyncMock(return_value=None)
+    service._repo.compute_summary = AsyncMock(
+        return_value={
+            "total_trades": 0,
+            "winning_trades": 0,
+            "losing_trades": 0,
+            "gross_profit": Decimal("0"),
+            "gross_loss": Decimal("0"),
+            "avg_win": Decimal("0"),
+            "avg_loss": Decimal("0"),
+            "avg_trade_duration_hours": None,
+            "equity_rows": [],
+        }
+    )
+
+    result = await service.get_summary(
+        portfolio_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        request=AnalyticsSummaryRequest(filter_config=DashboardFilterConfig()),
+    )
+
+    assert result.total_trades == 0
+    service._repo.compute_summary.assert_awaited_once()
+    service._cache.set.assert_awaited_once()
+
+
+@pytest.mark.unit
+async def test_resolve_filter_config_uses_inline_without_saved_view(
+    mock_session: AsyncMock,
+) -> None:
+    """Inline filter config is used directly when provided."""
+    service = AnalyticsService(mock_session)
+    request = AnalyticsSummaryRequest(
+        filter_config=DashboardFilterConfig(currency_mode="NATIVE")
+    )
+
+    resolved = await service._resolve_filter_config(
+        portfolio_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        request=request,
+    )
+
+    assert resolved.currency_mode == "NATIVE"
+
+
+@pytest.mark.unit
+async def test_resolve_filter_config_uses_saved_view_filter(mock_session: AsyncMock) -> None:
+    """Saved view filter config is loaded when view_id is provided."""
+    service = AnalyticsService(mock_session)
+    portfolio_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    view_id = uuid.uuid4()
+    service._views.get_by_id = AsyncMock(
+        return_value=type(
+            "_View",
+            (),
+            {
+                "user_id": user_id,
+                "portfolio_id": portfolio_id,
+                "filter_config": {"currency_mode": "NORMALIZED", "normalize_to": "EUR"},
+            },
+        )()
+    )
+
+    resolved = await service._resolve_filter_config(
+        portfolio_id=portfolio_id,
+        user_id=user_id,
+        request=AnalyticsSummaryRequest(view_id=view_id),
+    )
+
+    assert resolved.currency_mode == "NORMALIZED"
+    assert resolved.normalize_to == "EUR"
+
+
+@pytest.mark.unit
+async def test_resolve_filter_config_unknown_saved_view_raises(
+    mock_session: AsyncMock,
+) -> None:
+    """Unknown saved view raises SavedDashboardViewNotFoundError."""
+    service = AnalyticsService(mock_session)
+    service._views.get_by_id = AsyncMock(return_value=None)
+
+    with pytest.raises(SavedDashboardViewNotFoundError):
+        await service._resolve_filter_config(
+            portfolio_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            request=AnalyticsSummaryRequest(view_id=uuid.uuid4()),
+        )
+
+
+@pytest.mark.unit
+async def test_attribution_service_cache_hit_skips_repository(
+    mock_session: AsyncMock,
+) -> None:
+    """Cached attribution payload is returned without repo calls."""
+    service = AttributionService(mock_session)
+    service._cache.get = AsyncMock(
+        return_value='{"buckets":[],"unmatched_trade_count":0,"phase_unset_trade_count":0,"currency":null}'
+    )
+    service._repo.compute_market_phase_correlation = AsyncMock()
+
+    result = await service.get_market_phase_correlation(
+        portfolio_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        filter_config=DashboardFilterConfig(),
+    )
+
+    assert result.buckets == []
+    service._repo.compute_market_phase_correlation.assert_not_awaited()
+
+
+@pytest.mark.unit
+async def test_analytics_service_cache_hit_skips_repository(mock_session: AsyncMock) -> None:
+    """Cached summary is returned without repository call."""
+    service = AnalyticsService(mock_session)
+    cached = AnalyticsSummary(
+        win_rate=Decimal("0"),
+        profit_factor=None,
+        expectancy=Decimal("0"),
+        sharpe_ratio=None,
+        total_trades=0,
+        winning_trades=0,
+        losing_trades=0,
+        gross_profit=Decimal("0"),
+        gross_loss=Decimal("0"),
+        avg_win=Decimal("0"),
+        avg_loss=Decimal("0"),
+        max_consecutive_wins=0,
+        max_consecutive_losses=0,
+        avg_trade_duration_hours=None,
+        equity_curve=[],
+        drawdown_curve=[],
+        max_drawdown=Decimal("0"),
+        max_drawdown_abs=Decimal("0"),
+        currency="USD",
+        multi_currency_warning=False,
+        currencies=None,
+        fx_rate_missing_trade_ids=None,
+    )
+    service._cache.get = AsyncMock(return_value=cached.model_dump_json())
+    service._repo.compute_summary = AsyncMock()
+
+    result = await service.get_summary(
+        portfolio_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        request=AnalyticsSummaryRequest(filter_config=DashboardFilterConfig()),
+    )
+
+    assert result.total_trades == 0
+    service._repo.compute_summary.assert_not_awaited()

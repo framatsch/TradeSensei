@@ -99,3 +99,23 @@ async def update_market_phase(
             detail=str(exc),
         ) from exc
     return ResponseEnvelope[MarketPhaseDefinitionRead](data=item)
+
+
+@router.delete(
+    "/{phase_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete market phase definition",
+    description="Delete one market phase definition by id.",
+)
+async def delete_market_phase(
+    phase_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[MarketPhaseDefinitionService, Depends(_get_service)],
+) -> None:
+    try:
+        await service.delete_phase(user_id=current_user.id, phase_id=phase_id)
+    except MarketPhaseDefinitionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

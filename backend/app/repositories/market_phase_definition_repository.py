@@ -98,6 +98,25 @@ class MarketPhaseDefinitionRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_label_and_user(
+        self,
+        user_id: uuid.UUID,
+        label: str,
+    ) -> MarketPhaseDefinition | None:
+        """Return a phase definition by label for a user."""
+        result = await self._session.execute(
+            select(MarketPhaseDefinition).where(
+                MarketPhaseDefinition.user_id == user_id,
+                MarketPhaseDefinition.label == label,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def delete(self, model: MarketPhaseDefinition) -> None:
+        """Delete a market phase definition model."""
+        await self._session.delete(model)
+        await self._session.flush()
+
     async def seed_defaults(self, user_id: uuid.UUID) -> None:
         """Insert default phase definitions if they do not exist."""
         defaults = [

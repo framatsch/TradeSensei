@@ -99,6 +99,37 @@ async def update_market_index(
     return ResponseEnvelope[MarketIndexDefinitionResponse](data=item)
 
 
+@router.patch(
+    "/{index_id}",
+    response_model=ResponseEnvelope[MarketIndexDefinitionResponse],
+    summary="Partially update market index definition",
+    description="Partially update mutable properties of a market index definition.",
+)
+async def patch_market_index(
+    index_id: uuid.UUID,
+    payload: MarketIndexDefinitionUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[MarketIndexDefinitionService, Depends(_get_service)],
+) -> ResponseEnvelope[MarketIndexDefinitionResponse]:
+    try:
+        item = await service.update_index(
+            user_id=current_user.id,
+            index_id=index_id,
+            payload=payload,
+        )
+    except MarketIndexDefinitionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except MarketIndexDefinitionValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    return ResponseEnvelope[MarketIndexDefinitionResponse](data=item)
+
+
 @router.delete(
     "/{index_id}",
     status_code=status.HTTP_204_NO_CONTENT,

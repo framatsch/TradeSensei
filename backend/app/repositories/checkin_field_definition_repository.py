@@ -96,6 +96,11 @@ class CheckinFieldDefinitionRepository:
         )
         return result.scalar_one_or_none()
 
+    async def delete(self, model: CheckinFieldDefinition) -> None:
+        """Delete a field definition model."""
+        await self._session.delete(model)
+        await self._session.flush()
+
     async def seed_defaults(self, user_id: uuid.UUID) -> None:
         """Insert default field definitions if they do not exist."""
         defaults = [

@@ -9,7 +9,7 @@ import pytest
 
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.trade import AssetClass, Direction, Trade
-from app.schemas.trade import TradeCreate, TradeRead, TradeUpdate
+from app.schemas.trade import TradeCreate, TradeRead, TradeUpdate, TradePartialCloseRequest
 from app.services.trade_service import TradeService
 
 
@@ -692,3 +692,152 @@ class TestDeleteTrade:
             pytest.raises(TradeNotFoundError),
         ):
             await service.delete_trade(uuid.uuid4(), uuid.uuid4())
+
+
+class TestPortfolioCacheInvalidation:
+    """Unit tests for cache invalidation hooks in trade service methods."""
+
+    @pytest.mark.unit
+    async def test_bulk_assign_playbook_invalidates_portfolio_cache(
+        self, service: TradeService
+    ) -> None:
+        user_id = uuid.uuid4()
+        portfolio_id = uuid.uuid4()
+
+        with (
+            patch(
+                "app.services.trade_service.PlaybookRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=type("_Playbook", (), {"user_id": user_id})(),
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.bulk_assign_playbook",
+                new_callable=AsyncMock,
+                return_value=1,
+            ),
+            patch.object(
+                service._cache,
+                "invalidate_portfolio",
+                new_callable=AsyncMock,
+            ) as invalidate,
+        ):
+            count = await service.bulk_assign_playbook(
+                trade_ids=[uuid.uuid4()],
+                playbook_id=uuid.uuid4(),
+                user_id=user_id,
+                portfolio_id=portfolio_id,
+            )
+
+        assert count == 1
+        invalidate.assert_awaited_once_with(portfolio_id, user_id)
+
+    @pytest.mark.unit
+    async def test_merge_trades_invalidates_portfolio_cache(
+        self, service: TradeService
+    ) -> None:
+        user_id = uuid.uuid4()
+        portfolio_id = uuid.uuid4()
+        account_id = uuid.uuid4()
+        t1 = _make_trade(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            account_id=account_id,
+            symbol="AAPL",
+            opened_at=datetime(2025, 1, 1, tzinfo=UTC),
+        )
+        t2 = _make_trade(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            account_id=account_id,
+            symbol="AAPL",
+            opened_at=datetime(2025, 1, 2, tzinfo=UTC),
+        )
+
+        with (
+            patch.object(
+                service._repo,
+                "get_by_id",
+                new_callable=AsyncMock,
+                side_effect=[t1, t2, t1],
+            ),
+            patch.object(service._repo, "delete", new_callable=AsyncMock),
+            patch.object(
+                service._cache,
+                "invalidate_portfolio",
+                new_callable=AsyncMock,
+            ) as invalidate,
+            patch(
+                "app.repositories.execution.ExecutionRepository",
+                return_value=type(
+                    "_ExecRepo",
+                    (),
+                    {
+                        "list_by_trade_id": AsyncMock(return_value=[]),
+                        "reassign_to_trade": AsyncMock(return_value=0),
+                    },
+                )(),
+            ),
+            patch.object(service, "_re_aggregate_trade", new_callable=AsyncMock),
+        ):
+            _ = await service.merge_trades(
+                trade_ids=[t1.id, t2.id],
+                user_id=user_id,
+                portfolio_id=portfolio_id,
+            )
+
+        invalidate.assert_awaited_once_with(portfolio_id, user_id)
+
+    @pytest.mark.unit
+    async def test_partial_close_trade_invalidates_cache_via_account_lookup(
+        self, service: TradeService
+    ) -> None:
+        user_id = uuid.uuid4()
+        portfolio_id = uuid.uuid4()
+        account_id = uuid.uuid4()
+        trade = _make_trade(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            account_id=account_id,
+            symbol="AAPL",
+            quantity=Decimal("5"),
+            entry_price=Decimal("100"),
+            opened_at=datetime(2025, 1, 1, tzinfo=UTC),
+        )
+        request = TradePartialCloseRequest(
+            quantity=Decimal("5"),
+            exit_price=Decimal("110"),
+            closed_at=datetime(2025, 1, 2, tzinfo=UTC),
+            exit_commission=Decimal("0"),
+        )
+
+        with (
+            patch.object(
+                service._repo,
+                "get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch.object(
+                service._account_repo,
+                "get_by_id",
+                new_callable=AsyncMock,
+                return_value=type("_Account", (), {"portfolio_id": portfolio_id})(),
+            ),
+            patch.object(service, "_re_aggregate_trade", new_callable=AsyncMock),
+            patch.object(service._session, "add"),
+            patch.object(service._session, "flush", new_callable=AsyncMock),
+            patch.object(service._session, "commit", new_callable=AsyncMock),
+            patch.object(
+                service._cache,
+                "invalidate_portfolio",
+                new_callable=AsyncMock,
+            ) as invalidate,
+        ):
+            await service.partial_close_trade(
+                trade_id=trade.id,
+                request=request,
+                user_id=user_id,
+                portfolio_id=portfolio_id,
+            )
+
+        invalidate.assert_awaited_once_with(portfolio_id, user_id)

@@ -99,3 +99,23 @@ async def update_checkin_field(
             detail=str(exc),
         ) from exc
     return ResponseEnvelope[CheckinFieldDefinitionRead](data=item)
+
+
+@router.delete(
+    "/{field_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete check-in field definition",
+    description="Delete one check-in field definition by id.",
+)
+async def delete_checkin_field(
+    field_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[CheckinFieldDefinitionService, Depends(_get_service)],
+) -> None:
+    try:
+        await service.delete_field(user_id=current_user.id, field_id=field_id)
+    except CheckinFieldDefinitionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

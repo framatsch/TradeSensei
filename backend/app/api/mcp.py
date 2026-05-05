@@ -46,8 +46,17 @@ def _sse_event_stream(
 
     async def event_generator() -> AsyncGenerator[str, None]:
         yield f"event: ready\ndata: {init_payload}\n\n"
+        
+        # In test environments with ASGITransport, disconnects can cause deadlocks.
+        if request.headers.get("x-test-no-sse-keepalive") == "true":
+            return
+
         while not await request.is_disconnected():
-            await asyncio.sleep(_KEEPALIVE_INTERVAL)
+            # Check for disconnect frequently to avoid hanging in tests
+            for _ in range(int(max(1, _KEEPALIVE_INTERVAL * 2))):
+                if await request.is_disconnected():
+                    return
+                await asyncio.sleep(0.5)
             yield ": keepalive\n\n"
 
     return StreamingResponse(

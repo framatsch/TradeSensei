@@ -198,3 +198,15 @@ async def test_list_checkins_returns_cursor_envelope(mock_session: object) -> No
     assert response.total == 0
     assert response.items == []
     assert response.next_cursor is None
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_target_indices_rejects_unknown_ids(mock_session: object) -> None:
+    service = DailyCheckinService(mock_session)  # type: ignore[arg-type]
+    user_id = uuid.uuid4()
+    target_id = uuid.uuid4()
+    service._index_repo.get_by_ids_for_user = AsyncMock(return_value=[])  # type: ignore[attr-defined]
+
+    with pytest.raises(DailyCheckinValidationError, match="unknown ids"):
+        await service._validate_target_indices(user_id, [target_id])
