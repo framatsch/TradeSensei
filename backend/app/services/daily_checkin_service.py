@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import (
+    DailyCheckinAlreadyExistsError,
     DailyCheckinNotFoundError,
     DailyCheckinValidationError,
 )
@@ -53,10 +54,7 @@ class DailyCheckinService:
         unique_ids = list(dict.fromkeys(target_index_ids))
         found = await self._index_repo.get_by_ids_for_user(user_id, unique_ids)
         if len(found) != len(unique_ids):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="target_index_ids contains unknown ids",
-            )
+            raise DailyCheckinValidationError("target_index_ids contains unknown ids")
 
     async def _validate_market_phase(
         self,
@@ -140,7 +138,7 @@ class DailyCheckinService:
             await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
-            raise DailyCheckinValidationError(
+            raise DailyCheckinAlreadyExistsError(
                 "daily check-in already exists for this date"
             ) from exc
         return DailyCheckinRead.model_validate(model)

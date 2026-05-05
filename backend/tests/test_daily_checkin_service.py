@@ -1,4 +1,3 @@
-from app.core.exceptions import DailyCheckinValidationError
 """Unit tests for daily check-in service validation logic."""
 
 import uuid
@@ -6,8 +5,8 @@ from datetime import date
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import HTTPException
 
+from app.core.exceptions import DailyCheckinValidationError
 from app.models.daily_checkin import FieldTypeEnum
 from app.services.daily_checkin_service import DailyCheckinService
 

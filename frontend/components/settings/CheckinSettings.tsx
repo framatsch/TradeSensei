@@ -222,7 +222,7 @@ function MarketIndexesSection() {
         type="button"
         onClick={handleCreate}
         disabled={createMutation.isPending || !symbol.trim() || !name.trim()}
-        className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white transition-colors"
+        className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground transition-colors"
       >
         {createMutation.isPending ? "Creating..." : "Add Market Index"}
       </button>
@@ -243,7 +243,7 @@ function MarketIndexesSection() {
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+            <tbody className="divide-y divide-border">
               {(indexes ?? []).map((index) => (
                 <tr key={index.id} className="bg-card hover:bg-muted/50 transition-colors">
                   <td className="px-4 py-3 font-mono text-sm text-muted-foreground">
@@ -356,7 +356,7 @@ function DeactivateMetricWarningModal({ fieldName, onConfirm, onCancel, isSubmit
       <div className="bg-card rounded-xl border border-border shadow-xl p-6 w-full max-w-md mx-4">
         <div className="flex items-start gap-3 mb-4">
           <div className="shrink-0 mt-0.5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-amber-500">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-warning">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -382,7 +382,7 @@ function DeactivateMetricWarningModal({ fieldName, onConfirm, onCancel, isSubmit
             type="button"
             onClick={onConfirm}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-warning hover:bg-warning/90 disabled:opacity-50 text-warning-foreground transition-colors"
           >
             {isSubmitting ? "Deactivating..." : "Deactivate"}
           </button>
@@ -479,7 +479,7 @@ function MarketPhaseSection() {
             setAddError(null);
             setShowAddModal(true);
           }}
-          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-white transition-colors"
+          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -494,7 +494,7 @@ function MarketPhaseSection() {
       ) : isError ? (
         <div className="py-10 text-center rounded-xl border border-dashed border-destructive/30 bg-[color-mix(in_srgb,hsl(var(--destructive))_10%,transparent)] text-sm text-destructive px-6">
           <p className="font-medium">Could not load market phases.</p>
-          <p className="mt-1 text-xs text-red-500 dark:text-red-500/80">
+          <p className="mt-1 text-xs text-muted-foreground">
             Check your connection and try refreshing the page.
           </p>
         </div>
@@ -630,7 +630,7 @@ function MarketPhaseSection() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Key <span className="text-red-500">*</span>
+                  Key <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
@@ -643,7 +643,7 @@ function MarketPhaseSection() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Label <span className="text-red-500">*</span>
+                  Label <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
@@ -663,7 +663,7 @@ function MarketPhaseSection() {
                 />
               </div>
             </div>
-            {addError && <p className="mt-3 text-sm text-red-500">{addError}</p>}
+            {addError && <p className="mt-3 text-sm text-destructive">{addError}</p>}
             <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"
@@ -676,7 +676,7 @@ function MarketPhaseSection() {
                 type="button"
                 onClick={handleAdd}
                 disabled={createMutation.isPending}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground transition-colors"
               >
                 {createMutation.isPending ? "Creating..." : "Create"}
               </button>
@@ -767,7 +767,7 @@ function CustomMetricsSection() {
             setAddError(null);
             setShowAddModal(true);
           }}
-          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-white transition-colors"
+          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -782,7 +782,7 @@ function CustomMetricsSection() {
       ) : isError ? (
         <div className="py-10 text-center rounded-xl border border-dashed border-destructive/30 bg-[color-mix(in_srgb,hsl(var(--destructive))_10%,transparent)] text-sm text-destructive px-6">
           <p className="font-medium">Could not load custom metrics.</p>
-          <p className="mt-1 text-xs text-red-500 dark:text-red-500/80">
+          <p className="mt-1 text-xs text-muted-foreground">
             Check your connection and try refreshing the page.
           </p>
         </div>
@@ -861,7 +861,7 @@ function CustomMetricsSection() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Key <span className="text-red-500">*</span>
+                  Key <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
@@ -874,7 +874,7 @@ function CustomMetricsSection() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
-                  Type <span className="text-red-500">*</span>
+                  Type <span className="text-destructive">*</span>
                 </label>
                 <select
                   value={addForm.field_type}
@@ -887,7 +887,7 @@ function CustomMetricsSection() {
                 <p className="text-xs text-muted-foreground mt-1">Type is immutable after creation.</p>
               </div>
             </div>
-            {addError && <p className="mt-3 text-sm text-red-500">{addError}</p>}
+            {addError && <p className="mt-3 text-sm text-destructive">{addError}</p>}
             <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"
@@ -900,7 +900,7 @@ function CustomMetricsSection() {
                 type="button"
                 onClick={handleAdd}
                 disabled={createMutation.isPending}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground transition-colors"
               >
                 {createMutation.isPending ? "Creating..." : "Create"}
               </button>

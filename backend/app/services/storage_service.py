@@ -19,6 +19,7 @@ class StorageService:
 
     @cached_property
     def _s3_client(self) -> Any:
+        # Cached per-instance only — StorageService is instantiated per request.
         return boto3.client(
             "s3",
             endpoint_url=settings.storage_endpoint_url,

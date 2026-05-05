@@ -6,7 +6,6 @@ from decimal import Decimal
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import HTTPException
 
 from app.core.constants import EQUITY_CURVE_MAX_POINTS
 from app.core.exceptions import Spec5NotDeployedError

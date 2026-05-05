@@ -1,4 +1,3 @@
-from app.core.exceptions import PortfolioValidationError
 """Unit tests for PortfolioService."""
 
 import uuid
@@ -6,8 +5,8 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import HTTPException, status
 
+from app.core.exceptions import PortfolioValidationError
 from app.models.portfolio import Portfolio
 from app.schemas.portfolio import PortfolioCreate, PortfolioRead, PortfolioUpdate
 from app.services.portfolio_service import PortfolioService
@@ -44,7 +43,6 @@ async def test_create_portfolio_rejects_duplicate_name(
 
     with pytest.raises(PortfolioValidationError) as exc:
         await service.create_portfolio(
-            service._session,
             user_id,
             PortfolioCreate(name="Main", base_currency="USD", color_hex="#123456"),
         )
@@ -59,7 +57,6 @@ async def test_create_portfolio_success_returns_read(service: PortfolioService) 
     service._repo.create = AsyncMock(return_value=created)  # type: ignore[method-assign]
 
     result = await service.create_portfolio(
-        service._session,
         user_id,
         PortfolioCreate(name="Growth", base_currency="EUR", color_hex="#654321"),
     )
@@ -81,7 +78,6 @@ async def test_update_portfolio_rejects_base_currency_change_when_trades_exist(
 
     with pytest.raises(PortfolioValidationError) as exc:
         await service.update_portfolio(
-            service._session,
             existing.id,
             user_id,
             PortfolioUpdate(base_currency="EUR"),
@@ -101,7 +97,6 @@ async def test_update_portfolio_rejects_duplicate_name(
 
     with pytest.raises(PortfolioValidationError) as exc:
         await service.update_portfolio(
-            service._session,
             existing.id,
             user_id,
             PortfolioUpdate(name="Other"),
@@ -119,6 +114,6 @@ async def test_delete_portfolio_rejects_when_accounts_linked(
     service._repo.has_accounts = AsyncMock(return_value=True)  # type: ignore[method-assign]
 
     with pytest.raises(PortfolioValidationError) as exc:
-        await service.delete_portfolio(service._session, existing.id, user_id)
+        await service.delete_portfolio(existing.id, user_id)
 
     

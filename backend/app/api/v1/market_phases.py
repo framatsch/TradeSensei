@@ -7,7 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
-from app.core.exceptions import MarketPhaseDefinitionValidationError
+from app.core.exceptions import (
+    MarketPhaseDefinitionNotFoundError,
+    MarketPhaseDefinitionValidationError,
+)
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.daily_checkin import (
@@ -79,9 +82,20 @@ async def update_market_phase(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[MarketPhaseDefinitionService, Depends(_get_service)],
 ) -> ResponseEnvelope[MarketPhaseDefinitionRead]:
-    item = await service.update_phase(
-        user_id=current_user.id,
-        phase_id=phase_id,
-        payload=payload,
-    )
+    try:
+        item = await service.update_phase(
+            user_id=current_user.id,
+            phase_id=phase_id,
+            payload=payload,
+        )
+    except MarketPhaseDefinitionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except MarketPhaseDefinitionValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[MarketPhaseDefinitionRead](data=item)

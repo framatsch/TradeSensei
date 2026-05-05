@@ -112,10 +112,10 @@ export function ScreenshotUploader({ onUploaded }: Props) {
         onClick={() => fileInputRef.current?.click()}
         className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 ${
           isDragging
-            ? "border-primary bg-blue-50 dark:bg-blue-900/20"
+            ? "border-primary bg-[color-mix(in_srgb,hsl(var(--primary))_5%,transparent)]"
             : pasteHint
-            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
-            : "border-border dark:border-border hover:border-blue-400 hover:bg-zinc-50 dark:hover:bg-zinc-700/40"
+            ? "border-primary bg-[color-mix(in_srgb,hsl(var(--primary))_5%,transparent)]"
+            : "border-border hover:border-primary hover:bg-muted/50"
         } ${error === "Screenshot upload unavailable" ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
       >
         <input
@@ -129,20 +129,20 @@ export function ScreenshotUploader({ onUploaded }: Props) {
         {isUploading ? (
           <span className="text-sm text-primary animate-pulse">Uploading…</span>
         ) : pasteHint ? (
-          <span className="text-sm text-emerald-500 font-medium">Pasted!</span>
+          <span className="text-sm text-primary font-medium">Pasted!</span>
         ) : (
           <>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-zinc-400">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-muted-foreground">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             <span className="text-xs text-muted-foreground">
               <span className="text-primary font-medium">Click</span> or drag & drop
-              <span className="mx-1 text-zinc-300 dark:text-zinc-600">·</span>
+              <span className="mx-1 text-muted-foreground/40">·</span>
               <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border dark:border-border rounded">⌘V</kbd> to paste
             </span>
-            <span className="text-xs text-zinc-400">PNG, JPG, GIF, WebP · max 20 MB</span>
+            <span className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP · max 20 MB</span>
             <span className="text-xs text-muted-foreground">Only static screenshots are supported. Live chart embeds are not used.</span>
           </>
         )}

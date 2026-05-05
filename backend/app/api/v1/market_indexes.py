@@ -3,10 +3,14 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
+from app.core.exceptions import (
+    MarketIndexDefinitionNotFoundError,
+    MarketIndexDefinitionValidationError,
+)
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.market_index import (
@@ -37,7 +41,13 @@ async def create_market_index(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[MarketIndexDefinitionService, Depends(_get_service)],
 ) -> ResponseEnvelope[MarketIndexDefinitionResponse]:
-    item = await service.create_index(user_id=current_user.id, payload=payload)
+    try:
+        item = await service.create_index(user_id=current_user.id, payload=payload)
+    except MarketIndexDefinitionValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[MarketIndexDefinitionResponse](data=item)
 
 
@@ -70,11 +80,22 @@ async def update_market_index(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[MarketIndexDefinitionService, Depends(_get_service)],
 ) -> ResponseEnvelope[MarketIndexDefinitionResponse]:
-    item = await service.update_index(
-        user_id=current_user.id,
-        index_id=index_id,
-        payload=payload,
-    )
+    try:
+        item = await service.update_index(
+            user_id=current_user.id,
+            index_id=index_id,
+            payload=payload,
+        )
+    except MarketIndexDefinitionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except MarketIndexDefinitionValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     return ResponseEnvelope[MarketIndexDefinitionResponse](data=item)
 
 
@@ -89,4 +110,10 @@ async def delete_market_index(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[MarketIndexDefinitionService, Depends(_get_service)],
 ) -> None:
-    await service.delete_index(user_id=current_user.id, index_id=index_id)
+    try:
+        await service.delete_index(user_id=current_user.id, index_id=index_id)
+    except MarketIndexDefinitionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

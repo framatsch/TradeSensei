@@ -2,10 +2,13 @@
 
 import uuid
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import (
+    MarketIndexDefinitionNotFoundError,
+    MarketIndexDefinitionValidationError,
+)
 from app.models.market_index import MarketIndexDefinition
 from app.repositories.market_index_repository import MarketIndexDefinitionRepository
 from app.schemas.market_index import (
@@ -31,9 +34,8 @@ class MarketIndexDefinitionService:
     ) -> MarketIndexDefinitionResponse:
         existing = await self._repo.get_by_symbol_and_user(user_id, payload.symbol)
         if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="symbol already exists for this user",
+            raise MarketIndexDefinitionValidationError(
+                "symbol already exists for this user"
             )
         try:
             model = await self._repo.create(
@@ -49,9 +51,8 @@ class MarketIndexDefinitionService:
             await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="symbol already exists for this user",
+            raise MarketIndexDefinitionValidationError(
+                "symbol already exists for this user"
             ) from exc
         return MarketIndexDefinitionResponse.model_validate(model)
 
@@ -71,9 +72,8 @@ class MarketIndexDefinitionService:
     ) -> MarketIndexDefinitionResponse:
         model = await self._repo.get_by_id(index_id=index_id, user_id=user_id)
         if model is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="market index definition not found",
+            raise MarketIndexDefinitionNotFoundError(
+                "market index definition not found"
             )
         try:
             updated = await self._repo.update(
@@ -87,18 +87,16 @@ class MarketIndexDefinitionService:
             await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="symbol already exists for this user",
+            raise MarketIndexDefinitionValidationError(
+                "symbol already exists for this user"
             ) from exc
         return MarketIndexDefinitionResponse.model_validate(updated)
 
     async def delete_index(self, user_id: uuid.UUID, index_id: uuid.UUID) -> None:
         model = await self._repo.get_by_id(index_id=index_id, user_id=user_id)
         if model is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="market index definition not found",
+            raise MarketIndexDefinitionNotFoundError(
+                "market index definition not found"
             )
         await self._repo.delete(model)
         await self._session.commit()

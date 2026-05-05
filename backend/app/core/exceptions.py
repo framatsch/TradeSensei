@@ -144,10 +144,6 @@ class CheckinFieldDefinitionValidationError(ValueError):
     """Raised when a check-in field definition validation fails."""
 
 
-class AttributionNotFoundError(Exception):
-    """Raised when an attribution is not found."""
-
-
 class MarketPhaseDefinitionNotFoundError(Exception):
     """Raised when a market phase definition is not found."""
 
@@ -164,9 +160,21 @@ class DailyCheckinValidationError(ValueError):
     """Raised when a daily check-in validation fails."""
 
 
+class DailyCheckinAlreadyExistsError(DailyCheckinValidationError):
+    """Raised when a daily check-in already exists for the given date."""
+
+
 class PortfolioNotFoundError(Exception):
     """Raised when a portfolio is not found."""
 
 
 class PortfolioValidationError(ValueError):
     """Raised when a portfolio validation fails."""
+
+
+class MarketIndexDefinitionNotFoundError(Exception):
+    """Raised when a market index definition is not found."""
+
+
+class MarketIndexDefinitionValidationError(ValueError):
+    """Raised when a market index definition validation fails."""

@@ -17,9 +17,8 @@ class PortfolioService:
         self._repo = PortfolioRepository(session)
 
     async def create_portfolio(
-        self, db: AsyncSession, user_id: uuid.UUID, data: PortfolioCreate
+        self, user_id: uuid.UUID, data: PortfolioCreate
     ) -> PortfolioRead:
-        del db
         existing = await self._repo.get_by_name(user_id, data.name)
         if existing is not None:
             raise PortfolioValidationError("Portfolio name already exists.")
@@ -28,29 +27,23 @@ class PortfolioService:
         return PortfolioRead.model_validate(item)
 
     async def get_portfolio(
-        self, db: AsyncSession, portfolio_id: uuid.UUID, user_id: uuid.UUID
+        self, portfolio_id: uuid.UUID, user_id: uuid.UUID
     ) -> PortfolioRead:
-        del db
         item = await self._repo.get_by_id(portfolio_id, user_id)
         if item is None:
             raise PortfolioNotFoundError("Portfolio not found.")
         return PortfolioRead.model_validate(item)
 
-    async def list_portfolios(
-        self, db: AsyncSession, user_id: uuid.UUID
-    ) -> list[PortfolioRead]:
-        del db
+    async def list_portfolios(self, user_id: uuid.UUID) -> list[PortfolioRead]:
         items = await self._repo.list_by_user(user_id)
         return [PortfolioRead.model_validate(item) for item in items]
 
     async def update_portfolio(
         self,
-        db: AsyncSession,
         portfolio_id: uuid.UUID,
         user_id: uuid.UUID,
         data: PortfolioUpdate,
     ) -> PortfolioRead:
-        del db
         item = await self._repo.get_by_id(portfolio_id, user_id)
         if item is None:
             raise PortfolioNotFoundError("Portfolio not found.")
@@ -74,9 +67,8 @@ class PortfolioService:
         return PortfolioRead.model_validate(updated)
 
     async def delete_portfolio(
-        self, db: AsyncSession, portfolio_id: uuid.UUID, user_id: uuid.UUID
+        self, portfolio_id: uuid.UUID, user_id: uuid.UUID
     ) -> None:
-        del db
         item = await self._repo.get_by_id(portfolio_id, user_id)
         if item is None:
             raise PortfolioNotFoundError("Portfolio not found.")

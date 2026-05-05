@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import (
     ConfigurationError,
+    DailyCheckinAlreadyExistsError,
     DailyCheckinNotFoundError,
     DailyCheckinValidationError,
     UnsupportedContentTypeError,
@@ -85,13 +86,15 @@ async def create_checkin(
     try:
         item = await service.create_checkin(user_id=current_user.id, payload=payload)
         return ResponseEnvelope[DailyCheckinRead](data=item)
-    except DailyCheckinValidationError as exc:
-        if "already exists" in str(exc):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-            ) from exc
+    except DailyCheckinAlreadyExistsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.args[0] if exc.args else str(exc),
+        ) from exc
+    except DailyCheckinValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=exc.args[0] if exc.args else str(exc),
         ) from exc
 
 
@@ -164,13 +167,15 @@ async def update_checkin(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
-    except DailyCheckinValidationError as exc:
-        if "already exists" in str(exc):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-            ) from exc
+    except DailyCheckinAlreadyExistsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.args[0] if exc.args else str(exc),
+        ) from exc
+    except DailyCheckinValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=exc.args[0] if exc.args else str(exc),
         ) from exc
 
 
