@@ -9,7 +9,6 @@
 import { Suspense } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import { SettingsPageClient } from "./SettingsPageClient";
-import { ContextSetter } from "@/components/layout/ContextSetter";
 
 export const metadata = {
   title: "Settings — Trade Sensei",
@@ -18,7 +17,6 @@ export const metadata = {
 export default function SettingsPage() {
   return (
     <>
-      <ContextSetter context="none" />
       <Suspense
         fallback={
           <div className="flex items-center justify-center h-64">

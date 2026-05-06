@@ -294,7 +294,33 @@ export default function DashboardLayout({ children }: Props) {
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s.hydrated);
 
-  const { activeContext } = useAppContext();
+  const { activeContext, setActiveContext } = useAppContext();
+  
+  // Sync URL to AppContext
+  useEffect(() => {
+    let expected: AppContext | null = null;
+    if (
+      pathname === "/dashboard" ||
+      pathname.startsWith("/dashboard/workspace") ||
+      pathname.startsWith("/dashboard/trades") ||
+      pathname.startsWith("/dashboard/reports") ||
+      pathname.startsWith("/dashboard/cash")
+    ) {
+      expected = "portfolio";
+    } else if (pathname.startsWith("/dashboard/library")) {
+      expected = "library";
+    } else if (pathname.startsWith("/dashboard/checkins")) {
+      expected = "checkin";
+    } else if (pathname.startsWith("/dashboard/settings")) {
+      expected = "none";
+    }
+
+    if (expected && expected !== "none" && activeContext !== expected) {
+      // Defer to avoid React rendering warnings if triggered during a transition
+      setTimeout(() => setActiveContext(expected!), 0);
+    }
+  }, [pathname]);
+
   const { portfolios, isLoading: isPortfolioLoading, isError: isPortfolioError } = useActivePortfolio();
   
   const { activePortfolioId } = useActivePortfolio();
