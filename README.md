@@ -281,17 +281,17 @@ An S3-compatible storage backend must be configured. Set the following environme
 
 If these variables are not set, the upload endpoint returns HTTP 503 and the image upload UI is unavailable. Existing `image_urls` values on trades are still displayed.
 
-### Local MinIO example
+### Local SeaweedFS example (Default)
 
-Add a MinIO service to your `docker-compose.yml` and configure the backend with:
+The local development stack includes a bundled SeaweedFS service that handles object storage. The backend is configured to use it by default with the following settings:
 
 ```
 STORAGE_BACKEND=s3
 STORAGE_BUCKET=tradesensei
-STORAGE_PUBLIC_URL=http://localhost:9000/tradesensei
-STORAGE_ACCESS_KEY=minioadmin
-STORAGE_SECRET_KEY=minioadmin
-STORAGE_ENDPOINT_URL=http://minio:9000
+STORAGE_PUBLIC_URL=http://localhost:8333/tradesensei
+STORAGE_ACCESS_KEY=any
+STORAGE_SECRET_KEY=any
+STORAGE_ENDPOINT_URL=http://seaweedfs:8333
 ```
 
 ---

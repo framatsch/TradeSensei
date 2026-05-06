@@ -93,3 +93,64 @@ class StorageService:
             filename=filename,
             content_type=content_type,
         )
+
+    @property
+    def _s3_client_internal(self) -> Any:
+        # Used for backend-initiated operations (put_object, delete_object).
+        # Replaces localhost with seaweedfs if running in docker-compose defaults.
+        import os
+
+        endpoint = settings.storage_endpoint_url
+        is_localhost = endpoint == "http://localhost:8333"
+        is_docker = os.environ.get("KUBERNETES_SERVICE_HOST") is None
+        is_test = os.environ.get("PYTEST_CURRENT_TEST") is not None
+        if is_localhost and is_docker and not is_test:
+            # We are likely running in local docker-compose with the default
+            # localhost setting. Internal backend needs to route to the
+            # seaweedfs container instead.
+            endpoint = "http://seaweedfs:8333"
+
+        return boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=settings.storage_access_key,
+            aws_secret_access_key=settings.storage_secret_key,
+        )
+
+    def upload_file_content(
+        self,
+        content: bytes,
+        key: str,
+        content_type: str,
+    ) -> str:
+        """Upload raw bytes to object storage and return the public URL."""
+        if not settings.storage_bucket or not settings.storage_public_url:
+            raise ConfigurationError("object storage is not configured")
+
+        self._s3_client_internal.put_object(
+            Bucket=settings.storage_bucket,
+            Key=key,
+            Body=content,
+            ContentType=content_type,
+        )
+
+        public_url = f"{settings.storage_public_url.rstrip('/')}/{key}"
+        return public_url
+
+    def delete_file_by_url(
+        self,
+        public_url: str,
+    ) -> None:
+        """Extract the key from the public URL and delete the object."""
+        if not settings.storage_bucket or not settings.storage_public_url:
+            raise ConfigurationError("object storage is not configured")
+
+        base = settings.storage_public_url.rstrip("/") + "/"
+        if not public_url.startswith(base):
+            return  # Not an object storage URL
+
+        key = public_url[len(base) :]
+        self._s3_client_internal.delete_object(
+            Bucket=settings.storage_bucket,
+            Key=key,
+        )

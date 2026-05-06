@@ -232,6 +232,13 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
 
   const screenshots = trade.image_urls ?? [];
 
+  // Close lightbox if the currently viewed image is deleted
+  useEffect(() => {
+    if (lightboxSrc && !screenshots.includes(lightboxSrc)) {
+      setLightboxSrc(null);
+    }
+  }, [screenshots, lightboxSrc]);
+
   return (
     <>
       {lightboxSrc && (
@@ -299,7 +306,12 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
                   onClick={() => setLightboxSrc(url)}
                 />
                 <button
-                  onClick={() => deleteShot(url)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm("Are you sure you want to delete this screenshot?")) {
+                      deleteShot(url);
+                    }
+                  }}
                   disabled={deleting}
                   className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md bg-black/60 text-white hover:bg-red-600/80 transition-all"
                   title="Delete screenshot"

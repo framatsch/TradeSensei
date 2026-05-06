@@ -68,23 +68,18 @@ services:
       BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-daJEwBPiYPyToA8tPYgcN9IZqaZpJFUCOjIgA6FbWl4=}"
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
       # S3-compatible storage for trade image uploads and check-in screenshots.
-      # Leave all STORAGE_* vars empty to disable uploads (upload endpoints return HTTP 503).
-      # To enable bundled self-hosted storage, start with: docker compose --profile storage up -d
-      # Then set these values (STORAGE_PUBLIC_URL must use the host-reachable address,
-      # NOT the internal Docker hostname, because presigned URLs are accessed by the browser):
-      #   STORAGE_BACKEND=s3
-      #   STORAGE_BUCKET=tradesensei
-      #   STORAGE_PUBLIC_URL=http://localhost:8333/tradesensei
-      #   STORAGE_ACCESS_KEY=any
-      #   STORAGE_SECRET_KEY=any
-      #   STORAGE_ENDPOINT_URL=http://seaweedfs:8333
-      # For cloud providers (AWS S3, Cloudflare R2, Hetzner, Backblaze B2) see docs/dev-guide.md
-      STORAGE_BACKEND: "${STORAGE_BACKEND:-}"
-      STORAGE_BUCKET: "${STORAGE_BUCKET:-}"
-      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-}"
-      STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-}"
-      STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-}"
-      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-}"
+      # By default, this connects to the bundled SeaweedFS instance.
+      # STORAGE_PUBLIC_URL must use the host-reachable address, NOT the internal Docker hostname, 
+      # because presigned URLs are accessed directly by the browser.
+      STORAGE_BACKEND: "${STORAGE_BACKEND:-s3}"
+      STORAGE_BUCKET: "${STORAGE_BUCKET:-tradesensei}"
+      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-http://localhost:8333/tradesensei}"
+      STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-any}"
+      STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-any}"
+      # Note: STORAGE_ENDPOINT_URL is used to generate the presigned URL. 
+      # Because the browser (frontend) uploads directly, this must be a host-reachable URL 
+      # (like http://localhost:8333) rather than the internal docker service name.
+      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-http://localhost:8333}"
     ports:
       - "8000:8000"
     volumes:
@@ -123,12 +118,10 @@ services:
         condition: service_healthy
 
   # ─────────────────────────────────────────────
-  # SeaweedFS (S3-compatible object storage, optional)
-  # Start with: docker compose --profile storage up -d
+  # SeaweedFS (S3-compatible object storage)
   # ─────────────────────────────────────────────
   seaweedfs:
     image: chrislusf/seaweedfs:4.23
-    profiles: [storage]
     restart: unless-stopped
     environment:
       - WEED_JWT_FILER_SIGNING_KEY=${WEED_JWT_FILER_SIGNING_KEY:-7a8f9c1b2d3e4f5a6b7c8d9e0f1a2b3c}
@@ -149,7 +142,6 @@ services:
 
   storage-init:
     image: amazon/aws-cli:latest
-    profiles: [storage]
     restart: on-failure
     depends_on:
       seaweedfs:
@@ -161,7 +153,9 @@ services:
     entrypoint: >
       /bin/sh -c "
         aws --endpoint-url http://seaweedfs:8333 s3 mb s3://tradesensei --region us-east-1 || true &&
-        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-acl --bucket tradesensei --acl public-read --region us-east-1
+        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-acl --bucket tradesensei --acl public-read --region us-east-1 &&
+        echo '{\"CORSRules\":[{\"AllowedHeaders\":[\"*\"],\"AllowedMethods\":[\"PUT\",\"POST\",\"GET\",\"HEAD\"],\"AllowedOrigins\":[\"*\"],\"ExposeHeaders\":[]}]}' > cors.json &&
+        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-cors --bucket tradesensei --cors-configuration file://cors.json || true
       "
 
 volumes:

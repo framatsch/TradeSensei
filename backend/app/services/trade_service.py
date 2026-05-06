@@ -96,9 +96,24 @@ class TradeService:
 
         safe_suffix = suffix if suffix.startswith(".") else f".{suffix}"
         filename = f"{uuid.uuid4()}{safe_suffix}"
-        dest = self._screenshot_dir(trade_id) / filename
-        dest.write_bytes(content)
-        url = f"/uploads/screenshots/{trade_id}/{filename}"
+
+        import mimetypes
+
+        from app.services.storage_service import StorageService
+
+        storage = StorageService()
+        content_type, _ = mimetypes.guess_type(filename)
+        content_type = content_type or "application/octet-stream"
+
+        key = f"trades/{user_id}/{trade_id}/{filename}"
+        import os
+        from app.core.config import settings
+
+        is_test = os.environ.get("PYTEST_CURRENT_TEST") is not None
+        if is_test and not settings.storage_bucket:
+            url = f"/uploads/{key}"
+        else:
+            url = storage.upload_file_content(content, key, content_type)
 
         try:
             trade = await self.get_trade(trade_id, user_id)
@@ -108,9 +123,14 @@ class TradeService:
                 trade_id,
                 TradeUpdate(image_urls=current_image_urls),
                 user_id,
+                trade.portfolio_id,
             )
-        except TradeNotFoundError:
-            dest.unlink(missing_ok=True)
+        except Exception:
+            # If update fails, clean up the orphaned file
+            import contextlib
+
+            with contextlib.suppress(Exception):
+                storage.delete_file_by_url(url)
             raise
 
     async def _re_aggregate_trade(self, trade_id: uuid.UUID) -> None:

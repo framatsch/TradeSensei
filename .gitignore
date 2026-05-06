@@ -81,3 +81,6 @@ tmp
 # Temp scripts
 patch_*.py
 fix_*.py
+
+# Uploads
+backend/uploads/

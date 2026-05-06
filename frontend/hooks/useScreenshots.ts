@@ -9,10 +9,12 @@ import {
   uploadScreenshotApiV1TradesTradeIdScreenshotsPost,
   deleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDelete,
 } from "@/lib/api/index";
+import { usePortfolioStore } from "@/stores/portfolioStore";
 import type { Trade } from "@/lib/types";
 
 export function useUploadScreenshot(tradeId: string) {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Trade, Error, File>({
     mutationFn: async (file: File) => {
       const { data, error } = await uploadScreenshotApiV1TradesTradeIdScreenshotsPost({
@@ -23,7 +25,7 @@ export function useUploadScreenshot(tradeId: string) {
       return data.data as unknown as Trade;
     },
     onSuccess: (updated) => {
-      qc.setQueryData(["trade", tradeId], updated);
+      qc.setQueryData(["trade", tradeId, portfolioId], updated);
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
   });
@@ -31,6 +33,7 @@ export function useUploadScreenshot(tradeId: string) {
 
 export function useDeleteScreenshot(tradeId: string) {
   const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Trade, Error, string>({
     mutationFn: async (url: string) => {
       // Extract only the filename from the full URL path
@@ -42,7 +45,7 @@ export function useDeleteScreenshot(tradeId: string) {
       return data.data as unknown as Trade;
     },
     onSuccess: (updated) => {
-      qc.setQueryData(["trade", tradeId], updated);
+      qc.setQueryData(["trade", tradeId, portfolioId], updated);
       void qc.invalidateQueries({ queryKey: ["trades"] });
     },
   });

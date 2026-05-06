@@ -33,12 +33,6 @@ def _get_service(
     return TradeService(session)
 
 
-def _upload_dir(trade_id: uuid.UUID) -> Path:
-    base = Path(settings.upload_dir) / "screenshots" / str(trade_id)
-    base.mkdir(parents=True, exist_ok=True)
-    return base
-
-
 @router.post(
     "",
     response_model=ResponseEnvelope[TradeRead],
@@ -138,12 +132,25 @@ async def delete_screenshot(
             status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found."
         ) from exc
 
-    url = f"/uploads/screenshots/{trade_id}/{filename}"
-    remaining = [s for s in (trade.image_urls or []) if s != url]
+    # Find the URL that ends with the filename
+    target_url = next(
+        (s for s in (trade.image_urls or []) if s.endswith(f"/{filename}")), None
+    )
+    if not target_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Screenshot not found on trade.",
+        )
 
-    # Delete file from disk
-    file_path = _upload_dir(trade_id) / filename
-    file_path.unlink(missing_ok=True)
+    remaining = [s for s in (trade.image_urls or []) if s != target_url]
+
+    from app.services.storage_service import StorageService
+
+    storage = StorageService()
+    import contextlib
+
+    with contextlib.suppress(Exception):
+        storage.delete_file_by_url(target_url)
 
     from app.schemas.trade import TradeUpdate  # local import to avoid circular
 
@@ -151,5 +158,6 @@ async def delete_screenshot(
         trade_id,
         TradeUpdate(image_urls=remaining),
         current_user.id,
+        trade.portfolio_id,
     )
     return ResponseEnvelope[TradeRead](data=updated)
