@@ -9,7 +9,6 @@ import { createAccountApiV1PortfoliosPortfolioIdAccountsPost } from "@/lib/api/i
 import { extractApiError } from "@/lib/api/errors";
 import type { Account, AccountType } from "@/lib/types";
 
-const CURRENCY_ALLOWLIST = ["USD", "EUR", "GBP", "CHF", "JPY", "AUD", "CAD"];
 const BROKER_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
   { value: "manual", label: "Manual" },
   { value: "schwab", label: "Charles Schwab" },
@@ -41,7 +40,6 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>("ibkr");
-  const [currency, setCurrency] = useState("USD");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [syncStartDate, setSyncStartDate] = useState(`${new Date().getFullYear()}-01-01`);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +58,6 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
       const payload: any = {
         name: name.trim(),
         type,
-        currency,
         properties,
         portfolio_id: portfolioId,
         settings: {
@@ -197,24 +194,6 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
               {BROKER_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor={`${uid}-currency`} className={LABEL_CLASS}>
-              Currency
-            </label>
-            <select
-              id={`${uid}-currency`}
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className={INPUT_CLASS}
-            >
-              {CURRENCY_ALLOWLIST.map((c) => (
-                <option key={c} value={c}>
-                  {c}
                 </option>
               ))}
             </select>

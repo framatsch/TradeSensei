@@ -147,13 +147,14 @@ class AccountRepository:
             The newly created :class:`Account` with all server defaults
             populated.
         """
-        portfolio = await self._session.execute(
-            select(Portfolio.id).where(
+        portfolio_row = await self._session.execute(
+            select(Portfolio.id, Portfolio.base_currency).where(
                 Portfolio.id == data.portfolio_id,
                 Portfolio.user_id == user_id,
             )
         )
-        if portfolio.scalar_one_or_none() is None:
+        portfolio_result = portfolio_row.one_or_none()
+        if portfolio_result is None:
             raise ValueError("Portfolio not found.")
 
         account = Account(
@@ -161,7 +162,7 @@ class AccountRepository:
             portfolio_id=data.portfolio_id,
             name=data.name,
             type=data.type,
-            currency=data.currency,
+            currency=portfolio_result.base_currency,
         )
         self._session.add(account)
         await self._session.flush()

@@ -45,7 +45,6 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
   const [name, setName] = useState(account?.name ?? "");
   const [accountNumber, setAccountNumber] = useState(account?.account_number ?? "");
   const [type, setType] = useState<AccountType>(account?.type ?? "manual");
-  const [currency, setCurrency] = useState(account?.currency ?? "USD");
   const [portfolioId, setPortfolioId] = useState<string | null>(account?.portfolio_id ?? activePortfolioId ?? null);
   const [credentials, setCredentials] = useState<Record<string, string>>({});
 
@@ -81,7 +80,6 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
       name: name.trim(),
       account_number: accountNumber.trim() || null,
       type,
-      currency: currency.trim() || "USD",
       properties,
       portfolio_id: portfolioId,
       settings: {
@@ -162,23 +160,6 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Currency */}
-        <div>
-          <label htmlFor="acct-currency" className={LABEL_CLASS}>
-            Currency <span className="text-red-400">*</span>
-          </label>
-          <input
-            id="acct-currency"
-            type="text"
-            required
-            maxLength={3}
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-            placeholder="USD"
-            className={INPUT_CLASS}
-          />
         </div>
       </div>
 

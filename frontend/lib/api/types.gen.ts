@@ -13,7 +13,6 @@ export type ClientOptions = {
  * name: Human-readable account name (e.g. "Interactive Brokers Main").
  * account_number: Optional broker account number (e.g. "U1234567").
  * type: Account/broker type. Defaults to ``MANUAL``.
- * currency: ISO-4217 currency code; defaults to ``"USD"``.
  * properties: Optional mapping of broker credential keys to plaintext
  * values.  The service layer encrypts each value before storage.
  * Pass ``null`` or omit to create an account without credentials.
@@ -37,12 +36,6 @@ export type AccountCreate = {
      * Account/broker type. Use 'schwab' for Charles Schwab, 'ibkr' for Interactive Brokers, or 'manual' for a manual account.
      */
     type?: AccountType;
-    /**
-     * Currency
-     *
-     * ISO-4217 currency code for the account (exactly 3 characters).
-     */
-    currency?: string;
     /**
      * Properties
      *
@@ -297,7 +290,6 @@ export type AccountType = 'manual' | 'schwab' | 'ibkr';
  * name: Updated account name.
  * account_number: Updated broker account number. Pass ``null`` to clear.
  * type: Updated account/broker type.
- * currency: Updated currency code.
  * is_active: Updated active flag.
  * properties: Optional map of broker credential keys to updated
  * plaintext values.  Existing properties not included here are
@@ -322,12 +314,6 @@ export type AccountUpdate = {
      * Updated account/broker type. Omit to leave unchanged.
      */
     type?: AccountType | null;
-    /**
-     * Currency
-     *
-     * Updated ISO-4217 currency code. Omit to leave unchanged.
-     */
-    currency?: string | null;
     /**
      * Is Active
      *

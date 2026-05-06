@@ -10,7 +10,6 @@ from app.core.constants import (
     ACCOUNT_NAME_MAX_LENGTH,
     ACCOUNT_NAME_MIN_LENGTH,
     ACCOUNT_NUMBER_MAX_LENGTH,
-    CURRENCY_LENGTH,
 )
 from app.models.account import AccountType
 
@@ -80,7 +79,6 @@ class AccountCreate(BaseModel):
         name: Human-readable account name (e.g. "Interactive Brokers Main").
         account_number: Optional broker account number (e.g. "U1234567").
         type: Account/broker type. Defaults to ``MANUAL``.
-        currency: ISO-4217 currency code; defaults to ``"USD"``.
         properties: Optional mapping of broker credential keys to plaintext
             values.  The service layer encrypts each value before storage.
             Pass ``null`` or omit to create an account without credentials.
@@ -108,13 +106,6 @@ class AccountCreate(BaseModel):
             "'ibkr' for Interactive Brokers, or 'manual' for a manual account."
         ),
         examples=["manual", "schwab", "ibkr"],
-    )
-    currency: str = Field(
-        default="USD",
-        min_length=CURRENCY_LENGTH,
-        max_length=CURRENCY_LENGTH,
-        description="ISO-4217 currency code for the account (exactly 3 characters).",
-        examples=["USD", "EUR", "GBP"],
     )
     properties: dict[str, str] | None = Field(
         default=None,
@@ -147,7 +138,6 @@ class AccountUpdate(BaseModel):
         name: Updated account name.
         account_number: Updated broker account number. Pass ``null`` to clear.
         type: Updated account/broker type.
-        currency: Updated currency code.
         is_active: Updated active flag.
         properties: Optional map of broker credential keys to updated
             plaintext values.  Existing properties not included here are
@@ -173,13 +163,6 @@ class AccountUpdate(BaseModel):
         default=None,
         description="Updated account/broker type. Omit to leave unchanged.",
         examples=["schwab", None],
-    )
-    currency: str | None = Field(
-        default=None,
-        min_length=CURRENCY_LENGTH,
-        max_length=CURRENCY_LENGTH,
-        description="Updated ISO-4217 currency code. Omit to leave unchanged.",
-        examples=["EUR", None],
     )
     is_active: bool | None = Field(
         default=None,
