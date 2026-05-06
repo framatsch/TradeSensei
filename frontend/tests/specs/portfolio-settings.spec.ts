@@ -148,7 +148,8 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
     // Click the Edit button on that portfolio's row (edit button has no label; it's the 2nd button sibling)
     // From h3: '..' = anon div, '../..' = flex items-center gap-3, '../../..' = flex justify-between (has buttons)
     const portfolioCard = page.locator('h3', { hasText: uniqueName }).locator('../../..');
-    await portfolioCard.locator('button').nth(1).click();
+    // The edit button is the 3rd button in the card (index 2)
+    await portfolioCard.locator('button').nth(2).click();
     const nameInput = page.getByLabel(/name/i);
     await nameInput.fill(newName);
     await page.getByRole('button', { name: /save|update/i }).last().click();
@@ -179,17 +180,18 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
       }
     });
 
-    // Click Delete on the first portfolio — delete button has no label; it's the 3rd button (index 2) in the card actions
+    // Open edit modal
     const portfolioCard = page.locator('h3', { hasText: portfolios[0].name }).locator('../../..');
     await portfolioCard.locator('button').nth(2).click();
 
-    // Confirm in popover (button text is "Confirm Delete")
-    await page.getByRole('button', { name: /confirm delete/i }).click();
+    // Confirm in Danger Zone
+    await page.getByTestId('delete-confirm-input').fill(portfolios[0].name);
+    await page.getByTestId('delete-portfolio-button').click();
 
-    // 409 error message — shown as a toast notification
+    // 409 error message — shown inside the modal
     await expect(
-      page.getByText(/remove all accounts before deleting/i),
-    ).toBeVisible({ timeout: 8_000 });
+      page.getByTestId('delete-error')
+    ).toContainText(/Portfolio has linked accounts/i, { timeout: 8_000 });
   });
 });
 
@@ -404,28 +406,25 @@ test.describe('Danger Zone — portfolio data wipe', () => {
 
     const portfolioName = portfolios[0].name;
 
-    // Open Danger Zone wipe dialog
-    const dangerBtn = page.getByRole('button', { name: /wipe.*data|danger zone/i }).first();
-    await expect(dangerBtn).toBeVisible({ timeout: 8_000 });
-    await dangerBtn.click();
+    // Open edit modal
+    const firstPortfolioCard = page.locator('h3', { hasText: portfolioName }).locator('../../..');
+    await firstPortfolioCard.locator('button').nth(2).click();
 
-    const confirmInput = page.getByLabel(/type.*name.*confirm|confirm.*name/i).or(
-      page.getByRole('textbox').filter({ hasNot: page.locator('[type="hidden"]') }).last(),
-    );
-    await expect(confirmInput.first()).toBeVisible({ timeout: 5_000 });
+    const confirmInput = page.getByTestId('delete-confirm-input');
+    await expect(confirmInput).toBeVisible({ timeout: 5_000 });
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|wipe/i }).last();
+    const confirmBtn = page.getByTestId('delete-portfolio-button');
 
     // Type wrong name → Confirm stays disabled
-    await confirmInput.first().fill('wrong name');
+    await confirmInput.fill('wrong name');
     await expect(confirmBtn).toBeDisabled();
 
     // Type partial correct name → still disabled
-    await confirmInput.first().fill(portfolioName.slice(0, -1));
+    await confirmInput.fill(portfolioName.slice(0, -1));
     await expect(confirmBtn).toBeDisabled();
 
     // Type exact name → Confirm becomes enabled
-    await confirmInput.first().fill(portfolioName);
+    await confirmInput.fill(portfolioName);
     await expect(confirmBtn).toBeEnabled();
 
     // Close without confirming
@@ -443,18 +442,18 @@ test.describe('Danger Zone — portfolio data wipe', () => {
     }
 
     const portfolioName = portfolios[0].name;
-    const dangerBtn = page.getByRole('button', { name: /wipe.*data|danger zone/i }).first();
-    await dangerBtn.click();
 
-    const confirmInput = page.getByLabel(/type.*name.*confirm|confirm.*name/i).or(
-      page.getByRole('textbox').filter({ hasNot: page.locator('[type="hidden"]') }).last(),
-    );
-    await expect(confirmInput.first()).toBeVisible({ timeout: 5_000 });
+    // Open edit modal
+    const firstPortfolioCard = page.locator('h3', { hasText: portfolioName }).locator('../../..');
+    await firstPortfolioCard.locator('button').nth(2).click();
 
-    const confirmBtn = page.getByRole('button', { name: /confirm|wipe/i }).last();
+    const confirmInput = page.getByTestId('delete-confirm-input');
+    await expect(confirmInput).toBeVisible({ timeout: 5_000 });
+
+    const confirmBtn = page.getByTestId('delete-portfolio-button');
 
     // Type name in wrong case
-    await confirmInput.first().fill(portfolioName.toUpperCase());
+    await confirmInput.fill(portfolioName.toUpperCase());
     await expect(confirmBtn).toBeDisabled();
 
     await page.keyboard.press('Escape');
@@ -501,15 +500,15 @@ test.describe('base_currency immutability', () => {
     // Open edit for the first portfolio — edit button has no label; it's the 2nd button in the card actions
     // From h3: '..' = anon div, '../..' = flex items-center, '../../..' = flex justify-between (has buttons)
     const firstPortfolioCard = page.locator('h3', { hasText: portfolios[0].name }).locator('../../..');
-    await firstPortfolioCard.locator('button').nth(1).click();
+    await firstPortfolioCard.locator('button').nth(2).click();
 
-    // Currency select must be disabled
-    const currencySelect = page.getByLabel(/currency/i);
-    await expect(currencySelect).toBeDisabled({ timeout: 5_000 });
+    // Currency is shown as a read-only span
+    const currencySpan = page.getByTestId('readonly-currency');
+    await expect(currencySpan).toBeVisible({ timeout: 5_000 });
+    await expect(currencySpan).toHaveText(portfolios[0].base_currency);
 
-    // The select element should have a title attribute explaining why it's locked
-    const titleAttr = await currencySelect.getAttribute('title');
-    expect(titleAttr).toMatch(/cannot change|locked|trades exist/i);
+    // There should be a helper text explaining why it cannot be changed
+    await expect(page.getByText(/Base currency cannot be changed after creation/i)).toBeVisible();
 
     await page.unrouteAll();
   });

@@ -134,10 +134,13 @@ test.describe('appContextStore persistence', () => {
   test('TC-107 switching context persists to localStorage', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.getByRole('banner')).toBeVisible({ timeout: 15_000 });
+    page.on('console', msg => console.log('BROWSER CONSOLE:', msg.text()));
 
     // Switch to library via BentoMenu
     await page.getByRole('banner').getByRole('button', { name: /application context|menu|bento/i }).first().click();
     await page.getByText('Global Library').click();
+    
+    console.log("Before URL check:", await page.evaluate(() => localStorage.getItem('active_app_context')));
     await expect(page).toHaveURL(/\/dashboard\/library/, { timeout: 8_000 });
 
     const stored = await page.evaluate(() => localStorage.getItem('active_app_context'));
@@ -184,7 +187,10 @@ test.describe.serial('EmptyPortfolioGate', () => {
     await expect(page.getByRole('banner')).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
     const portfolios = await listPortfoliosViaApi(page);
+    console.log("Portfolios before deletion:", portfolios);
     for (const p of portfolios) {
+      console.log("Deleting portfolio", p.id);
+      await deletePortfolioViaApi(page, p.id).catch(e => console.log("Failed to delete", p.id, e));
       // Only delete if no accounts (spec: portfolio must be empty to delete)
       await deletePortfolioViaApi(page, p.id).catch(() => {});
     }

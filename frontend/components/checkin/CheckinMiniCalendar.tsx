@@ -4,12 +4,14 @@ import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
 
 export function CheckinMiniCalendar() {
   const { month, setMonth } = useCheckinParams();
   const router = useRouter();
+  const params = useParams();
+  const selectedDate = params?.date as string | undefined;
   const { data: phases } = useMarketPhases();
 
   // Parse current month
@@ -69,6 +71,25 @@ export function CheckinMiniCalendar() {
       const color = dateColors.get(dateStr);
       const hasCheckin = !!color;
       const isToday = dateStr === todayStr;
+      const isSelected = dateStr === (selectedDate || todayStr);
+      const dayOfWeek = (firstDay + i - 1) % 7;
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      let textClass = "text-muted-foreground/70";
+      if (isSelected) {
+        textClass = "text-primary-foreground";
+      } else if (isWeekend) {
+        textClass = "text-destructive font-medium hover:text-destructive/80";
+      } else if (hasCheckin) {
+        textClass = "text-foreground font-medium";
+      }
+
+      let bgClass = "hover:bg-muted";
+      if (isSelected) {
+        bgClass = "bg-primary hover:bg-primary/90 font-semibold";
+      } else if (isToday) {
+        bgClass = "bg-secondary hover:bg-secondary/80 ring-1 ring-primary/30";
+      }
 
       days.push(
         <button
@@ -76,11 +97,7 @@ export function CheckinMiniCalendar() {
           onClick={() => {
             router.push(`/dashboard/checkins/${dateStr}`);
           }}
-          className={`relative h-8 w-8 flex items-center justify-center rounded-full text-sm transition-colors cursor-pointer hover:bg-muted ${
-            hasCheckin
-              ? "text-foreground font-medium"
-              : "text-muted-foreground/70"
-          } ${isToday && !hasCheckin ? "bg-secondary text-foreground" : ""} ${isToday && hasCheckin ? "ring-1 ring-primary" : ""}`}
+          className={`relative h-8 w-8 flex items-center justify-center rounded-full text-sm transition-colors cursor-pointer ${bgClass} ${textClass}`}
         >
           {i}
           {hasCheckin && (
@@ -103,36 +120,67 @@ export function CheckinMiniCalendar() {
   return (
     <div className="bg-card border border-border rounded-xl p-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-sm">
-          {monthNames[m]} {year}
-        </h3>
-        <div className="flex space-x-1">
+      <div className="flex flex-col gap-2 mb-4">
+        {/* Month/Year Selection Row (Centered) */}
+        <div className="flex items-center justify-center gap-1 font-semibold text-sm w-full">
+          <select
+            value={m}
+            onChange={(e) => {
+              const newM = parseInt(e.target.value, 10);
+              const newDate = new Date(Date.UTC(year, newM, 1));
+              setMonth(newDate.toISOString().slice(0, 7));
+            }}
+            className="bg-transparent cursor-pointer outline-none appearance-none hover:bg-muted py-1 pl-2 pr-1 rounded-md transition-colors text-foreground focus:ring-1 focus:ring-primary"
+            aria-label="Select month"
+          >
+            {monthNames.map((name, i) => (
+              <option key={name} value={i} className="bg-background text-foreground">{name}</option>
+            ))}
+          </select>
+          <select
+            value={year}
+            onChange={(e) => {
+              const newY = parseInt(e.target.value, 10);
+              const newDate = new Date(Date.UTC(newY, m, 1));
+              setMonth(newDate.toISOString().slice(0, 7));
+            }}
+            className="bg-transparent cursor-pointer outline-none appearance-none hover:bg-muted py-1 pl-2 pr-1 rounded-md transition-colors text-foreground focus:ring-1 focus:ring-primary"
+            aria-label="Select year"
+          >
+            {Array.from({ length: 11 }, (_, i) => year - 5 + i).map(y => (
+              <option key={y} value={y} className="bg-background text-foreground">{y}</option>
+            ))}
+          </select>
+        </div>
+        
+        {/* Navigation Arrows Row */}
+        <div className="flex items-center justify-between w-full px-2">
           <button
             onClick={handlePrevMonth}
             className="p-1 hover:bg-muted rounded-md transition-colors"
             aria-label="Previous month"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
+          
           <button
             onClick={handleNextMonth}
             className="p-1 hover:bg-muted rounded-md transition-colors"
             aria-label="Next month"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
       </div>
 
       {/* Days of week */}
-      <div className="grid grid-cols-7 gap-1 mb-2 text-center">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-          <div key={day} className="text-[10px] font-medium uppercase text-muted-foreground">
-            {day}
-          </div>
-        ))}
-      </div>
+    <div className="grid grid-cols-7 gap-1 mb-2 text-center">
+      {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+        <div key={day} className={`text-[10px] font-medium uppercase ${day === "Sa" || day === "Su" ? "text-destructive/80" : "text-muted-foreground"}`}>
+          {day}
+        </div>
+      ))}
+    </div>
 
       {/* Grid */}
       <div className="grid grid-cols-7 gap-1 place-items-center">

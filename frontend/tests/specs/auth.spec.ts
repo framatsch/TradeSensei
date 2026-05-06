@@ -100,7 +100,8 @@ test.describe('Register', () => {
     await expect(page.getByRole('heading', { name: 'Trade Sensei' })).toBeVisible();
     await expect(page.getByLabel('Username')).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
-    await expect(page.getByLabel('Password')).toBeVisible();
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Confirm Password', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create Account' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   });
@@ -109,7 +110,8 @@ test.describe('Register', () => {
     // e2e_testuser already exists (created in globalSetup)
     await page.getByLabel('Username').fill(E2E_USER.username);
     await page.getByLabel('Email').fill('different@example.com');
-    await page.getByLabel('Password').fill('SomePassword123!');
+    await page.getByLabel('Password', { exact: true }).fill('SomePassword123!');
+    await page.getByLabel('Confirm Password', { exact: true }).fill('SomePassword123!');
     await page.getByRole('button', { name: 'Create Account' }).click();
 
     await expect(page.getByText(/already in use|already taken|Registration failed/i)).toBeVisible({
@@ -119,15 +121,22 @@ test.describe('Register', () => {
   });
 
   test('TC-012 password too short shows validation', async ({ page }) => {
-    await page.getByLabel('Username').fill('brand_new_user_abc');
-    await page.getByLabel('Email').fill('brand_new@example.com');
-    // minLength=8, enter 5 chars
-    await page.getByLabel('Password').fill('abc12');
-    await page.getByRole('button', { name: 'Create Account' }).click();
-
-    // HTML5 minLength validation or server error
-    const passwordInput = page.getByLabel('Password');
-    await expect(passwordInput).toHaveAttribute('minLength', '8');
+    await page.getByLabel('Username').fill('new_user_123');
+    await page.getByLabel('Email').fill('new@example.com');
+    await page.getByLabel('Password', { exact: true }).fill('123'); // Less than 8 chars
+    await page.getByLabel('Confirm Password', { exact: true }).fill('123');
+    
+    const createBtn = page.getByRole('button', { name: 'Create Account' });
+    const passwordInput = page.getByLabel('Password', { exact: true });
+    
+    // Attempt to submit the form
+    await createBtn.click();
+    
+    // Verify that HTML5 validation prevents submission because of minLength
+    const isPasswordValid = await passwordInput.evaluate((el: HTMLInputElement) => el.validity.valid);
+    expect(isPasswordValid).toBe(false);
+    
+    // Form should not have submitted, we should still be on register page
     await expect(page).toHaveURL(/\/register/);
   });
 });

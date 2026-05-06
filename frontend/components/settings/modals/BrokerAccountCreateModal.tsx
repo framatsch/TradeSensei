@@ -66,7 +66,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
         settings: {
           sync_days: 30,
           flex_from_date_preset: "ytd" as const,
-          flex_custom_from_date: syncStartDate,
+          flex_custom_from_date: syncStartDate.replace(/-/g, ""),
         },
       };
 

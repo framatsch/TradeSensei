@@ -17,6 +17,8 @@ import type { Trade, CursorPage } from "@/lib/types";
 import type { PerformanceDataPoint } from "@/components/analytics/PerformanceAnalysisDashboard";
 import type { DailyTradeData } from "@/components/calendar/types";
 
+import type { DashboardFilterConfig } from "@/lib/api/types.gen";
+
 export type ReportDimension = "Hourly" | "Weekday" | "Monthly" | "Yearly";
 
 function buildKey(date: Date, dimension: ReportDimension): string {
@@ -77,21 +79,40 @@ async function fetchAllTrades(portfolioId?: string, signal?: AbortSignal): Promi
   return allItems;
 }
 
-export function useReportData(accountId?: string | null) {
-  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
+export function useReportData(portfolioIdParam?: string | null, filterConfig?: DashboardFilterConfig | null) {
+  const storePortfolioId = usePortfolioStore((state) => state.activePortfolioId);
+  const portfolioId = portfolioIdParam || storePortfolioId;
+  const accountIds = filterConfig?.account_ids || [];
+
   const { data: allTrades, isLoading, isError } = useQuery<Trade[], Error>({
-    queryKey: ["trades-all-for-reports", portfolioId, accountId ?? null],
+    queryKey: ["trades-all-for-reports", portfolioId],
     queryFn: ({ signal }) => fetchAllTrades(portfolioId ?? undefined, signal),
     staleTime: 5 * 60 * 1000,
     enabled: Boolean(portfolioId),
   });
 
-  // Apply account filter client-side (trades are already cached)
+  // Apply filters client-side (trades are already cached)
   const trades = useMemo(() => {
     if (!allTrades) return undefined;
-    if (!accountId) return allTrades;
-    return allTrades.filter(t => t.account_id === accountId);
-  }, [allTrades, accountId]);
+    let filtered = allTrades;
+    
+    if (accountIds && accountIds.length > 0) {
+      filtered = filtered.filter(t => t.account_id && accountIds.includes(t.account_id));
+    }
+    
+    if (filterConfig?.date_from) {
+      const from = new Date(`${filterConfig.date_from}T00:00:00Z`).getTime();
+      filtered = filtered.filter(t => t.closed_at && new Date(t.closed_at).getTime() >= from);
+    }
+    
+    if (filterConfig?.date_to) {
+      const to = new Date(`${filterConfig.date_to}T23:59:59Z`).getTime();
+      filtered = filtered.filter(t => t.closed_at && new Date(t.closed_at).getTime() <= to);
+    }
+    
+    return filtered;
+  }, [allTrades, JSON.stringify(accountIds), filterConfig?.date_from, filterConfig?.date_to]);
+
 
   const calendarData = useMemo((): DailyTradeData[] => {
     if (!trades) return [];

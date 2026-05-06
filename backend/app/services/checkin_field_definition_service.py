@@ -90,7 +90,9 @@ class CheckinFieldDefinitionService:
         """Delete one field definition by id for the requesting user."""
         model = await self._repo.get_by_id(definition_id=field_id, user_id=user_id)
         if model is None:
-            raise CheckinFieldDefinitionNotFoundError("check-in field definition not found")
+            raise CheckinFieldDefinitionNotFoundError(
+                "check-in field definition not found"
+            )
 
         await self._repo.delete(model)
         await self._session.commit()

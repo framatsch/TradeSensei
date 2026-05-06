@@ -56,7 +56,7 @@ export function GeneralSettings() {
   const [candlesBefore, setCandlesBefore] = useState<string>("20");
   const [candlesAfter, setCandlesAfter] = useState<string>("10");
   const [showPostExit, setShowPostExit] = useState<boolean>(false);
-  const [homeRoute, setHomeRoute] = useState<"/dashboard" | "/dashboard/trades" | "/dashboard/library">("/dashboard");
+  const [homeRoute, setHomeRoute] = useState<"/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins">("/dashboard");
 
   const { theme, setTheme } = useTheme();
 
@@ -223,9 +223,10 @@ export function GeneralSettings() {
             onChange={(e) => setHomeRoute(e.target.value as any)}
             className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="/dashboard">Portfolio Overview</option>
-            <option value="/dashboard/trades">Journal</option>
-            <option value="/dashboard/library">Strategy & Tags</option>
+            <option value="/dashboard">Portfolio Workspace</option>
+            <option value="/dashboard/trades">Trading Log</option>
+            <option value="/dashboard/library">Global Library</option>
+            <option value="/dashboard/checkins">Market Check-in</option>
           </select>
         </div>
 

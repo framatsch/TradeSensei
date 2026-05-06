@@ -103,7 +103,9 @@ class MarketPhaseDefinitionService:
         """Delete one market phase definition by id for the requesting user."""
         model = await self._repo.get_by_id(definition_id=phase_id, user_id=user_id)
         if model is None:
-            raise MarketPhaseDefinitionNotFoundError("market phase definition not found")
+            raise MarketPhaseDefinitionNotFoundError(
+                "market phase definition not found"
+            )
 
         await self._repo.delete(model)
         await self._session.commit()

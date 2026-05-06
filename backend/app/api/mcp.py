@@ -46,7 +46,7 @@ def _sse_event_stream(
 
     async def event_generator() -> AsyncGenerator[str, None]:
         yield f"event: ready\ndata: {init_payload}\n\n"
-        
+
         # In test environments with ASGITransport, disconnects can cause deadlocks.
         if request.headers.get("x-test-no-sse-keepalive") == "true":
             return

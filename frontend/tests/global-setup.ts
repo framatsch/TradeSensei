@@ -890,6 +890,11 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // 8. Seed destructive-test user (used by portfolio-context EmptyPortfolioGate tests)
   // This user gets a portfolio but NO trades — destructive tests will delete/recreate portfolios.
   const destructiveRegRes = await apiPost('/api/v1/auth/register', E2E_DESTRUCTIVE_USER);
+  if (destructiveRegRes.status === 201) {
+    // Wait for FastAPI database dependency teardown to commit the transaction
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+  
   let destructiveToken = '';
   if (destructiveRegRes.ok || destructiveRegRes.status === 409) {
     const dFormData = new URLSearchParams();

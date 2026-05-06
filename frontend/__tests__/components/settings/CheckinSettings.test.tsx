@@ -8,6 +8,10 @@ import {
   useCheckinFields,
   useCreateCheckinField,
   useUpdateCheckinField,
+  useMarketIndexes,
+  useCreateMarketIndex,
+  useUpdateMarketIndex,
+  useDeleteMarketIndex,
 } from "@/hooks/useCheckinDefinitions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
@@ -20,6 +24,10 @@ const mockUseUpdateMarketPhase = useUpdateMarketPhase as jest.Mock;
 const mockUseCheckinFields = useCheckinFields as jest.Mock;
 const mockUseCreateCheckinField = useCreateCheckinField as jest.Mock;
 const mockUseUpdateCheckinField = useUpdateCheckinField as jest.Mock;
+const mockUseMarketIndexes = useMarketIndexes as jest.Mock;
+const mockUseCreateMarketIndex = useCreateMarketIndex as jest.Mock;
+const mockUseUpdateMarketIndex = useUpdateMarketIndex as jest.Mock;
+const mockUseDeleteMarketIndex = useDeleteMarketIndex as jest.Mock;
 
 const mockPhases = [
   {
@@ -84,6 +92,24 @@ describe("CheckinSettings", () => {
     mockPhaseCreate = jest.fn();
     mockFieldMutate = jest.fn();
     mockFieldCreate = jest.fn();
+
+    mockUseMarketIndexes.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+    mockUseCreateMarketIndex.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    });
+    mockUseUpdateMarketIndex.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    });
+    mockUseDeleteMarketIndex.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    });
 
     mockUseMarketPhases.mockReturnValue({
       data: mockPhases,

@@ -25,6 +25,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { useAppContext } from "@/hooks/useAppContext";
 import type { AppContext } from "@/stores/appContextStore";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { useAccounts } from "@/hooks/useAccounts";
 import { EmptyPortfolioGate } from "@/components/layout/EmptyPortfolioGate";
 
 import { PanelLeftClose, PanelLeftOpen, Filter } from "lucide-react";
@@ -297,8 +298,10 @@ export default function DashboardLayout({ children }: Props) {
   const { portfolios, isLoading: isPortfolioLoading, isError: isPortfolioError } = useActivePortfolio();
   
   const { activePortfolioId } = useActivePortfolio();
+  
+  const { data: accounts, isLoading: isAccountsLoading } = useAccounts(activePortfolioId || undefined);
 
-  const hideGlobalSidebar = pathname.startsWith("/dashboard/trades") || pathname.startsWith("/dashboard/checkins") || pathname.startsWith("/dashboard/settings");
+  const hideGlobalSidebar = pathname.startsWith("/dashboard/checkins") || pathname.startsWith("/dashboard/settings") || pathname.startsWith("/dashboard/trades");
 
   const toggleDesktopSidebar = () => {
     setDesktopSidebarOpen((prev) => {
@@ -363,15 +366,18 @@ export default function DashboardLayout({ children }: Props) {
           </div>
         );
       }
-      if (isPortfolioLoading) {
+      if (isPortfolioLoading || isAccountsLoading) {
         return (
           <div className="flex items-center justify-center h-full">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         );
       }
-      if (portfolios.length === 0) {
-        return <EmptyPortfolioGate />;
+      
+      const missing = portfolios.length === 0 ? "portfolio" : (accounts?.length === 0 ? "account" : null);
+
+      if (missing && !pathname.startsWith("/dashboard/trades")) {
+        return <EmptyPortfolioGate missing={missing} />;
       }
     }
     return children;

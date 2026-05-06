@@ -23,7 +23,7 @@ test.describe('Reporting Hub', () => {
 
   test('renders View Management bar with saved view dropdown', async ({ page }) => {
     await expect(page.getByText('Saved View')).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('select')).toBeVisible();
+    await expect(page.locator('select').first()).toBeVisible();
   });
 
   test('renders global filter bar', async ({ page }) => {
@@ -32,13 +32,12 @@ test.describe('Reporting Hub', () => {
 
   test('renders the widget grid with metric cards', async ({ page }) => {
     await page.waitForLoadState('networkidle');
-    // At least one metric label should be visible
-    const metricsSection = page.locator('text=Win Rate').first();
-    const emptyState = page.locator('text=No trades match the current filters');
     // Either metrics or empty state should appear
-    await expect(
-      metricsSection.or(page.locator('text=Select a portfolio'))
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      const winRateVisible = await page.locator('text=Win Rate').first().isVisible();
+      const selectPortfolioVisible = await page.locator('text=Select a portfolio').first().isVisible();
+      expect(winRateVisible || selectPortfolioVisible).toBe(true);
+    }).toPass({ timeout: 15_000 });
   });
 
   // ─── 5.1 View Management ───────────────────────────────────────────────────

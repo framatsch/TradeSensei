@@ -29,7 +29,7 @@ export function useAccounts(portfolioId?: string) {
       return data.data.items;
     },
     staleTime: 5 * 60 * 1000,
-    enabled: portfolioId !== undefined || portfolioId === undefined, // always enabled
+    enabled: !!portfolioId,
   });
 }
 

@@ -54,7 +54,7 @@ describe("GeneralSettings", () => {
     expect(screen.getByDisplayValue("15")).toBeInTheDocument();
     expect(screen.getByDisplayValue("5")).toBeInTheDocument();
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByDisplayValue("Journal")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Trading Log")).toBeInTheDocument();
   });
 
   it("shows validation error on <= 0 input", async () => {

@@ -5866,7 +5866,7 @@ export type UserSettingsRead = {
     /**
      * Home Route
      */
-    home_route?: '/dashboard' | '/dashboard/trades' | '/dashboard/library';
+    home_route?: '/dashboard' | '/dashboard/trades' | '/dashboard/library' | '/dashboard/checkins';
 };
 
 /**
@@ -5920,7 +5920,7 @@ export type UserSettingsUpdate = {
     /**
      * Home Route
      */
-    home_route?: '/dashboard' | '/dashboard/trades' | '/dashboard/library' | null;
+    home_route?: '/dashboard' | '/dashboard/trades' | '/dashboard/library' | '/dashboard/checkins' | null;
 };
 
 /**
@@ -10423,6 +10423,36 @@ export type CreateCheckinFieldApiV1CheckinFieldsPostResponses = {
 
 export type CreateCheckinFieldApiV1CheckinFieldsPostResponse = CreateCheckinFieldApiV1CheckinFieldsPostResponses[keyof CreateCheckinFieldApiV1CheckinFieldsPostResponses];
 
+export type DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Field Id
+         */
+        field_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkin-fields/{field_id}';
+};
+
+export type DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteError = DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteErrors[keyof DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteErrors];
+
+export type DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteResponse = DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteResponses[keyof DeleteCheckinFieldApiV1CheckinFieldsFieldIdDeleteResponses];
+
 export type UpdateCheckinFieldApiV1CheckinFieldsFieldIdPatchData = {
     body: CheckinFieldDefinitionUpdate;
     path: {
@@ -10538,6 +10568,36 @@ export type DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponses = {
 
 export type DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponse = DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponses[keyof DeleteMarketIndexApiV1MarketIndexesIndexIdDeleteResponses];
 
+export type PatchMarketIndexApiV1MarketIndexesIndexIdPatchData = {
+    body: MarketIndexDefinitionUpdate;
+    path: {
+        /**
+         * Index Id
+         */
+        index_id: string;
+    };
+    query?: never;
+    url: '/api/v1/market-indexes/{index_id}';
+};
+
+export type PatchMarketIndexApiV1MarketIndexesIndexIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PatchMarketIndexApiV1MarketIndexesIndexIdPatchError = PatchMarketIndexApiV1MarketIndexesIndexIdPatchErrors[keyof PatchMarketIndexApiV1MarketIndexesIndexIdPatchErrors];
+
+export type PatchMarketIndexApiV1MarketIndexesIndexIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeMarketIndexDefinitionResponse;
+};
+
+export type PatchMarketIndexApiV1MarketIndexesIndexIdPatchResponse = PatchMarketIndexApiV1MarketIndexesIndexIdPatchResponses[keyof PatchMarketIndexApiV1MarketIndexesIndexIdPatchResponses];
+
 export type UpdateMarketIndexApiV1MarketIndexesIndexIdPutData = {
     body: MarketIndexDefinitionUpdate;
     path: {
@@ -10622,6 +10682,36 @@ export type CreateMarketPhaseApiV1MarketPhasesPostResponses = {
 };
 
 export type CreateMarketPhaseApiV1MarketPhasesPostResponse = CreateMarketPhaseApiV1MarketPhasesPostResponses[keyof CreateMarketPhaseApiV1MarketPhasesPostResponses];
+
+export type DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Phase Id
+         */
+        phase_id: string;
+    };
+    query?: never;
+    url: '/api/v1/market-phases/{phase_id}';
+};
+
+export type DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteError = DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteErrors[keyof DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteErrors];
+
+export type DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteResponse = DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteResponses[keyof DeleteMarketPhaseApiV1MarketPhasesPhaseIdDeleteResponses];
 
 export type UpdateMarketPhaseApiV1MarketPhasesPhaseIdPatchData = {
     body: MarketPhaseDefinitionUpdate;

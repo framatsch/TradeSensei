@@ -335,7 +335,7 @@ export function WorkspaceFilterBar() {
             className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            Filter
+            Filters
             {activeCount > 0 && (
               <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
                 {activeCount}
@@ -343,23 +343,39 @@ export function WorkspaceFilterBar() {
             )}
           </button>
 
+          {/* Portfolio Select */}
+          <div className="flex items-center gap-2 border-l pl-4 border-border/50">
+            <span className="text-xs font-medium text-muted-foreground">Portfolio</span>
+            <select
+              value={portfolioId ?? ""}
+              onChange={(e) => handlePortfolioChange(e.target.value)}
+              className="w-40 px-2 py-1.5 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="" disabled>Select a portfolio...</option>
+              {portfolios?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Views Dropdown */}
-          {savedViews && savedViews.length > 0 && (
-            <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
-              <select
-                value={viewId ?? ""}
-                onChange={(e) => handleViewSelect(e.target.value)}
-                className="w-40 px-2 py-1.5 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="" disabled>Load Saved View...</option>
-                {savedViews.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
+            <span className="text-xs font-medium text-muted-foreground">Saved View</span>
+            <select
+              value={viewId ?? ""}
+              onChange={(e) => handleViewSelect(e.target.value)}
+              className="w-40 px-2 py-1.5 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="" disabled>Select view...</option>
+              {savedViews?.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Save Controls in Header */}
@@ -519,7 +535,7 @@ export function WorkspaceFilterBar() {
             <input
               type="text"
               className="w-full rounded-lg border border-border bg-secondary px-4 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="e.g. Q1 Performance"
+              placeholder="View name..."
               value={saveViewName}
               onChange={(e) => setSaveViewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSaveView()}

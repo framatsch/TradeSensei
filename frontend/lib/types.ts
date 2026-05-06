@@ -423,24 +423,24 @@ export type DefaultDateRange = "all" | "ytd" | "last30";
 
 export interface UserSettings {
   theme: Theme;
-  default_date_range: DefaultDateRange;
-  features: Record<string, boolean>;
+  default_date_range: "all" | "ytd" | "last30";
+  features?: Record<string, boolean>;
   chart_candles_before?: number;
   chart_candles_after?: number;
   chart_show_post_exit?: boolean;
   default_portfolio_id?: string | null;
-  home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library";
+  home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins";
 }
 
 export interface UserSettingsUpdate {
   theme?: Theme;
-  default_date_range?: DefaultDateRange;
-  features?: Record<string, boolean> | null;
+  default_date_range?: "all" | "ytd" | "last30";
+  features?: Record<string, boolean>;
   chart_candles_before?: number;
   chart_candles_after?: number;
   chart_show_post_exit?: boolean;
-  default_portfolio_id?: string | null;
-  home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library";
+  default_portfolio_id?: string;
+  home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins";
 }
 
 // ─── Cash Transactions ────────────────────────────────────────────────────────

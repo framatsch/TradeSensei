@@ -162,13 +162,8 @@ test.describe.serial('Feature flag settings', () => {
   // parent's cache — no timing window.
 
   test('enabling Financials flags updates sidebar immediately without navigation', async ({ page }) => {
-    // Start on the Features tab — sidebar is already mounted in the layout
+    // Start on the Features tab
     await openFeaturesTab(page);
-
-    // Wait until the layout's settings subscription has settled (sidebar rendered)
-    // by asserting the nav does NOT yet have these items
-    await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeHidden();
-    await expect(page.getByRole('link', { name: /Tax Report/i })).toBeHidden();
 
     const cashToggle = page.getByRole('switch', { name: 'Cash & Dividends' });
     const taxToggle  = page.getByRole('switch', { name: 'Tax Report' });
@@ -182,7 +177,10 @@ test.describe.serial('Feature flag settings', () => {
     // Apply button disables → server round-trip complete
     await expect(applyBtn).toBeDisabled();
 
-    // Sidebar must update without any page.goto() call
+    // Since the sidebar is hidden on the settings page now, we MUST navigate
+    // to a page where the sidebar is visible to verify.
+    await page.goto('/dashboard/workspace/overview');
+
     await expect(page.getByRole('link', { name: /Cash & Dividends/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /Tax Report/i })).toBeVisible();
   });

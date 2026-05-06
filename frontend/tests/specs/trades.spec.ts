@@ -27,7 +27,7 @@ test.describe('Trades List', () => {
 
   test('TC-050 renders page heading and subtitle', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Trades' })).toBeVisible();
-    await expect(page.getByText('All recorded trading positions')).toBeVisible();
+    await expect(page.getByText('Manage, filter, and review your trading history.')).toBeVisible();
   });
 
   test('TC-051 table renders all column headers', async ({ page }) => {
@@ -81,34 +81,19 @@ test.describe('Trades List', () => {
     await expect(page.getByText('SHORT').first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('TC-055 pagination Previous button is disabled on first page', async ({ page }) => {
+  test('TC-055 pagination Previous button is not shown when there is only one page', async ({ page }) => {
     const prevBtn = page.getByRole('button', { name: 'Previous' });
-    await expect(prevBtn).toBeVisible({ timeout: 10_000 });
-    await expect(prevBtn).toBeDisabled();
+    await expect(prevBtn).toBeHidden({ timeout: 10_000 });
   });
 
-  test('TC-056 pagination Next button reflects whether more pages exist', async ({
-    page,
-  }) => {
-    // The Next button state depends on whether there are more trades than fit on one page.
-    // Because import tests run in parallel and may add trades to the same user,
-    // we just verify that the button exists and has a consistent state.
-    // When rows visible < 20 (page size), Next must be disabled.
+  test('TC-056 pagination Next button is not shown when there are no more pages', async ({ page }) => {
     const nextBtn = page.getByRole('button', { name: 'Next', exact: true });
-    await expect(nextBtn).toBeVisible({ timeout: 10_000 });
+    await expect(nextBtn).toBeHidden({ timeout: 10_000 });
 
     const rows = page.locator('tbody tr');
     await expect(rows.first()).toBeVisible({ timeout: 10_000 });
     const count = await rows.count();
-
-    if (count < 20) {
-      // All trades fit on one page — Next should be disabled
-      await expect(nextBtn).toBeDisabled();
-    } else {
-      // There are multiple pages — Next may or may not be enabled depending on cursor
-      // Just verify the button is present and we can interact with the table
-      await expect(nextBtn).toBeVisible();
-    }
+    expect(count).toBeLessThanOrEqual(20);
   });
 
   test('TC-057 clicking the symbol link in a trade row navigates to trade detail', async ({ page }) => {
@@ -715,13 +700,11 @@ test.describe('Trades List — Empty State', () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-059 pagination buttons are both disabled in empty state', async () => {
+  test('TC-059 pagination buttons are not shown in empty state', async () => {
     const prevBtn = sharedPage.getByRole('button', { name: 'Previous' });
     const nextBtn = sharedPage.getByRole('button', { name: 'Next', exact: true });
 
-    await expect(prevBtn).toBeVisible({ timeout: 10_000 });
-    await expect(nextBtn).toBeVisible({ timeout: 10_000 });
-    await expect(prevBtn).toBeDisabled();
-    await expect(nextBtn).toBeDisabled();
+    await expect(prevBtn).toBeHidden({ timeout: 10_000 });
+    await expect(nextBtn).toBeHidden({ timeout: 10_000 });
   });
 });

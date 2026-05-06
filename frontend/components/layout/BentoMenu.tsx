@@ -15,6 +15,7 @@ export function BentoMenu() {
   const [open, setOpen] = useState(false);
 
   const handleSelect = (ctx: AppContext) => {
+    console.log("BentoMenu handleSelect called with", ctx);
     setActiveContext(ctx);
     setOpen(false);
   };

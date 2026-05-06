@@ -5,13 +5,11 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { AppContext } from "@/stores/appContextStore";
 
 export function ContextSetter({ context }: { context: AppContext }) {
-  const { activeContext, setActiveContext } = useAppContext();
+  const { setActiveContext } = useAppContext();
 
   useEffect(() => {
-    if (activeContext !== context) {
-      setActiveContext(context);
-    }
-  }, [activeContext, context, setActiveContext]);
+    setActiveContext(context);
+  }, [context, setActiveContext]);
 
   return null;
 }

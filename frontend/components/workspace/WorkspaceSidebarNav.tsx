@@ -8,6 +8,7 @@ import {
   LineChart,
   BarChart2 as BarChart3,
   Brain as BrainCircuit,
+  Clock,
 } from "lucide-react";
 
 const NAV_CLASS = "flex items-center gap-3 px-3 py-2 text-sm transition-colors";
@@ -26,7 +27,7 @@ function NavLink({ href, icon, label, isActive }: NavLinkProps) {
   return (
     <Link
       href={href}
-      className={`${NAV_CLASS} ${isActive ? ACTIVE_CLASS : INACTIVE_CLASS}`}
+      className={`${NAV_CLASS} ${isActive ? `${ACTIVE_CLASS} nav-active` : INACTIVE_CLASS}`}
     >
       <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
         {icon}
@@ -77,6 +78,12 @@ export function WorkspaceSidebarNav() {
           icon={<LineChart />}
           label="Reporting"
           isActive={pathname === "/dashboard/workspace/reporting"}
+        />
+        <NavLink
+          href={buildHref("/dashboard/workspace/performance/time")}
+          icon={<Clock />}
+          label="Time"
+          isActive={pathname === "/dashboard/workspace/performance/time"}
         />
         <NavLink
           href={buildHref("/dashboard/workspace/performance/strategy")}

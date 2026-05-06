@@ -9,13 +9,11 @@ import { Spinner } from "@/components/ui/Spinner";
 export default function CalendarPage() {
   const router = useRouter();
   const { filter } = useWorkspaceFilter();
-  const { calendarData, isLoading, isError } = useReportData(filter.portfolioId);
+  const { calendarData, isLoading, isError } = useReportData(filter.portfolioId, filter);
 
-  const handleDayClick = (dateStr: string, dayData?: any) => {
-    // Only navigate to trades log if there are actually trades on this day
-    if (dayData && dayData.trade_count > 0) {
-      router.push(`/dashboard/trades?date_from=${dateStr}&date_to=${dateStr}`);
-    }
+  const handleDayClick = (dateStr: string) => {
+    // Calendar component ensures only days with trades are clickable
+    router.push(`/dashboard/trades?date_from=${dateStr}&date_to=${dateStr}`);
   };
 
   return (
@@ -36,3 +34,4 @@ export default function CalendarPage() {
     </div>
   );
 }
+

@@ -171,7 +171,7 @@ export function TradeTable({
   const allSelected = trades.length > 0 && trades.every((t) => selectedIds?.has(t.id));
   const someSelected = trades.some((t) => selectedIds?.has(t.id)) && !allSelected;
 
-  if (isLoading) {
+  if (isLoading && portfolioId) {
     return (
       <div className="flex justify-center items-center py-20">
         <Spinner size="lg" />

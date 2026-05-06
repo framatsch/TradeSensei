@@ -8,7 +8,7 @@ import {
   useReturnDistribution,
 } from "@/hooks/useReportingAnalytics";
 import { WidgetGridSkeleton } from "@/components/reporting/ReportingSkeletons";
-import { GlobalEmptyState, UncategorizedBanner } from "@/components/reporting/Widgets";
+import { GlobalEmptyState, UncategorizedBanner, MetricCard } from "@/components/reporting/Widgets";
 import dynamic from "next/dynamic";
 import type { HeatmapCell, AttributionBar } from "@/components/reporting/Widgets";
 import type { MarketPhaseCorrelation } from "@/lib/api/types.gen";
@@ -123,6 +123,10 @@ export default function WorkspaceReportingPage() {
 
   return (
     <div className="p-6 space-y-6 pt-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Reporting Hub</h1>
+      </div>
+
       {summaryError && (
         <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">
           Failed to load reporting data.
@@ -140,6 +144,16 @@ export default function WorkspaceReportingPage() {
 
         {!isInitialLoading && (
           <div className="space-y-6 animate-fade-in">
+            {summary && (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <MetricCard label="Win Rate" value={`${(parseFloat(summary.win_rate) * 100).toFixed(1)}%`} />
+                <MetricCard label="Profit Factor" value={summary.profit_factor ? parseFloat(summary.profit_factor).toFixed(2) : "—"} />
+                <MetricCard label="Total Trades" value={String(summary.total_trades)} />
+                <MetricCard label="Gross Profit" value={summary.gross_profit ? `$${summary.gross_profit}` : "—"} trend="up" />
+                <MetricCard label="Gross Loss" value={summary.gross_loss ? `$${summary.gross_loss}` : "—"} trend="down" />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <RMultipleDistributionWidget
                 data={distributionData}

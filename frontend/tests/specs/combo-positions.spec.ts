@@ -47,7 +47,7 @@ test.describe('Combo Positions', () => {
   test('TC-105 — trades list shows combo indicator', async ({ page }) => {
     // Narrow list and widen date range so seeded combo row is guaranteed to be on-page
     await page.goto('/dashboard/trades?symbol=AAPL&opened_at_from=2000-01-01&limit=100');
-    await expect(page.getByRole('link', { name: '+ New Trade' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'New Trade' }).first()).toBeVisible();
 
     const comboRow = page.locator(`tr:has(a[href="/dashboard/trades/${seedState.comboTestTradeId}"])`);
     await expect(comboRow).toBeVisible({ timeout: 20000 });

@@ -290,8 +290,8 @@ function MarketIndexesSection() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <StatusToggle
-                      enabled={index.is_active}
-                      onChange={() => handleToggleActive(index.id, index.is_active)}
+                      enabled={index.is_active ?? false}
+                      onChange={() => handleToggleActive(index.id, index.is_active ?? false)}
                     />
                   </td>
                   <td className="px-4 py-3 text-right">
