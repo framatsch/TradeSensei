@@ -14,10 +14,11 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePortfolios } from "@/hooks/usePortfolios";
+import { useAccounts } from "@/hooks/useAccounts";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useTags } from "@/hooks/useTags";
 import { useSavedViews, useSaveView, useUpdateView, useDeleteView } from "@/hooks/useReportingViews";
-import { useWorkspaceFilter } from "@/components/workspace/WorkspaceFilterContext";
+import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw, Filter as FilterIcon, Lock } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Playbook, Tag } from "@/lib/types";
@@ -146,20 +147,21 @@ export function WorkspaceFilterBar() {
   const [collapsed, setCollapsed] = useState(false);
 
   const { filter, setFilter } = useWorkspaceFilter();
+  const portfolioId = useActivePortfolioId();
 
-  const portfolioId = filter.portfolioId;
   const dateFrom = filter.date_from;
   const dateTo = filter.date_to;
   const playbookIds = filter.playbook_ids || [];
   const tagIds = filter.tag_ids || [];
+  const accountIds = filter.account_ids || [];
   const includeOpenTrades = filter.includeOpenTrades;
   const viewId = filter.viewId;
 
-  const setPortfolioId = useCallback((id: string | null) => setFilter(prev => ({ ...prev, portfolioId: id })), [setFilter]);
   const setDateFrom = useCallback((date: string | null) => setFilter(prev => ({ ...prev, date_from: date })), [setFilter]);
   const setDateTo = useCallback((date: string | null) => setFilter(prev => ({ ...prev, date_to: date })), [setFilter]);
   const setPlaybookIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, playbook_ids: ids })), [setFilter]);
   const setTagIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, tag_ids: ids })), [setFilter]);
+  const setAccountIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, account_ids: ids })), [setFilter]);
   const setIncludeOpenTrades = useCallback((inc: boolean) => setFilter(prev => ({ ...prev, includeOpenTrades: inc })), [setFilter]);
   const setViewId = useCallback((id: string | null) => setFilter(prev => ({ ...prev, viewId: id })), [setFilter]);
   const setFilters = useCallback((f: any) => setFilter(prev => ({ 
@@ -168,11 +170,13 @@ export function WorkspaceFilterBar() {
     date_to: f.dateTo !== undefined ? f.dateTo : prev.date_to,
     playbook_ids: f.playbookIds !== undefined ? f.playbookIds : prev.playbook_ids,
     tag_ids: f.tagIds !== undefined ? f.tagIds : prev.tag_ids,
+    account_ids: f.accountIds !== undefined ? f.accountIds : prev.account_ids,
     includeOpenTrades: f.includeOpenTrades !== undefined ? f.includeOpenTrades : prev.includeOpenTrades,
     viewId: f.viewId !== undefined ? f.viewId : prev.viewId
   })), [setFilter]);
 
   const { portfolios } = usePortfolios();
+  const { data: accounts } = useAccounts(portfolioId ?? undefined);
   const { data: playbooks } = usePlaybooks();
   const { data: tags } = useTags();
 
@@ -223,6 +227,7 @@ export function WorkspaceFilterBar() {
       const cfg = activeView.filter_config;
       if (cfg.playbook_ids && cfg.playbook_ids.length > 0) count++;
       if (cfg.tag_ids && cfg.tag_ids.length > 0) count++;
+      if (cfg.account_ids && cfg.account_ids.length > 0) count++;
       if (cfg.date_from || cfg.date_to) count++;
       // backend doesn't have an includeOpenTrades concept currently in DashboardFilterConfig natively,
       // but we'll just check if it existed:
@@ -232,10 +237,11 @@ export function WorkspaceFilterBar() {
     
     if (playbookIds && playbookIds.length > 0) count++;
     if (tagIds && tagIds.length > 0) count++;
+    if (accountIds && accountIds.length > 0) count++;
     if (dateFrom || dateTo) count++;
     if (includeOpenTrades) count++;
     return count;
-  }, [playbookIds, tagIds, dateFrom, dateTo, includeOpenTrades, activeView]);
+  }, [playbookIds, tagIds, accountIds, dateFrom, dateTo, includeOpenTrades, activeView]);
 
   const filterConfig = useMemo(() => {
     const config: DashboardFilterConfig = {};
@@ -243,8 +249,9 @@ export function WorkspaceFilterBar() {
     if (dateTo) config.date_to = dateTo;
     if (playbookIds.length > 0) config.playbook_ids = playbookIds;
     if (tagIds.length > 0) config.tag_ids = tagIds;
+    if (accountIds.length > 0) config.account_ids = accountIds;
     return config;
-  }, [dateFrom, dateTo, playbookIds, tagIds]);
+  }, [dateFrom, dateTo, playbookIds, tagIds, accountIds]);
 
   const handleSaveView = useCallback(() => {
     if (!saveViewName.trim() || !portfolioId) return;
@@ -311,18 +318,14 @@ export function WorkspaceFilterBar() {
           dateTo: view.filter_config.date_to ?? null,
           playbookIds: view.filter_config.playbook_ids ?? [],
           tagIds: view.filter_config.tag_ids ?? [],
+          accountIds: view.filter_config.account_ids ?? [],
         });
       }
     },
     [savedViews, setViewId, setFilters],
   );
 
-  const handlePortfolioChange = useCallback(
-    (id: string) => {
-      setPortfolioId(id);
-    },
-    [setPortfolioId],
-  );
+  // handlePortfolioChange removed since it's global
 
   return (
     <div className="w-full bg-card border border-border rounded-md shadow-sm">
@@ -343,22 +346,7 @@ export function WorkspaceFilterBar() {
             )}
           </button>
 
-          {/* Portfolio Select */}
-          <div className="flex items-center gap-2 border-l pl-4 border-border/50">
-            <span className="text-xs font-medium text-muted-foreground">Portfolio</span>
-            <select
-              value={portfolioId ?? ""}
-              onChange={(e) => handlePortfolioChange(e.target.value)}
-              className="w-40 px-2 py-1.5 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="" disabled>Select a portfolio...</option>
-              {portfolios?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Portfolio dropdown removed. Handled globally via title bar. */}
 
           {/* Views Dropdown */}
           <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
@@ -436,6 +424,7 @@ export function WorkspaceFilterBar() {
           {/* Clear Filters (always available if there are active filters) */}
           {((playbookIds.length > 0 ||
             tagIds.length > 0 ||
+            accountIds.length > 0 ||
             dateFrom ||
             dateTo ||
             includeOpenTrades) ? 1 : 0) > 0 && (
@@ -443,11 +432,12 @@ export function WorkspaceFilterBar() {
                 type="button"
                 className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
                 onClick={() => {
-                  handleSetDateFrom(null);
-                  handleSetDateTo(null);
-                  handleSetPlaybookIds([]);
-                  handleSetTagIds([]);
-                  handleSetIncludeOpenTrades(false);
+                  setDateFrom(null);
+                  setDateTo(null);
+                  setPlaybookIds([]);
+                  setTagIds([]);
+                  setAccountIds([]);
+                  setIncludeOpenTrades(false);
                 }}
               >
                 Clear all
@@ -459,7 +449,7 @@ export function WorkspaceFilterBar() {
       {/* Collapsible filter body */}
       {!collapsed && (
         <div className="p-4 border-t border-border">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {/* Date from */}
             <div>
               <label className={LABEL_CLASS}>Date From</label>
@@ -481,6 +471,18 @@ export function WorkspaceFilterBar() {
                 className={INPUT_CLASS}
               />
             </div>
+
+            {/* Account multi-select */}
+            <MultiSelect
+              label="Accounts"
+              items={accounts ?? []}
+              selectedIds={accountIds}
+              onChange={(ids) => {
+                if (viewId) setViewId(null);
+                setAccountIds(ids);
+              }}
+              placeholder="All"
+            />
 
             {/* Playbook multi-select */}
             <MultiSelect
@@ -504,25 +506,27 @@ export function WorkspaceFilterBar() {
               <div className="flex items-center gap-3 pt-1">
                 <button
                   type="button"
+                  title="Include closed only"
                   onClick={() => setIncludeOpenTrades(false)}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
                     !includeOpenTrades
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Closed Only
+                  Closed
                 </button>
                 <button
                   type="button"
+                  title="Include opened only"
                   onClick={() => setIncludeOpenTrades(true)}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
                     includeOpenTrades
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Include Open
+                  Open
                 </button>
               </div>
             </div>

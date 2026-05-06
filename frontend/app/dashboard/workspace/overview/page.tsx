@@ -1,6 +1,6 @@
 "use client";
 
-import { useWorkspaceFilter } from "@/components/workspace/WorkspaceFilterContext";
+import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { useAnalyticsSummary } from "@/hooks/useReportingAnalytics";
 import { MetricCard, PayoffRatio, UncategorizedBanner } from "@/components/reporting/Widgets";
 import { MetricsSkeleton } from "@/components/reporting/ReportingSkeletons";
@@ -11,7 +11,8 @@ const DrawdownWidget = dynamic(() => import("@/components/reporting/Widgets").th
 
 export default function OverviewPage() {
   const { filter } = useWorkspaceFilter();
-  const { data: summary, isLoading, isError } = useAnalyticsSummary(filter.portfolioId, filter, filter.viewId);
+  const portfolioId = useActivePortfolioId();
+  const { data: summary, isLoading, isError } = useAnalyticsSummary(portfolioId, filter, filter.viewId);
 
   if (isError) {
     return (

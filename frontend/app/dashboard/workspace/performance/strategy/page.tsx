@@ -1,6 +1,6 @@
 "use client";
 
-import { useWorkspaceFilter } from "@/components/workspace/WorkspaceFilterContext";
+import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { useScatterAnalytics } from "@/hooks/useReportingAnalytics";
 import { WidgetGridSkeleton } from "@/components/reporting/ReportingSkeletons";
 import dynamic from "next/dynamic";
@@ -10,12 +10,13 @@ const DurationVsPnlScatterWidget = dynamic(() => import("@/components/reporting/
 
 export default function StrategyAnalysisPage() {
   const { filter } = useWorkspaceFilter();
+  const portfolioId = useActivePortfolioId();
 
   const {
     data: scatterData,
     isLoading: scatterLoading,
     isError,
-  } = useScatterAnalytics(filter.portfolioId, filter);
+  } = useScatterAnalytics(portfolioId, filter);
 
   return (
     <div className="p-6 space-y-6">

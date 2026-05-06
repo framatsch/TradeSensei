@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useWorkspaceFilter } from "@/components/workspace/WorkspaceFilterContext";
+import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { useReportData, ReportDimension } from "@/hooks/useReportData";
 import { PerformanceAnalysisDashboard } from "@/components/analytics/PerformanceAnalysisDashboard";
 import { WidgetGridSkeleton } from "@/components/reporting/ReportingSkeletons";
@@ -15,9 +15,10 @@ const RESOLUTIONS: { label: string; value: ReportDimension }[] = [
 
 export default function TimeAnalysisPage() {
   const { filter } = useWorkspaceFilter();
+  const portfolioId = useActivePortfolioId();
   const [resolution, setResolution] = useState<ReportDimension>("Hourly");
 
-  const { getAggregated, isLoading, isError } = useReportData(filter.portfolioId, filter);
+  const { getAggregated, isLoading, isError } = useReportData(portfolioId, filter);
 
   const data = useMemo(() => getAggregated(resolution), [getAggregated, resolution]);
 

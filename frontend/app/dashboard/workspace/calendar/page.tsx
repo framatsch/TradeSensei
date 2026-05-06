@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useWorkspaceFilter } from "@/components/workspace/WorkspaceFilterContext";
+import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { useReportData } from "@/hooks/useReportData";
 import { Calendar } from "@/components/calendar/Calendar";
 import { Spinner } from "@/components/ui/Spinner";
@@ -9,7 +9,8 @@ import { Spinner } from "@/components/ui/Spinner";
 export default function CalendarPage() {
   const router = useRouter();
   const { filter } = useWorkspaceFilter();
-  const { calendarData, isLoading, isError } = useReportData(filter.portfolioId, filter);
+  const portfolioId = useActivePortfolioId();
+  const { calendarData, isLoading, isError } = useReportData(portfolioId, filter);
 
   const handleDayClick = (dateStr: string) => {
     // Calendar component ensures only days with trades are clickable

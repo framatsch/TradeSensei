@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useWorkspaceFilter } from "@/components/workspace/WorkspaceFilterContext";
+import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { useMarketPhaseCorrelation } from "@/hooks/useReportingAnalytics";
 import { WidgetGridSkeleton } from "@/components/reporting/ReportingSkeletons";
 import { UncategorizedBanner } from "@/components/reporting/Widgets";
@@ -73,12 +73,13 @@ function toAttributionBars(
 
 export default function BehaviorAnalysisPage() {
   const { filter } = useWorkspaceFilter();
+  const portfolioId = useActivePortfolioId();
 
   const {
     data: attribution,
     isLoading,
     isError,
-  } = useMarketPhaseCorrelation(filter.portfolioId, filter, filter.viewId);
+  } = useMarketPhaseCorrelation(portfolioId, filter, filter.viewId);
 
   const heatmapCells = useMemo(
     () => toHeatmapCells(attribution?.buckets, attribution?.unmatched_trade_count ?? 0),

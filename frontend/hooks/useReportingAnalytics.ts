@@ -12,6 +12,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useReportData } from "@/hooks/useReportData";
 import {
   getAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPost,
   getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet,
@@ -264,16 +265,30 @@ export function useScatterAnalytics(
   portfolioId: string | null,
   filterConfig: DashboardFilterConfig | null,
 ) {
+  const { trades } = useReportData(portfolioId, filterConfig);
+
   return useQuery<ScatterAnalyticsResult, Error>({
     queryKey: [
       "scatter-analytics",
       portfolioId,
       filterConfig ? JSON.stringify(filterConfig) : null,
+      trades.length,
     ],
     queryFn: async () => {
       if (!portfolioId) throw new Error("No portfolio selected");
 
-      const seed = hashPortfolioId(portfolioId);
+      if (trades.length === 0) {
+        return {
+          maeMfe: [],
+          durationVsPnl: [],
+        };
+      }
+
+      let seedStr = portfolioId;
+      if (filterConfig) {
+        seedStr += JSON.stringify(filterConfig);
+      }
+      const seed = hashPortfolioId(seedStr);
       return {
         maeMfe: generateMaeMfeMock(seed + 1),
         durationVsPnl: generateDurationVsPnlMock(seed + 2),
