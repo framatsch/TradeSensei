@@ -28,7 +28,7 @@ test.describe('Sidebar Navigation', () => {
 
   test('TC-044 navigates to Import page', async ({ page }) => {
     await page.goto('/dashboard/trades/import');
-    await expect(page).toHaveURL(/\/dashboard\/import/);
+    await expect(page).toHaveURL(/\/dashboard\/trades\/import/);
     await expect(page.getByRole('heading', { name: 'Import Trades' })).toBeVisible({ timeout: 10_000 });
   });
 

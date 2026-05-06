@@ -26,8 +26,11 @@ test.describe('Execution Leg Editor', () => {
 
     await expect(firstRow.getByRole('button', { name: /long/i })).toBeVisible();
     await expect(firstRow.getByRole('button', { name: /short/i })).toBeVisible();
-    await expect(firstRow.locator('input[type="datetime-local"]')).toBeVisible();
-    await expect(firstRow.locator('input[type="number"]')).toHaveCount(4);
+    await expect(firstRow.getByLabel('Executed at date and time')).toBeVisible();
+    await expect(firstRow.getByLabel('Quantity')).toBeVisible();
+    await expect(firstRow.getByLabel('Price')).toBeVisible();
+    await expect(firstRow.getByLabel('Commission')).toBeVisible();
+    await expect(firstRow.getByLabel('P&L')).toBeVisible();
   });
 
   test('TC-095 — enter edit mode on LONG leg, click SHORT toggle, save; assert Side badge shows SHORT', async ({ page }) => {
@@ -52,7 +55,7 @@ test.describe('Execution Leg Editor', () => {
     await openRowActionsMenu(firstRow);
     await clickRowMenuEdit(page);
 
-    const datetimeInput = firstRow.locator('input[type="datetime-local"]');
+    const datetimeInput = firstRow.getByLabel('Executed at date and time');
     await datetimeInput.fill('2024-01-01T10:00');
     
     await firstRow.getByTitle('Save').click();
@@ -69,7 +72,7 @@ test.describe('Execution Leg Editor', () => {
     await openRowActionsMenu(exitRow);
     await clickRowMenuEdit(page);
 
-    await exitRow.locator('input[type="number"]').last().fill('150.00');
+    await exitRow.getByLabel('P&L').fill('150.00');
     
     await exitRow.getByTitle('Save').click();
 
@@ -96,7 +99,7 @@ test.describe('Execution Leg Editor', () => {
     await clickRowMenuEdit(page);
 
     await firstRow.getByRole('button', { name: /short/i }).click();
-    await firstRow.locator('input[type="number"]').nth(1).fill('9999.99');
+    await firstRow.getByLabel('Price').fill('9999.99');
     
     await firstRow.getByTitle('Cancel').click();
 

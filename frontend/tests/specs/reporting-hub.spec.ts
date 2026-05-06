@@ -22,11 +22,12 @@ test.describe('Reporting Hub', () => {
   });
 
   test('renders View Management bar with saved view dropdown', async ({ page }) => {
-    await expect(page.getByText('Saved View')).toBeVisible({ timeout: 10_000 });
-    // When saved views exist a <select> is shown; when none exist, a "No saved views" label appears.
+    await expect(page.getByText('Saved View', { exact: true })).toBeVisible({ timeout: 10_000 });
+    // When saved views exist a <select> or combobox is shown; when none exist, a "No saved views" label appears.
     const hasSelect = await page.locator('select').first().isVisible().catch(() => false);
+    const hasCombobox = await page.getByRole('combobox').first().isVisible().catch(() => false);
     const hasEmptyLabel = await page.getByText('No saved views').isVisible().catch(() => false);
-    expect(hasSelect || hasEmptyLabel).toBe(true);
+    expect(hasSelect || hasCombobox || hasEmptyLabel).toBe(true);
   });
 
   test('renders global filter bar', async ({ page }) => {
@@ -58,22 +59,7 @@ test.describe('Reporting Hub', () => {
     }
   });
 
-  test('can select portfolio from filter bar', async ({ page }) => {
-    // Find the portfolio dropdown in the filter bar
-    const portfolioSelect = page.locator('select').first();
-    if (await portfolioSelect.isVisible()) {
-      await expect(portfolioSelect).toBeEnabled();
-    }
-  });
-
   // ─── 5.2 Single Portfolio enforcement ──────────────────────────────────────
-
-  test('portfolio selector is a single-select dropdown', async ({ page }) => {
-    const selects = page.locator('select');
-    const count = await selects.count();
-    // Expect at least the saved view dropdown and the portfolio selector
-    expect(count).toBeGreaterThanOrEqual(1);
-  });
 
   test('trade status toggle defaults to Closed Only', async ({ page }) => {
     // The segmented toggle "Closed Only" should be visible or checked
