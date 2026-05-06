@@ -57,7 +57,7 @@ export default function DashboardPage() {
           <p className="text-lg font-medium mb-2">No trades yet</p>
           <p className="text-sm">
             Import your first trades from the{" "}
-            <a href="/dashboard/import" className="text-primary hover:underline">
+            <a href="/dashboard/trades/import" className="text-primary hover:underline">
               Import
             </a>{" "}
             page.

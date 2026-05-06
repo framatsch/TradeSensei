@@ -70,9 +70,9 @@ export function TradingLogSidebar() {
           <Plus className="w-4 h-4 shrink-0 opacity-70" />
           <span>New Trade</span>
         </Link>
-        <Link href="/dashboard/import" className={NAV_ITEM_CLASS}>
+        <Link href="/dashboard/trades/import" className={NAV_ITEM_CLASS}>
           <Upload className="w-4 h-4 shrink-0 opacity-70" />
-          <span>Quick Import</span>
+          <span>Import</span>
         </Link>
         <button onClick={handleExport} className={NAV_ITEM_CLASS}>
           <Download className="w-4 h-4 shrink-0 opacity-70" />

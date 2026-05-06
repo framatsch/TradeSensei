@@ -55,7 +55,7 @@ async function expectImportQueueFinished(page: import('@playwright/test').Page):
 
 test.describe('Import Page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/dashboard/import');
+    await page.goto('/dashboard/trades/import');
     await page.waitForLoadState('networkidle');
   });
 

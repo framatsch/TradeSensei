@@ -21,6 +21,22 @@ import type { ImportResult, FreshStartResult, BrokerSyncResult, ResponseEnvelope
 import { client } from "@/lib/api/client.gen";
 import { extractApiError } from "@/lib/api/errors";
 
+/** Multipart upload via raw fetch — bypasses the JSON body serializer of the SDK client. */
+async function multipartPost(path: string, formData: FormData): Promise<any> {
+  const token = localStorage.getItem("access_token");
+  const baseUrl = client.getConfig().baseUrl ?? "";
+  const res = await fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw err;
+  }
+  return res.json();
+}
+
 // Type badge helper
 const TYPE_LABEL: Record<AccountType, string> = {
   manual: "Manual",
@@ -168,8 +184,8 @@ export function ImportForm() {
           formData.append("file", qf.file);
           if (overwrite) formData.append("overwrite_manually_edited", "true");
 
-          const res = (await (await client.post({ url: `/api/v1/portfolios/${portfolioId}/imports/upload` as any, body: formData as any })).data) as any;
-          const result = res.data.data;
+          const envelope = await multipartPost(`/api/v1/portfolios/${portfolioId}/imports/upload`, formData);
+          const result = envelope.data;
 
           setQueuedFiles((prev) =>
             prev.map((f, idx) =>
@@ -237,8 +253,8 @@ export function ImportForm() {
       formData.append("acknowledged", "true");
       formData.append("file", freshStartFile);
 
-      const res = (await (await client.post({ url: `/api/v1/portfolios/${portfolioId}/imports/${accountId}/fresh-start` as any, body: formData as any })).data) as any;
-      setFreshStartResult(res.data.data);
+      const freshEnvelope = await multipartPost(`/api/v1/portfolios/${portfolioId}/imports/${accountId}/fresh-start`, formData);
+      setFreshStartResult(freshEnvelope.data);
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["metrics"] });
       void qc.invalidateQueries({ queryKey: ["tax"] });
@@ -260,8 +276,9 @@ export function ImportForm() {
     mutationFn: async () => {
       const fromDate = accountType === "ibkr" ? `&from_date=${getFlexFromDate()}` : "";
       const overwrite = overwriteManuallyEdited ? "&overwrite_manually_edited=true" : "";
-      const res = (await (await client.post({ url: `/api/v1/broker/sync/${accountId}?days=${syncDays}${fromDate}${overwrite}` as any })).data) as any;
-      return res.data.data;
+      const { data: syncData, error: syncErr } = await client.post({ url: `/api/v1/broker/sync/${accountId}?days=${syncDays}${fromDate}${overwrite}` as any });
+      if (syncErr || !syncData) throw syncErr ?? new Error("Sync failed");
+      return (syncData as any).data;
     },
     onSuccess: (data) => {
       setSyncResult(data);

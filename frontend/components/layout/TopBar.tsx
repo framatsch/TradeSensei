@@ -29,7 +29,11 @@ export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobile
 
   let contextLabel = "";
   if (activeContext === "portfolio") {
-    contextLabel = pathname.startsWith("/dashboard/trades") ? "Trading Log" : "Portfolio Workspace";
+    if (pathname.startsWith("/dashboard/trades")) {
+      contextLabel = "Trading Log";
+    } else {
+      contextLabel = "Portfolio Workspace";
+    }
   } else if (activeContext === "library") {
     contextLabel = "Global Library";
   } else if (activeContext === "checkin") {

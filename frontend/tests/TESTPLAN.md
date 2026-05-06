@@ -271,7 +271,7 @@ Dieser Testplan deckt die Basis-Funktionalität der Trade Sensei Anwendung ab. D
 - Benutzer ist eingeloggt
 
 **Schritte**:
-1. Navigiere zu `/dashboard/import`
+1. Navigiere zu `/dashboard/trades/import`
 2. Warte bis Seite lädt
 
 **Erwartetes Ergebnis**:
