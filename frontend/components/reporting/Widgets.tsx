@@ -23,6 +23,7 @@ import {
   ZAxis,
 } from "recharts";
 import { ChartShell } from "@/components/charts/ChartShell";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import { EmptyState } from "./EmptyState";
 import { ChartSkeleton } from "./ReportingSkeletons";
 
@@ -115,8 +116,9 @@ export function PayoffRatio({
 
   return (
     <div className="bg-card rounded-xl border border-border p-5 flex flex-col justify-between">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
         Payoff Ratio
+        <MetricHelpLink anchor="payoff-ratio" />
       </p>
       <p className="text-2xl font-semibold font-mono text-foreground">
         {ratio !== null ? ratio.toFixed(2) : "—"}
@@ -172,6 +174,7 @@ export function EquityCurveWidget({
       title="Equity Curve"
       isEmpty={!data || data.length === 0}
       emptyMessage="No equity curve data available."
+      helpAnchor="equity-curve"
     >
       {data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
@@ -234,6 +237,7 @@ export function DrawdownWidget({
       title="Drawdown"
       isEmpty={!data || data.length === 0}
       emptyMessage="No drawdown data available."
+      helpAnchor="max-drawdown"
     >
       {data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
@@ -296,6 +300,7 @@ export function RMultipleDistributionWidget({
       title="R-Multiple Distribution"
       isEmpty={!data || data.length === 0}
       emptyMessage="No R-multiple distribution data available."
+      helpAnchor="r-multiple-distribution"
     >
       {data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
@@ -354,6 +359,7 @@ export function MaeMfeScatterWidget({
           ? `Too many points (${data.length}). Please narrow your filter to view this chart.`
           : "No execution data available."
       }
+      helpAnchor="mae-mfe"
     >
       {!exceeded && data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
@@ -435,6 +441,7 @@ export function DurationVsPnlScatterWidget({
           ? `Too many points (${data.length}). Please narrow your filter to view this chart.`
           : "No execution data available."
       }
+      helpAnchor="duration-vs-pnl"
     >
       {!exceeded && data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
@@ -520,6 +527,7 @@ export function PlaybookPhaseHeatmapWidget({
         title="Playbook vs Market Regime"
         isEmpty
         emptyMessage="No attribution data available."
+        helpAnchor="checkin-attribution"
       >
         <span />
       </ChartShell>
@@ -531,7 +539,7 @@ export function PlaybookPhaseHeatmapWidget({
   const maxCount = Math.max(...data!.map((d) => d.trade_count), 1);
 
   return (
-    <ChartShell title="Playbook vs Market Regime" isEmpty={false}>
+    <ChartShell title="Playbook vs Market Regime" isEmpty={false} helpAnchor="checkin-attribution">
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -603,6 +611,7 @@ export function PsychologicalAttributionWidget({
       title="Psychological Attribution"
       isEmpty={!data || data.length === 0}
       emptyMessage="No psychological data available."
+      helpAnchor="checkin-attribution"
     >
       {data && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>

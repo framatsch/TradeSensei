@@ -47,7 +47,7 @@ export function EquityCurveChart({ data }: Props) {
   }));
 
   return (
-    <ChartShell title="Equity Curve" isEmpty={chartData.length === 0}>
+    <ChartShell title="Equity Curve" isEmpty={chartData.length === 0} helpAnchor="equity-curve">
       <ResponsiveContainer width="100%" height={280}>
         <AreaChart
           data={chartData}

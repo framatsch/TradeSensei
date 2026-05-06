@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronUp } from "lucide-react";
 import { Logo } from "../../components/ui/Logo";
-import type { Section, MetricEntry } from "./page";
+import type { HelpSection as Section, HelpEntry as MetricEntry } from "@/lib/help-content";
 
 // ─── MetricCard ───────────────────────────────────────────────────────────────
 

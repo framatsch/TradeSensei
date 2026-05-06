@@ -54,6 +54,7 @@ export function ReturnDistributionChart({ data }: Props) {
       title="Return Distribution"
       emptyMessage="No distribution data available yet."
       isEmpty={chartData.length === 0}
+      helpAnchor="return-distribution"
     >
       <ResponsiveContainer width="100%" height={240}>
         <BarChart

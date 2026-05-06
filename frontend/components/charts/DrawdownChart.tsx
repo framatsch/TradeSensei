@@ -44,7 +44,7 @@ export function DrawdownChart({ data }: Props) {
   }));
 
   return (
-    <ChartShell title="Drawdown" isEmpty={chartData.length === 0}>
+    <ChartShell title="Drawdown" isEmpty={chartData.length === 0} helpAnchor="max-drawdown">
       <ResponsiveContainer width="100%" height={200}>
         <AreaChart
           data={chartData}

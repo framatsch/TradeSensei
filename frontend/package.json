@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "export-help": "npx tsx ../tools/export_help.ts"
   },
   "dependencies": {
     "@hey-api/client-fetch": "^0.13.1",

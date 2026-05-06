@@ -36,7 +36,7 @@ function formatCurrency(value: number): string {
 
 export function DailyPnlBarChart({ data }: Props) {
   return (
-    <ChartShell title="Daily PnL" isEmpty={data.length === 0}>
+    <ChartShell title="Daily PnL" isEmpty={data.length === 0} helpAnchor="daily-pnl">
       <ResponsiveContainer width="100%" height={200}>
         <BarChart
           data={data}
