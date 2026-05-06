@@ -315,15 +315,13 @@ export default function DashboardLayout({ children }: Props) {
       expected = "none";
     }
 
-    if (expected && expected !== "none" && activeContext !== expected) {
+    if (expected && expected !== "none") {
       // Defer to avoid React rendering warnings if triggered during a transition
       setTimeout(() => setActiveContext(expected!), 0);
     }
-  }, [pathname]);
+  }, [pathname, setActiveContext]);
 
-  const { portfolios, isLoading: isPortfolioLoading, isError: isPortfolioError } = useActivePortfolio();
-  
-  const { activePortfolioId } = useActivePortfolio();
+  const { portfolios, activePortfolioId, isLoading: isPortfolioLoading, isError: isPortfolioError } = useActivePortfolio();
   
   const { data: accounts, isLoading: isAccountsLoading } = useAccounts(activePortfolioId || undefined);
 
@@ -402,7 +400,7 @@ export default function DashboardLayout({ children }: Props) {
       
       const missing = portfolios.length === 0 ? "portfolio" : (accounts?.length === 0 ? "account" : null);
 
-      if (missing && !pathname.startsWith("/dashboard/trades")) {
+      if (missing && !pathname.startsWith("/dashboard/trades") && !pathname.startsWith("/dashboard/settings")) {
         return <EmptyPortfolioGate missing={missing} />;
       }
     }

@@ -85,7 +85,7 @@ export function useReportData(portfolioIdParam?: string | null, filterConfig?: D
   const accountIds = filterConfig?.account_ids || [];
 
   const { data: allTrades, isLoading, isError } = useQuery<Trade[], Error>({
-    queryKey: ["trades-all-for-reports", portfolioId],
+    queryKey: ["trades-all-for-reports", portfolioId, filterConfig?.account_ids ?? null, filterConfig?.date_from ?? null, filterConfig?.date_to ?? null],
     queryFn: ({ signal }) => fetchAllTrades(portfolioId ?? undefined, signal),
     staleTime: 5 * 60 * 1000,
     enabled: Boolean(portfolioId),
@@ -111,7 +111,7 @@ export function useReportData(portfolioIdParam?: string | null, filterConfig?: D
     }
     
     return filtered;
-  }, [allTrades, JSON.stringify(accountIds), filterConfig?.date_from, filterConfig?.date_to]);
+  }, [allTrades, accountIds.join(","), filterConfig?.date_from, filterConfig?.date_to]);
 
 
   const calendarData = useMemo((): DailyTradeData[] => {

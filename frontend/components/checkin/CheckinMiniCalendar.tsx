@@ -86,9 +86,9 @@ export function CheckinMiniCalendar() {
 
       let bgClass = "hover:bg-muted";
       if (isSelected) {
-        bgClass = "bg-primary hover:bg-primary/90 font-semibold";
+        bgClass = "bg-primary hover:opacity-90 font-semibold";
       } else if (isToday) {
-        bgClass = "bg-secondary hover:bg-secondary/80 ring-1 ring-primary/30";
+        bgClass = "bg-secondary hover:bg-muted ring-1 ring-primary";
       }
 
       days.push(

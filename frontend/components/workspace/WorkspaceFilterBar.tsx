@@ -363,18 +363,22 @@ export function WorkspaceFilterBar() {
           {/* Views Dropdown */}
           <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
             <span className="text-xs font-medium text-muted-foreground">Saved View</span>
-            <select
-              value={viewId ?? ""}
-              onChange={(e) => handleViewSelect(e.target.value)}
-              className="w-40 px-2 py-1.5 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="" disabled>Select view...</option>
-              {savedViews?.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
+            {savedViews && savedViews.length > 0 ? (
+              <select
+                value={viewId ?? ""}
+                onChange={(e) => handleViewSelect(e.target.value)}
+                className="w-40 px-2 py-1.5 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="" disabled>Select view...</option>
+                {savedViews.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">No saved views</span>
+            )}
           </div>
         </div>
 

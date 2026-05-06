@@ -156,6 +156,28 @@ async def test_put_settings_valid_home_route(
 
 
 @pytest.mark.asyncio
+async def test_put_settings_home_route_checkins(
+    client: AsyncClient, primary_user: dict[str, Any]
+) -> None:
+    """home_route set to "/dashboard/checkins"; read back correctly (regression for allowlist)."""
+    res = await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"home_route": "/dashboard/checkins"},
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    assert data["home_route"] == "/dashboard/checkins"
+
+    res2 = await client.get(
+        "/api/v1/users/me/settings", headers=primary_user["headers"]
+    )
+    assert res2.status_code == 200
+    data2 = res2.json()["data"]
+    assert data2["home_route"] == "/dashboard/checkins"
+
+
+@pytest.mark.asyncio
 async def test_put_settings_invalid_home_route(
     client: AsyncClient, primary_user: dict[str, Any]
 ) -> None:

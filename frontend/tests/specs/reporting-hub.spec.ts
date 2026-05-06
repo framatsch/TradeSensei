@@ -23,7 +23,10 @@ test.describe('Reporting Hub', () => {
 
   test('renders View Management bar with saved view dropdown', async ({ page }) => {
     await expect(page.getByText('Saved View')).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('select').first()).toBeVisible();
+    // When saved views exist a <select> is shown; when none exist, a "No saved views" label appears.
+    const hasSelect = await page.locator('select').first().isVisible().catch(() => false);
+    const hasEmptyLabel = await page.getByText('No saved views').isVisible().catch(() => false);
+    expect(hasSelect || hasEmptyLabel).toBe(true);
   });
 
   test('renders global filter bar', async ({ page }) => {

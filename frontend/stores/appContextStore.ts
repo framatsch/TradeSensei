@@ -17,7 +17,6 @@ export const useAppContextStore = create<AppContextState>((set) => ({
   activeContext: 'portfolio',
   hydrated: false,
   setActiveContext: (ctx: AppContext) => {
-    console.log("setActiveContext called with", ctx);
     set({ activeContext: ctx });
     // Don't persist 'none' so that returning to the app defaults back to real context
     if (ctx !== 'none') {

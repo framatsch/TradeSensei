@@ -168,6 +168,7 @@ class UserService:
             "/dashboard",
             "/dashboard/trades",
             "/dashboard/library",
+            "/dashboard/checkins",
         }:
             merged["home_route"] = "/dashboard"
 

@@ -17,21 +17,15 @@ interface TopBarProps {
 }
 
 export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobileSidebarOpen, isDesktopSidebarOpen }: TopBarProps) {
-  const { activeContext, setActiveContext } = useAppContext();
+  const { activeContext } = useAppContext();
   const { data: settings } = useSettings();
   const pathname = usePathname();
 
-  const homeRoute = (settings as any)?.home_route || "/dashboard";
-
-  const handleHomeClick = () => {
-    if (homeRoute.startsWith("/dashboard/library")) {
-      setActiveContext("library");
-    } else if (homeRoute.startsWith("/dashboard/checkins")) {
-      setActiveContext("checkin");
-    } else {
-      setActiveContext("portfolio");
-    }
-  };
+  const ALLOWED_HOME_ROUTES = ["/dashboard", "/dashboard/trades", "/dashboard/library", "/dashboard/checkins"] as const;
+  type HomeRoute = typeof ALLOWED_HOME_ROUTES[number];
+  const homeRoute: HomeRoute = ALLOWED_HOME_ROUTES.includes(settings?.home_route as HomeRoute)
+    ? (settings!.home_route as HomeRoute)
+    : "/dashboard";
 
   let contextLabel = "";
   if (activeContext === "portfolio") {
@@ -64,7 +58,6 @@ export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobile
           
           <Link
             href={homeRoute}
-            onClick={handleHomeClick}
             className="hidden sm:flex p-2 rounded-md hover:bg-muted text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Home"
           >
