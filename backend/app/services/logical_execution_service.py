@@ -139,8 +139,7 @@ class LogicalExecutionService:
                 created.append(logical)
 
         logger.info(
-            "bulk_create_from_raw: created %d logical executions "
-            "from %d raw transactions (%d suppressed skipped).",
+            "bulk_create_from_raw: created %d logical executions from %d raw transactions (%d suppressed skipped).",
             len(created),
             len(raw_transactions),
             suppressed_skipped,

@@ -56,25 +56,15 @@ class BrokerRawTransactionCreate(BaseModel):
     id: str = Field(
         ...,
         max_length=_EXEC_ID_MAX_LENGTH,
-        description=(
-            "Composite broker execution ID: "
-            "'{user_id}:{broker_type}:{transaction_id}'. "
-            "Used as idempotency key for re-imports."
-        ),
+        description=("Composite broker execution ID: '{user_id}:{broker_type}:{transaction_id}'. Used as idempotency key for re-imports."),
     )
     user_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "UUID of the owning user.  Injected by the import service before "
-            "persistence; not populated by parsers."
-        ),
+        description=("UUID of the owning user.  Injected by the import service before persistence; not populated by parsers."),
     )
     account_id: uuid.UUID | None = Field(
         default=None,
-        description=(
-            "Optional UUID of the associated account.  Injected by the import "
-            "service before persistence; not populated by parsers."
-        ),
+        description=("Optional UUID of the associated account.  Injected by the import service before persistence; not populated by parsers."),
     )
     broker_type: str = Field(
         ...,
@@ -178,7 +168,5 @@ class BrokerRawTransactionRead(BaseModel):
     pnl: Decimal | None = None
     currency: str | None = None
     multiplier: int
-    suppressed: bool = Field(
-        description="When True, permanently excluded from all future imports."
-    )
+    suppressed: bool = Field(description="When True, permanently excluded from all future imports.")
     created_at: datetime

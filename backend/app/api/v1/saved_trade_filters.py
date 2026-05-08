@@ -40,14 +40,10 @@ def get_saved_trade_filter_service(
 )
 async def list_saved_trade_filters(
     user: Annotated[User, Depends(get_current_user)],
-    service: Annotated[
-        SavedTradeFilterService, Depends(get_saved_trade_filter_service)
-    ],
+    service: Annotated[SavedTradeFilterService, Depends(get_saved_trade_filter_service)],
 ) -> ResponseEnvelope[Sequence[SavedTradeFilterRead]]:
     filters = await service.list_for_user(user.id)
-    return ResponseEnvelope(
-        data=[SavedTradeFilterRead.model_validate(f) for f in filters]
-    )
+    return ResponseEnvelope(data=[SavedTradeFilterRead.model_validate(f) for f in filters])
 
 
 @router.post(
@@ -60,9 +56,7 @@ async def list_saved_trade_filters(
 async def create_saved_trade_filter(
     payload: SavedTradeFilterCreate,
     user: Annotated[User, Depends(get_current_user)],
-    service: Annotated[
-        SavedTradeFilterService, Depends(get_saved_trade_filter_service)
-    ],
+    service: Annotated[SavedTradeFilterService, Depends(get_saved_trade_filter_service)],
 ) -> ResponseEnvelope[SavedTradeFilterRead]:
     db_filter = await service.create_user_filter(
         user_id=user.id,
@@ -76,18 +70,13 @@ async def create_saved_trade_filter(
     "/{filter_id}",
     response_model=ResponseEnvelope[SavedTradeFilterRead],
     summary="Update a saved trade filter",
-    description=(
-        "Update an existing user-owned saved trade filter."
-        " System filters cannot be modified."
-    ),
+    description=("Update an existing user-owned saved trade filter. System filters cannot be modified."),
 )
 async def update_saved_trade_filter(
     filter_id: uuid.UUID,
     payload: SavedTradeFilterUpdate,
     user: Annotated[User, Depends(get_current_user)],
-    service: Annotated[
-        SavedTradeFilterService, Depends(get_saved_trade_filter_service)
-    ],
+    service: Annotated[SavedTradeFilterService, Depends(get_saved_trade_filter_service)],
 ) -> ResponseEnvelope[SavedTradeFilterRead]:
     try:
         db_filter = await service.update_user_filter(
@@ -118,16 +107,12 @@ async def update_saved_trade_filter(
     "/{filter_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a saved trade filter",
-    description=(
-        "Delete a user-owned saved trade filter. System filters cannot be deleted."
-    ),
+    description=("Delete a user-owned saved trade filter. System filters cannot be deleted."),
 )
 async def delete_saved_trade_filter(
     filter_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
-    service: Annotated[
-        SavedTradeFilterService, Depends(get_saved_trade_filter_service)
-    ],
+    service: Annotated[SavedTradeFilterService, Depends(get_saved_trade_filter_service)],
 ) -> None:
     try:
         await service.delete_user_filter(user_id=user.id, filter_id=filter_id)

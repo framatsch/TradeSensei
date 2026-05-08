@@ -38,8 +38,5 @@ def get_parser(broker: BrokerType) -> BrokerParser:
     }
     parser = parsers.get(broker)
     if parser is None:
-        raise UnsupportedBrokerError(
-            f"No parser available for broker {broker!r}. "
-            f"Supported brokers: {', '.join(BrokerType)}."
-        )
+        raise UnsupportedBrokerError(f"No parser available for broker {broker!r}. Supported brokers: {', '.join(BrokerType)}.")
     return parser

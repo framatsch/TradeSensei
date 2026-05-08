@@ -42,9 +42,7 @@ def _get_service(
     response_model=ResponseEnvelope[CashTransactionRead],
     status_code=status.HTTP_201_CREATED,
     summary="Create a cash transaction",
-    description=(
-        "Record a new cash transaction (dividend, fee, deposit, etc.) for the account."
-    ),
+    description=("Record a new cash transaction (dividend, fee, deposit, etc.) for the account."),
 )
 async def create_cash_transaction(
     portfolio_id: uuid.UUID,

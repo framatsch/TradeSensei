@@ -124,9 +124,7 @@ class ImportService:
                 to disable the timeout.
         """
         if timeout_seconds > 0:
-            await self._session.execute(
-                sa_text(f"SET LOCAL statement_timeout = '{timeout_seconds}s'")
-            )
+            await self._session.execute(sa_text(f"SET LOCAL statement_timeout = '{timeout_seconds}s'"))
 
     async def import_file(
         self,
@@ -190,9 +188,7 @@ class ImportService:
                 portfolio_id,
             )
             if account is None:
-                raise AccountNotFoundError(
-                    f"Account {account_id} not found for user {user_id}."
-                )
+                raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
 
         portfolio = await self._portfolio_repo.get_by_id(portfolio_id, user_id)
         if portfolio is not None:
@@ -241,14 +237,8 @@ class ImportService:
 
         parser: BrokerParser = get_parser(broker)
 
-        ca_for_parser: Sequence[CorporateActionLike] | None = (
-            cast(Sequence[CorporateActionLike], corporate_actions)
-            if corporate_actions
-            else None
-        )
-        seed_for_parser: Sequence[SeedLotLike] | None = (
-            cast(Sequence[SeedLotLike], open_lots) if open_lots else None
-        )
+        ca_for_parser: Sequence[CorporateActionLike] | None = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
+        seed_for_parser: Sequence[SeedLotLike] | None = cast(Sequence[SeedLotLike], open_lots) if open_lots else None
 
         parser_warnings: list[str] = []
         parsed_cash_txs: list[CashTransactionCreateRequest] = []
@@ -295,22 +285,14 @@ class ImportService:
 
             # Reload corporate actions after adding new ones from the file
             corporate_actions = await self._ca_repo.list_by_user(user_id)
-            ca_for_parser = (
-                cast(Sequence[CorporateActionLike], corporate_actions)
-                if corporate_actions
-                else None
-            )
+            ca_for_parser = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
 
             # Stamp user_id / account_id onto each raw record.
             stamped_raw: list[BrokerRawTransactionCreate] = []
             for rec in raw_records:
                 # Prepend user_id to ensure the execution ID is globally unique
                 # across all users (idempotent per user).
-                new_id = (
-                    rec.id
-                    if rec.id.startswith(f"{user_id}:")
-                    else f"{user_id}:{rec.id}"
-                )
+                new_id = rec.id if rec.id.startswith(f"{user_id}:") else f"{user_id}:{rec.id}"
                 stamped_raw.append(
                     rec.model_copy(
                         update={
@@ -333,9 +315,7 @@ class ImportService:
                 if orm_raw is not None:
                     new_orm_raws.append(orm_raw)
 
-            _, suppressed_count = await self._logical_svc.bulk_create_from_raw(
-                new_orm_raws
-            )
+            _, suppressed_count = await self._logical_svc.bulk_create_from_raw(new_orm_raws)
             await self._session.flush()
 
             # Load logical executions in batches to cap peak memory during import.
@@ -365,9 +345,7 @@ class ImportService:
                 filename,
                 corporate_actions=ca_for_parser,
                 seed_open_lots=seed_for_parser,
-                seed_orphaned_lots=cast(Sequence[SeedLotLike], orphaned_lots)
-                if orphaned_lots
-                else None,
+                seed_orphaned_lots=cast(Sequence[SeedLotLike], orphaned_lots) if orphaned_lots else None,
             )
 
         # Enrich pnl_eur — base class provides a no-op default so this is always safe.
@@ -417,10 +395,7 @@ class ImportService:
                         trades_with_sources[i].created_trade = created_trade
                     trades_created += 1
                 except Exception as exc:  # noqa: BLE001
-                    msg = (
-                        f"Failed to persist trade {trade_data.symbol} "
-                        f"opened at {trade_data.opened_at}: {exc}"
-                    )
+                    msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                     logger.warning(msg)
                     create_warnings.append(msg)
 
@@ -453,10 +428,7 @@ class ImportService:
                     await self._trade_repo.create(trade_with_owner)
                     trades_created += 1
                 except Exception as exc:  # noqa: BLE001
-                    msg = (
-                        f"Failed to persist trade {trade_data.symbol} "
-                        f"opened at {trade_data.opened_at}: {exc}"
-                    )
+                    msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                     logger.warning(msg)
                     create_warnings.append(msg)
                 continue
@@ -465,16 +437,13 @@ class ImportService:
 
             # --- Case 1: This result closes an existing open DB lot (UPDATE) ---
 
-            if db_trade_id is not None and (
-                db_trade_id in open_lot_ids or db_trade_id in orphaned_lot_ids
-            ):
+            if db_trade_id is not None and (db_trade_id in open_lot_ids or db_trade_id in orphaned_lot_ids):
                 is_orphan = db_trade_id in orphaned_lot_ids
                 # Check for manual-edit protection on the original open lot
                 match_key = (trade_data.broker_conid, trade_data.opened_at)
                 if match_key in manually_edited_keys:
                     logger.debug(
-                        "Skipping close of manually-edited trade: "
-                        "symbol=%s opened_at=%s",
+                        "Skipping close of manually-edited trade: symbol=%s opened_at=%s",
                         trade_data.symbol,
                         trade_data.opened_at,
                     )
@@ -482,11 +451,7 @@ class ImportService:
                     continue
 
                 # Only update/insert if the trade is actually closed now
-                if (
-                    trade_data.closed_at is not None
-                    and trade_data.exit_price is not None
-                    and trade_data.entry_price != Decimal("0.001")
-                ):
+                if trade_data.closed_at is not None and trade_data.exit_price is not None and trade_data.entry_price != Decimal("0.001"):
                     if db_trade_id not in already_updated_ids:
                         # First close of this seed lot — UPDATE the original row.
                         try:
@@ -534,11 +499,7 @@ class ImportService:
                                 )
 
                             # Create exit execution for closed lot
-                            exit_direction = (
-                                TradeDirection.SHORT
-                                if trade_data.direction == TradeDirection.LONG
-                                else TradeDirection.LONG
-                            )
+                            exit_direction = TradeDirection.SHORT if trade_data.direction == TradeDirection.LONG else TradeDirection.LONG
                             await self._exec_repo.create(
                                 user_id=user_id,
                                 account_id=account_id,
@@ -559,27 +520,18 @@ class ImportService:
                             already_updated_ids.add(db_trade_id)
                             trades_updated += 1
                         except Exception as exc:  # noqa: BLE001
-                            msg = (
-                                f"Failed to close/fill open/orphaned lot {db_trade_id} "
-                                f"({trade_data.symbol}): {exc}"
-                            )
+                            msg = f"Failed to close/fill open/orphaned lot {db_trade_id} ({trade_data.symbol}): {exc}"
                             logger.warning(msg)
                             create_warnings.append(msg)
                     else:
                         # Subsequent partial close of same seed lot — INSERT a
                         # new row so the full close history is preserved.
-                        trade_with_owner = trade_data.model_copy(
-                            update={"account_id": account_id, "user_id": user_id}
-                        )
+                        trade_with_owner = trade_data.model_copy(update={"account_id": account_id, "user_id": user_id})
                         try:
                             await self._trade_repo.create(trade_with_owner)
                             trades_created += 1
                         except Exception as exc:  # noqa: BLE001
-                            msg = (
-                                f"Failed to insert partial close for "
-                                f"{trade_data.symbol} "
-                                f"closed at {trade_data.closed_at}: {exc}"
-                            )
+                            msg = f"Failed to insert partial close for {trade_data.symbol} closed at {trade_data.closed_at}: {exc}"
                             logger.warning(msg)
                             create_warnings.append(msg)
                 else:
@@ -601,10 +553,7 @@ class ImportService:
                             await self._trade_repo.create(trade_with_owner)
                             trades_created += 1
                         except Exception as exc:  # noqa: BLE001
-                            msg = (
-                                f"Failed to insert remaining open/orphaned lot for "
-                                f"{trade_data.symbol}: {exc}"
-                            )
+                            msg = f"Failed to insert remaining open/orphaned lot for {trade_data.symbol}: {exc}"
                             logger.warning(msg)
                             create_warnings.append(msg)
                     # If not in already_updated_ids, it means the seed lot wasn't
@@ -612,15 +561,9 @@ class ImportService:
                 continue
 
             # --- Case 2: Seed lot that is still open — skip (already in DB) ---
-            if (
-                db_trade_id is not None
-                and db_trade_id not in open_lot_ids
-                and db_trade_id not in orphaned_lot_ids
-            ):
+            if db_trade_id is not None and db_trade_id not in open_lot_ids and db_trade_id not in orphaned_lot_ids:
                 # db_trade_id set but not in open_lot_ids — shouldn't happen, skip
-                logger.debug(
-                    "Skipping seed lot with unknown db_trade_id=%s", db_trade_id
-                )
+                logger.debug("Skipping seed lot with unknown db_trade_id=%s", db_trade_id)
                 continue
 
             # --- Case 3: Seed lot that stayed open (no db_trade_id, but it is
@@ -636,8 +579,7 @@ class ImportService:
             match_key = (trade_data.broker_conid, trade_data.opened_at)
             if match_key in manually_edited_keys:
                 logger.debug(
-                    "Skipping re-import of manually-edited trade: "
-                    "symbol=%s opened_at=%s",
+                    "Skipping re-import of manually-edited trade: symbol=%s opened_at=%s",
                     trade_data.symbol,
                     trade_data.opened_at,
                 )
@@ -675,10 +617,7 @@ class ImportService:
             if is_orphan:
                 # For orphaned trades, the 'opened_at' is actually the
                 # execution time of the close leg.
-                if (
-                    trade_data_exit_price is not None
-                    and trade_data_quantity is not None
-                ):
+                if trade_data_exit_price is not None and trade_data_quantity is not None:
                     close_key = (
                         trade_data_symbol,
                         trade_data_opened_at,
@@ -690,11 +629,7 @@ class ImportService:
                 # For regular trades that are closed, closed_at is the
                 # execution time of the close leg.
                 trade_data_closed_at = trade_data.closed_at
-                if (
-                    trade_data_closed_at
-                    and trade_data_exit_price is not None
-                    and trade_data_quantity is not None
-                ):
+                if trade_data_closed_at and trade_data_exit_price is not None and trade_data_quantity is not None:
                     close_key = (
                         trade_data_symbol,
                         trade_data_closed_at,
@@ -712,9 +647,7 @@ class ImportService:
                 continue
 
             # Stamp both account_id and user_id onto each trade before persisting.
-            trade_with_owner = trade_data.model_copy(
-                update={"account_id": account_id, "user_id": user_id}
-            )
+            trade_with_owner = trade_data.model_copy(update={"account_id": account_id, "user_id": user_id})
             try:
                 created_trade = await self._trade_repo.create(trade_with_owner)
                 trades_created += 1
@@ -722,11 +655,7 @@ class ImportService:
                 # The legacy pipeline does not create LogicalExecution rows,
                 # so we synthesise them here so the Execution Legs table is
                 # populated for every imported trade.
-                exit_direction = (
-                    TradeDirection.SHORT
-                    if trade_data.direction == TradeDirection.LONG
-                    else TradeDirection.LONG
-                )
+                exit_direction = TradeDirection.SHORT if trade_data.direction == TradeDirection.LONG else TradeDirection.LONG
                 await self._exec_repo.create(
                     user_id=user_id,
                     account_id=account_id,
@@ -742,10 +671,7 @@ class ImportService:
                     origin=EXECUTION_ORIGIN_IMPORTED,
                     trade_id=created_trade.id,
                 )
-                if (
-                    created_trade.closed_at is not None
-                    and created_trade.exit_price is not None
-                ):
+                if created_trade.closed_at is not None and created_trade.exit_price is not None:
                     await self._exec_repo.create(
                         user_id=user_id,
                         account_id=account_id,
@@ -763,10 +689,7 @@ class ImportService:
                         pnl=created_trade.pnl,
                     )
             except Exception as exc:  # noqa: BLE001
-                msg = (
-                    f"Failed to persist trade {trade_data.symbol} "
-                    f"opened at {trade_data.opened_at}: {exc}"
-                )
+                msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                 logger.warning(msg)
                 create_warnings.append(msg)
 
@@ -777,9 +700,7 @@ class ImportService:
                 portfolio_id,
             )
             if account is None:
-                raise AccountNotFoundError(
-                    f"Account {account_id} not found for user {user_id}."
-                )
+                raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
 
             cash_service = CashTransactionService(self._session)
             for cash_tx_data in parsed_cash_txs:
@@ -810,22 +731,14 @@ class ImportService:
                     )
                     cash_txs_created += 1
                 except Exception as exc:  # noqa: BLE001
-                    msg = (
-                        f"Failed to persist cash transaction "
-                        f"at {cash_tx_data.date}: {exc}"
-                    )
+                    msg = f"Failed to persist cash transaction at {cash_tx_data.date}: {exc}"
                     logger.warning(msg)
                     create_warnings.append(msg)
 
         all_warnings: list[str] = parser_warnings + create_warnings
 
         if portfolio_base_currency is not None:
-            mismatched_count = sum(
-                1
-                for trade_data in parsed_trades
-                if trade_data.currency is not None
-                and trade_data.currency != portfolio_base_currency
-            )
+            mismatched_count = sum(1 for trade_data in parsed_trades if trade_data.currency is not None and trade_data.currency != portfolio_base_currency)
             if mismatched_count > 0:
                 all_warnings.append(
                     "currency_mismatch: "
@@ -901,9 +814,7 @@ class ImportService:
         """
         account = await self._account_repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
-            raise AccountNotFoundError(
-                f"Account {account_id} not found for user {user_id}."
-            )
+            raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
 
         # Step 1: Delete all logical executions for this account
         exec_deleted = await self._exec_repo.delete_all_for_account(
@@ -926,8 +837,7 @@ class ImportService:
         )
 
         logger.info(
-            "fresh_start_import: deleted %d raw transactions, %d executions "
-            "and %d trades for account %s",
+            "fresh_start_import: deleted %d raw transactions, %d executions and %d trades for account %s",
             raw_deleted,
             exec_deleted,
             trades_deleted,
@@ -974,9 +884,7 @@ class ImportService:
         if raw is None or raw.user_id != user_id:
             from app.core.exceptions import BrokerRawTransactionNotFoundError
 
-            raise BrokerRawTransactionNotFoundError(
-                f"BrokerRawTransaction {raw_id} not found."
-            )
+            raise BrokerRawTransactionNotFoundError(f"BrokerRawTransaction {raw_id} not found.")
         if raw.account_id is not None and portfolio_id is not None:
             account = await self._account_repo.get_by_id(
                 raw.account_id,
@@ -986,17 +894,13 @@ class ImportService:
             if account is None:
                 from app.core.exceptions import BrokerRawTransactionNotFoundError
 
-                raise BrokerRawTransactionNotFoundError(
-                    f"BrokerRawTransaction {raw_id} not found."
-                )
+                raise BrokerRawTransactionNotFoundError(f"BrokerRawTransaction {raw_id} not found.")
         if portfolio_id is not None:
             portfolio = await self._portfolio_repo.get_by_id(portfolio_id, user_id)
             if portfolio is None:
                 from app.core.exceptions import BrokerRawTransactionNotFoundError
 
-                raise BrokerRawTransactionNotFoundError(
-                    f"BrokerRawTransaction {raw_id} not found."
-                )
+                raise BrokerRawTransactionNotFoundError(f"BrokerRawTransaction {raw_id} not found.")
         await self._raw_repo.set_suppressed(raw_id, suppressed)
 
     async def _backfill_execution_trade_links(
@@ -1053,9 +957,7 @@ class ImportService:
             tracemalloc.start()
             tracemalloc_started = True
         processed_trade_ids: set[uuid.UUID] = set()
-        execution_usage_map: dict[
-            uuid.UUID | str, list[tuple[uuid.UUID, ExecutionAllocation]]
-        ] = {}
+        execution_usage_map: dict[uuid.UUID | str, list[tuple[uuid.UUID, ExecutionAllocation]]] = {}
 
         try:
             for trade_source in trades_with_sources:
@@ -1065,16 +967,12 @@ class ImportService:
                 processed_trade_ids.add(trade.id)
 
                 for allocation in trade_source.source_executions:
-                    execution_usage_map.setdefault(allocation.execution_id, []).append(
-                        (trade.id, allocation)
-                    )
+                    execution_usage_map.setdefault(allocation.execution_id, []).append((trade.id, allocation))
 
             for trade_id in processed_trade_ids:
                 db_trade = await self._trade_repo.get_by_id(trade_id, user_id)
                 if db_trade is None:
-                    raise TradeNotFoundError(
-                        f"Trade {trade_id} not found for split-aware backfill."
-                    )
+                    raise TradeNotFoundError(f"Trade {trade_id} not found for split-aware backfill.")
 
             direct_pairs: list[tuple[uuid.UUID, uuid.UUID]] = []
             split_inputs: dict[
@@ -1086,16 +984,12 @@ class ImportService:
             if execution_ids:
                 # Filter out string IDs (ground-truth) from DB backfill check.
                 # Ground-truth executions are already validated during aggregation.
-                db_execution_ids = [
-                    eid for eid in execution_ids if isinstance(eid, uuid.UUID)
-                ]
+                db_execution_ids = [eid for eid in execution_ids if isinstance(eid, uuid.UUID)]
                 fetched_executions = await self._list_executions_for_backfill(
                     execution_ids=db_execution_ids,
                     user_id=user_id,
                 )
-                execution_by_id = {
-                    execution.id: execution for execution in fetched_executions
-                }
+                execution_by_id = {execution.id: execution for execution in fetched_executions}
 
                 # Build a mapping of trade_id to its TradeCreate object for easy lookup
                 trade_create_map: dict[uuid.UUID, TradeCreate] = {}
@@ -1113,18 +1007,13 @@ class ImportService:
 
                     execution = execution_by_id.get(execution_id)
                     if execution is None:
-                        raise ExecutionNotFoundError(
-                            "Execution "
-                            f"{execution_id} not found for split-aware backfill."
-                        )
+                        raise ExecutionNotFoundError(f"Execution {execution_id} not found for split-aware backfill.")
 
                     # Recompute commission_used proportionally from the original
                     # execution's commission.
                     exec_qty = execution.quantity
                     exec_comm = execution.commission
-                    corrected_usage_list: list[
-                        tuple[uuid.UUID, ExecutionAllocation]
-                    ] = []
+                    corrected_usage_list: list[tuple[uuid.UUID, ExecutionAllocation]] = []
 
                     # Deduplicate allocations per trade: an execution can appear as
                     # both opening and closing leg of the same trade in position flips.
@@ -1138,8 +1027,7 @@ class ImportService:
                             existing = trade_allocation_map[trade_id]
                             if existing.quantity_used != alloc.quantity_used:
                                 logger.warning(
-                                    "Execution %s mismatched qty for trade %s: "
-                                    "%s != %s",
+                                    "Execution %s mismatched qty for trade %s: %s != %s",
                                     execution_id,
                                     trade_id,
                                     existing.quantity_used,
@@ -1147,12 +1035,7 @@ class ImportService:
                                 )
                             continue
 
-                        if exec_qty > Decimal("0"):
-                            proportional_comm = (
-                                exec_comm * alloc.quantity_used / exec_qty
-                            )
-                        else:
-                            proportional_comm = Decimal("0")
+                        proportional_comm = exec_comm * alloc.quantity_used / exec_qty if exec_qty > Decimal("0") else Decimal("0")
 
                         corrected_alloc = ExecutionAllocation(
                             execution_id=alloc.execution_id,
@@ -1178,9 +1061,7 @@ class ImportService:
             direct_updated = 0
             if direct_pairs:
                 async with self._session.begin_nested():
-                    direct_updated = await self._exec_repo.bulk_update_trade_ids(
-                        direct_pairs
-                    )
+                    direct_updated = await self._exec_repo.bulk_update_trade_ids(direct_pairs)
 
             split_children_created = 0
             split_errors = 0
@@ -1240,8 +1121,7 @@ class ImportService:
             )
             if memory_peak_bytes >= IMPORT_MEMORY_ALERT_THRESHOLD_BYTES:
                 logger.warning(
-                    "split_backfill_memory_threshold_exceeded "
-                    "user_id=%s peak_bytes=%d threshold_bytes=%d",
+                    "split_backfill_memory_threshold_exceeded user_id=%s peak_bytes=%d threshold_bytes=%d",
                     user_id,
                     memory_peak_bytes,
                     IMPORT_MEMORY_ALERT_THRESHOLD_BYTES,
@@ -1375,9 +1255,7 @@ class ImportService:
             )
             if not logical_batch:
                 return
-            trade_batch = logical_executions_to_trade_creates(
-                cast(list[ExecutionLike], logical_batch)
-            )
+            trade_batch = logical_executions_to_trade_creates(cast(list[ExecutionLike], logical_batch))
             yield trade_batch
             if len(logical_batch) < IMPORT_EXECUTIONS_BATCH_SIZE:
                 return
@@ -1396,10 +1274,7 @@ class ImportService:
         """
         if max_attempts <= 1:
             return ()
-        return tuple(
-            IMPORT_RETRY_BASE_DELAY_SECONDS * (2**attempt)
-            for attempt in range(max_attempts - 1)
-        )
+        return tuple(IMPORT_RETRY_BASE_DELAY_SECONDS * (2**attempt) for attempt in range(max_attempts - 1))
 
     async def _with_retry(
         self,
@@ -1491,9 +1366,7 @@ class ImportService:
         """
         execution_id = execution.id
         if execution.user_id != user_id:
-            raise ExecutionValidationError(
-                f"Execution {execution_id} does not belong to user {user_id}."
-            )
+            raise ExecutionValidationError(f"Execution {execution_id} does not belong to user {user_id}.")
 
         allocations = [allocation for _, allocation in usage_list]
         self._validate_split_quantities(execution.quantity, allocations)
@@ -1501,9 +1374,7 @@ class ImportService:
 
         parent_deleted = await self._exec_repo.soft_delete(execution_id)
         if not parent_deleted:
-            raise ExecutionNotFoundError(
-                f"Execution {execution_id} not found during split soft-delete."
-            )
+            raise ExecutionNotFoundError(f"Execution {execution_id} not found during split soft-delete.")
 
         created_children = 0
         for trade_id, allocation in usage_list:
@@ -1585,11 +1456,7 @@ class ImportService:
         )
 
         # 2. Calculate proportional commission
-        commission_for_trade = (
-            (original.commission * quantity_for_trade) / original.quantity
-            if original.quantity > 0
-            else Decimal("0")
-        )
+        commission_for_trade = (original.commission * quantity_for_trade) / original.quantity if original.quantity > 0 else Decimal("0")
 
         self._validate_split_commissions(
             original.commission,
@@ -1686,9 +1553,7 @@ class ImportService:
 
         execution = await self._exec_repo.get_by_id(execution_id, user_id=user_id)
         if execution is None:
-            raise ExecutionNotFoundError(
-                f"Execution {execution_id} not found for user {user_id}."
-            )
+            raise ExecutionNotFoundError(f"Execution {execution_id} not found for user {user_id}.")
 
         success = await self._exec_repo.update_trade_id(execution_id, trade_id)
 
@@ -1700,9 +1565,7 @@ class ImportService:
                 user_id,
             )
         else:
-            raise ExecutionNotFoundError(
-                f"Execution {execution_id} not found during trade assignment."
-            )
+            raise ExecutionNotFoundError(f"Execution {execution_id} not found during trade assignment.")
 
         return success
 
@@ -1722,10 +1585,7 @@ class ImportService:
         """
         total_used = sum(alloc.quantity_used for alloc in allocations)
         if total_used > original_qty:
-            raise ExecutionValidationError(
-                "Allocation overflow: "
-                f"total used {total_used} > original {original_qty}"
-            )
+            raise ExecutionValidationError(f"Allocation overflow: total used {total_used} > original {original_qty}")
 
     def _validate_split_commissions(
         self,
@@ -1744,10 +1604,7 @@ class ImportService:
         """
         total_used = sum(alloc.commission_used for alloc in allocations)
         if total_used > original_commission:
-            raise ExecutionValidationError(
-                "Commission overflow: "
-                f"total used {total_used} > original {original_commission}"
-            )
+            raise ExecutionValidationError(f"Commission overflow: total used {total_used} > original {original_commission}")
 
     async def _validate_split_backfill_consistency(
         self,
@@ -1768,65 +1625,41 @@ class ImportService:
         for parent_id, (parent, usage_list) in split_inputs.items():
             children = await self._exec_repo.get_by_parent_id(parent_id)
             if not children:
-                raise ExecutionValidationError(
-                    f"Split consistency failed: no children found for {parent_id}."
-                )
+                raise ExecutionValidationError(f"Split consistency failed: no children found for {parent_id}.")
 
             expected_trade_ids = {trade_id for trade_id, _ in usage_list}
-            child_trade_ids = {
-                child.trade_id for child in children if child.trade_id is not None
-            }
+            child_trade_ids = {child.trade_id for child in children if child.trade_id is not None}
 
             if child_trade_ids != expected_trade_ids:
                 raise ExecutionValidationError(
-                    "Split assignment completeness failed for "
-                    f"{parent_id}: expected={len(expected_trade_ids)} "
-                    f"actual={len(child_trade_ids)}"
+                    f"Split assignment completeness failed for {parent_id}: expected={len(expected_trade_ids)} actual={len(child_trade_ids)}"
                 )
 
             if any(child.parent_id != parent_id for child in children):
-                raise ExecutionValidationError(
-                    f"Split lineage integrity failed for {parent_id}."
-                )
+                raise ExecutionValidationError(f"Split lineage integrity failed for {parent_id}.")
 
             if any(child.origin != EXECUTION_ORIGIN_SPLIT for child in children):
-                raise ExecutionValidationError(
-                    f"Split integrity failed: non-split child found for {parent_id}."
-                )
+                raise ExecutionValidationError(f"Split integrity failed: non-split child found for {parent_id}.")
 
             if any(child.trade_id is None for child in children):
-                raise ExecutionValidationError(
-                    f"Split assignment completeness failed for {parent_id}."
-                )
+                raise ExecutionValidationError(f"Split assignment completeness failed for {parent_id}.")
 
-            expected_quantity = sum(
-                allocation.quantity_used for _, allocation in usage_list
-            )
-            expected_commission = sum(
-                allocation.commission_used for _, allocation in usage_list
-            )
+            expected_quantity = sum(allocation.quantity_used for _, allocation in usage_list)
+            expected_commission = sum(allocation.commission_used for _, allocation in usage_list)
 
             children_quantity = sum(child.quantity for child in children)
             children_commission = sum(child.commission for child in children)
 
             if children_quantity != expected_quantity:
-                raise ExecutionValidationError(
-                    "Split quantity conservation failed for "
-                    f"{parent_id}: expected={expected_quantity} "
-                    f"actual={children_quantity}"
-                )
+                raise ExecutionValidationError(f"Split quantity conservation failed for {parent_id}: expected={expected_quantity} actual={children_quantity}")
 
             if children_commission != expected_commission:
                 raise ExecutionValidationError(
-                    "Split commission conservation failed for "
-                    f"{parent_id}: expected={expected_commission} "
-                    f"actual={children_commission}"
+                    f"Split commission conservation failed for {parent_id}: expected={expected_commission} actual={children_commission}"
                 )
 
             self._validate_split_quantities(parent.quantity, [a for _, a in usage_list])
-            self._validate_split_commissions(
-                parent.commission, [a for _, a in usage_list]
-            )
+            self._validate_split_commissions(parent.commission, [a for _, a in usage_list])
 
     async def _find_orphaned_children_for_trades(
         self,
@@ -1845,8 +1678,7 @@ class ImportService:
         account_ids = {
             trade_source.created_trade.account_id
             for trade_source in trades_with_sources
-            if trade_source.created_trade is not None
-            and trade_source.created_trade.account_id is not None
+            if trade_source.created_trade is not None and trade_source.created_trade.account_id is not None
         }
 
         orphaned_count = 0
@@ -1856,8 +1688,7 @@ class ImportService:
 
         if orphaned_count > 0:
             logger.warning(
-                "split_backfill_orphaned_children_detected "
-                "user_id=%s accounts=%d count=%d",
+                "split_backfill_orphaned_children_detected user_id=%s accounts=%d count=%d",
                 user_id,
                 len(account_ids),
                 orphaned_count,
@@ -1896,8 +1727,7 @@ class ImportService:
         account_ids = {
             trade_source.created_trade.account_id
             for trade_source in trades_with_sources
-            if trade_source.created_trade is not None
-            and trade_source.created_trade.account_id is not None
+            if trade_source.created_trade is not None and trade_source.created_trade.account_id is not None
         }
 
         resolved_count = 0
@@ -1917,28 +1747,14 @@ class ImportService:
                     continue
                 sibling_children = siblings_by_parent.get(orphan.parent_id)
                 if sibling_children is None:
-                    sibling_children = await self._exec_repo.get_by_parent_id(
-                        orphan.parent_id
-                    )
+                    sibling_children = await self._exec_repo.get_by_parent_id(orphan.parent_id)
                     siblings_by_parent[orphan.parent_id] = sibling_children
 
-                unresolved_trade_ids = unresolved_trade_ids_by_parent.get(
-                    orphan.parent_id
-                )
+                unresolved_trade_ids = unresolved_trade_ids_by_parent.get(orphan.parent_id)
                 if unresolved_trade_ids is None:
-                    assigned_trade_ids = {
-                        child.trade_id
-                        for child in sibling_children
-                        if child.trade_id is not None
-                    }
-                    unresolved_trade_ids = [
-                        trade_id
-                        for trade_id in expected_trade_ids
-                        if trade_id not in assigned_trade_ids
-                    ]
-                    unresolved_trade_ids_by_parent[orphan.parent_id] = (
-                        unresolved_trade_ids
-                    )
+                    assigned_trade_ids = {child.trade_id for child in sibling_children if child.trade_id is not None}
+                    unresolved_trade_ids = [trade_id for trade_id in expected_trade_ids if trade_id not in assigned_trade_ids]
+                    unresolved_trade_ids_by_parent[orphan.parent_id] = unresolved_trade_ids
                 if not unresolved_trade_ids:
                     continue
                 target_trade_id = unresolved_trade_ids.pop(0)

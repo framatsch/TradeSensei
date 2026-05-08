@@ -52,9 +52,7 @@ class UserRepository:
         Returns:
             The matching :class:`User`, or ``None`` if not found.
         """
-        result = await self._session.execute(
-            select(User).where(User.username == username)
-        )
+        result = await self._session.execute(select(User).where(User.username == username))
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> User | None:

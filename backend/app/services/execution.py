@@ -73,9 +73,7 @@ class ExecutionService:
         if not trade:
             raise TradeNotFoundError("Trade not found.")
 
-        return await self.execution_repo.list_by_trade_id(
-            trade_id, include_deleted=include_deleted
-        )
+        return await self.execution_repo.list_by_trade_id(trade_id, include_deleted=include_deleted)
 
     async def create_manual_execution(
         self,
@@ -109,9 +107,7 @@ class ExecutionService:
             if data.multiplier is not None:
                 leg_multiplier = data.multiplier
         if leg_asset_class is None:
-            raise ExecutionValidationError(
-                "asset_class is required for execution legs on COMBO trades."
-            )
+            raise ExecutionValidationError("asset_class is required for execution legs on COMBO trades.")
 
         # Create with origin=manual and copy instrument props from trade
         payload = data.model_dump(
@@ -223,9 +219,7 @@ class ExecutionService:
 
         # Decision 4: already deleted → 409 Conflict
         if execution.deleted:
-            raise ExecutionValidationError(
-                "Execution is already deleted. Use restore to undo."
-            )
+            raise ExecutionValidationError("Execution is already deleted. Use restore to undo.")
 
         trade_id = execution.trade_id
 
@@ -233,9 +227,7 @@ class ExecutionService:
             # Hard-delete: row removed, return None (→ 204 No Content)
             await self.execution_repo.delete(execution_id)
             if trade_id:
-                remaining = await self.execution_repo.list_by_trade_id(
-                    trade_id, include_deleted=False
-                )
+                remaining = await self.execution_repo.list_by_trade_id(trade_id, include_deleted=False)
                 if not remaining:
                     # Trade is now empty — cascade-delete it
                     trade_to_delete = await self.trade_repo.get_by_id(
@@ -294,10 +286,7 @@ class ExecutionService:
                 raise ExecutionNotFoundError("Execution not found.")
 
         if not execution.deleted:
-            raise ExecutionValidationError(
-                "Execution is not deleted. "
-                "Only soft-deleted executions can be restored."
-            )
+            raise ExecutionValidationError("Execution is not deleted. Only soft-deleted executions can be restored.")
 
         await self.execution_repo.restore(execution_id)
         updated = await self.execution_repo.get_by_id(execution_id)
@@ -354,17 +343,13 @@ class ExecutionService:
             raise ExecutionValidationError("Cannot split a deleted execution.")
 
         if execution.origin not in (EXECUTION_ORIGIN_IMPORTED, EXECUTION_ORIGIN_MANUAL):
-            raise ExecutionValidationError(
-                f"Cannot split an execution with origin='{execution.origin}'. "
-                "Only imported or manual executions can be split."
-            )
+            raise ExecutionValidationError(f"Cannot split an execution with origin='{execution.origin}'. Only imported or manual executions can be split.")
 
         # Validate quantity sum
         _TOLERANCE = Decimal("0.0000001")
         if abs(data.quantity_a + data.quantity_b - execution.quantity) > _TOLERANCE:
             raise ExecutionValidationError(
-                f"quantity_a ({data.quantity_a}) + quantity_b ({data.quantity_b}) "
-                f"must equal original quantity ({execution.quantity})."
+                f"quantity_a ({data.quantity_a}) + quantity_b ({data.quantity_b}) must equal original quantity ({execution.quantity})."
             )
 
         # Soft-delete the original
@@ -381,11 +366,7 @@ class ExecutionService:
             quantity=data.quantity_a,
             price=data.price_a if data.price_a is not None else execution.price,
             commission=execution.commission * (data.quantity_a / execution.quantity),
-            executed_at=(
-                data.executed_at_a
-                if data.executed_at_a is not None
-                else execution.executed_at
-            ),
+            executed_at=(data.executed_at_a if data.executed_at_a is not None else execution.executed_at),
             pnl=None,
             currency=execution.currency,
             multiplier=execution.multiplier,
@@ -405,11 +386,7 @@ class ExecutionService:
             quantity=data.quantity_b,
             price=data.price_b if data.price_b is not None else execution.price,
             commission=execution.commission * (data.quantity_b / execution.quantity),
-            executed_at=(
-                data.executed_at_b
-                if data.executed_at_b is not None
-                else execution.executed_at
-            ),
+            executed_at=(data.executed_at_b if data.executed_at_b is not None else execution.executed_at),
             pnl=None,
             currency=execution.currency,
             multiplier=execution.multiplier,
@@ -470,9 +447,7 @@ class ExecutionService:
                 mismatched trade/symbol/direction, or primary_id not included).
         """
         if data.primary_id not in data.execution_ids:
-            raise ExecutionValidationError(
-                "primary_id must be included in execution_ids."
-            )
+            raise ExecutionValidationError("primary_id must be included in execution_ids.")
 
         # Load all source executions
         sources: list[LogicalExecution] = []
@@ -481,9 +456,7 @@ class ExecutionService:
             if ex is None:
                 raise ExecutionNotFoundError(f"Execution {ex_id} not found.")
             if ex.deleted:
-                raise ExecutionValidationError(
-                    f"Execution {ex_id} is already deleted and cannot be merged."
-                )
+                raise ExecutionValidationError(f"Execution {ex_id} is already deleted and cannot be merged.")
             sources.append(ex)
 
         primary = next(ex for ex in sources if ex.id == data.primary_id)
@@ -494,17 +467,11 @@ class ExecutionService:
         first_direction = sources[0].direction
         for ex in sources[1:]:
             if ex.trade_id != first_trade_id:
-                raise ExecutionValidationError(
-                    "All executions must belong to the same trade."
-                )
+                raise ExecutionValidationError("All executions must belong to the same trade.")
             if ex.symbol != first_symbol:
-                raise ExecutionValidationError(
-                    "All executions must have the same symbol."
-                )
+                raise ExecutionValidationError("All executions must have the same symbol.")
             if ex.direction != first_direction:
-                raise ExecutionValidationError(
-                    "All executions must have the same direction."
-                )
+                raise ExecutionValidationError("All executions must have the same direction.")
 
         if first_trade_id is not None:
             trade = await self.trade_repo.get_by_id(
@@ -521,15 +488,9 @@ class ExecutionService:
             merged_price = data.price
         else:
             total_value = sum((ex.quantity * ex.price for ex in sources), Decimal("0"))
-            merged_price = (
-                total_value / total_quantity
-                if total_quantity > Decimal("0")
-                else primary.price
-            )
+            merged_price = total_value / total_quantity if total_quantity > Decimal("0") else primary.price
         merged_commission = sum((ex.commission for ex in sources), Decimal("0"))
-        merged_executed_at = (
-            data.executed_at if data.executed_at is not None else primary.executed_at
-        )
+        merged_executed_at = data.executed_at if data.executed_at is not None else primary.executed_at
 
         # Soft-delete all source executions
         for ex in sources:
@@ -606,26 +567,17 @@ class ExecutionService:
         if not target_trade:
             raise TradeNotFoundError("Target trade not found.")
 
-        if (
-            execution.symbol != target_trade.symbol
-            or execution.account_id != target_trade.account_id
-        ):
-            raise ExecutionValidationError(
-                "Cannot reassign: symbol or account mismatch."
-            )
+        if execution.symbol != target_trade.symbol or execution.account_id != target_trade.account_id:
+            raise ExecutionValidationError("Cannot reassign: symbol or account mismatch.")
 
         source_trade_id = execution.trade_id
 
-        execution = await self.execution_repo.update(
-            execution, trade_id=target_trade_id
-        )
+        execution = await self.execution_repo.update(execution, trade_id=target_trade_id)
 
         await self._re_aggregate_trade(target_trade_id, user_id)
 
         if source_trade_id and source_trade_id != target_trade_id:
-            remaining_executions = await self.execution_repo.list_by_trade_id(
-                source_trade_id
-            )
+            remaining_executions = await self.execution_repo.list_by_trade_id(source_trade_id)
             if not remaining_executions:
                 source_trade = await self.trade_repo.get_by_id(source_trade_id, user_id)
                 if source_trade:
@@ -674,13 +626,9 @@ class ExecutionService:
         if source_trade is None:
             raise ExecutionNotFoundError("Execution not found.")
 
-        remaining_executions = await self.execution_repo.list_by_trade_id(
-            source_trade_id
-        )
+        remaining_executions = await self.execution_repo.list_by_trade_id(source_trade_id)
         if len(remaining_executions) <= 1:
-            raise ExecutionValidationError(
-                "Cannot detach the only execution in a trade."
-            )
+            raise ExecutionValidationError("Cannot detach the only execution in a trade.")
 
         # Create a new trade for the execution
         new_trade_data = TradeCreate(
@@ -743,9 +691,7 @@ class ExecutionService:
             return
 
         # Decision 5: filter to only non-deleted executions
-        executions = await self.execution_repo.list_by_trade_id(
-            trade_id, include_deleted=False
-        )
+        executions = await self.execution_repo.list_by_trade_id(trade_id, include_deleted=False)
         if not executions:
             return
 
@@ -769,9 +715,7 @@ class ExecutionService:
         for ex in executions:
             total_commission += ex.commission
 
-            is_entry = (is_long and ex.direction == Direction.LONG) or (
-                not is_long and ex.direction == Direction.SHORT
-            )
+            is_entry = (is_long and ex.direction == Direction.LONG) or (not is_long and ex.direction == Direction.SHORT)
 
             if is_entry:
                 entry_qty += ex.quantity
@@ -807,9 +751,7 @@ class ExecutionService:
                 trade.pnl = None
 
             if trade.pnl is not None:
-                trade.net_pnl = (
-                    (trade.pnl - total_commission).quantize(_PRECISION).normalize()
-                )
+                trade.net_pnl = (trade.pnl - total_commission).quantize(_PRECISION).normalize()
             else:
                 trade.net_pnl = None
         else:
@@ -838,21 +780,11 @@ class ExecutionService:
                 else:
                     multiplier = Decimal(trade.multiplier)
                     if is_long:
-                        raw_pnl = (
-                            (trade.exit_price - trade.entry_price)
-                            * exit_qty
-                            * multiplier
-                        )
+                        raw_pnl = (trade.exit_price - trade.entry_price) * exit_qty * multiplier
                     else:
-                        raw_pnl = (
-                            (trade.entry_price - trade.exit_price)
-                            * exit_qty
-                            * multiplier
-                        )
+                        raw_pnl = (trade.entry_price - trade.exit_price) * exit_qty * multiplier
                     trade.pnl = raw_pnl.quantize(_PRECISION).normalize()
-                trade.net_pnl = (
-                    (trade.pnl - total_commission).quantize(_PRECISION).normalize()
-                )
+                trade.net_pnl = (trade.pnl - total_commission).quantize(_PRECISION).normalize()
             else:
                 trade.pnl = None
                 trade.net_pnl = None

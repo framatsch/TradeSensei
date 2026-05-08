@@ -73,9 +73,7 @@ async def upload_screenshot(
     content = await file.read()
     suffix = Path(file.filename or "upload").suffix.lower() or ".jpg"
     try:
-        updated = await service.add_screenshot(
-            trade_id, content, suffix, current_user.id
-        )
+        updated = await service.add_screenshot(trade_id, content, suffix, current_user.id)
     except ValueError as exc:
         if "File too large" in str(exc):
             raise HTTPException(
@@ -87,9 +85,7 @@ async def upload_screenshot(
             detail=str(exc),
         ) from exc
     except TradeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found.") from exc
     return ResponseEnvelope[TradeRead](data=updated)
 
 
@@ -121,16 +117,12 @@ async def delete_screenshot(
     """
     # Sanitize: filename must not contain path traversal
     if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename."
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename.")
 
     try:
         trade = await service.get_trade(trade_id, current_user.id)
     except TradeNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found.") from exc
 
     # Find the URL that ends with the filename
     target_url = next(

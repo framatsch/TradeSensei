@@ -109,10 +109,7 @@ async def get_config() -> AuthConfigResponse:
     oidc_active = settings.oidc_enabled and bool(settings.oidc_configuration_url)
     any_external_provider = google_enabled or oidc_active
     if settings.local_auth_disabled and not any_external_provider:
-        logger.warning(
-            "LOCAL_AUTH_DISABLED=true but no external provider is configured — "
-            "ignoring flag to prevent lockout."
-        )
+        logger.warning("LOCAL_AUTH_DISABLED=true but no external provider is configured — ignoring flag to prevent lockout.")
     local_auth_enabled = not (settings.local_auth_disabled and any_external_provider)
     return AuthConfigResponse(
         google_enabled=google_enabled,
@@ -187,9 +184,7 @@ async def register(
         "Pass the access token in subsequent requests as "
         "``Authorization: Bearer <token>``."
     ),
-    response_description=(
-        "Access token in the response body; refresh token set as a cookie."
-    ),
+    response_description=("Access token in the response body; refresh token set as a cookie."),
     responses={
         200: {"description": "Authentication successful."},
         401: {"description": "Incorrect username/email or password."},
@@ -223,9 +218,7 @@ async def login(
         HTTPException: 401 if the username/email or password is incorrect.
     """
     try:
-        access_token, refresh_token = await service.login(
-            UserLogin(username=form_data.username, password=form_data.password)
-        )
+        access_token, refresh_token = await service.login(UserLogin(username=form_data.username, password=form_data.password))
     except InvalidCredentialsError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -259,12 +252,7 @@ async def login(
     response_description="A fresh short-lived access token.",
     responses={
         200: {"description": "Token refreshed successfully."},
-        401: {
-            "description": (
-                "Refresh token cookie is absent, has been tampered with, "
-                "or has expired."
-            )
-        },
+        401: {"description": ("Refresh token cookie is absent, has been tampered with, or has expired.")},
     },
 )
 async def refresh_token(
@@ -292,9 +280,7 @@ async def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        new_access_token, new_refresh_token = await service.refresh(
-            refresh_token_cookie
-        )
+        new_access_token, new_refresh_token = await service.refresh(refresh_token_cookie)
     except InvalidCredentialsError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -410,9 +396,7 @@ async def google_login(request: Request) -> RedirectResponse:
         "redirects the browser to the frontend callback page with a "
         "short-lived one-time token in the query string."
     ),
-    response_description=(
-        "HTTP 302 redirect to the frontend callback page with ``?token=``."
-    ),
+    response_description=("HTTP 302 redirect to the frontend callback page with ``?token=``."),
     status_code=status.HTTP_302_FOUND,
     responses={
         302: {"description": "Redirect to frontend with one-time token or error."},
@@ -538,9 +522,7 @@ async def google_exchange(
 # Password reset routes
 # ---------------------------------------------------------------------------
 
-_FORGOT_PASSWORD_RESPONSE = (
-    "If an account with that email exists, a reset link has been sent."
-)
+_FORGOT_PASSWORD_RESPONSE = "If an account with that email exists, a reset link has been sent."
 
 
 @router.post(
@@ -597,10 +579,7 @@ async def forgot_password(
     "/reset-password",
     status_code=status.HTTP_200_OK,
     summary="Reset Password via Token",
-    description=(
-        "Validates the password-reset token from the email link, sets the new "
-        "password, and invalidates all existing sessions for the user."
-    ),
+    description=("Validates the password-reset token from the email link, sets the new password, and invalidates all existing sessions for the user."),
     responses={
         200: {"description": "Password updated successfully."},
         401: {"description": "Token is invalid, expired, or already used."},
@@ -718,12 +697,7 @@ async def oidc_callback(
     # Some providers use "preferred_username" or "name", some don't have email_verified
     sub = str(user_info["sub"])
     email = str(user_info.get("email", f"{sub}@oidc.local"))
-    display_name = str(
-        user_info.get("preferred_username")
-        or user_info.get("name")
-        or user_info.get("email")
-        or "user"
-    )
+    display_name = str(user_info.get("preferred_username") or user_info.get("name") or user_info.get("email") or "user")
 
     # For internal OIDC (like Authentik), we often want to trust the email
     # even if the provider hasn't explicitly flagged it as "verified" in the UI.

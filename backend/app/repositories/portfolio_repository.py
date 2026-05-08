@@ -40,11 +40,7 @@ class PortfolioRepository:
         return result.scalar_one_or_none()
 
     async def list_by_user(self, user_id: uuid.UUID) -> list[Portfolio]:
-        result = await self._session.execute(
-            select(Portfolio)
-            .where(Portfolio.user_id == user_id)
-            .order_by(Portfolio.created_at.asc())
-        )
+        result = await self._session.execute(select(Portfolio).where(Portfolio.user_id == user_id).order_by(Portfolio.created_at.asc()))
         return list(result.scalars().all())
 
     async def create(self, user_id: uuid.UUID, data: PortfolioCreate) -> Portfolio:

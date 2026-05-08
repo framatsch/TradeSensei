@@ -126,9 +126,7 @@ class CashTransactionCreateRequest(BaseModel):
             raise ValueError("Datetime must be timezone-aware (include UTC offset).")
         return value
 
-    def to_cash_transaction_create(
-        self, account_id: uuid.UUID
-    ) -> CashTransactionCreate:
+    def to_cash_transaction_create(self, account_id: uuid.UUID) -> CashTransactionCreate:
         """Convert this request to an internal schema."""
         return CashTransactionCreate(
             account_id=account_id,

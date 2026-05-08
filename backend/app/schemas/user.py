@@ -36,9 +36,7 @@ class UserCreate(BaseModel):
     password: str = Field(
         ...,
         min_length=PASSWORD_MIN_LENGTH,
-        description=(
-            "Plain-text password (minimum 8 characters). Never stored or returned."
-        ),
+        description=("Plain-text password (minimum 8 characters). Never stored or returned."),
         examples=["S3cur3P@ss!"],
     )
 
@@ -125,10 +123,7 @@ class UserSettingsRead(BaseModel):
     )
     default_date_range: Literal["all", "ytd", "last30"] = Field(
         default="all",
-        description=(
-            "Default date range filter for the trades page and dashboard. "
-            "Applied when no URL query parameters are present."
-        ),
+        description=("Default date range filter for the trades page and dashboard. Applied when no URL query parameters are present."),
         examples=["all", "ytd", "last30"],
     )
     features: dict[str, bool] = Field(

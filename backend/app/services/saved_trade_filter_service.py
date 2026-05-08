@@ -34,9 +34,7 @@ class SavedTradeFilterService:
             # Pydantic will validate the schema and strip unknowns or raise errors
             TradeFilterParams.model_validate(definition)
         except Exception as e:
-            raise SavedTradeFilterValidationError(
-                f"Invalid filter definition: {str(e)}"
-            ) from e
+            raise SavedTradeFilterValidationError(f"Invalid filter definition: {str(e)}") from e
 
     async def list_for_user(self, user_id: uuid.UUID) -> Sequence[SavedTradeFilter]:
         """List all saved filters visible to the user (system + their own)."""
@@ -75,9 +73,7 @@ class SavedTradeFilterService:
             raise SavedTradeFilterPermissionError("Cannot modify system filters")
 
         if db_filter.owner_id != user_id:
-            raise SavedTradeFilterPermissionError(
-                "Not authorized to modify this filter"
-            )
+            raise SavedTradeFilterPermissionError("Not authorized to modify this filter")
 
         if definition is not None:
             self._validate_definition(definition)
@@ -106,8 +102,6 @@ class SavedTradeFilterService:
             raise SavedTradeFilterPermissionError("Cannot modify system filters")
 
         if db_filter.owner_id != user_id:
-            raise SavedTradeFilterPermissionError(
-                "Not authorized to modify this filter"
-            )
+            raise SavedTradeFilterPermissionError("Not authorized to modify this filter")
 
         await self.repository.delete(filter_id)

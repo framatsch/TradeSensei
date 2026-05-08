@@ -225,17 +225,11 @@ def _apply_filters(
                 select(TradeTag.trade_id)
                 .where(TradeTag.tag_id.in_(filters.tag_ids))
                 .group_by(TradeTag.trade_id)
-                .having(
-                    func.count(func.distinct(TradeTag.tag_id)) == len(filters.tag_ids)
-                )
+                .having(func.count(func.distinct(TradeTag.tag_id)) == len(filters.tag_ids))
                 .scalar_subquery()
             )
         else:  # "or"
-            tag_subq = (
-                select(TradeTag.trade_id)
-                .where(TradeTag.tag_id.in_(filters.tag_ids))
-                .scalar_subquery()
-            )
+            tag_subq = select(TradeTag.trade_id).where(TradeTag.tag_id.in_(filters.tag_ids)).scalar_subquery()
         stmt = stmt.where(Trade.id.in_(tag_subq))
 
     if filters.playbook_id is not None:
@@ -276,9 +270,7 @@ def _apply_filters(
         # PostgreSQL EXTRACT(DOW) returns 0=Sunday, 1=Monday, …, 6=Saturday.
         # Our API convention is 0=Monday, …, 6=Sunday (ISO).
         # Convert: postgres_dow = (api_day_of_week + 1) % 7
-        stmt = stmt.where(
-            func.extract("dow", Trade.opened_at) == (filters.day_of_week + 1) % 7
-        )
+        stmt = stmt.where(func.extract("dow", Trade.opened_at) == (filters.day_of_week + 1) % 7)
 
     return stmt
 
@@ -317,9 +309,7 @@ class TradeRepository:
             trade: The trade ORM instance whose tags to replace.
             tag_ids: New list of tag UUIDs to associate.
         """
-        await self._session.execute(
-            delete(TradeTag).where(TradeTag.trade_id == trade.id)
-        )
+        await self._session.execute(delete(TradeTag).where(TradeTag.trade_id == trade.id))
         for tag_id in tag_ids:
             self._session.add(TradeTag(trade_id=trade.id, tag_id=tag_id))
         await self._session.flush()
@@ -352,9 +342,7 @@ class TradeRepository:
         if data.tag_ids:
             await self._set_tags(trade, data.tag_ids)
 
-        await self._session.refresh(
-            trade, attribute_names=["tags", "trade_notes", "playbook", "account"]
-        )
+        await self._session.refresh(trade, attribute_names=["tags", "trade_notes", "playbook", "account"])
         return trade
 
     async def bulk_create(self, trades: Sequence[TradeCreate]) -> int:
@@ -527,9 +515,7 @@ class TradeRepository:
         clamped_limit = max(1, min(limit, PAGINATION_MAX_LIMIT))
 
         # Resolve sort parameters (use defaults when not provided).
-        effective_sort_by = (
-            sort.sort_by if sort is not None else TradeSortField.opened_at
-        )
+        effective_sort_by = sort.sort_by if sort is not None else TradeSortField.opened_at
         effective_sort_dir = sort.sort_dir if sort is not None else "desc"
 
         primary_order = _build_sort_column(effective_sort_by, effective_sort_dir)
@@ -580,10 +566,7 @@ class TradeRepository:
 
                 # Parse the cursor value to the correct Python type for comparison.
                 parsed_cursor_val: object
-                if (
-                    effective_sort_by == TradeSortField.opened_at
-                    or effective_sort_by == TradeSortField.closed_at
-                ):
+                if effective_sort_by == TradeSortField.opened_at or effective_sort_by == TradeSortField.closed_at:
                     parsed_cursor_val = datetime.fromisoformat(sort_val_str)
                 elif effective_sort_by in (
                     TradeSortField.entry_price,
@@ -597,15 +580,9 @@ class TradeRepository:
                     parsed_cursor_val = sort_val_str
 
                 if effective_sort_dir == "desc":
-                    stmt = stmt.where(
-                        (sort_col < parsed_cursor_val)
-                        | ((sort_col == parsed_cursor_val) & (Trade.id < cursor_id))
-                    )
+                    stmt = stmt.where((sort_col < parsed_cursor_val) | ((sort_col == parsed_cursor_val) & (Trade.id < cursor_id)))
                 else:  # asc
-                    stmt = stmt.where(
-                        (sort_col > parsed_cursor_val)
-                        | ((sort_col == parsed_cursor_val) & (Trade.id > cursor_id))
-                    )
+                    stmt = stmt.where((sort_col > parsed_cursor_val) | ((sort_col == parsed_cursor_val) & (Trade.id > cursor_id)))
 
         # ── Fetch page + one probe row ────────────────────────────────────────
         stmt = stmt.limit(clamped_limit + 1)
@@ -682,9 +659,7 @@ class TradeRepository:
         # then load relationships, preventing MissingGreenlet errors when
         # model_validate accesses expired attributes outside the async context.
         await self._session.refresh(trade)
-        await self._session.refresh(
-            trade, attribute_names=["tags", "trade_notes", "playbook", "account"]
-        )
+        await self._session.refresh(trade, attribute_names=["tags", "trade_notes", "playbook", "account"])
         return trade
 
     async def delete(self, trade: Trade) -> None:
@@ -735,12 +710,7 @@ class TradeRepository:
                 return 0
             stmt = delete(Trade).where(Trade.id.in_(scoped_ids)).returning(Trade.id)
         else:
-            stmt = (
-                delete(Trade)
-                .where(Trade.id.in_(trade_ids))
-                .where(Trade.user_id == user_id)
-                .returning(Trade.id)
-            )
+            stmt = delete(Trade).where(Trade.id.in_(trade_ids)).where(Trade.user_id == user_id).returning(Trade.id)
         result = await self._session.execute(stmt)
         deleted = list(result.scalars().all())
         await self._session.flush()
@@ -822,11 +792,7 @@ class TradeRepository:
         if mode == BulkTagMode.add:
             for trade_id in owned_ids:
                 for tag_id in tag_ids:
-                    ins_stmt = (
-                        pg_insert(TradeTag)
-                        .values(trade_id=trade_id, tag_id=tag_id)
-                        .on_conflict_do_nothing()
-                    )
+                    ins_stmt = pg_insert(TradeTag).values(trade_id=trade_id, tag_id=tag_id).on_conflict_do_nothing()
                     await self._session.execute(ins_stmt)
         else:  # BulkTagMode.remove
             await self._session.execute(
@@ -874,19 +840,9 @@ class TradeRepository:
             scoped_ids = list(scoped_ids_result.scalars().all())
             if not scoped_ids:
                 return 0
-            stmt = (
-                sa_update(Trade)
-                .where(Trade.id.in_(scoped_ids))
-                .values(playbook_id=playbook_id)
-                .returning(Trade.id)
-            )
+            stmt = sa_update(Trade).where(Trade.id.in_(scoped_ids)).values(playbook_id=playbook_id).returning(Trade.id)
         else:
-            stmt = (
-                sa_update(Trade)
-                .where(Trade.id.in_(trade_ids), Trade.user_id == user_id)
-                .values(playbook_id=playbook_id)
-                .returning(Trade.id)
-            )
+            stmt = sa_update(Trade).where(Trade.id.in_(trade_ids), Trade.user_id == user_id).values(playbook_id=playbook_id).returning(Trade.id)
         result = await self._session.execute(stmt)
         updated = list(result.scalars().all())
         await self._session.flush()
@@ -932,12 +888,7 @@ class TradeRepository:
         """
         if not trade_ids:
             return 0
-        stmt = (
-            sa_update(Trade)
-            .where(Trade.id.in_(trade_ids), Trade.user_id == user_id)
-            .values(position_id=position_id)
-            .returning(Trade.id)
-        )
+        stmt = sa_update(Trade).where(Trade.id.in_(trade_ids), Trade.user_id == user_id).values(position_id=position_id).returning(Trade.id)
         result = await self._session.execute(stmt)
         updated = list(result.scalars().all())
         await self._session.flush()
@@ -1011,14 +962,8 @@ class TradeRepository:
         if "tag_ids" in data.model_fields_set and data.tag_ids is not None:
             # For tags we must respect the same last-write-wins boundary.  Fetch
             # siblings that would have been eligible (updated_at <= source).
-            siblings = await self.list_open_by_position(
-                user_id, source_trade.position_id
-            )
-            eligible = [
-                s
-                for s in siblings
-                if s.id != source_trade.id and s.updated_at <= compare_time
-            ]
+            siblings = await self.list_open_by_position(user_id, source_trade.position_id)
+            eligible = [s for s in siblings if s.id != source_trade.id and s.updated_at <= compare_time]
             for sibling in eligible:
                 await self._set_tags(sibling, data.tag_ids)
             await self._session.flush()
@@ -1132,11 +1077,7 @@ class TradeRepository:
             A list of :class:`Trade` ORM instances (no eager loads — only
             the scalar columns needed by the aggregator are used).
         """
-        stmt = (
-            select(Trade)
-            .where(Trade.user_id == user_id, Trade.closed_at.is_(None))
-            .order_by(Trade.opened_at.asc())
-        )
+        stmt = select(Trade).where(Trade.user_id == user_id, Trade.closed_at.is_(None)).order_by(Trade.opened_at.asc())
         if portfolio_id is not None:
             stmt = (
                 stmt.join(Account, Trade.account_id == Account.id)

@@ -29,9 +29,7 @@ class CashTransactionRepository:
     """Data access layer for CashTransaction."""
 
     @staticmethod
-    async def create(
-        session: AsyncSession, create_schema: CashTransactionCreate
-    ) -> CashTransaction:
+    async def create(session: AsyncSession, create_schema: CashTransactionCreate) -> CashTransaction:
         """Create a new cash transaction.
 
         Args:
@@ -158,9 +156,7 @@ class CashTransactionRepository:
         return result.scalar_one()
 
     @staticmethod
-    def _apply_filters(
-        stmt: Select[Any], filters: CashTransactionFilterParams
-    ) -> Select[Any]:
+    def _apply_filters(stmt: Select[Any], filters: CashTransactionFilterParams) -> Select[Any]:
         """Apply filters to a select statement."""
         if filters.type is not None:
             stmt = stmt.where(CashTransaction.type == filters.type)
@@ -259,11 +255,7 @@ class CashTransactionRepository:
         Returns:
             Number of deleted rows.
         """
-        stmt = (
-            delete(CashTransaction)
-            .where(CashTransaction.account_id == account_id)
-            .returning(CashTransaction.id)
-        )
+        stmt = delete(CashTransaction).where(CashTransaction.account_id == account_id).returning(CashTransaction.id)
         result = await session.execute(stmt)
         deleted = list(result.scalars().all())
         await session.flush()

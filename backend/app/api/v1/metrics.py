@@ -73,17 +73,8 @@ def _get_service(
     ),
     responses={
         200: {"description": "Metrics summary successfully computed and returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. Check that dates are valid "
-                "ISO-8601 strings and starting_capital is a valid decimal."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. Check that dates are valid ISO-8601 strings and starting_capital is a valid decimal.")},
     },
     deprecated=True,
 )
@@ -94,21 +85,13 @@ async def get_metrics_summary(
     response: Response,
     account_id: Annotated[
         uuid.UUID | None,
-        Query(
-            description=(
-                "Optional account UUID to restrict metrics to a single account. "
-                "When omitted, all accounts belonging to the user are included."
-            )
-        ),
+        Query(description=("Optional account UUID to restrict metrics to a single account. When omitted, all accounts belonging to the user are included.")),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -116,10 +99,7 @@ async def get_metrics_summary(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -211,17 +191,8 @@ async def get_metrics_summary(
     ),
     responses={
         200: {"description": "Equity curve successfully computed and returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. Check that dates are valid "
-                "ISO-8601 strings and starting_capital is a valid decimal."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. Check that dates are valid ISO-8601 strings and starting_capital is a valid decimal.")},
     },
     deprecated=True,
 )
@@ -233,20 +204,14 @@ async def get_equity_curve(
     account_id: Annotated[
         uuid.UUID | None,
         Query(
-            description=(
-                "Optional account UUID to restrict the curve to a single account. "
-                "When omitted, trades from all of the user's accounts are included."
-            )
+            description=("Optional account UUID to restrict the curve to a single account. When omitted, trades from all of the user's accounts are included.")
         ),
     ] = None,
     from_dt: Annotated[
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -254,10 +219,7 @@ async def get_equity_curve(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,
@@ -352,17 +314,8 @@ async def get_equity_curve(
     ),
     responses={
         200: {"description": "Drawdown curve successfully computed and returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. Check that dates are valid "
-                "ISO-8601 strings and starting_capital is a valid decimal."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. Check that dates are valid ISO-8601 strings and starting_capital is a valid decimal.")},
     },
     deprecated=True,
 )
@@ -375,9 +328,7 @@ async def get_drawdown_curve(
         uuid.UUID | None,
         Query(
             description=(
-                "Optional account UUID to restrict the drawdown curve to a single "
-                "account. When omitted, all accounts belonging to the user are "
-                "included."
+                "Optional account UUID to restrict the drawdown curve to a single account. When omitted, all accounts belonging to the user are included."
             )
         ),
     ] = None,
@@ -385,10 +336,7 @@ async def get_drawdown_curve(
         datetime | None,
         Query(
             alias="from_dt",
-            description=(
-                "Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. "
-                "When omitted, no lower bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime lower bound (inclusive) on ``closed_at``. When omitted, no lower bound is applied."),
             examples=["2024-01-01T00:00:00Z"],
         ),
     ] = None,
@@ -396,10 +344,7 @@ async def get_drawdown_curve(
         datetime | None,
         Query(
             alias="to_dt",
-            description=(
-                "Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. "
-                "When omitted, no upper bound is applied."
-            ),
+            description=("Optional ISO-8601 datetime upper bound (inclusive) on ``closed_at``. When omitted, no upper bound is applied."),
             examples=["2024-12-31T23:59:59Z"],
         ),
     ] = None,

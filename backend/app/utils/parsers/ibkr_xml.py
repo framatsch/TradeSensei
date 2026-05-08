@@ -100,11 +100,7 @@ def _map_cash_transaction_type(ibkr_type: str, amount: Decimal) -> CashTransacti
     if "WITHHOLDING TAX" in ibkr_type_upper:
         return CashTransactionType.WITHHOLDING_TAX
     if "DEPOSITS" in ibkr_type_upper or "WITHDRAWALS" in ibkr_type_upper:
-        return (
-            CashTransactionType.DEPOSIT
-            if amount > 0
-            else CashTransactionType.WITHDRAWAL
-        )
+        return CashTransactionType.DEPOSIT if amount > 0 else CashTransactionType.WITHDRAWAL
     if "INTEREST" in ibkr_type_upper:
         return CashTransactionType.INTEREST
     if "FEE" in ibkr_type_upper:
@@ -153,10 +149,7 @@ def _parse_ibkr_datetime(date_str: str, datetime_str: str) -> datetime:
     Raises:
         ValueError: If neither string can be parsed.
     """
-    if ";" in datetime_str:
-        dt = datetime.strptime(datetime_str, "%Y%m%d;%H%M%S")
-    else:
-        dt = datetime.strptime(date_str, "%Y%m%d")
+    dt = datetime.strptime(datetime_str, "%Y%m%d;%H%M%S") if ";" in datetime_str else datetime.strptime(date_str, "%Y%m%d")
     return dt.replace(tzinfo=UTC)
 
 
@@ -173,10 +166,7 @@ def _parse_execution_datetime(exec_date: str, exec_time: str) -> datetime:
     Raises:
         ValueError: If the strings cannot be parsed.
     """
-    if exec_time:
-        dt = datetime.strptime(f"{exec_date};{exec_time}", "%Y%m%d;%H%M%S")
-    else:
-        dt = datetime.strptime(exec_date, "%Y%m%d")
+    dt = datetime.strptime(f"{exec_date};{exec_time}", "%Y%m%d;%H%M%S") if exec_time else datetime.strptime(exec_date, "%Y%m%d")
     return dt.replace(tzinfo=UTC)
 
 
@@ -291,9 +281,7 @@ class IBKRXMLParser(BrokerParser):
                 continue
 
             try:
-                ratio = Decimal(new_elem.get("quantity", "0")) / abs(
-                    Decimal(old_elem.get("quantity", "0"))
-                )
+                ratio = Decimal(new_elem.get("quantity", "0")) / abs(Decimal(old_elem.get("quantity", "0")))
                 dt_str = new_elem.get("dateTime", "")
                 if ";" in dt_str:
                     dt_str = dt_str.split(";")[0]
@@ -336,8 +324,7 @@ class IBKRXMLParser(BrokerParser):
                 cash_transactions.append(tt_result)
 
         logger.info(
-            "parse_raw: extracted %d raw transactions and %d cash transactions "
-            "from IBKR Flex XML.",
+            "parse_raw: extracted %d raw transactions and %d cash transactions from IBKR Flex XML.",
             len(raw_transactions),
             len(cash_transactions),
         )
@@ -425,11 +412,7 @@ class IBKRXMLParser(BrokerParser):
         acceptable_open_conids = set(open_positions_conids)
         if corporate_actions:
             for ca in corporate_actions:
-                if (
-                    ca.old_conid is not None
-                    and ca.new_conid is not None
-                    and ca.old_conid in open_positions_conids
-                ):
+                if ca.old_conid is not None and ca.new_conid is not None and ca.old_conid in open_positions_conids:
                     acceptable_open_conids.add(ca.new_conid)
 
         # Group executions into round-trip trades.
@@ -441,8 +424,7 @@ class IBKRXMLParser(BrokerParser):
         )
 
         logger.info(
-            "Parsed %d executions, aggregated into %d trades and parsed %d "
-            "cash transactions from IBKR Flex XML.",
+            "Parsed %d executions, aggregated into %d trades and parsed %d cash transactions from IBKR Flex XML.",
             len(trades),
             len(aggregated_trades),
             len(cash_transactions),
@@ -503,9 +485,7 @@ class IBKRXMLParser(BrokerParser):
 
     # ─── Raw element parsers ──────────────────────────────────────────────────
 
-    def _parse_trade_element_raw(
-        self, elem: ET.Element, idx: int
-    ) -> BrokerRawTransactionCreate | CashTransactionCreateRequest | None:
+    def _parse_trade_element_raw(self, elem: ET.Element, idx: int) -> BrokerRawTransactionCreate | CashTransactionCreateRequest | None:
         """Parse a single ``<Trade>`` element into a raw transaction record.
 
         Args:
@@ -523,18 +503,14 @@ class IBKRXMLParser(BrokerParser):
             conid = elem.get("conid", "").strip() or None
 
             if not symbol:
-                self.warnings.append(
-                    f"<Trade> element {idx}: skipped — missing symbol attribute."
-                )
+                self.warnings.append(f"<Trade> element {idx}: skipped — missing symbol attribute.")
                 return None
 
             trade_date_str = elem.get("tradeDate", "")
             datetime_str = elem.get("dateTime", "")
 
             if not trade_date_str:
-                self.warnings.append(
-                    f"<Trade> element {idx} ({symbol}): skipped — missing tradeDate."
-                )
+                self.warnings.append(f"<Trade> element {idx} ({symbol}): skipped — missing tradeDate.")
                 return None
 
             executed_at = _parse_ibkr_datetime(trade_date_str, datetime_str)
@@ -563,9 +539,7 @@ class IBKRXMLParser(BrokerParser):
 
             quantity_raw = _safe_decimal(elem.get("quantity"))
             if quantity_raw == Decimal("0"):
-                self.warnings.append(
-                    f"<Trade> element {idx} ({symbol}): skipped — quantity is zero."
-                )
+                self.warnings.append(f"<Trade> element {idx} ({symbol}): skipped — quantity is zero.")
                 return None
 
             direction = Direction.LONG if quantity_raw > 0 else Direction.SHORT
@@ -587,10 +561,7 @@ class IBKRXMLParser(BrokerParser):
                     price = abs(cost) / quantity / Decimal(multiplier)
 
             if price < Decimal("0"):
-                self.warnings.append(
-                    f"<Trade> element {idx} ({symbol}): skipped — "
-                    "could not determine a non-negative entry price."
-                )
+                self.warnings.append(f"<Trade> element {idx} ({symbol}): skipped — could not determine a non-negative entry price.")
                 return None
 
             ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
@@ -624,9 +595,7 @@ class IBKRXMLParser(BrokerParser):
             self.warnings.append(msg)
             return None
 
-    def _parse_execution_element_raw(
-        self, elem: ET.Element, idx: int
-    ) -> BrokerRawTransactionCreate | None:
+    def _parse_execution_element_raw(self, elem: ET.Element, idx: int) -> BrokerRawTransactionCreate | None:
         """Parse a single ``<Execution>`` element into a raw transaction record.
 
         Args:
@@ -643,9 +612,7 @@ class IBKRXMLParser(BrokerParser):
             conid = elem.get("conid", "").strip() or None
 
             if not symbol:
-                self.warnings.append(
-                    f"<Execution> element {idx}: skipped — missing symbol attribute."
-                )
+                self.warnings.append(f"<Execution> element {idx}: skipped — missing symbol attribute.")
                 return None
 
             asset_class = _map_asset_class(asset_category)
@@ -658,18 +625,14 @@ class IBKRXMLParser(BrokerParser):
             exec_time = elem.get("execTime", "")
 
             if not exec_date:
-                self.warnings.append(
-                    f"<Execution> element {idx} ({symbol}): skipped — missing execDate."
-                )
+                self.warnings.append(f"<Execution> element {idx} ({symbol}): skipped — missing execDate.")
                 return None
 
             executed_at = _parse_execution_datetime(exec_date, exec_time)
 
             quantity_raw = _safe_decimal(elem.get("quantity"))
             if quantity_raw == Decimal("0"):
-                self.warnings.append(
-                    f"<Execution> element {idx} ({symbol}): skipped — quantity is zero."
-                )
+                self.warnings.append(f"<Execution> element {idx} ({symbol}): skipped — quantity is zero.")
                 return None
 
             direction = Direction.LONG if quantity_raw > 0 else Direction.SHORT
@@ -677,10 +640,7 @@ class IBKRXMLParser(BrokerParser):
 
             price = _safe_decimal(elem.get("price"))
             if price < Decimal("0"):
-                self.warnings.append(
-                    f"<Execution> element {idx} ({symbol}): skipped — "
-                    "entry price is negative."
-                )
+                self.warnings.append(f"<Execution> element {idx} ({symbol}): skipped — entry price is negative.")
                 return None
 
             ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
@@ -712,9 +672,7 @@ class IBKRXMLParser(BrokerParser):
 
     # ─── Legacy TradeCreate element parsers ───────────────────────────────────
 
-    def _parse_trade_element(
-        self, elem: ET.Element, idx: int
-    ) -> TradeCreate | CashTransactionCreateRequest | None:
+    def _parse_trade_element(self, elem: ET.Element, idx: int) -> TradeCreate | CashTransactionCreateRequest | None:
         """Parse a single ``<Trade>`` element from an Activity Flex Query.
 
         Args:
@@ -732,18 +690,14 @@ class IBKRXMLParser(BrokerParser):
             conid = elem.get("conid", "").strip() or None
 
             if not symbol:
-                self.warnings.append(
-                    f"<Trade> element {idx}: skipped — missing symbol attribute."
-                )
+                self.warnings.append(f"<Trade> element {idx}: skipped — missing symbol attribute.")
                 return None
 
             trade_date_str = elem.get("tradeDate", "")
             datetime_str = elem.get("dateTime", "")
 
             if not trade_date_str:
-                self.warnings.append(
-                    f"<Trade> element {idx} ({symbol}): skipped — missing tradeDate."
-                )
+                self.warnings.append(f"<Trade> element {idx} ({symbol}): skipped — missing tradeDate.")
                 return None
 
             opened_at = _parse_ibkr_datetime(trade_date_str, datetime_str)
@@ -772,9 +726,7 @@ class IBKRXMLParser(BrokerParser):
 
             quantity_raw = _safe_decimal(elem.get("quantity"))
             if quantity_raw == Decimal("0"):
-                self.warnings.append(
-                    f"<Trade> element {idx} ({symbol}): skipped — quantity is zero."
-                )
+                self.warnings.append(f"<Trade> element {idx} ({symbol}): skipped — quantity is zero.")
                 return None
 
             direction = Direction.LONG if quantity_raw > 0 else Direction.SHORT
@@ -797,10 +749,7 @@ class IBKRXMLParser(BrokerParser):
                     price = abs(cost) / quantity / Decimal(multiplier)
 
             if price < Decimal("0"):
-                self.warnings.append(
-                    f"<Trade> element {idx} ({symbol}): skipped — "
-                    "could not determine a non-negative entry price."
-                )
+                self.warnings.append(f"<Trade> element {idx} ({symbol}): skipped — could not determine a non-negative entry price.")
                 return None
 
             ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
@@ -834,9 +783,7 @@ class IBKRXMLParser(BrokerParser):
             self.warnings.append(msg)
             return None
 
-    def _parse_execution_element(
-        self, elem: ET.Element, idx: int
-    ) -> TradeCreate | None:
+    def _parse_execution_element(self, elem: ET.Element, idx: int) -> TradeCreate | None:
         """Parse a single ``<Execution>`` element from a Trade Confirmation query.
 
         Args:
@@ -853,9 +800,7 @@ class IBKRXMLParser(BrokerParser):
             conid = elem.get("conid", "").strip() or None
 
             if not symbol:
-                self.warnings.append(
-                    f"<Execution> element {idx}: skipped — missing symbol attribute."
-                )
+                self.warnings.append(f"<Execution> element {idx}: skipped — missing symbol attribute.")
                 return None
 
             asset_class = _map_asset_class(asset_category)
@@ -868,18 +813,14 @@ class IBKRXMLParser(BrokerParser):
             exec_time = elem.get("execTime", "")
 
             if not exec_date:
-                self.warnings.append(
-                    f"<Execution> element {idx} ({symbol}): skipped — missing execDate."
-                )
+                self.warnings.append(f"<Execution> element {idx} ({symbol}): skipped — missing execDate.")
                 return None
 
             opened_at = _parse_execution_datetime(exec_date, exec_time)
 
             quantity_raw = _safe_decimal(elem.get("quantity"))
             if quantity_raw == Decimal("0"):
-                self.warnings.append(
-                    f"<Execution> element {idx} ({symbol}): skipped — quantity is zero."
-                )
+                self.warnings.append(f"<Execution> element {idx} ({symbol}): skipped — quantity is zero.")
                 return None
 
             direction = Direction.LONG if quantity_raw > 0 else Direction.SHORT
@@ -887,10 +828,7 @@ class IBKRXMLParser(BrokerParser):
 
             price = _safe_decimal(elem.get("price"))
             if price < Decimal("0"):
-                self.warnings.append(
-                    f"<Execution> element {idx} ({symbol}): skipped — "
-                    "entry price is negative."
-                )
+                self.warnings.append(f"<Execution> element {idx} ({symbol}): skipped — entry price is negative.")
                 return None
 
             ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
@@ -913,9 +851,7 @@ class IBKRXMLParser(BrokerParser):
             self.warnings.append(msg)
             return None
 
-    def _parse_cash_transaction_element(
-        self, elem: ET.Element, idx: int
-    ) -> CashTransactionCreateRequest | None:
+    def _parse_cash_transaction_element(self, elem: ET.Element, idx: int) -> CashTransactionCreateRequest | None:
         """Parse a single ``<CashTransaction>`` element.
 
         Args:
@@ -934,28 +870,20 @@ class IBKRXMLParser(BrokerParser):
                 report_date = datetime_str.split(";")[0]
 
             if not report_date:
-                self.warnings.append(
-                    f"<CashTransaction> element {idx}: "
-                    "skipped — missing reportDate or dateTime."
-                )
+                self.warnings.append(f"<CashTransaction> element {idx}: skipped — missing reportDate or dateTime.")
                 return None
 
             date = _parse_ibkr_datetime(report_date, datetime_str)
 
             amount_str = elem.get("amount")
             if amount_str is None:
-                self.warnings.append(
-                    f"<CashTransaction> element {idx}: skipped — missing amount."
-                )
+                self.warnings.append(f"<CashTransaction> element {idx}: skipped — missing amount.")
                 return None
 
             try:
                 amount = Decimal(amount_str.strip())
             except InvalidOperation:
-                self.warnings.append(
-                    f"<CashTransaction> element {idx}: "
-                    f"skipped — invalid amount '{amount_str}'."
-                )
+                self.warnings.append(f"<CashTransaction> element {idx}: skipped — invalid amount '{amount_str}'.")
                 return None
 
             currency = (elem.get("currency") or "").upper().strip() or "USD"
@@ -979,9 +907,7 @@ class IBKRXMLParser(BrokerParser):
             self.warnings.append(msg)
             return None
 
-    def _parse_transaction_tax_element(
-        self, elem: ET.Element, idx: int
-    ) -> CashTransactionCreateRequest | None:
+    def _parse_transaction_tax_element(self, elem: ET.Element, idx: int) -> CashTransactionCreateRequest | None:
         """Parse a single ``<TransactionTax>`` element (FTT, stamp duty, etc.).
 
         These are financial-transaction taxes charged at the time of a trade
@@ -1005,28 +931,20 @@ class IBKRXMLParser(BrokerParser):
                 report_date = datetime_str.split(";")[0]
 
             if not report_date:
-                self.warnings.append(
-                    f"<TransactionTax> element {idx}: "
-                    "skipped — missing reportDate or date."
-                )
+                self.warnings.append(f"<TransactionTax> element {idx}: skipped — missing reportDate or date.")
                 return None
 
             date = _parse_ibkr_datetime(report_date, datetime_str)
 
             tax_amount_str = elem.get("taxAmount")
             if tax_amount_str is None:
-                self.warnings.append(
-                    f"<TransactionTax> element {idx}: skipped — missing taxAmount."
-                )
+                self.warnings.append(f"<TransactionTax> element {idx}: skipped — missing taxAmount.")
                 return None
 
             try:
                 amount = Decimal(tax_amount_str.strip())
             except InvalidOperation:
-                self.warnings.append(
-                    f"<TransactionTax> element {idx}: skipped — "
-                    f"invalid taxAmount '{tax_amount_str}'."
-                )
+                self.warnings.append(f"<TransactionTax> element {idx}: skipped — invalid taxAmount '{tax_amount_str}'.")
                 return None
 
             if amount == Decimal("0"):

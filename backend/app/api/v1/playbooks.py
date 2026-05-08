@@ -38,10 +38,7 @@ def _get_service(
     "",
     response_model=ResponseEnvelope[list[PlaybookRead]],
     summary="List Playbooks",
-    description=(
-        "Return all playbooks owned by the currently authenticated user, "
-        "ordered by creation date ascending."
-    ),
+    description=("Return all playbooks owned by the currently authenticated user, ordered by creation date ascending."),
     response_description="A list of playbooks wrapped in a response envelope.",
     responses={
         200: {"description": "Playbook list returned successfully."},
@@ -71,10 +68,7 @@ async def list_playbooks(
     response_model=ResponseEnvelope[PlaybookRead],
     status_code=status.HTTP_201_CREATED,
     summary="Create a Playbook",
-    description=(
-        "Create a new trading playbook owned by the currently authenticated "
-        "user. Playbook names must be unique per user."
-    ),
+    description=("Create a new trading playbook owned by the currently authenticated user. Playbook names must be unique per user."),
     response_description="The newly created playbook wrapped in a response envelope.",
     responses={
         201: {"description": "Playbook created successfully."},
@@ -106,10 +100,7 @@ async def create_playbook(
     "/{playbook_id}",
     response_model=ResponseEnvelope[PlaybookRead],
     summary="Get a Playbook",
-    description=(
-        "Retrieve a single playbook by its UUID. Returns 404 if the "
-        "playbook does not exist or belongs to a different user."
-    ),
+    description=("Retrieve a single playbook by its UUID. Returns 404 if the playbook does not exist or belongs to a different user."),
     response_description="The requested playbook wrapped in a response envelope.",
     responses={
         200: {"description": "Playbook found and returned."},
@@ -139,9 +130,7 @@ async def get_playbook(
     try:
         playbook = await service.get_playbook(playbook_id, current_user.id)
     except PlaybookNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Playbook not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playbook not found.") from exc
     return ResponseEnvelope[PlaybookRead](data=playbook)
 
 
@@ -149,14 +138,8 @@ async def get_playbook(
     "/{playbook_id}",
     response_model=ResponseEnvelope[PlaybookRead],
     summary="Update a Playbook",
-    description=(
-        "Apply a partial update to a playbook owned by the authenticated user. "
-        "Only fields present in the request body are modified."
-    ),
-    response_description=(
-        "The playbook after applying the partial update, "
-        "wrapped in a response envelope."
-    ),
+    description=("Apply a partial update to a playbook owned by the authenticated user. Only fields present in the request body are modified."),
+    response_description=("The playbook after applying the partial update, wrapped in a response envelope."),
     responses={
         200: {"description": "Playbook updated successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -188,9 +171,7 @@ async def update_playbook(
     try:
         playbook = await service.update_playbook(playbook_id, payload, current_user.id)
     except PlaybookNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Playbook not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playbook not found.") from exc
     return ResponseEnvelope[PlaybookRead](data=playbook)
 
 
@@ -229,6 +210,4 @@ async def delete_playbook(
     try:
         await service.delete_playbook(playbook_id, current_user.id)
     except PlaybookNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Playbook not found."
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playbook not found.") from exc

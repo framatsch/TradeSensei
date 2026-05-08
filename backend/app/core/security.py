@@ -155,9 +155,7 @@ def decode_token(token: str) -> uuid.UUID:
             expired, malformed, or missing a valid ``sub`` claim.
     """
     try:
-        raw: dict[str, Any] = jwt.decode(
-            token, settings.secret_key, algorithms=[TOKEN_ALGORITHM]
-        )
+        raw: dict[str, Any] = jwt.decode(token, settings.secret_key, algorithms=[TOKEN_ALGORITHM])
         validated = TokenPayload.model_validate(raw)
         return validated.sub
     except (JWTError, ValueError) as exc:
@@ -185,9 +183,7 @@ def decode_refresh_token(token: str) -> tuple[uuid.UUID, int]:
             the ``rtv`` claim.
     """
     try:
-        raw: dict[str, Any] = jwt.decode(
-            token, settings.secret_key, algorithms=[TOKEN_ALGORITHM]
-        )
+        raw: dict[str, Any] = jwt.decode(token, settings.secret_key, algorithms=[TOKEN_ALGORITHM])
         validated = TokenPayload.model_validate(raw)
         rtv = raw.get("rtv")
         if rtv is None or not isinstance(rtv, int):
@@ -283,9 +279,7 @@ async def consume_one_time_token(token: str, db: AsyncSession) -> uuid.UUID:
             expired, already used, malformed, or missing required claims.
     """
     try:
-        raw: dict[str, Any] = jwt.decode(
-            token, settings.secret_key, algorithms=[TOKEN_ALGORITHM]
-        )
+        raw: dict[str, Any] = jwt.decode(token, settings.secret_key, algorithms=[TOKEN_ALGORITHM])
         if not raw.get("ott"):
             raise InvalidTokenError("Not a one-time token.")
         jti = raw.get("jti")
@@ -355,9 +349,7 @@ async def consume_password_reset_token(token: str, db: AsyncSession) -> uuid.UUI
             expired, already used, malformed, or missing required claims.
     """
     try:
-        raw: dict[str, Any] = jwt.decode(
-            token, settings.secret_key, algorithms=[TOKEN_ALGORITHM]
-        )
+        raw: dict[str, Any] = jwt.decode(token, settings.secret_key, algorithms=[TOKEN_ALGORITHM])
         if not raw.get("pwreset"):
             raise InvalidTokenError("Not a password-reset token.")
         jti = raw.get("jti")

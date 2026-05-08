@@ -17,17 +17,11 @@ class ResponseEnvelope[T](BaseModel):
 
     data: T = Field(
         ...,
-        description=(
-            "The primary response payload. The type depends on the endpoint — "
-            "e.g. a single TradeRead object or a CursorPage of TradeRead objects."
-        ),
+        description=("The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects."),
     )
     meta: dict[str, Any] = Field(
         default_factory=dict,
-        description=(
-            "Optional metadata accompanying the response, such as request "
-            "identifiers or server-side timing information. Empty by default."
-        ),
+        description=("Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default."),
         examples=[{}, {"request_id": "abc-123", "duration_ms": 12}],
     )
 
@@ -58,10 +52,7 @@ class CursorPage[T](BaseModel):
     )
     total: int | None = Field(
         ...,
-        description=(
-            "Total number of items across all pages, or null when computing "
-            "the exact count would be prohibitively expensive."
-        ),
+        description=("Total number of items across all pages, or null when computing the exact count would be prohibitively expensive."),
         examples=[142, None],
     )
 

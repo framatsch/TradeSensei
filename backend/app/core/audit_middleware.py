@@ -22,9 +22,7 @@ from app.services.audit_service import AuditEventService, generate_request_id
 
 _WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _RESOURCE_PATTERN = re.compile(r"/api/v1/(?P<resource>[a-z_-]+)(?:/(?P<id>[^/]+))?")
-_NESTED_RESOURCE_PATTERN = re.compile(
-    r"/api/v1/(?P<parent_resource>[a-z_-]+)/(?P<parent_id>[^/]+)/(?P<resource>[a-z_-]+)(?:/(?P<id>[^/]+))?"
-)
+_NESTED_RESOURCE_PATTERN = re.compile(r"/api/v1/(?P<parent_resource>[a-z_-]+)/(?P<parent_id>[^/]+)/(?P<resource>[a-z_-]+)(?:/(?P<id>[^/]+))?")
 _PUBLIC_PATHS = {
     "/api/v1/auth/config",
     "/api/v1/auth/token",
@@ -66,9 +64,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         self._service = AuditEventService()
         self._logger = logging.getLogger(__name__)
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         if request.url.path == "/health":
             return await call_next(request)
 
@@ -107,9 +103,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
     async def _build_context(self, request: Request) -> _AuditContext:
         forwarded_for_header = request.headers.get("x-forwarded-for")
-        forwarded_for = (
-            forwarded_for_header.split(",")[0].strip() if forwarded_for_header else None
-        )
+        forwarded_for = forwarded_for_header.split(",")[0].strip() if forwarded_for_header else None
         ip_address = request.client.host if request.client else None
         token = self._extract_bearer_token(request)
         user_id, email, error_reason = self._decode_token(token)
@@ -136,9 +130,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             return None
         return parts[1]
 
-    def _decode_token(
-        self, token: str | None
-    ) -> tuple[str | None, str | None, str | None]:
+    def _decode_token(self, token: str | None) -> tuple[str | None, str | None, str | None]:
         if not token:
             return None, None, None
         try:
@@ -169,9 +161,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         username = parsed.get("username", [])
         return username[0] if username else None
 
-    def _infer_action(
-        self, request: Request
-    ) -> tuple[str, str | None, str | None, str | None, str | None]:
+    def _infer_action(self, request: Request) -> tuple[str, str | None, str | None, str | None, str | None]:
         # Infer actions for standard CRUD endpoints; overrides handle special routes.
         method = request.method.upper()
         path = request.url.path
@@ -218,9 +208,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         return action, resource, resource_id, None, None
 
     @staticmethod
-    def _infer_resource_action(
-        method: str, resource: str, resource_id: str | None
-    ) -> str:
+    def _infer_resource_action(method: str, resource: str, resource_id: str | None) -> str:
         # Actions follow <resource>.<verb> naming convention.
         if method == "POST" and resource_id is None:
             return f"{resource}.created"
@@ -248,9 +236,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 metadata.update(meta)
         return metadata
 
-    def _log_response(
-        self, context: _AuditContext, request: Request, response: Response
-    ) -> None:
+    def _log_response(self, context: _AuditContext, request: Request, response: Response) -> None:
         (
             action,
             resource_type,

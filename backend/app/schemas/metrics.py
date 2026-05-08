@@ -56,18 +56,12 @@ class TradeMetrics(BaseModel):
     )
     win_rate: Decimal = Field(
         ...,
-        description=(
-            "Fraction of winning trades over the total number of trades (0.0–1.0). "
-            "A value of 0.667 means 66.7 % of trades were winners."
-        ),
+        description=("Fraction of winning trades over the total number of trades (0.0–1.0). A value of 0.667 means 66.7 % of trades were winners."),
         examples=["0.6667"],
     )
     loss_rate: Decimal = Field(
         ...,
-        description=(
-            "Fraction of losing trades over the total number of trades (0.0–1.0). "
-            "Complements win_rate."
-        ),
+        description=("Fraction of losing trades over the total number of trades (0.0–1.0). Complements win_rate."),
         examples=["0.2857"],
     )
     avg_win: Decimal = Field(
@@ -77,9 +71,7 @@ class TradeMetrics(BaseModel):
     )
     avg_loss: Decimal = Field(
         ...,
-        description=(
-            "Average PnL of losing trades in account currency (negative value)."
-        ),
+        description=("Average PnL of losing trades in account currency (negative value)."),
         examples=["-145.20"],
     )
     profit_factor: Decimal | None = Field(
@@ -93,10 +85,7 @@ class TradeMetrics(BaseModel):
     )
     expectancy: Decimal = Field(
         ...,
-        description=(
-            "Expected PnL per trade: win_rate × avg_win + loss_rate × avg_loss. "
-            "Positive expectancy means the strategy is profitable on average."
-        ),
+        description=("Expected PnL per trade: win_rate × avg_win + loss_rate × avg_loss. Positive expectancy means the strategy is profitable on average."),
         examples=["175.83"],
     )
     total_pnl: Decimal = Field(
@@ -126,10 +115,7 @@ class TradeMetrics(BaseModel):
     )
     avg_trade_duration_seconds: float | None = Field(
         ...,
-        description=(
-            "Average duration of a trade from open to close in seconds. "
-            "Null when no trade has both opened_at and closed_at set."
-        ),
+        description=("Average duration of a trade from open to close in seconds. Null when no trade has both opened_at and closed_at set."),
         examples=[14400.0, None],
     )
     sharpe_ratio: Decimal | None = Field(
@@ -155,26 +141,17 @@ class DrawdownPoint(BaseModel):
 
     timestamp: datetime = Field(
         ...,
-        description=(
-            "Timezone-aware UTC timestamp of the trade that caused this drawdown "
-            "data point."
-        ),
+        description=("Timezone-aware UTC timestamp of the trade that caused this drawdown data point."),
         examples=["2024-05-10T14:30:00Z"],
     )
     drawdown: Decimal = Field(
         ...,
-        description=(
-            "Drawdown as a fraction of the peak equity (range: 0.0 to -1.0). "
-            "-0.15 means a 15 % drawdown from the running equity peak."
-        ),
+        description=("Drawdown as a fraction of the peak equity (range: 0.0 to -1.0). -0.15 means a 15 % drawdown from the running equity peak."),
         examples=["-0.1500"],
     )
     drawdown_abs: Decimal = Field(
         ...,
-        description=(
-            "Absolute drawdown in account currency. Always zero or negative. "
-            "For example, -1500.00 means the portfolio is $1 500 below its peak."
-        ),
+        description=("Absolute drawdown in account currency. Always zero or negative. For example, -1500.00 means the portfolio is $1 500 below its peak."),
         examples=["-1500.00"],
     )
 
@@ -190,25 +167,17 @@ class EquityCurvePoint(BaseModel):
 
     timestamp: datetime = Field(
         ...,
-        description=(
-            "Timezone-aware UTC timestamp of the trade that produced this "
-            "equity curve data point."
-        ),
+        description=("Timezone-aware UTC timestamp of the trade that produced this equity curve data point."),
         examples=["2024-05-10T14:30:00Z"],
     )
     equity: Decimal = Field(
         ...,
-        description=(
-            "Cumulative PnL from the starting capital up to and including "
-            "this trade. Equal to starting_capital + sum(pnl up to this point)."
-        ),
+        description=("Cumulative PnL from the starting capital up to and including this trade. Equal to starting_capital + sum(pnl up to this point)."),
         examples=["10475.00"],
     )
     pnl: Decimal = Field(
         ...,
-        description=(
-            "PnL of the individual trade that caused this equity curve update."
-        ),
+        description=("PnL of the individual trade that caused this equity curve update."),
         examples=["475.00", "-120.50"],
     )
 
@@ -226,9 +195,7 @@ class MetricsSummary(BaseModel):
 
     metrics: TradeMetrics = Field(
         ...,
-        description=(
-            "Aggregate performance metrics computed from all qualifying trades."
-        ),
+        description=("Aggregate performance metrics computed from all qualifying trades."),
         examples=[
             {
                 "total_trades": 42,
@@ -254,25 +221,18 @@ class MetricsSummary(BaseModel):
     max_drawdown: Decimal = Field(
         ...,
         description=(
-            "The worst (most negative) drawdown fraction over the observed period "
-            "(range: 0.0 to -1.0). Zero when the equity never fell below the peak."
+            "The worst (most negative) drawdown fraction over the observed period (range: 0.0 to -1.0). Zero when the equity never fell below the peak."
         ),
         examples=["-0.2200"],
     )
     max_drawdown_abs: Decimal = Field(
         ...,
-        description=(
-            "The worst absolute drawdown in account currency over the observed period. "
-            "Always zero or negative."
-        ),
+        description=("The worst absolute drawdown in account currency over the observed period. Always zero or negative."),
         examples=["-2200.00"],
     )
     equity_curve: list[EquityCurvePoint] = Field(
         ...,
-        description=(
-            "Ordered list of equity curve data points, one per closed trade, "
-            "capped at EQUITY_CURVE_MAX_POINTS entries."
-        ),
+        description=("Ordered list of equity curve data points, one per closed trade, capped at EQUITY_CURVE_MAX_POINTS entries."),
         examples=[
             [
                 {
@@ -290,10 +250,7 @@ class MetricsSummary(BaseModel):
     )
     drawdown_curve: list[DrawdownPoint] = Field(
         ...,
-        description=(
-            "Ordered list of drawdown data points corresponding to each equity "
-            "curve entry."
-        ),
+        description=("Ordered list of drawdown data points corresponding to each equity curve entry."),
         examples=[
             [
                 {

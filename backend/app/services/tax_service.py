@@ -103,9 +103,7 @@ class TaxService:
             user_id=user_id,
         )
         # Build lookup: account_id -> (dividends, withholding, interest)
-        cash_by_account: dict[uuid.UUID | None, tuple[Decimal, Decimal, Decimal]] = {
-            row[0]: (row[1], row[2], row[3]) for row in cash_rows
-        }
+        cash_by_account: dict[uuid.UUID | None, tuple[Decimal, Decimal, Decimal]] = {row[0]: (row[1], row[2], row[3]) for row in cash_rows}
 
         overall_equities_gains = _ZERO
         overall_equities_losses = _ZERO
@@ -178,9 +176,7 @@ class TaxService:
                     overall_derivatives_count += acc_derivatives_count
 
             # Cash flow totals for this account
-            dividends, withholding, interest = cash_by_account.get(
-                acc_id, (_ZERO, _ZERO, _ZERO)
-            )
+            dividends, withholding, interest = cash_by_account.get(acc_id, (_ZERO, _ZERO, _ZERO))
             overall_dividends += dividends
             overall_withholding += withholding
             overall_interest += interest
@@ -281,11 +277,7 @@ class TaxService:
 
             # Compute implied EUR/USD rate if both pnl and pnl_eur are set.
             fx_rate: str
-            if (
-                trade.pnl is not None
-                and trade.pnl_eur is not None
-                and trade.pnl_eur != _ZERO
-            ):
+            if trade.pnl is not None and trade.pnl_eur is not None and trade.pnl_eur != _ZERO:
                 implied = Decimal(str(trade.pnl)) / Decimal(str(trade.pnl_eur))
                 fx_rate = str(implied.quantize(Decimal("0.00000001")))
             else:

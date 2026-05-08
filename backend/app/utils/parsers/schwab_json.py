@@ -87,38 +87,24 @@ class SchwabJSONParser(BrokerParser):
                 instrument = self._extract_instrument(txn)
                 direction = self._map_direction(instrument["instruction"])
                 if direction is None:
-                    msg = (
-                        "Schwab transaction skipped due to unknown instruction "
-                        f"(activityId={activity_id})."
-                    )
+                    msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
                     logger.warning(msg)
                     self.warnings.append(msg)
                     continue
 
-                execution_direction = self._map_execution_direction(
-                    instrument["instruction"]
-                )
+                execution_direction = self._map_execution_direction(instrument["instruction"])
                 if execution_direction is None:
-                    msg = (
-                        "Schwab transaction skipped due to unknown instruction "
-                        f"(activityId={activity_id})."
-                    )
+                    msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
                     logger.warning(msg)
                     self.warnings.append(msg)
                     continue
 
-                executed_at = self._parse_datetime(
-                    str(txn.get("transactionDate") or txn.get("time") or "")
-                )
+                executed_at = self._parse_datetime(str(txn.get("transactionDate") or txn.get("time") or ""))
                 quantity = abs(Decimal(str(instrument["amount"])))
                 price = abs(Decimal(str(instrument["price"])))
                 commission = self._extract_commission(txn)
                 asset_class = self._map_asset_class(instrument["assetType"])
-                pnl = (
-                    Decimal("0")
-                    if str(instrument["instruction"]).upper() in _CLOSING_INSTRUCTIONS
-                    else None
-                )
+                pnl = Decimal("0") if str(instrument["instruction"]).upper() in _CLOSING_INSTRUCTIONS else None
 
                 raw_records.append(
                     BrokerRawTransactionCreate(
@@ -138,10 +124,7 @@ class SchwabJSONParser(BrokerParser):
                     )
                 )
             except (KeyError, ValueError, InvalidOperation) as exc:
-                msg = (
-                    f"Schwab transaction {activity_id or idx}: skipped - "
-                    f"could not parse record ({exc})."
-                )
+                msg = f"Schwab transaction {activity_id or idx}: skipped - could not parse record ({exc})."
                 logger.warning(msg)
                 self.warnings.append(msg)
 

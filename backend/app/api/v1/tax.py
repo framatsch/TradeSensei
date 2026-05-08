@@ -56,22 +56,11 @@ def _get_service(
         "all monetary values are returned as ``0`` (HTTP 200 — not 404).\n\n"
         "**Authentication:** a valid Bearer token is required."
     ),
-    response_description=(
-        "Annual tax summary with equities and derivatives blocks plus "
-        "``total_net_eur``, wrapped in a ResponseEnvelope."
-    ),
+    response_description=("Annual tax summary with equities and derivatives blocks plus ``total_net_eur``, wrapped in a ResponseEnvelope."),
     responses={
         200: {"description": "Tax summary successfully computed and returned."},
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. ``year`` must be a valid integer."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. ``year`` must be a valid integer.")},
     },
 )
 async def get_annual_summary(
@@ -82,10 +71,7 @@ async def get_annual_summary(
         Query(
             ge=1900,
             le=2200,
-            description=(
-                "Calendar year for which to compute the tax summary "
-                "(e.g. ``2025``). Must be between 1900 and 2200."
-            ),
+            description=("Calendar year for which to compute the tax summary (e.g. ``2025``). Must be between 1900 and 2200."),
             examples=[2025],
         ),
     ],
@@ -137,16 +123,8 @@ async def get_annual_summary(
             "description": "CSV file successfully generated.",
             "content": {"text/csv": {}},
         },
-        401: {
-            "description": (
-                "Not authenticated. The Bearer token is missing, expired, or invalid."
-            )
-        },
-        422: {
-            "description": (
-                "Query parameter validation error. ``year`` must be a valid integer."
-            )
-        },
+        401: {"description": ("Not authenticated. The Bearer token is missing, expired, or invalid.")},
+        422: {"description": ("Query parameter validation error. ``year`` must be a valid integer.")},
     },
 )
 async def get_annual_summary_csv(
@@ -157,10 +135,7 @@ async def get_annual_summary_csv(
         Query(
             ge=1900,
             le=2200,
-            description=(
-                "Calendar year for which to generate the CSV export "
-                "(e.g. ``2025``). Must be between 1900 and 2200."
-            ),
+            description=("Calendar year for which to generate the CSV export (e.g. ``2025``). Must be between 1900 and 2200."),
             examples=[2025],
         ),
     ],

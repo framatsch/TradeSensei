@@ -68,9 +68,7 @@ class FxRate(Base):
         server_default=func.now(),
     )
 
-    __table_args__ = (
-        UniqueConstraint("date", "base", "quote", name="uq_fx_rates_date_base_quote"),
-    )
+    __table_args__ = (UniqueConstraint("date", "base", "quote", name="uq_fx_rates_date_base_quote"),)
 
     def __repr__(self) -> str:
         """Return a human-readable string representation.

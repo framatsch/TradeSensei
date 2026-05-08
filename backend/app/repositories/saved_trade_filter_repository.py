@@ -38,14 +38,10 @@ class SavedTradeFilterRepository:
 
     async def get_by_id(self, filter_id: uuid.UUID) -> SavedTradeFilter | None:
         """Get a saved filter by ID."""
-        result = await self.session.execute(
-            select(SavedTradeFilter).where(SavedTradeFilter.id == filter_id)
-        )
+        result = await self.session.execute(select(SavedTradeFilter).where(SavedTradeFilter.id == filter_id))
         return result.scalar_one_or_none()
 
-    async def get_by_id_and_owner(
-        self, filter_id: uuid.UUID, owner_id: uuid.UUID
-    ) -> SavedTradeFilter | None:
+    async def get_by_id_and_owner(self, filter_id: uuid.UUID, owner_id: uuid.UUID) -> SavedTradeFilter | None:
         """Get a saved filter by ID, ensuring it belongs to the user."""
         result = await self.session.execute(
             select(SavedTradeFilter).where(
@@ -59,10 +55,7 @@ class SavedTradeFilterRepository:
         """List all saved filters visible to a user (system + user's own)."""
         result = await self.session.execute(
             select(SavedTradeFilter)
-            .where(
-                (SavedTradeFilter.scope == FilterScope.SYSTEM)
-                | (SavedTradeFilter.owner_id == user_id)
-            )
+            .where((SavedTradeFilter.scope == FilterScope.SYSTEM) | (SavedTradeFilter.owner_id == user_id))
             .order_by(SavedTradeFilter.scope, SavedTradeFilter.name)
         )
         return result.scalars().all()
@@ -88,7 +81,5 @@ class SavedTradeFilterRepository:
 
     async def delete(self, filter_id: uuid.UUID) -> None:
         """Delete a saved filter."""
-        await self.session.execute(
-            delete(SavedTradeFilter).where(SavedTradeFilter.id == filter_id)
-        )
+        await self.session.execute(delete(SavedTradeFilter).where(SavedTradeFilter.id == filter_id))
         await self.session.flush()

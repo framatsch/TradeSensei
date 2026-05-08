@@ -20,10 +20,7 @@ class TradeNoteCreate(BaseModel):
         ...,
         min_length=1,
         max_length=NOTE_MAX_LENGTH,
-        description=(
-            "Body of the trade note. Maximum 5 000 characters. "
-            "Used for post-trade reviews, observations, or emotional state."
-        ),
+        description=("Body of the trade note. Maximum 5 000 characters. Used for post-trade reviews, observations, or emotional state."),
         examples=["Entered too early — should have waited for confirmation.", ""],
     )
     emotion: str | None = Field(
@@ -58,10 +55,7 @@ class TradeNoteUpdate(BaseModel):
     emotion: str | None = Field(
         default=None,
         max_length=EMOTION_MAX_LENGTH,
-        description=(
-            "Updated emotion label. Omit to leave unchanged. "
-            "Set to null to clear the existing emotion."
-        ),
+        description=("Updated emotion label. Omit to leave unchanged. Set to null to clear the existing emotion."),
         examples=["calm", None],
     )
 

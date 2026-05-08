@@ -88,9 +88,7 @@ class BrokerService:
                 type is ``MANUAL`` (no API sync supported) or required
                 credentials are missing / corrupted.
         """
-        account = await self._account_repo.get_by_id_with_properties(
-            account_id, user_id
-        )
+        account = await self._account_repo.get_by_id_with_properties(account_id, user_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         if account.type == AccountType.SCHWAB:
@@ -121,9 +119,7 @@ class BrokerService:
                 is not found among the account's properties, or if
                 decryption fails.
         """
-        prop: AccountProperty | None = next(
-            (p for p in account.properties if p.key == key), None
-        )
+        prop: AccountProperty | None = next((p for p in account.properties if p.key == key), None)
         if prop is None:
             raise ConfigurationError(f"Missing account property: {key}")
         try:
@@ -200,9 +196,7 @@ class BrokerService:
 
         flex_service = FlexImportService(self._session, flex_token)
         if account.portfolio_id is None:
-            raise ConfigurationError(
-                f"Account {account.id} is not linked to a portfolio."
-            )
+            raise ConfigurationError(f"Account {account.id} is not linked to a portfolio.")
 
         try:
             result = await flex_service.import_flex(
@@ -272,10 +266,7 @@ class BrokerService:
         imported_count = 0
         new_trades: list[TradeCreate] = []
         for trade_create in normalised:
-            if (
-                trade_create.broker_order_id is not None
-                and trade_create.broker_order_id in existing_ids
-            ):
+            if trade_create.broker_order_id is not None and trade_create.broker_order_id in existing_ids:
                 skipped_count += 1
                 continue
             trade_create.user_id = user_id

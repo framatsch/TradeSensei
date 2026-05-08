@@ -45,13 +45,8 @@ def _get_service(
     "",
     response_model=ResponseEnvelope[list[CorporateActionRead]],
     summary="List Corporate Actions",
-    description=(
-        "Return all corporate actions (stock splits / reverse splits) owned by "
-        "the currently authenticated user, ordered by date ascending."
-    ),
-    response_description=(
-        "A list of corporate actions wrapped in a response envelope."
-    ),
+    description=("Return all corporate actions (stock splits / reverse splits) owned by the currently authenticated user, ordered by date ascending."),
+    response_description=("A list of corporate actions wrapped in a response envelope."),
     responses={
         200: {"description": "Corporate action list returned successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -88,9 +83,7 @@ async def list_corporate_actions(
         "``new_conid`` fields are optional and only relevant for IBKR imports "
         "where the broker reassigns a new contract ID after the split."
     ),
-    response_description=(
-        "The newly created corporate action wrapped in a response envelope."
-    ),
+    response_description=("The newly created corporate action wrapped in a response envelope."),
     responses={
         201: {"description": "Corporate action created successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -128,10 +121,7 @@ async def create_corporate_action(
         "user.  Only fields present in the request body are modified.  Returns "
         "404 if the record does not exist or belongs to a different user."
     ),
-    response_description=(
-        "The corporate action after applying the update, "
-        "wrapped in a response envelope."
-    ),
+    response_description=("The corporate action after applying the update, wrapped in a response envelope."),
     responses={
         200: {"description": "Corporate action updated successfully."},
         401: {"description": "Missing or invalid Bearer token."},
@@ -161,9 +151,7 @@ async def update_corporate_action(
         HTTPException: 404 if the record is not found for this user.
     """
     try:
-        action = await service.update_corporate_action(
-            corporate_action_id, payload, current_user.id
-        )
+        action = await service.update_corporate_action(corporate_action_id, payload, current_user.id)
     except CorporateActionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -177,17 +165,14 @@ async def update_corporate_action(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a Corporate Action",
     description=(
-        "Permanently delete a corporate action owned by the authenticated user. "
-        "Returns 404 if the record does not exist or belongs to a different user."
+        "Permanently delete a corporate action owned by the authenticated user. Returns 404 if the record does not exist or belongs to a different user."
     ),
     response_description="No content — the corporate action has been deleted.",
     responses={
         204: {"description": "Corporate action deleted successfully."},
         401: {"description": "Missing or invalid Bearer token."},
         404: {"description": "Corporate action not found."},
-        422: {
-            "description": "The supplied ``corporate_action_id`` is not a valid UUID."
-        },
+        422: {"description": "The supplied ``corporate_action_id`` is not a valid UUID."},
     },
 )
 async def delete_corporate_action(

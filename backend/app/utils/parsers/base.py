@@ -105,9 +105,7 @@ class BrokerParser(ABC):
             NotImplementedError: If the parser has not implemented raw parsing.
             ImportParseError: If the file cannot be parsed.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} does not implement parse_raw()."
-        )
+        raise NotImplementedError(f"{type(self).__name__} does not implement parse_raw().")
 
     async def enrich_pnl_eur(
         self,

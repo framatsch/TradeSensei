@@ -67,9 +67,7 @@ class FxRateService:
         # 2. API fetch (includes weekend/holiday fallback internally).
         rate = await fetch_ecb_rate(date)
         if rate is None:
-            logger.warning(
-                "EUR/USD rate unavailable for %s — pnl_eur will be NULL.", date
-            )
+            logger.warning("EUR/USD rate unavailable for %s — pnl_eur will be NULL.", date)
             return None
 
         # 3. Persist to cache.

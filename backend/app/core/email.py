@@ -113,6 +113,4 @@ async def send_password_reset_email(to_address: str, reset_url: str) -> None:
         await asyncio.to_thread(_send_smtp, to_address, reset_url)
         logger.info("Password-reset email sent to %s", to_address)
     except Exception:
-        logger.warning(
-            "Failed to send password-reset email to %s", to_address, exc_info=True
-        )
+        logger.warning("Failed to send password-reset email to %s", to_address, exc_info=True)

@@ -101,9 +101,7 @@ class MetricsService:
 
         metrics: TradeMetrics = compute_trade_metrics(trade_dtos)
 
-        equity_curve: list[EquityCurvePoint] = compute_equity_curve(
-            trade_dtos, starting_capital=starting_capital
-        )
+        equity_curve: list[EquityCurvePoint] = compute_equity_curve(trade_dtos, starting_capital=starting_capital)
 
         # Cap the equity curve at the configured maximum number of points.
         if len(equity_curve) > EQUITY_CURVE_MAX_POINTS:
@@ -112,9 +110,7 @@ class MetricsService:
         drawdown_curve: list[DrawdownPoint]
         max_drawdown: Decimal
         max_drawdown_abs: Decimal
-        drawdown_curve, max_drawdown, max_drawdown_abs = compute_drawdown_curve(
-            equity_curve, starting_capital=starting_capital
-        )
+        drawdown_curve, max_drawdown, max_drawdown_abs = compute_drawdown_curve(equity_curve, starting_capital=starting_capital)
 
         return MetricsSummary(
             metrics=metrics,
@@ -194,7 +190,5 @@ class MetricsService:
         curve = compute_equity_curve(trade_dtos, starting_capital=starting_capital)
         if len(curve) > EQUITY_CURVE_MAX_POINTS:
             curve = curve[:EQUITY_CURVE_MAX_POINTS]
-        drawdown_curve, _, _ = compute_drawdown_curve(
-            curve, starting_capital=starting_capital
-        )
+        drawdown_curve, _, _ = compute_drawdown_curve(curve, starting_capital=starting_capital)
         return drawdown_curve

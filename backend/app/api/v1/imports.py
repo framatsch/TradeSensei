@@ -91,10 +91,7 @@ def _get_flex_service(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "IBKR Flex import is not configured on this server. "
-                "Set the IBKR_FLEX_TOKEN environment variable to enable it."
-            ),
+            detail=("IBKR Flex import is not configured on this server. Set the IBKR_FLEX_TOKEN environment variable to enable it."),
         )
     return FlexImportService(session, flex_token=token)
 
@@ -129,23 +126,16 @@ async def _validate_account_import(
         portfolio_id,
     )
     if account is None:
-        raise AccountNotFoundError(
-            f"Account {account_id} not found for user {user_id}."
-        )
+        raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
     broker = _ACCOUNT_TYPE_BROKER.get(account.type)
     if broker is None:
         raise ImportNotAllowedError("File import is not supported for manual accounts")
     allowed = _BROKER_ALLOWED_EXTENSIONS[broker]
     if extension not in allowed:
         if account.type == AccountType.SCHWAB and extension == "csv":
-            raise ImportNotAllowedError(
-                "Schwab accounts require JSON format (.json). "
-                "CSV import is no longer supported."
-            )
+            raise ImportNotAllowedError("Schwab accounts require JSON format (.json). CSV import is no longer supported.")
         raise ImportNotAllowedError(
-            f"Account '{account.name}' ({account.type.upper()}) only accepts "
-            f"{', '.join(f'.{e}' for e in sorted(allowed))} files. "
-            f"Received: .{extension}"
+            f"Account '{account.name}' ({account.type.upper()}) only accepts {', '.join(f'.{e}' for e in sorted(allowed))} files. Received: .{extension}"
         )
     return broker
 
@@ -162,10 +152,7 @@ async def _validate_account_import(
         "accept JSON. Manual accounts do not support file import. "
         f"Maximum file size: {IMPORT_MAX_FILE_SIZE_MB} MB."
     ),
-    response_description=(
-        "A summary of the import operation wrapped in a response envelope, "
-        "including the number of trades created and any parse warnings."
-    ),
+    response_description=("A summary of the import operation wrapped in a response envelope, including the number of trades created and any parse warnings."),
     responses={
         200: {"description": "Import completed. Check warnings for skipped rows."},
         400: {"description": "File format not supported or parse error."},
@@ -253,10 +240,7 @@ async def upload_import(
     if len(content) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=(
-                f"File exceeds the maximum allowed size of "
-                f"{IMPORT_MAX_FILE_SIZE_MB} MB."
-            ),
+            detail=(f"File exceeds the maximum allowed size of {IMPORT_MAX_FILE_SIZE_MB} MB."),
         )
 
     # --- Delegate to service -----------------------------------------------
@@ -317,12 +301,7 @@ async def fresh_start_import(
     file: UploadFile,
     acknowledged: Annotated[
         bool,
-        FastAPIForm(
-            description=(
-                "Must be true to confirm that all trades and executions "
-                "for this account will be deleted before re-importing."
-            )
-        ),
+        FastAPIForm(description=("Must be true to confirm that all trades and executions for this account will be deleted before re-importing.")),
     ] = False,
 ) -> ResponseEnvelope[FreshStartResult]:
     """Reset an account and re-import all trades from a broker file.
@@ -349,10 +328,7 @@ async def fresh_start_import(
     if not acknowledged:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Please set acknowledged=true to confirm that all trades and "
-                "executions for this account will be deleted before re-importing."
-            ),
+            detail=("Please set acknowledged=true to confirm that all trades and executions for this account will be deleted before re-importing."),
         )
 
     filename = file.filename or "upload"
@@ -384,10 +360,7 @@ async def fresh_start_import(
     if len(content) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=(
-                f"File exceeds the maximum allowed size of "
-                f"{IMPORT_MAX_FILE_SIZE_MB} MB."
-            ),
+            detail=(f"File exceeds the maximum allowed size of {IMPORT_MAX_FILE_SIZE_MB} MB."),
         )
 
     # --- Apply statement_timeout guard ---
@@ -422,10 +395,7 @@ async def fresh_start_import(
     response_model=ResponseEnvelope[ImportResult],
     status_code=status.HTTP_200_OK,
     summary="Import Schwab transactions from JSON body",
-    description=(
-        "Import Schwab transactions from a JSON array body using the raw-data "
-        "pipeline. The target account must be a SCHWAB account."
-    ),
+    description=("Import Schwab transactions from a JSON array body using the raw-data pipeline. The target account must be a SCHWAB account."),
     responses={
         200: {"description": "Import completed."},
         400: {"description": "Import payload is invalid or cannot be parsed."},
@@ -505,11 +475,7 @@ async def suppress_raw_transaction(
     current_user: Annotated[User, Depends(get_current_user)],
     suppressed: Annotated[
         bool,
-        Query(
-            description=(
-                "New value for the suppressed flag. True to suppress, False to restore."
-            )
-        ),
+        Query(description=("New value for the suppressed flag. True to suppress, False to restore.")),
     ] = True,
 ) -> ResponseEnvelope[BrokerRawTransactionRead]:
     """Toggle the suppressed flag on a broker raw transaction.
@@ -562,10 +528,7 @@ async def suppress_raw_transaction(
         "Duplicate trades (same symbol + timestamp already in the database) "
         "are silently skipped."
     ),
-    response_description=(
-        "A summary of the import operation wrapped in a response envelope, "
-        "including the number of trades created and any warnings."
-    ),
+    response_description=("A summary of the import operation wrapped in a response envelope, including the number of trades created and any warnings."),
     responses={
         200: {"description": "Import completed. Check warnings for skipped entries."},
         400: {"description": "Flex API returned an error."},
@@ -617,10 +580,7 @@ async def flex_import(
     except RateLimitError as exc:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=(
-                f"IBKR Flex API rate limit exceeded. "
-                f"Retry after {exc.wait_seconds} seconds."
-            ),
+            detail=(f"IBKR Flex API rate limit exceeded. Retry after {exc.wait_seconds} seconds."),
             headers={"Retry-After": str(exc.wait_seconds)},
         ) from exc
     except FlexAPIError as exc:

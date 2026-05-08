@@ -18,10 +18,7 @@ class TokenResponse(BaseModel):
 
     access_token: str = Field(
         ...,
-        description=(
-            "Signed JWT access token. Include in the "
-            "'Authorization: Bearer <token>' header."
-        ),
+        description=("Signed JWT access token. Include in the 'Authorization: Bearer <token>' header."),
         examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
     )
     token_type: str = Field(
@@ -65,10 +62,7 @@ class OAuthExchangeRequest(BaseModel):
 
     one_time_token: str = Field(
         ...,
-        description=(
-            "Short-lived one-time JWT received via the OAuth callback "
-            "redirect URL query parameter ``?token=``."
-        ),
+        description=("Short-lived one-time JWT received via the OAuth callback redirect URL query parameter ``?token=``."),
     )
 
 
@@ -103,10 +97,7 @@ class AuthConfigResponse(BaseModel):
     )
     password_reset_enabled: bool = Field(
         default=False,
-        description=(
-            "Whether self-service password reset via email is available. "
-            "Requires SMTP to be configured and local auth to be active."
-        ),
+        description=("Whether self-service password reset via email is available. Requires SMTP to be configured and local auth to be active."),
     )
 
 

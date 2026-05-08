@@ -70,9 +70,7 @@ class CorporateActionRepository:
             ``date``, then ``symbol``.
         """
         result = await self._session.execute(
-            select(CorporateAction)
-            .where(CorporateAction.user_id == user_id)
-            .order_by(CorporateAction.date.asc(), CorporateAction.symbol.asc())
+            select(CorporateAction).where(CorporateAction.user_id == user_id).order_by(CorporateAction.date.asc(), CorporateAction.symbol.asc())
         )
         return list(result.scalars().all())
 

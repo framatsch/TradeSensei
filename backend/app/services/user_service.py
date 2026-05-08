@@ -96,22 +96,16 @@ class UserService:
         if new_username is not None and new_username != user.username:
             existing = await self._repo.get_by_username(new_username)
             if existing is not None:
-                raise UserAlreadyExistsError(
-                    f"Username {new_username!r} is already taken."
-                )
+                raise UserAlreadyExistsError(f"Username {new_username!r} is already taken.")
 
         new_email: str | None = update_dict.get("email")
         if new_email is not None and new_email != user.email:
             existing = await self._repo.get_by_email(new_email)
             if existing is not None:
-                raise UserAlreadyExistsError(
-                    f"Email {new_email!r} is already registered."
-                )
+                raise UserAlreadyExistsError(f"Email {new_email!r} is already registered.")
 
         # Strip None values — only write explicitly-provided non-null fields
-        clean_dict: dict[str, object] = {
-            k: v for k, v in update_dict.items() if v is not None
-        }
+        clean_dict: dict[str, object] = {k: v for k, v in update_dict.items() if v is not None}
         updated = await self._repo.update(user, clean_dict)
         return UserRead.model_validate(updated)
 
@@ -150,11 +144,7 @@ class UserService:
         # Deserialize features JSON into dict
         try:
             features_val = merged.get("features", "{}")
-            if isinstance(features_val, str):
-                merged_features = json.loads(features_val)
-            else:
-                # Type safe: _SETTINGS_DEFAULTS["features"] is a dict
-                merged_features = features_val
+            merged_features = json.loads(features_val) if isinstance(features_val, str) else features_val
         except Exception:
             logger.warning(
                 "Failed to parse features JSON for user %s",

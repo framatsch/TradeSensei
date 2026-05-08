@@ -56,8 +56,4 @@ class TransactionExecutionMapping(Base):
         Returns:
             A string showing raw_transaction_id → logical_execution_id.
         """
-        return (
-            f"<TransactionExecutionMapping "
-            f"raw={self.raw_transaction_id!r} "
-            f"logical={self.logical_execution_id!r}>"
-        )
+        return f"<TransactionExecutionMapping raw={self.raw_transaction_id!r} logical={self.logical_execution_id!r}>"

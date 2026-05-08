@@ -222,10 +222,7 @@ class Trade(Base):
         Boolean,
         nullable=False,
         server_default="false",
-        comment=(
-            "When True, this trade was manually corrected and will be "
-            "skipped on subsequent broker re-imports."
-        ),
+        comment=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
     )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
@@ -240,18 +237,12 @@ class Trade(Base):
     pnl_eur: Mapped[Decimal | None] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
         nullable=True,
-        comment=(
-            "Realised P&L converted to EUR at the Bundesbank daily rate "
-            "on the trade date."
-        ),
+        comment=("Realised P&L converted to EUR at the Bundesbank daily rate on the trade date."),
     )
     net_pnl_eur: Mapped[Decimal | None] = mapped_column(
         Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
         nullable=True,
-        comment=(
-            "Realised net P&L converted to EUR at the Bundesbank daily rate "
-            "on the trade date."
-        ),
+        comment=("Realised net P&L converted to EUR at the Bundesbank daily rate on the trade date."),
     )
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),

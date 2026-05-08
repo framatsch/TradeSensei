@@ -225,10 +225,7 @@ class LogicalExecution(Base):
         ForeignKey("trades.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
-        comment=(
-            "Aggregated Trade this execution was assigned to. "
-            "None until the aggregator runs."
-        ),
+        comment=("Aggregated Trade this execution was assigned to. None until the aggregator runs."),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -302,7 +299,5 @@ class LogicalExecution(Base):
             A string with id, symbol, direction, quantity, origin, and deleted.
         """
         return (
-            f"<LogicalExecution id={self.id} symbol={self.symbol!r} "
-            f"direction={self.direction} qty={self.quantity} "
-            f"origin={self.origin} deleted={self.deleted}>"
+            f"<LogicalExecution id={self.id} symbol={self.symbol!r} direction={self.direction} qty={self.quantity} origin={self.origin} deleted={self.deleted}>"
         )

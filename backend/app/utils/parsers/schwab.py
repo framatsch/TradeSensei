@@ -43,9 +43,7 @@ _ACTION_SELL: str = "Sell"
 _PROCESSABLE_ACTIONS: frozenset[str] = frozenset({_ACTION_BUY, _ACTION_SELL})
 
 
-def _map_cash_transaction_type(
-    action: str, amount: Decimal
-) -> CashTransactionType | None:
+def _map_cash_transaction_type(action: str, amount: Decimal) -> CashTransactionType | None:
     """Map a Schwab Action string to a CashTransactionType.
 
     Returns None if the action is not a cash transaction.
@@ -61,18 +59,9 @@ def _map_cash_transaction_type(
         return CashTransactionType.WITHHOLDING_TAX
     if "INTEREST" in action_upper:
         return CashTransactionType.INTEREST
-    if (
-        "DEPOSIT" in action_upper
-        or "FUNDS RECEIVED" in action_upper
-        or "WIRE IN" in action_upper
-    ):
+    if "DEPOSIT" in action_upper or "FUNDS RECEIVED" in action_upper or "WIRE IN" in action_upper:
         return CashTransactionType.DEPOSIT
-    if (
-        "WITHDRAWAL" in action_upper
-        or "FUNDS PAID" in action_upper
-        or "WIRE OUT" in action_upper
-        or "FUNDS SENT" in action_upper
-    ):
+    if "WITHDRAWAL" in action_upper or "FUNDS PAID" in action_upper or "WIRE OUT" in action_upper or "FUNDS SENT" in action_upper:
         return CashTransactionType.WITHDRAWAL
     if "FEE" in action_upper or "COMMISSION" in action_upper:
         return CashTransactionType.FEE
@@ -194,10 +183,7 @@ class SchwabParser(BrokerParser):
         fieldnames_set = set(reader.fieldnames)
         missing = required_cols - fieldnames_set
         if missing:
-            raise ImportParseError(
-                f"Schwab CSV is missing required column(s): "
-                f"{', '.join(sorted(missing))}."
-            )
+            raise ImportParseError(f"Schwab CSV is missing required column(s): {', '.join(sorted(missing))}.")
 
         trades: list[TradeCreate] = []
         cash_transactions: list[CashTransactionCreateRequest] = []
@@ -243,20 +229,14 @@ class SchwabParser(BrokerParser):
         fx_service = FxRateService()
 
         # Build a set of unique dates for trades that have pnl.
-        dates_needed = {
-            trade.opened_at.date() for trade in trades if trade.pnl is not None
-        }
+        dates_needed = {trade.opened_at.date() for trade in trades if trade.pnl is not None}
 
         # Fetch rates for all needed dates up front.
         rates: dict[object, Decimal | None] = {}
         for trade_date in dates_needed:
             rate = await fx_service.get_usd_to_eur(session, trade_date)
             if rate is None:
-                msg = (
-                    f"EUR/USD rate unavailable for {trade_date} "
-                    "(Bundesbank API fallback failed). "
-                    "pnl_eur will be null for trades on this date."
-                )
+                msg = f"EUR/USD rate unavailable for {trade_date} (Bundesbank API fallback failed). pnl_eur will be null for trades on this date."
                 logger.warning(msg)
                 self.warnings.append(msg)
             rates[trade_date] = rate
@@ -268,9 +248,7 @@ class SchwabParser(BrokerParser):
                 if rate is not None:
                     trades[i] = trade.model_copy(update={"pnl_eur": trade.pnl * rate})
 
-    def _parse_row(
-        self, row: dict[str, str]
-    ) -> TradeCreate | CashTransactionCreateRequest | None:
+    def _parse_row(self, row: dict[str, str]) -> TradeCreate | CashTransactionCreateRequest | None:
         """Convert a single Schwab CSV row dict into a Pydantic schema.
 
         Sets ``currency="USD"`` on every trade and cash transaction.

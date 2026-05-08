@@ -78,9 +78,7 @@ class AuthService:
                 username or email is already registered.
         """
         if await self._repo.get_by_username(data.username) is not None:
-            raise UserAlreadyExistsError(
-                f"Username {data.username!r} is already taken."
-            )
+            raise UserAlreadyExistsError(f"Username {data.username!r} is already taken.")
         if await self._repo.get_by_email(data.email) is not None:
             raise UserAlreadyExistsError(f"Email {data.email!r} is already registered.")
         hashed = hash_password(data.password)
@@ -118,9 +116,7 @@ class AuthService:
         # OAuth-only users have no local password
         hashed = user.hashed_password
         if user.provider != "local" or hashed is None:
-            raise InvalidCredentialsError(
-                "This account uses Google login. Please sign in with Google."
-            )
+            raise InvalidCredentialsError("This account uses Google login. Please sign in with Google.")
         if not verify_password(data.password, hashed):
             raise InvalidCredentialsError("Invalid username/email or password.")
         if not user.is_active:
@@ -217,9 +213,7 @@ class AuthService:
             # 2. Existing local user with same email → auto-link
             existing = await self._repo.get_by_email(email)
             if existing is not None:
-                user = await self._repo.link_oauth_account(
-                    existing, provider, provider_sub
-                )
+                user = await self._repo.link_oauth_account(existing, provider, provider_sub)
             else:
                 # 3. Create new OAuth user
                 username = await self._derive_unique_username(display_name)
