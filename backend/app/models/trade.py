@@ -34,7 +34,9 @@ if TYPE_CHECKING:
     from app.models.logical_execution import LogicalExecution
     from app.models.playbook import Playbook
     from app.models.tag import Tag
+    from app.models.trade_annotation import TradeAnnotation
     from app.models.trade_note import TradeNote
+    from app.models.trade_taxonomy import TradeTaxonomy
     from app.models.user import User
 
 
@@ -312,6 +314,20 @@ class Trade(Base):
         back_populates="trade",
         lazy="select",
         passive_deletes=True,
+    )
+    taxonomy_assignments: Mapped[list["TradeTaxonomy"]] = relationship(
+        "TradeTaxonomy",
+        back_populates="trade",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+    annotation_assignments: Mapped[list["TradeAnnotation"]] = relationship(
+        "TradeAnnotation",
+        back_populates="trade",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
     )
 
     def __repr__(self) -> str:

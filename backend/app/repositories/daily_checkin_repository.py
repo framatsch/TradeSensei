@@ -8,6 +8,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.checkin_annotation import CheckinAnnotation
+from app.models.checkin_taxonomy import CheckinTaxonomy
 from app.models.daily_checkin import DailyCheckin
 from app.models.market_index import MarketIndexDefinition
 from app.schemas.daily_checkin import DailyCheckinCreate, DailyCheckinUpdate
@@ -30,6 +32,26 @@ class DailyCheckinRepository:
             .options(selectinload(DailyCheckin.target_indices))
         )
         return result.scalar_one()
+
+    async def get_by_id_and_user(
+        self,
+        checkin_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> DailyCheckin | None:
+        """Fetch a check-in by id and user with metadata relationships loaded."""
+        result = await self._session.execute(
+            select(DailyCheckin)
+            .where(
+                DailyCheckin.id == checkin_id,
+                DailyCheckin.user_id == user_id,
+            )
+            .options(
+                selectinload(DailyCheckin.target_indices),
+                selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy),
+                selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition),
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def create(
         self,
@@ -70,7 +92,11 @@ class DailyCheckinRepository:
                 DailyCheckin.user_id == user_id,
                 DailyCheckin.date == checkin_date,
             )
-            .options(selectinload(DailyCheckin.target_indices))
+            .options(
+                selectinload(DailyCheckin.target_indices),
+                selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy),
+                selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition),
+            )
         )
         return result.scalar_one_or_none()
 

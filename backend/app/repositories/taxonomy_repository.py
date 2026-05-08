@@ -1,0 +1,68 @@
+"""Repository for taxonomy definition persistence and assignment counts."""
+
+import uuid
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.checkin_taxonomy import CheckinTaxonomy
+from app.models.taxonomy import Taxonomy
+from app.models.trade_taxonomy import TradeTaxonomy
+from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
+
+
+class TaxonomyRepository:
+    """Data-access operations for taxonomy definitions."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(self, payload: TaxonomyCreate) -> Taxonomy:
+        taxonomy = Taxonomy(**payload.model_dump())
+        self._session.add(taxonomy)
+        await self._session.flush()
+        await self._session.refresh(taxonomy)
+        return taxonomy
+
+    async def get_by_id(self, taxonomy_id: uuid.UUID) -> Taxonomy | None:
+        result = await self._session.execute(
+            select(Taxonomy).where(Taxonomy.id == taxonomy_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list(self, scope: str | None = None) -> list[Taxonomy]:
+        stmt = select(Taxonomy).where(Taxonomy.is_archived.is_(False)).order_by(Taxonomy.name.asc())
+        if scope is not None:
+            stmt = stmt.where(
+                Taxonomy.scope.in_([scope, "both"])
+            )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update(self, taxonomy: Taxonomy, payload: TaxonomyUpdate) -> Taxonomy:
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(taxonomy, field, value)
+        self._session.add(taxonomy)
+        await self._session.flush()
+        await self._session.refresh(taxonomy)
+        return taxonomy
+
+    async def count_assignments(self, taxonomy_id: uuid.UUID) -> tuple[int, int]:
+        trade_result = await self._session.execute(
+            select(func.count()).select_from(TradeTaxonomy).where(TradeTaxonomy.taxonomy_id == taxonomy_id)
+        )
+        checkin_result = await self._session.execute(
+            select(func.count()).select_from(CheckinTaxonomy).where(CheckinTaxonomy.taxonomy_id == taxonomy_id)
+        )
+        return int(trade_result.scalar_one() or 0), int(checkin_result.scalar_one() or 0)
+
+    async def delete(self, taxonomy: Taxonomy) -> None:
+        await self._session.delete(taxonomy)
+        await self._session.flush()
+
+    async def archive(self, taxonomy: Taxonomy) -> Taxonomy:
+        taxonomy.is_archived = True
+        self._session.add(taxonomy)
+        await self._session.flush()
+        await self._session.refresh(taxonomy)
+        return taxonomy

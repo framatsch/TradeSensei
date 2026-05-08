@@ -196,6 +196,8 @@ export interface Trade {
   account_id: string | null;
   account_name: string | null;
   account_type: string | null;
+  taxonomies?: TaxonomyResponse[];
+  annotations?: TradeAnnotationResponse[];
   created_at: string;
   updated_at: string;
   is_manually_edited: boolean;
@@ -242,6 +244,85 @@ export interface TradeUpdate {
   playbook_id?: string | null;
   tag_ids?: string[] | null;
   is_manually_edited?: boolean | null;
+}
+
+// ─── Centralized metadata ─────────────────────────────────────────────────────
+
+export type MetadataScope = "trades" | "checkins" | "both";
+
+export type AnnotationType = "int" | "float" | "bool" | "string_enum";
+
+export interface TaxonomyResponse {
+  id: string;
+  name: string;
+  scope: MetadataScope;
+  color_hex: string;
+  description?: string | null;
+  icon_identifier?: string | null;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaxonomyCreate {
+  name: string;
+  scope: MetadataScope;
+  color_hex: string;
+  description?: string | null;
+  icon_identifier?: string | null;
+}
+
+export interface TaxonomyUpdate {
+  name?: string;
+  scope?: MetadataScope;
+  color_hex?: string;
+  description?: string | null;
+  icon_identifier?: string | null;
+}
+
+export interface AnnotationDefinitionResponse {
+  id: string;
+  name: string;
+  type: AnnotationType;
+  scope: MetadataScope;
+  description?: string | null;
+  scale_labels?: Record<string, unknown> | null;
+  icon_identifier?: string | null;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AnnotationDefinitionCreate {
+  name: string;
+  type: AnnotationType;
+  scope: MetadataScope;
+  description?: string | null;
+  scale_labels?: Record<string, unknown> | null;
+  icon_identifier?: string | null;
+}
+
+export interface AnnotationDefinitionUpdate {
+  name?: string;
+  type?: AnnotationType;
+  scope?: MetadataScope;
+  description?: string | null;
+  scale_labels?: Record<string, unknown> | null;
+  icon_identifier?: string | null;
+}
+
+export interface TradeAnnotationResponse {
+  trade_id: string;
+  annotation_definition_id: string;
+  definition: AnnotationDefinitionResponse;
+  value: string | number | boolean;
+}
+
+export interface CheckinAnnotationResponse {
+  checkin_id: string;
+  annotation_definition_id: string;
+  definition: AnnotationDefinitionResponse;
+  value: string | number | boolean;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────

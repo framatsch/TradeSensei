@@ -3,10 +3,13 @@
 import datetime as dt
 import re
 import uuid
+from typing import Any
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.daily_checkin import FieldTypeEnum
+from app.schemas.annotation_definition import CheckinAnnotationResponse
+from app.schemas.taxonomy import TaxonomyResponse
 
 _KEBAB_CASE_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -238,8 +241,55 @@ class DailyCheckinRead(BaseModel):
         default_factory=list,
         description="Associated market indices for this check-in.",
     )
+    taxonomies: list[TaxonomyResponse] = Field(
+        default_factory=list,
+        description="Taxonomy definitions assigned to this check-in.",
+    )
+    annotations: list[CheckinAnnotationResponse] = Field(
+        default_factory=list,
+        description="Resolved annotation values assigned to this check-in.",
+    )
     created_at: dt.datetime = Field(..., description="UTC creation timestamp.")
     updated_at: dt.datetime = Field(..., description="UTC last update timestamp.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _resolve_metadata(cls, data: Any) -> Any:
+        """Map assignment relationships into response fields."""
+        if not isinstance(data, dict):
+            if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
+                taxonomies = [
+                    assignment.taxonomy
+                    for assignment in data.__dict__["taxonomy_assignments"]
+                    if getattr(assignment, "taxonomy", None) is not None
+                ]
+                data.__dict__["taxonomies"] = taxonomies
+
+            if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:
+                resolved_annotations: list[dict[str, Any]] = []
+                for assignment in data.__dict__["annotation_assignments"]:
+                    definition = getattr(assignment, "annotation_definition", None)
+                    if definition is None:
+                        continue
+                    resolved_value: Any = assignment.value_int
+                    if resolved_value is None:
+                        resolved_value = assignment.value_float
+                    if resolved_value is None:
+                        resolved_value = assignment.value_bool
+                    if resolved_value is None:
+                        resolved_value = assignment.value_string
+                    resolved_annotations.append(
+                        {
+                            "annotation_definition_id": definition.id,
+                            "name": definition.name,
+                            "type": definition.type,
+                            "scope": definition.scope,
+                            "icon_identifier": definition.icon_identifier,
+                            "value": resolved_value,
+                        }
+                    )
+                data.__dict__["annotations"] = resolved_annotations
+        return data
 
 
 class ScreenshotUploadUrlRequest(BaseModel):

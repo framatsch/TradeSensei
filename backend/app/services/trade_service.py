@@ -105,13 +105,15 @@ class TradeService:
 
         key = f"trades/{user_id}/{trade_id}/{filename}"
         import os
+
         from app.core.config import settings
 
         is_test = os.environ.get("PYTEST_CURRENT_TEST") is not None
-        if is_test and not settings.storage_bucket:
-            url = f"/uploads/{key}"
-        else:
-            url = storage.upload_file_content(content, key, content_type)
+        url = (
+            f"/uploads/{key}"
+            if is_test and not settings.storage_bucket
+            else storage.upload_file_content(content, key, content_type)
+        )
 
         try:
             trade = await self.get_trade(trade_id, user_id)

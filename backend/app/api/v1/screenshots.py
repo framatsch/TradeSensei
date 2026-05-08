@@ -12,7 +12,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.constants import BYTES_PER_MB, SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import TradeNotFoundError

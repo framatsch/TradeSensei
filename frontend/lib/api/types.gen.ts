@@ -493,6 +493,182 @@ export type AnalyticsSummaryRequest = {
 };
 
 /**
+ * AnnotationAssignRequest
+ *
+ * Payload for assigning/updating annotation values.
+ */
+export type AnnotationAssignRequest = {
+    /**
+     * Value
+     *
+     * Raw value; type validation is performed in the service layer.
+     */
+    value: unknown;
+};
+
+/**
+ * AnnotationDefinitionCreate
+ *
+ * Payload for creating an annotation definition.
+ */
+export type AnnotationDefinitionCreate = {
+    /**
+     * Name
+     *
+     * Unique annotation name within a scope.
+     */
+    name: string;
+    /**
+     * Type
+     *
+     * Value type: int, float, bool, or string_enum.
+     */
+    type: 'int' | 'float' | 'bool' | 'string_enum';
+    /**
+     * Scope
+     *
+     * Assignment scope: trades, checkins, or both.
+     */
+    scope: 'trades' | 'checkins' | 'both';
+    /**
+     * Description
+     *
+     * Optional annotation description.
+     */
+    description?: string | null;
+    /**
+     * Scale Labels
+     *
+     * Optional type-specific metadata. For string_enum use scale_labels.options; for int/float, optional scale_labels.min and scale_labels.max are supported.
+     */
+    scale_labels?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Icon Identifier
+     *
+     * Optional icon identifier (for example 'lucide:brain').
+     */
+    icon_identifier?: string | null;
+};
+
+/**
+ * AnnotationDefinitionResponse
+ *
+ * Response schema for annotation definitions.
+ */
+export type AnnotationDefinitionResponse = {
+    /**
+     * Id
+     *
+     * Annotation definition identifier.
+     */
+    id: string;
+    /**
+     * Name
+     *
+     * Annotation definition name.
+     */
+    name: string;
+    /**
+     * Type
+     *
+     * Annotation value type.
+     */
+    type: 'int' | 'float' | 'bool' | 'string_enum';
+    /**
+     * Scope
+     *
+     * Assignment scope.
+     */
+    scope: 'trades' | 'checkins' | 'both';
+    /**
+     * Description
+     *
+     * Optional annotation description.
+     */
+    description: string | null;
+    /**
+     * Scale Labels
+     *
+     * Optional type-specific metadata.
+     */
+    scale_labels: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Icon Identifier
+     *
+     * Optional icon identifier.
+     */
+    icon_identifier: string | null;
+    /**
+     * Is Archived
+     *
+     * Archived flag.
+     */
+    is_archived: boolean;
+    /**
+     * Created At
+     *
+     * UTC creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Updated At
+     *
+     * UTC update timestamp.
+     */
+    updated_at: string;
+};
+
+/**
+ * AnnotationDefinitionUpdate
+ *
+ * Payload for updating an annotation definition.
+ */
+export type AnnotationDefinitionUpdate = {
+    /**
+     * Name
+     *
+     * Updated annotation name.
+     */
+    name?: string | null;
+    /**
+     * Type
+     *
+     * Updated annotation type.
+     */
+    type?: 'int' | 'float' | 'bool' | 'string_enum' | null;
+    /**
+     * Scope
+     *
+     * Updated assignment scope.
+     */
+    scope?: 'trades' | 'checkins' | 'both' | null;
+    /**
+     * Description
+     *
+     * Updated annotation description.
+     */
+    description?: string | null;
+    /**
+     * Scale Labels
+     *
+     * Updated type-specific metadata.
+     */
+    scale_labels?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Icon Identifier
+     *
+     * Updated icon identifier or null to clear.
+     */
+    icon_identifier?: string | null;
+};
+
+/**
  * AssetClass
  *
  * Asset class of the traded instrument.
@@ -1023,6 +1199,50 @@ export type CashTransactionUpdate = {
 };
 
 /**
+ * CheckinAnnotationResponse
+ *
+ * Resolved annotation payload returned in check-in detail responses.
+ */
+export type CheckinAnnotationResponse = {
+    /**
+     * Annotation Definition Id
+     *
+     * Annotation definition UUID.
+     */
+    annotation_definition_id: string;
+    /**
+     * Name
+     *
+     * Annotation definition name.
+     */
+    name: string;
+    /**
+     * Type
+     *
+     * Annotation value type.
+     */
+    type: 'int' | 'float' | 'bool' | 'string_enum';
+    /**
+     * Scope
+     *
+     * Annotation definition scope.
+     */
+    scope: 'trades' | 'checkins' | 'both';
+    /**
+     * Icon Identifier
+     *
+     * Optional icon identifier from definition.
+     */
+    icon_identifier: string | null;
+    /**
+     * Value
+     *
+     * Resolved typed value.
+     */
+    value: unknown;
+};
+
+/**
  * CheckinFieldDefinitionCreate
  *
  * Payload for creating a check-in field definition.
@@ -1452,6 +1672,18 @@ export type DailyCheckinRead = {
      * Associated market indices for this check-in.
      */
     target_indices?: Array<TargetIndexRead>;
+    /**
+     * Taxonomies
+     *
+     * Taxonomy definitions assigned to this check-in.
+     */
+    taxonomies?: Array<TaxonomyResponse>;
+    /**
+     * Annotations
+     *
+     * Resolved annotation values assigned to this check-in.
+     */
+    annotations?: Array<CheckinAnnotationResponse>;
     /**
      * Created At
      *
@@ -3202,6 +3434,24 @@ export type ResponseEnvelopeAnalyticsSummary = {
 };
 
 /**
+ * ResponseEnvelope[AnnotationDefinitionResponse]
+ */
+export type ResponseEnvelopeAnnotationDefinitionResponse = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: AnnotationDefinitionResponse;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ResponseEnvelope[AttributionResponse]
  */
 export type ResponseEnvelopeAttributionResponse = {
@@ -3762,6 +4012,24 @@ export type ResponseEnvelopeTaxAnnualSummary = {
 };
 
 /**
+ * ResponseEnvelope[TaxonomyResponse]
+ */
+export type ResponseEnvelopeTaxonomyResponse = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: TaxonomyResponse;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ResponseEnvelope[TradeImageUploadUrlResponse]
  */
 export type ResponseEnvelopeTradeImageUploadUrlResponse = {
@@ -3863,6 +4131,26 @@ export type ResponseEnvelopeDictStrStr = {
     data: {
         [key: string]: string;
     };
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ResponseEnvelope[list[AnnotationDefinitionResponse]]
+ */
+export type ResponseEnvelopeListAnnotationDefinitionResponse = {
+    /**
+     * Data
+     *
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<AnnotationDefinitionResponse>;
     /**
      * Meta
      *
@@ -4243,6 +4531,26 @@ export type ResponseEnvelopeListTagRead = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: Array<TagRead>;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ResponseEnvelope[list[TaxonomyResponse]]
+ */
+export type ResponseEnvelopeListTaxonomyResponse = {
+    /**
+     * Data
+     *
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<TaxonomyResponse>;
     /**
      * Meta
      *
@@ -4868,6 +5176,158 @@ export type TaxCategoryBlock = {
 };
 
 /**
+ * TaxonomyAssignRequest
+ *
+ * Payload for assigning taxonomy to an entity.
+ */
+export type TaxonomyAssignRequest = {
+    /**
+     * Taxonomy Id
+     *
+     * Taxonomy definition UUID to assign.
+     */
+    taxonomy_id: string;
+};
+
+/**
+ * TaxonomyCreate
+ *
+ * Payload for creating a taxonomy definition.
+ */
+export type TaxonomyCreate = {
+    /**
+     * Name
+     *
+     * Unique taxonomy name within a scope.
+     */
+    name: string;
+    /**
+     * Scope
+     *
+     * Assignment scope: trades, checkins, or both.
+     */
+    scope: 'trades' | 'checkins' | 'both';
+    /**
+     * Color Hex
+     *
+     * Hex color in #RRGGBB format.
+     */
+    color_hex: string;
+    /**
+     * Description
+     *
+     * Optional taxonomy description.
+     */
+    description?: string | null;
+    /**
+     * Icon Identifier
+     *
+     * Optional icon identifier (for example 'lucide:trending-down').
+     */
+    icon_identifier?: string | null;
+};
+
+/**
+ * TaxonomyResponse
+ *
+ * Response schema for taxonomy definitions.
+ */
+export type TaxonomyResponse = {
+    /**
+     * Id
+     *
+     * Taxonomy identifier.
+     */
+    id: string;
+    /**
+     * Name
+     *
+     * Taxonomy name.
+     */
+    name: string;
+    /**
+     * Scope
+     *
+     * Assignment scope.
+     */
+    scope: 'trades' | 'checkins' | 'both';
+    /**
+     * Color Hex
+     *
+     * Hex color in #RRGGBB format.
+     */
+    color_hex: string;
+    /**
+     * Description
+     *
+     * Optional taxonomy description.
+     */
+    description: string | null;
+    /**
+     * Icon Identifier
+     *
+     * Optional icon identifier.
+     */
+    icon_identifier: string | null;
+    /**
+     * Is Archived
+     *
+     * Archived flag.
+     */
+    is_archived: boolean;
+    /**
+     * Created At
+     *
+     * UTC creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Updated At
+     *
+     * UTC update timestamp.
+     */
+    updated_at: string;
+};
+
+/**
+ * TaxonomyUpdate
+ *
+ * Payload for updating a taxonomy definition.
+ */
+export type TaxonomyUpdate = {
+    /**
+     * Name
+     *
+     * Updated taxonomy name.
+     */
+    name?: string | null;
+    /**
+     * Scope
+     *
+     * Updated assignment scope.
+     */
+    scope?: 'trades' | 'checkins' | 'both' | null;
+    /**
+     * Color Hex
+     *
+     * Updated hex color in #RRGGBB format.
+     */
+    color_hex?: string | null;
+    /**
+     * Description
+     *
+     * Updated description.
+     */
+    description?: string | null;
+    /**
+     * Icon Identifier
+     *
+     * Updated icon identifier or null to clear.
+     */
+    icon_identifier?: string | null;
+};
+
+/**
  * TokenResponse
  *
  * Response schema returned by the token and refresh endpoints.
@@ -4889,6 +5349,50 @@ export type TokenResponse = {
      * Token type — always 'bearer'.
      */
     token_type?: string;
+};
+
+/**
+ * TradeAnnotationResponse
+ *
+ * Resolved annotation payload returned in trade detail responses.
+ */
+export type TradeAnnotationResponse = {
+    /**
+     * Annotation Definition Id
+     *
+     * Annotation definition UUID.
+     */
+    annotation_definition_id: string;
+    /**
+     * Name
+     *
+     * Annotation definition name.
+     */
+    name: string;
+    /**
+     * Type
+     *
+     * Annotation value type.
+     */
+    type: 'int' | 'float' | 'bool' | 'string_enum';
+    /**
+     * Scope
+     *
+     * Annotation definition scope.
+     */
+    scope: 'trades' | 'checkins' | 'both';
+    /**
+     * Icon Identifier
+     *
+     * Optional icon identifier from definition.
+     */
+    icon_identifier: string | null;
+    /**
+     * Value
+     *
+     * Resolved typed value.
+     */
+    value: unknown;
 };
 
 /**
@@ -5589,6 +6093,18 @@ export type TradeRead = {
      * Type of the broker account (e.g. 'ibkr', 'schwab', 'manual'), resolved from the joined account relationship.
      */
     account_type?: string | null;
+    /**
+     * Taxonomies
+     *
+     * Taxonomy definitions assigned to this trade.
+     */
+    taxonomies?: Array<TaxonomyResponse>;
+    /**
+     * Annotations
+     *
+     * Resolved annotation values assigned to this trade.
+     */
+    annotations?: Array<TradeAnnotationResponse>;
     /**
      * Tags
      *
@@ -9005,6 +9521,292 @@ export type UpdateTagApiV1TagsTagIdPatchResponses = {
 
 export type UpdateTagApiV1TagsTagIdPatchResponse = UpdateTagApiV1TagsTagIdPatchResponses[keyof UpdateTagApiV1TagsTagIdPatchResponses];
 
+export type ListTaxonomiesApiV1TaxonomiesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Scope
+         */
+        scope?: string | null;
+    };
+    url: '/api/v1/taxonomies';
+};
+
+export type ListTaxonomiesApiV1TaxonomiesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListTaxonomiesApiV1TaxonomiesGetError = ListTaxonomiesApiV1TaxonomiesGetErrors[keyof ListTaxonomiesApiV1TaxonomiesGetErrors];
+
+export type ListTaxonomiesApiV1TaxonomiesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeListTaxonomyResponse;
+};
+
+export type ListTaxonomiesApiV1TaxonomiesGetResponse = ListTaxonomiesApiV1TaxonomiesGetResponses[keyof ListTaxonomiesApiV1TaxonomiesGetResponses];
+
+export type CreateTaxonomyApiV1TaxonomiesPostData = {
+    body: TaxonomyCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/taxonomies';
+};
+
+export type CreateTaxonomyApiV1TaxonomiesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTaxonomyApiV1TaxonomiesPostError = CreateTaxonomyApiV1TaxonomiesPostErrors[keyof CreateTaxonomyApiV1TaxonomiesPostErrors];
+
+export type CreateTaxonomyApiV1TaxonomiesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ResponseEnvelopeTaxonomyResponse;
+};
+
+export type CreateTaxonomyApiV1TaxonomiesPostResponse = CreateTaxonomyApiV1TaxonomiesPostResponses[keyof CreateTaxonomyApiV1TaxonomiesPostResponses];
+
+export type DeleteTaxonomyApiV1TaxonomiesTaxonomyIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/taxonomies/{taxonomy_id}';
+};
+
+export type DeleteTaxonomyApiV1TaxonomiesTaxonomyIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteTaxonomyApiV1TaxonomiesTaxonomyIdDeleteError = DeleteTaxonomyApiV1TaxonomiesTaxonomyIdDeleteErrors[keyof DeleteTaxonomyApiV1TaxonomiesTaxonomyIdDeleteErrors];
+
+export type DeleteTaxonomyApiV1TaxonomiesTaxonomyIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GetTaxonomyApiV1TaxonomiesTaxonomyIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/taxonomies/{taxonomy_id}';
+};
+
+export type GetTaxonomyApiV1TaxonomiesTaxonomyIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTaxonomyApiV1TaxonomiesTaxonomyIdGetError = GetTaxonomyApiV1TaxonomiesTaxonomyIdGetErrors[keyof GetTaxonomyApiV1TaxonomiesTaxonomyIdGetErrors];
+
+export type GetTaxonomyApiV1TaxonomiesTaxonomyIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeTaxonomyResponse;
+};
+
+export type GetTaxonomyApiV1TaxonomiesTaxonomyIdGetResponse = GetTaxonomyApiV1TaxonomiesTaxonomyIdGetResponses[keyof GetTaxonomyApiV1TaxonomiesTaxonomyIdGetResponses];
+
+export type UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutData = {
+    body: TaxonomyUpdate;
+    path: {
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/taxonomies/{taxonomy_id}';
+};
+
+export type UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutError = UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutErrors[keyof UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutErrors];
+
+export type UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeTaxonomyResponse;
+};
+
+export type UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponse = UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponses[keyof UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponses];
+
+export type ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Scope
+         */
+        scope?: string | null;
+    };
+    url: '/api/v1/annotation-definitions';
+};
+
+export type ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetError = ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetErrors[keyof ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetErrors];
+
+export type ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeListAnnotationDefinitionResponse;
+};
+
+export type ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetResponse = ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetResponses[keyof ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetResponses];
+
+export type CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostData = {
+    body: AnnotationDefinitionCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/annotation-definitions';
+};
+
+export type CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostError = CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostErrors[keyof CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostErrors];
+
+export type CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ResponseEnvelopeAnnotationDefinitionResponse;
+};
+
+export type CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostResponse = CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostResponses[keyof CreateAnnotationDefinitionApiV1AnnotationDefinitionsPostResponses];
+
+export type DeleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Definition Id
+         */
+        definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/annotation-definitions/{definition_id}';
+};
+
+export type DeleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDeleteError = DeleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDeleteErrors[keyof DeleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDeleteErrors];
+
+export type DeleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Definition Id
+         */
+        definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/annotation-definitions/{definition_id}';
+};
+
+export type GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetError = GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetErrors[keyof GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetErrors];
+
+export type GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeAnnotationDefinitionResponse;
+};
+
+export type GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetResponse = GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetResponses[keyof GetAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdGetResponses];
+
+export type UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutData = {
+    body: AnnotationDefinitionUpdate;
+    path: {
+        /**
+         * Definition Id
+         */
+        definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/annotation-definitions/{definition_id}';
+};
+
+export type UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutError = UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutErrors[keyof UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutErrors];
+
+export type UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeAnnotationDefinitionResponse;
+};
+
+export type UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutResponse = UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutResponses[keyof UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutResponses];
+
 export type ListNotesApiV1TradesTradeIdNotesGetData = {
     body?: never;
     path: {
@@ -10914,6 +11716,326 @@ export type UpdateCheckinApiV1CheckinsCheckinDatePatchResponses = {
 };
 
 export type UpdateCheckinApiV1CheckinsCheckinDatePatchResponse = UpdateCheckinApiV1CheckinsCheckinDatePatchResponses[keyof UpdateCheckinApiV1CheckinsCheckinDatePatchResponses];
+
+export type AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostData = {
+    body: TaxonomyAssignRequest;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/taxonomies';
+};
+
+export type AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostError = AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostErrors[keyof AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostErrors];
+
+export type AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: unknown;
+};
+
+export type RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/taxonomies/{taxonomy_id}';
+};
+
+export type RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteError = RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteErrors[keyof RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteErrors];
+
+export type RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteResponse = RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteResponses[keyof RemoveTradeTaxonomyApiV1TradesTradeIdTaxonomiesTaxonomyIdDeleteResponses];
+
+export type RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+        /**
+         * Annotation Definition Id
+         */
+        annotation_definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/annotations/{annotation_definition_id}';
+};
+
+export type RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteError = RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteErrors[keyof RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteErrors];
+
+export type RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteResponse = RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteResponses[keyof RemoveTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdDeleteResponses];
+
+export type AssignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPostData = {
+    body: AnnotationAssignRequest;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+        /**
+         * Annotation Definition Id
+         */
+        annotation_definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/annotations/{annotation_definition_id}';
+};
+
+export type AssignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AssignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPostError = AssignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPostErrors[keyof AssignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPostErrors];
+
+export type AssignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: unknown;
+};
+
+export type UpdateTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPutData = {
+    body: AnnotationAssignRequest;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+        /**
+         * Annotation Definition Id
+         */
+        annotation_definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trades/{trade_id}/annotations/{annotation_definition_id}';
+};
+
+export type UpdateTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPutError = UpdateTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPutErrors[keyof UpdateTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPutErrors];
+
+export type UpdateTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type AssignCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesPostData = {
+    body: TaxonomyAssignRequest;
+    path: {
+        /**
+         * Checkin Id
+         */
+        checkin_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkins/{checkin_id}/taxonomies';
+};
+
+export type AssignCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AssignCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesPostError = AssignCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesPostErrors[keyof AssignCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesPostErrors];
+
+export type AssignCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: unknown;
+};
+
+export type RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Checkin Id
+         */
+        checkin_id: string;
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkins/{checkin_id}/taxonomies/{taxonomy_id}';
+};
+
+export type RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteError = RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteErrors[keyof RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteErrors];
+
+export type RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteResponse = RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteResponses[keyof RemoveCheckinTaxonomyApiV1CheckinsCheckinIdTaxonomiesTaxonomyIdDeleteResponses];
+
+export type RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Checkin Id
+         */
+        checkin_id: string;
+        /**
+         * Annotation Definition Id
+         */
+        annotation_definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkins/{checkin_id}/annotations/{annotation_definition_id}';
+};
+
+export type RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteError = RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteErrors[keyof RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteErrors];
+
+export type RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteResponse = RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteResponses[keyof RemoveCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdDeleteResponses];
+
+export type AssignCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPostData = {
+    body: AnnotationAssignRequest;
+    path: {
+        /**
+         * Checkin Id
+         */
+        checkin_id: string;
+        /**
+         * Annotation Definition Id
+         */
+        annotation_definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkins/{checkin_id}/annotations/{annotation_definition_id}';
+};
+
+export type AssignCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AssignCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPostError = AssignCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPostErrors[keyof AssignCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPostErrors];
+
+export type AssignCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: unknown;
+};
+
+export type UpdateCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPutData = {
+    body: AnnotationAssignRequest;
+    path: {
+        /**
+         * Checkin Id
+         */
+        checkin_id: string;
+        /**
+         * Annotation Definition Id
+         */
+        annotation_definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkins/{checkin_id}/annotations/{annotation_definition_id}';
+};
+
+export type UpdateCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPutError = UpdateCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPutErrors[keyof UpdateCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPutErrors];
+
+export type UpdateCheckinAnnotationApiV1CheckinsCheckinIdAnnotationsAnnotationDefinitionIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ListTokensApiV1SettingsTokensGetData = {
     body?: never;

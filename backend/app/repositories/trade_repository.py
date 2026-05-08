@@ -24,7 +24,9 @@ from app.core.security import encode_cursor as _encode_signed_cursor
 from app.models.account import Account
 from app.models.portfolio import Portfolio
 from app.models.trade import Trade
+from app.models.trade_annotation import TradeAnnotation
 from app.models.trade_tag import TradeTag
+from app.models.trade_taxonomy import TradeTaxonomy
 from app.schemas.trade import (
     BulkTagMode,
     TradeCreate,
@@ -187,6 +189,10 @@ def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
         selectinload(Trade.playbook),
         selectinload(Trade.account),
         selectinload(Trade.logical_executions),
+        selectinload(Trade.taxonomy_assignments).selectinload(TradeTaxonomy.taxonomy),
+        selectinload(Trade.annotation_assignments).selectinload(
+            TradeAnnotation.annotation_definition
+        ),
     )
 
 

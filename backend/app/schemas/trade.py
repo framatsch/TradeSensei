@@ -12,9 +12,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.core.config import settings
 from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
+from app.schemas.annotation_definition import TradeAnnotationResponse
 from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionRead
 from app.schemas.note import TradeNoteRead
 from app.schemas.tag import TagRead
+from app.schemas.taxonomy import TaxonomyResponse
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
 
@@ -906,6 +908,14 @@ class TradeRead(BaseModel):
         description=("Type of the broker account (e.g. 'ibkr', 'schwab', 'manual'), resolved from the joined account relationship."),
         examples=["ibkr", "schwab", "manual", None],
     )
+    taxonomies: list[TaxonomyResponse] = Field(
+        default_factory=list,
+        description="Taxonomy definitions assigned to this trade.",
+    )
+    annotations: list[TradeAnnotationResponse] = Field(
+        default_factory=list,
+        description="Resolved annotation values assigned to this trade.",
+    )
     tags: list[TagRead] = Field(
         default_factory=list,
         description="Tags attached to this trade.",
@@ -988,6 +998,40 @@ class TradeRead(BaseModel):
                 if getattr(data, "portfolio_id", None) is None:
                     with contextlib.suppress(Exception):
                         data.__dict__["portfolio_id"] = account.portfolio_id
+
+            if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
+                with contextlib.suppress(Exception):
+                    data.__dict__["taxonomies"] = [
+                        assignment.taxonomy
+                        for assignment in data.__dict__["taxonomy_assignments"]
+                        if getattr(assignment, "taxonomy", None) is not None
+                    ]
+
+            if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:
+                with contextlib.suppress(Exception):
+                    resolved_annotations: list[dict[str, Any]] = []
+                    for assignment in data.__dict__["annotation_assignments"]:
+                        definition = getattr(assignment, "annotation_definition", None)
+                        if definition is None:
+                            continue
+                        resolved_value: Any = assignment.value_int
+                        if resolved_value is None:
+                            resolved_value = assignment.value_float
+                        if resolved_value is None:
+                            resolved_value = assignment.value_bool
+                        if resolved_value is None:
+                            resolved_value = assignment.value_string
+                        resolved_annotations.append(
+                            {
+                                "annotation_definition_id": definition.id,
+                                "name": definition.name,
+                                "type": definition.type,
+                                "scope": definition.scope,
+                                "icon_identifier": definition.icon_identifier,
+                                "value": resolved_value,
+                            }
+                        )
+                    data.__dict__["annotations"] = resolved_annotations
 
             # Map logical_executions to legs (only if already loaded).
             # Use __dict__ to avoid triggering lazy-load of the relationship.

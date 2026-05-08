@@ -23,6 +23,8 @@ from app.core.database import Base
 from app.models.market_index import checkin_market_indices
 
 if TYPE_CHECKING:
+    from app.models.checkin_annotation import CheckinAnnotation
+    from app.models.checkin_taxonomy import CheckinTaxonomy
     from app.models.market_index import MarketIndexDefinition
     from app.models.user import User
 
@@ -178,4 +180,18 @@ class DailyCheckin(Base):
         "MarketIndexDefinition",
         secondary=checkin_market_indices,
         back_populates="checkins",
+    )
+    taxonomy_assignments: Mapped[list["CheckinTaxonomy"]] = relationship(
+        "CheckinTaxonomy",
+        back_populates="checkin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+    annotation_assignments: Mapped[list["CheckinAnnotation"]] = relationship(
+        "CheckinAnnotation",
+        back_populates="checkin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
     )

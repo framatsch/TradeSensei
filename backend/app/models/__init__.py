@@ -6,10 +6,13 @@ discover every table when it inspects ``Base.metadata``.
 
 from app.models.account import Account as Account
 from app.models.account_property import AccountProperty as AccountProperty
+from app.models.annotation_definition import AnnotationDefinition as AnnotationDefinition
 from app.models.broker_raw_transaction import (
     BrokerRawTransaction as BrokerRawTransaction,
 )
 from app.models.cash_transaction import CashTransaction as CashTransaction
+from app.models.checkin_annotation import CheckinAnnotation as CheckinAnnotation
+from app.models.checkin_taxonomy import CheckinTaxonomy as CheckinTaxonomy
 from app.models.corporate_action import CorporateAction as CorporateAction
 from app.models.daily_checkin import (
     CheckinFieldDefinition as CheckinFieldDefinition,
@@ -42,9 +45,12 @@ from app.models.saved_dashboard_view import SavedDashboardView as SavedDashboard
 from app.models.saved_trade_filter import FilterScope as FilterScope
 from app.models.saved_trade_filter import SavedTradeFilter as SavedTradeFilter
 from app.models.tag import Tag as Tag
+from app.models.taxonomy import Taxonomy as Taxonomy
 from app.models.trade import Trade as Trade
+from app.models.trade_annotation import TradeAnnotation as TradeAnnotation
 from app.models.trade_note import TradeNote as TradeNote
 from app.models.trade_tag import TradeTag as TradeTag
+from app.models.trade_taxonomy import TradeTaxonomy as TradeTaxonomy
 from app.models.transaction_execution_mapping import (
     TransactionExecutionMapping as TransactionExecutionMapping,
 )
