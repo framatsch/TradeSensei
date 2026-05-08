@@ -509,12 +509,34 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             : null;
 
           // Collect all execution timestamps that need markers
+          let activeExecutions = executions;
+          let activeExitTs = exitTs;
+
+          if (chartMode === "to-entry") {
+            if (activeExecutions) {
+              activeExecutions = activeExecutions.filter((e) =>
+                isEntryExecution(e, trade.direction),
+              );
+            }
+            activeExitTs = null;
+          }
+
+          // Determine the actual cutoff timestamp for "to-entry" mode
+          let entryCutoffTs = entryTs;
+          if (chartMode === "to-entry" && activeExecutions && activeExecutions.length > 0) {
+            const maxEntryMs = Math.max(
+              ...activeExecutions.map((e) => new Date(e.executed_at).getTime())
+            );
+            entryCutoffTs = Math.floor(maxEntryMs / 1000);
+          }
+
+          // Use activeExecutions instead of executions for marker timestamps
           const markerTimestamps: number[] =
-            executions && executions.length > 0
-              ? executions.map((e) =>
+            activeExecutions && activeExecutions.length > 0
+              ? activeExecutions.map((e) =>
                   Math.floor(new Date(e.executed_at).getTime() / 1000),
                 )
-              : [entryTs, ...(exitTs !== null ? [exitTs] : [])];
+              : [entryCutoffTs, ...(activeExitTs !== null ? [activeExitTs] : [])];
 
           // For 1d charts, normalise timestamps to midnight UTC so they align
           // with daily bars (LSEG bars always open at 00:00 UTC).
@@ -566,7 +588,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             const cutoff = exitTs;
             candles = candles.filter((c) => (c.time as number) <= cutoff);
           } else if (chartMode === "to-entry") {
-            const cutoff = entryTs;
+            const cutoff = entryCutoffTs;
             candles = candles.filter((c) => (c.time as number) <= cutoff);
           }
 
@@ -592,14 +614,14 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
           // Use per-execution markers when available; fall back to trade-level timestamps
           const markers: SeriesMarker<Time>[] =
-            executions && executions.length > 0
+            activeExecutions && activeExecutions.length > 0
               ? buildExecutionMarkers(
-                  executions,
+                  activeExecutions,
                   trade.direction,
                   candles,
                   snap,
                 )
-              : buildFallbackMarkers(entryTs, exitTs, trade.direction, snap);
+              : buildFallbackMarkers(entryTs, activeExitTs, trade.direction, snap);
 
           // Spacing and overall marker styling
           seriesRef.current.applyOptions({
@@ -622,7 +644,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           const secs = INTERVAL_SECONDS[iv];
           let toTime = (exitTs ?? Math.floor(Date.now() / 1000)) + 5 * secs;
           if (chartMode === "to-entry") {
-            toTime = entryTs + 5 * secs;
+            toTime = entryCutoffTs + 5 * secs;
           } else if (chartMode === "to-exit" && exitTs !== null) {
             toTime = exitTs + 5 * secs;
           }
