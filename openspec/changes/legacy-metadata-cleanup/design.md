@@ -2,7 +2,7 @@
 
 After `metadata-library-consolidation` completes, three legacy metadata stacks become orphaned:
 - `tags` / `trade_tags` — trade-only labels, previously managed in Library > Tags
-- `market_phase_definitions` / `daily_checkins.market_phase_id` — check-in phase labels
+- `market_phase_definitions` — check-in phase definitions (phase selection now uses taxonomy labels)
 - `checkin_field_definitions` / `daily_checkin_values` — custom check-in variables
 
 These tables, their API endpoints, services, repositories, and tests must be removed. The removal is **irreversible** — it involves dropping database tables via Alembic and deleting source files. This change must only run after:
@@ -24,8 +24,8 @@ These tables, their API endpoints, services, repositories, and tests must be rem
 - Update TC-077 (trade tags test) to interact with the taxonomy multi-select UI
 
 **Non-Goals:**
-- Changing the Check-in form's phase selection mechanism (separate change)
-- Removing `daily_checkins` itself or its `market_phase_id` FK column until Check-in form migration is complete
+- Changing the Check-in form's phase selection mechanism (already completed in a separate change)
+- Removing `daily_checkins` itself (only legacy metadata surfaces are removed)
 - Removing `useCheckinDefinitions.ts` entirely — the Market Indexes hooks within it are still needed
 
 ## Decisions
@@ -36,11 +36,11 @@ All five legacy tables (`tags`, `trade_tags`, `market_phase_definitions`, `check
 
 **Prerequisite guard:** The migration SHOULD check that `tags`, `market_phase_definitions`, and `checkin_field_definitions` are empty before dropping. If rows remain, it raises an error and aborts. This prevents accidental data loss.
 
-### Decision 2: `market_phase_id` FK on `daily_checkins` is dropped with the parent table
+### Decision 2: Do not include `daily_checkins.market_phase_id` removal in this change
 
-Dropping `market_phase_definitions` cascades to `daily_checkins.market_phase_id` column removal. The Check-in model and schema must have this FK removed before this migration runs. If the Check-in form migration hasn't happened yet, this change is blocked.
+The current codebase already uses `daily_checkins.market_phase` (string) and no active `market_phase_id` ORM field. This cleanup change focuses on removing legacy metadata APIs/tables and associated code paths. Any historical FK cleanup that is not present in current schema is treated as not applicable.
 
-**Alternative:** Leave `market_phase_id` column as nullable orphan. Rejected — leaves schema debris.
+**Alternative:** Add a synthetic migration step for a column that may not exist. Rejected — creates unnecessary migration fragility and false task scope.
 
 ### Decision 3: Remove market phase / checkin field hooks from `useCheckinDefinitions.ts`, keep market index hooks
 
@@ -54,7 +54,7 @@ Dropping `market_phase_definitions` cascades to `daily_checkins.market_phase_id`
 
 - **[Risk] Analytics break after tag → taxonomy swap** → Mitigation: Existing analytics test suite must pass before merge; add explicit tests for taxonomy-based attribution.
 - **[Risk] Migration drops non-empty tables** → Mitigation: Pre-drop row count check in migration; abort if any rows exist.
-- **[Risk] Check-in form breaks because `market_phase_id` column is dropped before form is migrated** → Mitigation: Hard blocker — this change MUST NOT run until the Check-in form migration is complete.
+- **[Risk] Check-in form still references removed market phase definitions endpoints** → Mitigation: Ensure frontend uses taxonomy-backed phase labels and remove legacy market phase hooks/usages.
 - **[Risk] `daily_checkin_values` drop breaks check-in read endpoints** → Mitigation: Check-in custom field values must also be migrated to `checkin_annotations` first.
 
 ## Migration Plan

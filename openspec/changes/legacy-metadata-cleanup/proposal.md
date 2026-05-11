@@ -5,7 +5,7 @@ After the `metadata-library-consolidation` change migrates the UI to the modern 
 ## What Changes
 
 - **BREAKING: Remove `/api/v1/tags` endpoints and all supporting backend code** (model, schema, repository, service, router registration, FK on `trade_tags`)
-- **BREAKING: Remove `/api/v1/market-phases` endpoints and all supporting backend code** (model, schema, repository, service, router registration, FK on `daily_checkins.market_phase_id`)
+- **BREAKING: Remove `/api/v1/market-phases` endpoints and all supporting backend code** (model, schema, repository, service, router registration)
 - **BREAKING: Remove `/api/v1/checkin-fields` endpoints and all supporting backend code** (model, schema, repository, service, router registration, FK on `daily_checkin_values`)
 - **Alembic migration: drop legacy tables** (`tags`, `trade_tags`, `market_phase_definitions`, `checkin_field_definitions`, `daily_checkin_values`) — hard irreversible drop
 - **Frontend: delete dead hook and component files** (`useTags.ts`, `useCheckinDefinitions.ts` market-phase/checkin-field parts, `TagList.tsx`, `TagBadge.tsx`)
