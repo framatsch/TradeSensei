@@ -3,16 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.daily_checkin import (
-    DailyCheckinCreate,
-    MarketPhaseDefinitionCreate,
-)
-
-
-def test_market_phase_name_requires_kebab_case() -> None:
-    """Phase names must be lowercase kebab-case."""
-    with pytest.raises(ValidationError):
-        MarketPhaseDefinitionCreate(name="Not Valid", label="Invalid")
+from app.schemas.daily_checkin import DailyCheckinCreate
 
 
 def test_daily_checkin_news_links_rejects_invalid_url() -> None:

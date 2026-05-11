@@ -1,7 +1,7 @@
 "use client";
 
 import { useCheckinEntry, useCreateCheckin, useUpdateCheckin, useDeleteCheckin } from "@/hooks/useCheckins";
-import { useMarketPhases, useCheckinFields } from "@/hooks/useCheckinDefinitions";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { CheckinForm } from "@/components/checkin/CheckinForm";
 import type { DailyCheckinCreate, DailyCheckinUpdate } from "@/lib/api/types.gen";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
@@ -16,9 +16,8 @@ interface Props {
 export function CheckinDateClient({ date }: Props) {
   const router = useRouter();
   const { data: entry, isLoading: isEntryLoading } = useCheckinEntry(date);
-  const { data: phases, isLoading: isPhasesLoading } = useMarketPhases();
-  const { data: fields, isLoading: isFieldsLoading } = useCheckinFields();
-  
+  const { data: phases, isLoading: isPhasesLoading } = useGetTaxonomies("checkins");
+
   const createMutation = useCreateCheckin();
   const updateMutation = useUpdateCheckin();
   const deleteMutation = useDeleteCheckin();
@@ -26,30 +25,33 @@ export function CheckinDateClient({ date }: Props) {
   const handleSave = (data: DailyCheckinCreate | DailyCheckinUpdate) => {
     if (!entry) {
       createMutation.mutate(data as DailyCheckinCreate, {
-        onSuccess: () => router.push("/dashboard/checkins")
+        onSuccess: () => router.push("/dashboard/checkins"),
       });
     } else {
-      updateMutation.mutate({ date, payload: data as DailyCheckinUpdate }, {
-        onSuccess: () => router.push("/dashboard/checkins")
-      });
+      updateMutation.mutate(
+        { date, payload: data as DailyCheckinUpdate },
+        {
+          onSuccess: () => router.push("/dashboard/checkins"),
+        }
+      );
     }
   };
 
   const handleDelete = () => {
     if (confirm("Delete this check-in? This cannot be undone.")) {
       deleteMutation.mutate(date, {
-        onSuccess: () => router.push("/dashboard/checkins")
+        onSuccess: () => router.push("/dashboard/checkins"),
       });
     }
   };
 
-  const isLoading = isEntryLoading || isPhasesLoading || isFieldsLoading;
+  const isLoading = isEntryLoading || isPhasesLoading;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-6">
-        <Link 
-          href="/dashboard/checkins" 
+        <Link
+          href="/dashboard/checkins"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -76,7 +78,6 @@ export function CheckinDateClient({ date }: Props) {
             date={date}
             entry={entry}
             marketPhases={phases ?? []}
-            customFields={fields ?? []}
             onSave={handleSave}
             onDelete={handleDelete}
             isSaving={createMutation.isPending || updateMutation.isPending}

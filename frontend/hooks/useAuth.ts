@@ -28,8 +28,8 @@ export function useAuthConfig() {
     queryFn: async () => {
       const { data, error } = await getConfigApiV1AuthConfigGet();
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
-      // SDK returns ResponseEnvelope; cast to local type
-      return (data as unknown as { data: AuthConfigResponse }).data;
+      // This endpoint does not use ResponseEnvelope, returns AuthConfigResponse directly
+      return data as unknown as AuthConfigResponse;
     },
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });

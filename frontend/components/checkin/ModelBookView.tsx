@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
-import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { format } from "date-fns";
 import { CheckinLightbox } from "./CheckinLightbox";
 import { ModelBookFilterBar } from "./ModelBookFilterBar";
@@ -14,7 +14,7 @@ export function ModelBookView() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   
   const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage);
-  const { data: phases } = useMarketPhases();
+  const { data: phases } = useGetTaxonomies("checkins");
 
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading model book...</div>;
@@ -99,7 +99,7 @@ export function ModelBookView() {
                             color: colorHex,
                           }}
                         >
-                          {phase.label}
+                          {phase.name}
                         </span>
                       )}
                     </div>

@@ -351,21 +351,25 @@ async def other_users_playbook(
 
 
 @pytest_asyncio.fixture()
-async def other_users_tag(
+async def other_users_taxonomy(
     client: AsyncClient, other_user: dict[str, Any]
 ) -> dict[str, Any]:
-    """Create a tag owned by ``other_user``; return its data dict.
+    """Create a taxonomy owned by ``other_user``; return its data dict.
 
     Args:
         client: The test HTTP client.
         other_user: The other_user fixture dict.
 
     Returns:
-        The tag ``data`` dict from the 201 response.
+        The taxonomy ``data`` dict from the 201 response.
     """
     resp = await client.post(
-        "/api/v1/tags",
-        json={"name": "other-tag", "color": "#FF0000"},
+        "/api/v1/taxonomies",
+        json={
+            "name": "other-taxonomy",
+            "scope": "trades",
+            "color_hex": "#FF0000",
+        },
         headers=other_user["headers"],
     )
     assert resp.status_code == 201, resp.text

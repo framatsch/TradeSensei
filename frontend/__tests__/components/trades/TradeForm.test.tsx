@@ -12,13 +12,15 @@ jest.mock("@/hooks/useTrade", () => ({
   useTradeImageUploadUrl: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 
-jest.mock("@/hooks/useTags", () => ({ useTags: () => ({ data: [] }) }));
 jest.mock("@/hooks/usePlaybooks", () => ({ usePlaybooks: () => ({ data: [] }) }));
 jest.mock("@/hooks/useAccounts", () => ({ useAccounts: () => ({ data: [] }) }));
 
-jest.mock("@/lib/api/index", () => ({
-  useGetTaxonomiesApiV1TaxonomiesGet: () => ({ data: { data: [] } }),
-  useGetAnnotationDefinitionsApiV1AnnotationsDefinitionsGet: () => ({ data: { data: [] } }),
+jest.mock("@/hooks/useTaxonomies", () => ({
+  useGetTaxonomies: () => ({ data: [] }),
+}));
+
+jest.mock("@/hooks/useAnnotationDefinitions", () => ({
+  useGetAnnotationDefinitions: () => ({ data: [] }),
 }));
 
 describe("TradeForm", () => {

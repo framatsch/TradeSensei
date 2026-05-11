@@ -10,7 +10,7 @@ import { GitMerge } from "lucide-react";
 interface Props {
   selectedCount: number;
   onDelete: () => void;
-  onAssignTag: () => void;
+  onAssignTaxonomy: () => void;
   onAssignPlaybook: () => void;
   onMerge?: () => void;
   isDeleting?: boolean;
@@ -19,7 +19,7 @@ interface Props {
 export function BulkActionToolbar({
   selectedCount,
   onDelete,
-  onAssignTag,
+  onAssignTaxonomy,
   onAssignPlaybook,
   onMerge,
   isDeleting = false,
@@ -53,10 +53,10 @@ export function BulkActionToolbar({
 
       <button
         type="button"
-        onClick={onAssignTag}
+        onClick={onAssignTaxonomy}
         className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-500 text-foreground rounded-md text-sm transition-colors"
       >
-        Assign Tag
+        Assign Taxonomy
       </button>
 
       <button

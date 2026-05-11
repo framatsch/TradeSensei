@@ -8,8 +8,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listTradesApiV1PortfoliosPortfolioIdTradesGet,
   bulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePost,
-  bulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPost,
   bulkAssignPlaybookApiV1PortfoliosPortfolioIdTradesBulkAssignPlaybookPost,
+  assignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPost,
 } from "@/lib/api/index";
 import type { CursorPage, ResponseEnvelope, Trade } from "@/lib/types";
 
@@ -53,10 +53,9 @@ interface BulkDeletePayload {
   portfolio_id: string;
 }
 
-interface BulkAssignTagPayload {
+interface BulkAssignTaxonomyPayload {
   trade_ids: string[];
-  tag_ids: string[];
-  portfolio_id: string;
+  taxonomy_ids: string[];
 }
 
 interface BulkAssignPlaybookPayload {
@@ -101,8 +100,6 @@ export function useTrades({
           cursor: cursor ?? undefined,
           symbol: filters?.symbol ?? undefined,
           direction: filters?.direction as import("@/lib/api/types.gen").Direction | undefined,
-          tag_ids: filters?.tag_ids ?? undefined,
-          tag_filter_mode: filters?.tag_ids?.length ? "or" : undefined,
           playbook_id: filters?.playbook_id ?? undefined,
           pnl_positive: filters?.pnl_positive ?? undefined,
           status: filters?.status ?? undefined,
@@ -144,17 +141,23 @@ export function useBulkDeleteTrades() {
   });
 }
 
-// ─── useBulkAssignTag ─────────────────────────────────────────────────────────
+// ─── useBulkAssignTaxonomy ────────────────────────────────────────────────────
 
-export function useBulkAssignTag() {
+export function useBulkAssignTaxonomy() {
   const qc = useQueryClient();
-  return useMutation<void, Error, BulkAssignTagPayload>({
-    mutationFn: async ({ trade_ids, tag_ids, portfolio_id }) => {
-      const { error } = await bulkAssignTagsApiV1PortfoliosPortfolioIdTradesBulkAssignTagsPost({
-        path: { portfolio_id },
-        body: { trade_ids, tag_ids, mode: "add" },
-      });
-      if (error) throw error ?? new Error("Request failed");
+  return useMutation<void, Error, BulkAssignTaxonomyPayload>({
+    mutationFn: async ({ trade_ids, taxonomy_ids }) => {
+      await Promise.all(
+        trade_ids.flatMap((tradeId) =>
+          taxonomy_ids.map(async (taxonomyId) => {
+            const { error } = await assignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPost({
+              path: { trade_id: tradeId },
+              body: { taxonomy_id: taxonomyId },
+            });
+            if (error) throw error ?? new Error("Request failed");
+          })
+        )
+      );
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["trades"] }),
   });

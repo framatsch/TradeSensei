@@ -15,7 +15,7 @@ import { TradeFilterBar } from "@/components/trades/TradeFilterBar";
 import { BulkActionToolbar } from "@/components/trades/BulkActionToolbar";
 import {
   useBulkDeleteTrades,
-  useBulkAssignTag,
+  useBulkAssignTaxonomy,
   useBulkAssignPlaybook,
 } from "@/hooks/useTrades";
 import type { TradeFilters, TradeSortConfig } from "@/hooks/useTrades";
@@ -24,9 +24,9 @@ import {
   useDeleteSavedTradeFilter,
   useUpdateSavedTradeFilter,
 } from "@/hooks/useSavedTradeFilters";
-import { useTags } from "@/hooks/useTags";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
-import { TagBadge } from "@/components/tags/TagBadge";
+import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import { useSettings } from "@/hooks/useSettings";
 import { buildDefinitionFromFilters } from "@/lib/tradeFilterUtils";
 import type { DefaultDateRange, SavedTradeFilterRead, Trade } from "@/lib/types";
@@ -140,16 +140,16 @@ function filtersToParams(
   return p;
 }
 
-// ─── Tag picker modal ────────────────────────────────────────────────────────
+// ─── Taxonomy picker modal ───────────────────────────────────────────────────
 
-interface TagPickerModalProps {
-  onConfirm: (tagIds: string[]) => void;
+interface TaxonomyPickerModalProps {
+  onConfirm: (taxonomyIds: string[]) => void;
   onCancel: () => void;
   isPending: boolean;
 }
 
-function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps) {
-  const { data: tags } = useTags();
+function TaxonomyPickerModal({ onConfirm, onCancel, isPending }: TaxonomyPickerModalProps) {
+  const { data: taxonomies } = useGetTaxonomies("trades");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) => {
@@ -164,23 +164,23 @@ function TagPickerModal({ onConfirm, onCancel, isPending }: TagPickerModalProps)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h2 className="text-base font-semibold text-foreground mb-4">Assign Tags</h2>
+        <h2 className="text-base font-semibold text-foreground mb-4">Assign Taxonomies</h2>
         <div className="flex flex-wrap gap-2 mb-6 min-h-12">
-          {(tags ?? []).length === 0 && (
-            <p className="text-muted-foreground text-sm">No tags available.</p>
+          {(taxonomies ?? []).length === 0 && (
+            <p className="text-muted-foreground text-sm">No taxonomies available.</p>
           )}
-          {(tags ?? []).map((tag) => (
+          {(taxonomies ?? []).map((taxonomy) => (
             <button
-              key={tag.id}
+              key={taxonomy.id}
               type="button"
-              onClick={() => toggle(tag.id)}
+              onClick={() => toggle(taxonomy.id)}
               className={`transition-opacity ${
-                selected.has(tag.id)
+                selected.has(taxonomy.id)
                   ? "opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background rounded-full"
                   : "opacity-50 hover:opacity-90"
               }`}
             >
-              <TagBadge tag={tag} />
+              <TaxonomyBadge taxonomy={taxonomy} />
             </button>
           ))}
         </div>
@@ -351,7 +351,7 @@ export function TradesPageClient() {
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedTrades, setSelectedTrades] = useState<Trade[]>([]);
-  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [showTaxonomyPicker, setShowTaxonomyPicker] = useState(false);
   const [showPlaybookPicker, setShowPlaybookPicker] = useState(false);
   const [showSaveFilter, setShowSaveFilter] = useState(false);
   const [showRenameView, setShowRenameView] = useState(false);
@@ -370,7 +370,7 @@ export function TradesPageClient() {
     : undefined;
 
   const { mutate: bulkDelete, isPending: isDeleting } = useBulkDeleteTrades();
-  const { mutate: bulkAssignTag, isPending: isAssigningTag } = useBulkAssignTag();
+  const { mutate: bulkAssignTaxonomy, isPending: isAssigningTaxonomy } = useBulkAssignTaxonomy();
   const { mutate: bulkAssignPlaybook, isPending: isAssigningPlaybook } =
     useBulkAssignPlaybook();
   const { mutate: deleteFilter } = useDeleteSavedTradeFilter();
@@ -444,13 +444,13 @@ export function TradesPageClient() {
     );
   };
 
-  const handleTagConfirm = (tagIds: string[]) => {
-    bulkAssignTag(
-      { trade_ids: Array.from(selectedIds), tag_ids: tagIds, portfolio_id: activePortfolioId ?? "" },
+  const handleTaxonomyConfirm = (taxonomyIds: string[]) => {
+    bulkAssignTaxonomy(
+      { trade_ids: Array.from(selectedIds), taxonomy_ids: taxonomyIds },
       {
         onSuccess: () => {
           setSelectedIds(new Set());
-          setShowTagPicker(false);
+          setShowTaxonomyPicker(false);
         },
       }
     );
@@ -492,7 +492,7 @@ export function TradesPageClient() {
         <BulkActionToolbar
         selectedCount={selectedIds.size}
         onDelete={handleDelete}
-        onAssignTag={() => setShowTagPicker(true)}
+        onAssignTaxonomy={() => setShowTaxonomyPicker(true)}
         onAssignPlaybook={() => setShowPlaybookPicker(true)}
         onMerge={selectedIds.size >= 2 ? () => setShowMergeModal(true) : undefined}
         isDeleting={isDeleting}
@@ -521,11 +521,11 @@ export function TradesPageClient() {
         onLimitChange={handleLimitChange}
       />
 
-      {showTagPicker && (
-        <TagPickerModal
-          onConfirm={handleTagConfirm}
-          onCancel={() => setShowTagPicker(false)}
-          isPending={isAssigningTag}
+      {showTaxonomyPicker && (
+        <TaxonomyPickerModal
+          onConfirm={handleTaxonomyConfirm}
+          onCancel={() => setShowTaxonomyPicker(false)}
+          isPending={isAssigningTaxonomy}
         />
       )}
 

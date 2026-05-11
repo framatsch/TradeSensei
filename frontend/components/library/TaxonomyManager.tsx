@@ -111,23 +111,22 @@ export function TaxonomyManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Taxonomies</h2>
-        {!isEditing && (
+      {!isEditing && (
+        <div className="flex justify-end">
           <button
             onClick={handleCreate}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
-            New Taxonomy
+            New Tag
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {isEditing ? (
         <div className="p-4 border border-border dark:border-border rounded-xl bg-card">
           <h3 className="text-lg font-medium mb-4">
-            {editingTaxonomy ? "Edit Taxonomy" : "Create Taxonomy"}
+            {editingTaxonomy ? "Edit Tag" : "Create Tag"}
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -207,6 +206,15 @@ export function TaxonomyManager() {
             </div>
           </form>
         </div>
+      ) : taxonomies?.length === 0 ? (
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="px-4 py-16 text-center text-muted-foreground">
+            <p className="text-base font-medium mb-1">No tags yet</p>
+            <p className="text-sm">
+              Create your first tag to start categorizing your trades.
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {taxonomies?.map((tax) => (
@@ -256,11 +264,6 @@ export function TaxonomyManager() {
               )}
             </div>
           ))}
-          {taxonomies?.length === 0 && (
-            <div className="col-span-full py-8 text-center text-muted-foreground border-2 border-dashed border-border rounded-xl">
-              No taxonomies found. Create one to get started.
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -344,14 +344,13 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
 
 type Tab = "tradingview" | "screenshots";
 
-export function MediaChartsCard({ trade, executions }: { trade: Trade; executions?: LogicalExecution[] }) {
+export function MediaChartsCard({ trade, executions, className }: { trade: Trade; executions?: LogicalExecution[]; className?: string }) {
   const [activeTab, setActiveTab] = useState<Tab>("tradingview");
   const screenshotCount = trade.image_urls?.length ?? 0;
 
   return (
     <div
-      className="bg-card rounded-xl border border-border flex flex-col"
-      style={{ height: "520px" }}
+      className={`bg-card rounded-xl border border-border flex flex-col ${className ?? "h-[520px]"}`}
     >
       {/* Tab bar */}
       <div className="flex border-b border-border shrink-0">

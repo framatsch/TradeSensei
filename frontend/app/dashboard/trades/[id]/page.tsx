@@ -358,23 +358,18 @@ export default function TradeDetailPage() {
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Media & Charts */}
-          <MediaChartsCard trade={trade} executions={executions} />
-
-          {/* Execution Summary */}
-          <ExecutionSummaryCard trade={trade} executions={executions} />
+        {/* Left Column: Media & Charts */}
+        <div className="lg:col-span-2">
+          <MediaChartsCard trade={trade} executions={executions} className="h-full min-h-[400px] lg:min-h-[520px]" />
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Performance Metrics */}
-          <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        {/* Right Column: Performance Metrics */}
+        <div className="lg:col-span-1">
+          <div className="bg-card rounded-xl border border-border p-5 shadow-sm h-full flex flex-col">
             <h2 className="text-base font-semibold text-foreground mb-4">
               Performance
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-3 flex-1">
               <InlineNumberField
                 label="Stop Loss"
                 value={trade.stop_loss}
@@ -497,6 +492,11 @@ export default function TradeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Execution Summary (Full Width) */}
+      <section className="w-full">
+        <ExecutionSummaryCard trade={trade} executions={executions} />
+      </section>
 
       {/* Qualitative Analysis & Metadata */}
       <section className="w-full">

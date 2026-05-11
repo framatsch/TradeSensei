@@ -139,12 +139,12 @@ async def test_audit_logs_not_found_errors(
 async def test_audit_logs_forbidden_errors(
     client: AsyncClient,
     primary_user: dict[str, str],
-    other_users_tag: dict[str, str],
+    other_users_taxonomy: dict[str, str],
 ) -> None:
     logger, handler, stream = _capture_audit_logger()
-    tag_id = other_users_tag["id"]
+    taxonomy_id = other_users_taxonomy["id"]
     resp = await client.patch(
-        f"/api/v1/tags/{tag_id}",
+        f"/api/v1/taxonomies/{taxonomy_id}",
         json={"name": "nope"},
         headers=primary_user["headers"],
     )

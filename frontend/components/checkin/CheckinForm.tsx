@@ -11,7 +11,6 @@ export function CheckinForm({
   date,
   entry,
   marketPhases,
-  customFields,
   onSave,
   onDelete,
   isSaving,
@@ -19,8 +18,7 @@ export function CheckinForm({
 }: {
   date: string;
   entry: DailyCheckinRead | null | undefined;
-  marketPhases: { name: string; label: string; color_hex: string; is_active: boolean }[];
-  customFields: { field_name: string; field_type: "integer" | "boolean"; is_active: boolean }[];
+  marketPhases: { name: string; color_hex: string }[];
   onSave: (data: DailyCheckinCreate | DailyCheckinUpdate) => void;
   onDelete: () => void;
   isSaving: boolean;
@@ -34,24 +32,9 @@ export function CheckinForm({
   const [newsLink, setNewsLink] = useState("");
   const [newsLinks, setNewsLinks] = useState<string[]>(entry?.news_links ?? []);
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(entry?.screenshot_urls ?? []);
-  const activePhases = marketPhases.filter((p) => p.is_active);
+  const activePhases = marketPhases;
   const { data: marketIndexes } = useMarketIndexes();
   const activeIndexes = (marketIndexes ?? []).filter((idx) => idx.is_active);
-  const activeFields = customFields.filter((f) => f.is_active);
-
-  const [metrics, setMetrics] = useState<Record<string, number | boolean>>(() => {
-    if (entry?.custom_metrics) return entry.custom_metrics;
-    
-    const initial: Record<string, number | boolean> = {};
-    for (const field of activeFields) {
-      if (field.field_type === "boolean") {
-        initial[field.field_name] = false;
-      } else {
-        initial[field.field_name] = 5;
-      }
-    }
-    return initial;
-  });
   
   const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
   const isNew = !entry;
@@ -81,7 +64,6 @@ export function CheckinForm({
         notes: showNotes,
         news_links: newsLinks.length > 0 ? newsLinks : undefined,
         screenshot_urls: screenshotUrls.length > 0 ? screenshotUrls : undefined,
-        custom_metrics: Object.keys(metrics).length > 0 ? metrics : undefined,
       };
       onSave(payload);
     } else {
@@ -91,7 +73,6 @@ export function CheckinForm({
         notes: showNotes,
         news_links: newsLinks,
         screenshot_urls: screenshotUrls,
-        custom_metrics: metrics,
       };
       onSave(payload);
     }
@@ -104,6 +85,9 @@ export function CheckinForm({
         <label className="block text-sm font-medium text-foreground mb-2">
           Market Phase
         </label>
+        {activePhases.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No check-in taxonomies available.</p>
+        ) : (
         <div className="flex flex-wrap gap-2">
           {activePhases.map((p) => {
             const isActive = marketPhase === p.name;
@@ -124,11 +108,12 @@ export function CheckinForm({
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: isActive ? p.color_hex : "var(--muted-foreground)" }}
                 />
-                {p.label}
+                {p.name}
               </button>
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Target Market Indexes */}
@@ -299,64 +284,6 @@ export function CheckinForm({
           </button>
         </div>
       </div>
-
-      {/* Custom Metrics */}
-      {activeFields.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-3">
-            Custom Metrics
-          </label>
-          <div className="space-y-3">
-            {activeFields.map((field) => (
-              <div key={field.field_name} className="flex items-center gap-3">
-                <label className="text-sm text-muted-foreground min-w-[140px] capitalize">
-                  {field.field_name.replace(/-/g, " ")}
-                </label>
-                {field.field_type === "boolean" ? (
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!metrics[field.field_name]}
-                      onChange={(e) =>
-                        setMetrics((prev) => ({
-                          ...prev,
-                          [field.field_name]: e.target.checked,
-                        }))
-                      }
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-muted rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-background after:border after:border-border after:rounded-full after:h-4 after:w-4 after:transition-all" />
-                  </label>
-                ) : (
-                  <>
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      value={
-                        metrics[field.field_name] !== undefined
-                          ? Number(metrics[field.field_name])
-                          : 5
-                      }
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setMetrics((prev) => ({
-                          ...prev,
-                          [field.field_name]: parseInt(v, 10),
-                        }));
-                      }}
-                      className="w-32 accent-primary"
-                    />
-                    <span className="text-sm w-4">
-                      {metrics[field.field_name] !== undefined ? metrics[field.field_name] : 5}
-                    </span>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-2 border-t border-border">

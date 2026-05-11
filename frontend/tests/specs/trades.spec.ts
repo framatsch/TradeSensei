@@ -406,28 +406,27 @@ test.describe('Inline Sidebar Editing', () => {
     await expect(page.getByTitle('Click to change playbook')).toContainText('Breakout');
   });
 
-  // ── TC-077: Inline edit Tags ──
-  test('TC-077 inline edit tags in playbook psychology card', async ({ page }) => {
+  // ── TC-077: Inline edit Taxonomies ──
+  test('TC-077 inline edit taxonomies in playbook psychology card', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
     await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
 
-    // Find Tags section in PlaybookPsychologyCard and click to open tag picker
-    const tagsLabel = page.getByText('Tags');
-    const tagsContainer = tagsLabel.locator('..');
+    // Find Taxonomies section in PlaybookPsychologyCard and click to open picker
+    await expect(page.getByText('Taxonomies')).toBeVisible();
 
-    // Click on tags edit area
-    await page.getByRole('button', { name: /tags/i }).first().click();
+    // Click on taxonomy edit area
+    await page.getByRole('button', { name: /taxonomies/i }).first().click();
 
-    // Wait for tag picker with high-conviction tag
+    // Wait for taxonomy picker with seeded taxonomy
     await expect(page.getByText('high-conviction')).toBeVisible({ timeout: 10_000 });
 
-    // Click the high-conviction tag
+    // Click the high-conviction taxonomy
     await page.getByText('high-conviction').click();
 
-    // Assert the tag appears as selected (visible in the card)
+    // Assert taxonomy appears as selected (visible in the card)
     await expect(page.getByText('high-conviction')).toBeVisible();
   });
 });
