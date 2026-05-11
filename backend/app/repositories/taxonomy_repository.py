@@ -11,27 +11,56 @@ from app.models.trade_taxonomy import TradeTaxonomy
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
 
 
+from typing import Any
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 class TaxonomyRepository:
     """Data-access operations for taxonomy definitions."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, payload: TaxonomyCreate) -> Taxonomy:
-        taxonomy = Taxonomy(**payload.model_dump())
+    async def seed_defaults(self, user_id: uuid.UUID) -> None:
+        """Insert default taxonomies if they do not exist."""
+        defaults: list[dict[str, Any]] = [
+            {"name": "Mistakes", "scope": "trades", "color_hex": "#ef4444", "description": "Common trading mistakes"},
+            {"name": "Setups", "scope": "trades", "color_hex": "#3b82f6", "description": "Core trading setups"},
+            {"name": "Emotions", "scope": "both", "color_hex": "#f59e0b", "description": "Psychological state"},
+        ]
+        stmt = pg_insert(Taxonomy).values(
+            [
+                {
+                    "user_id": user_id,
+                    "name": row["name"],
+                    "scope": row["scope"],
+                    "color_hex": row["color_hex"],
+                    "description": row["description"],
+                    "is_archived": False,
+                }
+                for row in defaults
+            ]
+        )
+        stmt = stmt.on_conflict_do_nothing(
+            constraint="uq_taxonomies_user_name_scope",
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def create(self, user_id: uuid.UUID, payload: TaxonomyCreate) -> Taxonomy:
+        taxonomy = Taxonomy(user_id=user_id, **payload.model_dump())
         self._session.add(taxonomy)
         await self._session.flush()
         await self._session.refresh(taxonomy)
         return taxonomy
 
-    async def get_by_id(self, taxonomy_id: uuid.UUID) -> Taxonomy | None:
+    async def get_by_id(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID) -> Taxonomy | None:
         result = await self._session.execute(
-            select(Taxonomy).where(Taxonomy.id == taxonomy_id)
+            select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.id == taxonomy_id)
         )
         return result.scalar_one_or_none()
 
-    async def list(self, scope: str | None = None) -> list[Taxonomy]:
-        stmt = select(Taxonomy).where(Taxonomy.is_archived.is_(False)).order_by(Taxonomy.name.asc())
+    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[Taxonomy]:
+        stmt = select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.is_archived.is_(False)).order_by(Taxonomy.name.asc())
         if scope is not None:
             stmt = stmt.where(
                 Taxonomy.scope.in_([scope, "both"])

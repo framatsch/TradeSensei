@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Index, String, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Index, String, UniqueConstraint, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.checkin_taxonomy import CheckinTaxonomy
     from app.models.trade_taxonomy import TradeTaxonomy
+    from app.models.user import User
 
 
 class DefinitionScope(StrEnum):
@@ -33,6 +34,11 @@ class Taxonomy(Base):
         UUID(as_uuid=True),
         primary_key=True,
         server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     scope: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -67,9 +73,11 @@ class Taxonomy(Base):
         back_populates="taxonomy",
         passive_deletes=True,
     )
+    user: Mapped["User"] = relationship("User")
 
     __table_args__ = (
-        UniqueConstraint("name", "scope", name="uq_taxonomies_name_scope"),
+        UniqueConstraint("user_id", "name", "scope", name="uq_taxonomies_user_name_scope"),
+        Index("ix_taxonomies_user_id", "user_id"),
         Index("ix_taxonomies_scope", "scope"),
         Index("ix_taxonomies_archived", "is_archived"),
     )

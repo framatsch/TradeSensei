@@ -3077,6 +3077,18 @@ export type PlaybookCreate = {
      * Optional long-form description of the strategy or setup. Maximum 2 000 characters.
      */
     description?: string | null;
+    /**
+     * Content Markdown
+     *
+     * Optional detailed markdown content for the playbook.
+     */
+    content_markdown?: string | null;
+    /**
+     * Target Winrate
+     *
+     * Target winrate as a decimal between 0 and 1.
+     */
+    target_winrate?: number | string | null;
 };
 
 /**
@@ -3118,6 +3130,18 @@ export type PlaybookRead = {
      * Optional strategy description. Null if not set.
      */
     description: string | null;
+    /**
+     * Content Markdown
+     *
+     * Detailed markdown content.
+     */
+    content_markdown: string | null;
+    /**
+     * Target Winrate
+     *
+     * Target winrate as a decimal between 0 and 1.
+     */
+    target_winrate: string | null;
     /**
      * Is Active
      *
@@ -3163,6 +3187,18 @@ export type PlaybookUpdate = {
      * Updated description. Omit to leave unchanged. Set to null to clear the existing description.
      */
     description?: string | null;
+    /**
+     * Content Markdown
+     *
+     * Updated markdown content.
+     */
+    content_markdown?: string | null;
+    /**
+     * Target Winrate
+     *
+     * Updated target winrate.
+     */
+    target_winrate?: number | string | null;
     /**
      * Is Active
      *

@@ -43,7 +43,7 @@ async def create_annotation_definition(
 ) -> ResponseEnvelope[AnnotationDefinitionResponse]:
     """Create an annotation definition."""
     try:
-        created = await service.create(payload)
+        created = await service.create(user_id=_current_user.id, payload=payload)
     except AnnotationDefinitionValidationError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return ResponseEnvelope[AnnotationDefinitionResponse](data=created)
@@ -60,7 +60,7 @@ async def list_annotation_definitions(
     scope: Annotated[str | None, Query()] = None,
 ) -> ResponseEnvelope[list[AnnotationDefinitionResponse]]:
     """List non-archived annotation definitions with optional scope filter."""
-    items = await service.list(scope=scope)
+    items = await service.list(user_id=_current_user.id, scope=scope)
     return ResponseEnvelope[list[AnnotationDefinitionResponse]](data=items)
 
 
@@ -76,7 +76,7 @@ async def get_annotation_definition(
 ) -> ResponseEnvelope[AnnotationDefinitionResponse]:
     """Get annotation definition by id, including archived definitions."""
     try:
-        item = await service.get(definition_id)
+        item = await service.get(user_id=_current_user.id, definition_id=definition_id)
     except AnnotationDefinitionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return ResponseEnvelope[AnnotationDefinitionResponse](data=item)
@@ -95,7 +95,7 @@ async def update_annotation_definition(
 ) -> ResponseEnvelope[AnnotationDefinitionResponse]:
     """Update annotation definition fields."""
     try:
-        updated = await service.update(definition_id, payload)
+        updated = await service.update(user_id=_current_user.id, definition_id=definition_id, payload=payload)
     except AnnotationDefinitionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except AnnotationDefinitionValidationError as exc:
@@ -116,7 +116,7 @@ async def delete_annotation_definition(
 ) -> ResponseEnvelope[AnnotationDefinitionResponse] | Response:
     """Delete annotation definition; archives instead when assignments exist."""
     try:
-        result = await service.delete(definition_id)
+        result = await service.delete(user_id=_current_user.id, definition_id=definition_id)
     except AnnotationDefinitionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 

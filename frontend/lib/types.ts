@@ -111,6 +111,8 @@ export interface Playbook {
   user_id: string;
   name: string;
   description: string | null;
+  content_markdown: string | null;
+  target_winrate: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -119,11 +121,15 @@ export interface Playbook {
 export interface PlaybookCreate {
   name: string;
   description?: string;
+  content_markdown?: string | null;
+  target_winrate?: number | string | null;
 }
 
 export interface PlaybookUpdate {
   name?: string;
   description?: string | null;
+  content_markdown?: string | null;
+  target_winrate?: number | string | null;
   is_active?: boolean;
 }
 

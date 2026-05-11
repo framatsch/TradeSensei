@@ -36,7 +36,7 @@ async def create_taxonomy(
 ) -> ResponseEnvelope[TaxonomyResponse]:
     """Create a taxonomy definition."""
     try:
-        created = await service.create(payload)
+        created = await service.create(user_id=_current_user.id, payload=payload)
     except TaxonomyValidationError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return ResponseEnvelope[TaxonomyResponse](data=created)
@@ -53,7 +53,7 @@ async def list_taxonomies(
     scope: Annotated[str | None, Query()] = None,
 ) -> ResponseEnvelope[list[TaxonomyResponse]]:
     """List non-archived taxonomies with optional scope filter."""
-    items = await service.list(scope=scope)
+    items = await service.list(user_id=_current_user.id, scope=scope)
     return ResponseEnvelope[list[TaxonomyResponse]](data=items)
 
 
@@ -69,7 +69,7 @@ async def get_taxonomy(
 ) -> ResponseEnvelope[TaxonomyResponse]:
     """Get taxonomy by id, including archived definitions."""
     try:
-        item = await service.get(taxonomy_id)
+        item = await service.get(user_id=_current_user.id, taxonomy_id=taxonomy_id)
     except TaxonomyNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return ResponseEnvelope[TaxonomyResponse](data=item)
@@ -88,7 +88,7 @@ async def update_taxonomy(
 ) -> ResponseEnvelope[TaxonomyResponse]:
     """Update taxonomy definition fields."""
     try:
-        updated = await service.update(taxonomy_id, payload)
+        updated = await service.update(user_id=_current_user.id, taxonomy_id=taxonomy_id, payload=payload)
     except TaxonomyNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except TaxonomyValidationError as exc:
@@ -109,7 +109,7 @@ async def delete_taxonomy(
 ) -> ResponseEnvelope[TaxonomyResponse] | Response:
     """Delete taxonomy; archives instead when assignments exist."""
     try:
-        result = await service.delete(taxonomy_id)
+        result = await service.delete(user_id=_current_user.id, taxonomy_id=taxonomy_id)
     except TaxonomyNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 

@@ -2,9 +2,10 @@
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -55,6 +56,14 @@ class Playbook(Base):
         Text,
         nullable=True,
     )
+    content_markdown: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    target_winrate: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 4),
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -76,6 +85,10 @@ class Playbook(Base):
     __table_args__ = (
         Index("ix_playbooks_user_id", "user_id"),
         Index("ix_playbooks_user_id_name", "user_id", "name", unique=True),
+        CheckConstraint(
+            "target_winrate >= 0 AND target_winrate <= 1",
+            name="chk_playbooks_target_winrate",
+        ),
     )
 
     # Relationships

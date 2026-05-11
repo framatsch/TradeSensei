@@ -14,29 +14,70 @@ from app.schemas.annotation_definition import (
 )
 
 
+from typing import Any
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 class AnnotationDefinitionRepository:
     """Data-access operations for annotation definitions."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, payload: AnnotationDefinitionCreate) -> AnnotationDefinition:
-        definition = AnnotationDefinition(**payload.model_dump())
+    async def seed_defaults(self, user_id: uuid.UUID) -> None:
+        """Insert default annotation definitions if they do not exist."""
+        defaults: list[dict[str, Any]] = [
+            {
+                "name": "Conviction",
+                "type": "int",
+                "scope": "both",
+                "description": "Pre-trade conviction level",
+                "scale_labels": {"min": 1, "max": 5},
+            },
+            {
+                "name": "R-Multiple",
+                "type": "float",
+                "scope": "trades",
+                "description": "Return per unit of risk",
+                "scale_labels": None,
+            },
+        ]
+        stmt = pg_insert(AnnotationDefinition).values(
+            [
+                {
+                    "user_id": user_id,
+                    "name": row["name"],
+                    "type": row["type"],
+                    "scope": row["scope"],
+                    "description": row["description"],
+                    "scale_labels": row["scale_labels"],
+                    "is_archived": False,
+                }
+                for row in defaults
+            ]
+        )
+        stmt = stmt.on_conflict_do_nothing(
+            constraint="uq_annotation_definitions_user_name_scope",
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def create(self, user_id: uuid.UUID, payload: AnnotationDefinitionCreate) -> AnnotationDefinition:
+        definition = AnnotationDefinition(user_id=user_id, **payload.model_dump())
         self._session.add(definition)
         await self._session.flush()
         await self._session.refresh(definition)
         return definition
 
-    async def get_by_id(self, definition_id: uuid.UUID) -> AnnotationDefinition | None:
+    async def get_by_id(self, user_id: uuid.UUID, definition_id: uuid.UUID) -> AnnotationDefinition | None:
         result = await self._session.execute(
-            select(AnnotationDefinition).where(AnnotationDefinition.id == definition_id)
+            select(AnnotationDefinition).where(AnnotationDefinition.user_id == user_id, AnnotationDefinition.id == definition_id)
         )
         return result.scalar_one_or_none()
 
-    async def list(self, scope: str | None = None) -> list[AnnotationDefinition]:
+    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[AnnotationDefinition]:
         stmt = (
             select(AnnotationDefinition)
-            .where(AnnotationDefinition.is_archived.is_(False))
+            .where(AnnotationDefinition.user_id == user_id, AnnotationDefinition.is_archived.is_(False))
             .order_by(AnnotationDefinition.name.asc())
         )
         if scope is not None:

@@ -34,6 +34,8 @@ from app.repositories.market_index_repository import (
 from app.repositories.market_phase_definition_repository import (
     MarketPhaseDefinitionRepository,
 )
+from app.repositories.taxonomy_repository import TaxonomyRepository
+from app.repositories.annotation_definition_repository import AnnotationDefinitionRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin
 
@@ -60,6 +62,8 @@ class AuthService:
         self._checkin_field_repo = CheckinFieldDefinitionRepository(session)
         self._market_phase_repo = MarketPhaseDefinitionRepository(session)
         self._market_index_repo = MarketIndexDefinitionRepository(session)
+        self._taxonomy_repo = TaxonomyRepository(session)
+        self._annotation_repo = AnnotationDefinitionRepository(session)
 
     async def register(self, data: UserCreate) -> User:
         """Register a new user account.
@@ -86,6 +90,8 @@ class AuthService:
         await self._checkin_field_repo.seed_defaults(user.id)
         await self._market_phase_repo.seed_defaults(user.id)
         await self._market_index_repo.seed_defaults(user.id)
+        await self._taxonomy_repo.seed_defaults(user.id)
+        await self._annotation_repo.seed_defaults(user.id)
         return user
 
     async def login(self, data: UserLogin) -> tuple[str, str]:
@@ -223,6 +229,8 @@ class AuthService:
                     provider=provider,
                     provider_id=provider_sub,
                 )
+                await self._taxonomy_repo.seed_defaults(user.id)
+                await self._annotation_repo.seed_defaults(user.id)
 
         if not user.is_active:
             raise InvalidCredentialsError("User account is disabled.")

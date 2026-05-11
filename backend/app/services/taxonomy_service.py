@@ -16,25 +16,25 @@ class TaxonomyService:
     def __init__(self, session: AsyncSession) -> None:
         self._repo = TaxonomyRepository(session)
 
-    async def create(self, payload: TaxonomyCreate) -> TaxonomyResponse:
+    async def create(self, user_id: uuid.UUID, payload: TaxonomyCreate) -> TaxonomyResponse:
         try:
-            item = await self._repo.create(payload)
+            item = await self._repo.create(user_id=user_id, payload=payload)
         except IntegrityError as exc:
             raise TaxonomyValidationError("taxonomy with this name and scope already exists") from exc
         return TaxonomyResponse.model_validate(item)
 
-    async def list(self, scope: str | None = None) -> list[TaxonomyResponse]:
-        items = await self._repo.list(scope=scope)
+    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[TaxonomyResponse]:
+        items = await self._repo.list(user_id=user_id, scope=scope)
         return [TaxonomyResponse.model_validate(item) for item in items]
 
-    async def get(self, taxonomy_id: uuid.UUID) -> TaxonomyResponse:
-        item = await self._repo.get_by_id(taxonomy_id)
+    async def get(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID) -> TaxonomyResponse:
+        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
         return TaxonomyResponse.model_validate(item)
 
-    async def update(self, taxonomy_id: uuid.UUID, payload: TaxonomyUpdate) -> TaxonomyResponse:
-        item = await self._repo.get_by_id(taxonomy_id)
+    async def update(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID, payload: TaxonomyUpdate) -> TaxonomyResponse:
+        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
 
@@ -53,8 +53,8 @@ class TaxonomyService:
             raise TaxonomyValidationError("taxonomy with this name and scope already exists") from exc
         return TaxonomyResponse.model_validate(updated)
 
-    async def delete(self, taxonomy_id: uuid.UUID) -> TaxonomyResponse | None:
-        item = await self._repo.get_by_id(taxonomy_id)
+    async def delete(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID) -> TaxonomyResponse | None:
+        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
 

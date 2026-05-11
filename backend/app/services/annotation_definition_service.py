@@ -27,32 +27,34 @@ class AnnotationDefinitionService:
 
     async def create(
         self,
+        user_id: uuid.UUID,
         payload: AnnotationDefinitionCreate,
     ) -> AnnotationDefinitionResponse:
         try:
-            item = await self._repo.create(payload)
+            item = await self._repo.create(user_id=user_id, payload=payload)
         except IntegrityError as exc:
             raise AnnotationDefinitionValidationError(
                 "annotation definition with this name and scope already exists"
             ) from exc
         return AnnotationDefinitionResponse.model_validate(item)
 
-    async def list(self, scope: str | None = None) -> list[AnnotationDefinitionResponse]:
-        items = await self._repo.list(scope=scope)
+    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[AnnotationDefinitionResponse]:
+        items = await self._repo.list(user_id=user_id, scope=scope)
         return [AnnotationDefinitionResponse.model_validate(item) for item in items]
 
-    async def get(self, definition_id: uuid.UUID) -> AnnotationDefinitionResponse:
-        item = await self._repo.get_by_id(definition_id)
+    async def get(self, user_id: uuid.UUID, definition_id: uuid.UUID) -> AnnotationDefinitionResponse:
+        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
         if item is None:
             raise AnnotationDefinitionNotFoundError("annotation definition not found")
         return AnnotationDefinitionResponse.model_validate(item)
 
     async def update(
         self,
+        user_id: uuid.UUID,
         definition_id: uuid.UUID,
         payload: AnnotationDefinitionUpdate,
     ) -> AnnotationDefinitionResponse:
-        item = await self._repo.get_by_id(definition_id)
+        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
         if item is None:
             raise AnnotationDefinitionNotFoundError("annotation definition not found")
 
@@ -80,9 +82,10 @@ class AnnotationDefinitionService:
 
     async def delete(
         self,
+        user_id: uuid.UUID,
         definition_id: uuid.UUID,
     ) -> AnnotationDefinitionResponse | None:
-        item = await self._repo.get_by_id(definition_id)
+        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
         if item is None:
             raise AnnotationDefinitionNotFoundError("annotation definition not found")
 
