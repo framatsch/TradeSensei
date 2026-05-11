@@ -1,0 +1,79 @@
+## 1. Database Migration
+
+- [ ] 1.1 Create Alembic migration adding `is_modelbook` boolean column (default `false`) to `trades` table
+- [ ] 1.2 Create Alembic migration adding `is_modelbook` boolean column (default `false`) to `daily_checkins` table
+- [ ] 1.3 Apply migration and verify both columns exist
+
+## 2. Backend — Models & Schemas
+
+- [ ] 2.1 Add `is_modelbook: Mapped[bool]` field to `Trade` SQLAlchemy model
+- [ ] 2.2 Add `is_modelbook: Mapped[bool]` field to `DailyCheckin` SQLAlchemy model
+- [ ] 2.3 Add `is_modelbook` field to `TradeResponse` and `TradeUpdate` Pydantic schemas
+- [ ] 2.4 Add `is_modelbook` field to `DailyCheckinResponse` and `DailyCheckinUpdate` Pydantic schemas
+- [ ] 2.5 Create `ModelBookEntryResponse` discriminated union Pydantic schema (trade + checkin variants)
+- [ ] 2.6 Create `ModelBookEntriesPage` paginated response schema
+
+## 3. Backend — Star Toggle Endpoints
+
+- [ ] 3.1 Add `PATCH /trades/{trade_id}/modelbook` endpoint in trade router
+- [ ] 3.2 Add `PATCH /checkins/{date}/modelbook` endpoint in checkin router
+- [ ] 3.3 Add `update_modelbook_flag` method to `TradeRepository`
+- [ ] 3.4 Add `update_modelbook_flag` method to `CheckinRepository`
+
+## 4. Backend — Aggregation Endpoint
+
+- [ ] 4.1 Create `GET /model-book/entries` endpoint in a new `model_book` router
+- [ ] 4.2 Implement `ModelBookRepository.get_entries()` with `UNION ALL` query joining starred trades and check-ins, sorted by date desc
+- [ ] 4.3 Add query parameters: `entity_type` (trade | checkin | all), `from_date`, `to_date`, `page`, `per_page`
+- [ ] 4.4 Register `model_book` router in `app/api/v1/__init__.py`
+
+## 5. API Client Regeneration
+
+- [ ] 5.1 Run `openapi-sync` to regenerate the frontend TypeScript API client
+
+## 6. Frontend — Star Toggle Components
+
+- [ ] 6.1 Create `StarButton` reusable component (filled/outline star icon, loading state, onClick handler)
+- [ ] 6.2 Add `StarButton` to Trade Detail page toolbar (reads `trade.is_modelbook`, calls PATCH on click)
+- [ ] 6.3 Add `StarButton` to Check-in form toolbar (reads `checkin.is_modelbook`, calls PATCH on click)
+- [ ] 6.4 Add `useTradeModelBook` hook wrapping the PATCH trade modelbook API call with optimistic update
+- [ ] 6.5 Add `useCheckinModelBook` hook wrapping the PATCH checkin modelbook API call
+
+## 7. Frontend — Model Book Gallery
+
+- [ ] 7.1 Create `ModelBookCard` component with trade variant (symbol, R-multiple, tags, image preview, type label)
+- [ ] 7.2 Create `ModelBookCard` check-in variant (date, market phase pill, screenshot preview, type label)
+- [ ] 7.3 Replace `ModelBookView.tsx` with new cross-entity implementation using `GET /model-book/entries`
+- [ ] 7.4 Add `useModelBookEntries` hook wrapping the aggregation endpoint
+- [ ] 7.5 Wire pagination controls (previous/next) into the new `ModelBookView`
+- [ ] 7.6 Implement empty state with CTA explaining how to star items
+
+## 8. Frontend — Filter Bar
+
+- [ ] 8.1 Add entity type toggle (All / Trades / Check-ins) to `ModelBookFilterBar`
+- [ ] 8.2 Hide regime filter when entity type is "Trades"
+- [ ] 8.3 Pass `entity_type` to the `useModelBookEntries` hook
+- [ ] 8.4 Persist entity type selection in URL params (via `useCheckinParams` or equivalent)
+
+## 9. Mockup
+
+```text
++---------------------------------------------------------------------------------+
+| [Timeline] [Gallery] [MODEL BOOK]                        [+ Today's Check-in]  |
++---------------------------------------------------------------------------------+
+| [ All ▾ | Trades | Check-ins ]  [ Date Range ▾ ]  [ Regime ▾ ]   [ Clear All ] |
++---------------------------------------------------------------------------------+
+|                                                                                 |
+|  +--------------------------+  +--------------------------+  +--------------+  |
+|  | TRADE           [★]      |  | CHECK-IN        [★]      |  | TRADE  [★]   |  |
+|  | MSFT — Breakout          |  | May 10 — Bullish         |  | AAPL—Reversal|  |
+|  |--------------------------|  |--------------------------|  |--------------|  |
+|  | [ Image Preview ]        |  | [ Screenshot Preview ]   |  | [No Image]   |  |
+|  |                          |  |                          |  |              |  |
+|  | Result: +2.4 R           |  | Volatility: Low          |  | Result: +1.8R|  |
+|  | Tags: [A+] [Earnings]    |  | Tags: [Gap Up]           |  | [VWAP Bounce]|  |
+|  +--------------------------+  +--------------------------+  +--------------+  |
+|                                                                                 |
+|  < Prev   Page 1 of 4   Next >                                                  |
++---------------------------------------------------------------------------------+
+```
