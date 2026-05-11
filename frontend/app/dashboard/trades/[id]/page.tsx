@@ -3,24 +3,20 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Check, X, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Check, X, MoreHorizontal } from "lucide-react";
 import { useTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useTradeExecutions } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
-import { usePlaybooks } from "@/hooks/usePlaybooks";
-import { useTags } from "@/hooks/useTags";
 import { NoteList } from "@/components/notes/NoteList";
-import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { MediaChartsCard } from "@/components/trades/MediaChartsCard";
 import { ExecutionSummaryCard } from "@/components/trades/ExecutionSummaryCard";
 import { ExecutionLegsTable } from "@/components/trades/ExecutionLegsTable";
-import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import { CorrectTradeModal } from "@/components/trades/CorrectTradeModal";
 import { TradePickerModal } from "@/components/trades/TradePickerModal";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
-import type { Tag } from "@/lib/types";
+import { QualitativeMetadataPanel } from "@/components/trades/QualitativeMetadataPanel";
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -142,189 +138,6 @@ function InlineNumberField({ label, value, onSave, helpAnchor }: InlineNumberFie
   );
 }
 
-// ── Inline playbook dropdown ──────────────────────────────────────────────────
-
-interface InlinePlaybookFieldProps {
-  playbookId: string | null;
-  playbookName: string | null;
-  onSave: (playbookId: string | null) => void;
-}
-
-function InlinePlaybookField({ playbookId, playbookName, onSave }: InlinePlaybookFieldProps) {
-  const [editing, setEditing] = useState(false);
-  const { data: playbooks = [] } = usePlaybooks();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!editing) return;
-    function handleClick(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setEditing(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [editing]);
-
-  const handleSelect = (id: string | null) => {
-    onSave(id);
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <div ref={containerRef} className="relative">
-        <div className="absolute right-0 top-0 z-20 w-52 rounded-lg border border-border bg-card shadow-lg py-1 text-sm max-h-56 overflow-y-auto">
-          <button
-            type="button"
-            className={`w-full px-3 py-2 text-left hover:bg-secondary transition-colors ${
-              playbookId === null ? "text-primary font-medium" : "text-muted-foreground"
-            }`}
-            onClick={() => handleSelect(null)}
-          >
-            None
-          </button>
-          {playbooks.map((pb) => (
-            <button
-              key={pb.id}
-              type="button"
-              className={`w-full px-3 py-2 text-left hover:bg-secondary transition-colors ${
-                pb.id === playbookId ? "text-primary font-medium" : "text-foreground"
-              }`}
-              onClick={() => handleSelect(pb.id)}
-            >
-              {pb.name}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      className="inline-flex items-center gap-1 text-sm font-medium text-primary bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded hover:opacity-80 transition-opacity"
-      title="Click to change playbook"
-    >
-      {playbookName ?? <span className="text-zinc-400 font-normal italic">No playbook assigned</span>}
-      <ChevronDown size={12} className="opacity-60" />
-    </button>
-  );
-}
-
-// ── Inline tag picker ─────────────────────────────────────────────────────────
-
-interface InlineTagsFieldProps {
-  tagIds: string[];
-  tags: Pick<Tag, "id" | "name" | "color">[];
-  onSave: (tagIds: string[]) => void;
-}
-
-function InlineTagsField({ tagIds, tags: tradeTags, onSave }: InlineTagsFieldProps) {
-  const [editing, setEditing] = useState(false);
-  const [search, setSearch] = useState("");
-  const [draft, setDraft] = useState<string[]>(tagIds);
-  const { data: allTags = [] } = useTags();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (editing) setDraft(tagIds);
-  }, [editing, tagIds]);
-
-  useEffect(() => {
-    if (!editing) return;
-    function handleClick(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        onSave(draft);
-        setEditing(false);
-        setSearch("");
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [editing, draft, onSave]);
-
-  const filtered = allTags.filter((t) =>
-    t.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const toggle = (id: string) => {
-    setDraft((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  if (editing) {
-    return (
-      <div ref={containerRef} className="relative">
-        <div className="absolute right-0 top-0 z-20 w-60 rounded-lg border border-border bg-card shadow-lg py-2 text-sm">
-          <div className="px-3 pb-2">
-            <input
-              autoFocus
-              type="text"
-              className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs focus:border-primary focus:outline-none"
-              placeholder="Search tags…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="max-h-48 overflow-y-auto">
-            {filtered.length === 0 && (
-              <div className="px-3 py-2 text-xs text-muted-foreground">No tags found</div>
-            )}
-            {filtered.map((tag) => (
-              <button
-                key={tag.id}
-                type="button"
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors"
-                onClick={() => toggle(tag.id)}
-              >
-                <span
-                  className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
-                    draft.includes(tag.id)
-                      ? "bg-[#6063dd] border-[#6063dd]"
-                      : "border-border"
-                  }`}
-                >
-                  {draft.includes(tag.id) && <Check size={10} className="text-white" />}
-                </span>
-                <span
-                  className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: tag.color ?? "#475569" }}
-                />
-                <span className="text-foreground truncate">{tag.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      className="w-full text-left group"
-      title="Click to edit tags"
-    >
-      {tradeTags.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {tradeTags.map((tag) => (
-            <TagBadge key={tag.id} tag={tag} />
-          ))}
-        </div>
-      ) : (
-        <span className="text-sm text-zinc-400 italic group-hover:text-foreground transition-colors">
-          No tags — click to add
-        </span>
-      )}
-    </button>
-  );
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TradeDetailPage() {
@@ -433,14 +246,6 @@ export default function TradeDetailPage() {
 
   const handleSaveTakeProfit = (value: string | null) => {
     updateTrade.mutate({ take_profit: value });
-  };
-
-  const handleSavePlaybook = (playbookId: string | null) => {
-    updateTrade.mutate({ playbook_id: playbookId });
-  };
-
-  const handleSaveTags = (tagIds: string[]) => {
-    updateTrade.mutate({ tag_ids: tagIds });
   };
 
   return (
@@ -560,34 +365,6 @@ export default function TradeDetailPage() {
 
           {/* Execution Summary */}
           <ExecutionSummaryCard trade={trade} executions={executions} />
-
-          <TradeImageGallery imageUrls={trade.image_urls ?? []} />
-
-          {/* Execution Legs Table */}
-          <ExecutionLegsTable tradeId={trade.id} trade={trade} />
-
-          {/* Journal & Notes */}
-          <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-foreground mb-4 flex justify-between items-center">
-              Journal &amp; Notes
-              {trade.trade_notes.length > 0 && (
-                <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-zinc-600 dark:text-zinc-300">
-                  {trade.trade_notes.length}
-                </span>
-              )}
-            </h2>
-            {trade.notes && (
-              <div className="mb-4 pb-4 border-b border-zinc-100 dark:border-border/50">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  General Note
-                </div>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {trade.notes}
-                </p>
-              </div>
-            )}
-            <NoteList tradeId={trade.id} />
-          </div>
         </div>
 
         {/* Right Column */}
@@ -598,155 +375,138 @@ export default function TradeDetailPage() {
               Performance
             </h2>
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  Realized R <MetricHelpLink anchor="realized-r" />
-                </span>
-                <span
-                  className={`font-semibold ${
-                    realizedR === null
-                      ? "text-zinc-400"
-                      : realizedR >= 0
-                      ? "text-emerald-500 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
-                  }`}
-                >
-                  {realizedR !== null
-                    ? `${realizedR >= 0 ? "+" : ""}${realizedR.toFixed(2)}R`
-                    : "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  Planned RRR <MetricHelpLink anchor="planned-rrr" />
-                </span>
-                <span className="font-medium text-foreground">
-                  {plannedRrr !== null ? `1 : ${plannedRrr.toFixed(2)}` : "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  Initial Risk <MetricHelpLink anchor="initial-risk" />
-                </span>
-                <span className="font-medium text-foreground">
-                  {initialRisk !== null ? `$${initialRisk.toFixed(2)}` : "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  Return % <MetricHelpLink anchor="return-pct" />
-                </span>
-                <span
-                  className={`font-medium ${
-                    returnPct === null
-                      ? "text-zinc-400"
-                      : returnPct >= 0
-                      ? "text-emerald-500 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
-                  }`}
-                >
-                  {returnPct !== null
-                    ? `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}%`
-                    : "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  Gross P&L <MetricHelpLink anchor="gross-pnl-trade" />
-                </span>
-                <span
-                  className={`font-medium ${
-                    grossPnl === null
-                      ? "text-zinc-400"
-                      : grossPnl >= 0
-                      ? "text-emerald-500 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
-                  }`}
-                >
-                  {grossPnl !== null
-                    ? `${grossPnl >= 0 ? "+" : ""}$${Math.abs(grossPnl).toFixed(2)}`
-                    : "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  Net P&L <MetricHelpLink anchor="net-pnl-trade" />
-                </span>
-                <span
-                  className={`font-medium ${
-                    netPnl === null
-                      ? "text-zinc-400"
-                      : netPnl >= 0
-                      ? "text-emerald-500 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
-                  }`}
-                >
-                  {netPnl !== null
-                    ? `${netPnl >= 0 ? "+" : ""}$${Math.abs(netPnl).toFixed(2)}`
-                    : "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  Holding Period <MetricHelpLink anchor="holding-period" />
-                </span>
-                <span className="font-medium text-foreground">
-                  {formatHoldingPeriod(trade.opened_at, trade.closed_at)}
-                </span>
-              </div>
-
+              <InlineNumberField
+                label="Stop Loss"
+                value={trade.stop_loss}
+                onSave={handleSaveStopLoss}
+                helpAnchor="stop-loss"
+              />
+              <InlineNumberField
+                label="Take Profit"
+                value={trade.take_profit}
+                onSave={handleSaveTakeProfit}
+                helpAnchor="take-profit"
+              />
+              
               {/* Divider */}
               <div className="border-t border-border pt-3 space-y-3">
-                <InlineNumberField
-                  label="Stop Loss"
-                  value={trade.stop_loss}
-                  onSave={handleSaveStopLoss}
-                  helpAnchor="stop-loss"
-                />
-                <InlineNumberField
-                  label="Take Profit"
-                  value={trade.take_profit}
-                  onSave={handleSaveTakeProfit}
-                  helpAnchor="take-profit"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Playbook & Psychology */}
-          <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
-            <h2 className="text-base font-semibold text-foreground mb-4">
-              Playbook &amp; Psychology
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs text-muted-foreground mb-2">
-                  Strategy / Setup
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    Realized R <MetricHelpLink anchor="realized-r" />
+                  </span>
+                  <span
+                    className={`font-semibold ${
+                      realizedR === null
+                        ? "text-zinc-400"
+                        : realizedR >= 0
+                        ? "text-emerald-500 dark:text-emerald-400"
+                        : "text-red-500 dark:text-red-400"
+                    }`}
+                  >
+                    {realizedR !== null
+                      ? `${realizedR >= 0 ? "+" : ""}${realizedR.toFixed(2)}R`
+                      : "—"}
+                  </span>
                 </div>
-                <InlinePlaybookField
-                  playbookId={trade.playbook_id}
-                  playbookName={trade.playbook_name}
-                  onSave={handleSavePlaybook}
-                />
-              </div>
-              <div className="relative">
-                <div className="text-xs text-muted-foreground mb-2">Tags</div>
-                <InlineTagsField
-                  tagIds={trade.tags.map((t) => t.id)}
-                  tags={trade.tags}
-                  onSave={handleSaveTags}
-                />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    Planned RRR <MetricHelpLink anchor="planned-rrr" />
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {plannedRrr !== null ? `1 : ${plannedRrr.toFixed(2)}` : "—"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    Initial Risk <MetricHelpLink anchor="initial-risk" />
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {initialRisk !== null ? `$${initialRisk.toFixed(2)}` : "—"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    Return % <MetricHelpLink anchor="return-pct" />
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      returnPct === null
+                        ? "text-zinc-400"
+                        : returnPct >= 0
+                        ? "text-emerald-500 dark:text-emerald-400"
+                        : "text-red-500 dark:text-red-400"
+                    }`}
+                  >
+                    {returnPct !== null
+                      ? `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}%`
+                      : "—"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    Gross P&L <MetricHelpLink anchor="gross-pnl-trade" />
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      grossPnl === null
+                        ? "text-zinc-400"
+                        : grossPnl >= 0
+                        ? "text-emerald-500 dark:text-emerald-400"
+                        : "text-red-500 dark:text-red-400"
+                    }`}
+                  >
+                    {grossPnl !== null
+                      ? `${grossPnl >= 0 ? "+" : ""}$${Math.abs(grossPnl).toFixed(2)}`
+                      : "—"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    Net P&L <MetricHelpLink anchor="net-pnl-trade" />
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      netPnl === null
+                        ? "text-zinc-400"
+                        : netPnl >= 0
+                        ? "text-emerald-500 dark:text-emerald-400"
+                        : "text-red-500 dark:text-red-400"
+                    }`}
+                  >
+                    {netPnl !== null
+                      ? `${netPnl >= 0 ? "+" : ""}$${Math.abs(netPnl).toFixed(2)}`
+                      : "—"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    Holding Period <MetricHelpLink anchor="holding-period" />
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {formatHoldingPeriod(trade.opened_at, trade.closed_at)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Qualitative Analysis & Metadata */}
+      <section className="w-full">
+        <QualitativeMetadataPanel trade={trade} portfolioId={activePortfolioId ?? ""} />
+      </section>
+
+      {/* Execution Legs Table */}
+      <section className="w-full">
+        <ExecutionLegsTable tradeId={trade.id} trade={trade} />
+      </section>
 
       {/* Correct Trade Modal */}
       {correctModalOpen && (
