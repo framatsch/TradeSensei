@@ -18,11 +18,10 @@ from app.models.trade import Trade
 from app.repositories.account_repository import AccountRepository
 from app.repositories.execution import ExecutionRepository
 from app.repositories.playbook_repository import PlaybookRepository
-from app.repositories.tag_repository import TagRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.common import CursorPage
 from app.schemas.trade import (
-    BulkTagMode,
+    BulkTaxonomyMode,
     TradeCreate,
     TradeFilterParams,
     TradePartialCloseRequest,
@@ -55,7 +54,6 @@ class TradeService:
         self._session = session
         self._repo = TradeRepository(session)
         self._exec_repo = ExecutionRepository(session)
-        self._tag_repo = TagRepository(session)
         self._playbook_repo = PlaybookRepository(session)
         self._account_repo = AccountRepository(session)
         self._cache = CacheService()
@@ -392,7 +390,7 @@ class TradeService:
         pre_update_updated_at = trade.updated_at
         updated = await self._repo.update(trade, data)
 
-        propagation_fields = {"playbook_id", "tag_ids", "notes", "user_rating"}
+        propagation_fields = {"playbook_id", "taxonomy_ids", "notes", "user_rating"}
         should_propagate = bool(propagation_fields & data.model_fields_set)
         propagated_count = 0
         if should_propagate:
@@ -496,38 +494,27 @@ class TradeService:
             await self._cache.invalidate_portfolio(portfolio_id, user_id)
         return deleted
 
-    async def bulk_assign_tags(
+    async def bulk_assign_taxonomies(
         self,
         trade_ids: list[uuid.UUID],
-        tag_ids: list[uuid.UUID],
-        mode: BulkTagMode,
+        taxonomy_ids: list[uuid.UUID],
+        mode: BulkTaxonomyMode,
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
     ) -> int:
-        """Bulk add or remove tags from trades.
-
-        Validates that all tags belong to the requesting user before
-        delegating to the repository.
+        """Bulk add or remove taxonomies from trades.
 
         Args:
             trade_ids: UUIDs of trades to update.
-            tag_ids: UUIDs of tags to add/remove.
-            mode: ``BulkTagMode.add`` or ``BulkTagMode.remove``.
+            taxonomy_ids: UUIDs of taxonomies to add/remove.
+            mode: ``BulkTaxonomyMode.add`` or ``BulkTaxonomyMode.remove``.
             user_id: The authenticated user's UUID.
         Returns:
             Number of trades updated.
-
-        Raises:
-            PermissionError: If any tag does not belong to ``user_id``.
         """
-        tags = await self._tag_repo.get_many_by_ids(tag_ids, user_id)
-        if len(tags) != len(tag_ids):
-            raise ValueError("One or more tags not found.")
-        if any(tag.user_id != user_id for tag in tags):
-            raise PermissionError("One or more tags do not belong to this user.")
-        updated = await self._repo.bulk_assign_tags(
+        updated = await self._repo.bulk_assign_taxonomies(
             trade_ids,
-            tag_ids,
+            taxonomy_ids,
             mode,
             user_id,
             portfolio_id,
@@ -636,10 +623,13 @@ class TradeService:
                 else:
                     survivor.notes = t.notes
 
-            # Move tags
-            for tag in t.tags:
-                if tag not in survivor.tags:
-                    survivor.tags.append(tag)
+            # Move taxonomy assignments
+            survivor_taxonomy_ids = {
+                assignment.taxonomy_id for assignment in survivor.taxonomy_assignments
+            }
+            for assignment in t.taxonomy_assignments:
+                if assignment.taxonomy_id not in survivor_taxonomy_ids:
+                    survivor.taxonomy_assignments.append(assignment)
 
             # Clear the ORM-level logical_executions collection before deleting
             # so that SQLAlchemy doesn't attempt to null-out the trade_id FK on
@@ -755,8 +745,11 @@ class TradeService:
         # 2. Perform Split (Partial Close).
         # Refresh trade from DB to ensure all associations are correctly loaded
         # and current in the session before copying.
-        await self._session.refresh(trade, attribute_names=["tags", "trade_notes"])
-        tag_ids = [t.id for t in trade.tags]
+        await self._session.refresh(
+            trade,
+            attribute_names=["taxonomy_assignments", "trade_notes"],
+        )
+        taxonomy_ids = [assignment.taxonomy_id for assignment in trade.taxonomy_assignments]
 
         # Calculate proportional entry commission for the portion being closed.
         prop_entry_comm = (trade.commission * request.quantity) / trade.quantity
@@ -783,7 +776,7 @@ class TradeService:
             commission=prop_entry_comm + request.exit_commission,
             account_id=trade.account_id,
             playbook_id=trade.playbook_id,
-            tag_ids=tag_ids,
+            taxonomy_ids=taxonomy_ids,
             notes=trade.notes,
             user_rating=trade.user_rating,
             currency=trade.currency,

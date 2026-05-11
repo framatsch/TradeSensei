@@ -13,7 +13,7 @@ from app.core.constants import EQUITY_CURVE_MAX_POINTS, FX_ECB_FALLBACK_DAYS
 from app.core.exceptions import (
     PlaybookNotFoundError,
     SavedDashboardViewNotFoundError,
-    TagNotFoundError,
+    TaxonomyNotFoundError,
 )
 from app.models.saved_dashboard_view import SavedDashboardView
 from app.repositories.analytics_repository import AnalyticsRepository, EquityRow
@@ -22,7 +22,7 @@ from app.repositories.playbook_repository import PlaybookRepository
 from app.repositories.saved_dashboard_view_repository import (
     SavedDashboardViewRepository,
 )
-from app.repositories.tag_repository import TagRepository
+from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.schemas.analytics import (
     AnalyticsSummary,
     AnalyticsSummaryRequest,
@@ -61,7 +61,7 @@ class AnalyticsService:
         self._repo = AnalyticsRepository()
         self._views = SavedDashboardViewRepository(session)
         self._playbooks = PlaybookRepository(session)
-        self._tags = TagRepository(session)
+        self._taxonomies = TaxonomyRepository(session)
         self._fx = FxRateRepository()
         self._cache = CacheService()
 
@@ -105,12 +105,16 @@ class AnalyticsService:
             if missing:
                 raise PlaybookNotFoundError(f"invalid_playbook_ids: {missing}")
 
-        if cfg.tag_ids:
-            tags = await self._tags.get_many_by_ids(cfg.tag_ids, user_id)
-            if len(tags) != len(cfg.tag_ids):
-                found = {tag.id for tag in tags}
-                missing = [str(tag_id) for tag_id in cfg.tag_ids if tag_id not in found]
-                raise TagNotFoundError(f"invalid_tag_ids: {missing}")
+        if cfg.taxonomy_ids:
+            taxonomies = await self._taxonomies.get_many_by_ids(cfg.taxonomy_ids, user_id)
+            found = {item.id for item in taxonomies}
+            missing = [
+                str(taxonomy_id)
+                for taxonomy_id in cfg.taxonomy_ids
+                if taxonomy_id not in found
+            ]
+            if missing:
+                raise TaxonomyNotFoundError(f"invalid_taxonomy_ids: {missing}")
 
         return cfg
 

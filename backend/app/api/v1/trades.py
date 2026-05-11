@@ -23,7 +23,7 @@ from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.schemas.trade import (
     BulkAssignPlaybookRequest,
-    BulkAssignTagsRequest,
+    BulkAssignTaxonomiesRequest,
     BulkDeleteRequest,
     BulkDeleteResponse,
     BulkUpdateResponse,
@@ -169,49 +169,49 @@ async def bulk_delete_trades(
 
 
 @router.post(
-    "/bulk/assign-tags",
+    "/bulk/assign-taxonomies",
     response_model=ResponseEnvelope[BulkUpdateResponse],
-    summary="Bulk assign or remove tags",
+    summary="Bulk assign or remove taxonomies",
     description=(
-        "Add or remove tags from up to 100 trades in one request. "
-        "All specified tags must belong to the authenticated user. "
+        "Add or remove taxonomies from up to 100 trades in one request. "
+        "All specified taxonomies must belong to the authenticated user. "
         "In 'add' mode duplicate associations are silently ignored. "
         "In 'remove' mode non-existing associations are silently skipped."
     ),
     response_description="Number of trades actually updated.",
     status_code=status.HTTP_200_OK,
     responses={
-        200: {"description": "Bulk tag operation completed."},
-        403: {"description": "One or more tags do not belong to this user."},
-        404: {"description": "One or more tag UUIDs not found."},
+        200: {"description": "Bulk taxonomy operation completed."},
+        403: {"description": "One or more taxonomies do not belong to this user."},
+        404: {"description": "One or more taxonomy UUIDs not found."},
         422: {"description": "Request payload failed validation."},
     },
 )
-async def bulk_assign_tags(
+async def bulk_assign_taxonomies(
     portfolio_id: uuid.UUID,
-    payload: BulkAssignTagsRequest,
+    payload: BulkAssignTaxonomiesRequest,
     service: Annotated[TradeService, Depends(_get_service)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[BulkUpdateResponse]:
-    """Bulk add or remove tags from trades.
+    """Bulk add or remove taxonomies from trades.
 
-    All specified tag UUIDs must exist and belong to the current user.
+    All specified taxonomy UUIDs must exist and belong to the current user.
 
     Args:
-        payload: Request body with trade IDs, tag IDs, and mode.
+        payload: Request body with trade IDs, taxonomy IDs, and mode.
         service: Injected trade service.
         current_user: Injected authenticated user.
     Returns:
         A :class:`ResponseEnvelope` containing the count of updated trades.
 
     Raises:
-        HTTPException: 404 if any tag UUID is not found.
-        HTTPException: 403 if any tag does not belong to the current user.
+        HTTPException: 404 if any taxonomy UUID is not found.
+        HTTPException: 403 if any taxonomy does not belong to the current user.
     """
     try:
-        updated_count = await service.bulk_assign_tags(
+        updated_count = await service.bulk_assign_taxonomies(
             trade_ids=payload.trade_ids,
-            tag_ids=payload.tag_ids,
+            taxonomy_ids=payload.taxonomy_ids,
             mode=payload.mode,
             user_id=current_user.id,
             portfolio_id=portfolio_id,
@@ -376,9 +376,9 @@ async def list_trades(
         uuid.UUID | None,
         Query(description="Filter trades by account UUID"),
     ] = None,
-    tag_ids: Annotated[
+    taxonomy_ids: Annotated[
         list[uuid.UUID] | None,
-        Query(description=("Filter trades by tag UUIDs (OR logic: returns trades with any of the given tags)")),
+        Query(description=("Filter trades by taxonomy UUIDs (OR logic: returns trades with any of the given taxonomies)")),
     ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
@@ -390,7 +390,7 @@ async def list_trades(
         limit: Number of items to return (1–100, default 20).
         include_total: When ``True``, include the total row count.
         account_id: Optional UUID to filter trades by account.
-        tag_ids: Optional list of tag UUIDs to filter by (OR logic).
+        taxonomy_ids: Optional list of taxonomy UUIDs to filter by (OR logic).
         filters: Optional filter parameters injected via ``Depends()``.
         sort: Optional sort parameters injected via ``Depends()``.
 
@@ -401,11 +401,11 @@ async def list_trades(
     Raises:
         HTTPException: 400 if the cursor token is malformed.
     """
-    # Inject tag_ids from the explicit Query parameter into filters.
+    # Inject taxonomy_ids from the explicit Query parameter into filters.
     # FastAPI cannot parse list query params from Pydantic Depends() models,
-    # so tag_ids is declared separately and merged here.
-    if tag_ids is not None:
-        filters.tag_ids = tag_ids
+    # so taxonomy_ids is declared separately and merged here.
+    if taxonomy_ids is not None:
+        filters.taxonomy_ids = taxonomy_ids
     try:
         page = await service.list_trades(
             limit=limit,

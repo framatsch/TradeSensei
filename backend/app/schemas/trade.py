@@ -15,7 +15,6 @@ from app.models.trade import AssetClass, Direction
 from app.schemas.annotation_definition import TradeAnnotationResponse
 from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionRead
 from app.schemas.note import TradeNoteRead
-from app.schemas.tag import TagRead
 from app.schemas.taxonomy import TaxonomyResponse
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
@@ -247,9 +246,9 @@ class TradeCreate(BaseModel):
         description=("UUID of the playbook (strategy) to associate with this trade. Omit or set to null for no playbook."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
-    tag_ids: list[uuid.UUID] = Field(
+    taxonomy_ids: list[uuid.UUID] = Field(
         default_factory=list,
-        description=("List of tag UUIDs to attach to this trade. All UUIDs must belong to the authenticated user."),
+        description=("List of taxonomy UUIDs to attach to this trade. All UUIDs must belong to the authenticated user."),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
     )
     executions: list[LogicalExecutionCreate] | None = Field(
@@ -390,12 +389,12 @@ class TradeCreateRequest(BaseModel):
         pnl_eur: Realised P&L in EUR (optional, set by broker importers or manually).
         account_id: Optional broker account UUID.
         playbook_id: Optional playbook UUID.
-        tag_ids: List of tag UUIDs to attach.
+        taxonomy_ids: List of taxonomy UUIDs to attach.
         commission: Total commission paid; defaults to zero.
         notes: Free-text notes.
         account_id: Optional broker account UUID.
         playbook_id: Optional playbook UUID.
-        tag_ids: List of tag UUIDs to attach.
+        taxonomy_ids: List of taxonomy UUIDs to attach.
     """
 
     symbol: str = Field(
@@ -534,9 +533,9 @@ class TradeCreateRequest(BaseModel):
         description=("UUID of the playbook (strategy) to associate with this trade. Omit or set to null for no playbook."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
-    tag_ids: list[uuid.UUID] = Field(
+    taxonomy_ids: list[uuid.UUID] = Field(
         default_factory=list,
-        description=("List of tag UUIDs to attach to this trade. All UUIDs must belong to the authenticated user."),
+        description=("List of taxonomy UUIDs to attach to this trade. All UUIDs must belong to the authenticated user."),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], []],
     )
     executions: list[LogicalExecutionCreate] | None = Field(
@@ -709,12 +708,12 @@ class TradeUpdate(BaseModel):
         description=("Updated playbook UUID. Omit to leave unchanged. Set to null to detach the current playbook."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
-    tag_ids: list[uuid.UUID] | None = Field(
+    taxonomy_ids: list[uuid.UUID] | None = Field(
         default=None,
         description=(
-            "Replacement list of tag UUIDs. When supplied, the existing tags "
-            "are replaced with this set. Omit to leave tags unchanged. "
-            "Pass an empty list ``[]`` to remove all tags."
+            "Replacement list of taxonomy UUIDs. When supplied, existing taxonomies "
+            "are replaced with this set. Omit to leave taxonomies unchanged. "
+            "Pass an empty list ``[]`` to remove all taxonomies."
         ),
         examples=[["3fa85f64-5717-4562-b3fc-2c963f66afa6"], [], None],
     )
@@ -751,7 +750,6 @@ class TradeRead(BaseModel):
         commission: Commission paid.
         notes: Free-text notes.
         playbook_id: Optional UUID of the associated playbook.
-        tags: List of tags attached to this trade.
         trade_notes: List of psychological / review notes on this trade.
         created_at: Row-creation timestamp.
         updated_at: Row-last-updated timestamp.
@@ -916,10 +914,6 @@ class TradeRead(BaseModel):
         default_factory=list,
         description="Resolved annotation values assigned to this trade.",
     )
-    tags: list[TagRead] = Field(
-        default_factory=list,
-        description="Tags attached to this trade.",
-    )
     trade_notes: list[TradeNoteRead] = Field(
         default_factory=list,
         description="Psychological and review notes attached to this trade.",
@@ -1054,8 +1048,8 @@ class TradeFilterParams(BaseModel):
         symbol: Case-insensitive partial match on symbol.
         direction: Filter by LONG or SHORT.
         asset_class: Filter by asset class.
-        tag_ids: Filter by tag UUIDs.
-        tag_filter_mode: AND or OR logic when multiple tag_ids are given.
+        taxonomy_ids: Filter by taxonomy UUIDs.
+        taxonomy_filter_mode: AND or OR logic when multiple taxonomy_ids are given.
         playbook_id: Filter by playbook UUID.
         opened_at_from: Filter trades opened at or after this datetime.
         opened_at_to: Filter trades opened at or before this datetime.
@@ -1080,13 +1074,13 @@ class TradeFilterParams(BaseModel):
         default=None,
         description="Filter by asset class",
     )
-    tag_ids: list[uuid.UUID] | None = Field(
+    taxonomy_ids: list[uuid.UUID] | None = Field(
         default=None,
-        description="Filter by tag UUIDs",
+        description="Filter by taxonomy UUIDs",
     )
-    tag_filter_mode: Literal["and", "or"] = Field(
+    taxonomy_filter_mode: Literal["and", "or"] = Field(
         default="and",
-        description="AND or OR logic for tag filter",
+        description="AND or OR logic for taxonomy filter",
     )
     playbook_id: uuid.UUID | None = Field(
         default=None,
@@ -1212,20 +1206,20 @@ class BulkDeleteRequest(BaseModel):
     )
 
 
-class BulkTagMode(StrEnum):
-    """Mode for bulk tag assignment."""
+class BulkTaxonomyMode(StrEnum):
+    """Mode for bulk taxonomy assignment."""
 
     add = "add"
     remove = "remove"
 
 
-class BulkAssignTagsRequest(BaseModel):
-    """Request body for bulk tag assignment/removal.
+class BulkAssignTaxonomiesRequest(BaseModel):
+    """Request body for bulk taxonomy assignment/removal.
 
     Attributes:
         trade_ids: UUIDs of trades to update.
-        tag_ids: UUIDs of tags to add or remove.
-        mode: ``'add'`` to add tags, ``'remove'`` to remove them.
+        taxonomy_ids: UUIDs of taxonomies to add or remove.
+        mode: ``'add'`` to add taxonomies, ``'remove'`` to remove them.
     """
 
     trade_ids: list[uuid.UUID] = Field(
@@ -1234,15 +1228,15 @@ class BulkAssignTagsRequest(BaseModel):
         max_length=100,
         description="UUIDs of trades to update",
     )
-    tag_ids: list[uuid.UUID] = Field(
+    taxonomy_ids: list[uuid.UUID] = Field(
         ...,
         min_length=1,
         max_length=20,
-        description="UUIDs of tags to add or remove",
+        description="UUIDs of taxonomies to add or remove",
     )
-    mode: BulkTagMode = Field(
+    mode: BulkTaxonomyMode = Field(
         ...,
-        description="'add' to add tags, 'remove' to remove them",
+        description="'add' to add taxonomies, 'remove' to remove them",
     )
 
 

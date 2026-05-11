@@ -25,17 +25,11 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
-from app.repositories.checkin_field_definition_repository import (
-    CheckinFieldDefinitionRepository,
-)
 from app.repositories.market_index_repository import (
     MarketIndexDefinitionRepository,
 )
-from app.repositories.market_phase_definition_repository import (
-    MarketPhaseDefinitionRepository,
-)
-from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.repositories.annotation_definition_repository import AnnotationDefinitionRepository
+from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin
 
@@ -59,8 +53,6 @@ class AuthService:
         """
         self._session = session
         self._repo = UserRepository(session)
-        self._checkin_field_repo = CheckinFieldDefinitionRepository(session)
-        self._market_phase_repo = MarketPhaseDefinitionRepository(session)
         self._market_index_repo = MarketIndexDefinitionRepository(session)
         self._taxonomy_repo = TaxonomyRepository(session)
         self._annotation_repo = AnnotationDefinitionRepository(session)
@@ -87,8 +79,6 @@ class AuthService:
             raise UserAlreadyExistsError(f"Email {data.email!r} is already registered.")
         hashed = hash_password(data.password)
         user = await self._repo.create(data, hashed)
-        await self._checkin_field_repo.seed_defaults(user.id)
-        await self._market_phase_repo.seed_defaults(user.id)
         await self._market_index_repo.seed_defaults(user.id)
         await self._taxonomy_repo.seed_defaults(user.id)
         await self._annotation_repo.seed_defaults(user.id)

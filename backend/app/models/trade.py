@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     from app.models.account import Account
     from app.models.logical_execution import LogicalExecution
     from app.models.playbook import Playbook
-    from app.models.tag import Tag
     from app.models.trade_annotation import TradeAnnotation
     from app.models.trade_note import TradeNote
     from app.models.trade_taxonomy import TradeTaxonomy
@@ -101,8 +100,6 @@ class Trade(Base):
             :class:`~app.models.playbook.Playbook` used for this trade.
         playbook: The related :class:`~app.models.playbook.Playbook` ORM
             instance (``None`` if no playbook assigned).
-        tags: Many-to-many collection of :class:`~app.models.tag.Tag` objects
-            attached to this trade via the ``trade_tags`` association table.
         trade_notes: One-to-many collection of
             :class:`~app.models.trade_note.TradeNote` objects.
         is_manually_edited: When ``True``, this trade was manually corrected
@@ -296,12 +293,6 @@ class Trade(Base):
     playbook: Mapped[Optional["Playbook"]] = relationship(
         "Playbook",
         back_populates="trades",
-    )
-    tags: Mapped[list["Tag"]] = relationship(
-        "Tag",
-        secondary="trade_tags",
-        back_populates="trades",
-        lazy="selectin",
     )
     trade_notes: Mapped[list["TradeNote"]] = relationship(
         "TradeNote",

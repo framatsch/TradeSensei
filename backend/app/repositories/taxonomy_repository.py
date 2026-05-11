@@ -1,18 +1,18 @@
 """Repository for taxonomy definition persistence and assignment counts."""
 
+from __future__ import annotations
+
 import uuid
+from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.checkin_taxonomy import CheckinTaxonomy
 from app.models.taxonomy import Taxonomy
 from app.models.trade_taxonomy import TradeTaxonomy
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
-
-
-from typing import Any
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 class TaxonomyRepository:
     """Data-access operations for taxonomy definitions."""
@@ -95,3 +95,19 @@ class TaxonomyRepository:
         await self._session.flush()
         await self._session.refresh(taxonomy)
         return taxonomy
+    async def get_many_by_ids(
+        self,
+        taxonomy_ids: list[uuid.UUID],
+        user_id: uuid.UUID,
+    ) -> list[Taxonomy]:
+        """Return taxonomies by ids scoped to one user."""
+        if not taxonomy_ids:
+            return []
+        result = await self._session.execute(
+            select(Taxonomy).where(
+                Taxonomy.id.in_(taxonomy_ids),
+                Taxonomy.user_id == user_id,
+                Taxonomy.is_archived.is_(False),
+            )
+        )
+        return list(result.scalars().all())

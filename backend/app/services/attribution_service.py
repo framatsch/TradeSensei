@@ -7,9 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import Spec5NotDeployedError
 from app.repositories.attribution_repository import AttributionRepository
-from app.repositories.market_phase_definition_repository import (
-    MarketPhaseDefinitionRepository,
-)
 from app.schemas.analytics import (
     AttributionResponse,
     DashboardFilterConfig,
@@ -24,7 +21,6 @@ class AttributionService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._repo = AttributionRepository()
-        self._phases = MarketPhaseDefinitionRepository(session)
         self._cache = CacheService()
 
     async def get_market_phase_correlation(
@@ -65,16 +61,12 @@ class AttributionService:
             # Re-raise the exception to be handled by the route or middleware
             raise exc
 
-        definitions = await self._phases.list_by_user(user_id=user_id, is_active=None)
-        phase_map = {definition.name: definition for definition in definitions}
-
         buckets: list[MarketPhaseCorrelation] = []
         currencies = set()
         for row in rows:
             phase = row["market_phase"]
-            definition = phase_map.get(phase)
-            label = definition.label if definition is not None else phase
-            color_hex = definition.color_hex if definition is not None else None
+            label = phase
+            color_hex = None
             losing = row["losing_trades"]
             trade_count = row["trade_count"]
             win_rate = (

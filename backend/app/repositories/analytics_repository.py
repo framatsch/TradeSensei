@@ -11,7 +11,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.account import Account
 from app.models.trade import Trade
-from app.models.trade_tag import TradeTag
+from app.models.trade_taxonomy import TradeTaxonomy
 from app.schemas.analytics import DashboardFilterConfig
 
 
@@ -79,17 +79,17 @@ class AnalyticsRepository:
         """Compute scalar aggregates and equity rows using SQL queries only."""
         predicates = self._base_predicates(portfolio_id, user_id, filter_config)
 
-        if filter_config.tag_ids:
-            tag_subquery = (
-                select(TradeTag.trade_id)
-                .where(TradeTag.tag_id.in_(filter_config.tag_ids))
-                .group_by(TradeTag.trade_id)
+        if filter_config.taxonomy_ids:
+            taxonomy_subquery = (
+                select(TradeTaxonomy.trade_id)
+                .where(TradeTaxonomy.taxonomy_id.in_(filter_config.taxonomy_ids))
+                .group_by(TradeTaxonomy.trade_id)
                 .having(
-                    func.count(func.distinct(TradeTag.tag_id))
-                    == len(filter_config.tag_ids)
+                    func.count(func.distinct(TradeTaxonomy.taxonomy_id))
+                    == len(filter_config.taxonomy_ids)
                 )
             )
-            predicates.append(Trade.id.in_(tag_subquery))
+            predicates.append(Trade.id.in_(taxonomy_subquery))
 
         aggregate_stmt = (
             select(

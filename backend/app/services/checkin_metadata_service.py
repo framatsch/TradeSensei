@@ -46,7 +46,7 @@ class CheckinMetadataService:
         user_id: uuid.UUID,
     ) -> None:
         await self._ensure_checkin_exists(checkin_id, user_id)
-        taxonomy = await self._taxonomy_repo.get_by_id(taxonomy_id)
+        taxonomy = await self._taxonomy_repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
         if taxonomy is None:
             raise TaxonomyNotFoundError("taxonomy not found")
         if taxonomy.is_archived:

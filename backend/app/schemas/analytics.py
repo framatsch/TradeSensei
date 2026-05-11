@@ -27,9 +27,9 @@ class DashboardFilterConfig(BaseModel):
         default=None,
         description="Optional list of playbook IDs used to filter trades.",
     )
-    tag_ids: list[uuid.UUID] | None = Field(
+    taxonomy_ids: list[uuid.UUID] | None = Field(
         default=None,
-        description="Optional list of tag IDs used to filter trades.",
+        description="Optional list of taxonomy IDs used to filter trades.",
     )
     direction: Direction | None = Field(
         default=None,

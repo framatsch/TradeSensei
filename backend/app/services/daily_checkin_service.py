@@ -12,15 +12,8 @@ from app.core.exceptions import (
     DailyCheckinNotFoundError,
     DailyCheckinValidationError,
 )
-from app.models.daily_checkin import FieldTypeEnum
-from app.repositories.checkin_field_definition_repository import (
-    CheckinFieldDefinitionRepository,
-)
 from app.repositories.daily_checkin_repository import DailyCheckinRepository
 from app.repositories.market_index_repository import MarketIndexDefinitionRepository
-from app.repositories.market_phase_definition_repository import (
-    MarketPhaseDefinitionRepository,
-)
 from app.schemas.daily_checkin import (
     DailyCheckinCreate,
     DailyCheckinListResponse,
@@ -36,8 +29,6 @@ class DailyCheckinService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._repo = DailyCheckinRepository(session)
-        self._field_repo = CheckinFieldDefinitionRepository(session)
-        self._phase_repo = MarketPhaseDefinitionRepository(session)
         self._index_repo = MarketIndexDefinitionRepository(session)
         self._cache = CacheService()
 
@@ -61,41 +52,27 @@ class DailyCheckinService:
         user_id: uuid.UUID,
         market_phase: str | None,
     ) -> None:
-        """Validate market phase name against active user definitions."""
-        if market_phase is None:
-            return
-        active = await self._phase_repo.list_by_user(user_id=user_id, is_active=True)
-        active_names = {item.name for item in active}
-        if market_phase not in active_names:
-            raise DailyCheckinValidationError(f"unknown market_phase: {market_phase}")
+        """Validate market phase value shape."""
+        _ = user_id
+        if market_phase is not None and not market_phase.strip():
+            raise DailyCheckinValidationError("unknown market_phase")
 
     async def _validate_custom_metrics(
         self,
         user_id: uuid.UUID,
         metrics: dict[str, int | bool] | None,
     ) -> None:
-        """Validate custom metric keys and value types against active fields."""
+        """Validate custom metrics payload shape."""
+        _ = user_id
         if metrics is None:
             return
 
-        active_fields = await self._field_repo.list_by_user(
-            user_id=user_id,
-            is_active=True,
-        )
-        field_type_map = {item.field_name: item.field_type for item in active_fields}
-
         errors: list[str] = []
         for key, value in metrics.items():
-            declared = field_type_map.get(key)
-            if declared is None:
-                errors.append(f"custom_metrics.{key}: unknown field")
-                continue
-
-            if declared == FieldTypeEnum.INTEGER:
-                if not isinstance(value, int) or isinstance(value, bool):
-                    errors.append(f"custom_metrics.{key}: expected integer")
-            elif declared == FieldTypeEnum.BOOLEAN and not isinstance(value, bool):
-                errors.append(f"custom_metrics.{key}: expected boolean")
+            if not key or not isinstance(key, str):
+                errors.append("custom_metrics key: invalid")
+            if not isinstance(value, (int, bool)):
+                errors.append(f"custom_metrics.{key}: expected integer or boolean")
 
         if errors:
             raise DailyCheckinValidationError(errors)
