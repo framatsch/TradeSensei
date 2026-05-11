@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, Edit2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Edit2 } from "lucide-react";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import {
@@ -14,7 +14,9 @@ import {
 import { useUpdateTrade } from "@/hooks/useTrade";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import type { Trade } from "@/lib/types";
-import { AnnotationInput } from "./AnnotationInput";
+import { TaxonomySelector } from "./TaxonomySelector";
+import { AnnotationInputs } from "./AnnotationInputs";
+import Link from "next/link";
 
 interface QualitativeMetadataPanelProps {
   trade: Trade;
@@ -39,43 +41,10 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
     trade.taxonomies?.map((t) => t.id) ?? []
   );
-  const [draftAnnotations, setDraftAnnotations] = useState<Record<string, string | number | boolean | null>>({});
+  const [draftAnnotations, setDraftAnnotations] = useState<Record<string, string | number | boolean>>({});
   const [draftPlaybookId, setDraftPlaybookId] = useState<string | null>(trade.playbook_id);
   
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Reset draft state when not editing
-    if (!isEditing) {
-      setDraftNotes(trade.notes ?? "");
-      setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
-      setDraftPlaybookId(trade.playbook_id);
-      
-      const annMap: Record<string, string | number | boolean | null> = {};
-      trade.annotations?.forEach((a) => {
-        annMap[a.annotation_definition_id] = a.value;
-      });
-      setDraftAnnotations(annMap);
-    }
-  }, [isEditing, trade]);
-
-  useEffect(() => {
-    if (!dropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (!dropdownRef.current?.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [dropdownOpen]);
-
-  const toggleTaxonomy = (id: string) => {
-    setDraftTaxonomyIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
 
   const handleSave = async () => {
     try {
@@ -102,13 +71,13 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
         const originalVal = trade.annotations?.find((a) => a.annotation_definition_id === def.id)?.value;
 
         if (draftVal !== undefined && draftVal !== originalVal) {
-          if (draftVal === null) {
-            // we could remove it, but for simplicity we will just let user keep it or handle if useRemoveTradeAnnotation is implemented
-          } else if (originalVal === undefined) {
+          if (originalVal === undefined) {
             await assignAnnotation.mutateAsync({ tradeId: trade.id, annotationDefinitionId: def.id, value: draftVal as any, portfolioId });
           } else {
             await updateAnnotation.mutateAsync({ tradeId: trade.id, annotationDefinitionId: def.id, value: draftVal as any, portfolioId });
           }
+        } else if (draftVal === undefined && originalVal !== undefined && originalVal !== null) {
+          // Note: ideally we would remove it here using useRemoveTradeAnnotation
         }
       }
 
@@ -173,89 +142,40 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
         </div>
 
         {/* Taxonomies */}
-        <div className="relative" ref={dropdownRef}>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Tags (Taxonomies)</label>
-          {!isEditing ? (
-            <div className="flex flex-wrap gap-2">
-              {draftTaxonomyIds.length > 0 ? (
-                draftTaxonomyIds.map((id) => {
-                  const tag = taxonomies.find(t => t.id === id);
-                  if (!tag) return null;
-                  return (
-                    <span
-                      key={id}
-                      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                      style={{ backgroundColor: tag.color_hex ? `${tag.color_hex}20` : '#f3f4f6', color: tag.color_hex || '#374151', borderColor: tag.color_hex ? `${tag.color_hex}40` : '#e5e7eb' }}
-                    >
-                      {tag.name}
-                    </span>
-                  );
-                })
-              ) : (
-                <span className="text-sm text-muted-foreground italic">No tags assigned</span>
-              )}
-            </div>
-          ) : (
-            <div className="relative">
-              <button
-                type="button"
-                className="w-full flex items-center justify-between rounded border border-border bg-secondary px-3 py-1.5 text-sm text-left focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-              >
-                <span className={draftTaxonomyIds.length === 0 ? "text-muted-foreground" : "text-foreground"}>
-                  {draftTaxonomyIds.length > 0
-                    ? `${draftTaxonomyIds.length} tag(s) selected`
-                    : "Select tags..."}
-                </span>
-                <ChevronDown size={14} className="opacity-50" />
-              </button>
-
-              {dropdownOpen && (
-                <div className="absolute left-0 top-full mt-1 z-10 w-full rounded-md border border-border bg-card shadow-lg max-h-60 overflow-y-auto">
-                  {activeTaxonomies.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">No tags available</div>
-                  ) : (
-                    activeTaxonomies.map((tax) => {
-                      const isSelected = draftTaxonomyIds.includes(tax.id);
-                      return (
-                        <button
-                          key={tax.id}
-                          type="button"
-                          className="w-full flex items-center px-3 py-2 text-sm hover:bg-secondary transition-colors"
-                          onClick={() => toggleTaxonomy(tax.id)}
-                        >
-                          <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded border ${isSelected ? 'bg-primary border-primary' : 'border-border'}`}>
-                            {isSelected && <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                          </div>
-                          <span
-                            className="inline-block w-2 h-2 rounded-full mr-2 flex-shrink-0"
-                            style={{ backgroundColor: tax.color_hex || "#475569" }}
-                          />
-                          <span className="text-foreground truncate">{tax.name}</span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+        <div>
+          <div className="flex justify-between items-center mb-1.5">
+            <label className="block text-sm font-medium text-foreground">Tags (Taxonomies)</label>
+            {isEditing && (
+              <Link href="/dashboard/library/tags" className="text-xs text-primary hover:underline" target="_blank">
+                Manage Tags
+              </Link>
+            )}
+          </div>
+          <TaxonomySelector
+            taxonomies={activeTaxonomies}
+            selectedIds={draftTaxonomyIds}
+            onChange={setDraftTaxonomyIds}
+            disabled={!isEditing}
+          />
         </div>
 
         {/* Dynamic Annotations */}
-        {annotationDefs.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {annotationDefs.map((def) => (
-              <AnnotationInput
-                key={def.id}
-                definition={def}
-                disabled={!isEditing}
-                value={draftAnnotations[def.id] ?? null}
-                onChange={(val) => setDraftAnnotations((prev) => ({ ...prev, [def.id]: val }))}
-              />
-            ))}
+        <div>
+          <div className="flex justify-between items-center mb-1.5">
+            <label className="block text-sm font-medium text-foreground">Annotations</label>
+            {isEditing && (
+              <Link href="/dashboard/settings" className="text-xs text-primary hover:underline" target="_blank">
+                Manage Annotations
+              </Link>
+            )}
           </div>
-        )}
+          <AnnotationInputs
+            definitions={annotationDefs}
+            values={draftAnnotations}
+            onChange={setDraftAnnotations}
+            disabled={!isEditing}
+          />
+        </div>
 
         {/* Journal */}
         <div>

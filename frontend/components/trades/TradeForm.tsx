@@ -6,14 +6,15 @@ import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass, LogicalExecutionCreate } from "@/lib/types";
-import { useCreateTrade, useTradeImageUploadUrl, useUpdateTrade } from "@/hooks/useTrade";
+import { useCreateTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useAccounts } from "@/hooks/useAccounts";
 import { Spinner } from "@/components/ui/Spinner";
 import { Trash2, Plus } from "lucide-react";
 import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
 import { extractApiError } from "@/lib/api/errors";
 import { TradeScreenshotUploader } from "./TradeScreenshotUploader";
-import { useGetTaxonomiesApiV1TaxonomiesGet, useGetAnnotationDefinitionsApiV1AnnotationsDefinitionsGet } from "@/lib/api/index";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
+import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import { TaxonomySelector } from "./TaxonomySelector";
 import { AnnotationInputs } from "./AnnotationInputs";
 import { assignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPost, assignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPost } from "@/lib/api";
@@ -108,16 +109,13 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   const router = useRouter();
 
   const { data: accounts } = useAccounts();
-  const { data: taxonomiesRes } = useGetTaxonomiesApiV1TaxonomiesGet({ scope: "trades" });
-  const { data: annotationsRes } = useGetAnnotationDefinitionsApiV1AnnotationsDefinitionsGet({ scope: "trades" });
-  
-  const taxonomies = taxonomiesRes?.data || [];
-  const annotationDefs = annotationsRes?.data || [];
+  const { data: taxonomies = [] } = useGetTaxonomies("trades");
+  const { data: annotationDefs = [] } = useGetAnnotationDefinitions("trades");
 
   const [selectedTaxonomyIds, setSelectedTaxonomyIds] = useState<string[]>([]);
   const [annotationValues, setAnnotationValues] = useState<Record<string, string | number | boolean>>({});
   const [imageUrls, setImageUrls] = useState<string[]>(trade?.image_urls ?? []);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [isUploadingImages] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [isAssigningMetadata, setIsAssigningMetadata] = useState(false);
@@ -265,7 +263,6 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
   const createMutation = useCreateTrade();
   const updateMutation = useUpdateTrade(trade?.id ?? "");
-  const uploadUrlMutation = useTradeImageUploadUrl();
 
   const isPending = isEditing ? updateMutation.isPending : createMutation.isPending;
   const formIsBusy = isPending || isUploadingImages || isAssigningMetadata;
@@ -383,12 +380,6 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       });
     }
   };
-
-  function toggleTag(tagId: string) {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    );
-  }
 
   const inputCls =
     "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed";
