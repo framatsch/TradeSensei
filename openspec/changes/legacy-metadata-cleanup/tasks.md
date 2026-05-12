@@ -52,7 +52,7 @@
 - [x] 6.2 Delete `backend/tests/test_tag_ownership.py`
 - [x] 6.3 Delete `backend/tests/test_market_phases_api.py`
 - [x] 6.4 Delete `backend/tests/test_checkin_fields.py`
-- [ ] 6.5 Run full backend test suite and fix any remaining failures from legacy references
+- [x] 6.5 Run full backend test suite and fix any remaining failures from legacy references
 
 ## 7. Frontend — Regenerate OpenAPI Client
 
