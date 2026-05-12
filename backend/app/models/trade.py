@@ -223,6 +223,13 @@ class Trade(Base):
         server_default="false",
         comment=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
     )
+    is_modelbook: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="True if this trade is starred in the Model Book.",
+    )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
         nullable=True,

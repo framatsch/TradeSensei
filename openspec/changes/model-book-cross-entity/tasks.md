@@ -1,35 +1,35 @@
 ## 1. Database Migration
 
-- [ ] 1.1 Create Alembic migration adding `is_modelbook` boolean column (default `false`) to `trades` table
-- [ ] 1.2 Create Alembic migration adding `is_modelbook` boolean column (default `false`) to `daily_checkins` table
-- [ ] 1.3 Apply migration and verify both columns exist
+- [x] 1.1 Create Alembic migration adding `is_modelbook` boolean column (default `false`) to `trades` table
+- [x] 1.2 Create Alembic migration adding `is_modelbook` boolean column (default `false`) to `daily_checkins` table
+- [x] 1.3 Apply migration and verify both columns exist
 
 ## 2. Backend — Models & Schemas
 
-- [ ] 2.1 Add `is_modelbook: Mapped[bool]` field to `Trade` SQLAlchemy model
-- [ ] 2.2 Add `is_modelbook: Mapped[bool]` field to `DailyCheckin` SQLAlchemy model
-- [ ] 2.3 Add `is_modelbook` field to `TradeResponse` and `TradeUpdate` Pydantic schemas
-- [ ] 2.4 Add `is_modelbook` field to `DailyCheckinResponse` and `DailyCheckinUpdate` Pydantic schemas
-- [ ] 2.5 Create `ModelBookEntryResponse` discriminated union Pydantic schema (trade + checkin variants)
-- [ ] 2.6 Create `ModelBookEntriesPage` paginated response schema
+- [x] 2.1 Add `is_modelbook: Mapped[bool]` field to `Trade` SQLAlchemy model
+- [x] 2.2 Add `is_modelbook: Mapped[bool]` field to `DailyCheckin` SQLAlchemy model
+- [x] 2.3 Add `is_modelbook` field to `TradeResponse` and `TradeUpdate` Pydantic schemas
+- [x] 2.4 Add `is_modelbook` field to `DailyCheckinResponse` and `DailyCheckinUpdate` Pydantic schemas
+- [x] 2.5 Create `ModelBookEntryResponse` discriminated union Pydantic schema (trade + checkin variants)
+- [x] 2.6 Create `ModelBookEntriesPage` paginated response schema
 
 ## 3. Backend — Star Toggle Endpoints
 
-- [ ] 3.1 Add `PATCH /trades/{trade_id}/modelbook` endpoint in trade router
-- [ ] 3.2 Add `PATCH /checkins/{date}/modelbook` endpoint in checkin router
-- [ ] 3.3 Add `update_modelbook_flag` method to `TradeRepository`
-- [ ] 3.4 Add `update_modelbook_flag` method to `CheckinRepository`
+- [x] 3.1 Add `PATCH /trades/{trade_id}/modelbook` endpoint in trade router
+- [x] 3.2 Add `PATCH /checkins/{date}/modelbook` endpoint in checkin router
+- [x] 3.3 Add `update_modelbook_flag` method to `TradeRepository`
+- [x] 3.4 Add `update_modelbook_flag` method to `CheckinRepository`
 
 ## 4. Backend — Aggregation Endpoint
 
-- [ ] 4.1 Create `GET /model-book/entries` endpoint in a new `model_book` router
-- [ ] 4.2 Implement `ModelBookRepository.get_entries()` with `UNION ALL` query joining starred trades and check-ins, sorted by date desc
-- [ ] 4.3 Add query parameters: `entity_type` (trade | checkin | all), `from_date`, `to_date`, `page`, `per_page`
-- [ ] 4.4 Register `model_book` router in `app/api/v1/__init__.py`
+- [x] 4.1 Create `GET /model-book/entries` endpoint in a new `model_book` router
+- [x] 4.2 Implement `ModelBookRepository.get_entries()` with `UNION ALL` query joining starred trades and check-ins, sorted by date desc
+- [x] 4.3 Add query parameters: `entity_type` (trade | checkin | all), `from_date`, `to_date`, `page`, `per_page`
+- [x] 4.4 Register `model_book` router in `app/api/v1/__init__.py`
 
 ## 5. API Client Regeneration
 
-- [ ] 5.1 Run `openapi-sync` to regenerate the frontend TypeScript API client
+- [x] 5.1 Run `openapi-sync` to regenerate the frontend TypeScript API client
 
 ## 6. Frontend — Star Toggle Components
 

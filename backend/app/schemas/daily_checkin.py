@@ -73,6 +73,11 @@ class DailyCheckinUpdate(BaseModel):
         default=None,
         description="Updated custom metrics payload.",
     )
+    is_modelbook: bool | None = Field(
+        default=None,
+        description="True if this check-in should be starred in the Model Book. Omit to leave unchanged.",
+        examples=[False, True, None],
+    )
 
 
 class TargetIndexRead(BaseModel):
@@ -99,6 +104,7 @@ class DailyCheckinRead(BaseModel):
     news_links: list[str] = Field(..., description="Validated news links.")
     screenshot_urls: list[str] = Field(..., description="Stored screenshot URLs.")
     custom_metrics: dict[str, int | bool] | None = Field(..., description="Stored custom metric values.")
+    is_modelbook: bool = Field(..., description="True if this check-in is starred in the Model Book.")
     target_indices: list[TargetIndexRead] = Field(
         default_factory=list,
         description="Associated market indices for this check-in.",

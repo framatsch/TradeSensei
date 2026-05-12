@@ -698,13 +698,18 @@ class TradeUpdate(BaseModel):
     )
     image_urls: list[str] | None = Field(
         default=None,
-        description=("Updated list of image URLs. Set to null to clear. Omit to leave unchanged."),
-        examples=[["https://example.com/image1.png"], None],
+        description=(
+            "Replacement list of image URLs. "
+            "When supplied, existing image URLs are replaced with this set. "
+            "Omit to leave image URLs unchanged. "
+            "Pass an empty list ``[]`` to remove all images."
+        ),
+        examples=[["https://example.com/image.png"], [], None],
     )
-    playbook_id: uuid.UUID | None = Field(
+    is_modelbook: bool | None = Field(
         default=None,
-        description=("Updated playbook UUID. Omit to leave unchanged. Set to null to detach the current playbook."),
-        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+        description=("True if this trade should be starred in the Model Book. Omit to leave unchanged."),
+        examples=[False, True, None],
     )
     taxonomy_ids: list[uuid.UUID] | None = Field(
         default=None,
@@ -923,6 +928,11 @@ class TradeRead(BaseModel):
     is_manually_edited: bool = Field(
         default=False,
         description=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
+        examples=[False, True],
+    )
+    is_modelbook: bool = Field(
+        default=False,
+        description="True if this trade is starred in the Model Book.",
         examples=[False, True],
     )
     created_at: datetime = Field(

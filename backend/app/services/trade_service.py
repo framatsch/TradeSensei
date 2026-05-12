@@ -814,3 +814,15 @@ class TradeService:
             await self._cache.invalidate_portfolio(portfolio_id, user_id)
 
         return TradeRead.model_validate(new_trade_orm)
+
+    async def update_modelbook_flag(
+        self,
+        trade_id: uuid.UUID,
+        is_modelbook: bool,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> TradeRead:
+        trade = await self.repo.update_modelbook_flag(trade_id, is_modelbook, user_id)
+        if not trade:
+            raise TradeNotFoundError()
+        return TradeRead.model_validate(trade)

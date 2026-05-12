@@ -24,6 +24,7 @@ from app.schemas.daily_checkin import (
     ScreenshotUploadUrlRequest,
     ScreenshotUploadUrlResponse,
 )
+from app.schemas.model_book import ModelBookPatchRequest
 from app.services.daily_checkin_service import DailyCheckinService
 from app.services.storage_service import StorageService
 
@@ -186,3 +187,22 @@ async def delete_checkin(
         await service.delete_checkin(user_id=current_user.id, checkin_date=checkin_date)
     except DailyCheckinNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch("/{checkin_date}/modelbook", response_model=ResponseEnvelope[DailyCheckinRead])
+async def update_checkin_modelbook(
+    checkin_date: date,
+    payload: ModelBookPatchRequest,
+    service: Annotated[DailyCheckinService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ResponseEnvelope[DailyCheckinRead]:
+    """Star or unstar a daily check-in for the Model Book."""
+    try:
+        checkin = await service.update_modelbook_flag(
+            current_user.id,
+            checkin_date,
+            payload.is_modelbook,
+        )
+        return ResponseEnvelope[DailyCheckinRead](data=checkin)
+    except DailyCheckinNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Daily check-in not found") from None
