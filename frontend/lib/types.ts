@@ -207,6 +207,7 @@ export interface Trade {
   created_at: string;
   updated_at: string;
   is_manually_edited: boolean;
+  is_modelbook: boolean;
   tags: Array<{ id: string; name: string; color: string | null }>;
   trade_notes: TradeNote[];
   legs?: LogicalExecution[];

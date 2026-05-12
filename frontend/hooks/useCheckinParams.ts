@@ -9,6 +9,7 @@ export function useCheckinParams() {
   const pathname = usePathname();
 
   const view = searchParams.get("view") ?? "timeline";
+  const entityType = searchParams.get("entity_type") ?? "all";
   const month = searchParams.get("month") ?? new Date().toISOString().slice(0, 7); // YYYY-MM
   const regime = searchParams.get("regime") ?? null;
   const fromDate = searchParams.get("from_date") ?? null;
@@ -31,7 +32,7 @@ export function useCheckinParams() {
       }
 
       // Automatically reset page to 1 if we change regime, month, or date range
-      if (key === "regime" || key === "month" || key === "from_date" || key === "to_date") {
+      if (key === "regime" || key === "month" || key === "from_date" || key === "to_date" || key === "entity_type") {
         params.set("page", "1");
       }
 
@@ -43,6 +44,8 @@ export function useCheckinParams() {
   return {
     view,
     setView: (v: string) => setParam("view", v),
+    entityType: entityType as "all" | "trade" | "checkin",
+    setEntityType: (e: "all" | "trade" | "checkin") => setParam("entity_type", e === "all" ? null : e),
     month,
     setMonth: (m: string) => setParam("month", m),
     regime,

@@ -33,27 +33,27 @@
 
 ## 6. Frontend — Star Toggle Components
 
-- [ ] 6.1 Create `StarButton` reusable component (filled/outline star icon, loading state, onClick handler)
-- [ ] 6.2 Add `StarButton` to Trade Detail page toolbar (reads `trade.is_modelbook`, calls PATCH on click)
-- [ ] 6.3 Add `StarButton` to Check-in form toolbar (reads `checkin.is_modelbook`, calls PATCH on click)
-- [ ] 6.4 Add `useTradeModelBook` hook wrapping the PATCH trade modelbook API call with optimistic update
-- [ ] 6.5 Add `useCheckinModelBook` hook wrapping the PATCH checkin modelbook API call
+- [x] 6.1 Create `StarButton` reusable component (filled/outline star icon, loading state, onClick handler)
+- [x] 6.2 Add `StarButton` to Trade Detail page toolbar (reads `trade.is_modelbook`, calls PATCH on click)
+- [x] 6.3 Add `StarButton` to Check-in form toolbar (reads `checkin.is_modelbook`, calls PATCH on click)
+- [x] 6.4 Add `useTradeModelBook` hook wrapping the PATCH trade modelbook API call with optimistic update
+- [x] 6.5 Add `useCheckinModelBook` hook wrapping the PATCH checkin modelbook API call
 
 ## 7. Frontend — Model Book Gallery
 
-- [ ] 7.1 Create `ModelBookCard` component with trade variant (symbol, R-multiple, tags, image preview, type label)
-- [ ] 7.2 Create `ModelBookCard` check-in variant (date, market phase pill, screenshot preview, type label)
-- [ ] 7.3 Replace `ModelBookView.tsx` with new cross-entity implementation using `GET /model-book/entries`
-- [ ] 7.4 Add `useModelBookEntries` hook wrapping the aggregation endpoint
-- [ ] 7.5 Wire pagination controls (previous/next) into the new `ModelBookView`
-- [ ] 7.6 Implement empty state with CTA explaining how to star items
+- [x] 7.1 Create `ModelBookCard` component with trade variant (symbol, R-multiple, tags, image preview, type label)
+- [x] 7.2 Create `ModelBookCard` check-in variant (date, market phase pill, screenshot preview, type label)
+- [x] 7.3 Replace `ModelBookView.tsx` with new cross-entity implementation using `GET /model-book/entries`
+- [x] 7.4 Add `useModelBookEntries` hook wrapping the aggregation endpoint
+- [x] 7.5 Wire pagination controls (previous/next) into the new `ModelBookView`
+- [x] 7.6 Implement empty state with CTA explaining how to star items
 
 ## 8. Frontend — Filter Bar
 
-- [ ] 8.1 Add entity type toggle (All / Trades / Check-ins) to `ModelBookFilterBar`
-- [ ] 8.2 Hide regime filter when entity type is "Trades"
-- [ ] 8.3 Pass `entity_type` to the `useModelBookEntries` hook
-- [ ] 8.4 Persist entity type selection in URL params (via `useCheckinParams` or equivalent)
+- [x] 8.1 Add entity type toggle (All / Trades / Check-ins) to `ModelBookFilterBar`
+- [x] 8.2 Hide regime filter when entity type is "Trades"
+- [x] 8.3 Pass `entity_type` to the `useModelBookEntries` hook
+- [x] 8.4 Persist entity type selection in URL params (via `useCheckinParams` or equivalent)
 
 ## 9. Mockup
 
