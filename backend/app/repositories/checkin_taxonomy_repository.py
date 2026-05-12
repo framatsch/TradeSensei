@@ -36,7 +36,5 @@ class CheckinTaxonomyRepository:
         return True
 
     async def list_for_checkin(self, checkin_id: uuid.UUID) -> list[CheckinTaxonomy]:
-        result = await self._session.execute(
-            select(CheckinTaxonomy).where(CheckinTaxonomy.checkin_id == checkin_id)
-        )
+        result = await self._session.execute(select(CheckinTaxonomy).where(CheckinTaxonomy.checkin_id == checkin_id))
         return list(result.scalars().all())

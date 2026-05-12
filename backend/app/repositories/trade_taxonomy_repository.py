@@ -36,7 +36,5 @@ class TradeTaxonomyRepository:
         return True
 
     async def list_for_trade(self, trade_id: uuid.UUID) -> list[TradeTaxonomy]:
-        result = await self._session.execute(
-            select(TradeTaxonomy).where(TradeTaxonomy.trade_id == trade_id)
-        )
+        result = await self._session.execute(select(TradeTaxonomy).where(TradeTaxonomy.trade_id == trade_id))
         return list(result.scalars().all())

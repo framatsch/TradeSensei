@@ -3,5 +3,8 @@
   "permission": {
     "*": "allow",
     "external_directory": "deny"
-  }
+  },
+  "plugin": [
+    ".opencode/plugins/graphify.js"
+  ]
 }

@@ -16,9 +16,7 @@ class PortfolioService:
         self._session = session
         self._repo = PortfolioRepository(session)
 
-    async def create_portfolio(
-        self, user_id: uuid.UUID, data: PortfolioCreate
-    ) -> PortfolioRead:
+    async def create_portfolio(self, user_id: uuid.UUID, data: PortfolioCreate) -> PortfolioRead:
         existing = await self._repo.get_by_name(user_id, data.name)
         if existing is not None:
             raise PortfolioValidationError("Portfolio name already exists.")
@@ -26,9 +24,7 @@ class PortfolioService:
         await self._session.commit()
         return PortfolioRead.model_validate(item)
 
-    async def get_portfolio(
-        self, portfolio_id: uuid.UUID, user_id: uuid.UUID
-    ) -> PortfolioRead:
+    async def get_portfolio(self, portfolio_id: uuid.UUID, user_id: uuid.UUID) -> PortfolioRead:
         item = await self._repo.get_by_id(portfolio_id, user_id)
         if item is None:
             raise PortfolioNotFoundError("Portfolio not found.")
@@ -53,22 +49,14 @@ class PortfolioService:
             if existing is not None and existing.id != item.id:
                 raise PortfolioValidationError("Portfolio name already exists.")
 
-        if (
-            data.base_currency is not None
-            and data.base_currency != item.base_currency
-            and await self._repo.has_trades(item.id)
-        ):
-            raise PortfolioValidationError(
-                "Cannot change base_currency after trades exist."
-            )
+        if data.base_currency is not None and data.base_currency != item.base_currency and await self._repo.has_trades(item.id):
+            raise PortfolioValidationError("Cannot change base_currency after trades exist.")
 
         updated = await self._repo.update(item, data)
         await self._session.commit()
         return PortfolioRead.model_validate(updated)
 
-    async def delete_portfolio(
-        self, portfolio_id: uuid.UUID, user_id: uuid.UUID
-    ) -> None:
+    async def delete_portfolio(self, portfolio_id: uuid.UUID, user_id: uuid.UUID) -> None:
         item = await self._repo.get_by_id(portfolio_id, user_id)
         if item is None:
             raise PortfolioNotFoundError("Portfolio not found.")

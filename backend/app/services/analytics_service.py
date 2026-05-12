@@ -108,11 +108,7 @@ class AnalyticsService:
         if cfg.taxonomy_ids:
             taxonomies = await self._taxonomies.get_many_by_ids(cfg.taxonomy_ids, user_id)
             found = {item.id for item in taxonomies}
-            missing = [
-                str(taxonomy_id)
-                for taxonomy_id in cfg.taxonomy_ids
-                if taxonomy_id not in found
-            ]
+            missing = [str(taxonomy_id) for taxonomy_id in cfg.taxonomy_ids if taxonomy_id not in found]
             if missing:
                 raise TaxonomyNotFoundError(f"invalid_taxonomy_ids: {missing}")
 
@@ -333,9 +329,7 @@ class AnalyticsService:
 
         if filter_config.currency_mode == "NORMALIZED":
             if filter_config.normalize_to is None:
-                raise ValueError(
-                    "normalize_to is required when currency_mode is NORMALIZED"
-                )
+                raise ValueError("normalize_to is required when currency_mode is NORMALIZED")
             normalized_rows, missing_ids = await self._normalize_rows(
                 rows=source_rows,
                 normalize_to=filter_config.normalize_to,
@@ -420,11 +414,7 @@ class AnalyticsService:
                 global_metrics = self._compute_metrics(source_rows)
                 per_currency: list[PerCurrencySummary] = []
                 for currency in currencies:
-                    subset = [
-                        row
-                        for row in source_rows
-                        if (row["currency"] or "UNK") == currency
-                    ]
+                    subset = [row for row in source_rows if (row["currency"] or "UNK") == currency]
                     metrics = self._compute_metrics(subset)
                     per_currency.append(
                         PerCurrencySummary(

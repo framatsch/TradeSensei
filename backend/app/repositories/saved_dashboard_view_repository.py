@@ -38,9 +38,7 @@ class SavedDashboardViewRepository:
 
     async def get_by_id(self, view_id: uuid.UUID) -> SavedDashboardView | None:
         """Fetch one saved dashboard view by ID."""
-        result = await self._session.execute(
-            select(SavedDashboardView).where(SavedDashboardView.id == view_id)
-        )
+        result = await self._session.execute(select(SavedDashboardView).where(SavedDashboardView.id == view_id))
         return result.scalar_one_or_none()
 
     async def list_by_portfolio(
@@ -79,7 +77,5 @@ class SavedDashboardViewRepository:
 
     async def delete(self, view_id: uuid.UUID) -> None:
         """Delete one saved dashboard view by ID."""
-        await self._session.execute(
-            delete(SavedDashboardView).where(SavedDashboardView.id == view_id)
-        )
+        await self._session.execute(delete(SavedDashboardView).where(SavedDashboardView.id == view_id))
         await self._session.flush()

@@ -65,9 +65,7 @@ class DailyCheckin(Base):
         onupdate=func.now(),
     )
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "date", name="uq_daily_checkin_user_date"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_daily_checkin_user_date"),)
 
     user: Mapped["User"] = relationship("User", back_populates="daily_checkins")
     target_indices: Mapped[list["MarketIndexDefinition"]] = relationship(

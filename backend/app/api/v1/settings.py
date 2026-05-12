@@ -86,9 +86,7 @@ async def list_tokens(
     service: Annotated[PersonalAccessTokenService, Depends(_get_service)],
 ) -> ResponseEnvelope[list[PatRead]]:
     tokens = await service.list_tokens(user_id=current_user.id)
-    return ResponseEnvelope[list[PatRead]](
-        data=[PatRead.model_validate(token) for token in tokens]
-    )
+    return ResponseEnvelope[list[PatRead]](data=[PatRead.model_validate(token) for token in tokens])
 
 
 @router.delete(

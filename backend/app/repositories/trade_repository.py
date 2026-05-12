@@ -188,9 +188,7 @@ def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
         selectinload(Trade.account),
         selectinload(Trade.logical_executions),
         selectinload(Trade.taxonomy_assignments).selectinload(TradeTaxonomy.taxonomy),
-        selectinload(Trade.annotation_assignments).selectinload(
-            TradeAnnotation.annotation_definition
-        ),
+        selectinload(Trade.annotation_assignments).selectinload(TradeAnnotation.annotation_definition),
     )
 
 
@@ -234,11 +232,7 @@ def _apply_filters(
                 .scalar_subquery()
             )
         else:  # "or"
-            taxonomy_subq = (
-                select(TradeTaxonomy.trade_id)
-                .where(TradeTaxonomy.taxonomy_id.in_(filters.taxonomy_ids))
-                .scalar_subquery()
-            )
+            taxonomy_subq = select(TradeTaxonomy.trade_id).where(TradeTaxonomy.taxonomy_id.in_(filters.taxonomy_ids)).scalar_subquery()
         stmt = stmt.where(Trade.id.in_(taxonomy_subq))
 
     if filters.playbook_id is not None:
@@ -317,13 +311,9 @@ class TradeRepository:
             trade: The trade ORM instance whose tags to replace.
             taxonomy_ids: New list of taxonomy UUIDs to associate.
         """
-        await self._session.execute(
-            delete(TradeTaxonomy).where(TradeTaxonomy.trade_id == trade.id)
-        )
+        await self._session.execute(delete(TradeTaxonomy).where(TradeTaxonomy.trade_id == trade.id))
         for taxonomy_id in taxonomy_ids:
-            self._session.add(
-                TradeTaxonomy(trade_id=trade.id, taxonomy_id=taxonomy_id)
-            )
+            self._session.add(TradeTaxonomy(trade_id=trade.id, taxonomy_id=taxonomy_id))
         await self._session.flush()
 
     async def create(self, data: TradeCreate) -> Trade:
@@ -810,11 +800,7 @@ class TradeRepository:
         if mode == BulkTaxonomyMode.add:
             for trade_id in owned_ids:
                 for taxonomy_id in taxonomy_ids:
-                    ins_stmt = (
-                        pg_insert(TradeTaxonomy)
-                        .values(trade_id=trade_id, taxonomy_id=taxonomy_id)
-                        .on_conflict_do_nothing()
-                    )
+                    ins_stmt = pg_insert(TradeTaxonomy).values(trade_id=trade_id, taxonomy_id=taxonomy_id).on_conflict_do_nothing()
                     await self._session.execute(ins_stmt)
         else:  # BulkTaxonomyMode.remove
             await self._session.execute(

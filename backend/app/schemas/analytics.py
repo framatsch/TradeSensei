@@ -59,11 +59,7 @@ class DashboardFilterConfig(BaseModel):
     @model_validator(mode="after")
     def validate_ranges_and_currency(self) -> "DashboardFilterConfig":
         """Validate date range ordering and normalization requirements."""
-        if (
-            self.date_from is not None
-            and self.date_to is not None
-            and self.date_from > self.date_to
-        ):
+        if self.date_from is not None and self.date_to is not None and self.date_from > self.date_to:
             raise ValueError("date_from must not be later than date_to")
 
         if self.currency_mode == "NORMALIZED" and not self.normalize_to:

@@ -698,9 +698,7 @@ class TradeUpdate(BaseModel):
     )
     image_urls: list[str] | None = Field(
         default=None,
-        description=(
-            "Updated list of image URLs. Set to null to clear. Omit to leave unchanged."
-        ),
+        description=("Updated list of image URLs. Set to null to clear. Omit to leave unchanged."),
         examples=[["https://example.com/image1.png"], None],
     )
     playbook_id: uuid.UUID | None = Field(
@@ -996,9 +994,7 @@ class TradeRead(BaseModel):
             if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
                 with contextlib.suppress(Exception):
                     data.__dict__["taxonomies"] = [
-                        assignment.taxonomy
-                        for assignment in data.__dict__["taxonomy_assignments"]
-                        if getattr(assignment, "taxonomy", None) is not None
+                        assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"] if getattr(assignment, "taxonomy", None) is not None
                     ]
 
             if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:

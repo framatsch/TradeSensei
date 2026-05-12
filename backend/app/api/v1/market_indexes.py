@@ -55,9 +55,7 @@ async def create_market_index(
     "",
     response_model=ResponseEnvelope[list[MarketIndexDefinitionResponse]],
     summary="List market index definitions",
-    description=(
-        "List user-scoped market index definitions with optional active filter."
-    ),
+    description=("List user-scoped market index definitions with optional active filter."),
 )
 async def list_market_indexes(
     current_user: Annotated[User, Depends(get_current_user)],

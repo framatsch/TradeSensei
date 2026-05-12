@@ -69,11 +69,7 @@ class AttributionService:
             color_hex = None
             losing = row["losing_trades"]
             trade_count = row["trade_count"]
-            win_rate = (
-                Decimal(row["winning_trades"]) / Decimal(trade_count)
-                if trade_count > 0
-                else Decimal("0")
-            )
+            win_rate = Decimal(row["winning_trades"]) / Decimal(trade_count) if trade_count > 0 else Decimal("0")
             profit_factor = None
             if row["gross_loss"] < 0:
                 profit_factor = row["gross_profit"] / abs(row["gross_loss"])

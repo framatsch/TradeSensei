@@ -51,6 +51,4 @@ class PersonalAccessToken(Base):
         back_populates="personal_access_tokens",
     )
 
-    __table_args__ = (
-        Index("ix_personal_access_tokens_user_created", "user_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_personal_access_tokens_user_created", "user_id", "created_at"),)

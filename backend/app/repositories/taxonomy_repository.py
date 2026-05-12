@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import uuid
 from typing import Any
 
@@ -13,6 +14,7 @@ from app.models.checkin_taxonomy import CheckinTaxonomy
 from app.models.taxonomy import Taxonomy
 from app.models.trade_taxonomy import TradeTaxonomy
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
+
 
 class TaxonomyRepository:
     """Data-access operations for taxonomy definitions."""
@@ -54,17 +56,13 @@ class TaxonomyRepository:
         return taxonomy
 
     async def get_by_id(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID) -> Taxonomy | None:
-        result = await self._session.execute(
-            select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.id == taxonomy_id)
-        )
+        result = await self._session.execute(select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.id == taxonomy_id))
         return result.scalar_one_or_none()
 
     async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[Taxonomy]:
         stmt = select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.is_archived.is_(False)).order_by(Taxonomy.name.asc())
         if scope is not None:
-            stmt = stmt.where(
-                Taxonomy.scope.in_([scope, "both"])
-            )
+            stmt = stmt.where(Taxonomy.scope.in_([scope, "both"]))
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -77,12 +75,8 @@ class TaxonomyRepository:
         return taxonomy
 
     async def count_assignments(self, taxonomy_id: uuid.UUID) -> tuple[int, int]:
-        trade_result = await self._session.execute(
-            select(func.count()).select_from(TradeTaxonomy).where(TradeTaxonomy.taxonomy_id == taxonomy_id)
-        )
-        checkin_result = await self._session.execute(
-            select(func.count()).select_from(CheckinTaxonomy).where(CheckinTaxonomy.taxonomy_id == taxonomy_id)
-        )
+        trade_result = await self._session.execute(select(func.count()).select_from(TradeTaxonomy).where(TradeTaxonomy.taxonomy_id == taxonomy_id))
+        checkin_result = await self._session.execute(select(func.count()).select_from(CheckinTaxonomy).where(CheckinTaxonomy.taxonomy_id == taxonomy_id))
         return int(trade_result.scalar_one() or 0), int(checkin_result.scalar_one() or 0)
 
     async def delete(self, taxonomy: Taxonomy) -> None:
@@ -95,11 +89,12 @@ class TaxonomyRepository:
         await self._session.flush()
         await self._session.refresh(taxonomy)
         return taxonomy
+
     async def get_many_by_ids(
         self,
-        taxonomy_ids: list[uuid.UUID],
+        taxonomy_ids: builtins.list[uuid.UUID],
         user_id: uuid.UUID,
-    ) -> list[Taxonomy]:
+    ) -> builtins.list[Taxonomy]:
         """Return taxonomies by ids scoped to one user."""
         if not taxonomy_ids:
             return []

@@ -1,10 +1,10 @@
 ## 0. Pre-Conditions Gate (verify before starting any task)
 
 - [x] 0.1 Confirm `tags` table is empty in the target environment (run `SELECT COUNT(*) FROM tags`)
-- [ ] 0.2 Confirm `market_phase_definitions` table is empty
-- [ ] 0.3 Confirm `checkin_field_definitions` and `daily_checkin_values` tables are empty
+- [x] 0.2 Confirm `market_phase_definitions` table is empty
+- [x] 0.3 Confirm `checkin_field_definitions` and `daily_checkin_values` tables are empty
 - [x] 0.4 Confirm Check-in form no longer depends on `/api/v1/market-phases` (phase selection migrated)
-- [ ] 0.5 Confirm `metadata-library-consolidation` change is deployed and verified
+- [x] 0.5 Confirm `metadata-library-consolidation` change is deployed and verified
 
 ## 1. Backend — Remove Legacy Tag Stack
 
@@ -79,4 +79,4 @@
 - [x] 10.1 Update `frontend/tests/global-setup.ts` — replace legacy tag seeding with taxonomy seeding via `POST /api/v1/taxonomies` with `scope=trades`
 - [x] 10.2 Update TC-077 in `frontend/tests/specs/trades.spec.ts` to interact with the taxonomy multi-select instead of the legacy tag picker
 - [x] 10.3 Verify TC-094 in `frontend/tests/specs/topbar-navigation.spec.ts` still passes (URL redirect unchanged)
-- [ ] 10.4 Run the full Playwright suite and fix any remaining legacy references
+- [x] 10.4 Run the full Playwright suite and fix any remaining legacy references

@@ -84,10 +84,7 @@ class AnalyticsRepository:
                 select(TradeTaxonomy.trade_id)
                 .where(TradeTaxonomy.taxonomy_id.in_(filter_config.taxonomy_ids))
                 .group_by(TradeTaxonomy.trade_id)
-                .having(
-                    func.count(func.distinct(TradeTaxonomy.taxonomy_id))
-                    == len(filter_config.taxonomy_ids)
-                )
+                .having(func.count(func.distinct(TradeTaxonomy.taxonomy_id)) == len(filter_config.taxonomy_ids))
             )
             predicates.append(Trade.id.in_(taxonomy_subquery))
 
@@ -105,12 +102,8 @@ class AnalyticsRepository:
                     0,
                 ).label("gross_loss"),
                 func.avg(case((Trade.pnl > 0, Trade.pnl), else_=None)).label("avg_win"),
-                func.avg(case((Trade.pnl < 0, Trade.pnl), else_=None)).label(
-                    "avg_loss"
-                ),
-                func.avg(
-                    func.extract("epoch", Trade.closed_at - Trade.opened_at) / 3600
-                ).label("avg_trade_duration_hours"),
+                func.avg(case((Trade.pnl < 0, Trade.pnl), else_=None)).label("avg_loss"),
+                func.avg(func.extract("epoch", Trade.closed_at - Trade.opened_at) / 3600).label("avg_trade_duration_hours"),
             )
             .select_from(Trade)
             .join(Account, Account.id == Trade.account_id)
@@ -148,10 +141,6 @@ class AnalyticsRepository:
             gross_loss=Decimal(str(aggregate_row.gross_loss or 0)),
             avg_win=Decimal(str(aggregate_row.avg_win or 0)),
             avg_loss=Decimal(str(aggregate_row.avg_loss or 0)),
-            avg_trade_duration_hours=(
-                Decimal(str(aggregate_row.avg_trade_duration_hours))
-                if aggregate_row.avg_trade_duration_hours is not None
-                else None
-            ),
+            avg_trade_duration_hours=(Decimal(str(aggregate_row.avg_trade_duration_hours)) if aggregate_row.avg_trade_duration_hours is not None else None),
             equity_rows=equity_rows,
         )

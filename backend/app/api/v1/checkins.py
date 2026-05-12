@@ -136,14 +136,10 @@ async def get_checkin(
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> ResponseEnvelope[DailyCheckinRead]:
     try:
-        item = await service.get_checkin(
-            user_id=current_user.id, checkin_date=checkin_date
-        )
+        item = await service.get_checkin(user_id=current_user.id, checkin_date=checkin_date)
         return ResponseEnvelope[DailyCheckinRead](data=item)
     except DailyCheckinNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.patch(
@@ -159,14 +155,10 @@ async def update_checkin(
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> ResponseEnvelope[DailyCheckinRead]:
     try:
-        item = await service.update_checkin(
-            user_id=current_user.id, checkin_date=checkin_date, payload=payload
-        )
+        item = await service.update_checkin(user_id=current_user.id, checkin_date=checkin_date, payload=payload)
         return ResponseEnvelope[DailyCheckinRead](data=item)
     except DailyCheckinNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except DailyCheckinAlreadyExistsError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -193,6 +185,4 @@ async def delete_checkin(
     try:
         await service.delete_checkin(user_id=current_user.id, checkin_date=checkin_date)
     except DailyCheckinNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

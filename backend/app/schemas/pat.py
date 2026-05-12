@@ -30,13 +30,9 @@ class PatRead(BaseModel):
     id: uuid.UUID = Field(..., description="Unique token identifier.")
     name: str = Field(..., description="User-defined token name.")
     created_at: AwareDatetime = Field(..., description="UTC token creation timestamp.")
-    expires_at: AwareDatetime | None = Field(
-        ..., description="UTC token expiry timestamp, or null if no expiry."
-    )
+    expires_at: AwareDatetime | None = Field(..., description="UTC token expiry timestamp, or null if no expiry.")
     is_revoked: bool = Field(..., description="Whether the token has been revoked.")
-    last_used_at: AwareDatetime | None = Field(
-        ..., description="UTC timestamp of last successful use, if any."
-    )
+    last_used_at: AwareDatetime | None = Field(..., description="UTC timestamp of last successful use, if any.")
 
 
 class PatGenerateResponse(PatRead):
@@ -44,8 +40,5 @@ class PatGenerateResponse(PatRead):
 
     token: str = Field(
         ...,
-        description=(
-            "Plaintext token shown exactly once. It is never returned again "
-            "after creation."
-        ),
+        description=("Plaintext token shown exactly once. It is never returned again after creation."),
     )

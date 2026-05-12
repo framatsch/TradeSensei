@@ -50,6 +50,4 @@ class CheckinTaxonomy(Base):
         back_populates="checkin_assignments",
     )
 
-    __table_args__ = (
-        UniqueConstraint("checkin_id", "taxonomy_id", name="uq_checkin_taxonomy_pair"),
-    )
+    __table_args__ = (UniqueConstraint("checkin_id", "taxonomy_id", name="uq_checkin_taxonomy_pair"),)

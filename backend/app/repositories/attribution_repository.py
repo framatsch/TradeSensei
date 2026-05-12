@@ -41,11 +41,7 @@ class AttributionRepository:
         if self._table_checked:
             return
         try:
-            exists = await session.run_sync(
-                lambda sync_session: inspect(sync_session.get_bind()).has_table(
-                    "daily_checkins"
-                )
-            )
+            exists = await session.run_sync(lambda sync_session: inspect(sync_session.get_bind()).has_table("daily_checkins"))
         except ProgrammingError as exc:
             raise Spec5NotDeployedError("daily_checkins table not available") from exc
         if not exists:
@@ -101,10 +97,7 @@ class AttributionRepository:
                 select(TradeTaxonomy.trade_id)
                 .where(TradeTaxonomy.taxonomy_id.in_(filter_config.taxonomy_ids))
                 .group_by(TradeTaxonomy.trade_id)
-                .having(
-                    func.count(func.distinct(TradeTaxonomy.taxonomy_id))
-                    == len(filter_config.taxonomy_ids)
-                )
+                .having(func.count(func.distinct(TradeTaxonomy.taxonomy_id)) == len(filter_config.taxonomy_ids))
             )
             predicates.append(Trade.id.in_(taxonomy_subquery))
 
@@ -176,10 +169,7 @@ class AttributionRepository:
                 select(TradeTaxonomy.trade_id)
                 .where(TradeTaxonomy.taxonomy_id.in_(filter_config.taxonomy_ids))
                 .group_by(TradeTaxonomy.trade_id)
-                .having(
-                    func.count(func.distinct(TradeTaxonomy.taxonomy_id))
-                    == len(filter_config.taxonomy_ids)
-                )
+                .having(func.count(func.distinct(TradeTaxonomy.taxonomy_id)) == len(filter_config.taxonomy_ids))
             )
             predicates.append(Trade.id.in_(taxonomy_subquery))
 

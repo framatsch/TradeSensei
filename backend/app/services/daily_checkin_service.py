@@ -1,5 +1,6 @@
 """Service layer for daily check-in operations."""
 
+import re
 import uuid
 from datetime import date
 
@@ -31,6 +32,7 @@ class DailyCheckinService:
         self._repo = DailyCheckinRepository(session)
         self._index_repo = MarketIndexDefinitionRepository(session)
         self._cache = CacheService()
+        self._market_phase_pattern = re.compile(r"^[a-z0-9_]{1,50}$")
 
     async def _validate_target_indices(
         self,
@@ -55,6 +57,8 @@ class DailyCheckinService:
         """Validate market phase value shape."""
         _ = user_id
         if market_phase is not None and not market_phase.strip():
+            raise DailyCheckinValidationError("unknown market_phase")
+        if market_phase is not None and not self._market_phase_pattern.fullmatch(market_phase):
             raise DailyCheckinValidationError("unknown market_phase")
 
     async def _validate_custom_metrics(
@@ -87,16 +91,12 @@ class DailyCheckinService:
 
         storage_public_url = settings.storage_public_url
         if not storage_public_url:
-            raise DailyCheckinValidationError(
-                "screenshot_urls is not available: object storage is not configured"
-            )
+            raise DailyCheckinValidationError("screenshot_urls is not available: object storage is not configured")
 
         allowed_prefix = storage_public_url.rstrip("/") + "/"
         for url in screenshot_urls:
             if not url.startswith(allowed_prefix):
-                raise DailyCheckinValidationError(
-                    "screenshot_url must use configured storage domain"
-                )
+                raise DailyCheckinValidationError("screenshot_url must use configured storage domain")
 
     async def create_checkin(
         self,
@@ -115,9 +115,7 @@ class DailyCheckinService:
             await self._cache.invalidate_user(user_id)
         except IntegrityError as exc:
             await self._session.rollback()
-            raise DailyCheckinAlreadyExistsError(
-                "daily check-in already exists for this date"
-            ) from exc
+            raise DailyCheckinAlreadyExistsError("daily check-in already exists for this date") from exc
         return DailyCheckinRead.model_validate(model)
 
     async def get_checkin(

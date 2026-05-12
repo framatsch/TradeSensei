@@ -63,10 +63,7 @@ async def upload_screenshot(
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=(
-                f"Unsupported file type: {file.content_type}. "
-                "Allowed: jpeg, png, gif, webp."
-            ),
+            detail=(f"Unsupported file type: {file.content_type}. Allowed: jpeg, png, gif, webp."),
         )
 
     content = await file.read()
@@ -124,9 +121,7 @@ async def delete_screenshot(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found.") from exc
 
     # Find the URL that ends with the filename
-    target_url = next(
-        (s for s in (trade.image_urls or []) if s.endswith(f"/{filename}")), None
-    )
+    target_url = next((s for s in (trade.image_urls or []) if s.endswith(f"/{filename}")), None)
     if not target_url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

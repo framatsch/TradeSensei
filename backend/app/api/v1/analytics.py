@@ -48,10 +48,7 @@ def _get_attribution_service(
     "/summary",
     response_model=ResponseEnvelope[AnalyticsSummary],
     summary="Compute analytics summary",
-    description=(
-        "Compute server-side summary metrics for either inline filter_config "
-        "or a saved view ID."
-    ),
+    description=("Compute server-side summary metrics for either inline filter_config or a saved view ID."),
     response_description="Computed analytics summary payload.",
 )
 async def get_analytics_summary(
@@ -112,11 +109,7 @@ async def get_market_phase_correlation(
     if view_id is not None:
         view_repo = SavedDashboardViewRepository(session)
         view = await view_repo.get_by_id(view_id)
-        if (
-            view is None
-            or view.user_id != current_user.id
-            or view.portfolio_id != portfolio_id
-        ):
+        if view is None or view.user_id != current_user.id or view.portfolio_id != portfolio_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="view not found",
@@ -132,7 +125,5 @@ async def get_market_phase_correlation(
             filter_config=filter_config,
         )
     except Spec5NotDeployedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
     return ResponseEnvelope[AttributionResponse](data=data)

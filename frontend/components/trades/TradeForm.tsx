@@ -34,6 +34,7 @@ const legSchema = z.object({
   quantity: z.string().min(1, "Quantity is required"),
   price: z.string().min(1, "Price is required"),
   commission: z.string().optional(),
+  asset_class: z.enum(["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"]).optional(),
 });
 
 const formSchema = z.object({
@@ -342,6 +343,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         price: leg.price,
         commission: leg.commission || "0",
         executed_at: toISOWithOffset(leg.executed_at) ?? new Date().toISOString(),
+        asset_class: leg.asset_class || undefined,
       }));
     }
 
@@ -508,7 +510,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
                 direction: tradeDirection, 
                 quantity: "", 
                 price: "", 
-                commission: "0" 
+                commission: "0",
+                asset_class: "EQUITY"
               })}
               className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
             >
@@ -524,7 +527,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             <div className="space-y-3">
               {fields.map((field, index) => (
                 <div key={field.id} className="flex gap-2 items-start bg-secondary/50 p-3 rounded-lg border border-border">
-                  <div className="grid grid-cols-5 gap-2 flex-1">
+                  <div className={`grid ${isCombo ? 'grid-cols-6' : 'grid-cols-5'} gap-2 flex-1`}>
                     <div>
                       <label className={labelCls}>Date/Time</label>
                       <input
@@ -534,6 +537,19 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
                       />
                       {errors.executions?.[index]?.executed_at && <p className={errorCls}>{errors.executions[index]?.executed_at?.message}</p>}
                     </div>
+                    {isCombo && (
+                      <div>
+                        <label className={labelCls}>Asset Class</label>
+                        <select
+                          {...register(`executions.${index}.asset_class` as const)}
+                          className={inputCls}
+                        >
+                          {ASSET_CLASSES.map((ac) => (
+                            <option key={ac} value={ac}>{ac}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <label className={labelCls}>Side</label>
                       <select

@@ -248,7 +248,6 @@ class TestRLSCorrectContextReturnsOwnRows:
             "broker_raw_transactions",
             "accounts",
             "playbooks",
-            "tags",
             "trade_notes",
             "user_settings",
             "corporate_actions",

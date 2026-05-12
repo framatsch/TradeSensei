@@ -103,11 +103,7 @@ class SavedDashboardViewService:
         updated = await self._views.update(
             model=view,
             name=payload.name,
-            filter_config=(
-                payload.filter_config.model_dump(by_alias=True)
-                if payload.filter_config is not None
-                else None
-            ),
+            filter_config=(payload.filter_config.model_dump(by_alias=True) if payload.filter_config is not None else None),
         )
         await self._cache.invalidate_portfolio(portfolio_id, user_id)
         return updated

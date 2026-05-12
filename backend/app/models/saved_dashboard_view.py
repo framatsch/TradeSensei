@@ -58,9 +58,7 @@ class SavedDashboardView(Base):
         onupdate=func.now(),
     )
 
-    __table_args__ = (
-        Index("ix_saved_dashboard_views_portfolio_user", "portfolio_id", "user_id"),
-    )
+    __table_args__ = (Index("ix_saved_dashboard_views_portfolio_user", "portfolio_id", "user_id"),)
 
     owner: Mapped["User"] = relationship(
         "User",

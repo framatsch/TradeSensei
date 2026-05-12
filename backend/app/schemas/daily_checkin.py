@@ -5,8 +5,10 @@ import uuid
 from typing import Any
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
+
 from app.schemas.annotation_definition import CheckinAnnotationResponse
 from app.schemas.taxonomy import TaxonomyResponse
+
 
 class DailyCheckinCreate(BaseModel):
     """Payload for creating a daily check-in."""
@@ -19,9 +21,7 @@ class DailyCheckinCreate(BaseModel):
     )
     target_index_ids: list[uuid.UUID] = Field(
         default_factory=list,
-        description=(
-            "List of Market Index Definition UUIDs associated with this checkin."
-        ),
+        description=("List of Market Index Definition UUIDs associated with this checkin."),
     )
     notes: str | None = Field(
         default=None,
@@ -53,9 +53,7 @@ class DailyCheckinUpdate(BaseModel):
     )
     target_index_ids: list[uuid.UUID] | None = Field(
         default=None,
-        description=(
-            "List of Market Index Definition UUIDs associated with this checkin."
-        ),
+        description=("List of Market Index Definition UUIDs associated with this checkin."),
     )
     notes: str | None = Field(
         default=None,
@@ -100,9 +98,7 @@ class DailyCheckinRead(BaseModel):
     notes: str | None = Field(..., description="Daily notes.")
     news_links: list[str] = Field(..., description="Validated news links.")
     screenshot_urls: list[str] = Field(..., description="Stored screenshot URLs.")
-    custom_metrics: dict[str, int | bool] | None = Field(
-        ..., description="Stored custom metric values."
-    )
+    custom_metrics: dict[str, int | bool] | None = Field(..., description="Stored custom metric values.")
     target_indices: list[TargetIndexRead] = Field(
         default_factory=list,
         description="Associated market indices for this check-in.",
@@ -124,11 +120,7 @@ class DailyCheckinRead(BaseModel):
         """Map assignment relationships into response fields."""
         if not isinstance(data, dict):
             if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
-                taxonomies = [
-                    assignment.taxonomy
-                    for assignment in data.__dict__["taxonomy_assignments"]
-                    if getattr(assignment, "taxonomy", None) is not None
-                ]
+                taxonomies = [assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"] if getattr(assignment, "taxonomy", None) is not None]
                 data.__dict__["taxonomies"] = taxonomies
 
             if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:

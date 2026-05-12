@@ -70,7 +70,5 @@ class TradeAnnotationRepository:
         return True
 
     async def list_for_trade(self, trade_id: uuid.UUID) -> list[TradeAnnotation]:
-        result = await self._session.execute(
-            select(TradeAnnotation).where(TradeAnnotation.trade_id == trade_id)
-        )
+        result = await self._session.execute(select(TradeAnnotation).where(TradeAnnotation.trade_id == trade_id))
         return list(result.scalars().all())

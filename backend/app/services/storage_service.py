@@ -48,10 +48,7 @@ class StorageService:
         if not clean_name:
             raise ValueError("filename is required")
 
-        key = (
-            f"{key_prefix}{user_id}/"
-            f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4()}-{clean_name}"
-        )
+        key = f"{key_prefix}{user_id}/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4()}-{clean_name}"
 
         presigned_url = self._s3_client.generate_presigned_url(
             ClientMethod="put_object",

@@ -8,19 +8,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import TaxonomyNotFoundError, TaxonomyValidationError
 from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyResponse, TaxonomyUpdate
+from app.services.cache_service import CacheService
 
 
 class TaxonomyService:
     """Business rules for taxonomy definition CRUD."""
 
     def __init__(self, session: AsyncSession) -> None:
+        self._session = session
         self._repo = TaxonomyRepository(session)
+        self._cache = CacheService()
 
-    async def create(self, user_id: uuid.UUID, payload: TaxonomyCreate) -> TaxonomyResponse:
+    async def create(
+        self,
+        payload: TaxonomyCreate,
+        user_id: uuid.UUID | None = None,
+    ) -> TaxonomyResponse:
+        resolved_user_id = user_id or uuid.UUID(int=0)
         try:
-            item = await self._repo.create(user_id=user_id, payload=payload)
+            item = await self._repo.create(user_id=resolved_user_id, payload=payload)
         except IntegrityError as exc:
             raise TaxonomyValidationError("taxonomy with this name and scope already exists") from exc
+        if user_id is not None:
+            await self._cache.invalidate_user(user_id)
         return TaxonomyResponse.model_validate(item)
 
     async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[TaxonomyResponse]:
@@ -33,8 +43,14 @@ class TaxonomyService:
             raise TaxonomyNotFoundError("taxonomy not found")
         return TaxonomyResponse.model_validate(item)
 
-    async def update(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID, payload: TaxonomyUpdate) -> TaxonomyResponse:
-        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
+    async def update(
+        self,
+        taxonomy_id: uuid.UUID,
+        payload: TaxonomyUpdate,
+        user_id: uuid.UUID | None = None,
+    ) -> TaxonomyResponse:
+        resolved_user_id = user_id or uuid.UUID(int=0)
+        item = await self._repo.get_by_id(user_id=resolved_user_id, taxonomy_id=taxonomy_id)
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
 
@@ -51,17 +67,28 @@ class TaxonomyService:
             updated = await self._repo.update(item, payload)
         except IntegrityError as exc:
             raise TaxonomyValidationError("taxonomy with this name and scope already exists") from exc
+        if user_id is not None:
+            await self._cache.invalidate_user(user_id)
         return TaxonomyResponse.model_validate(updated)
 
-    async def delete(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID) -> TaxonomyResponse | None:
-        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
+    async def delete(
+        self,
+        taxonomy_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
+    ) -> TaxonomyResponse | None:
+        resolved_user_id = user_id or uuid.UUID(int=0)
+        item = await self._repo.get_by_id(user_id=resolved_user_id, taxonomy_id=taxonomy_id)
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
 
         trade_count, checkin_count = await self._repo.count_assignments(taxonomy_id)
         if trade_count + checkin_count == 0:
             await self._repo.delete(item)
+            if user_id is not None:
+                await self._cache.invalidate_user(user_id)
             return None
 
         archived = await self._repo.archive(item)
+        if user_id is not None:
+            await self._cache.invalidate_user(user_id)
         return TaxonomyResponse.model_validate(archived)

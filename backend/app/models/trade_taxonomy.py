@@ -44,6 +44,4 @@ class TradeTaxonomy(Base):
     trade: Mapped["Trade"] = relationship("Trade", back_populates="taxonomy_assignments")
     taxonomy: Mapped["Taxonomy"] = relationship("Taxonomy", back_populates="trade_assignments")
 
-    __table_args__ = (
-        UniqueConstraint("trade_id", "taxonomy_id", name="uq_trade_taxonomy_pair"),
-    )
+    __table_args__ = (UniqueConstraint("trade_id", "taxonomy_id", name="uq_trade_taxonomy_pair"),)

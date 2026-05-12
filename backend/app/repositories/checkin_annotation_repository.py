@@ -70,7 +70,5 @@ class CheckinAnnotationRepository:
         return True
 
     async def list_for_checkin(self, checkin_id: uuid.UUID) -> list[CheckinAnnotation]:
-        result = await self._session.execute(
-            select(CheckinAnnotation).where(CheckinAnnotation.checkin_id == checkin_id)
-        )
+        result = await self._session.execute(select(CheckinAnnotation).where(CheckinAnnotation.checkin_id == checkin_id))
         return list(result.scalars().all())

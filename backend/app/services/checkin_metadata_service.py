@@ -78,7 +78,10 @@ class CheckinMetadataService:
         user_id: uuid.UUID,
     ) -> None:
         await self._ensure_checkin_exists(checkin_id, user_id)
-        definition = await self._annotation_definition_repo.get_by_id(annotation_definition_id)
+        definition = await self._annotation_definition_repo.get_by_id(
+            user_id=user_id,
+            definition_id=annotation_definition_id,
+        )
         if definition is None:
             raise MetadataAssignmentValidationError("annotation definition not found")
         typed_values = self._validate_annotation_assignment(definition, value)
@@ -100,7 +103,10 @@ class CheckinMetadataService:
         user_id: uuid.UUID,
     ) -> None:
         await self._ensure_checkin_exists(checkin_id, user_id)
-        definition = await self._annotation_definition_repo.get_by_id(annotation_definition_id)
+        definition = await self._annotation_definition_repo.get_by_id(
+            user_id=user_id,
+            definition_id=annotation_definition_id,
+        )
         if definition is None:
             raise MetadataAssignmentValidationError("annotation definition not found")
         typed_values = self._validate_annotation_assignment(definition, value)

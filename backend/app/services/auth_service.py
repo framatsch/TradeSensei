@@ -25,10 +25,10 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
+from app.repositories.annotation_definition_repository import AnnotationDefinitionRepository
 from app.repositories.market_index_repository import (
     MarketIndexDefinitionRepository,
 )
-from app.repositories.annotation_definition_repository import AnnotationDefinitionRepository
 from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin

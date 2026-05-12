@@ -18,6 +18,7 @@ from app.models.trade import Trade
 from app.repositories.account_repository import AccountRepository
 from app.repositories.execution import ExecutionRepository
 from app.repositories.playbook_repository import PlaybookRepository
+from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.common import CursorPage
 from app.schemas.trade import (
@@ -55,6 +56,7 @@ class TradeService:
         self._repo = TradeRepository(session)
         self._exec_repo = ExecutionRepository(session)
         self._playbook_repo = PlaybookRepository(session)
+        self._taxonomy_repo = TaxonomyRepository(session)
         self._account_repo = AccountRepository(session)
         self._cache = CacheService()
 
@@ -107,11 +109,7 @@ class TradeService:
         from app.core.config import settings
 
         is_test = os.environ.get("PYTEST_CURRENT_TEST") is not None
-        url = (
-            f"/uploads/{key}"
-            if is_test and not settings.storage_bucket
-            else storage.upload_file_content(content, key, content_type)
-        )
+        url = f"/uploads/{key}" if is_test and not settings.storage_bucket else storage.upload_file_content(content, key, content_type)
 
         try:
             trade = await self.get_trade(trade_id, user_id)
@@ -512,6 +510,12 @@ class TradeService:
         Returns:
             Number of trades updated.
         """
+        taxonomies = await self._taxonomy_repo.get_many_by_ids(taxonomy_ids, user_id)
+        found = {item.id for item in taxonomies}
+        missing = [taxonomy_id for taxonomy_id in taxonomy_ids if taxonomy_id not in found]
+        if missing:
+            raise ValueError(f"Taxonomy not found: {missing[0]}")
+
         updated = await self._repo.bulk_assign_taxonomies(
             trade_ids,
             taxonomy_ids,
@@ -624,9 +628,7 @@ class TradeService:
                     survivor.notes = t.notes
 
             # Move taxonomy assignments
-            survivor_taxonomy_ids = {
-                assignment.taxonomy_id for assignment in survivor.taxonomy_assignments
-            }
+            survivor_taxonomy_ids = {assignment.taxonomy_id for assignment in survivor.taxonomy_assignments}
             for assignment in t.taxonomy_assignments:
                 if assignment.taxonomy_id not in survivor_taxonomy_ids:
                     survivor.taxonomy_assignments.append(assignment)

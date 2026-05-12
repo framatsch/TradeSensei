@@ -41,9 +41,7 @@ NUMERIC_SCALE: int = 8
 SECONDS_PER_DAY: int = 86_400
 """Number of seconds in one day."""
 
-ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
-    __import__("os").environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
-)
+ACCESS_TOKEN_EXPIRE_MINUTES: int = int(__import__("os").environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 """Lifetime of an access JWT in minutes.
 
 Override via ACCESS_TOKEN_EXPIRE_MINUTES env var.

@@ -78,9 +78,7 @@ class MarketIndexDefinition(Base):
         onupdate=func.now(),
     )
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "symbol", name="uq_market_index_user_symbol"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "symbol", name="uq_market_index_user_symbol"),)
 
     user: Mapped["User"] = relationship("User", back_populates="market_indices")
     checkins: Mapped[list["DailyCheckin"]] = relationship(

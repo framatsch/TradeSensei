@@ -1,8 +1,10 @@
 """Repository for annotation definition persistence and assignment counts."""
 
 import uuid
+from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.annotation_definition import AnnotationDefinition
@@ -13,9 +15,6 @@ from app.schemas.annotation_definition import (
     AnnotationDefinitionUpdate,
 )
 
-
-from typing import Any
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 class AnnotationDefinitionRepository:
     """Data-access operations for annotation definitions."""
@@ -99,14 +98,10 @@ class AnnotationDefinitionRepository:
 
     async def count_assignments(self, definition_id: uuid.UUID) -> tuple[int, int]:
         trade_result = await self._session.execute(
-            select(func.count())
-            .select_from(TradeAnnotation)
-            .where(TradeAnnotation.annotation_definition_id == definition_id)
+            select(func.count()).select_from(TradeAnnotation).where(TradeAnnotation.annotation_definition_id == definition_id)
         )
         checkin_result = await self._session.execute(
-            select(func.count())
-            .select_from(CheckinAnnotation)
-            .where(CheckinAnnotation.annotation_definition_id == definition_id)
+            select(func.count()).select_from(CheckinAnnotation).where(CheckinAnnotation.annotation_definition_id == definition_id)
         )
         return int(trade_result.scalar_one() or 0), int(checkin_result.scalar_one() or 0)
 

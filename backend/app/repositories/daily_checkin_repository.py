@@ -26,11 +26,7 @@ class DailyCheckinRepository:
         checkin_id: uuid.UUID,
     ) -> DailyCheckin:
         """Fetch a check-in with target indices eagerly loaded."""
-        result = await self._session.execute(
-            select(DailyCheckin)
-            .where(DailyCheckin.id == checkin_id)
-            .options(selectinload(DailyCheckin.target_indices))
-        )
+        result = await self._session.execute(select(DailyCheckin).where(DailyCheckin.id == checkin_id).options(selectinload(DailyCheckin.target_indices)))
         return result.scalar_one()
 
     async def get_by_id_and_user(
@@ -111,11 +107,7 @@ class DailyCheckinRepository:
     ) -> tuple[Sequence[DailyCheckin], date | None, int]:
         """Cursor-paginated check-ins ordered by date descending."""
         clamped_limit = max(1, min(limit, 90))
-        base_stmt = (
-            select(DailyCheckin)
-            .where(DailyCheckin.user_id == user_id)
-            .options(selectinload(DailyCheckin.target_indices))
-        )
+        base_stmt = select(DailyCheckin).where(DailyCheckin.user_id == user_id).options(selectinload(DailyCheckin.target_indices))
         if from_date is not None:
             base_stmt = base_stmt.where(DailyCheckin.date >= from_date)
         if to_date is not None:
@@ -131,9 +123,7 @@ class DailyCheckinRepository:
         count_result = await self._session.execute(count_stmt)
         total = int(count_result.scalar_one() or 0)
 
-        page_stmt = page_stmt.order_by(DailyCheckin.date.desc()).limit(
-            clamped_limit + 1
-        )
+        page_stmt = page_stmt.order_by(DailyCheckin.date.desc()).limit(clamped_limit + 1)
         page_result = await self._session.execute(page_stmt)
         rows = list(page_result.scalars().all())
 
@@ -150,9 +140,7 @@ class DailyCheckinRepository:
         """Apply partial updates to a check-in."""
         update_data = data.model_dump(exclude_unset=True)
         if "news_links" in update_data and update_data["news_links"] is not None:
-            update_data["news_links"] = [
-                str(link) for link in update_data["news_links"]
-            ]
+            update_data["news_links"] = [str(link) for link in update_data["news_links"]]
         target_index_ids = update_data.pop("target_index_ids", None)
         for field, value in update_data.items():
             setattr(model, field, value)

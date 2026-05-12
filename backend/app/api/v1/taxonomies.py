@@ -80,6 +80,11 @@ async def get_taxonomy(
     response_model=ResponseEnvelope[TaxonomyResponse],
     summary="Update taxonomy",
 )
+@router.patch(
+    "/{taxonomy_id}",
+    response_model=ResponseEnvelope[TaxonomyResponse],
+    summary="Update taxonomy",
+)
 async def update_taxonomy(
     taxonomy_id: uuid.UUID,
     payload: TaxonomyUpdate,

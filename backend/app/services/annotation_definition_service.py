@@ -17,25 +17,29 @@ from app.schemas.annotation_definition import (
     AnnotationDefinitionResponse,
     AnnotationDefinitionUpdate,
 )
+from app.services.cache_service import CacheService
 
 
 class AnnotationDefinitionService:
     """Business rules for annotation definition CRUD."""
 
     def __init__(self, session: AsyncSession) -> None:
+        self._session = session
         self._repo = AnnotationDefinitionRepository(session)
+        self._cache = CacheService()
 
     async def create(
         self,
-        user_id: uuid.UUID,
         payload: AnnotationDefinitionCreate,
+        user_id: uuid.UUID | None = None,
     ) -> AnnotationDefinitionResponse:
+        resolved_user_id = user_id or uuid.UUID(int=0)
         try:
-            item = await self._repo.create(user_id=user_id, payload=payload)
+            item = await self._repo.create(user_id=resolved_user_id, payload=payload)
         except IntegrityError as exc:
-            raise AnnotationDefinitionValidationError(
-                "annotation definition with this name and scope already exists"
-            ) from exc
+            raise AnnotationDefinitionValidationError("annotation definition with this name and scope already exists") from exc
+        if user_id is not None:
+            await self._cache.invalidate_user(user_id)
         return AnnotationDefinitionResponse.model_validate(item)
 
     async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[AnnotationDefinitionResponse]:
@@ -50,11 +54,12 @@ class AnnotationDefinitionService:
 
     async def update(
         self,
-        user_id: uuid.UUID,
         definition_id: uuid.UUID,
         payload: AnnotationDefinitionUpdate,
+        user_id: uuid.UUID | None = None,
     ) -> AnnotationDefinitionResponse:
-        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
+        resolved_user_id = user_id or uuid.UUID(int=0)
+        item = await self._repo.get_by_id(user_id=resolved_user_id, definition_id=definition_id)
         if item is None:
             raise AnnotationDefinitionNotFoundError("annotation definition not found")
 
@@ -68,31 +73,34 @@ class AnnotationDefinitionService:
             narrowing_to_trades = new_scope == "trades" and checkin_count > 0
             narrowing_to_checkins = new_scope == "checkins" and trade_count > 0
             if narrowing_to_trades or narrowing_to_checkins:
-                raise AnnotationDefinitionValidationError(
-                    "scope narrowing is not permitted while assignments exist"
-                )
+                raise AnnotationDefinitionValidationError("scope narrowing is not permitted while assignments exist")
 
         try:
             updated = await self._repo.update(item, payload)
         except IntegrityError as exc:
-            raise AnnotationDefinitionValidationError(
-                "annotation definition with this name and scope already exists"
-            ) from exc
+            raise AnnotationDefinitionValidationError("annotation definition with this name and scope already exists") from exc
+        if user_id is not None:
+            await self._cache.invalidate_user(user_id)
         return AnnotationDefinitionResponse.model_validate(updated)
 
     async def delete(
         self,
-        user_id: uuid.UUID,
         definition_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
     ) -> AnnotationDefinitionResponse | None:
-        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
+        resolved_user_id = user_id or uuid.UUID(int=0)
+        item = await self._repo.get_by_id(user_id=resolved_user_id, definition_id=definition_id)
         if item is None:
             raise AnnotationDefinitionNotFoundError("annotation definition not found")
 
         trade_count, checkin_count = await self._repo.count_assignments(definition_id)
         if trade_count + checkin_count == 0:
             await self._repo.delete(item)
+            if user_id is not None:
+                await self._cache.invalidate_user(user_id)
             return None
 
         archived = await self._repo.archive(item)
+        if user_id is not None:
+            await self._cache.invalidate_user(user_id)
         return AnnotationDefinitionResponse.model_validate(archived)
