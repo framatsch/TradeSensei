@@ -3,9 +3,9 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { AnnotationInputs } from "@/components/trades/AnnotationInputs";
 
 const mockDefinitions = [
-  { id: "1", name: "Conviction", input_type: "int" as const, description: null, min_value: 1, max_value: 5, options: null, required: false, scope: "trades", user_id: "u1", created_at: "", updated_at: "" },
-  { id: "2", name: "Tilt", input_type: "string_enum" as const, description: null, min_value: null, max_value: null, options: ["Bullish", "Bearish"], required: false, scope: "trades", user_id: "u1", created_at: "", updated_at: "" },
-  { id: "3", name: "FOMO", input_type: "bool" as const, description: null, min_value: null, max_value: null, options: null, required: false, scope: "trades", user_id: "u1", created_at: "", updated_at: "" },
+  { id: "1", name: "Conviction", type: "int" as const, description: null, min_value: 1, max_value: 5, options: null, required: false, scope: "trades" as const, user_id: "u1", created_at: "", updated_at: "", scale_labels: null, icon_identifier: null, is_archived: false },
+  { id: "2", name: "Tilt", type: "string_enum" as const, description: null, min_value: null, max_value: null, options: ["Bullish", "Bearish"], required: false, scope: "trades" as const, user_id: "u1", created_at: "", updated_at: "", scale_labels: null, icon_identifier: null, is_archived: false },
+  { id: "3", name: "FOMO", type: "bool" as const, description: null, min_value: null, max_value: null, options: null, required: false, scope: "trades" as const, user_id: "u1", created_at: "", updated_at: "", scale_labels: null, icon_identifier: null, is_archived: false },
 ];
 
 describe("AnnotationInputs", () => {

@@ -19,11 +19,14 @@ from app.schemas.analytics import (
     AnalyticsSummary,
     AnalyticsSummaryRequest,
     AttributionResponse,
+    AxisType,
     DashboardFilterConfig,
+    MetadataCorrelationResponse,
 )
 from app.schemas.common import ResponseEnvelope
 from app.services.analytics_service import AnalyticsService
 from app.services.attribution_service import AttributionService
+from app.services.metadata_correlation_service import MetadataCorrelationService
 
 router = APIRouter(
     prefix="/portfolios/{portfolio_id}/analytics",
@@ -42,6 +45,44 @@ def _get_attribution_service(
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> AttributionService:
     return AttributionService(session)
+
+
+def _get_metadata_correlation_service() -> MetadataCorrelationService:
+    return MetadataCorrelationService()
+
+
+@router.get(
+    "/metadata-correlation",
+    response_model=ResponseEnvelope[MetadataCorrelationResponse],
+    summary="Get metadata correlation",
+    description="Compute correlation between two checkin/trade metadata axes.",
+)
+async def get_metadata_correlation(
+    portfolio_id: uuid.UUID,
+    x_axis_type: AxisType,
+    x_axis_id: uuid.UUID,
+    y_axis_type: AxisType,
+    y_axis_id: uuid.UUID,
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
+    service: Annotated[MetadataCorrelationService, Depends(_get_metadata_correlation_service)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+    account_ids: Annotated[list[uuid.UUID] | None, Query(description="Optional list of account IDs")] = None,
+    base_asset: str | None = None,
+) -> ResponseEnvelope[MetadataCorrelationResponse]:
+    data = await service.get_correlation(
+        session=session,
+        portfolio_id=portfolio_id,
+        x_axis_type=x_axis_type,
+        x_axis_id=x_axis_id,
+        y_axis_type=y_axis_type,
+        y_axis_id=y_axis_id,
+        date_from=date_from,
+        date_to=date_to,
+        account_ids=account_ids,
+        base_asset=base_asset,
+    )
+    return ResponseEnvelope[MetadataCorrelationResponse](data=data)
 
 
 @router.post(
