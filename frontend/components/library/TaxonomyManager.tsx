@@ -21,7 +21,7 @@ export function TaxonomyManager() {
 
   // Form state
   const [name, setName] = useState("");
-  const [scope, setScope] = useState<"trades" | "checkins" | "both">("trades");
+  const [scope, setScope] = useState<"trades" | "checkins" | "both" | "playbook">("trades");
   const [colorHex, setColorHex] = useState("#3b82f6");
   const [description, setDescription] = useState("");
 
@@ -148,12 +148,13 @@ export function TaxonomyManager() {
                 </label>
                 <select
                   value={scope}
-                  onChange={(e) => setScope(e.target.value as "trades" | "checkins" | "both")}
+                  onChange={(e) => setScope(e.target.value as "trades" | "checkins" | "both" | "playbook")}
                   className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-sm"
                 >
                   <option value="trades">Trades</option>
                   <option value="checkins">Check-ins</option>
                   <option value="both">Both</option>
+                  <option value="playbook">Playbook</option>
                 </select>
               </div>
             </div>

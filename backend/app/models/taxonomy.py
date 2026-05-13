@@ -13,6 +13,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.checkin_taxonomy import CheckinTaxonomy
+    from app.models.playbook_taxonomy import PlaybookTaxonomy
     from app.models.trade_taxonomy import TradeTaxonomy
     from app.models.user import User
 
@@ -70,6 +71,11 @@ class Taxonomy(Base):
     )
     checkin_assignments: Mapped[list["CheckinTaxonomy"]] = relationship(
         "CheckinTaxonomy",
+        back_populates="taxonomy",
+        passive_deletes=True,
+    )
+    playbook_assignments: Mapped[list["PlaybookTaxonomy"]] = relationship(
+        "PlaybookTaxonomy",
         back_populates="taxonomy",
         passive_deletes=True,
     )

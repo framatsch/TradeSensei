@@ -91,6 +91,20 @@ class StorageService:
             content_type=content_type,
         )
 
+    def generate_playbook_upload_url(
+        self,
+        user_id: uuid.UUID,
+        filename: str,
+        content_type: str,
+    ) -> tuple[str, str]:
+        """Create a presigned PUT URL and corresponding public URL for a playbook image."""
+        return self._generate_upload_url(
+            key_prefix="playbooks/",
+            user_id=user_id,
+            filename=filename,
+            content_type=content_type,
+        )
+
     @property
     def _s3_client_internal(self) -> Any:
         # Used for backend-initiated operations (put_object, delete_object).

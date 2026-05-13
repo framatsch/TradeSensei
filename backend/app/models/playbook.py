@@ -13,6 +13,9 @@ from app.core.constants import PLAYBOOK_NAME_MAX_LENGTH
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.playbook_attachment import PlaybookAttachment
+    from app.models.playbook_link import PlaybookLink
+    from app.models.playbook_taxonomy import PlaybookTaxonomy
     from app.models.trade import Trade
 
 
@@ -95,6 +98,23 @@ class Playbook(Base):
     trades: Mapped[list["Trade"]] = relationship(
         "Trade",
         back_populates="playbook",
+    )
+    taxonomy_assignments: Mapped[list["PlaybookTaxonomy"]] = relationship(
+        "PlaybookTaxonomy",
+        back_populates="playbook",
+        passive_deletes=True,
+    )
+    attachments: Mapped[list["PlaybookAttachment"]] = relationship(
+        "PlaybookAttachment",
+        back_populates="playbook",
+        passive_deletes=True,
+        order_by="PlaybookAttachment.created_at.asc()",
+    )
+    links: Mapped[list["PlaybookLink"]] = relationship(
+        "PlaybookLink",
+        back_populates="playbook",
+        passive_deletes=True,
+        order_by="PlaybookLink.created_at.asc()",
     )
 
     def __repr__(self) -> str:

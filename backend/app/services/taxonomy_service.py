@@ -56,11 +56,13 @@ class TaxonomyService:
 
         current_scope = item.scope
         new_scope = payload.scope
-        if new_scope is not None and new_scope != current_scope and current_scope == "both":
-            trade_count, checkin_count = await self._repo.count_assignments(taxonomy_id)
-            narrowing_to_trades = new_scope == "trades" and checkin_count > 0
-            narrowing_to_checkins = new_scope == "checkins" and trade_count > 0
-            if narrowing_to_trades or narrowing_to_checkins:
+        if new_scope is not None and new_scope != current_scope:
+            trade_count, checkin_count, playbook_count = await self._repo.count_assignments(taxonomy_id)
+            # Narrowing away from a scope that has existing assignments is blocked
+            losing_trades = current_scope in {"trades", "both"} and new_scope not in {"trades", "both"}
+            losing_checkins = current_scope in {"checkins", "both"} and new_scope not in {"checkins", "both"}
+            losing_playbook = current_scope in {"playbook", "both"} and new_scope not in {"playbook", "both"}
+            if (losing_trades and trade_count > 0) or (losing_checkins and checkin_count > 0) or (losing_playbook and playbook_count > 0):
                 raise TaxonomyValidationError("scope narrowing is not permitted while assignments exist")
 
         try:
@@ -81,8 +83,8 @@ class TaxonomyService:
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
 
-        trade_count, checkin_count = await self._repo.count_assignments(taxonomy_id)
-        if trade_count + checkin_count == 0:
+        trade_count, checkin_count, playbook_count = await self._repo.count_assignments(taxonomy_id)
+        if trade_count + checkin_count + playbook_count == 0:
             await self._repo.delete(item)
             if user_id is not None:
                 await self._cache.invalidate_user(user_id)

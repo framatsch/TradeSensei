@@ -202,3 +202,11 @@ class MetadataAssignmentNotFoundError(Exception):
 
 class MetadataAssignmentValidationError(ValueError):
     """Raised when metadata assignment validation or integrity checks fail."""
+
+
+class PlaybookAttachmentNotFoundError(Exception):
+    """Raised when a playbook attachment is not found."""
+
+
+class PlaybookLinkNotFoundError(Exception):
+    """Raised when a playbook link is not found."""

@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.checkin_taxonomy import CheckinTaxonomy
+from app.models.playbook_taxonomy import PlaybookTaxonomy
 from app.models.taxonomy import Taxonomy
 from app.models.trade_taxonomy import TradeTaxonomy
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
@@ -74,10 +75,11 @@ class TaxonomyRepository:
         await self._session.refresh(taxonomy)
         return taxonomy
 
-    async def count_assignments(self, taxonomy_id: uuid.UUID) -> tuple[int, int]:
+    async def count_assignments(self, taxonomy_id: uuid.UUID) -> tuple[int, int, int]:
         trade_result = await self._session.execute(select(func.count()).select_from(TradeTaxonomy).where(TradeTaxonomy.taxonomy_id == taxonomy_id))
         checkin_result = await self._session.execute(select(func.count()).select_from(CheckinTaxonomy).where(CheckinTaxonomy.taxonomy_id == taxonomy_id))
-        return int(trade_result.scalar_one() or 0), int(checkin_result.scalar_one() or 0)
+        playbook_result = await self._session.execute(select(func.count()).select_from(PlaybookTaxonomy).where(PlaybookTaxonomy.taxonomy_id == taxonomy_id))
+        return int(trade_result.scalar_one() or 0), int(checkin_result.scalar_one() or 0), int(playbook_result.scalar_one() or 0)
 
     async def delete(self, taxonomy: Taxonomy) -> None:
         await self._session.delete(taxonomy)

@@ -3217,6 +3217,174 @@ export type PlaybookCreate = {
 };
 
 /**
+ * PlaybookImageRegisterRequest
+ *
+ * Request payload to register an uploaded image as a playbook attachment.
+ */
+export type PlaybookImageRegisterRequest = {
+    /**
+     * Filename
+     *
+     * Original filename of the image.
+     */
+    filename: string;
+    /**
+     * Content Type
+     *
+     * MIME type of the image.
+     */
+    content_type: string;
+    /**
+     * Storage Url
+     *
+     * Public URL of the uploaded image (must match STORAGE_PUBLIC_URL prefix).
+     */
+    storage_url: string;
+};
+
+/**
+ * PlaybookImageResponse
+ *
+ * Response schema for a registered playbook image attachment.
+ */
+export type PlaybookImageResponse = {
+    /**
+     * Id
+     *
+     * Attachment identifier.
+     */
+    id: string;
+    /**
+     * Playbook Id
+     *
+     * Owning playbook identifier.
+     */
+    playbook_id: string;
+    /**
+     * Filename
+     *
+     * Original filename.
+     */
+    filename: string;
+    /**
+     * Content Type
+     *
+     * MIME type.
+     */
+    content_type: string;
+    /**
+     * Storage Url
+     *
+     * Stable public URL of the image.
+     */
+    storage_url: string;
+    /**
+     * Created At
+     *
+     * UTC creation timestamp.
+     */
+    created_at: string;
+};
+
+/**
+ * PlaybookImageUploadRequest
+ *
+ * Request payload to generate a presigned upload URL for a playbook image.
+ */
+export type PlaybookImageUploadRequest = {
+    /**
+     * Filename
+     *
+     * Original filename of the image.
+     */
+    filename: string;
+    /**
+     * Content Type
+     *
+     * MIME type of the image (image/png, image/jpeg, image/webp, image/gif).
+     */
+    content_type: string;
+};
+
+/**
+ * PlaybookImageUploadUrlResponse
+ *
+ * Response with presigned upload URL and public read URL.
+ */
+export type PlaybookImageUploadUrlResponse = {
+    /**
+     * Upload Url
+     *
+     * Presigned PUT URL for direct upload to S3.
+     */
+    upload_url: string;
+    /**
+     * Public Url
+     *
+     * Stable public URL that will be the attachment's storage_url after registration.
+     */
+    public_url: string;
+};
+
+/**
+ * PlaybookLinkCreate
+ *
+ * Payload for adding a labeled external link to a playbook.
+ */
+export type PlaybookLinkCreate = {
+    /**
+     * Label
+     *
+     * Human-readable display label for the link.
+     */
+    label: string;
+    /**
+     * Url
+     *
+     * External URL (http or https).
+     */
+    url: string;
+};
+
+/**
+ * PlaybookLinkResponse
+ *
+ * Response schema for a playbook external link.
+ */
+export type PlaybookLinkResponse = {
+    /**
+     * Id
+     *
+     * Link identifier.
+     */
+    id: string;
+    /**
+     * Playbook Id
+     *
+     * Owning playbook identifier.
+     */
+    playbook_id: string;
+    /**
+     * Label
+     *
+     * Display label.
+     */
+    label: string;
+    /**
+     * Url
+     *
+     * External URL.
+     */
+    url: string;
+    /**
+     * Created At
+     *
+     * UTC creation timestamp.
+     */
+    created_at: string;
+};
+
+/**
  * PlaybookRead
  *
  * Response schema for a single playbook.
@@ -3285,6 +3453,20 @@ export type PlaybookRead = {
      * UTC timestamp of the most recent update to this playbook.
      */
     updated_at: string;
+};
+
+/**
+ * PlaybookTaxonomyCreate
+ *
+ * Payload for assigning a taxonomy to a playbook.
+ */
+export type PlaybookTaxonomyCreate = {
+    /**
+     * Taxonomy Id
+     *
+     * Taxonomy definition UUID to assign.
+     */
+    taxonomy_id: string;
 };
 
 /**
@@ -5194,7 +5376,7 @@ export type TaxonomyCreate = {
      *
      * Assignment scope: trades, checkins, or both.
      */
-    scope: 'trades' | 'checkins' | 'both';
+    scope: 'trades' | 'checkins' | 'playbook' | 'both';
     /**
      * Color Hex
      *
@@ -5238,7 +5420,7 @@ export type TaxonomyResponse = {
      *
      * Assignment scope.
      */
-    scope: 'trades' | 'checkins' | 'both';
+    scope: 'trades' | 'checkins' | 'playbook' | 'both';
     /**
      * Color Hex
      *
@@ -5294,7 +5476,7 @@ export type TaxonomyUpdate = {
      *
      * Updated assignment scope.
      */
-    scope?: 'trades' | 'checkins' | 'both' | null;
+    scope?: 'trades' | 'checkins' | 'playbook' | 'both' | null;
     /**
      * Color Hex
      *
@@ -9448,6 +9630,322 @@ export type UpdatePlaybookApiV1PlaybooksPlaybookIdPatchResponses = {
 };
 
 export type UpdatePlaybookApiV1PlaybooksPlaybookIdPatchResponse = UpdatePlaybookApiV1PlaybooksPlaybookIdPatchResponses[keyof UpdatePlaybookApiV1PlaybooksPlaybookIdPatchResponses];
+
+export type ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetData = {
+    body?: never;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/taxonomies';
+};
+
+export type ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetError = ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetErrors[keyof ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetErrors];
+
+export type ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetResponses = {
+    /**
+     * Response List Playbook Taxonomies Api V1 Playbooks  Playbook Id  Taxonomies Get
+     *
+     * Successful Response
+     */
+    200: Array<TaxonomyResponse>;
+};
+
+export type ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetResponse = ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetResponses[keyof ListPlaybookTaxonomiesApiV1PlaybooksPlaybookIdTaxonomiesGetResponses];
+
+export type AssignPlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesPostData = {
+    body: PlaybookTaxonomyCreate;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/taxonomies';
+};
+
+export type AssignPlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AssignPlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesPostError = AssignPlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesPostErrors[keyof AssignPlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesPostErrors];
+
+export type AssignPlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: unknown;
+};
+
+export type RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/taxonomies/{taxonomy_id}';
+};
+
+export type RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteError = RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteErrors[keyof RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteErrors];
+
+export type RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteResponse = RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteResponses[keyof RemovePlaybookTaxonomyApiV1PlaybooksPlaybookIdTaxonomiesTaxonomyIdDeleteResponses];
+
+export type GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostData = {
+    body: PlaybookImageUploadRequest;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/attachments/upload-url';
+};
+
+export type GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostError = GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostErrors[keyof GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostErrors];
+
+export type GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlaybookImageUploadUrlResponse;
+};
+
+export type GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostResponse = GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostResponses[keyof GenerateUploadUrlApiV1PlaybooksPlaybookIdAttachmentsUploadUrlPostResponses];
+
+export type ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/attachments';
+};
+
+export type ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetError = ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetErrors[keyof ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetErrors];
+
+export type ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetResponses = {
+    /**
+     * Response List Attachments Api V1 Playbooks  Playbook Id  Attachments Get
+     *
+     * Successful Response
+     */
+    200: Array<PlaybookImageResponse>;
+};
+
+export type ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetResponse = ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetResponses[keyof ListAttachmentsApiV1PlaybooksPlaybookIdAttachmentsGetResponses];
+
+export type RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostData = {
+    body: PlaybookImageRegisterRequest;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/attachments';
+};
+
+export type RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostError = RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostErrors[keyof RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostErrors];
+
+export type RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PlaybookImageResponse;
+};
+
+export type RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostResponse = RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostResponses[keyof RegisterAttachmentApiV1PlaybooksPlaybookIdAttachmentsPostResponses];
+
+export type DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+        /**
+         * Attachment Id
+         */
+        attachment_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/attachments/{attachment_id}';
+};
+
+export type DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteError = DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteErrors[keyof DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteErrors];
+
+export type DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteResponse = DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteResponses[keyof DeleteAttachmentApiV1PlaybooksPlaybookIdAttachmentsAttachmentIdDeleteResponses];
+
+export type ListLinksApiV1PlaybooksPlaybookIdLinksGetData = {
+    body?: never;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/links';
+};
+
+export type ListLinksApiV1PlaybooksPlaybookIdLinksGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListLinksApiV1PlaybooksPlaybookIdLinksGetError = ListLinksApiV1PlaybooksPlaybookIdLinksGetErrors[keyof ListLinksApiV1PlaybooksPlaybookIdLinksGetErrors];
+
+export type ListLinksApiV1PlaybooksPlaybookIdLinksGetResponses = {
+    /**
+     * Response List Links Api V1 Playbooks  Playbook Id  Links Get
+     *
+     * Successful Response
+     */
+    200: Array<PlaybookLinkResponse>;
+};
+
+export type ListLinksApiV1PlaybooksPlaybookIdLinksGetResponse = ListLinksApiV1PlaybooksPlaybookIdLinksGetResponses[keyof ListLinksApiV1PlaybooksPlaybookIdLinksGetResponses];
+
+export type CreateLinkApiV1PlaybooksPlaybookIdLinksPostData = {
+    body: PlaybookLinkCreate;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/links';
+};
+
+export type CreateLinkApiV1PlaybooksPlaybookIdLinksPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateLinkApiV1PlaybooksPlaybookIdLinksPostError = CreateLinkApiV1PlaybooksPlaybookIdLinksPostErrors[keyof CreateLinkApiV1PlaybooksPlaybookIdLinksPostErrors];
+
+export type CreateLinkApiV1PlaybooksPlaybookIdLinksPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PlaybookLinkResponse;
+};
+
+export type CreateLinkApiV1PlaybooksPlaybookIdLinksPostResponse = CreateLinkApiV1PlaybooksPlaybookIdLinksPostResponses[keyof CreateLinkApiV1PlaybooksPlaybookIdLinksPostResponses];
+
+export type DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Playbook Id
+         */
+        playbook_id: string;
+        /**
+         * Link Id
+         */
+        link_id: string;
+    };
+    query?: never;
+    url: '/api/v1/playbooks/{playbook_id}/links/{link_id}';
+};
+
+export type DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteError = DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteErrors[keyof DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteErrors];
+
+export type DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteResponse = DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteResponses[keyof DeleteLinkApiV1PlaybooksPlaybookIdLinksLinkIdDeleteResponses];
 
 export type ListTaxonomiesApiV1TaxonomiesGetData = {
     body?: never;

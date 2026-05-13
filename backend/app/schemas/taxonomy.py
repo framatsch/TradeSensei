@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
-ScopeType = Literal["trades", "checkins", "both"]
+ScopeType = Literal["trades", "checkins", "playbook", "both"]
 
 
 class TaxonomyCreate(BaseModel):

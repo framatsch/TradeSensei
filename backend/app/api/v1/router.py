@@ -24,6 +24,9 @@ from app.api.v1 import (
     metrics,
     model_book,
     notes,
+    playbook_attachments,
+    playbook_links,
+    playbook_taxonomies,
     playbooks,
     portfolios,
     saved_trade_filters,
@@ -53,6 +56,9 @@ router.include_router(analytics.router)
 router.include_router(imports.router)
 router.include_router(timeseries.router)
 router.include_router(playbooks.router)
+router.include_router(playbook_taxonomies.router)
+router.include_router(playbook_attachments.router)
+router.include_router(playbook_links.router)
 router.include_router(taxonomies.router)
 router.include_router(annotation_definitions.router)
 router.include_router(notes.router)

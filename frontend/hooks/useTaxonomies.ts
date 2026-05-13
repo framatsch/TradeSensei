@@ -15,7 +15,7 @@ import type {
 
 const QUERY_KEY = ["taxonomies"] as const;
 
-export function useGetTaxonomies(scope?: "trades" | "checkins" | "both") {
+export function useGetTaxonomies(scope?: "trades" | "checkins" | "both" | "playbook") {
   return useQuery<TaxonomyResponse[], Error>({
     queryKey: [...QUERY_KEY, scope ?? "all"],
     queryFn: async () => {

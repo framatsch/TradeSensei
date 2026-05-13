@@ -33,6 +33,9 @@ from app.models.market_index import MarketIndexDefinition as MarketIndexDefiniti
 from app.models.ohlc_price import OhlcPrice as OhlcPrice
 from app.models.pat import PersonalAccessToken as PersonalAccessToken
 from app.models.playbook import Playbook as Playbook
+from app.models.playbook_attachment import PlaybookAttachment as PlaybookAttachment
+from app.models.playbook_link import PlaybookLink as PlaybookLink
+from app.models.playbook_taxonomy import PlaybookTaxonomy as PlaybookTaxonomy
 from app.models.portfolio import Portfolio as Portfolio
 from app.models.saved_dashboard_view import SavedDashboardView as SavedDashboardView
 from app.models.saved_trade_filter import FilterScope as FilterScope

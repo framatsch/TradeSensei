@@ -255,7 +255,7 @@ export interface TradeUpdate {
 
 // ─── Centralized metadata ─────────────────────────────────────────────────────
 
-export type MetadataScope = "trades" | "checkins" | "both";
+export type MetadataScope = "trades" | "checkins" | "both" | "playbook";
 
 export type AnnotationType = "int" | "float" | "bool" | "string_enum";
 
