@@ -6,7 +6,7 @@ import { X, Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { client } from "@/lib/api/client.gen";
 import { updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch } from "@/lib/api/index";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType } from "@/lib/types";
 
 const BROKER_TYPE_LABELS: Record<string, string> = {

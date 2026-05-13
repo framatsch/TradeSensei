@@ -8,7 +8,7 @@
 import { useState } from "react";
 import type { AssetClass, Trade } from "@/lib/types";
 import { useUpdateTrade } from "@/hooks/useTrade";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 
 interface Props {
   trade: Trade;

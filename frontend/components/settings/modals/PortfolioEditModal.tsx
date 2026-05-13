@@ -6,8 +6,8 @@ import {
   updatePortfolioApiV1PortfoliosPortfolioIdPatch,
   deletePortfolioApiV1PortfoliosPortfolioIdDelete,
 } from "@/lib/api/index";
-import { extractApiError } from "@/lib/api/errors";
-import { PORTFOLIO_COLORS } from "@/lib/constants/portfolioColors";
+import { extractApiError } from "@/lib/apiErrors";
+import { THEME_COLORS } from "@/lib/constants/colors";
 import { X, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import type { PortfolioRead as Portfolio } from "@/lib/api/types.gen";
@@ -20,7 +20,7 @@ interface Props {
 export function PortfolioEditModal({ portfolio, onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState(portfolio.name);
-  const [color, setColor] = useState(portfolio.color_hex || PORTFOLIO_COLORS[0]);
+  const [color, setColor] = useState(portfolio.color_hex || THEME_COLORS[0]);
   const [confirmName, setConfirmName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -128,7 +128,7 @@ export function PortfolioEditModal({ portfolio, onClose }: Props) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Color</label>
             <div className="flex flex-wrap gap-2">
-              {PORTFOLIO_COLORS.map((c) => (
+              {THEME_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"

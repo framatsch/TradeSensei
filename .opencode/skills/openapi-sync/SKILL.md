@@ -12,6 +12,12 @@ metadata:
 Keep the frontend TypeScript API client in sync with the backend OpenAPI spec.
 The client is auto-generated — never hand-edit files inside `frontend/lib/api/`.
 
+> **WARNING:** `openapi-ts` deletes all files in `frontend/lib/api/` that it did not generate.
+> Manual files MUST NOT live inside `frontend/lib/api/`.
+> The two hand-written files live one level up:
+> - `frontend/lib/apiInterceptors.ts` — JWT injection + 401 logout interceptors
+> - `frontend/lib/apiErrors.ts` — `extractApiError()` helper
+
 ## When to use me
 
 - After any backend endpoint is added, modified, or removed

@@ -19,7 +19,7 @@ import { X } from "lucide-react";
 import type { LogicalExecution } from "@/lib/types";
 import { useSplitExecution } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 
 interface Props {
   execution: LogicalExecution;

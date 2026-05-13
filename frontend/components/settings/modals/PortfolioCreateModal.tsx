@@ -3,8 +3,8 @@
 import { useState, useId } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { createPortfolioApiV1PortfoliosPost } from "@/lib/api/index";
-import { extractApiError } from "@/lib/api/errors";
-import { PORTFOLIO_COLORS } from "@/lib/constants/portfolioColors";
+import { extractApiError } from "@/lib/apiErrors";
+import { THEME_COLORS } from "@/lib/constants/colors";
 import { X, AlertTriangle } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -18,7 +18,7 @@ export function PortfolioCreateModal({ onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("USD");
-  const [color, setColor] = useState(PORTFOLIO_COLORS[0]);
+  const [color, setColor] = useState(THEME_COLORS[0]);
   const [error, setError] = useState<string | null>(null);
   const uid = useId();
 
@@ -112,7 +112,7 @@ export function PortfolioCreateModal({ onClose }: Props) {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Color</label>
             <div className="flex flex-wrap gap-2">
-              {PORTFOLIO_COLORS.map((c) => (
+              {THEME_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"

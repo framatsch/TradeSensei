@@ -11,7 +11,7 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { Spinner } from "@/components/ui/Spinner";
 import { Trash2, Plus } from "lucide-react";
 import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 import { TradeScreenshotUploader } from "./TradeScreenshotUploader";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";

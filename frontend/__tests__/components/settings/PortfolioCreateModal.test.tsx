@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PortfolioCreateModal } from "@/components/settings/modals/PortfolioCreateModal";
-import { PORTFOLIO_COLORS } from "@/lib/constants/portfolioColors";
+import { THEME_COLORS } from "@/lib/constants/colors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import * as api from "@/lib/api/index";
@@ -49,11 +49,11 @@ describe("PortfolioCreateModal", () => {
     );
   });
 
-  it("color chip picker shows all PORTFOLIO_COLORS", () => {
+  it("color chip picker shows all THEME_COLORS", () => {
     renderComponent();
 
     const colorChips = screen.getAllByTestId("color-chip");
-    expect(colorChips).toHaveLength(PORTFOLIO_COLORS.length);
+    expect(colorChips).toHaveLength(THEME_COLORS.length);
   });
 
   it("submit button is disabled when name is empty", () => {
@@ -95,7 +95,7 @@ describe("PortfolioCreateModal", () => {
         body: {
           name: "Day Trading",
           base_currency: "EUR",
-          color_hex: PORTFOLIO_COLORS[targetColorIndex],
+          color_hex: THEME_COLORS[targetColorIndex],
         },
       });
     });

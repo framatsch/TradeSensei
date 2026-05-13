@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { Spinner } from "@/components/ui/Spinner";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType, FlexFromDatePreset } from "@/lib/types";
 
 interface Props {

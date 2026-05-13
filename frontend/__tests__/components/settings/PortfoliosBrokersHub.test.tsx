@@ -4,7 +4,7 @@ import { PortfoliosBrokersHub } from "@/components/settings/PortfoliosBrokersHub
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAccounts } from "@/hooks/useAccounts";
-import { PORTFOLIO_COLORS } from "@/lib/constants/portfolioColors";
+import { THEME_COLORS } from "@/lib/constants/colors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 
@@ -29,7 +29,7 @@ const mockPortfolios = [
     user_id: "user-1",
     name: "Day Trading",
     base_currency: "USD",
-    color_hex: PORTFOLIO_COLORS[0],
+    color_hex: THEME_COLORS[0],
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -38,7 +38,7 @@ const mockPortfolios = [
     user_id: "user-1",
     name: "Long Term",
     base_currency: "EUR",
-    color_hex: PORTFOLIO_COLORS[1],
+    color_hex: THEME_COLORS[1],
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },

@@ -9,7 +9,7 @@ import { ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
 import type { Trade } from "@/lib/types";
 import { useMergeTrades } from "@/hooks/useMergeTrades";
 import { useState } from "react";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 
 interface Props {
   trades: Trade[];

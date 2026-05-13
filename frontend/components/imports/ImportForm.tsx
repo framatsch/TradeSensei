@@ -19,7 +19,7 @@ import { DateRangeVisualizer } from "@/components/imports/DateRangeVisualizer";
 import type { QueuedFile } from "@/components/imports/FileQueue";
 import type { ImportResult, FreshStartResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
 import { client } from "@/lib/api/client.gen";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 
 /** Multipart upload via raw fetch — bypasses the JSON body serializer of the SDK client. */
 async function multipartPost(path: string, formData: FormData): Promise<any> {

@@ -11,7 +11,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { OIDCSignInButton } from "@/components/auth/OIDCSignInButton";
 import { useAuthConfig } from "@/hooks/useAuth";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 
 export function LoginForm() {
   const [username, setUsername] = useState("");

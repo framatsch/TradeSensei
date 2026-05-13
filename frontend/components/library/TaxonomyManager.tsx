@@ -8,6 +8,7 @@ import {
   useUpdateTaxonomy,
   useDeleteTaxonomy,
 } from "@/hooks/useTaxonomies";
+import { THEME_COLORS } from "@/lib/constants/colors";
 import type { TaxonomyResponse, TaxonomyCreate } from "@/lib/api/types.gen";
 
 export function TaxonomyManager() {
@@ -163,14 +164,22 @@ export function TaxonomyManager() {
               <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Color
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={colorHex}
-                  onChange={(e) => setColorHex(e.target.value)}
-                  className="w-10 h-10 p-1 rounded bg-secondary border border-border cursor-pointer"
-                />
-                <span className="text-sm font-mono text-muted-foreground">{colorHex}</span>
+              <div className="flex flex-wrap gap-2">
+                {THEME_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-label={`color ${c}`}
+                    aria-pressed={colorHex === c}
+                    onClick={() => setColorHex(c)}
+                    className={`w-6 h-6 rounded-full transition-all ${
+                      colorHex === c
+                        ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
+                        : "hover:scale-110 opacity-80"
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
               </div>
             </div>
 

@@ -5,7 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { useState, useEffect } from "react";
 import { useAppContextStore } from "@/stores/appContextStore";
 import { usePortfolioStore } from "@/stores/portfolioStore";
-import { registerApiInterceptors } from "@/lib/api/init";
+import { registerApiInterceptors } from "@/lib/apiInterceptors";
 
 // Register JWT injection + 401 → logout interceptors at module scope so they are
 // active before TanStack Query fires its first requests on mount.

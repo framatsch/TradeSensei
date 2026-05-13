@@ -11,8 +11,9 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeft, X, Plus, ExternalLink, Trash2, Eye, Edit3 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { Spinner } from "@/components/ui/Spinner";
-import { usePlaybooks, useUpdatePlaybook } from "@/hooks/usePlaybooks";
+import { usePlaybooks, useUpdatePlaybook, useDeletePlaybook } from "@/hooks/usePlaybooks";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import {
   usePlaybookTaxonomies,
@@ -95,8 +96,9 @@ export function PlaybookEditorClient({ id }: Props) {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: updatePlaybook, isPending: isSaving } = useUpdatePlaybook();
+  const { mutate: deletePlaybook, isPending: isDeleting } = useDeletePlaybook();
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     const payload: { name?: string; content_markdown?: string | null; target_winrate?: number | null } = {
       name: name.trim() || playbook?.name,
       content_markdown: contentMarkdown,
@@ -109,7 +111,39 @@ export function PlaybookEditorClient({ id }: Props) {
     } else {
       payload.target_winrate = null;
     }
-    updatePlaybook({ id, payload });
+    updatePlaybook(
+      { id, payload },
+      {
+        onSuccess: () => toast.success("Playbook saved"),
+        onError: (err) => toast.error(err.message || "Failed to save playbook"),
+      }
+    );
+  }, [name, playbook?.name, contentMarkdown, targetWinrate, updatePlaybook, id]);
+
+  // Keyboard shortcut (Cmd/Ctrl + S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
+
+  const handleBack = () => {
+    // Auto-cleanup if completely empty (draft abandoned)
+    const isNameUnchanged = !name.trim() || name === "Untitled Playbook";
+    const isContentEmpty = !contentMarkdown.trim();
+    const hasNoAttachments = attachments.length === 0;
+    const hasNoTags = assignedTaxonomies.length === 0;
+    const hasNoLinks = links.length === 0;
+
+    if (isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
+      deletePlaybook(id);
+    }
+    router.push("/dashboard/library/playbooks");
   };
 
   // ── Taxonomy section ───────────────────────────────────────────────────────
@@ -271,8 +305,9 @@ export function PlaybookEditorClient({ id }: Props) {
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card shrink-0">
         {/* Back button */}
         <button
-          onClick={() => router.push("/dashboard/library/playbooks")}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          onClick={handleBack}
+          disabled={isDeleting}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
           title="Back to playbooks"
           aria-label="Back to playbooks"
         >
@@ -504,45 +539,18 @@ export function PlaybookEditorClient({ id }: Props) {
 
           {/* ── External Links ─────────────────────────────────────────────── */}
           <section>
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
-              External Links
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center justify-between">
+              <span>External Links</span>
+              {links.length > 0 && (
+                <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">
+                  {links.length}
+                </span>
+              )}
             </h3>
 
-            {/* Add link form */}
-            <div className="space-y-1.5 mb-2">
-              <input
-                type="text"
-                value={linkLabel}
-                onChange={(e) => setLinkLabel(e.target.value.slice(0, 200))}
-                placeholder="Label (e.g. TradingView chart)"
-                className="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAddLink();
-                  }}
-                  placeholder="https://…"
-                  className="flex-1 px-2 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <button
-                  onClick={handleAddLink}
-                  disabled={isCreatingLink}
-                  className="px-2.5 py-1.5 text-sm bg-primary hover:bg-primary/90 text-white rounded-md transition-colors disabled:opacity-50 shrink-0"
-                  aria-label="Add link"
-                >
-                  {isCreatingLink ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
-                </button>
-              </div>
-              {linkError && <p className="text-xs text-destructive">{linkError}</p>}
-            </div>
-
             {/* Link list */}
-            {links.length > 0 ? (
-              <ul className="space-y-1">
+            {links.length > 0 && (
+              <ul className="space-y-1 mb-3">
                 {links.map((link) => (
                   <li
                     key={link.id}
@@ -568,9 +576,40 @@ export function PlaybookEditorClient({ id }: Props) {
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">No links added</p>
             )}
+
+            {/* Add link form */}
+            <div className="space-y-1.5 p-2 bg-secondary/50 rounded-lg border border-border/50">
+              <p className="text-[11px] font-medium text-muted-foreground mb-1">Add new link</p>
+              <input
+                type="text"
+                value={linkLabel}
+                onChange={(e) => setLinkLabel(e.target.value.slice(0, 200))}
+                placeholder="Label (e.g. TradingView chart)"
+                className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddLink();
+                  }}
+                  placeholder="https://…"
+                  className="flex-1 px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  onClick={handleAddLink}
+                  disabled={isCreatingLink || !linkLabel.trim() || !linkUrl.trim()}
+                  className="px-2.5 py-1.5 text-sm bg-primary hover:bg-primary/90 text-white rounded-md transition-colors disabled:opacity-50 shrink-0"
+                  aria-label="Add link"
+                >
+                  {isCreatingLink ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
+                </button>
+              </div>
+              {linkError && <p className="text-xs text-destructive mt-1">{linkError}</p>}
+            </div>
           </section>
         </div>
 
