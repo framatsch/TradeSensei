@@ -606,3 +606,51 @@ async def test_trade_delete_cascades_metadata(
         select(func.count()).select_from(TradeAnnotation)
     )
     assert int(trade_annotation_count.scalar_one()) == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_taxonomy_hard_delete_when_unused_returns_204(client: AsyncClient) -> None:
+    """Taxonomy with no assignments is permanently removed (hard delete, 204)."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+
+    create = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "UnusedTag", "scope": "trades", "color_hex": "#aabbcc"},
+        headers=headers,
+    )
+    assert create.status_code == 201, create.text
+    taxonomy_id = create.json()["data"]["id"]
+
+    delete = await client.delete(f"/api/v1/taxonomies/{taxonomy_id}", headers=headers)
+    assert delete.status_code == 204, delete.text
+
+    get = await client.get(f"/api/v1/taxonomies/{taxonomy_id}", headers=headers)
+    assert get.status_code == 404, get.text
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_annotation_definition_hard_delete_when_unused_returns_204(
+    client: AsyncClient,
+) -> None:
+    """Annotation definition with no assignments is permanently removed (hard delete, 204)."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+
+    create = await client.post(
+        "/api/v1/annotation-definitions",
+        json={"name": "UnusedMetric", "type": "int", "scope": "trades"},
+        headers=headers,
+    )
+    assert create.status_code == 201, create.text
+    definition_id = create.json()["data"]["id"]
+
+    delete = await client.delete(
+        f"/api/v1/annotation-definitions/{definition_id}", headers=headers
+    )
+    assert delete.status_code == 204, delete.text
+
+    get = await client.get(
+        f"/api/v1/annotation-definitions/{definition_id}", headers=headers
+    )
+    assert get.status_code == 404, get.text
