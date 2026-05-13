@@ -1,8 +1,10 @@
 """Integration tests for default metadata seed repositories."""
 
 import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,3 +114,26 @@ async def test_seed_defaults_is_idempotent_for_same_user(db_session: AsyncSessio
     )
     assert len(list(taxonomy_rows.scalars().all())) == 11
     assert len(list(annotation_rows.scalars().all())) == 4
+
+
+@pytest.mark.integration
+async def test_registration_completes_even_when_seeding_fails(client: AsyncClient) -> None:
+    """Registration must succeed even if metadata seeding raises an exception."""
+    uid = uuid.uuid4().hex[:8]
+
+    with patch(
+        "app.repositories.taxonomy_repository.TaxonomyRepository.seed_defaults",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("simulated seeding failure"),
+    ):
+        resp = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "username": f"seed_fail_{uid}",
+                "email": f"seed_fail_{uid}@example.com",
+                "password": "SeedFail@99",
+            },
+        )
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["data"]["username"] == f"seed_fail_{uid}"
