@@ -22,7 +22,10 @@ export function useModelBookEntries(
           per_page: limit,
         },
       });
-      return response.data?.data;
+      if (response.error || !response.data?.data) {
+        throw response.error ?? new Error("Request failed: no data returned");
+      }
+      return response.data.data;
     },
   });
 }

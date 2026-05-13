@@ -149,26 +149,29 @@ export function PlaybookEditorClient({ id }: Props) {
 
   const handleBack = async () => {
     // Auto-cleanup if completely empty (draft abandoned).
-    // Only delete when initializedRef is true — if queries haven't loaded yet,
-    // attachments/taxonomies/links default to [] which would cause false deletion.
+    // Guard 1: initializedRef — playbook data must have loaded at least once.
+    // Guard 2: all sibling queries (taxonomies, attachments, links) must be
+    //   fetched — otherwise their data defaults to [] and we'd incorrectly
+    //   delete a non-empty playbook during the in-flight window.
+    const allLoaded = taxonomiesFetched && attachmentsFetched && linksFetched;
     const isNameUnchanged = !name.trim() || name === "Untitled Playbook";
     const isContentEmpty = !contentMarkdown.trim();
     const hasNoAttachments = attachments.length === 0;
     const hasNoTags = assignedTaxonomies.length === 0;
     const hasNoLinks = links.length === 0;
 
-    if (initializedRef.current && isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
+    if (initializedRef.current && allLoaded && isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
       try {
         await deletePlaybook(id);
       } catch {
-        // Deletion failed — navigate anyway; the draft stays in the list.
+        toast("Couldn't clean up draft — please delete it manually.", { icon: "ℹ️" });
       }
     }
     router.push("/dashboard/library/playbooks");
   };
 
   // ── Taxonomy section ───────────────────────────────────────────────────────
-  const { data: assignedTaxonomies = [] } = usePlaybookTaxonomies(id);
+  const { data: assignedTaxonomies = [], isFetched: taxonomiesFetched } = usePlaybookTaxonomies(id);
   const { data: allTaxonomies = [] } = useGetTaxonomies("playbook");
   const { mutate: assignTaxonomy } = useAssignPlaybookTaxonomy();
   const { mutate: removeTaxonomy } = useRemovePlaybookTaxonomy();
@@ -178,7 +181,7 @@ export function PlaybookEditorClient({ id }: Props) {
   );
 
   // ── Attachments section ────────────────────────────────────────────────────
-  const { data: attachments = [] } = usePlaybookAttachments(id);
+  const { data: attachments = [], isFetched: attachmentsFetched } = usePlaybookAttachments(id);
   const { mutateAsync: getUploadUrl } = usePlaybookImageUploadUrl();
   const { mutateAsync: registerAttachment } = useRegisterPlaybookAttachment();
   const { mutate: deleteAttachment } = useDeletePlaybookAttachment();
@@ -261,7 +264,7 @@ export function PlaybookEditorClient({ id }: Props) {
   }, [handleFiles]);
 
   // ── Links section ──────────────────────────────────────────────────────────
-  const { data: links = [] } = usePlaybookLinks(id);
+  const { data: links = [], isFetched: linksFetched } = usePlaybookLinks(id);
   const { mutate: createLink, isPending: isCreatingLink } = useCreatePlaybookLink();
   const { mutate: deleteLink } = useDeletePlaybookLink();
 
@@ -675,7 +678,7 @@ export function PlaybookEditorClient({ id }: Props) {
             ) : (
               <div className="h-full overflow-y-auto px-6 py-4">
                 {contentMarkdown ? (
-                  <div className="prose prose-sm max-w-none text-foreground dark:prose-invert [&_a]:text-primary [&_code]:bg-secondary [&_code]:px-1 [&_code]:rounded [&_pre]:bg-secondary [&_pre]:p-3 [&_pre]:rounded-lg [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_table]:w-full [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_th]:pb-1 [&_td]:border-b [&_td]:border-border [&_td]:py-1">
+                  <div className="prose prose-sm max-w-none text-foreground [&_a]:text-primary [&_code]:bg-secondary [&_code]:px-1 [&_code]:rounded [&_pre]:bg-secondary [&_pre]:p-3 [&_pre]:rounded-lg [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_table]:w-full [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_th]:pb-1 [&_td]:border-b [&_td]:border-border [&_td]:py-1">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeSanitize]}
