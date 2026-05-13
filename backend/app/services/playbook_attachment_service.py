@@ -11,7 +11,6 @@ from app.core.exceptions import (
     PlaybookNotFoundError,
     UnsupportedContentTypeError,
 )
-from app.models.playbook_attachment import PlaybookAttachment
 from app.repositories.playbook_attachment_repository import PlaybookAttachmentRepository
 from app.repositories.playbook_repository import PlaybookRepository
 from app.schemas.playbook_attachment import (
