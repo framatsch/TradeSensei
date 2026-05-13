@@ -74,11 +74,10 @@ class TestAssignPlaybookTaxonomy:
         assert resp.status_code == 201
 
     async def test_assign_taxonomy_scope_playbook_returns_201(self, client: AsyncClient) -> None:
-        """Taxonomy with scope='both' is also valid for playbook assignment."""
+        """Taxonomy with scope='playbook' is valid for playbook assignment."""
         headers = await _get_auth_headers(client, "pb")
         playbook_id = await _create_playbook(client, headers, "pb")
-        # Use "both" since "playbook" scope is not yet in the DB schema
-        taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="pb2")
+        taxonomy_id = await _create_taxonomy(client, headers, scope="playbook", suffix="pb2")
 
         resp = await client.post(
             f"/api/v1/playbooks/{playbook_id}/taxonomies",
@@ -116,20 +115,8 @@ class TestAssignPlaybookTaxonomy:
         playbook_id = await _create_playbook(client, headers, "arch")
         taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="arch")
 
-        # Archive the taxonomy via DELETE (soft-delete when no assignments exist)
-        # First assign to a trade to trigger archival, or use the delete endpoint directly
-        # The DELETE endpoint archives when assignments exist, deletes when none exist.
-        # We need to archive it — assign to a trade first, then delete.
-        # Actually: create a trade taxonomy assignment first so DELETE archives instead of deletes.
-        # Simpler: just check if the service validates archived status.
-        # The taxonomy service archives on DELETE when assignments exist.
-        # For this test, we need to set is_archived=True directly.
-        # Since there's no direct archive endpoint, skip this test if archival isn't supported via API.
-        # Instead, verify the service-level check by assigning to a trade first, then deleting.
-        # Actually the simplest approach: assign to a trade, then DELETE the taxonomy (archives it).
-        # But that requires creating a portfolio/account/trade. Let's do it properly.
-
-        # Create a portfolio, account, trade and assign the taxonomy to the trade
+        # Archive by assigning to a trade and then deleting the taxonomy 
+        # (DELETE archives when assignments exist).
         p = await client.post(
             "/api/v1/portfolios",
             json={"name": "Arch Portfolio", "base_currency": "USD"},

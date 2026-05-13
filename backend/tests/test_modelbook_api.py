@@ -157,7 +157,7 @@ class TestTradeModelbook:
             json={"is_modelbook": True},
             headers=headers,
         )
-        assert resp.status_code in (403, 404)
+        assert resp.status_code == 404
 
 
 @pytest.mark.integration

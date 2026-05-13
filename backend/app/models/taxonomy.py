@@ -23,6 +23,7 @@ class DefinitionScope(StrEnum):
 
     TRADES = "trades"
     CHECKINS = "checkins"
+    PLAYBOOK = "playbook"
     BOTH = "both"
 
 
