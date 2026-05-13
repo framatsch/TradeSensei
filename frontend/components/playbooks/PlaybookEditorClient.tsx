@@ -147,13 +147,34 @@ export function PlaybookEditorClient({ id }: Props) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
 
+  // ── Taxonomy section ───────────────────────────────────────────────────────
+  const { data: assignedTaxonomies = [], isSuccess: taxonomiesLoaded } = usePlaybookTaxonomies(id);
+  const { data: allTaxonomies = [] } = useGetTaxonomies("playbook");
+  const { mutate: assignTaxonomy } = useAssignPlaybookTaxonomy();
+  const { mutate: removeTaxonomy } = useRemovePlaybookTaxonomy();
+
+  const availableTaxonomies = allTaxonomies.filter(
+    (t) => !t.is_archived && !assignedTaxonomies.some((a) => a.id === t.id)
+  );
+
+  // ── Attachments section ────────────────────────────────────────────────────
+  const { data: attachments = [], isSuccess: attachmentsLoaded } = usePlaybookAttachments(id);
+  const { mutateAsync: getUploadUrl } = usePlaybookImageUploadUrl();
+  const { mutateAsync: registerAttachment } = useRegisterPlaybookAttachment();
+  const { mutate: deleteAttachment } = useDeletePlaybookAttachment();
+
+  // ── Links section ──────────────────────────────────────────────────────────
+  const { data: links = [], isSuccess: linksLoaded } = usePlaybookLinks(id);
+  const { mutate: createLink, isPending: isCreatingLink } = useCreatePlaybookLink();
+  const { mutate: deleteLink } = useDeletePlaybookLink();
+
   const handleBack = async () => {
     // Auto-cleanup if completely empty (draft abandoned).
     // Guard 1: initializedRef — playbook data must have loaded at least once.
     // Guard 2: all sibling queries (taxonomies, attachments, links) must be
-    //   fetched — otherwise their data defaults to [] and we'd incorrectly
+    //   loaded (isSuccess) — otherwise their data defaults to [] and we'd incorrectly
     //   delete a non-empty playbook during the in-flight window.
-    const allLoaded = taxonomiesFetched && attachmentsFetched && linksFetched;
+    const allLoaded = taxonomiesLoaded && attachmentsLoaded && linksLoaded;
     const isNameUnchanged = !name.trim() || name === "Untitled Playbook";
     const isContentEmpty = !contentMarkdown.trim();
     const hasNoAttachments = attachments.length === 0;
@@ -169,22 +190,6 @@ export function PlaybookEditorClient({ id }: Props) {
     }
     router.push("/dashboard/library/playbooks");
   };
-
-  // ── Taxonomy section ───────────────────────────────────────────────────────
-  const { data: assignedTaxonomies = [], isFetched: taxonomiesFetched } = usePlaybookTaxonomies(id);
-  const { data: allTaxonomies = [] } = useGetTaxonomies("playbook");
-  const { mutate: assignTaxonomy } = useAssignPlaybookTaxonomy();
-  const { mutate: removeTaxonomy } = useRemovePlaybookTaxonomy();
-
-  const availableTaxonomies = allTaxonomies.filter(
-    (t) => !t.is_archived && !assignedTaxonomies.some((a) => a.id === t.id)
-  );
-
-  // ── Attachments section ────────────────────────────────────────────────────
-  const { data: attachments = [], isFetched: attachmentsFetched } = usePlaybookAttachments(id);
-  const { mutateAsync: getUploadUrl } = usePlaybookImageUploadUrl();
-  const { mutateAsync: registerAttachment } = useRegisterPlaybookAttachment();
-  const { mutate: deleteAttachment } = useDeletePlaybookAttachment();
 
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -262,11 +267,6 @@ export function PlaybookEditorClient({ id }: Props) {
     window.addEventListener("paste", handler);
     return () => window.removeEventListener("paste", handler);
   }, [handleFiles]);
-
-  // ── Links section ──────────────────────────────────────────────────────────
-  const { data: links = [], isFetched: linksFetched } = usePlaybookLinks(id);
-  const { mutate: createLink, isPending: isCreatingLink } = useCreatePlaybookLink();
-  const { mutate: deleteLink } = useDeletePlaybookLink();
 
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -475,7 +475,7 @@ export function PlaybookEditorClient({ id }: Props) {
               onClick={() => fileInputRef.current?.click()}
               className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 ${
                 isDragging || pasteHint
-                  ? "border-primary bg-[color-mix(in_srgb,hsl(var(--primary))_5%,transparent)]"
+                  ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
                   : "border-border hover:border-primary hover:bg-muted/50"
               }`}
             >

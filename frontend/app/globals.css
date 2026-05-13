@@ -293,6 +293,8 @@ body {
   --tw-prose-pre-bg: var(--secondary);
   --tw-prose-th-borders: var(--border);
   --tw-prose-td-borders: var(--border);
+  --tw-prose-kbd: var(--foreground);
+  --tw-prose-kbd-shadows: 215deg 20% 65% / 0.5;
 }
 
 /* ─── Custom Scrollbar ──────────────────────────────────────────────────────── */
