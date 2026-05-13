@@ -26,18 +26,36 @@ class AnnotationDefinitionRepository:
         """Insert default annotation definitions if they do not exist."""
         defaults: list[dict[str, Any]] = [
             {
-                "name": "Conviction",
+                "name": "Mood Level",
                 "type": "int",
-                "scope": "both",
-                "description": "Pre-trade conviction level",
-                "scale_labels": {"min": 1, "max": 5},
+                "scope": "checkins",
+                "description": None,
+                "scale_labels": {"min": 1, "max": 10},
+                "icon_identifier": "smile",
             },
             {
-                "name": "R-Multiple",
-                "type": "float",
+                "name": "Focus",
+                "type": "int",
+                "scope": "checkins",
+                "description": None,
+                "scale_labels": {"min": 1, "max": 10},
+                "icon_identifier": "target",
+            },
+            {
+                "name": "Rule Followed",
+                "type": "bool",
                 "scope": "trades",
-                "description": "Return per unit of risk",
-                "scale_labels": None,
+                "description": None,
+                "scale_labels": {},
+                "icon_identifier": "check-square",
+            },
+            {
+                "name": "Setup Quality",
+                "type": "string_enum",
+                "scope": "trades",
+                "description": None,
+                "scale_labels": {"options": ["A+", "B", "C"]},
+                "icon_identifier": "award",
             },
         ]
         stmt = pg_insert(AnnotationDefinition).values(
@@ -49,6 +67,7 @@ class AnnotationDefinitionRepository:
                     "scope": row["scope"],
                     "description": row["description"],
                     "scale_labels": row["scale_labels"],
+                    "icon_identifier": row["icon_identifier"],
                     "is_archived": False,
                 }
                 for row in defaults

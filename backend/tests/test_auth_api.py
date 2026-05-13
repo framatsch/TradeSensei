@@ -9,8 +9,14 @@ Each test is isolated because ``db_session`` rolls back after every test,
 so rows created in one test are never visible to another.
 """
 
+import uuid
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.repositories.annotation_definition_repository import AnnotationDefinitionRepository
+from app.repositories.taxonomy_repository import TaxonomyRepository
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -134,6 +140,99 @@ class TestRegister:
             json={"username": "nopass", "email": "nopass@example.com"},
         )
         assert resp.status_code == 422
+
+    @pytest.mark.integration
+    async def test_register_seeds_default_taxonomies(self, client: AsyncClient) -> None:
+        """A fresh registration exposes all 11 default taxonomies."""
+        token = await _register_and_login(
+            client,
+            username="seededtaxuser",
+            email="seededtaxuser@example.com",
+            password="S3cureP@ss99",
+        )
+        response = await client.get(
+            "/api/v1/taxonomies",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200, response.text
+
+        names = {item["name"] for item in response.json()["data"]}
+        assert names == {
+            "Bullish",
+            "Bearish",
+            "Sideways",
+            "Volatile",
+            "FOMO",
+            "Discipline",
+            "High Conviction",
+            "Breakout",
+            "Mean Reversion",
+            "Momentum",
+            "Trend Following",
+        }
+
+    @pytest.mark.integration
+    async def test_register_seeds_default_annotation_definitions(
+        self, client: AsyncClient
+    ) -> None:
+        """A fresh registration exposes all 4 default annotation definitions."""
+        token = await _register_and_login(
+            client,
+            username="seededannouser",
+            email="seededannouser@example.com",
+            password="S3cureP@ss99",
+        )
+        response = await client.get(
+            "/api/v1/annotation-definitions",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200, response.text
+
+        names = {item["name"] for item in response.json()["data"]}
+        assert names == {
+            "Mood Level",
+            "Focus",
+            "Rule Followed",
+            "Setup Quality",
+        }
+
+    @pytest.mark.integration
+    async def test_forced_second_seed_call_does_not_duplicate_metadata(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """Forcing seeders twice for the same user keeps unique seeded rows."""
+        username = "seedidempotent"
+        email = "seedidempotent@example.com"
+        password = "S3cureP@ss99"
+
+        reg_resp = await client.post(
+            _REGISTER_URL,
+            json={"username": username, "email": email, "password": password},
+        )
+        assert reg_resp.status_code == 201, reg_resp.text
+        user_id = uuid.UUID(reg_resp.json()["data"]["id"])
+
+        taxonomy_repo = TaxonomyRepository(db_session)
+        annotation_repo = AnnotationDefinitionRepository(db_session)
+        await taxonomy_repo.seed_defaults(user_id)
+        await taxonomy_repo.seed_defaults(user_id)
+        await annotation_repo.seed_defaults(user_id)
+        await annotation_repo.seed_defaults(user_id)
+
+        token = await client.post(
+            _TOKEN_URL,
+            data={"username": username, "password": password},
+        )
+        assert token.status_code == 200, token.text
+        headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+        taxonomies = await client.get("/api/v1/taxonomies", headers=headers)
+        annotations = await client.get("/api/v1/annotation-definitions", headers=headers)
+
+        assert taxonomies.status_code == 200, taxonomies.text
+        assert annotations.status_code == 200, annotations.text
+        assert len(taxonomies.json()["data"]) == 11
+        assert len(annotations.json()["data"]) == 4
 
 
 # ---------------------------------------------------------------------------

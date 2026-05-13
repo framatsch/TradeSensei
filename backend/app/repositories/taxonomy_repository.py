@@ -26,9 +26,17 @@ class TaxonomyRepository:
     async def seed_defaults(self, user_id: uuid.UUID) -> None:
         """Insert default taxonomies if they do not exist."""
         defaults: list[dict[str, Any]] = [
-            {"name": "Mistakes", "scope": "trades", "color_hex": "#ef4444", "description": "Common trading mistakes"},
-            {"name": "Setups", "scope": "trades", "color_hex": "#3b82f6", "description": "Core trading setups"},
-            {"name": "Emotions", "scope": "both", "color_hex": "#f59e0b", "description": "Psychological state"},
+            {"name": "Bullish", "scope": "checkins", "color_hex": "#22c55e", "icon_identifier": "trending-up"},
+            {"name": "Bearish", "scope": "checkins", "color_hex": "#ef4444", "icon_identifier": "trending-down"},
+            {"name": "Sideways", "scope": "checkins", "color_hex": "#f59e0b", "icon_identifier": "minus"},
+            {"name": "Volatile", "scope": "checkins", "color_hex": "#a855f7", "icon_identifier": "activity"},
+            {"name": "FOMO", "scope": "trades", "color_hex": "#ec4899", "icon_identifier": "alert-circle"},
+            {"name": "Discipline", "scope": "trades", "color_hex": "#3b82f6", "icon_identifier": "shield"},
+            {"name": "High Conviction", "scope": "trades", "color_hex": "#facc15", "icon_identifier": "zap"},
+            {"name": "Breakout", "scope": "both", "color_hex": "#10b981", "icon_identifier": "arrow-up-right"},
+            {"name": "Mean Reversion", "scope": "both", "color_hex": "#6366f1", "icon_identifier": "repeat"},
+            {"name": "Momentum", "scope": "both", "color_hex": "#f97316", "icon_identifier": "rocket"},
+            {"name": "Trend Following", "scope": "both", "color_hex": "#06b6d4", "icon_identifier": "trending-up"},
         ]
         stmt = pg_insert(Taxonomy).values(
             [
@@ -37,7 +45,8 @@ class TaxonomyRepository:
                     "name": row["name"],
                     "scope": row["scope"],
                     "color_hex": row["color_hex"],
-                    "description": row["description"],
+                    "description": None,
+                    "icon_identifier": row["icon_identifier"],
                     "is_archived": False,
                 }
                 for row in defaults
