@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 import {
   usePlaybooks,
   useCreatePlaybook,
@@ -20,6 +21,7 @@ export function PlaybookList() {
   const { mutate: remove } = useDeletePlaybook();
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCreate = () => {
     create(
@@ -32,13 +34,13 @@ export function PlaybookList() {
     );
   };
 
-  const handleDelete = (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = (id: string) => {
     setDeletingId(id);
     remove(id, {
-      onSettled: () => setDeletingId(null),
+      onSettled: () => {
+        setDeletingId(null);
+        setConfirmDeleteId(null);
+      },
     });
   };
 
@@ -129,14 +131,14 @@ export function PlaybookList() {
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate">
                     {pb.description ?? (
-                      <span className="italic text-zinc-600">—</span>
+                      <span className="italic text-muted-foreground">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                         pb.is_active
-                          ? "bg-emerald-900/50 text-emerald-400 border border-emerald-800"
+                          ? "bg-success/10 text-success border border-success/30"
                           : "bg-secondary text-muted-foreground border border-border"
                       }`}
                     >
@@ -152,19 +154,38 @@ export function PlaybookList() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(pb.id, pb.name);
-                        }}
-                        disabled={deletingId === pb.id}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Delete playbook"
-                        aria-label={`Delete ${pb.name}`}
-                      >
-                        {deletingId === pb.id ? (
-                          <Spinner size="sm" />
-                        ) : (
+                      {confirmDeleteId === pb.id ? (
+                        <div
+                          className="flex items-center gap-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                          <span className="text-xs text-foreground whitespace-nowrap">Delete?</span>
+                          <button
+                            onClick={() => handleDelete(pb.id)}
+                            disabled={deletingId === pb.id}
+                            className="px-2 py-0.5 text-xs font-medium bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 disabled:opacity-50"
+                          >
+                            {deletingId === pb.id ? <Spinner size="sm" /> : "Yes"}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(pb.id);
+                          }}
+                          disabled={deletingId === pb.id}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Delete playbook"
+                          aria-label={`Delete ${pb.name}`}
+                        >
                           <svg
                             viewBox="0 0 24 24"
                             fill="none"
@@ -177,8 +198,8 @@ export function PlaybookList() {
                             <path d="M10 11v6M14 11v6" />
                             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                           </svg>
-                        )}
-                      </button>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

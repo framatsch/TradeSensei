@@ -20,7 +20,9 @@ export function useGetAnnotationDefinitions(scope?: "trades" | "checkins" | "bot
     queryKey: [...QUERY_KEY, scope ?? "all"],
     queryFn: async () => {
       const { data, error } = await listAnnotationDefinitionsApiV1AnnotationDefinitionsGet({
-        query: { scope: scope ?? null },
+        // Omit the query param entirely when no scope is requested — passing null
+        // would make the backend treat it as a filter for a null scope value.
+        query: scope ? { scope } : {},
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as AnnotationDefinitionResponse[];

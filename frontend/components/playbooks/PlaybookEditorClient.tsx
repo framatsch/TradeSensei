@@ -10,6 +10,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import { ArrowLeft, X, Plus, ExternalLink, Trash2, Eye, Edit3 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Spinner } from "@/components/ui/Spinner";
@@ -27,10 +28,22 @@ import {
   useCreatePlaybookLink,
   useDeletePlaybookLink,
 } from "@/hooks/usePlaybookMetadata";
-import type { PlaybookImageResponse } from "@/lib/api/types.gen";
 
 interface Props {
   id: string;
+}
+
+/**
+ * Returns "text-black" or "text-white" based on the perceived luminance of
+ * a hex background color, to ensure WCAG AA contrast on THEME_COLORS chips.
+ */
+function contrastTextColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Relative luminance per WCAG 2.1
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "text-black" : "text-white";
 }
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
@@ -76,9 +89,12 @@ export function PlaybookEditorClient({ id }: Props) {
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Sync name/winrate from loaded playbook (only on first load)
-  const [initialized, setInitialized] = useState(false);
+  // useRef instead of useState so React 18 Strict Mode double-mount doesn't
+  // reset the flag on remount, which would leave the editor blank.
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (playbook && !initialized) {
+    if (playbook && !initializedRef.current) {
+      initializedRef.current = true;
       setName(playbook.name);
       setTargetWinrate(
         playbook.target_winrate
@@ -86,9 +102,8 @@ export function PlaybookEditorClient({ id }: Props) {
           : ""
       );
       setContentMarkdown(playbook.content_markdown ?? "");
-      setInitialized(true);
     }
-  }, [playbook, initialized]);
+  }, [playbook]);
 
   // ── Right pane state ───────────────────────────────────────────────────────
   const [contentMarkdown, setContentMarkdown] = useState("");
@@ -96,7 +111,7 @@ export function PlaybookEditorClient({ id }: Props) {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: updatePlaybook, isPending: isSaving } = useUpdatePlaybook();
-  const { mutate: deletePlaybook, isPending: isDeleting } = useDeletePlaybook();
+  const { mutateAsync: deletePlaybook, isPending: isDeleting } = useDeletePlaybook();
 
   const handleSave = useCallback(() => {
     const payload: { name?: string; content_markdown?: string | null; target_winrate?: number | null } = {
@@ -132,16 +147,22 @@ export function PlaybookEditorClient({ id }: Props) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
 
-  const handleBack = () => {
-    // Auto-cleanup if completely empty (draft abandoned)
+  const handleBack = async () => {
+    // Auto-cleanup if completely empty (draft abandoned).
+    // Only delete when initializedRef is true — if queries haven't loaded yet,
+    // attachments/taxonomies/links default to [] which would cause false deletion.
     const isNameUnchanged = !name.trim() || name === "Untitled Playbook";
     const isContentEmpty = !contentMarkdown.trim();
     const hasNoAttachments = attachments.length === 0;
     const hasNoTags = assignedTaxonomies.length === 0;
     const hasNoLinks = links.length === 0;
 
-    if (isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
-      deletePlaybook(id);
+    if (initializedRef.current && isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
+      try {
+        await deletePlaybook(id);
+      } catch {
+        // Deletion failed — navigate anyway; the draft stays in the list.
+      }
     }
     router.push("/dashboard/library/playbooks");
   };
@@ -255,6 +276,11 @@ export function PlaybookEditorClient({ id }: Props) {
       setLinkError("Both label and URL are required.");
       return;
     }
+    // Block non-http(s) URLs — prevents javascript: and data: XSS vectors.
+    if (!/^https?:\/\//i.test(url)) {
+      setLinkError("Only http:// and https:// URLs are allowed.");
+      return;
+    }
     setLinkError(null);
     createLink(
       { playbookId: id, label, url },
@@ -269,12 +295,7 @@ export function PlaybookEditorClient({ id }: Props) {
   };
 
   // ── Ref resolver for markdown preview ─────────────────────────────────────
-  const resolveMarkdown = (md: string, imgs: PlaybookImageResponse[]): string => {
-    return md.replace(/ref:([0-9a-f-]{36})/gi, (_match, uuid: string) => {
-      const found = imgs.find((a) => a.id === uuid);
-      return found ? found.storage_url : "[attachment deleted]";
-    });
-  };
+  // Resolved inline in the img: component override — no separate string pass needed.
 
   // ── Loading / not found states ─────────────────────────────────────────────
   if (playbooksLoading) {
@@ -374,11 +395,10 @@ export function PlaybookEditorClient({ id }: Props) {
       </div>
 
       {/* ── Split pane ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* ── Left pane (35%) ─────────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
+        {/* ── Left pane ───────────────────────────────────────────────────── */}
         <div
-          className="flex flex-col gap-5 overflow-y-auto p-4 border-r border-border bg-card shrink-0"
-          style={{ width: "35%" }}
+          className="flex flex-col gap-5 overflow-y-auto p-4 border-b lg:border-b-0 lg:border-r border-border bg-card shrink-0 w-full lg:w-[35%]"
         >
           {/* ── Tags ──────────────────────────────────────────────────────── */}
           <section>
@@ -391,7 +411,7 @@ export function PlaybookEditorClient({ id }: Props) {
               {assignedTaxonomies.map((t) => (
                 <span
                   key={t.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${contrastTextColor(t.color_hex)}`}
                   style={{ backgroundColor: t.color_hex }}
                 >
                   {t.name}
@@ -648,15 +668,17 @@ export function PlaybookEditorClient({ id }: Props) {
                 value={contentMarkdown}
                 onChange={(e) => setContentMarkdown(e.target.value)}
                 placeholder="Write your detailed strategy rules here using Markdown…"
-                className="w-full h-full resize-none px-4 py-3 font-mono text-sm bg-background text-foreground placeholder-muted-foreground focus:outline-none"
+                aria-label="Playbook content (Markdown)"
+                className="w-full h-full resize-none px-4 py-3 font-mono text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none"
                 spellCheck={false}
               />
             ) : (
               <div className="h-full overflow-y-auto px-6 py-4">
                 {contentMarkdown ? (
-                  <div className="prose prose-sm max-w-none text-foreground [&_a]:text-primary [&_code]:bg-secondary [&_code]:px-1 [&_code]:rounded [&_pre]:bg-secondary [&_pre]:p-3 [&_pre]:rounded-lg [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_table]:w-full [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_th]:pb-1 [&_td]:border-b [&_td]:border-border [&_td]:py-1">
+                  <div className="prose prose-sm max-w-none text-foreground dark:prose-invert [&_a]:text-primary [&_code]:bg-secondary [&_code]:px-1 [&_code]:rounded [&_pre]:bg-secondary [&_pre]:p-3 [&_pre]:rounded-lg [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_table]:w-full [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_th]:pb-1 [&_td]:border-b [&_td]:border-border [&_td]:py-1">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeSanitize]}
                       components={{
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         img: ({ src, alt, ...rest }: any) => {
@@ -679,7 +701,7 @@ export function PlaybookEditorClient({ id }: Props) {
                         },
                       }}
                     >
-                      {resolveMarkdown(contentMarkdown, attachments)}
+                      {contentMarkdown}
                     </ReactMarkdown>
                   </div>
                 ) : (

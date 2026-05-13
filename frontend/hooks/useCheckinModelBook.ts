@@ -10,7 +10,10 @@ export function useCheckinModelBook() {
         path: { checkin_date: date },
         body: { is_modelbook: isModelbook },
       });
-      return response.data?.data;
+      if (response.error || !response.data?.data) {
+        throw response.error ?? new Error("Request failed: no data returned");
+      }
+      return response.data.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["checkins"] });

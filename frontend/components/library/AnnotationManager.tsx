@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Edit2, Trash2, Archive, Loader2, X } from "lucide-react";
+import { Plus, Edit2, Trash2, Archive, Loader2, X, AlertCircle } from "lucide-react";
+import { toast } from "react-hot-toast";
 import {
   useGetAnnotationDefinitions,
   useCreateAnnotationDefinition,
@@ -58,6 +59,8 @@ export function AnnotationManager() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingAnnotation, setEditingAnnotation] = useState<AnnotationDefinitionResponse | null>(null);
+  // Inline delete confirmation: holds the id of the annotation pending deletion
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -80,7 +83,7 @@ export function AnnotationManager() {
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 dark:bg-red-950 text-red-500 rounded-lg">
+      <div className="p-4 bg-destructive/10 text-destructive rounded-lg">
         Error loading annotation definitions.
       </div>
     );
@@ -157,18 +160,18 @@ export function AnnotationManager() {
       setIsEditing(false);
     } catch (err) {
       console.error(err);
+      toast.error("Failed to save metric. Please try again.");
     }
   };
 
-  const handleDelete = async (annotation: AnnotationDefinitionResponse) => {
-    if (!window.confirm(`Are you sure you want to delete "${annotation.name}"?`)) {
-      return;
-    }
+  const handleDeleteConfirm = async (annotation: AnnotationDefinitionResponse) => {
     try {
       await deleteMutation.mutateAsync(annotation.id);
+      setConfirmDeleteId(null);
     } catch (err) {
       console.error(err);
-      alert("Could not delete. It may be in use (archived instead).");
+      setConfirmDeleteId(null);
+      toast.error("Could not delete — it may be in use. It has been archived instead.");
     }
   };
 
@@ -178,7 +181,7 @@ export function AnnotationManager() {
         <div className="flex justify-end">
           <button
             onClick={handleCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Metric
@@ -201,7 +204,7 @@ export function AnnotationManager() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
                   required
                 />
               </div>
@@ -213,7 +216,7 @@ export function AnnotationManager() {
                   value={type}
                   onChange={(e) => handleTypeChange(e.target.value as AnnotationType)}
                   disabled={!!editingAnnotation}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground disabled:opacity-50"
                 >
                   <option value="int">Integer (e.g. Rating 1–5)</option>
                   <option value="float">Float (e.g. Risk Multiple)</option>
@@ -233,7 +236,7 @@ export function AnnotationManager() {
                 <select
                   value={scope}
                   onChange={(e) => setScope(e.target.value as "trades" | "checkins" | "both")}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
                 >
                   <option value="trades">Trades</option>
                   <option value="checkins">Check-ins</option>
@@ -256,7 +259,7 @@ export function AnnotationManager() {
                       onChange={(e) => setMinVal(e.target.value)}
                       step={type === "float" ? "any" : "1"}
                       placeholder="Min"
-                      className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm"
+                      className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
                     />
                   </div>
                   <span className="text-muted-foreground text-sm">–</span>
@@ -267,7 +270,7 @@ export function AnnotationManager() {
                       onChange={(e) => setMaxVal(e.target.value)}
                       step={type === "float" ? "any" : "1"}
                       placeholder="Max"
-                      className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm"
+                      className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
                     />
                   </div>
                 </div>
@@ -284,7 +287,9 @@ export function AnnotationManager() {
                 </label>
                 <div className="space-y-2">
                   {options.map((opt, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                    // Use a stable key based on index — options are only reordered by
+                    // explicit deletion, so index is stable within a single edit session.
+                    <div key={`option-${idx}`} className="flex items-center gap-2">
                       <input
                         type="text"
                         value={opt}
@@ -294,13 +299,14 @@ export function AnnotationManager() {
                           setOptions(next);
                         }}
                         placeholder={`Option ${idx + 1}`}
-                        className="flex-1 px-3 py-2 rounded-lg bg-secondary border border-border text-sm"
+                        className="flex-1 px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
                       />
                       {options.length > 1 && (
                         <button
                           type="button"
+                          aria-label={`Remove option ${idx + 1}`}
                           onClick={() => setOptions(options.filter((_, i) => i !== idx))}
-                          className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                          className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -326,7 +332,8 @@ export function AnnotationManager() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm resize-none"
+                aria-label="Metric description"
+                className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground resize-none"
                 placeholder="Optional description..."
               />
             </div>
@@ -342,7 +349,7 @@ export function AnnotationManager() {
               <button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
               >
                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
               </button>
@@ -367,31 +374,54 @@ export function AnnotationManager() {
             >
               <div className="flex items-start justify-between">
                 <h3 className="font-medium truncate">{ann.name}</h3>
-                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 ml-2">
                   <button
+                    aria-label={`Edit ${ann.name}`}
                     onClick={() => handleEdit(ann)}
                     className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(ann)}
-                    className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                    aria-label={`Delete ${ann.name}`}
+                    onClick={() => setConfirmDeleteId(ann.id)}
+                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
+              {/* Inline delete confirmation */}
+              {confirmDeleteId === ann.id && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
+                  <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
+                  <span className="text-foreground flex-1">Delete &ldquo;{ann.name}&rdquo;?</span>
+                  <button
+                    onClick={() => void handleDeleteConfirm(ann)}
+                    disabled={deleteMutation.isPending}
+                    className="px-2 py-0.5 text-xs font-medium bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 disabled:opacity-50"
+                  >
+                    {deleteMutation.isPending ? "…" : "Delete"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    className="px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-border">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-border">
                   {ann.type}
                 </span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground border border-border">
                   {ann.scope}
                 </span>
                 {ann.is_archived && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-500">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-warning/10 text-warning border border-border">
                     <Archive className="w-3 h-3" /> Archived
                   </span>
                 )}

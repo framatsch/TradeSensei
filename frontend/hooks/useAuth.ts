@@ -14,6 +14,7 @@ import {
   logoutApiV1AuthLogoutPost,
 } from "@/lib/api/index";
 import { useAuthStore } from "@/stores/authStore";
+import { resetInterceptors } from "@/lib/apiInterceptors";
 import type {
   AuthConfigResponse,
   TokenResponse,
@@ -74,6 +75,10 @@ export function useLogin() {
       return data as unknown as TokenResponse;
     },
     onSuccess: async (data) => {
+      // Reset the redirect-guard so a future 401 after re-login triggers the
+      // logout flow again (without this, the flag stays true after session expiry
+      // → re-login → next 401 is silently ignored).
+      resetInterceptors();
       setToken(data.access_token);
       // Fetch the current user after login — token is now in localStorage via setToken
       const { data: meData, error: meError } = await getMeApiV1UsersMeGet();
