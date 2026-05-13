@@ -822,7 +822,7 @@ class TradeService:
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
     ) -> TradeRead:
-        trade = await self.repo.update_modelbook_flag(trade_id, is_modelbook, user_id)
+        trade = await self._repo.update_modelbook_flag(trade_id, is_modelbook, user_id)
         if not trade:
             raise TradeNotFoundError()
         return TradeRead.model_validate(trade)

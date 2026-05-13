@@ -5,8 +5,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.trade import AssetClass, Direction
 from app.schemas.daily_checkin import TargetIndexRead
-from app.schemas.trade import AssetClass, Direction
 
 
 class ModelBookTradeVariant(BaseModel):
@@ -60,4 +60,3 @@ class ModelBookPatchRequest(BaseModel):
     """Payload for starring/unstarring an entity."""
 
     is_modelbook: bool = Field(..., description="True to star, false to unstar.")
-

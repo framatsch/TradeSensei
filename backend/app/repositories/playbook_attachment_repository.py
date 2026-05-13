@@ -37,9 +37,7 @@ class PlaybookAttachmentRepository:
 
     async def list_for_playbook(self, playbook_id: uuid.UUID) -> list[PlaybookAttachment]:
         result = await self._session.execute(
-            select(PlaybookAttachment)
-            .where(PlaybookAttachment.playbook_id == playbook_id)
-            .order_by(PlaybookAttachment.created_at.asc())
+            select(PlaybookAttachment).where(PlaybookAttachment.playbook_id == playbook_id).order_by(PlaybookAttachment.created_at.asc())
         )
         return list(result.scalars().all())
 

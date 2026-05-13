@@ -215,6 +215,7 @@ async def test_restore_execution_updates_pnl(mock_session: AsyncMock) -> None:
         side_effect=[deleted_exec, restored_exec]
     )
     service.execution_repo.restore = AsyncMock()
+    service.trade_repo.get_by_id = AsyncMock(return_value=trade)
     service._re_aggregate_trade = AsyncMock()
 
     result = await service.restore_execution(exec_id, trade.user_id)

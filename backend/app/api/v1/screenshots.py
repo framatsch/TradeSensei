@@ -73,7 +73,7 @@ async def upload_screenshot(
     except ValueError as exc:
         if "File too large" in str(exc):
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=str(exc),
             ) from exc
         raise HTTPException(

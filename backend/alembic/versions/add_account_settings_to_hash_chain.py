@@ -8,7 +8,7 @@ Uses ``IF NOT EXISTS`` semantics via a try/except so the upgrade is safe
 to run on databases that already have the column (e.g. production DB
 after ``0012`` was applied via the numbered chain).
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: a1b2c3d4e5f7
 Revises: 19c126941032
 Create Date: 2026-03-23 12:00:00.000000
 """
@@ -20,7 +20,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1b2c3d4e5f6"
+revision: str = "a1b2c3d4e5f7"
 down_revision: str | None = "19c126941032"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

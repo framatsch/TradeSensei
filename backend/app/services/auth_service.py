@@ -5,9 +5,9 @@ All domain exceptions raised here are caught by the route layer, which
 converts them to HTTP responses.
 """
 
+import logging
 import re
 import uuid
-import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +34,6 @@ from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin
 from app.services.audit_service import AuditEventService, generate_request_id
-
 
 logger = logging.getLogger(__name__)
 

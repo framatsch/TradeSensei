@@ -30,15 +30,16 @@ class ModelBookService:
             page=page,
             per_page=per_page,
         )
-        
-        parsed_items = []
+
+        parsed_items: list[ModelBookEntryResponse] = []
         for item in items:
             # Pydantic will validate depending on type
             parsed_items.append(TypeAdapter(ModelBookEntryResponse).validate_python(item))
-            
+
         return ModelBookEntriesPage(
             items=parsed_items,
             total=total,
             page=page,
             per_page=per_page,
+            next_cursor=None,
         )

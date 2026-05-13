@@ -34,11 +34,7 @@ class PlaybookLinkRepository:
         return link
 
     async def list_for_playbook(self, playbook_id: uuid.UUID) -> list[PlaybookLink]:
-        result = await self._session.execute(
-            select(PlaybookLink)
-            .where(PlaybookLink.playbook_id == playbook_id)
-            .order_by(PlaybookLink.created_at.asc())
-        )
+        result = await self._session.execute(select(PlaybookLink).where(PlaybookLink.playbook_id == playbook_id).order_by(PlaybookLink.created_at.asc()))
         return list(result.scalars().all())
 
     async def get(self, link_id: uuid.UUID, playbook_id: uuid.UUID) -> PlaybookLink | None:

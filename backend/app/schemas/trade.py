@@ -706,6 +706,11 @@ class TradeUpdate(BaseModel):
         ),
         examples=[["https://example.com/image.png"], [], None],
     )
+    playbook_id: uuid.UUID | None = Field(
+        default=None,
+        description=("Updated playbook UUID. Set to null to clear. Omit to leave unchanged."),
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
+    )
     is_modelbook: bool | None = Field(
         default=None,
         description=("True if this trade should be starred in the Model Book. Omit to leave unchanged."),
@@ -953,11 +958,16 @@ class TradeRead(BaseModel):
         if isinstance(data, dict):
             if data.get("is_combo") is None:
                 data["is_combo"] = False
+            if data.get("is_modelbook") is None:
+                data["is_modelbook"] = False
             return data
 
         if getattr(data, "is_combo", None) is None:
             with contextlib.suppress(Exception):
                 data.__dict__["is_combo"] = False
+        if getattr(data, "is_modelbook", None) is None:
+            with contextlib.suppress(Exception):
+                data.__dict__["is_modelbook"] = False
         return data
 
     @model_validator(mode="before")

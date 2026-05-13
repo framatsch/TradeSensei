@@ -36,9 +36,7 @@ class PlaybookTaxonomyRepository:
         return True
 
     async def list_for_playbook(self, playbook_id: uuid.UUID) -> list[PlaybookTaxonomy]:
-        result = await self._session.execute(
-            select(PlaybookTaxonomy).where(PlaybookTaxonomy.playbook_id == playbook_id)
-        )
+        result = await self._session.execute(select(PlaybookTaxonomy).where(PlaybookTaxonomy.playbook_id == playbook_id))
         return list(result.scalars().all())
 
     async def exists(self, playbook_id: uuid.UUID, taxonomy_id: uuid.UUID) -> bool:

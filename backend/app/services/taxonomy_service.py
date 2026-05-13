@@ -57,7 +57,9 @@ class TaxonomyService:
         current_scope = item.scope
         new_scope = payload.scope
         if new_scope is not None and new_scope != current_scope:
-            trade_count, checkin_count, playbook_count = await self._repo.count_assignments(taxonomy_id)
+            assignment_counts = await self._repo.count_assignments(taxonomy_id)
+            trade_count, checkin_count = assignment_counts[0], assignment_counts[1]
+            playbook_count = assignment_counts[2] if len(assignment_counts) > 2 else 0
             # Narrowing away from a scope that has existing assignments is blocked
             losing_trades = current_scope in {"trades", "both"} and new_scope not in {"trades", "both"}
             losing_checkins = current_scope in {"checkins", "both"} and new_scope not in {"checkins", "both"}
@@ -83,7 +85,9 @@ class TaxonomyService:
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
 
-        trade_count, checkin_count, playbook_count = await self._repo.count_assignments(taxonomy_id)
+        assignment_counts = await self._repo.count_assignments(taxonomy_id)
+        trade_count, checkin_count = assignment_counts[0], assignment_counts[1]
+        playbook_count = assignment_counts[2] if len(assignment_counts) > 2 else 0
         if trade_count + checkin_count + playbook_count == 0:
             await self._repo.delete(item)
             if user_id is not None:
