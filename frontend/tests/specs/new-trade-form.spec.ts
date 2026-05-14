@@ -44,7 +44,7 @@ test.describe('New Trade Form Redesign', () => {
     
     // 6. Verify navigation back to trades list or trade details
     // Assume it redirects to either /dashboard/trades or /dashboard/trades/[id]
-    await page.waitForURL(/\/dashboard\/trades/);
+    await page.waitForURL(/\/dashboard\/trades(?:\/[a-z0-9-]+)?$/);
     
     // 7. Verify the trade is visible
     // The list should show AAPL

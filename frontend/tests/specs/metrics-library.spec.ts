@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Metrics (Annotations) Library', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/dashboard/library/metrics');
     await page.waitForLoadState('networkidle');
@@ -47,6 +49,7 @@ test.describe('Metrics (Annotations) Library', () => {
     
     // Verify
     await expect(page.locator('table').getByText('E2E Conviction Edited')).toBeVisible();
+    await expect(page.locator('table').getByText('E2E Conviction', { exact: true })).not.toBeVisible();
   });
 
   test('TC-113 create a new metric (string enum)', async ({ page }) => {

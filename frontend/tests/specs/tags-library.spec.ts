@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Tags (Taxonomies) Library', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/dashboard/library/tags');
     await page.waitForLoadState('networkidle');

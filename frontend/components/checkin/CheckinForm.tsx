@@ -184,7 +184,7 @@ export function CheckinForm({
             onChange={(e) => setNotes(e.target.value)}
             rows={6}
             placeholder="How did the market feel today? Any macro events? Psychological state?"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,hsl(var(--primary))_20%,transparent)] focus:border-primary transition-colors resize-y"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)] focus:border-primary transition-colors resize-y"
           />
         ) : (
           <div className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-foreground min-h-[148px] prose prose-sm dark:prose-invert max-w-none">
@@ -266,7 +266,7 @@ export function CheckinForm({
             value={newsLink}
             onChange={(e) => setNewsLink(e.target.value)}
             placeholder="https://..."
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,hsl(var(--primary))_20%,transparent)] focus:border-primary transition-colors"
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)] focus:border-primary transition-colors"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -304,7 +304,7 @@ export function CheckinForm({
             type="button"
             onClick={onDelete}
             disabled={isDeleting}
-            className="inline-flex items-center gap-2 border border-[color-mix(in_srgb,hsl(var(--destructive))_30%,transparent)] text-destructive hover:bg-[color-mix(in_srgb,hsl(var(--destructive))_10%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDeleting ? (
               <Loader2 className="w-4 h-4 animate-spin" />

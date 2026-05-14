@@ -33,14 +33,14 @@ export function CheckinSidebar() {
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
               isCheckinsRoute && (view === "timeline" || !view)
-                ? "text-primary bg-[color-mix(in_srgb,hsl(var(--primary))_10%,transparent)] font-medium"
+                ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >
             <List className="w-4 h-4" />
             <span>Timeline</span>
           </button>
-          
+
           <button
             onClick={() => {
               if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=gallery";
@@ -48,7 +48,7 @@ export function CheckinSidebar() {
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
               isCheckinsRoute && view === "gallery"
-                ? "text-primary bg-[color-mix(in_srgb,hsl(var(--primary))_10%,transparent)] font-medium"
+                ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >
@@ -63,7 +63,7 @@ export function CheckinSidebar() {
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
               isCheckinsRoute && view === "modelbook"
-                ? "text-primary bg-[color-mix(in_srgb,hsl(var(--primary))_10%,transparent)] font-medium"
+                ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >

@@ -294,7 +294,7 @@ body {
   --tw-prose-th-borders: var(--border);
   --tw-prose-td-borders: var(--border);
   --tw-prose-kbd: var(--foreground);
-  --tw-prose-kbd-shadows: 215deg 20% 65% / 0.5;
+  --tw-prose-kbd-shadows: color-mix(in srgb, var(--foreground) 15%, transparent);
 }
 
 /* ─── Custom Scrollbar ──────────────────────────────────────────────────────── */

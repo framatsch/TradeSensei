@@ -1,6 +1,28 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Playbook Strategy Hub', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.afterAll(async ({ browser }) => {
+    const context = await browser.newContext({
+      storageState: './frontend/tests/.auth/user.json',
+    });
+    const page = await context.newPage();
+    await page.goto('/dashboard/library/playbooks');
+    await page.waitForLoadState('networkidle');
+
+    for (const name of ['My E2E Test Playbook', 'Links Test Playbook']) {
+      const row = page.locator('tr', { hasText: name });
+      if (await row.isVisible()) {
+        await row.locator('button[title="Delete playbook"]').click();
+        await row.getByRole('button', { name: 'Yes' }).click();
+        await expect(row).not.toBeVisible();
+      }
+    }
+
+    await context.close();
+  });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/dashboard/library/playbooks');
     // Wait for the table or empty state to load

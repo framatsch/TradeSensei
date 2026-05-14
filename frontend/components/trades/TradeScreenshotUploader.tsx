@@ -112,9 +112,9 @@ export function TradeScreenshotUploader({ onUploaded, disabled = false }: Props)
           disabled
             ? "opacity-50 cursor-not-allowed pointer-events-none"
             : isDragging
-            ? "border-primary bg-[color-mix(in_srgb,hsl(var(--primary))_5%,transparent)]"
+            ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
             : pasteHint
-            ? "border-primary bg-[color-mix(in_srgb,hsl(var(--primary))_5%,transparent)]"
+            ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
             : "border-border hover:border-primary hover:bg-muted/50"
         }`}
       >

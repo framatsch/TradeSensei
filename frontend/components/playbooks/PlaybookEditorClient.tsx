@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -153,8 +153,11 @@ export function PlaybookEditorClient({ id }: Props) {
   const { mutate: assignTaxonomy } = useAssignPlaybookTaxonomy();
   const { mutate: removeTaxonomy } = useRemovePlaybookTaxonomy();
 
-  const availableTaxonomies = allTaxonomies.filter(
-    (t) => !t.is_archived && !assignedTaxonomies.some((a) => a.id === t.id)
+  const availableTaxonomies = useMemo(
+    () => allTaxonomies.filter(
+      (t) => !t.is_archived && !assignedTaxonomies.some((a) => a.id === t.id)
+    ),
+    [allTaxonomies, assignedTaxonomies]
   );
 
   // ── Attachments section ────────────────────────────────────────────────────
@@ -168,13 +171,23 @@ export function PlaybookEditorClient({ id }: Props) {
   const { mutate: createLink, isPending: isCreatingLink } = useCreatePlaybookLink();
   const { mutate: deleteLink } = useDeletePlaybookLink();
 
-  const handleBack = async () => {
+  const taxonomiesEverLoaded = useRef(false);
+  const attachmentsEverLoaded = useRef(false);
+  const linksEverLoaded = useRef(false);
+  useEffect(() => { if (taxonomiesLoaded) taxonomiesEverLoaded.current = true; }, [taxonomiesLoaded]);
+  useEffect(() => { if (attachmentsLoaded) attachmentsEverLoaded.current = true; }, [attachmentsLoaded]);
+  useEffect(() => { if (linksLoaded) linksEverLoaded.current = true; }, [linksLoaded]);
+
+  const handleBack = useCallback(async () => {
     // Auto-cleanup if completely empty (draft abandoned).
     // Guard 1: initializedRef — playbook data must have loaded at least once.
     // Guard 2: all sibling queries (taxonomies, attachments, links) must be
     //   loaded (isSuccess) — otherwise their data defaults to [] and we'd incorrectly
     //   delete a non-empty playbook during the in-flight window.
-    const allLoaded = taxonomiesLoaded && attachmentsLoaded && linksLoaded;
+    const allLoaded =
+      (taxonomiesLoaded || taxonomiesEverLoaded.current) &&
+      (attachmentsLoaded || attachmentsEverLoaded.current) &&
+      (linksLoaded || linksEverLoaded.current);
     const isNameUnchanged = !name.trim() || name === "Untitled Playbook";
     const isContentEmpty = !contentMarkdown.trim();
     const hasNoAttachments = attachments.length === 0;
@@ -189,7 +202,7 @@ export function PlaybookEditorClient({ id }: Props) {
       }
     }
     router.push("/dashboard/library/playbooks");
-  };
+  }, [taxonomiesLoaded, attachmentsLoaded, linksLoaded, name, contentMarkdown, attachments, assignedTaxonomies, links, deletePlaybook, id, router]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);

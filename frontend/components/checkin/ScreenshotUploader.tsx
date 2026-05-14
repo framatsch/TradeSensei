@@ -112,9 +112,9 @@ export function ScreenshotUploader({ onUploaded }: Props) {
         onClick={() => fileInputRef.current?.click()}
         className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 ${
           isDragging
-            ? "border-primary bg-[color-mix(in_srgb,hsl(var(--primary))_5%,transparent)]"
+            ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
             : pasteHint
-            ? "border-primary bg-[color-mix(in_srgb,hsl(var(--primary))_5%,transparent)]"
+            ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
             : "border-border hover:border-primary hover:bg-muted/50"
         } ${error === "Screenshot upload unavailable" ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
       >
