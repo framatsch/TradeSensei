@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-14
+
+Initial stable release. Complete trading analytics platform with portfolio management, daily check-ins, structured metadata system, playbook strategy hub, MCP integration, and comprehensive reporting.
+
+### Added
+- [core] Portfolio core data model with full CRUD, colour chip picker, default portfolio selector
+- [core] Three-pillar architecture: Portfolio Workspace, Trading Log, Market Check-in
+- [core] App state management with BentoMenu context switcher and Zustand slices
+- [core] Centralized taxonomy and annotation metadata system (2x2 matrix for trades/check-ins)
+- [core] Playbook Strategy Hub with taxonomies, file attachments, and external links
+- [core] Structured daily check-in system with market index association and mini calendar
+- [core] Reporting Hub & Analytics UI with performance metrics and attribution visualization
+- [core] Metadata Correlation Dashboard with scatter plots, heatmaps, and box charts
+- [core] Model Book cross-entity gallery (trades + check-ins side-by-side)
+- [core] MCP integration with PAT authentication and domain tools
+- [core] Self-hosted object storage (SeaweedFS) for local deployments
+- [core] Default metadata seed on user registration
+- [core] Frontend API client migration from Axios to OpenAPI-generated hey-api SDK
+- [core] Centralized help system with consistent tooltips
+
+### Changed
+- [ui] Trade Detail page redesigned with qualitative metadata panel
+- [ui] New Trade Form redesigned for 2x2 metadata architecture
+- [ui] Portfolio Workspace overhauled with isolated routes and performant widgets
+- [ui] Settings Hub consolidated into centralized settings module
+- [backend] Legacy tags/market_phase/checkin_field tables and endpoints removed
+- [backend] Reporting layer decoupled from trade ledger
+- [backend] Object storage and MCP server infrastructure
+
+### Fixed
+- [ui] Multiple OCR review findings across rounds 2, 3, 4/5
+- [ui] TradeChart 'Up to Entry' mode cutoff
+- [ui] Execution Leg Editor — full field editing and broken loading state
+- [backend] Split-aware execution linking with FIFO aggregator
+- [backend] Annotation input step values for int/float types
+- [infra] Stabilized E2E tests with robust Playwright locators
+
 ## [0.27.1] - 2026-04-30
 
 ### Added
@@ -261,6 +298,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.0.0]: https://github.com/scheffold/TradeSensei/compare/v0.27.1...v1.0.0
 [0.27.1]: https://github.com/scheffold/OpenTradeJournal/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/scheffold/TradeSensei/compare/v0.26.2...v0.27.0
 [0.24.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.22.0...v0.24.0
@@ -275,6 +313,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/OpenTradeJournal/compare/v0.27.1...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.0.0...HEAD
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
