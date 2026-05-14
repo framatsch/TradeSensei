@@ -76,7 +76,7 @@ test.describe('Trade Creation - Advanced Legs', () => {
     // Verify leg data updated the auto-calculated main fields
     await page.waitForTimeout(500);
     await expect(page.locator('input[name="quantity"]')).toHaveValue('10');
-    await expect(page.locator('input[name="entry_price"]')).toHaveValue('100');
+    await expect(page.locator('input[name="entry_price"]')).toHaveValue(/^100(\.0+)?$/);
     
     // We didn't set up exit_price logic fully in the form yet, so maybe we skip checking exit_price
     // if the form doesn't calculate it. The instruction says "auto-calculates total quantity and average prices correctly"

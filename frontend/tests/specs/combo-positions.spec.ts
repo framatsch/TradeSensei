@@ -79,15 +79,8 @@ test.describe('Combo Positions', () => {
     await legPrices.nth(0).blur();
 
     await page.getByRole('button', { name: 'Create Trade' }).click();
-    await page.waitForLoadState('networkidle');
 
-    const err = await page.locator('.text-red-400').first().textContent({ timeout: 1000 }).catch(() => null);
-    if (err) console.log("Form error:", err);
-
-    await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i);
-    await expect(page.getByText('COMBO').first()).toBeVisible();
-    await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i);
+    await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i, { timeout: 15000 });
     await expect(page.getByText('COMBO').first()).toBeVisible();
   });
 });

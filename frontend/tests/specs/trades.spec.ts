@@ -22,7 +22,6 @@ test.describe('Trades List', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/dashboard/trades');
     // Wait for table to finish loading
-    await page.waitForLoadState('networkidle');
   });
 
   test('TC-050 renders page heading and subtitle', async ({ page }) => {
@@ -112,7 +111,6 @@ test.describe('Trade Detail', () => {
   test('TC-060 trade detail page renders trade header', async ({ page }) => {
     // Navigate to trades list first to get a real trade ID
     await page.goto('/dashboard/trades');
-    await page.waitForLoadState('networkidle');
 
     const firstSymbolLink = page.locator('tbody tr').first().locator('a[href*="/dashboard/trades/"]');
     await expect(firstSymbolLink).toBeVisible({ timeout: 15_000 });
@@ -131,7 +129,6 @@ test.describe('Trade Detail', () => {
   // ── TC-061: Execution Summary Card content ──
   test('TC-061 execution summary card shows VWAP entry, quantity, total commission', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Assert Execution Summary heading visible
     await expect(page.getByText('Execution Summary')).toBeVisible();
@@ -149,7 +146,6 @@ test.describe('Trade Detail', () => {
   // ── TC-062: Execution table renders with correct direction badges ──
   test('TC-062 execution table has correct number of rows with LONG and SHORT badges', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
@@ -171,7 +167,6 @@ test.describe('Trade Detail', () => {
   // ── TC-063: Execution dates are in chronological order ──
   test('TC-063 execution dates are in chronological order', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
@@ -202,7 +197,6 @@ test.describe('Trade Detail', () => {
   // ── TC-064: Add Execution button is visible ──
   test('TC-064 add execution button is visible', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     await expect(page.getByRole('button', { name: 'Add Execution' })).toBeVisible();
   });
@@ -211,7 +205,6 @@ test.describe('Trade Detail', () => {
   test('TC-065 sidebar labels gross p&l, net p&l, return %, holding period are visible', async ({ page }) => {
     // Navigate via list
     await page.goto('/dashboard/trades');
-    await page.waitForLoadState('networkidle');
 
     const firstSymbolLink = page.locator('tbody tr').first().locator('a[href*="/dashboard/trades/"]');
     await expect(firstSymbolLink).toBeVisible({ timeout: 15_000 });
@@ -230,7 +223,6 @@ test.describe('Trade Detail', () => {
   test('TC-066 trade actions dropdown shows correct menu items', async ({ page }) => {
     // Navigate via list
     await page.goto('/dashboard/trades');
-    await page.waitForLoadState('networkidle');
 
     const firstSymbolLink = page.locator('tbody tr').first().locator('a[href*="/dashboard/trades/"]');
     await expect(firstSymbolLink).toBeVisible({ timeout: 15_000 });
@@ -250,7 +242,6 @@ test.describe('Trade Detail', () => {
   test('TC-067 position conflict banner is not visible on normal trade', async ({ page }) => {
     // Navigate via list to a non-conflicting trade (first row is fine)
     await page.goto('/dashboard/trades');
-    await page.waitForLoadState('networkidle');
 
     const firstSymbolLink = page.locator('tbody tr').first().locator('a[href*="/dashboard/trades/"]');
     await expect(firstSymbolLink).toBeVisible({ timeout: 15_000 });
@@ -274,7 +265,6 @@ test.describe('Add Execution Modal', () => {
   // ── TC-070: Add Execution modal opens with BUY/SELL toggles ──
   test('TC-070 add execution modal opens with toggle and datetime input', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     await openAddExecutionModal(page);
 
@@ -292,7 +282,6 @@ test.describe('Add Execution Modal', () => {
   test('TC-071 adding execution with quantity and price increases table rows', async ({ page }) => {
     // Use dedicated add-execution-test trade to avoid race conditions with other tests
     await page.goto(`/dashboard/trades/${seedState.addExecutionTestTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
@@ -327,7 +316,6 @@ test.describe('Add Execution Modal', () => {
   // ── TC-072: Validation error on quantity 0 ──
   test('TC-072 validation error shown when quantity is 0', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
@@ -357,7 +345,6 @@ test.describe('Inline Sidebar Editing', () => {
   // ── TC-075: Inline edit Stop Loss ──
   test('TC-075 inline edit stop loss value', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
@@ -391,7 +378,6 @@ test.describe('Inline Sidebar Editing', () => {
   // ── TC-076: Edit Playbook ──
   test('TC-076 inline edit playbook field', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Click on Edit button in Qualitative Analysis panel
     await page.getByRole('button', { name: 'Edit' }).click();
@@ -411,7 +397,6 @@ test.describe('Inline Sidebar Editing', () => {
   // ── TC-077: Edit Taxonomies ──
   test('TC-077 inline edit taxonomies in playbook psychology card', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Click on Edit button in Qualitative Analysis panel
     await page.getByRole('button', { name: 'Edit' }).click();
@@ -438,7 +423,6 @@ test.describe('Merge Workflow', () => {
   test('TC-080 selecting two trades shows merge button in toolbar', async ({ page }) => {
     // Show all rows and narrow to AAPL so seeded merge trades are visible
     await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
-    await page.waitForLoadState('networkidle');
 
     // Wait for table rows to load
     await page.waitForSelector('tbody tr', { timeout: 15_000 });
@@ -470,7 +454,6 @@ test.describe('Merge Workflow', () => {
   test('TC-081 merge button opens preview modal with combined info', async ({ page }) => {
     // Show all rows and narrow to AAPL so seeded merge trades are visible
     await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
-    await page.waitForLoadState('networkidle');
 
     // Wait for table rows to load
     await page.waitForSelector('tbody tr', { timeout: 15_000 });
@@ -506,7 +489,6 @@ test.describe('Merge Workflow', () => {
   test('TC-082 confirming merge navigates to survivor trade detail', async ({ page }) => {
     // Show all rows and narrow to AAPL so seeded merge trades are visible
     await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
-    await page.waitForLoadState('networkidle');
 
     // Wait for table rows to load
     await page.waitForSelector('tbody tr', { timeout: 15_000 });
@@ -546,7 +528,6 @@ test.describe('Execution Context Menu', () => {
   // ── TC-085: Execution overflow menu shows correct actions ──
   test('TC-085 execution overflow menu shows edit, move, detach, delete options', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
@@ -574,7 +555,6 @@ test.describe('Execution Context Menu', () => {
   test('TC-086 detaching execution removes row from table', async ({ page }) => {
     // Use the dedicated detach-test trade to avoid race conditions with TC-071
     await page.goto(`/dashboard/trades/${seedState.detachTestTradeId}`);
-    await page.waitForLoadState('networkidle');
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
     await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
@@ -673,7 +653,6 @@ test.describe('Trades List — Empty State', () => {
       { token: emptyUserToken, portfolioId: emptyPortfolioId }
     );
     await sharedPage.goto('/dashboard/trades');
-    await sharedPage.waitForLoadState('networkidle');
   });
 
   test.afterAll(async () => {

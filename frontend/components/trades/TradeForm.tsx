@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass, LogicalExecutionCreate } from "@/lib/types";
@@ -165,8 +165,13 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   });
 
   const formValues = watch();
+  const watchedExecutions = useWatch({
+    control,
+    name: "executions"
+  });
+  
   const isAdvancedMode = formValues.isAdvancedMode;
-  const executions = formValues.executions;
+  const executions = watchedExecutions || formValues.executions;
   const tradeDirection = formValues.direction;
   const isCombo = formValues.is_combo === true;
   const openedAt = formValues.opened_at;

@@ -46,7 +46,7 @@ test.describe('Playbook Strategy Hub', () => {
     
     // 3. Edit name
     await page.getByRole('button', { name: 'Untitled Playbook' }).click();
-    await page.getByRole('textbox').fill('My E2E Test Playbook');
+    await page.locator('input[value="Untitled Playbook"]').fill('My E2E Test Playbook');
     await page.keyboard.press('Enter');
     
     // 4. Edit target winrate
@@ -79,7 +79,7 @@ test.describe('Playbook Strategy Hub', () => {
     
     // Rename
     await page.getByRole('button', { name: 'Untitled Playbook' }).click();
-    await page.getByRole('textbox').fill('To Be Deleted Playbook');
+    await page.locator('input[value="Untitled Playbook"]').fill('To Be Deleted Playbook');
     await page.keyboard.press('Enter');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Playbook saved')).toBeVisible();
@@ -109,7 +109,7 @@ test.describe('Playbook Strategy Hub', () => {
     
     // 2. Edit name
     await page.getByRole('button', { name: 'Untitled Playbook' }).click();
-    await page.getByRole('textbox').fill('Links Test Playbook');
+    await page.locator('input[value="Untitled Playbook"]').fill('Links Test Playbook');
     await page.keyboard.press('Enter');
     
     // 3. Add link

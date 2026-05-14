@@ -28,20 +28,18 @@ test.describe('Default Metadata Seed on Registration', () => {
     
     // 5. Navigate to Tags (Taxonomies) and check defaults
     await page.goto('/dashboard/library/tags');
-    await page.waitForLoadState('networkidle');
     
     // Expected default tags
-    await expect(page.locator('table').getByText('FOMO')).toBeVisible();
-    await expect(page.locator('table').getByText('Breakout')).toBeVisible();
-    await expect(page.locator('table').getByText('Trend Following')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'FOMO' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Breakout' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Trend Following' })).toBeVisible();
     
     // 6. Navigate to Metrics (Annotations) and check defaults
     await page.goto('/dashboard/library/metrics');
-    await page.waitForLoadState('networkidle');
     
     // Expected default metrics
-    await expect(page.locator('table').getByText('Mood Level')).toBeVisible();
-    await expect(page.locator('table').getByText('Rule Followed')).toBeVisible();
-    await expect(page.locator('table').getByText('Setup Quality')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mood Level' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Rule Followed' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Setup Quality' })).toBeVisible();
   });
 });

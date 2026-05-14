@@ -12,8 +12,8 @@ test.describe('Metrics (Annotations) Library', () => {
     await expect(page.getByRole('heading', { name: 'Metrics' })).toBeVisible();
     await expect(page.getByText('Manage reusable annotation definitions')).toBeVisible();
     
-    // The table should be visible
-    await expect(page.locator('table')).toBeVisible();
+    // The metrics list should have at least the seeded Focus metric
+    await expect(page.getByRole('heading', { name: 'Focus' })).toBeVisible();
   });
 
   test('TC-111 create a new metric (int)', async ({ page }) => {
@@ -21,42 +21,40 @@ test.describe('Metrics (Annotations) Library', () => {
     await page.getByRole('button', { name: 'New Metric' }).click();
     
     // 2. Fill form
-    await page.getByRole('textbox', { name: 'Name' }).fill('E2E Conviction');
-    await page.getByRole('combobox', { name: 'Type' }).selectOption('int');
-    await page.getByRole('combobox', { name: 'Scope' }).selectOption('trades');
-    await page.getByRole('textbox', { name: 'Description' }).fill('E2E Test Metric');
+    await page.locator('input').first().fill('E2E Conviction');
+    await page.locator('select').nth(0).selectOption('int');
+    await page.locator('select').nth(1).selectOption('trades');
+    await page.getByPlaceholder('Optional description...').fill('E2E Test Metric');
     
     // Scale labels
-    await page.getByRole('spinbutton', { name: 'Minimum' }).fill('1');
-    await page.getByRole('spinbutton', { name: 'Maximum' }).fill('10');
+    await page.locator('input[type="number"]').nth(0).fill('1');
+    await page.locator('input[type="number"]').nth(1).fill('10');
     
     // 3. Save
-    await page.getByRole('button', { name: 'Save Metric' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     
     // 4. Verify in list
-    await expect(page.locator('table').getByText('E2E Conviction')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Conviction' })).toBeVisible();
   });
 
   test('TC-112 edit an existing metric', async ({ page }) => {
-    const row = page.locator('tr', { hasText: 'E2E Conviction' });
-    
     // Click the Edit icon
-    await row.getByTitle('Edit metric').click();
+    await page.getByRole('button', { name: 'Edit E2E Conviction' }).click();
     
     // Modify
-    await page.getByRole('textbox', { name: 'Name' }).fill('E2E Conviction Edited');
-    await page.getByRole('button', { name: 'Save Metric' }).click();
+    await page.locator('input').first().fill('E2E Conviction Edited');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     
     // Verify
-    await expect(page.locator('table').getByText('E2E Conviction Edited')).toBeVisible();
-    await expect(page.locator('table').getByText('E2E Conviction', { exact: true })).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Conviction Edited' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Conviction', exact: true })).not.toBeVisible();
   });
 
   test('TC-113 create a new metric (string enum)', async ({ page }) => {
     await page.getByRole('button', { name: 'New Metric' }).click();
     
-    await page.getByRole('textbox', { name: 'Name' }).fill('E2E Setup Quality');
-    await page.getByRole('combobox', { name: 'Type' }).selectOption('string_enum');
+    await page.locator('input').first().fill('E2E Setup Quality');
+    await page.locator('select').nth(0).selectOption('string_enum');
     
     // Option 1 is already there, fill it
     await page.getByPlaceholder('Option 1').fill('A+');
@@ -66,22 +64,20 @@ test.describe('Metrics (Annotations) Library', () => {
     await page.getByPlaceholder('Option 2').fill('B');
     
     // Save
-    await page.getByRole('button', { name: 'Save Metric' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     
-    await expect(page.locator('table').getByText('E2E Setup Quality')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Setup Quality' })).toBeVisible();
   });
 
   test('TC-114 delete metrics', async ({ page }) => {
     // Delete first metric
-    let row = page.locator('tr', { hasText: 'E2E Conviction Edited' });
-    await row.getByTitle('Delete metric').click();
-    await row.getByRole('button', { name: 'Yes' }).click();
-    await expect(row).not.toBeVisible();
+    await page.getByRole('button', { name: 'Delete E2E Conviction Edited' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'E2E Conviction Edited' })).not.toBeVisible();
 
     // Delete second metric
-    row = page.locator('tr', { hasText: 'E2E Setup Quality' });
-    await row.getByTitle('Delete metric').click();
-    await row.getByRole('button', { name: 'Yes' }).click();
-    await expect(row).not.toBeVisible();
+    await page.getByRole('button', { name: 'Delete E2E Setup Quality' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'E2E Setup Quality' })).not.toBeVisible();
   });
 });

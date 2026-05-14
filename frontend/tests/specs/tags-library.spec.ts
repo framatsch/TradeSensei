@@ -12,8 +12,8 @@ test.describe('Tags (Taxonomies) Library', () => {
     await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible();
     await expect(page.getByText('Manage reusable metadata taxonomies')).toBeVisible();
     
-    // The table should be visible
-    await expect(page.locator('table')).toBeVisible();
+    // The list should be visible
+    await expect(page.getByRole('heading', { name: 'Bearish' })).toBeVisible();
   });
 
   test('TC-101 create a new tag', async ({ page }) => {
@@ -21,46 +21,42 @@ test.describe('Tags (Taxonomies) Library', () => {
     await page.getByRole('button', { name: 'New Tag' }).click();
     
     // 2. Fill form
-    await page.getByRole('textbox', { name: 'Name' }).fill('E2E Test Tag');
-    await page.getByRole('combobox', { name: 'Scope' }).selectOption('trades');
-    await page.getByRole('textbox', { name: 'Description' }).fill('A tag created by E2E test');
+    await page.locator('input[name="name"], input[placeholder="Name"]').or(page.locator('input[type="text"]')).first().fill('E2E Test Tag');
+    await page.getByRole('combobox').selectOption('trades');
+    await page.getByRole('textbox', { name: 'Tag description' }).fill('A tag created by E2E test');
     
     // Pick a color (second color button)
-    const colorButtons = page.locator('button[aria-label^="Color #"]');
+    const colorButtons = page.locator('button[aria-label^="color #"]');
     await colorButtons.nth(1).click();
     
     // 3. Save
-    await page.getByRole('button', { name: 'Save Tag' }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
     
     // 4. Verify in list
-    await expect(page.locator('table').getByText('E2E Test Tag')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Test Tag' })).toBeVisible();
   });
 
   test('TC-102 edit an existing tag', async ({ page }) => {
-    const row = page.locator('tr', { hasText: 'E2E Test Tag' });
-    
     // Click the Edit icon
-    await row.getByTitle('Edit tag').click();
+    await page.getByRole('button', { name: 'Edit E2E Test Tag' }).click();
     
     // Modify
-    await page.getByRole('textbox', { name: 'Name' }).fill('E2E Edited Tag');
-    await page.getByRole('button', { name: 'Save Tag' }).click();
+    await page.locator('input[name="name"], input[placeholder="Name"]').or(page.locator('input[type="text"]')).first().fill('E2E Edited Tag');
+    await page.getByRole('button', { name: 'Save' }).click();
     
     // Verify
-    await expect(page.locator('table').getByText('E2E Edited Tag')).toBeVisible();
-    await expect(page.locator('table').getByText('E2E Test Tag')).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Edited Tag' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Test Tag' })).not.toBeVisible();
   });
 
   test('TC-103 delete a tag', async ({ page }) => {
-    const row = page.locator('tr', { hasText: 'E2E Edited Tag' });
-    
     // Click Delete icon
-    await row.getByTitle('Delete tag').click();
+    await page.getByRole('button', { name: 'Delete E2E Edited Tag' }).click();
     
     // Confirm delete
-    await row.getByRole('button', { name: 'Yes' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
     
     // Verify removal
-    await expect(page.locator('table').getByText('E2E Edited Tag')).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Edited Tag' })).not.toBeVisible();
   });
 });

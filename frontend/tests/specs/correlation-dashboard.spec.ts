@@ -9,8 +9,8 @@ test.describe('Metadata Correlation Dashboard', () => {
 
   test('TC-130 renders scatter widgets for correlation analysis', async ({ page }) => {
     // Both scatter charts should be loaded
-    await expect(page.getByText('MAE vs MFE')).toBeVisible();
-    await expect(page.getByText('Duration vs P&L')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /MAE \/ MFE/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Duration vs P&L/i })).toBeVisible();
     
     // There shouldn't be an error message
     await expect(page.getByText('Failed to load strategy analysis data.')).not.toBeVisible();

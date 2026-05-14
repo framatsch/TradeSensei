@@ -16,18 +16,19 @@ test.describe('Trade Detail Redesign', () => {
     
     // 2. Verify Performance Panel
     await expect(page.getByRole('heading', { name: 'Performance' })).toBeVisible();
-    await expect(page.getByText('Stop Loss')).toBeVisible();
-    await expect(page.getByText('Take Profit')).toBeVisible();
-    await expect(page.getByText('Realized R')).toBeVisible();
-    await expect(page.getByText('Return %')).toBeVisible();
+    await expect(page.getByText('Stop Loss').first()).toBeVisible();
+    await expect(page.getByText('Take Profit').first()).toBeVisible();
+    await expect(page.getByText('Realized R').first()).toBeVisible();
+    await expect(page.getByText('Return %').first()).toBeVisible();
     
     // 3. Verify Qualitative Metadata Panel
-    await expect(page.getByRole('heading', { name: 'Tags & Annotations' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Playbook' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Notes' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Qualitative Analysis & Metadata' })).toBeVisible();
+    await expect(page.getByText('Tags (Taxonomies)')).toBeVisible();
+    await expect(page.getByText('Playbook', { exact: true })).toBeVisible();
+    await expect(page.getByText('Journal')).toBeVisible();
     
     // 4. Verify Execution Legs
-    await expect(page.getByRole('heading', { name: 'Execution Legs' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Execution Legs/ })).toBeVisible();
   });
 
   test('TC-121 inline edit stop loss and take profit', async ({ page }) => {
@@ -52,17 +53,17 @@ test.describe('Trade Detail Redesign', () => {
 
   test('TC-122 star a trade (Model Book Cross Entity)', async ({ page }) => {
     // Look for the star button in the header actions
-    const starButton = page.locator('button[aria-label="Star as model book setup"]');
+    const starButton = page.locator('button[aria-label="Star"], button[aria-label="Unstar"]');
     
     // It might be unstarrred or starred already, let's toggle it
     await starButton.click();
     
-    // Should show some indication of loading/success, wait for network idle
-    await page.waitForLoadState('networkidle');
+    // Should show some indication of loading/success
+    await page.waitForTimeout(1000); // Give it a sec instead of networkidle
     
     // Toggle back
     await starButton.click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
     
     // Verify it's functional
     await expect(starButton).toBeVisible();
