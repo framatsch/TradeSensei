@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
@@ -33,6 +34,17 @@ class PlaybookCreate(BaseModel):
         description=("Optional long-form description of the strategy or setup. Maximum 2 000 characters."),
         examples=["Enter on a confirmed breakout above the prior day high.", None],
     )
+    content_markdown: str | None = Field(
+        default=None,
+        description="Optional detailed markdown content for the playbook.",
+    )
+    target_winrate: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="Target winrate as a decimal between 0 and 1.",
+        examples=[Decimal("0.5500")],
+    )
 
 
 class PlaybookUpdate(BaseModel):
@@ -58,6 +70,16 @@ class PlaybookUpdate(BaseModel):
         max_length=PLAYBOOK_DESCRIPTION_MAX_LENGTH,
         description=("Updated description. Omit to leave unchanged. Set to null to clear the existing description."),
         examples=["Revised criteria for entry.", None],
+    )
+    content_markdown: str | None = Field(
+        default=None,
+        description="Updated markdown content.",
+    )
+    target_winrate: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="Updated target winrate.",
     )
     is_active: bool | None = Field(
         default=None,
@@ -100,6 +122,14 @@ class PlaybookRead(BaseModel):
         ...,
         description="Optional strategy description. Null if not set.",
         examples=["Enter on a confirmed breakout above prior day high.", None],
+    )
+    content_markdown: str | None = Field(
+        ...,
+        description="Detailed markdown content.",
+    )
+    target_winrate: Decimal | None = Field(
+        ...,
+        description="Target winrate as a decimal between 0 and 1.",
     )
     is_active: bool = Field(
         ...,

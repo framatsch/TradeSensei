@@ -1,14 +1,13 @@
 "use client";
 
-import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 
 export function RegimePills() {
-  const { data: phases } = useMarketPhases();
+  const { data: phases } = useGetTaxonomies("checkins");
   const { regime, setRegime } = useCheckinParams();
 
-  // Only show active phases
-  const activePhases = phases?.filter((p) => p.is_active) ?? [];
+  const activePhases = phases ?? [];
 
   if (activePhases.length === 0) {
     return null;
@@ -31,7 +30,7 @@ export function RegimePills() {
               borderColor: isActive ? phase.color_hex : `${phase.color_hex}40`,
             }}
           >
-            {phase.label}
+            {phase.name}
           </button>
         );
       })}

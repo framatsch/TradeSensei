@@ -66,6 +66,10 @@
   - [Account](#account)
   - [Equity Curve](#equity-curve)
   - [Import Source](#import-source)
+- [AI & MCP Integration](#ai-mcp-integration)
+  - [MCP Integration](#mcp-integration)
+  - [Personal Access Token (PAT)](#mcp-pat)
+  - [AI Prompt Examples](#mcp-ai-prompts)
 
 ---
 
@@ -617,4 +621,32 @@ Trade Sensei supports importing trade history from Interactive Brokers (IBKR Fle
 
 ---
 
-*Generated: 2026-05-06T12:20:33.936Z*
+## AI & MCP Integration
+
+### MCP Integration {#mcp-integration}
+
+**Model Context Protocol (MCP) lets you connect AI agents like Claude or Gemini directly to your Trade Sensei data.**
+
+MCP is a standard bridge between AI clients and application tools. In Trade Sensei, MCP lets your AI agent discover your metadata schema, search trades with advanced filters, bulk-enrich trade metadata, and create strategy playbooks through authenticated tool calls.
+
+### Personal Access Token (PAT) {#mcp-pat}
+
+**A PAT is a one-time-visible secret token required to authenticate MCP clients against your account.**
+
+Generate a PAT from Settings -> API & Tokens before connecting any MCP client. The raw token value is shown only once at creation time, so copy it to a secure vault immediately. If it is lost, revoke it and generate a new token.
+
+### AI Prompt Examples {#mcp-ai-prompts}
+
+**Use these copy-paste prompts to get immediate value after connecting your AI client.**
+
+Performance review: 'Show me all losing trades from last week where Mood was below 5.'
+
+Enrichment: 'Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a short note.'
+
+Strategy creation: 'Create a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R.'
+
+Pattern analysis: 'What is my win rate on LONG EQUITY trades in the first hour of the day?'
+
+---
+
+*Generated: 2026-05-14T08:57:57.986Z*

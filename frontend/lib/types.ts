@@ -111,6 +111,8 @@ export interface Playbook {
   user_id: string;
   name: string;
   description: string | null;
+  content_markdown: string | null;
+  target_winrate: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -119,11 +121,15 @@ export interface Playbook {
 export interface PlaybookCreate {
   name: string;
   description?: string;
+  content_markdown?: string | null;
+  target_winrate?: number | string | null;
 }
 
 export interface PlaybookUpdate {
   name?: string;
   description?: string | null;
+  content_markdown?: string | null;
+  target_winrate?: number | string | null;
   is_active?: boolean;
 }
 
@@ -196,9 +202,12 @@ export interface Trade {
   account_id: string | null;
   account_name: string | null;
   account_type: string | null;
+  taxonomies?: TaxonomyResponse[];
+  annotations?: TradeAnnotationResponse[];
   created_at: string;
   updated_at: string;
   is_manually_edited: boolean;
+  is_modelbook: boolean;
   tags: Array<{ id: string; name: string; color: string | null }>;
   trade_notes: TradeNote[];
   legs?: LogicalExecution[];
@@ -242,6 +251,85 @@ export interface TradeUpdate {
   playbook_id?: string | null;
   tag_ids?: string[] | null;
   is_manually_edited?: boolean | null;
+}
+
+// ─── Centralized metadata ─────────────────────────────────────────────────────
+
+export type MetadataScope = "trades" | "checkins" | "both" | "playbook";
+
+export type AnnotationType = "int" | "float" | "bool" | "string_enum";
+
+export interface TaxonomyResponse {
+  id: string;
+  name: string;
+  scope: MetadataScope;
+  color_hex: string;
+  description?: string | null;
+  icon_identifier?: string | null;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaxonomyCreate {
+  name: string;
+  scope: MetadataScope;
+  color_hex: string;
+  description?: string | null;
+  icon_identifier?: string | null;
+}
+
+export interface TaxonomyUpdate {
+  name?: string;
+  scope?: MetadataScope;
+  color_hex?: string;
+  description?: string | null;
+  icon_identifier?: string | null;
+}
+
+export interface AnnotationDefinitionResponse {
+  id: string;
+  name: string;
+  type: AnnotationType;
+  scope: MetadataScope;
+  description?: string | null;
+  scale_labels?: Record<string, unknown> | null;
+  icon_identifier?: string | null;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AnnotationDefinitionCreate {
+  name: string;
+  type: AnnotationType;
+  scope: MetadataScope;
+  description?: string | null;
+  scale_labels?: Record<string, unknown> | null;
+  icon_identifier?: string | null;
+}
+
+export interface AnnotationDefinitionUpdate {
+  name?: string;
+  type?: AnnotationType;
+  scope?: MetadataScope;
+  description?: string | null;
+  scale_labels?: Record<string, unknown> | null;
+  icon_identifier?: string | null;
+}
+
+export interface TradeAnnotationResponse {
+  trade_id: string;
+  annotation_definition_id: string;
+  definition: AnnotationDefinitionResponse;
+  value: string | number | boolean;
+}
+
+export interface CheckinAnnotationResponse {
+  checkin_id: string;
+  annotation_definition_id: string;
+  definition: AnnotationDefinitionResponse;
+  value: string | number | boolean;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────

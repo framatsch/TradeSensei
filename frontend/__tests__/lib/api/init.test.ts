@@ -1,5 +1,5 @@
 import { client } from "@/lib/api/client.gen";
-import { registerApiInterceptors, resetInterceptors } from "@/lib/api/init";
+import { registerApiInterceptors, resetInterceptors } from "@/lib/apiInterceptors";
 
 jest.mock("@/lib/api/client.gen", () => ({
   client: {

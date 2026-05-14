@@ -73,16 +73,10 @@ test.describe('Trade Creation - Advanced Legs', () => {
     await legPrices.nth(0).fill('100');
     await legPrices.nth(0).blur();
 
-    // Verify leg data was captured in the debug div
+    // Verify leg data updated the auto-calculated main fields
     await page.waitForTimeout(500);
-    const debugInfo = await page.locator('#debug-executions').innerText();
-    expect(debugInfo).toContain('10');
-    expect(debugInfo).toContain('LONG');
-    expect(debugInfo).toContain('100');
-    
-    // The form stores the execution legs correctly (visible in debug info)
-    // Even though the summary fields may not update synchronously in the UI,
-    // the legs are properly captured for submission
+    await expect(page.locator('input[name="quantity"]')).toHaveValue('10');
+    await expect(page.locator('input[name="entry_price"]')).toHaveValue(/^100(\.0+)?$/);
     
     // We didn't set up exit_price logic fully in the form yet, so maybe we skip checking exit_price
     // if the form doesn't calculate it. The instruction says "auto-calculates total quantity and average prices correctly"

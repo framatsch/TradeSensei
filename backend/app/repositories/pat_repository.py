@@ -37,9 +37,7 @@ class PersonalAccessTokenRepository:
 
     async def list_for_user(self, user_id: uuid.UUID) -> list[PersonalAccessToken]:
         result = await self._session.execute(
-            select(PersonalAccessToken)
-            .where(PersonalAccessToken.user_id == user_id)
-            .order_by(PersonalAccessToken.created_at.desc())
+            select(PersonalAccessToken).where(PersonalAccessToken.user_id == user_id).order_by(PersonalAccessToken.created_at.desc())
         )
         return list(result.scalars().all())
 
@@ -61,9 +59,7 @@ class PersonalAccessTokenRepository:
         token_hash: str,
     ) -> PersonalAccessToken | None:
         result = await self._session.execute(
-            select(PersonalAccessToken)
-            .options(selectinload(PersonalAccessToken.owner))
-            .where(PersonalAccessToken.token_hash == token_hash)
+            select(PersonalAccessToken).options(selectinload(PersonalAccessToken.owner)).where(PersonalAccessToken.token_hash == token_hash)
         )
         return result.scalar_one_or_none()
 

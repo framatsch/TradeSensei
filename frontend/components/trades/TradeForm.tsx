@@ -2,20 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass, LogicalExecutionCreate } from "@/lib/types";
-import { useCreateTrade, useTradeImageUploadUrl, useUpdateTrade } from "@/hooks/useTrade";
-import { useTags } from "@/hooks/useTags";
-import { usePlaybooks } from "@/hooks/usePlaybooks";
+import { useCreateTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useAccounts } from "@/hooks/useAccounts";
-import { TagBadge } from "@/components/tags/TagBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { Trash2, Plus } from "lucide-react";
 import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
-import { extractApiError } from "@/lib/api/errors";
-import { uploadTradeImages } from "@/lib/tradeImageUpload";
+import { extractApiError } from "@/lib/apiErrors";
+import { TradeScreenshotUploader } from "./TradeScreenshotUploader";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
+import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
+import { TaxonomySelector } from "./TaxonomySelector";
+import { AnnotationInputs } from "./AnnotationInputs";
+import { assignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPost, assignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPost } from "@/lib/api";
 
 const DIRECTIONS: Direction[] = ["LONG", "SHORT"];
 const ASSET_CLASSES: AssetClass[] = [
@@ -32,6 +34,7 @@ const legSchema = z.object({
   quantity: z.string().min(1, "Quantity is required"),
   price: z.string().min(1, "Price is required"),
   commission: z.string().optional(),
+  asset_class: z.enum(["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"]).optional(),
 });
 
 const formSchema = z.object({
@@ -39,7 +42,6 @@ const formSchema = z.object({
   direction: z.enum(["LONG", "SHORT"]),
   is_combo: z.boolean().optional(),
   asset_class: z.enum(["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"]).optional(),
-  currency: z.string().max(3).optional().refine(val => !val || val.length === 3, "Currency must be a 3-letter ISO code"),
   account_id: z.string().optional(),
   
   quantity: z.string().optional(),
@@ -73,6 +75,14 @@ const createSchema = formSchema.refine(data => (data.is_combo ? true : Boolean(d
 }).refine(data => data.opened_at && data.opened_at.length > 0, {
   message: "Opened at is required",
   path: ["opened_at"]
+}).refine(data => {
+  if (data.isAdvancedMode) {
+    return data.executions && data.executions.length >= 1;
+  }
+  return true;
+}, {
+  message: "At least one execution leg is required in Advanced Mode",
+  path: ["executions"]
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -99,16 +109,17 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   const isEditing = trade !== undefined;
   const router = useRouter();
 
-  const { data: allTags } = useTags();
-  const { data: playbooks } = usePlaybooks();
   const { data: accounts } = useAccounts();
+  const { data: taxonomies = [] } = useGetTaxonomies("trades");
+  const { data: annotationDefs = [] } = useGetAnnotationDefinitions("trades");
 
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
-    trade?.tags.map((t) => t.id) ?? []
-  );
+  const [selectedTaxonomyIds, setSelectedTaxonomyIds] = useState<string[]>([]);
+  const [annotationValues, setAnnotationValues] = useState<Record<string, string | number | boolean>>({});
   const [imageUrls, setImageUrls] = useState<string[]>(trade?.image_urls ?? []);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [isUploadingImages] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [isAssigningMetadata, setIsAssigningMetadata] = useState(false);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(isEditing ? formSchema : createSchema),
@@ -117,7 +128,6 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       direction: trade.direction,
       is_combo: trade.is_combo,
       asset_class: trade.asset_class ?? undefined,
-      currency: trade.currency ?? "",
       account_id: trade.account_id ?? "",
       stop_loss: trade.stop_loss ?? "",
       take_profit: trade.take_profit ?? "",
@@ -131,7 +141,6 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       direction: "LONG",
       is_combo: false,
       asset_class: "EQUITY",
-      currency: "",
       account_id: "",
       quantity: "",
       entry_price: "",
@@ -156,11 +165,24 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   });
 
   const formValues = watch();
+  const watchedExecutions = useWatch({
+    control,
+    name: "executions"
+  });
+  
   const isAdvancedMode = formValues.isAdvancedMode;
-  const executions = formValues.executions;
+  const executions = watchedExecutions || formValues.executions;
   const tradeDirection = formValues.direction;
   const isCombo = formValues.is_combo === true;
   const openedAt = formValues.opened_at;
+  const accountId = formValues.account_id;
+
+  // Sync combo to advanced mode
+  useEffect(() => {
+    if (isCombo && !isAdvancedMode) {
+      setValue("isAdvancedMode", true);
+    }
+  }, [isCombo, isAdvancedMode, setValue]);
 
   // Sync executions with main fields when in advanced mode
   useEffect(() => {
@@ -202,6 +224,24 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       if (entryQty > 0) {
         setValue("entry_price", (entryValue / entryQty).toFixed(4));
       }
+
+      // Sync opened_at and closed_at
+      const validDates = executions
+        .filter(leg => leg && leg.executed_at)
+        .map(leg => new Date(leg.executed_at).getTime())
+        .filter(time => !isNaN(time));
+
+      if (validDates.length > 0) {
+        const minTime = Math.min(...validDates);
+        setValue("opened_at", toLocalDatetimeValue(new Date(minTime).toISOString()));
+
+        if (validDates.length > 1) {
+          const maxTime = Math.max(...validDates);
+          setValue("closed_at", toLocalDatetimeValue(new Date(maxTime).toISOString()));
+        } else {
+          setValue("closed_at", "");
+        }
+      }
       
       // Calculate current position (can be negative if over-closed)
       let currentQty = 0;
@@ -229,42 +269,53 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
   const createMutation = useCreateTrade();
   const updateMutation = useUpdateTrade(trade?.id ?? "");
-  const uploadUrlMutation = useTradeImageUploadUrl();
 
   const isPending = isEditing ? updateMutation.isPending : createMutation.isPending;
-  const formIsBusy = isPending || isUploadingImages;
+  const formIsBusy = isPending || isUploadingImages || isAssigningMetadata;
   const mutError = isEditing ? updateMutation.error : createMutation.error;
 
   const serverError = (() => {
-    if (uploadError) return uploadError;
     if (!mutError) return null;
     return extractApiError(mutError, mutError.message);
   })();
 
-  const handleImageFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const validFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
-    if (validFiles.length === 0) return;
-
-    setUploadError(null);
-    setIsUploadingImages(true);
-    try {
-      const uploaded = await uploadTradeImages(
-        validFiles,
-        async (filename, contentType) => {
-          return uploadUrlMutation.mutateAsync({ filename, contentType });
-        }
-      );
-      setImageUrls((prev) => [...prev, ...uploaded]);
-    } catch (error) {
-      setUploadError(extractApiError(error, "Failed to upload image."));
-    } finally {
-      setIsUploadingImages(false);
-    }
-  };
-
   const removeImage = (url: string) => {
     setImageUrls((prev) => prev.filter((item) => item !== url));
+  };
+
+  const assignMetadata = async (tradeId: string) => {
+    setIsAssigningMetadata(true);
+    setAssignmentError(null);
+    try {
+      const taxonomyPromises = selectedTaxonomyIds.map((id) =>
+        assignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPost({
+          path: { trade_id: tradeId },
+          body: { taxonomy_id: id }
+        })
+      );
+
+      const annotationPromises = Object.entries(annotationValues)
+        .filter(([_, value]) => value !== "" && value !== null && value !== undefined)
+        .map(([defId, value]) =>
+          assignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPost({
+            path: { trade_id: tradeId, annotation_definition_id: defId },
+            body: { value }
+          })
+        );
+
+      const results = await Promise.allSettled([...taxonomyPromises, ...annotationPromises]);
+      const hasErrors = results.some((res) => res.status === "rejected");
+      if (hasErrors) {
+        setAssignmentError("Trade saved, but some metadata could not be assigned. You can update it later on the trade detail page.");
+        return false;
+      }
+      return true;
+    } catch (err) {
+      setAssignmentError("Trade saved, but failed to assign metadata. You can update it later on the trade detail page.");
+      return false;
+    } finally {
+      setIsAssigningMetadata(false);
+    }
   };
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
@@ -282,11 +333,10 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       closed_at: data.closed_at ? toISOWithOffset(data.closed_at) : null,
       pnl: data.pnl || null,
       commission: data.commission || "0",
-      currency: data.currency?.toUpperCase() || null,
       notes: data.notes || null,
       user_rating: data.user_rating ? Number(data.user_rating) : null,
-      playbook_id: data.playbook_id || null,
-      tag_ids: selectedTagIds,
+      playbook_id: null,
+      tag_ids: [],
       image_urls: imageUrls,
     };
 
@@ -298,6 +348,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         price: leg.price,
         commission: leg.commission || "0",
         executed_at: toISOWithOffset(leg.executed_at) ?? new Date().toISOString(),
+        asset_class: leg.asset_class || undefined,
       }));
     }
 
@@ -310,12 +361,13 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         take_profit: data.take_profit === "" ? null : data.take_profit,
         notes: data.notes || null,
         user_rating: data.user_rating ? Number(data.user_rating) : null,
-        playbook_id: data.playbook_id || null,
-        tag_ids: selectedTagIds,
+        playbook_id: null,
+        tag_ids: [],
         image_urls: imageUrls,
       };
       updateMutation.mutate(payload, {
-        onSuccess: (updated) => {
+        onSuccess: async (updated) => {
+          await assignMetadata(updated.id);
           if (onSuccess) onSuccess(updated);
           else router.push(`/dashboard/trades/${updated.id}`);
         },
@@ -327,19 +379,14 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         executions: payloadExecutions,
       };
       createMutation.mutate(payload, {
-        onSuccess: (created) => {
+        onSuccess: async (created) => {
+          await assignMetadata(created.id);
           if (onSuccess) onSuccess(created);
           else router.push(`/dashboard/trades/${created.id}`);
         },
       });
     }
   };
-
-  function toggleTag(tagId: string) {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    );
-  }
 
   const inputCls =
     "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -348,12 +395,14 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div id="debug-executions" style={{ display: 'none' }}>
-        {JSON.stringify(executions)}
-      </div>
       {serverError && (
         <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
           {serverError}
+        </p>
+      )}
+      {assignmentError && (
+        <p className="text-sm text-amber-400 bg-amber-900/20 border border-amber-800 rounded-md px-3 py-2">
+          {assignmentError}
         </p>
       )}
 
@@ -411,21 +460,16 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
           </div>
           )}
 
-          <div>
-            <label className={labelCls}>Currency (ISO-4217)</label>
-            <input
-              type="text"
-              {...register("currency")}
-              placeholder="USD"
-              maxLength={3}
-              className={inputCls}
-            />
-            {errors.currency && <p className={errorCls}>{errors.currency.message}</p>}
-          </div>
-
           {!isEditing && accounts && accounts.length > 0 && (
             <div>
-              <label className={labelCls}>Account</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className={labelCls} style={{ marginBottom: 0 }}>Account</label>
+                {accountId && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-secondary text-muted-foreground uppercase border border-border">
+                    {accounts.find(a => a.id === accountId)?.currency || "Unknown"}
+                  </span>
+                )}
+              </div>
               <select
                 {...register("account_id")}
                 className={inputCls}
@@ -448,11 +492,12 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             Build this trade by specifying individual execution legs.
           </p>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
+        <label className={`relative inline-flex items-center ${isCombo ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
           <input 
             type="checkbox" 
             className="sr-only peer" 
             {...register("isAdvancedMode")}
+            disabled={isCombo}
           />
           <div className="w-11 h-6 bg-secondary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
         </label>
@@ -470,7 +515,8 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
                 direction: tradeDirection, 
                 quantity: "", 
                 price: "", 
-                commission: "0" 
+                commission: "0",
+                asset_class: "EQUITY"
               })}
               className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
             >
@@ -486,7 +532,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             <div className="space-y-3">
               {fields.map((field, index) => (
                 <div key={field.id} className="flex gap-2 items-start bg-secondary/50 p-3 rounded-lg border border-border">
-                  <div className="grid grid-cols-5 gap-2 flex-1">
+                  <div className={`grid ${isCombo ? 'grid-cols-6' : 'grid-cols-5'} gap-2 flex-1`}>
                     <div>
                       <label className={labelCls}>Date/Time</label>
                       <input
@@ -496,6 +542,19 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
                       />
                       {errors.executions?.[index]?.executed_at && <p className={errorCls}>{errors.executions[index]?.executed_at?.message}</p>}
                     </div>
+                    {isCombo && (
+                      <div>
+                        <label className={labelCls}>Asset Class</label>
+                        <select
+                          {...register(`executions.${index}.asset_class` as const)}
+                          className={inputCls}
+                        >
+                          {ASSET_CLASSES.map((ac) => (
+                            <option key={ac} value={ac}>{ac}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <label className={labelCls}>Side</label>
                       <select
@@ -679,6 +738,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
                 type="datetime-local"
                 {...register("opened_at")}
                 className={inputCls}
+                disabled={isAdvancedMode}
               />
               {errors.opened_at && <p className={errorCls}>{errors.opened_at.message}</p>}
             </div>
@@ -689,57 +749,39 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
                 type="datetime-local"
                 {...register("closed_at")}
                 className={inputCls}
+                disabled={isAdvancedMode}
               />
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Section 4: Tags & Playbook ────────────────────────────────────── */}
+      {/* ── Section 4: Qualitative Data ────────────────────────────────────── */}
       <div className="bg-card rounded-xl border border-border p-5">
-        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Tags &amp; Playbook</h3>
-
-        <div className="mb-4">
-          <label className={labelCls}>Playbook</label>
-          <select
-            {...register("playbook_id")}
-            className={inputCls}
-          >
-            <option value="">— None —</option>
-            {(playbooks ?? []).map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className={labelCls}>Tags</label>
-          {!allTags ? (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <Spinner size="sm" /> Loading tags…
+        <h3 className="text-sm font-semibold text-muted-foreground mb-4">Qualitative Data</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <label className={labelCls}>Trade Taxonomies</label>
+            <div className="mt-2">
+              <TaxonomySelector
+                taxonomies={taxonomies}
+                selectedIds={selectedTaxonomyIds}
+                onChange={setSelectedTaxonomyIds}
+              />
             </div>
-          ) : allTags.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No tags created yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2 mt-1">
-              {allTags.map((tag) => {
-                const selected = selectedTagIds.includes(tag.id);
-                return (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => toggleTag(tag.id)}
-                    className={`transition-opacity ${
-                      selected ? "opacity-100" : "opacity-40 hover:opacity-70"
-                    }`}
-                    aria-pressed={selected}
-                  >
-                    <TagBadge tag={tag} />
-                  </button>
-                );
-              })}
+          </div>
+          
+          <div>
+            <label className={labelCls}>Annotations</label>
+            <div className="mt-2">
+              <AnnotationInputs
+                definitions={annotationDefs}
+                values={annotationValues}
+                onChange={setAnnotationValues}
+              />
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -769,21 +811,11 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Images</h3>
-        <div className="space-y-3">
-          <input
-            type="file"
-            accept="image/*"
-            multiple
+        <div className="space-y-4">
+          <TradeScreenshotUploader
+            onUploaded={(urls) => setImageUrls((prev) => [...prev, ...urls])}
             disabled={formIsBusy}
-            onChange={(e) => {
-              void handleImageFiles(e.target.files);
-              e.currentTarget.value = "";
-            }}
-            className={inputCls}
           />
-          {isUploadingImages && (
-            <p className="text-xs text-muted-foreground">Uploading images...</p>
-          )}
           {imageUrls.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {imageUrls.map((url) => (

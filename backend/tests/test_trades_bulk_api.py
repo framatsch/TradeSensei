@@ -2,7 +2,7 @@
 
 Covers:
 - POST /api/v1/trades/bulk/delete
-- POST /api/v1/trades/bulk/assign-tags
+- POST /api/v1/trades/bulk/assign-taxonomies
 - POST /api/v1/trades/bulk/assign-playbook
 """
 
@@ -123,22 +123,26 @@ async def _create_trade(
     return str(response.json()["data"]["id"])
 
 
-async def _create_tag(
+async def _create_taxonomy(
     client: AsyncClient,
     headers: dict[str, str],
-    name: str = "testbulktag",
+    name: str = "testbulktaxonomy",
 ) -> str:
-    """Create a tag and return its UUID string.
+    """Create a taxonomy and return its UUID string.
 
     Args:
         client: The HTTPX test client.
         headers: Auth headers for the request.
-        name: Name to give the tag.
+        name: Name to give the taxonomy.
 
     Returns:
-        The created tag's UUID as a string.
+        The created taxonomy's UUID as a string.
     """
-    response = await client.post("/api/v1/tags", json={"name": name}, headers=headers)
+    response = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": name, "scope": "trades", "color_hex": "#22c55e"},
+        headers=headers,
+    )
     assert response.status_code == 201, response.text
     return str(response.json()["data"]["id"])
 
@@ -255,20 +259,20 @@ class TestBulkDeleteTrades:
 
 @pytest.mark.integration
 class TestBulkAssignTags:
-    """Integration tests for ``POST /api/v1/trades/bulk/assign-tags``."""
+    """Integration tests for ``POST /api/v1/trades/bulk/assign-taxonomies``."""
 
-    async def test_bulk_add_tags_returns_200(self, client: AsyncClient) -> None:
-        """Adding tags to existing trades should return 200 with updated_count."""
+    async def test_bulk_add_taxonomies_returns_200(self, client: AsyncClient) -> None:
+        """Adding taxonomies to existing trades should return 200 with updated_count."""
         h = await _get_auth_headers(client)
         portfolio_id, account_id = await _create_portfolio_and_account(client, h)
         trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="SPY")
-        tag_id = await _create_tag(client, h)
+        taxonomy_id = await _create_taxonomy(client, h)
 
         response = await client.post(
-            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-taxonomies",
             json={
                 "trade_ids": [trade_id],
-                "tag_ids": [tag_id],
+                "taxonomy_ids": [taxonomy_id],
                 "mode": "add",
             },
             headers=h,
@@ -276,26 +280,26 @@ class TestBulkAssignTags:
         assert response.status_code == 200
         assert response.json()["data"]["updated_count"] == 1
 
-    async def test_bulk_remove_tags_returns_200(self, client: AsyncClient) -> None:
-        """Removing tags from trades should return 200."""
+    async def test_bulk_remove_taxonomies_returns_200(self, client: AsyncClient) -> None:
+        """Removing taxonomies from trades should return 200."""
         h = await _get_auth_headers(client)
         portfolio_id, account_id = await _create_portfolio_and_account(client, h)
         trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="QQQ")
-        tag_id = await _create_tag(client, h, name="removetag")
+        taxonomy_id = await _create_taxonomy(client, h, name="removetaxonomy")
 
         # Add first
         await client.post(
-            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
-            json={"trade_ids": [trade_id], "tag_ids": [tag_id], "mode": "add"},
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-taxonomies",
+            json={"trade_ids": [trade_id], "taxonomy_ids": [taxonomy_id], "mode": "add"},
             headers=h,
         )
 
         # Now remove
         response = await client.post(
-            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-taxonomies",
             json={
                 "trade_ids": [trade_id],
-                "tag_ids": [tag_id],
+                "taxonomy_ids": [taxonomy_id],
                 "mode": "remove",
             },
             headers=h,
@@ -303,47 +307,47 @@ class TestBulkAssignTags:
         assert response.status_code == 200
         assert response.json()["data"]["updated_count"] == 1
 
-    async def test_bulk_assign_tags_unknown_tag_returns_404(
+    async def test_bulk_assign_taxonomies_unknown_taxonomy_returns_404(
         self, client: AsyncClient
     ) -> None:
-        """Supplying an unknown tag UUID should return 404."""
+        """Supplying an unknown taxonomy UUID should return 404."""
         import uuid
 
         h = await _get_auth_headers(client)
         portfolio_id, account_id = await _create_portfolio_and_account(client, h)
         trade_id = await _create_trade(client, h, portfolio_id, account_id, symbol="IWM")
-        fake_tag_id = str(uuid.uuid4())
+        fake_taxonomy_id = str(uuid.uuid4())
 
         response = await client.post(
-            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-taxonomies",
             json={
                 "trade_ids": [trade_id],
-                "tag_ids": [fake_tag_id],
+                "taxonomy_ids": [fake_taxonomy_id],
                 "mode": "add",
             },
             headers=h,
         )
         assert response.status_code == 404
 
-    async def test_bulk_assign_tags_empty_trade_ids_returns_422(
+    async def test_bulk_assign_taxonomies_empty_trade_ids_returns_422(
         self, client: AsyncClient
     ) -> None:
         """Empty trade_ids should fail validation."""
         h = await _get_auth_headers(client)
         portfolio_id, _ = await _create_portfolio_and_account(client, h)
-        tag_id = await _create_tag(client, h, name="validationtag")
+        taxonomy_id = await _create_taxonomy(client, h, name="validationtaxonomy")
         response = await client.post(
-            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-taxonomies",
             json={
                 "trade_ids": [],
-                "tag_ids": [tag_id],
+                "taxonomy_ids": [taxonomy_id],
                 "mode": "add",
             },
             headers=h,
         )
         assert response.status_code == 422
 
-    async def test_bulk_assign_tags_invalid_mode_returns_422(
+    async def test_bulk_assign_taxonomies_invalid_mode_returns_422(
         self, client: AsyncClient
     ) -> None:
         """An invalid mode value should fail validation."""
@@ -352,10 +356,10 @@ class TestBulkAssignTags:
         h = await _get_auth_headers(client)
         portfolio_id, _ = await _create_portfolio_and_account(client, h)
         response = await client.post(
-            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-tags",
+            f"/api/v1/portfolios/{portfolio_id}/trades/bulk/assign-taxonomies",
             json={
                 "trade_ids": [str(uuid.uuid4())],
-                "tag_ids": [str(uuid.uuid4())],
+                "taxonomy_ids": [str(uuid.uuid4())],
                 "mode": "INVALID_MODE",
             },
             headers=h,

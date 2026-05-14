@@ -14,6 +14,7 @@ import {
   logoutApiV1AuthLogoutPost,
 } from "@/lib/api/index";
 import { useAuthStore } from "@/stores/authStore";
+import { resetInterceptors } from "@/lib/apiInterceptors";
 import type {
   AuthConfigResponse,
   TokenResponse,
@@ -28,8 +29,8 @@ export function useAuthConfig() {
     queryFn: async () => {
       const { data, error } = await getConfigApiV1AuthConfigGet();
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
-      // SDK returns ResponseEnvelope; cast to local type
-      return (data as unknown as { data: AuthConfigResponse }).data;
+      // This endpoint does not use ResponseEnvelope, returns AuthConfigResponse directly
+      return data as unknown as AuthConfigResponse;
     },
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
@@ -74,6 +75,10 @@ export function useLogin() {
       return data as unknown as TokenResponse;
     },
     onSuccess: async (data) => {
+      // Reset the redirect-guard so a future 401 after re-login triggers the
+      // logout flow again (without this, the flag stays true after session expiry
+      // → re-login → next 401 is silently ignored).
+      resetInterceptors();
       setToken(data.access_token);
       // Fetch the current user after login — token is now in localStorage via setToken
       const { data: meData, error: meError } = await getMeApiV1UsersMeGet();

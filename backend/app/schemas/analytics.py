@@ -27,9 +27,9 @@ class DashboardFilterConfig(BaseModel):
         default=None,
         description="Optional list of playbook IDs used to filter trades.",
     )
-    tag_ids: list[uuid.UUID] | None = Field(
+    taxonomy_ids: list[uuid.UUID] | None = Field(
         default=None,
-        description="Optional list of tag IDs used to filter trades.",
+        description="Optional list of taxonomy IDs used to filter trades.",
     )
     direction: Direction | None = Field(
         default=None,
@@ -59,11 +59,7 @@ class DashboardFilterConfig(BaseModel):
     @model_validator(mode="after")
     def validate_ranges_and_currency(self) -> "DashboardFilterConfig":
         """Validate date range ordering and normalization requirements."""
-        if (
-            self.date_from is not None
-            and self.date_to is not None
-            and self.date_from > self.date_to
-        ):
+        if self.date_from is not None and self.date_to is not None and self.date_from > self.date_to:
             raise ValueError("date_from must not be later than date_to")
 
         if self.currency_mode == "NORMALIZED" and not self.normalize_to:
@@ -308,3 +304,39 @@ class AnalyticsSummaryRequest(BaseModel):
         if provided != 1:
             raise ValueError("exactly one of filter_config or view_id must be provided")
         return self
+
+
+AxisType = Literal["checkin_annotation", "checkin_taxonomy", "trade_annotation", "trade_taxonomy"]
+
+
+class MetadataCorrelationDataPoint(BaseModel):
+    """A single correlated data point representing one check-in and one trade."""
+
+    date: dt.date = Field(..., description="Calendar date of the check-in/trade.")
+    trade_id: uuid.UUID = Field(..., description="ID of the matched trade.")
+    trade_symbol: str = Field(..., description="Symbol of the matched trade.")
+    trade_pnl: Decimal = Field(..., description="PnL of the matched trade.")
+    x_value: float | str | None = Field(None, description="Resolved raw value for the X axis.")
+    x_label: str | None = Field(None, description="Resolved display label for the X axis.")
+    y_value: float | str | None = Field(None, description="Resolved raw value for the Y axis.")
+    y_label: str | None = Field(None, description="Resolved display label for the Y axis.")
+
+
+class MetadataCorrelationKPIs(BaseModel):
+    """Aggregate KPIs for the correlated dataset."""
+
+    win_rate: Decimal = Field(..., description="Win rate among all filtered trades.")
+    max_drawdown_pct: Decimal = Field(..., description="Max drawdown percentage among all filtered trades.")
+    matched_count: int = Field(..., description="Number of trades with valid data for both axes.")
+    total_trades_count: int = Field(..., description="Total trades matching the global filter.")
+
+
+class MetadataCorrelationResponse(BaseModel):
+    """Response containing correlated metadata and KPIs."""
+
+    kpis: MetadataCorrelationKPIs = Field(..., description="Aggregate KPIs.")
+    data_points: list[MetadataCorrelationDataPoint] = Field(..., description="Correlated data points.")
+    x_axis_data_type: str = Field(..., description="Data type of the X axis ('number', 'string', 'taxonomy').")
+    y_axis_data_type: str = Field(..., description="Data type of the Y axis ('number', 'string', 'taxonomy').")
+    x_axis_name: str = Field(..., description="Display name of the X axis.")
+    y_axis_name: str = Field(..., description="Display name of the Y axis.")

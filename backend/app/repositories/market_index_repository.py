@@ -32,11 +32,7 @@ class MarketIndexDefinitionRepository:
         user_id: uuid.UUID,
         is_active: bool | None = None,
     ) -> Sequence[MarketIndexDefinition]:
-        stmt = (
-            select(MarketIndexDefinition)
-            .where(MarketIndexDefinition.user_id == user_id)
-            .order_by(MarketIndexDefinition.created_at.asc())
-        )
+        stmt = select(MarketIndexDefinition).where(MarketIndexDefinition.user_id == user_id).order_by(MarketIndexDefinition.created_at.asc())
         if is_active is not None:
             stmt = stmt.where(MarketIndexDefinition.is_active == is_active)
         result = await self.session.execute(stmt)

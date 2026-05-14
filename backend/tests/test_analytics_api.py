@@ -384,24 +384,24 @@ async def test_attribution_returns_503_when_spec5_is_unavailable(
 async def test_daily_checkin_and_market_phase_writes_invalidate_user_cache(
     client: AsyncClient,
 ) -> None:
-    """DailyCheckin and MarketPhaseDefinition writes call user-wide cache invalidation."""
+    """DailyCheckin and taxonomy writes call user-wide cache invalidation."""
     headers = await _auth_headers(client, prefix="cachehooks")
 
     with patch.object(CacheService, "invalidate_user", new_callable=AsyncMock) as inv:
-        create_phase = await client.post(
-            "/api/v1/market-phases",
+        create_taxonomy = await client.post(
+            "/api/v1/taxonomies",
             headers=headers,
-            json={"name": "trending", "label": "Trending", "color_hex": "#22c55e"},
+            json={"name": "trending", "scope": "checkins", "color_hex": "#22c55e"},
         )
-        assert create_phase.status_code == 201, create_phase.text
-        phase_id = create_phase.json()["data"]["id"]
+        assert create_taxonomy.status_code == 201, create_taxonomy.text
+        taxonomy_id = create_taxonomy.json()["data"]["id"]
 
-        update_phase = await client.patch(
-            f"/api/v1/market-phases/{phase_id}",
+        update_taxonomy = await client.put(
+            f"/api/v1/taxonomies/{taxonomy_id}",
             headers=headers,
-            json={"label": "Trend"},
+            json={"name": "trend"},
         )
-        assert update_phase.status_code == 200, update_phase.text
+        assert update_taxonomy.status_code == 200, update_taxonomy.text
 
         create_checkin = await client.post(
             "/api/v1/checkins",

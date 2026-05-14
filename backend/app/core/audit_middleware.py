@@ -71,9 +71,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         context = await self._build_context(request)
         method = request.method.upper()
         path = request.url.path
-        should_log = method in _WRITE_METHODS or (
-            method == "GET" and settings.log_level.upper() == "DEBUG"
-        )
+        should_log = method in _WRITE_METHODS or (method == "GET" and settings.log_level.upper() == "DEBUG")
         if not context.user_id and path == "/api/v1/auth/token" and should_log:
             self._log_auth_failure(context, request, reason="invalid_credentials")
 

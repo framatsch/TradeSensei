@@ -84,3 +84,6 @@ fix_*.py
 
 # Uploads
 backend/uploads/
+graphify-out
+.graphify_detect.json
+.graphify_python

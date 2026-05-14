@@ -7,7 +7,7 @@
 import { useState } from "react";
 import type { AssetClass, Direction, LogicalExecutionCreate, Trade } from "@/lib/types";
 import { useCreateExecution } from "@/hooks/useExecutions";
-import { extractApiError } from "@/lib/api/errors";
+import { extractApiError } from "@/lib/apiErrors";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 
 interface Props {

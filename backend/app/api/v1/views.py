@@ -68,9 +68,7 @@ async def create_saved_dashboard_view(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(exc),
         ) from exc
-    return ResponseEnvelope[SavedDashboardViewRead](
-        data=SavedDashboardViewRead.model_validate(model)
-    )
+    return ResponseEnvelope[SavedDashboardViewRead](data=SavedDashboardViewRead.model_validate(model))
 
 
 @router.get(
@@ -95,9 +93,7 @@ async def list_saved_dashboard_views(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(exc),
         ) from exc
-    return ResponseEnvelope[list[SavedDashboardViewRead]](
-        data=[SavedDashboardViewRead.model_validate(model) for model in models]
-    )
+    return ResponseEnvelope[list[SavedDashboardViewRead]](data=[SavedDashboardViewRead.model_validate(model) for model in models])
 
 
 @router.get(
@@ -124,9 +120,7 @@ async def get_saved_dashboard_view(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
-    return ResponseEnvelope[SavedDashboardViewRead](
-        data=SavedDashboardViewRead.model_validate(model)
-    )
+    return ResponseEnvelope[SavedDashboardViewRead](data=SavedDashboardViewRead.model_validate(model))
 
 
 @router.patch(
@@ -155,9 +149,7 @@ async def update_saved_dashboard_view(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
-    return ResponseEnvelope[SavedDashboardViewRead](
-        data=SavedDashboardViewRead.model_validate(model)
-    )
+    return ResponseEnvelope[SavedDashboardViewRead](data=SavedDashboardViewRead.model_validate(model))
 
 
 @router.delete(

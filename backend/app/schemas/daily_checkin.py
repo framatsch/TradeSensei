@@ -1,142 +1,13 @@
 """Pydantic schemas for daily check-ins and related definitions."""
 
 import datetime as dt
-import re
 import uuid
+from typing import Any
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
 
-from app.models.daily_checkin import FieldTypeEnum
-
-_KEBAB_CASE_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
-
-
-class CheckinFieldDefinitionCreate(BaseModel):
-    """Payload for creating a check-in field definition."""
-
-    field_name: str = Field(
-        ...,
-        max_length=100,
-        description="Stable field key in lowercase kebab-case.",
-    )
-    field_type: FieldTypeEnum = Field(
-        ...,
-        description="Allowed field type: integer or boolean.",
-    )
-
-    @field_validator("field_name")
-    @classmethod
-    def validate_kebab_case(cls, value: str) -> str:
-        """Validate that a key is lowercase kebab-case."""
-        if not _KEBAB_CASE_RE.fullmatch(value):
-            raise ValueError("field_name must be lowercase kebab-case")
-        return value
-
-
-class CheckinFieldDefinitionUpdate(BaseModel):
-    """Payload for updating a check-in field definition."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    is_active: bool | None = Field(
-        default=None,
-        description="Whether this field can be used in new check-ins.",
-    )
-
-
-class CheckinFieldDefinitionRead(BaseModel):
-    """Response schema for a check-in field definition."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID = Field(..., description="Unique definition identifier.")
-    user_id: uuid.UUID = Field(..., description="Owner user identifier.")
-    field_name: str = Field(..., description="Stable field key.")
-    field_type: FieldTypeEnum = Field(..., description="Field value type.")
-    is_active: bool = Field(..., description="Whether the field is currently active.")
-    created_at: dt.datetime = Field(
-        ...,
-        description="UTC timestamp when the field was created.",
-    )
-
-
-class MarketPhaseDefinitionCreate(BaseModel):
-    """Payload for creating a market phase definition."""
-
-    name: str = Field(
-        ...,
-        max_length=50,
-        description="Stable phase key in lowercase kebab-case.",
-    )
-    label: str = Field(..., max_length=100, description="User-facing phase label.")
-    color_hex: str = Field(
-        default="#6366f1",
-        description="Hex color in #RRGGBB format.",
-    )
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, value: str) -> str:
-        """Validate lowercase kebab-case phase name."""
-        if not _KEBAB_CASE_RE.fullmatch(value):
-            raise ValueError("name must be lowercase kebab-case")
-        return value
-
-    @field_validator("color_hex")
-    @classmethod
-    def validate_color_hex(cls, value: str) -> str:
-        """Validate 6-digit hex color."""
-        if not _HEX_COLOR_RE.fullmatch(value):
-            raise ValueError("color_hex must be a 6-digit hex color")
-        return value
-
-
-class MarketPhaseDefinitionUpdate(BaseModel):
-    """Payload for updating a market phase definition."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    label: str | None = Field(
-        default=None,
-        max_length=100,
-        description="Updated user-facing phase label.",
-    )
-    color_hex: str | None = Field(
-        default=None,
-        description="Updated hex color in #RRGGBB format.",
-    )
-    is_active: bool | None = Field(
-        default=None,
-        description="Whether this phase can be used in new check-ins.",
-    )
-
-    @field_validator("color_hex")
-    @classmethod
-    def validate_color_hex(cls, value: str | None) -> str | None:
-        """Validate 6-digit hex color when provided."""
-        if value is None:
-            return None
-        if not _HEX_COLOR_RE.fullmatch(value):
-            raise ValueError("color_hex must be a 6-digit hex color")
-        return value
-
-
-class MarketPhaseDefinitionRead(BaseModel):
-    """Response schema for a market phase definition."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID = Field(..., description="Unique definition identifier.")
-    user_id: uuid.UUID = Field(..., description="Owner user identifier.")
-    name: str = Field(..., description="Stable storage key for the phase.")
-    label: str = Field(..., description="Display label for the phase.")
-    color_hex: str = Field(..., description="Hex color used for this phase.")
-    is_active: bool = Field(..., description="Whether the phase is currently active.")
-    created_at: dt.datetime = Field(
-        ...,
-        description="UTC timestamp when the phase was created.",
-    )
+from app.schemas.annotation_definition import CheckinAnnotationResponse
+from app.schemas.taxonomy import TaxonomyResponse
 
 
 class DailyCheckinCreate(BaseModel):
@@ -150,9 +21,7 @@ class DailyCheckinCreate(BaseModel):
     )
     target_index_ids: list[uuid.UUID] = Field(
         default_factory=list,
-        description=(
-            "List of Market Index Definition UUIDs associated with this checkin."
-        ),
+        description=("List of Market Index Definition UUIDs associated with this checkin."),
     )
     notes: str | None = Field(
         default=None,
@@ -184,9 +53,7 @@ class DailyCheckinUpdate(BaseModel):
     )
     target_index_ids: list[uuid.UUID] | None = Field(
         default=None,
-        description=(
-            "List of Market Index Definition UUIDs associated with this checkin."
-        ),
+        description=("List of Market Index Definition UUIDs associated with this checkin."),
     )
     notes: str | None = Field(
         default=None,
@@ -205,6 +72,11 @@ class DailyCheckinUpdate(BaseModel):
     custom_metrics: dict[str, int | bool] | None = Field(
         default=None,
         description="Updated custom metrics payload.",
+    )
+    is_modelbook: bool | None = Field(
+        default=None,
+        description="True if this check-in should be starred in the Model Book. Omit to leave unchanged.",
+        examples=[False, True, None],
     )
 
 
@@ -231,15 +103,57 @@ class DailyCheckinRead(BaseModel):
     notes: str | None = Field(..., description="Daily notes.")
     news_links: list[str] = Field(..., description="Validated news links.")
     screenshot_urls: list[str] = Field(..., description="Stored screenshot URLs.")
-    custom_metrics: dict[str, int | bool] | None = Field(
-        ..., description="Stored custom metric values."
-    )
+    custom_metrics: dict[str, int | bool] | None = Field(..., description="Stored custom metric values.")
+    is_modelbook: bool = Field(..., description="True if this check-in is starred in the Model Book.")
     target_indices: list[TargetIndexRead] = Field(
         default_factory=list,
         description="Associated market indices for this check-in.",
     )
+    taxonomies: list[TaxonomyResponse] = Field(
+        default_factory=list,
+        description="Taxonomy definitions assigned to this check-in.",
+    )
+    annotations: list[CheckinAnnotationResponse] = Field(
+        default_factory=list,
+        description="Resolved annotation values assigned to this check-in.",
+    )
     created_at: dt.datetime = Field(..., description="UTC creation timestamp.")
     updated_at: dt.datetime = Field(..., description="UTC last update timestamp.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _resolve_metadata(cls, data: Any) -> Any:
+        """Map assignment relationships into response fields."""
+        if not isinstance(data, dict):
+            if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
+                taxonomies = [assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"] if getattr(assignment, "taxonomy", None) is not None]
+                data.__dict__["taxonomies"] = taxonomies
+
+            if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:
+                resolved_annotations: list[dict[str, Any]] = []
+                for assignment in data.__dict__["annotation_assignments"]:
+                    definition = getattr(assignment, "annotation_definition", None)
+                    if definition is None:
+                        continue
+                    resolved_value: Any = assignment.value_int
+                    if resolved_value is None:
+                        resolved_value = assignment.value_float
+                    if resolved_value is None:
+                        resolved_value = assignment.value_bool
+                    if resolved_value is None:
+                        resolved_value = assignment.value_string
+                    resolved_annotations.append(
+                        {
+                            "annotation_definition_id": definition.id,
+                            "name": definition.name,
+                            "type": definition.type,
+                            "scope": definition.scope,
+                            "icon_identifier": definition.icon_identifier,
+                            "value": resolved_value,
+                        }
+                    )
+                data.__dict__["annotations"] = resolved_annotations
+        return data
 
 
 class ScreenshotUploadUrlRequest(BaseModel):

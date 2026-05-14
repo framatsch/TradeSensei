@@ -8,6 +8,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.checkin_annotation import CheckinAnnotation
+from app.models.checkin_taxonomy import CheckinTaxonomy
 from app.models.daily_checkin import DailyCheckin
 from app.models.market_index import MarketIndexDefinition
 from app.schemas.daily_checkin import DailyCheckinCreate, DailyCheckinUpdate
@@ -24,12 +26,28 @@ class DailyCheckinRepository:
         checkin_id: uuid.UUID,
     ) -> DailyCheckin:
         """Fetch a check-in with target indices eagerly loaded."""
+        result = await self._session.execute(select(DailyCheckin).where(DailyCheckin.id == checkin_id).options(selectinload(DailyCheckin.target_indices)))
+        return result.scalar_one()
+
+    async def get_by_id_and_user(
+        self,
+        checkin_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> DailyCheckin | None:
+        """Fetch a check-in by id and user with metadata relationships loaded."""
         result = await self._session.execute(
             select(DailyCheckin)
-            .where(DailyCheckin.id == checkin_id)
-            .options(selectinload(DailyCheckin.target_indices))
+            .where(
+                DailyCheckin.id == checkin_id,
+                DailyCheckin.user_id == user_id,
+            )
+            .options(
+                selectinload(DailyCheckin.target_indices),
+                selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy),
+                selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition),
+            )
         )
-        return result.scalar_one()
+        return result.scalar_one_or_none()
 
     async def create(
         self,
@@ -70,7 +88,11 @@ class DailyCheckinRepository:
                 DailyCheckin.user_id == user_id,
                 DailyCheckin.date == checkin_date,
             )
-            .options(selectinload(DailyCheckin.target_indices))
+            .options(
+                selectinload(DailyCheckin.target_indices),
+                selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy),
+                selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition),
+            )
         )
         return result.scalar_one_or_none()
 
@@ -85,11 +107,7 @@ class DailyCheckinRepository:
     ) -> tuple[Sequence[DailyCheckin], date | None, int]:
         """Cursor-paginated check-ins ordered by date descending."""
         clamped_limit = max(1, min(limit, 90))
-        base_stmt = (
-            select(DailyCheckin)
-            .where(DailyCheckin.user_id == user_id)
-            .options(selectinload(DailyCheckin.target_indices))
-        )
+        base_stmt = select(DailyCheckin).where(DailyCheckin.user_id == user_id).options(selectinload(DailyCheckin.target_indices))
         if from_date is not None:
             base_stmt = base_stmt.where(DailyCheckin.date >= from_date)
         if to_date is not None:
@@ -105,9 +123,7 @@ class DailyCheckinRepository:
         count_result = await self._session.execute(count_stmt)
         total = int(count_result.scalar_one() or 0)
 
-        page_stmt = page_stmt.order_by(DailyCheckin.date.desc()).limit(
-            clamped_limit + 1
-        )
+        page_stmt = page_stmt.order_by(DailyCheckin.date.desc()).limit(clamped_limit + 1)
         page_result = await self._session.execute(page_stmt)
         rows = list(page_result.scalars().all())
 
@@ -124,9 +140,7 @@ class DailyCheckinRepository:
         """Apply partial updates to a check-in."""
         update_data = data.model_dump(exclude_unset=True)
         if "news_links" in update_data and update_data["news_links"] is not None:
-            update_data["news_links"] = [
-                str(link) for link in update_data["news_links"]
-            ]
+            update_data["news_links"] = [str(link) for link in update_data["news_links"]]
         target_index_ids = update_data.pop("target_index_ids", None)
         for field, value in update_data.items():
             setattr(model, field, value)
@@ -158,3 +172,12 @@ class DailyCheckinRepository:
         deleted = result.scalar_one_or_none()
         await self._session.flush()
         return deleted is not None
+
+    async def update_modelbook_flag(self, user_id: uuid.UUID, checkin_date: date, is_modelbook: bool) -> DailyCheckin | None:
+        """Update the is_modelbook flag for a checkin."""
+        checkin = await self.get_by_date_and_user(checkin_date=checkin_date, user_id=user_id)
+        if checkin:
+            checkin.is_modelbook = is_modelbook
+            await self._session.commit()
+            await self._session.refresh(checkin)
+        return checkin

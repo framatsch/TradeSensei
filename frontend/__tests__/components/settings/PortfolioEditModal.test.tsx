@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PortfolioEditModal } from "@/components/settings/modals/PortfolioEditModal";
-import { PORTFOLIO_COLORS } from "@/lib/constants/portfolioColors";
+import { THEME_COLORS } from "@/lib/constants/colors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import * as api from "@/lib/api/index";
@@ -22,7 +22,7 @@ const mockPortfolio: PortfolioRead = {
   user_id: "user-1",
   name: "Day Trading",
   base_currency: "USD",
-  color_hex: PORTFOLIO_COLORS[4],
+  color_hex: THEME_COLORS[4],
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
@@ -144,7 +144,7 @@ describe("PortfolioEditModal", () => {
         path: { portfolio_id: "port-1" },
         body: {
           name: "New Name",
-          color_hex: PORTFOLIO_COLORS[7],
+          color_hex: THEME_COLORS[7],
         },
       });
     });

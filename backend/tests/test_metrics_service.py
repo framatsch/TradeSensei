@@ -56,6 +56,8 @@ def _make_trade_orm(
     trade.updated_at = opened_at  # type: ignore[assignment]
     trade.image_urls = []  # type: ignore[assignment]
     trade.is_manually_edited = False  # type: ignore[assignment]
+    trade.is_modelbook = False  # type: ignore[assignment]
+    trade.is_combo = False  # type: ignore[assignment]
     trade.tags = []  # type: ignore[assignment]
     trade.trade_notes = []  # type: ignore[assignment]
     return trade
@@ -177,6 +179,10 @@ class TestGetSummary:
         with patch(
             "app.services.metrics_service.MetricsRepository.get_closed_trades_for_user",
             new=mock_repo_method,
+        ), patch(
+            "app.services.metrics_service.AccountRepository.get_by_id",
+            new_callable=AsyncMock,
+            return_value=object(),
         ):
             await service.get_summary(
                 user_id=uuid.uuid4(),

@@ -1,4 +1,4 @@
-"""Integration tests for daily check-in, field, and phase APIs."""
+"""Integration tests for daily check-in and legacy endpoint removal."""
 
 import uuid
 from unittest.mock import patch
@@ -30,29 +30,37 @@ async def _register_and_auth_headers(
 
 
 @pytest.mark.integration
-async def test_registration_seeds_default_field_and_phase_definitions(
+async def test_legacy_checkin_fields_endpoint_returns_404(
     client: AsyncClient,
 ) -> None:
     headers = await _register_and_auth_headers(
         client,
-        username=f"seed_{uuid.uuid4().hex[:8]}",
-        email=f"seed_{uuid.uuid4().hex[:8]}@example.com",
+        username=f"legacy_fields_{uuid.uuid4().hex[:8]}",
+        email=f"legacy_fields_{uuid.uuid4().hex[:8]}@example.com",
         password="S3cureP@ss99",
     )
 
     fields = await client.get("/api/v1/checkin-fields", headers=headers)
-    assert fields.status_code == 200, fields.text
-    field_names = {item["field_name"] for item in fields.json()["data"]}
-    assert field_names == {"mood-level", "focus", "rule-followed"}
-
-    phases = await client.get("/api/v1/market-phases", headers=headers)
-    assert phases.status_code == 200, phases.text
-    phase_names = {item["name"] for item in phases.json()["data"]}
-    assert phase_names == {"bullish", "bearish", "sideways", "volatile"}
+    assert fields.status_code == 404, fields.text
 
 
 @pytest.mark.integration
-async def test_checkin_field_definition_crud_and_constraints(
+async def test_legacy_market_phases_endpoint_returns_404(
+    client: AsyncClient,
+) -> None:
+    headers = await _register_and_auth_headers(
+        client,
+        username=f"legacy_phase_{uuid.uuid4().hex[:8]}",
+        email=f"legacy_phase_{uuid.uuid4().hex[:8]}@example.com",
+        password="S3cureP@ss99",
+    )
+
+    phases = await client.get("/api/v1/market-phases", headers=headers)
+    assert phases.status_code == 404, phases.text
+
+
+@pytest.mark.integration
+async def test_legacy_checkin_field_crud_endpoints_return_404(
     client: AsyncClient,
 ) -> None:
     headers = await _register_and_auth_headers(
@@ -67,49 +75,45 @@ async def test_checkin_field_definition_crud_and_constraints(
         json={"field_name": "energy", "field_type": "integer"},
         headers=headers,
     )
-    assert create.status_code == 201, create.text
-    field_id = create.json()["data"]["id"]
+    assert create.status_code == 404, create.text
 
     duplicate = await client.post(
         "/api/v1/checkin-fields",
         json={"field_name": "energy", "field_type": "integer"},
         headers=headers,
     )
-    assert duplicate.status_code == 409, duplicate.text
+    assert duplicate.status_code == 404, duplicate.text
 
     update = await client.patch(
-        f"/api/v1/checkin-fields/{field_id}",
+        f"/api/v1/checkin-fields/{uuid.uuid4()}",
         json={"is_active": False},
         headers=headers,
     )
-    assert update.status_code == 200, update.text
-    assert update.json()["data"]["is_active"] is False
+    assert update.status_code == 404, update.text
 
     list_active = await client.get(
         "/api/v1/checkin-fields?is_active=true",
         headers=headers,
     )
-    assert list_active.status_code == 200, list_active.text
-    active_names = {item["field_name"] for item in list_active.json()["data"]}
-    assert "energy" not in active_names
+    assert list_active.status_code == 404, list_active.text
 
     duplicate_inactive = await client.post(
         "/api/v1/checkin-fields",
         json={"field_name": "energy", "field_type": "integer"},
         headers=headers,
     )
-    assert duplicate_inactive.status_code == 409, duplicate_inactive.text
+    assert duplicate_inactive.status_code == 404, duplicate_inactive.text
 
     immutable = await client.patch(
-        f"/api/v1/checkin-fields/{field_id}",
+        f"/api/v1/checkin-fields/{uuid.uuid4()}",
         json={"field_type": "boolean"},
         headers=headers,
     )
-    assert immutable.status_code == 422, immutable.text
+    assert immutable.status_code == 404, immutable.text
 
 
 @pytest.mark.integration
-async def test_market_phase_definition_crud_and_constraints(
+async def test_legacy_market_phase_crud_endpoints_return_404(
     client: AsyncClient,
 ) -> None:
     headers = await _register_and_auth_headers(
@@ -124,54 +128,48 @@ async def test_market_phase_definition_crud_and_constraints(
         json={"name": "trending", "label": "Trending", "color_hex": "#22c55e"},
         headers=headers,
     )
-    assert create.status_code == 201, create.text
-    phase_id = create.json()["data"]["id"]
+    assert create.status_code == 404, create.text
 
     duplicate = await client.post(
         "/api/v1/market-phases",
         json={"name": "trending", "label": "Another"},
         headers=headers,
     )
-    assert duplicate.status_code == 409, duplicate.text
+    assert duplicate.status_code == 404, duplicate.text
 
     update = await client.patch(
-        f"/api/v1/market-phases/{phase_id}",
+        f"/api/v1/market-phases/{uuid.uuid4()}",
         json={"label": "Strong Trend", "is_active": False},
         headers=headers,
     )
-    assert update.status_code == 200, update.text
-    assert update.json()["data"]["label"] == "Strong Trend"
-    assert update.json()["data"]["is_active"] is False
+    assert update.status_code == 404, update.text
 
     recolor = await client.patch(
-        f"/api/v1/market-phases/{phase_id}",
+        f"/api/v1/market-phases/{uuid.uuid4()}",
         json={"color_hex": "#ef4444"},
         headers=headers,
     )
-    assert recolor.status_code == 200, recolor.text
-    assert recolor.json()["data"]["color_hex"] == "#ef4444"
+    assert recolor.status_code == 404, recolor.text
 
     list_active = await client.get(
         "/api/v1/market-phases?is_active=true",
         headers=headers,
     )
-    assert list_active.status_code == 200, list_active.text
-    active_names = {item["name"] for item in list_active.json()["data"]}
-    assert "trending" not in active_names
+    assert list_active.status_code == 404, list_active.text
 
     duplicate_inactive = await client.post(
         "/api/v1/market-phases",
         json={"name": "trending", "label": "Duplicate inactive"},
         headers=headers,
     )
-    assert duplicate_inactive.status_code == 409, duplicate_inactive.text
+    assert duplicate_inactive.status_code == 404, duplicate_inactive.text
 
     immutable = await client.patch(
-        f"/api/v1/market-phases/{phase_id}",
+        f"/api/v1/market-phases/{uuid.uuid4()}",
         json={"name": "new-name"},
         headers=headers,
     )
-    assert immutable.status_code == 422, immutable.text
+    assert immutable.status_code == 404, immutable.text
 
 
 @pytest.mark.integration

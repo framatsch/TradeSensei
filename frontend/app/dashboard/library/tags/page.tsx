@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/ui/PageHeader";
-import { TagList } from "@/components/tags/TagList";
+import { TaxonomyManager } from "@/components/library/TaxonomyManager";
 
 export const metadata = {
   title: "Tags — Trade Sensei",
@@ -10,9 +10,9 @@ export default function TagsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Tags"
-        subtitle="Organize trades with custom colored labels"
+        subtitle="Manage reusable metadata taxonomies for trades and check-ins"
       />
-      <TagList />
+      <TaxonomyManager />
     </div>
   );
 }

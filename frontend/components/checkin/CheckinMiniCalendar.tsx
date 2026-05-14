@@ -2,7 +2,7 @@
 
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
-import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -12,7 +12,7 @@ export function CheckinMiniCalendar() {
   const router = useRouter();
   const params = useParams();
   const selectedDate = params?.date as string | undefined;
-  const { data: phases } = useMarketPhases();
+  const { data: phases } = useGetTaxonomies("checkins");
 
   // Parse current month
   const currentDate = new Date(`${month}-01T00:00:00Z`);

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAccounts } from "@/hooks/useAccounts";
-import { PORTFOLIO_COLORS } from "@/lib/constants/portfolioColors";
+import { THEME_COLORS } from "@/lib/constants/colors";
 import { Star, Edit2, Plus, ChevronDown, ChevronRight, AlertCircle, RefreshCw } from "lucide-react";
 import type { PortfolioRead as Portfolio } from "@/lib/api/types.gen";
 import type { Account } from "@/lib/types";
@@ -208,7 +208,7 @@ export function PortfoliosBrokersHub() {
                   >
                     <div
                       className="w-5 h-5 rounded-full shrink-0 shadow-inner"
-                      style={{ backgroundColor: portfolio.color_hex || PORTFOLIO_COLORS[0] }}
+                      style={{ backgroundColor: portfolio.color_hex || THEME_COLORS[0] }}
                     />
                     <div className="min-w-0">
                       <h3 className="font-semibold text-foreground truncate">{portfolio.name}</h3>

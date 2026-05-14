@@ -2,7 +2,7 @@
 
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
-import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { format } from "date-fns";
 import Link from "next/link";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
@@ -12,7 +12,7 @@ export function GalleryView() {
   
   // Fetch more items for the gallery view
   const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage * 2);
-  const { data: phases } = useMarketPhases();
+  const { data: phases } = useGetTaxonomies("checkins");
 
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading check-ins...</div>;
@@ -76,7 +76,7 @@ export function GalleryView() {
                         color: colorHex,
                       }}
                     >
-                      {phase.label}
+                      {phase.name}
                     </div>
                   )}
                 </div>

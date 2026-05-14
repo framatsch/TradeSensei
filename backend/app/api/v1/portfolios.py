@@ -79,11 +79,7 @@ async def update_portfolio(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except PortfolioValidationError as e:
         # base_currency change after trades exist → 422; name conflict → 409
-        status_code = (
-            status.HTTP_422_UNPROCESSABLE_CONTENT
-            if "base_currency" in str(e)
-            else status.HTTP_409_CONFLICT
-        )
+        status_code = status.HTTP_422_UNPROCESSABLE_CONTENT if "base_currency" in str(e) else status.HTTP_409_CONFLICT
         raise HTTPException(status_code=status_code, detail=str(e)) from e
 
 

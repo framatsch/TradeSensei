@@ -33,8 +33,9 @@ if TYPE_CHECKING:
     from app.models.account import Account
     from app.models.logical_execution import LogicalExecution
     from app.models.playbook import Playbook
-    from app.models.tag import Tag
+    from app.models.trade_annotation import TradeAnnotation
     from app.models.trade_note import TradeNote
+    from app.models.trade_taxonomy import TradeTaxonomy
     from app.models.user import User
 
 
@@ -99,8 +100,6 @@ class Trade(Base):
             :class:`~app.models.playbook.Playbook` used for this trade.
         playbook: The related :class:`~app.models.playbook.Playbook` ORM
             instance (``None`` if no playbook assigned).
-        tags: Many-to-many collection of :class:`~app.models.tag.Tag` objects
-            attached to this trade via the ``trade_tags`` association table.
         trade_notes: One-to-many collection of
             :class:`~app.models.trade_note.TradeNote` objects.
         is_manually_edited: When ``True``, this trade was manually corrected
@@ -224,6 +223,13 @@ class Trade(Base):
         server_default="false",
         comment=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
     )
+    is_modelbook: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="True if this trade is starred in the Model Book.",
+    )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
         nullable=True,
@@ -295,12 +301,6 @@ class Trade(Base):
         "Playbook",
         back_populates="trades",
     )
-    tags: Mapped[list["Tag"]] = relationship(
-        "Tag",
-        secondary="trade_tags",
-        back_populates="trades",
-        lazy="selectin",
-    )
     trade_notes: Mapped[list["TradeNote"]] = relationship(
         "TradeNote",
         back_populates="trade",
@@ -312,6 +312,20 @@ class Trade(Base):
         back_populates="trade",
         lazy="select",
         passive_deletes=True,
+    )
+    taxonomy_assignments: Mapped[list["TradeTaxonomy"]] = relationship(
+        "TradeTaxonomy",
+        back_populates="trade",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+    annotation_assignments: Mapped[list["TradeAnnotation"]] = relationship(
+        "TradeAnnotation",
+        back_populates="trade",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
     )
 
     def __repr__(self) -> str:

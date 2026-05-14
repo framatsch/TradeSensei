@@ -84,6 +84,14 @@ describe("ApiTokensSettings", () => {
       expect(
         screen.getByText(/Generate personal access tokens for MCP integrations/)
       ).toBeInTheDocument();
+      expect(screen.getByText("What can I do with MCP?")).toBeInTheDocument();
+    });
+
+    it("shows MCP examples when expanded", () => {
+      renderComponent();
+      fireEvent.click(screen.getByText("What can I do with MCP?"));
+      expect(screen.getByText(/Performance discovery:/)).toBeInTheDocument();
+      expect(screen.getByText("Learn more")).toBeInTheDocument();
     });
 
     it("renders Generate New Token button", () => {

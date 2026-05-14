@@ -9,7 +9,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import type { Trade } from "@/lib/types";
-import { TagBadge } from "@/components/tags/TagBadge";
+import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import { QuickNoteInput } from "@/components/notes/QuickNoteInput";
 
 interface Props {
@@ -130,9 +130,9 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
         {formatDate(trade.closed_at)}
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5 flex-wrap max-w-48">
-          {trade.tags?.map((tag) => (
-            <TagBadge key={tag.id} tag={tag} />
+          <div className="flex items-center gap-1.5 flex-wrap max-w-48">
+          {trade.taxonomies?.map((taxonomy) => (
+            <TaxonomyBadge key={taxonomy.id} taxonomy={taxonomy} />
           ))}
         </div>
       </td>

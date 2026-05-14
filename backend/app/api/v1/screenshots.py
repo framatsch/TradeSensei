@@ -12,7 +12,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.constants import BYTES_PER_MB, SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import TradeNotFoundError
@@ -64,10 +63,7 @@ async def upload_screenshot(
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=(
-                f"Unsupported file type: {file.content_type}. "
-                "Allowed: jpeg, png, gif, webp."
-            ),
+            detail=(f"Unsupported file type: {file.content_type}. Allowed: jpeg, png, gif, webp."),
         )
 
     content = await file.read()
@@ -77,7 +73,7 @@ async def upload_screenshot(
     except ValueError as exc:
         if "File too large" in str(exc):
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=str(exc),
             ) from exc
         raise HTTPException(
@@ -125,9 +121,7 @@ async def delete_screenshot(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found.") from exc
 
     # Find the URL that ends with the filename
-    target_url = next(
-        (s for s in (trade.image_urls or []) if s.endswith(f"/{filename}")), None
-    )
+    target_url = next((s for s in (trade.image_urls or []) if s.endswith(f"/{filename}")), None)
     if not target_url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

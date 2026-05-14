@@ -5,7 +5,7 @@
  *  - A dedicated E2E test user
  *  - 10 demo trades (5 winning LONG + 5 losing SHORT across multiple symbols)
  *  - 2 playbooks
- *  - 3 tags
+ *  - 3 trade taxonomies
  *
  * The auth state (access_token in localStorage) is written to
  * frontend/tests/.auth/user.json so all specs can reuse it without re-logging in.
@@ -244,7 +244,7 @@ const SEED_PLAYBOOKS = [
   },
 ];
 
-const SEED_TAGS = [
+const SEED_TAXONOMIES = [
   { name: 'high-conviction', color: '#22c55e' },
   { name: 'emotional-error', color: '#ef4444' },
   { name: 'planned', color: '#3b82f6' },
@@ -488,14 +488,18 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   }
   console.log('[global-setup] Playbooks seeded.');
 
-  // 4. Seed tags
-  for (const tag of SEED_TAGS) {
-    const res = await apiPost('/api/v1/tags', tag, token);
+  // 4. Seed taxonomies (trade scope)
+  for (const taxonomy of SEED_TAXONOMIES) {
+    const res = await apiPost('/api/v1/taxonomies', {
+      name: taxonomy.name,
+      color_hex: taxonomy.color,
+      scope: 'trades',
+    }, token);
     if (!res.ok && res.status !== 409) {
-      console.warn(`[global-setup] Tag seed warning (${res.status}): ${tag.name}`);
+      console.warn(`[global-setup] Taxonomy seed warning (${res.status}): ${taxonomy.name}`);
     }
   }
-  console.log('[global-setup] Tags seeded.');
+  console.log('[global-setup] Taxonomies seeded.');
 
   // 5. Seed account (IBKR type — needed for import tests)
   let accountId = '';

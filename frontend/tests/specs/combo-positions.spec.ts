@@ -63,11 +63,24 @@ test.describe('Combo Positions', () => {
 
     await page.locator('input[name="symbol"]').fill('MSFT');
     await page.locator('select[name="direction"]').selectOption('LONG');
-    await page.locator('input[name="opened_at"]').fill('2026-04-19T10:00');
+
+    // Advanced mode is forced for COMBOs, so we must add at least 1 leg
+    await page.getByRole('button', { name: 'Add Leg' }).click();
+    const legQuantities = page.locator('input[name^="executions."][name$=".quantity"]');
+    const legPrices = page.locator('input[name^="executions."][name$=".price"]');
+    const legSides = page.locator('select[name^="executions."][name$=".direction"]');
+    const legDates = page.locator('input[name^="executions."][name$=".executed_at"]');
+    
+    await expect(legSides.nth(0)).toBeVisible({ timeout: 5000 });
+    await legSides.nth(0).selectOption('LONG');
+    await legDates.nth(0).fill('2026-04-19T10:00');
+    await legQuantities.nth(0).fill('10');
+    await legPrices.nth(0).fill('100');
+    await legPrices.nth(0).blur();
 
     await page.getByRole('button', { name: 'Create Trade' }).click();
-    await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i);
+
+    await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i, { timeout: 15000 });
     await expect(page.getByText('COMBO').first()).toBeVisible();
   });
 });

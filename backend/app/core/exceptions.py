@@ -178,3 +178,35 @@ class MarketIndexDefinitionNotFoundError(Exception):
 
 class MarketIndexDefinitionValidationError(ValueError):
     """Raised when a market index definition validation fails."""
+
+
+class TaxonomyNotFoundError(Exception):
+    """Raised when a taxonomy definition is not found."""
+
+
+class TaxonomyValidationError(ValueError):
+    """Raised when taxonomy validation or integrity checks fail."""
+
+
+class AnnotationDefinitionNotFoundError(Exception):
+    """Raised when an annotation definition is not found."""
+
+
+class AnnotationDefinitionValidationError(ValueError):
+    """Raised when annotation definition validation or integrity checks fail."""
+
+
+class MetadataAssignmentNotFoundError(Exception):
+    """Raised when a taxonomy or annotation assignment is not found."""
+
+
+class MetadataAssignmentValidationError(ValueError):
+    """Raised when metadata assignment validation or integrity checks fail."""
+
+
+class PlaybookAttachmentNotFoundError(Exception):
+    """Raised when a playbook attachment is not found."""
+
+
+class PlaybookLinkNotFoundError(Exception):
+    """Raised when a playbook link is not found."""

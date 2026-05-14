@@ -135,9 +135,7 @@ class UserSettingsRead(BaseModel):
     chart_candles_after: int = Field(default=10, ge=1)
     chart_show_post_exit: bool = Field(default=False)
     default_portfolio_id: uuid.UUID | None = Field(default=None)
-    home_route: Literal[
-        "/dashboard", "/dashboard/trades", "/dashboard/library", "/dashboard/checkins"
-    ] = Field(default="/dashboard")
+    home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library", "/dashboard/checkins"] = Field(default="/dashboard")
 
 
 class UserSettingsUpdate(BaseModel):

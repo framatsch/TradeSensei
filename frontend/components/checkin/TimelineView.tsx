@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
-import { useMarketPhases } from "@/hooks/useCheckinDefinitions";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -14,7 +14,7 @@ export function TimelineView() {
   const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
   
   const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage);
-  const { data: phases } = useMarketPhases();
+  const { data: phases } = useGetTaxonomies("checkins");
 
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading check-ins...</div>;
@@ -75,9 +75,9 @@ export function TimelineView() {
                     color: colorHex,
                   }}
                 >
-                  {phase.label}
-                </div>
-              )}
+                    {phase.name}
+                  </div>
+                )}
             </div>
 
             {checkin.notes && (

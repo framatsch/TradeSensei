@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function NewTradePage() {
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div>
         <Link
           href="/dashboard/trades"

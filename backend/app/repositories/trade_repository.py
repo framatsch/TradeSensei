@@ -24,9 +24,10 @@ from app.core.security import encode_cursor as _encode_signed_cursor
 from app.models.account import Account
 from app.models.portfolio import Portfolio
 from app.models.trade import Trade
-from app.models.trade_tag import TradeTag
+from app.models.trade_annotation import TradeAnnotation
+from app.models.trade_taxonomy import TradeTaxonomy
 from app.schemas.trade import (
-    BulkTagMode,
+    BulkTaxonomyMode,
     TradeCreate,
     TradeFilterParams,
     TradeSortField,
@@ -178,15 +179,16 @@ def _trade_query_with_eager_loads() -> Select[tuple[Trade]]:
 
     Returns:
         A :func:`select` statement with ``selectinload`` options applied
-        for the ``tags``, ``trade_notes``, ``playbook``, ``account``, and
+        for the ``trade_notes``, ``playbook``, ``account``, and
         ``logical_executions`` relationships.
     """
     return select(Trade).options(
-        selectinload(Trade.tags),
         selectinload(Trade.trade_notes),
         selectinload(Trade.playbook),
         selectinload(Trade.account),
         selectinload(Trade.logical_executions),
+        selectinload(Trade.taxonomy_assignments).selectinload(TradeTaxonomy.taxonomy),
+        selectinload(Trade.annotation_assignments).selectinload(TradeAnnotation.annotation_definition),
     )
 
 
@@ -196,9 +198,10 @@ def _apply_filters(
 ) -> Select[Any]:
     """Apply all active filter predicates to a SELECT statement.
 
-    Filters are combined with AND logic at the top level. The tag filter
-    supports both AND mode (trade must have **all** listed tags) and OR
-    mode (trade must have **at least one** listed tag).
+    Filters are combined with AND logic at the top level. The taxonomy
+    filter supports both AND mode (trade must have **all** listed
+    taxonomies) and OR mode (trade must have **at least one** listed
+    taxonomy).
 
     Compatible with any ``SELECT`` that queries the ``Trade`` table, including
     both full-row selects and scalar-column selects (e.g. ``Trade.id``).
@@ -219,18 +222,18 @@ def _apply_filters(
     if filters.asset_class is not None:
         stmt = stmt.where(Trade.asset_class == filters.asset_class)
 
-    if filters.tag_ids:
-        if filters.tag_filter_mode == "and":
-            tag_subq = (
-                select(TradeTag.trade_id)
-                .where(TradeTag.tag_id.in_(filters.tag_ids))
-                .group_by(TradeTag.trade_id)
-                .having(func.count(func.distinct(TradeTag.tag_id)) == len(filters.tag_ids))
+    if filters.taxonomy_ids:
+        if filters.taxonomy_filter_mode == "and":
+            taxonomy_subq = (
+                select(TradeTaxonomy.trade_id)
+                .where(TradeTaxonomy.taxonomy_id.in_(filters.taxonomy_ids))
+                .group_by(TradeTaxonomy.trade_id)
+                .having(func.count(func.distinct(TradeTaxonomy.taxonomy_id)) == len(filters.taxonomy_ids))
                 .scalar_subquery()
             )
         else:  # "or"
-            tag_subq = select(TradeTag.trade_id).where(TradeTag.tag_id.in_(filters.tag_ids)).scalar_subquery()
-        stmt = stmt.where(Trade.id.in_(tag_subq))
+            taxonomy_subq = select(TradeTaxonomy.trade_id).where(TradeTaxonomy.taxonomy_id.in_(filters.taxonomy_ids)).scalar_subquery()
+        stmt = stmt.where(Trade.id.in_(taxonomy_subq))
 
     if filters.playbook_id is not None:
         stmt = stmt.where(Trade.playbook_id == filters.playbook_id)
@@ -298,20 +301,19 @@ class TradeRepository:
         """Expose the active database session for service-level orchestration."""
         return self._session
 
-    async def _set_tags(self, trade: Trade, tag_ids: list[uuid.UUID]) -> None:
-        """Replace the tag associations for a trade.
+    async def _set_taxonomies(self, trade: Trade, taxonomy_ids: list[uuid.UUID]) -> None:
+        """Replace the taxonomy associations for a trade.
 
-        Deletes existing ``trade_tags`` rows for the trade and inserts
-        new ones for the provided ``tag_ids``.  The caller is responsible
-        for ensuring all tag_ids belong to the same user as the trade.
+        Deletes existing ``trade_taxonomies`` rows for the trade and
+        inserts new ones for the provided ``taxonomy_ids``.
 
         Args:
             trade: The trade ORM instance whose tags to replace.
-            tag_ids: New list of tag UUIDs to associate.
+            taxonomy_ids: New list of taxonomy UUIDs to associate.
         """
-        await self._session.execute(delete(TradeTag).where(TradeTag.trade_id == trade.id))
-        for tag_id in tag_ids:
-            self._session.add(TradeTag(trade_id=trade.id, tag_id=tag_id))
+        await self._session.execute(delete(TradeTaxonomy).where(TradeTaxonomy.trade_id == trade.id))
+        for taxonomy_id in taxonomy_ids:
+            self._session.add(TradeTaxonomy(trade_id=trade.id, taxonomy_id=taxonomy_id))
         await self._session.flush()
 
     async def create(self, data: TradeCreate) -> Trade:
@@ -321,28 +323,31 @@ class TradeRepository:
         defaults) but not committed — the service layer is responsible
         for committing.
 
-        If ``data.tag_ids`` is non-empty the association rows are
-        inserted into ``trade_tags`` after the trade is flushed.
+        If ``data.taxonomy_ids`` is non-empty the association rows are
+        inserted into ``trade_taxonomies`` after the trade is flushed.
 
         Args:
             data: Validated trade creation payload.
 
         Returns:
             The newly created :class:`Trade` with all server defaults
-            populated (including eager-loaded ``tags`` and
+            populated (including eager-loaded taxonomy and
             ``trade_notes``).
         """
-        create_dict = data.model_dump(exclude={"tag_ids", "executions"})
+        create_dict = data.model_dump(exclude={"taxonomy_ids", "executions"})
         if create_dict.get("position_id") is None:
             create_dict.pop("position_id", None)
         trade = Trade(**create_dict)
         self._session.add(trade)
         await self._session.flush()
 
-        if data.tag_ids:
-            await self._set_tags(trade, data.tag_ids)
+        if data.taxonomy_ids:
+            await self._set_taxonomies(trade, data.taxonomy_ids)
 
-        await self._session.refresh(trade, attribute_names=["tags", "trade_notes", "playbook", "account"])
+        await self._session.refresh(
+            trade,
+            attribute_names=["taxonomy_assignments", "trade_notes", "playbook", "account"],
+        )
         return trade
 
     async def bulk_create(self, trades: Sequence[TradeCreate]) -> int:
@@ -358,7 +363,7 @@ class TradeRepository:
             return 0
 
         for trade_data in trades:
-            create_dict = trade_data.model_dump(exclude={"tag_ids", "executions"})
+            create_dict = trade_data.model_dump(exclude={"taxonomy_ids", "executions"})
             if create_dict.get("position_id") is None:
                 create_dict.pop("position_id", None)
             self._session.add(Trade(**create_dict))
@@ -432,7 +437,7 @@ class TradeRepository:
     ) -> Trade | None:
         """Retrieve a single trade by its primary key, scoped to a user.
 
-        Eagerly loads ``tags``, ``trade_notes``, ``playbook``, ``account``,
+        Eagerly loads ``trade_notes``, ``playbook``, ``account``,
         and ``logical_executions`` relationships.
 
         Args:
@@ -483,7 +488,7 @@ class TradeRepository:
         the cursor condition.  The same filters are applied to the optional
         ``COUNT(*)`` query so that ``total`` reflects the filtered row count.
 
-        Eagerly loads ``tags`` and ``trade_notes`` on every row.
+        Eagerly loads ``trade_notes`` on every row.
 
         Args:
             limit: Maximum number of items to return. Clamped to
@@ -634,8 +639,8 @@ class TradeRepository:
         """Apply a partial update to an existing trade.
 
         Only fields that are explicitly set in *data* (i.e. not
-        ``None``) are written.  When ``data.tag_ids`` is provided the
-        existing tag associations are replaced with the new set.
+        ``None``) are written.  When ``data.taxonomy_ids`` is provided
+        the existing taxonomy associations are replaced with the new set.
         The session is flushed but not committed.
 
         Args:
@@ -644,22 +649,25 @@ class TradeRepository:
 
         Returns:
             The updated :class:`Trade` instance after flush (with
-            eager-loaded ``tags`` and ``trade_notes``).
+            eager-loaded taxonomy assignments and ``trade_notes``).
         """
-        update_data = data.model_dump(exclude_unset=True, exclude={"tag_ids"})
+        update_data = data.model_dump(exclude_unset=True, exclude={"taxonomy_ids"})
         for field, value in update_data.items():
             setattr(trade, field, value)
         self._session.add(trade)
         await self._session.flush()
 
-        if data.tag_ids is not None:
-            await self._set_tags(trade, data.tag_ids)
+        if data.taxonomy_ids is not None:
+            await self._set_taxonomies(trade, data.taxonomy_ids)
 
         # Refresh scalar columns first (e.g. updated_at set by DB trigger)
         # then load relationships, preventing MissingGreenlet errors when
         # model_validate accesses expired attributes outside the async context.
         await self._session.refresh(trade)
-        await self._session.refresh(trade, attribute_names=["tags", "trade_notes", "playbook", "account"])
+        await self._session.refresh(
+            trade,
+            attribute_names=["taxonomy_assignments", "trade_notes", "playbook", "account"],
+        )
         return trade
 
     async def delete(self, trade: Trade) -> None:
@@ -746,24 +754,24 @@ class TradeRepository:
         await self._session.flush()
         return len(deleted)
 
-    async def bulk_assign_tags(
+    async def bulk_assign_taxonomies(
         self,
         trade_ids: list[uuid.UUID],
-        tag_ids: list[uuid.UUID],
-        mode: BulkTagMode,
+        taxonomy_ids: list[uuid.UUID],
+        mode: BulkTaxonomyMode,
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
     ) -> int:
-        """Add or remove tags on multiple trades.
+        """Add or remove taxonomies on multiple trades.
 
         Only operates on trades belonging to ``user_id``. Other
         ``trade_ids`` are silently skipped.
 
         Args:
             trade_ids: Trade UUIDs to update.
-            tag_ids: Tag UUIDs to add or remove.
-            mode: ``BulkTagMode.add`` inserts rows (ON CONFLICT DO NOTHING),
-                ``BulkTagMode.remove`` deletes matching rows.
+            taxonomy_ids: Taxonomy UUIDs to add or remove.
+            mode: ``BulkTaxonomyMode.add`` inserts rows (ON CONFLICT DO NOTHING),
+                ``BulkTaxonomyMode.remove`` deletes matching rows.
             user_id: UUID of the owning user for ownership check.
 
         Returns:
@@ -789,16 +797,16 @@ class TradeRepository:
         if not owned_ids:
             return 0
 
-        if mode == BulkTagMode.add:
+        if mode == BulkTaxonomyMode.add:
             for trade_id in owned_ids:
-                for tag_id in tag_ids:
-                    ins_stmt = pg_insert(TradeTag).values(trade_id=trade_id, tag_id=tag_id).on_conflict_do_nothing()
+                for taxonomy_id in taxonomy_ids:
+                    ins_stmt = pg_insert(TradeTaxonomy).values(trade_id=trade_id, taxonomy_id=taxonomy_id).on_conflict_do_nothing()
                     await self._session.execute(ins_stmt)
-        else:  # BulkTagMode.remove
+        else:  # BulkTaxonomyMode.remove
             await self._session.execute(
-                delete(TradeTag).where(
-                    TradeTag.trade_id.in_(owned_ids),
-                    TradeTag.tag_id.in_(tag_ids),
+                delete(TradeTaxonomy).where(
+                    TradeTaxonomy.trade_id.in_(owned_ids),
+                    TradeTaxonomy.taxonomy_id.in_(taxonomy_ids),
                 )
             )
 
@@ -959,15 +967,16 @@ class TradeRepository:
             result = await self._session.execute(stmt)
             updated_count = int(getattr(result, "rowcount", 0))
 
-        if "tag_ids" in data.model_fields_set and data.tag_ids is not None:
-            # For tags we must respect the same last-write-wins boundary.  Fetch
+        if "taxonomy_ids" in data.model_fields_set and data.taxonomy_ids is not None:
+            # For taxonomy assignments we must respect the same
+            # last-write-wins boundary. Fetch
             # siblings that would have been eligible (updated_at <= source).
             siblings = await self.list_open_by_position(user_id, source_trade.position_id)
             eligible = [s for s in siblings if s.id != source_trade.id and s.updated_at <= compare_time]
             for sibling in eligible:
-                await self._set_tags(sibling, data.tag_ids)
+                await self._set_taxonomies(sibling, data.taxonomy_ids)
             await self._session.flush()
-            # If scalar_values was empty (only tags changed), set count from eligible.
+            # If scalar_values was empty (only taxonomy changed), set count from eligible.
             if not scalar_values:
                 updated_count = len(eligible)
 
@@ -1246,3 +1255,12 @@ class TradeRepository:
             )
         result = await self._session.execute(stmt)
         return {(row.broker_conid, row.opened_at) for row in result}
+
+    async def update_modelbook_flag(self, trade_id: uuid.UUID, is_modelbook: bool, user_id: uuid.UUID) -> Trade | None:
+        """Update the is_modelbook flag for a trade."""
+        trade = await self.get_by_id(trade_id, user_id=user_id)
+        if trade:
+            trade.is_modelbook = is_modelbook
+            await self._session.commit()
+            await self._session.refresh(trade)
+        return trade

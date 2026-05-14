@@ -65,7 +65,7 @@ class MetricsRepository:
             .options(
                 selectinload(Trade.account),
                 selectinload(Trade.playbook),
-                selectinload(Trade.tags),
+                selectinload(Trade.taxonomy_assignments),
                 selectinload(Trade.trade_notes),
             )
             .where(
@@ -120,7 +120,7 @@ class MetricsRepository:
             .options(
                 selectinload(Trade.account),
                 selectinload(Trade.playbook),
-                selectinload(Trade.tags),
+                selectinload(Trade.taxonomy_assignments),
                 selectinload(Trade.trade_notes),
             )
             .where(

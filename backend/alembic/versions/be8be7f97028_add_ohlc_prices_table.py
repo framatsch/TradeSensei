@@ -1,7 +1,7 @@
 """add_ohlc_prices_table
 
 Revision ID: be8be7f97028
-Revises: a1b2c3d4e5f6
+Revises: a1b2c3d4e5f7
 Create Date: 2026-03-25 21:32:40.726365
 
 """
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'be8be7f97028'
-down_revision: Union[str, None] = 'a1b2c3d4e5f6'
+down_revision: Union[str, None] = 'a1b2c3d4e5f7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

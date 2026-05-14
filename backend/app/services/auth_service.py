@@ -5,6 +5,7 @@ All domain exceptions raised here are caught by the route layer, which
 converts them to HTTP responses.
 """
 
+import logging
 import re
 import uuid
 
@@ -25,17 +26,16 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
-from app.repositories.checkin_field_definition_repository import (
-    CheckinFieldDefinitionRepository,
-)
+from app.repositories.annotation_definition_repository import AnnotationDefinitionRepository
 from app.repositories.market_index_repository import (
     MarketIndexDefinitionRepository,
 )
-from app.repositories.market_phase_definition_repository import (
-    MarketPhaseDefinitionRepository,
-)
+from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin
+from app.services.audit_service import AuditEventService, generate_request_id
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -57,9 +57,10 @@ class AuthService:
         """
         self._session = session
         self._repo = UserRepository(session)
-        self._checkin_field_repo = CheckinFieldDefinitionRepository(session)
-        self._market_phase_repo = MarketPhaseDefinitionRepository(session)
         self._market_index_repo = MarketIndexDefinitionRepository(session)
+        self._taxonomy_repo = TaxonomyRepository(session)
+        self._annotation_repo = AnnotationDefinitionRepository(session)
+        self._audit = AuditEventService()
 
     async def register(self, data: UserCreate) -> User:
         """Register a new user account.
@@ -83,9 +84,8 @@ class AuthService:
             raise UserAlreadyExistsError(f"Email {data.email!r} is already registered.")
         hashed = hash_password(data.password)
         user = await self._repo.create(data, hashed)
-        await self._checkin_field_repo.seed_defaults(user.id)
-        await self._market_phase_repo.seed_defaults(user.id)
         await self._market_index_repo.seed_defaults(user.id)
+        await self._seed_metadata_defaults(user.id, path="/api/v1/auth/register")
         return user
 
     async def login(self, data: UserLogin) -> tuple[str, str]:
@@ -223,6 +223,7 @@ class AuthService:
                     provider=provider,
                     provider_id=provider_sub,
                 )
+                await self._seed_metadata_defaults(user.id, path="/api/v1/auth/google")
 
         if not user.is_active:
             raise InvalidCredentialsError("User account is disabled.")
@@ -306,3 +307,24 @@ class AuthService:
             candidate = f"{base}{counter}"
             counter += 1
         return candidate
+
+    async def _seed_metadata_defaults(self, user_id: uuid.UUID, *, path: str) -> None:
+        try:
+            await self._taxonomy_repo.seed_defaults(user_id)
+            await self._annotation_repo.seed_defaults(user_id)
+        except Exception:
+            logger.error("Metadata seeding failed for user_id=%s", user_id, exc_info=True)
+            self._audit.create_audit_event(
+                action="metadata.seeding.failed",
+                user_id=user_id,
+                email=None,
+                resource_type="user",
+                resource_id=user_id,
+                ip_address=None,
+                user_agent=None,
+                request_id=generate_request_id(),
+                status_code=200,
+                method="POST",
+                path=path,
+                metadata={"user_id": str(user_id)},
+            )

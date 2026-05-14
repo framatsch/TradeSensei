@@ -107,6 +107,10 @@ class TestGetDailyPnl:
         with patch(
             "app.services.timeseries_service.TimeSeriesRepository.get_daily_pnl",
             new=mock_method,
+        ), patch(
+            "app.services.timeseries_service.AccountRepository.get_by_id",
+            new_callable=AsyncMock,
+            return_value=object(),
         ):
             await service.get_daily_pnl(
                 user_id=uuid.uuid4(),

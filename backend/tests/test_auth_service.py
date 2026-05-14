@@ -240,6 +240,58 @@ class TestRegister:
         ):
             await service.register(_make_register_payload())
 
+    @pytest.mark.unit
+    async def test_register_seeding_failure_is_non_blocking_and_logged(
+        self, service: AuthService
+    ) -> None:
+        payload = _make_register_payload()
+        expected_user = _make_user(username=payload.username, email=payload.email)
+
+        with (
+            patch.object(
+                service._repo,
+                "get_by_username",
+                new=AsyncMock(return_value=None),
+            ),
+            patch.object(
+                service._repo,
+                "get_by_email",
+                new=AsyncMock(return_value=None),
+            ),
+            patch.object(
+                service._repo,
+                "create",
+                new=AsyncMock(return_value=expected_user),
+            ),
+            patch.object(
+                service._market_index_repo,
+                "seed_defaults",
+                new=AsyncMock(return_value=None),
+            ),
+            patch.object(
+                service._taxonomy_repo,
+                "seed_defaults",
+                new=AsyncMock(side_effect=RuntimeError("boom")),
+            ),
+            patch.object(
+                service._annotation_repo,
+                "seed_defaults",
+                new=AsyncMock(return_value=None),
+            ),
+            patch("app.services.auth_service.hash_password", return_value="hashed"),
+            patch("app.services.auth_service.logger.error") as mock_logger_error,
+            patch.object(service._audit, "create_audit_event") as mock_audit_event,
+        ):
+            result = await service.register(payload)
+
+        assert result is expected_user
+        mock_logger_error.assert_called_once()
+        mock_audit_event.assert_called_once()
+        assert mock_audit_event.call_args.kwargs["action"] == "metadata.seeding.failed"
+        assert mock_audit_event.call_args.kwargs["metadata"] == {
+            "user_id": str(expected_user.id)
+        }
+
 
 # ---------------------------------------------------------------------------
 # Login tests

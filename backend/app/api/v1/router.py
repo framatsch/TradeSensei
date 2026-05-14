@@ -9,10 +9,11 @@ from fastapi import APIRouter
 from app.api.v1 import (
     accounts,
     analytics,
+    annotation_definitions,
     auth,
     broker,
     cash_transactions,
-    checkin_fields,
+    checkin_metadata,
     checkins,
     corporate_actions,
     deprecated,
@@ -20,17 +21,21 @@ from app.api.v1 import (
     imports,
     market_data,
     market_indexes,
-    market_phases,
     metrics,
+    model_book,
     notes,
+    playbook_attachments,
+    playbook_links,
+    playbook_taxonomies,
     playbooks,
     portfolios,
     saved_trade_filters,
     screenshots,
     settings,
-    tags,
     tax,
+    taxonomies,
     timeseries,
+    trade_metadata,
     trades,
     users,
     views,
@@ -51,7 +56,11 @@ router.include_router(analytics.router)
 router.include_router(imports.router)
 router.include_router(timeseries.router)
 router.include_router(playbooks.router)
-router.include_router(tags.router)
+router.include_router(playbook_taxonomies.router)
+router.include_router(playbook_attachments.router)
+router.include_router(playbook_links.router)
+router.include_router(taxonomies.router)
+router.include_router(annotation_definitions.router)
 router.include_router(notes.router)
 router.include_router(screenshots.router)
 router.include_router(tax.router)
@@ -60,13 +69,15 @@ router.include_router(cash_transactions.router)
 router.include_router(deprecated.router)
 router.include_router(corporate_actions.router)
 router.include_router(market_data.router)
-router.include_router(checkin_fields.router)
 router.include_router(market_indexes.router)
-router.include_router(market_phases.router)
 router.include_router(checkins.router)
+router.include_router(trade_metadata.router)
+router.include_router(checkin_metadata.router)
 router.include_router(settings.router)
 router.include_router(
     saved_trade_filters.router,
     prefix="/saved-trade-filters",
     tags=["saved-trade-filters"],
 )
+
+router.include_router(model_book.router)

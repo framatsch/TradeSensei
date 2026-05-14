@@ -47,7 +47,6 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
         date_from: searchParams.get("date_from") || null,
         date_to: searchParams.get("date_to") || null,
         playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
-        tag_ids: searchParams.get("tag_ids") ? searchParams.get("tag_ids")!.split(",") : [],
         account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
         includeOpenTrades: searchParams.get("include_open") === "true",
         viewId: searchParams.get("view_id") || null,
@@ -70,7 +69,6 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
     if (debouncedFilter.date_from) { params.set("date_from", debouncedFilter.date_from); }
     if (debouncedFilter.date_to) { params.set("date_to", debouncedFilter.date_to); }
     if (debouncedFilter.playbook_ids && debouncedFilter.playbook_ids.length > 0) { params.set("playbook_ids", debouncedFilter.playbook_ids.join(",")); }
-    if (debouncedFilter.tag_ids && debouncedFilter.tag_ids.length > 0) { params.set("tag_ids", debouncedFilter.tag_ids.join(",")); }
     if (debouncedFilter.account_ids && debouncedFilter.account_ids.length > 0) { params.set("accountIds", debouncedFilter.account_ids.join(",")); }
     if (debouncedFilter.includeOpenTrades) { params.set("include_open", "true"); }
     if (debouncedFilter.viewId) { params.set("view_id", debouncedFilter.viewId); }

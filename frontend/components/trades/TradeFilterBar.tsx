@@ -5,10 +5,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTags } from "@/hooks/useTags";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useAccounts } from "@/hooks/useAccounts";
-import { TagBadge } from "@/components/tags/TagBadge";
+import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import type { TradeFilters } from "@/hooks/useTrades";
 import type { SavedTradeFilterRead } from "@/lib/types";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
@@ -93,7 +93,7 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
   const [symbolInput, setSymbolInput] = useState(filters.symbol ?? "");
   const symbolTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: tags } = useTags();
+  const { data: taxonomies } = useGetTaxonomies("trades");
   const { data: playbooks } = usePlaybooks();
   const { data: accounts } = useAccounts();
 
@@ -138,11 +138,11 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
     onChange({ ...filters, closed_at_to: value || undefined });
   };
 
-  const handleTagToggle = (tagId: string) => {
+  const handleTaxonomyToggle = (taxonomyId: string) => {
     const current = filters.tag_ids ?? [];
-    const updated = current.includes(tagId)
-      ? current.filter((id) => id !== tagId)
-      : [...current, tagId];
+    const updated = current.includes(taxonomyId)
+      ? current.filter((id) => id !== taxonomyId)
+      : [...current, taxonomyId];
     onChange({ ...filters, tag_ids: updated.length ? updated : undefined });
   };
 
@@ -445,21 +445,21 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
             </div>
           </div>
 
-          {/* Tags */}
-          {tags && tags.length > 0 && (
+          {/* Taxonomies */}
+          {taxonomies && taxonomies.length > 0 && (
             <div className="sm:col-span-2">
-              <label className={LABEL_CLASS}>Tags</label>
+              <label className={LABEL_CLASS}>Taxonomies</label>
               <div className="flex flex-wrap gap-2 mt-1">
-                {tags.map((tag) => {
-                  const selected = filters.tag_ids?.includes(tag.id);
+                {taxonomies.map((taxonomy) => {
+                  const selected = filters.tag_ids?.includes(taxonomy.id);
                   return (
                     <button
-                      key={tag.id}
+                      key={taxonomy.id}
                       type="button"
-                      onClick={() => handleTagToggle(tag.id)}
+                      onClick={() => handleTaxonomyToggle(taxonomy.id)}
                       className={`transition-opacity ${selected ? "opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background rounded-full" : "opacity-60 hover:opacity-90"}`}
                     >
-                      <TagBadge tag={tag} />
+                      <TaxonomyBadge taxonomy={taxonomy} />
                     </button>
                   );
                 })}

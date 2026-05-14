@@ -15,12 +15,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
-import { useTags } from "@/hooks/useTags";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useSavedViews, useSaveView, useUpdateView, useDeleteView } from "@/hooks/useReportingViews";
 import { useReportingFilterStore } from "@/stores/reportingFilterStore";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw, Filter as FilterIcon, Lock } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import type { Playbook, Tag } from "@/lib/types";
+import type { Playbook } from "@/lib/types";
 import type { DashboardFilterConfig } from "@/lib/api/types.gen";
 
 // ─── Shared input style ───────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ export function ReportFilterBar() {
 
   const { portfolios } = usePortfolios();
   const { data: playbooks } = usePlaybooks();
-  const { data: tags } = useTags();
+  const { data: taxonomies } = useGetTaxonomies("trades");
 
   // ── Wrappers to clear viewId when manual filters change ──────────────
   const handleSetDateFrom = useCallback((val: string | null) => {
@@ -213,7 +213,6 @@ export function ReportFilterBar() {
     if (activeView) {
       const cfg = activeView.filter_config;
       if (cfg.playbook_ids && cfg.playbook_ids.length > 0) count++;
-      if (cfg.tag_ids && cfg.tag_ids.length > 0) count++;
       if (cfg.date_from || cfg.date_to) count++;
       // backend doesn't have an includeOpenTrades concept currently in DashboardFilterConfig natively,
       // but we'll just check if it existed:
@@ -233,7 +232,6 @@ export function ReportFilterBar() {
     if (dateFrom) config.date_from = dateFrom;
     if (dateTo) config.date_to = dateTo;
     if (playbookIds.length > 0) config.playbook_ids = playbookIds;
-    if (tagIds.length > 0) config.tag_ids = tagIds;
     return config;
   }, [dateFrom, dateTo, playbookIds, tagIds]);
 
@@ -301,7 +299,6 @@ export function ReportFilterBar() {
           dateFrom: view.filter_config.date_from ?? null,
           dateTo: view.filter_config.date_to ?? null,
           playbookIds: view.filter_config.playbook_ids ?? [],
-          tagIds: view.filter_config.tag_ids ?? [],
         });
       }
     },
@@ -469,10 +466,10 @@ export function ReportFilterBar() {
               onChange={handleSetPlaybookIds}
             />
 
-            {/* Tag multi-select */}
+            {/* Taxonomy multi-select */}
             <MultiSelect
-              label="Tags"
-              items={tags ?? []}
+              label="Taxonomies"
+              items={taxonomies ?? []}
               selectedIds={tagIds}
               onChange={handleSetTagIds}
             />
@@ -511,16 +508,16 @@ export function ReportFilterBar() {
               placeholder="All playbooks"
             />
 
-            {/* Tag multi-select */}
+            {/* Taxonomy multi-select */}
             <MultiSelect
-              label="Tags"
-              items={(tags ?? []).map((t: Tag) => ({
+              label="Taxonomies"
+              items={(taxonomies ?? []).map((t) => ({
                 id: t.id,
                 name: t.name,
               }))}
               selectedIds={tagIds}
               onChange={setTagIds}
-              placeholder="All tags"
+              placeholder="All taxonomies"
             />
 
             {/* Trade status toggle */}

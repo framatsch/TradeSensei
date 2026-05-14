@@ -48,10 +48,7 @@ class StorageService:
         if not clean_name:
             raise ValueError("filename is required")
 
-        key = (
-            f"{key_prefix}{user_id}/"
-            f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4()}-{clean_name}"
-        )
+        key = f"{key_prefix}{user_id}/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4()}-{clean_name}"
 
         presigned_url = self._s3_client.generate_presigned_url(
             ClientMethod="put_object",
@@ -89,6 +86,20 @@ class StorageService:
         """Create a presigned PUT URL and corresponding public URL for a trade image."""
         return self._generate_upload_url(
             key_prefix="trades/",
+            user_id=user_id,
+            filename=filename,
+            content_type=content_type,
+        )
+
+    def generate_playbook_upload_url(
+        self,
+        user_id: uuid.UUID,
+        filename: str,
+        content_type: str,
+    ) -> tuple[str, str]:
+        """Create a presigned PUT URL and corresponding public URL for a playbook image."""
+        return self._generate_upload_url(
+            key_prefix="playbooks/",
             user_id=user_id,
             filename=filename,
             content_type=content_type,

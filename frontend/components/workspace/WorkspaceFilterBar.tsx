@@ -16,12 +16,11 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useAccounts } from "@/hooks/useAccounts";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
-import { useTags } from "@/hooks/useTags";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useSavedViews, useSaveView, useUpdateView, useDeleteView } from "@/hooks/useReportingViews";
 import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw, Filter as FilterIcon, Lock } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import type { Playbook, Tag } from "@/lib/types";
 import type { DashboardFilterConfig } from "@/lib/api/types.gen";
 
 // ─── Shared input style ───────────────────────────────────────────────────────
@@ -152,7 +151,7 @@ export function WorkspaceFilterBar() {
   const dateFrom = filter.date_from;
   const dateTo = filter.date_to;
   const playbookIds = filter.playbook_ids || [];
-  const tagIds = filter.tag_ids || [];
+  const tagIds: string[] = [];
   const accountIds = filter.account_ids || [];
   const includeOpenTrades = filter.includeOpenTrades;
   const viewId = filter.viewId;
@@ -168,9 +167,8 @@ export function WorkspaceFilterBar() {
     ...prev,
     date_from: f.dateFrom !== undefined ? f.dateFrom : prev.date_from,
     date_to: f.dateTo !== undefined ? f.dateTo : prev.date_to,
-    playbook_ids: f.playbookIds !== undefined ? f.playbookIds : prev.playbook_ids,
-    tag_ids: f.tagIds !== undefined ? f.tagIds : prev.tag_ids,
-    account_ids: f.accountIds !== undefined ? f.accountIds : prev.account_ids,
+      playbook_ids: f.playbookIds !== undefined ? f.playbookIds : prev.playbook_ids,
+      account_ids: f.accountIds !== undefined ? f.accountIds : prev.account_ids,
     includeOpenTrades: f.includeOpenTrades !== undefined ? f.includeOpenTrades : prev.includeOpenTrades,
     viewId: f.viewId !== undefined ? f.viewId : prev.viewId
   })), [setFilter]);
@@ -178,7 +176,7 @@ export function WorkspaceFilterBar() {
   const { portfolios } = usePortfolios();
   const { data: accounts } = useAccounts(portfolioId ?? undefined);
   const { data: playbooks } = usePlaybooks();
-  const { data: tags } = useTags();
+  const { data: taxonomies } = useGetTaxonomies("trades");
 
   // ── Wrappers to clear viewId when manual filters change ──────────────
   const handleSetDateFrom = useCallback((val: string | null) => {
@@ -226,7 +224,6 @@ export function WorkspaceFilterBar() {
     if (activeView) {
       const cfg = activeView.filter_config;
       if (cfg.playbook_ids && cfg.playbook_ids.length > 0) count++;
-      if (cfg.tag_ids && cfg.tag_ids.length > 0) count++;
       if (cfg.account_ids && cfg.account_ids.length > 0) count++;
       if (cfg.date_from || cfg.date_to) count++;
       // backend doesn't have an includeOpenTrades concept currently in DashboardFilterConfig natively,
@@ -248,7 +245,6 @@ export function WorkspaceFilterBar() {
     if (dateFrom) config.date_from = dateFrom;
     if (dateTo) config.date_to = dateTo;
     if (playbookIds.length > 0) config.playbook_ids = playbookIds;
-    if (tagIds.length > 0) config.tag_ids = tagIds;
     if (accountIds.length > 0) config.account_ids = accountIds;
     return config;
   }, [dateFrom, dateTo, playbookIds, tagIds, accountIds]);
@@ -317,7 +313,6 @@ export function WorkspaceFilterBar() {
           dateFrom: view.filter_config.date_from ?? null,
           dateTo: view.filter_config.date_to ?? null,
           playbookIds: view.filter_config.playbook_ids ?? [],
-          tagIds: view.filter_config.tag_ids ?? [],
           accountIds: view.filter_config.account_ids ?? [],
         });
       }
@@ -492,10 +487,10 @@ export function WorkspaceFilterBar() {
               onChange={handleSetPlaybookIds}
             />
 
-            {/* Tag multi-select */}
+            {/* Taxonomy multi-select */}
             <MultiSelect
-              label="Tags"
-              items={tags ?? []}
+              label="Taxonomies"
+              items={taxonomies ?? []}
               selectedIds={tagIds}
               onChange={handleSetTagIds}
             />

@@ -24,6 +24,7 @@ from app.schemas.daily_checkin import (
     ScreenshotUploadUrlRequest,
     ScreenshotUploadUrlResponse,
 )
+from app.schemas.model_book import ModelBookPatchRequest
 from app.services.daily_checkin_service import DailyCheckinService
 from app.services.storage_service import StorageService
 
@@ -136,14 +137,10 @@ async def get_checkin(
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> ResponseEnvelope[DailyCheckinRead]:
     try:
-        item = await service.get_checkin(
-            user_id=current_user.id, checkin_date=checkin_date
-        )
+        item = await service.get_checkin(user_id=current_user.id, checkin_date=checkin_date)
         return ResponseEnvelope[DailyCheckinRead](data=item)
     except DailyCheckinNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.patch(
@@ -159,14 +156,10 @@ async def update_checkin(
     service: Annotated[DailyCheckinService, Depends(_get_service)],
 ) -> ResponseEnvelope[DailyCheckinRead]:
     try:
-        item = await service.update_checkin(
-            user_id=current_user.id, checkin_date=checkin_date, payload=payload
-        )
+        item = await service.update_checkin(user_id=current_user.id, checkin_date=checkin_date, payload=payload)
         return ResponseEnvelope[DailyCheckinRead](data=item)
     except DailyCheckinNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except DailyCheckinAlreadyExistsError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -193,6 +186,23 @@ async def delete_checkin(
     try:
         await service.delete_checkin(user_id=current_user.id, checkin_date=checkin_date)
     except DailyCheckinNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch("/{checkin_date}/modelbook", response_model=ResponseEnvelope[DailyCheckinRead])
+async def update_checkin_modelbook(
+    checkin_date: date,
+    payload: ModelBookPatchRequest,
+    service: Annotated[DailyCheckinService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ResponseEnvelope[DailyCheckinRead]:
+    """Star or unstar a daily check-in for the Model Book."""
+    try:
+        checkin = await service.update_modelbook_flag(
+            current_user.id,
+            checkin_date,
+            payload.is_modelbook,
+        )
+        return ResponseEnvelope[DailyCheckinRead](data=checkin)
+    except DailyCheckinNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Daily check-in not found") from None

@@ -19,11 +19,14 @@ from app.schemas.analytics import (
     AnalyticsSummary,
     AnalyticsSummaryRequest,
     AttributionResponse,
+    AxisType,
     DashboardFilterConfig,
+    MetadataCorrelationResponse,
 )
 from app.schemas.common import ResponseEnvelope
 from app.services.analytics_service import AnalyticsService
 from app.services.attribution_service import AttributionService
+from app.services.metadata_correlation_service import MetadataCorrelationService
 
 router = APIRouter(
     prefix="/portfolios/{portfolio_id}/analytics",
@@ -44,14 +47,49 @@ def _get_attribution_service(
     return AttributionService(session)
 
 
+def _get_metadata_correlation_service() -> MetadataCorrelationService:
+    return MetadataCorrelationService()
+
+
+@router.get(
+    "/metadata-correlation",
+    response_model=ResponseEnvelope[MetadataCorrelationResponse],
+    summary="Get metadata correlation",
+    description="Compute correlation between two checkin/trade metadata axes.",
+)
+async def get_metadata_correlation(
+    portfolio_id: uuid.UUID,
+    x_axis_type: AxisType,
+    x_axis_id: uuid.UUID,
+    y_axis_type: AxisType,
+    y_axis_id: uuid.UUID,
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
+    service: Annotated[MetadataCorrelationService, Depends(_get_metadata_correlation_service)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+    account_ids: Annotated[list[uuid.UUID] | None, Query(description="Optional list of account IDs")] = None,
+    base_asset: str | None = None,
+) -> ResponseEnvelope[MetadataCorrelationResponse]:
+    data = await service.get_correlation(
+        session=session,
+        portfolio_id=portfolio_id,
+        x_axis_type=x_axis_type,
+        x_axis_id=x_axis_id,
+        y_axis_type=y_axis_type,
+        y_axis_id=y_axis_id,
+        date_from=date_from,
+        date_to=date_to,
+        account_ids=account_ids,
+        base_asset=base_asset,
+    )
+    return ResponseEnvelope[MetadataCorrelationResponse](data=data)
+
+
 @router.post(
     "/summary",
     response_model=ResponseEnvelope[AnalyticsSummary],
     summary="Compute analytics summary",
-    description=(
-        "Compute server-side summary metrics for either inline filter_config "
-        "or a saved view ID."
-    ),
+    description=("Compute server-side summary metrics for either inline filter_config or a saved view ID."),
     response_description="Computed analytics summary payload.",
 )
 async def get_analytics_summary(
@@ -112,11 +150,7 @@ async def get_market_phase_correlation(
     if view_id is not None:
         view_repo = SavedDashboardViewRepository(session)
         view = await view_repo.get_by_id(view_id)
-        if (
-            view is None
-            or view.user_id != current_user.id
-            or view.portfolio_id != portfolio_id
-        ):
+        if view is None or view.user_id != current_user.id or view.portfolio_id != portfolio_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="view not found",
@@ -132,7 +166,5 @@ async def get_market_phase_correlation(
             filter_config=filter_config,
         )
     except Spec5NotDeployedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
     return ResponseEnvelope[AttributionResponse](data=data)
