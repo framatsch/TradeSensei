@@ -31,10 +31,13 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install chromium --with-deps
 
-    - name: Start Docker stack (db + backend + frontend)
-      run: docker compose up -d --wait
+    - name: Start Docker stack
+      run: docker compose up -d db seaweedfs backend frontend
       env:
         COMPOSE_HTTP_TIMEOUT: 120
+
+    - name: Initialize storage bucket
+      run: docker compose run --rm storage-init
 
     - name: Wait for backend to be healthy
       run: |
@@ -71,7 +74,7 @@ jobs:
 
     - name: Stop Docker stack
       if: always()
-      run: docker compose down -v
+      run: docker compose down -v || true
 
     - name: Upload Playwright report
       uses: actions/upload-artifact@v4
