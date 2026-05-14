@@ -9,6 +9,7 @@ import { TokenList } from "@/components/settings/TokenList";
 export function ApiTokensSettings() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [generatedToken, setGeneratedToken] = useState<PatGenerateResponse | null>(null);
+  const [showMcpExamples, setShowMcpExamples] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -26,6 +27,42 @@ export function ApiTokensSettings() {
         >
           Generate New Token
         </button>
+      </div>
+
+      <div className="rounded-md border border-border bg-card">
+        <button
+          type="button"
+          onClick={() => setShowMcpExamples((prev) => !prev)}
+          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]"
+          aria-expanded={showMcpExamples}
+        >
+          <span>What can I do with MCP?</span>
+          <span className="text-xs text-muted-foreground">{showMcpExamples ? "Hide" : "Show"}</span>
+        </button>
+        {showMcpExamples && (
+          <div className="space-y-2 border-t border-border px-3 py-3 text-xs text-muted-foreground">
+            <ul className="list-disc space-y-1 pl-4">
+              <li>
+                Performance discovery: "Show me all losing trades from last week where my Mood annotation was below 5."
+              </li>
+              <li>
+                Automated enrichment: "Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a note."
+              </li>
+              <li>
+                Strategy creation: "Create a Breakout Momentum playbook from these rules: ..."
+              </li>
+              <li>
+                Pattern analysis: "What is my win rate on LONG EQUITY trades in the first hour of the day?"
+              </li>
+            </ul>
+            <a
+              href="/help#mcp-integration"
+              className="text-primary hover:underline"
+            >
+              Learn more
+            </a>
+          </div>
+        )}
       </div>
 
       <TokenList />

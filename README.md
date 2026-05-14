@@ -13,16 +13,41 @@ Trade Sensei lets you record every trade, import activity from your broker, and 
 
 ## Features
 
+### Trade Journaling & Import
 - **Trade journaling** — add trades manually or import them from a broker CSV file
+- **Broker import** — Interactive Brokers (IBKR) Activity Statement CSV and Charles Schwab trade history CSV
+- **Trade image attachments** — attach chart screenshots or setup images directly to trades via drag-and-drop; requires an S3-compatible storage backend (e.g. MinIO or SeaweedFS)
+- **Execution leg editor** — record individual fills with split-aware logic; timestamps auto-sync to the trade open/close times
+
+### Performance Analytics
 - **Performance metrics** — win rate, profit factor, expectancy, Sharpe ratio, max drawdown, and more
 - **Equity curve and drawdown visualization** — interactive time-series charts powered by Recharts
-- **Broker import** — Interactive Brokers (IBKR) Activity Statement CSV and Charles Schwab trade history CSV
-- **Playbook system** — define named trade setups (e.g. "Breakout", "Mean Reversion") and tag trades to them
-- **Custom trade tags** — label trades with color-coded tags for filtering and review
-- **Psychological notes** — add per-trade notes with an optional emotion field to track behavioral patterns
-- **Trade image attachments** — attach chart screenshots or setup images directly to trades; requires an S3-compatible storage backend (e.g. MinIO)
-- **Multi-user support** — each user has isolated data; authentication via JWT (password) or Google OAuth 2.0
+- **Strategy analysis** — MAE/MFE, R-multiple distribution, duration vs. P&L, payoff ratio
+- **Time analysis** — performance breakdown by hour, weekday, month, and year to surface systematic patterns
+- **Metadata Correlation Explorer** — select any Check-in annotation or taxonomy as X and any Trade annotation or taxonomy as Y; automatically renders the correct chart type (scatter, box-and-whisker, co-occurrence heatmap) to surface psychological and market-condition correlations
+
+### Strategy & Metadata System
+- **Playbook Strategy Hub** — define named trade setups (e.g. "Breakout", "Mean Reversion") enriched with a Markdown editor for strategy rules, a target win rate, taxonomy tags, image attachments, and external reference links
+- **Taxonomy tags** — color-coded, icon-labeled tags scoped to trades, check-ins, or both; managed in the Library
+- **Typed annotation metrics** — per-trade and per-check-in custom variables with typed inputs: integer/float sliders, boolean toggles, or string enum dropdowns; managed in the Library
+- **Default metadata on registration** — new accounts are seeded with a curated set of industry-standard tags and annotation metrics so the platform is immediately useful without manual setup
+- **Model Book** — star any trade or check-in to add it to a unified cross-entity gallery for pattern recognition; filterable by entity type and date range
+
+### Daily Check-in & Psychology
+- **Daily market check-in** — log pre/post-session notes, market phase, target index, and custom annotation metrics
+- **Psychological notes** — per-trade notes with typed annotations (e.g. Mood, Stress, Conviction) to track behavioral patterns over time
+
+### Portfolios & Multi-User
+- **Portfolio management** — group accounts into portfolios; all analytics and API endpoints scope to the active portfolio
+- **Multi-user support** — each user has fully isolated data; authentication via JWT (password), Google OAuth 2.0, or custom OIDC providers (e.g. Authentik)
+
+### MCP AI Integration
+- **MCP server** — expose your trade data to external AI agents (Claude, Gemini, etc.) via the Model Context Protocol over Server-Sent Events, secured by Personal Access Tokens
+- **Domain tools** — AI agents can discover your metadata schema, search trades with multi-dimensional filters, bulk-enrich trades with tags and annotations, and create strategy playbooks from analyzed content
+
+### Platform
 - **REST API** — fully documented OpenAPI spec available at `/docs`
+- **Personal Access Tokens (PATs)** — generate scoped tokens for MCP integrations and programmatic API access; tokens are revocable and support expiry
 
 ---
 

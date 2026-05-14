@@ -515,6 +515,35 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
     ],
   },
+  {
+    heading: "AI & MCP Integration",
+    entries: [
+      {
+        id: "mcp-integration",
+        label: "MCP Integration",
+        summary:
+          "Model Context Protocol (MCP) lets you connect AI agents like Claude or Gemini directly to your Trade Sensei data.",
+        detail:
+          "MCP is a standard bridge between AI clients and application tools. In Trade Sensei, MCP lets your AI agent discover your metadata schema, search trades with advanced filters, bulk-enrich trade metadata, and create strategy playbooks through authenticated tool calls.",
+      },
+      {
+        id: "mcp-pat",
+        label: "Personal Access Token (PAT)",
+        summary:
+          "A PAT is a one-time-visible secret token required to authenticate MCP clients against your account.",
+        detail:
+          "Generate a PAT from Settings -> API & Tokens before connecting any MCP client. The raw token value is shown only once at creation time, so copy it to a secure vault immediately. If it is lost, revoke it and generate a new token.",
+      },
+      {
+        id: "mcp-ai-prompts",
+        label: "AI Prompt Examples",
+        summary:
+          "Use these copy-paste prompts to get immediate value after connecting your AI client.",
+        detail:
+          "Performance review: 'Show me all losing trades from last week where Mood was below 5.'\n\nEnrichment: 'Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a short note.'\n\nStrategy creation: 'Create a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R.'\n\nPattern analysis: 'What is my win rate on LONG EQUITY trades in the first hour of the day?'",
+      },
+    ],
+  },
 ];
 
 // ─── Lookup helper ────────────────────────────────────────────────────────────
