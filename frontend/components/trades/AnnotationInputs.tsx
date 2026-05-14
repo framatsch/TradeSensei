@@ -66,7 +66,7 @@ export function AnnotationInputs({ definitions, values, onChange, disabled }: Pr
               <input
                 type="number"
                 disabled={disabled}
-                step={def.type === "int" ? "1" : "any"}
+                step={def.type === "int" ? "1" : "0.01"}
                 min={
                   typeof def.scale_labels?.min === "number"
                     ? def.scale_labels.min

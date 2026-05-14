@@ -257,7 +257,7 @@ export function AnnotationManager() {
                       type="number"
                       value={minVal}
                       onChange={(e) => setMinVal(e.target.value)}
-                      step={type === "float" ? "any" : "1"}
+                      step={type === "float" ? "0.01" : "1"}
                       placeholder="Min"
                       className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
                     />
@@ -268,7 +268,7 @@ export function AnnotationManager() {
                       type="number"
                       value={maxVal}
                       onChange={(e) => setMaxVal(e.target.value)}
-                      step={type === "float" ? "any" : "1"}
+                      step={type === "float" ? "0.01" : "1"}
                       placeholder="Max"
                       className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
                     />
