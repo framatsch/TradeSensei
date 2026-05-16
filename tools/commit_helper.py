@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 #!/usr/bin/env python3
 """Commit Helper — Generate and validate commits for the tradesensei project.
 
@@ -209,6 +222,61 @@ def validate_commit_message(message: str) -> Tuple[bool, List[str]]:
     return len(issues) == 0, issues
 
 
+def ensure_license_header(files: List[str]) -> None:
+    """Ensure that modified or added files contain the AGPLv3 license header."""
+    PYTHON_HEADER = """# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
+    JS_HEADER = """/*
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+"""
+    import os
+    for file in files:
+        if not os.path.exists(file):
+            continue
+        ext = os.path.splitext(file)[1]
+        try:
+            if ext == '.py':
+                with open(file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                if "GNU Affero General Public License" not in content:
+                    with open(file, 'w', encoding='utf-8') as f:
+                        f.write(PYTHON_HEADER + content)
+                    console.print(f"[yellow]Added AGPLv3 header to {file}[/yellow]")
+            elif ext in ['.ts', '.tsx', '.js', '.jsx']:
+                with open(file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                if "GNU Affero General Public License" not in content:
+                    with open(file, 'w', encoding='utf-8') as f:
+                        f.write(JS_HEADER + content)
+                    console.print(f"[yellow]Added AGPLv3 header to {file}[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Failed to check/add license to {file}: {e}[/red]")
+
 def format_commit_message(
     category: str, title: str, explanation: str = "", why: str = ""
 ) -> str:
@@ -277,6 +345,12 @@ def main(validate: bool, auto: bool, preview: bool, add_all: bool) -> None:
     if not all_files:
         console.print("[yellow]No changes detected[/yellow]")
         sys.exit(0)
+
+    # Check and add licenses early so they are included in the diff
+    ensure_license_header(status["modified"] + status["added"])
+    if not preview:
+        run_git_command(["add", "-A"]) # Automatically stage the headers if any were added
+        status = get_git_status() # Re-evaluate status
 
     table = Table(title="Changed Files", border_style="cyan")
     table.add_column("Status", style="bold")
