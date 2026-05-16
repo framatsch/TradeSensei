@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /*
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -12,8 +13,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#!/usr/bin/env node
 /**
  * export_help.ts — Export the Trade Sensei help glossary to a Markdown file.
  *

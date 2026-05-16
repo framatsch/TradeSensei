@@ -639,14 +639,36 @@ Generate a PAT from Settings -> API & Tokens before connecting any MCP client. T
 
 **Use these copy-paste prompts to get immediate value after connecting your AI client.**
 
-Performance review: 'Show me all losing trades from last week where Mood was below 5.'
+Performance review:
+```text
+Show me all losing trades from last week where Mood was below 5.
+```
 
-Enrichment: 'Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a short note.'
+Enrichment:
+```text
+Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a short note.
+```
 
-Strategy creation: 'Create a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R.'
+Strategy creation:
+```text
+Create a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R.
+```
 
-Pattern analysis: 'What is my win rate on LONG EQUITY trades in the first hour of the day?'
+Pattern analysis:
+```text
+What is my win rate on LONG EQUITY trades in the first hour of the day?
+```
+
+Deep Dive:
+```text
+Retrieve all trades tagged with 'Earnings Gap Fill' from last month, identify common mistakes among the losing trades, and suggest 3 rules to improve adherence.
+```
+
+Risk Assessment:
+```text
+Analyze my Max Drawdown periods over the last 90 days. Were there any correlation with specific Market Phases or specific assets?
+```
 
 ---
 
-*Generated: 2026-05-14T08:57:57.986Z*
+*Generated: 2026-05-16T16:26:00.648Z*

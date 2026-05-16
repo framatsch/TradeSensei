@@ -555,7 +555,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         summary:
           "Use these copy-paste prompts to get immediate value after connecting your AI client.",
         detail:
-          "Performance review: 'Show me all losing trades from last week where Mood was below 5.'\n\nEnrichment: 'Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a short note.'\n\nStrategy creation: 'Create a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R.'\n\nPattern analysis: 'What is my win rate on LONG EQUITY trades in the first hour of the day?'",
+          "Performance review:\n```text\nShow me all losing trades from last week where Mood was below 5.\n```\n\nEnrichment:\n```text\nTag my trades from May 6th 2026 afternoon with Macro Volatility and add a short note.\n```\n\nStrategy creation:\n```text\nCreate a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R.\n```\n\nPattern analysis:\n```text\nWhat is my win rate on LONG EQUITY trades in the first hour of the day?\n```\n\nDeep Dive:\n```text\nRetrieve all trades tagged with 'Earnings Gap Fill' from last month, identify common mistakes among the losing trades, and suggest 3 rules to improve adherence.\n```\n\nRisk Assessment:\n```text\nAnalyze my Max Drawdown periods over the last 90 days. Were there any correlation with specific Market Phases or specific assets?\n```",
       },
     ],
   },

@@ -52,10 +52,43 @@ Creates a new active playbook from structured AI output and stores rules as Mark
 
 ## Prompt Examples
 
-- Performance discovery: "Show me all losing trades from last week where my Mood annotation was below 5." (`search_trades_advanced`)
-- Automated enrichment: "Tag my trades from May 6th 2026 afternoon with 'Macro Volatility'." (`get_metadata_schema` + `search_trades_advanced` + `sync_trade_metadata`)
-- Strategy creation: "Create a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R." (`create_strategy_playbook`)
-- Pattern correlation: "What is my win rate on LONG EQUITY trades in the first hour of the day?" (`search_trades_advanced`)
+Here are some example prompts you can use directly with your connected AI client:
+
+**Performance discovery:**
+```text
+Show me all losing trades from last week where my Mood annotation was below 5.
+```
+*(Uses: `search_trades_advanced`)*
+
+**Automated enrichment:**
+```text
+Tag my trades from May 6th 2026 afternoon with 'Macro Volatility'.
+```
+*(Uses: `get_metadata_schema` + `search_trades_advanced` + `sync_trade_metadata`)*
+
+**Strategy creation:**
+```text
+Create a Breakout Momentum playbook from these rules: enter after first pullback, risk 1R, move stop to break-even after 1R.
+```
+*(Uses: `create_strategy_playbook`)*
+
+**Pattern correlation:**
+```text
+What is my win rate on LONG EQUITY trades in the first hour of the day?
+```
+*(Uses: `search_trades_advanced`)*
+
+**Deep Dive:**
+```text
+Retrieve all trades tagged with 'Earnings Gap Fill' from last month, identify common mistakes among the losing trades, and suggest 3 rules to improve adherence.
+```
+*(Uses: `search_trades_advanced` + `get_metadata_schema`)*
+
+**Risk Assessment:**
+```text
+Analyze my Max Drawdown periods over the last 90 days. Were there any correlation with specific Market Phases or specific assets?
+```
+*(Uses: `search_trades_advanced`)*
 
 ## Workflow Example
 
