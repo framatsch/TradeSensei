@@ -98,6 +98,7 @@ export function PortfolioEditModal({ portfolio, onClose }: Props) {
     deleteMutation.mutate();
   };
 
+  const [showDangerZone, setShowDangerZone] = useState(false);
   const canDelete = confirmName.trim() === portfolio.name && !deleteMutation.isPending;
   const canSave = name.trim().length > 0 && !updateMutation.isPending;
 
@@ -188,48 +189,53 @@ export function PortfolioEditModal({ portfolio, onClose }: Props) {
           </div>
         </form>
 
-        <div className="border-t border-border pt-5 space-y-4">
-          <div className="flex items-center gap-2 text-danger">
-            <AlertTriangle className="h-5 w-5" />
-            <h4 className="text-sm font-semibold">Danger Zone</h4>
-          </div>
+        <div className="border-t border-border pt-5">
+          <button
+            onClick={() => setShowDangerZone(!showDangerZone)}
+            className="flex items-center gap-2 text-danger hover:text-danger/80 transition-colors text-sm font-semibold w-full text-left"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            {showDangerZone ? "Hide Danger Zone" : "Show Danger Zone"}
+          </button>
 
-          <div className="bg-danger/5 border border-danger/20 rounded-md p-4 space-y-3" data-testid="danger-zone">
-            <p className="text-sm text-danger">
-              This will permanently delete this portfolio, all linked broker accounts, and all historical trade data. This action cannot be undone.
-            </p>
-
-            <div className="space-y-1.5">
-              <label className="text-sm text-foreground font-medium">
-                Type <span className="font-bold text-danger select-none">{portfolio.name}</span> to confirm:
-              </label>
-              <input
-                type="text"
-                value={confirmName}
-                onChange={(e) => setConfirmName(e.target.value)}
-                disabled={deleteMutation.isPending}
-                placeholder={portfolio.name}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-danger text-foreground"
-                data-testid="delete-confirm-input"
-              />
-            </div>
-
-            {deleteError && (
-              <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="delete-error">
-                {deleteError}
+          {showDangerZone && (
+            <div className="mt-4 bg-danger/5 border border-danger/20 rounded-md p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200" data-testid="danger-zone">
+              <p className="text-sm text-danger">
+                This will permanently delete this portfolio, all linked broker accounts, and all historical trade data. This action cannot be undone.
               </p>
-            )}
 
-            <button
-              onClick={handleDelete}
-              disabled={!canDelete}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
-              data-testid="delete-portfolio-button"
-            >
-              <Trash2 className="h-4 w-4" />
-              {deleteMutation.isPending ? "Deleting..." : "Delete Portfolio"}
-            </button>
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-sm text-foreground font-medium">
+                  Type <span className="font-bold text-danger select-none">{portfolio.name}</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  disabled={deleteMutation.isPending}
+                  placeholder={portfolio.name}
+                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-danger text-foreground"
+                  data-testid="delete-confirm-input"
+                />
+              </div>
+
+              {deleteError && (
+                <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="delete-error">
+                  {deleteError}
+                </p>
+              )}
+
+              <button
+                onClick={handleDelete}
+                disabled={!canDelete}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                data-testid="delete-portfolio-button"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deleteMutation.isPending ? "Deleting..." : "Delete Portfolio"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

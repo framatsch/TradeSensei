@@ -20,13 +20,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
+import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { useAccounts } from "@/hooks/useAccounts";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
-import { useAccounts } from "@/hooks/useAccounts";
 import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import type { TradeFilters } from "@/hooks/useTrades";
-import type { SavedTradeFilterRead } from "@/lib/types";
-import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
+import type { Account, SavedTradeFilterRead } from "@/lib/types";
 
 export type { TradeFilters };
 
@@ -60,6 +61,7 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.closed_at_from) count++;
   if (filters.closed_at_to) count++;
   if (filters.tag_ids?.length) count++;
+  if (filters.account_ids?.length) count++;
   if (filters.playbook_id) count++;
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) count++;
   if (filters.status) count++;
@@ -77,6 +79,7 @@ const EMPTY_FILTERS: TradeFilters = {
   closed_at_from: "",
   closed_at_to: "",
   tag_ids: [],
+  account_ids: [],
   playbook_id: "",
   pnl_positive: null,
   status: null,
@@ -100,6 +103,119 @@ const INPUT_CLASS =
   "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
 
+interface AccountMultiSelectProps {
+  accounts: Account[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  isLoading?: boolean;
+}
+
+function AccountMultiSelect({ accounts, selectedIds, onChange, isLoading = false }: AccountMultiSelectProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedAccounts = accounts.filter((account) => selectedIds.includes(account.id));
+
+  const toggleAccount = (accountId: string) => {
+    if (selectedIds.includes(accountId)) {
+      onChange(selectedIds.filter((id) => id !== accountId));
+      return;
+    }
+    onChange([...selectedIds, accountId]);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <label className={LABEL_CLASS}>Account</label>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        disabled={isLoading}
+        className={`${INPUT_CLASS} flex items-center justify-between gap-2 text-left disabled:opacity-60`}
+      >
+        <span className={selectedIds.length === 0 ? "text-muted-foreground" : ""}>
+          {isLoading
+            ? "Loading accounts…"
+            : selectedIds.length === 0
+            ? "All Accounts"
+            : `${selectedIds.length} selected`}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+          {accounts.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-muted-foreground">
+              {isLoading ? "Loading accounts…" : "No accounts available"}
+            </p>
+          ) : (
+            <>
+              {accounts.map((account) => {
+                const isSelected = selectedIds.includes(account.id);
+                return (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => toggleAccount(account.id)}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 ${
+                      isSelected ? "bg-primary/10 text-foreground" : "text-foreground"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      readOnly
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <span className="truncate">
+                      {account.name}
+                      {account.account_number ? ` (${account.account_number})` : ""}
+                    </span>
+                  </button>
+                );
+              })}
+              <div className="border-t border-border p-2">
+                <button
+                  type="button"
+                  onClick={() => onChange([])}
+                  disabled={selectedIds.length === 0}
+                  className="w-full rounded-md px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                >
+                  Clear selection
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {selectedAccounts.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {selectedAccounts.map((account) => (
+            <span
+              key={account.id}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+            >
+              {account.name}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRenameView, onUpdateView, onDeleteView, isUpdating }: Props) {
   const [open, setOpen] = useState(() => countActiveFilters(filters) > 0);
   const activeCount = countActiveFilters(filters);
@@ -108,9 +224,11 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
   const [symbolInput, setSymbolInput] = useState(filters.symbol ?? "");
   const symbolTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { activePortfolioId, isLoading: isPortfolioLoading } = useActivePortfolio();
   const { data: taxonomies } = useGetTaxonomies("trades");
   const { data: playbooks } = usePlaybooks();
-  const { data: accounts } = useAccounts();
+  const { data: accounts = [], isLoading: isLoadingAccounts } = useAccounts(activePortfolioId ?? undefined);
+  const isLoadingAccountOptions = isPortfolioLoading || isLoadingAccounts;
 
   // Sync external filter changes back into local symbol input
   useEffect(() => {
@@ -161,6 +279,10 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
     onChange({ ...filters, tag_ids: updated.length ? updated : undefined });
   };
 
+  const handleAccountChange = (accountIds: string[]) => {
+    onChange({ ...filters, account_ids: accountIds.length > 0 ? accountIds : undefined });
+  };
+
   const handlePlaybookChange = (value: string) => {
     onChange({ ...filters, playbook_id: value || undefined });
   };
@@ -176,7 +298,6 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
     const status = value === "open" || value === "closed" ? value : null;
     onChange({ ...filters, status });
   };
-
 
   const handleClearAll = () => {
     setSymbolInput("");
@@ -393,6 +514,14 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
               ))}
             </select>
           </div>
+
+          {/* Account */}
+          <AccountMultiSelect
+            accounts={accounts}
+            selectedIds={filters.account_ids ?? []}
+            onChange={handleAccountChange}
+            isLoading={isLoadingAccountOptions}
+          />
 
           {/* Playbook */}
           <div>

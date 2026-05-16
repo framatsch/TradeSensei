@@ -22,6 +22,7 @@ import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useMetadataCorrelation } from "@/hooks/useMetadataCorrelation";
 import { CorrelationChartRouter } from "@/components/charts/CorrelationChartRouter";
 import { useAccounts } from "@/hooks/useAccounts";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 const INPUT_CLASS =
   "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
@@ -199,13 +200,19 @@ export default function CorrelationPage() {
       {hasAxes && !isError && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="radiant-card p-4">
-            <div className="text-sm font-medium text-muted-foreground">Win Rate</div>
+            <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+              <span>Win Rate</span>
+              <MetricHelpLink anchor="win-rate" />
+            </div>
             <div className="text-2xl font-bold font-mono mt-1">
               {kpis?.win_rate ? `${(Number(kpis.win_rate) * 100).toFixed(1)}%` : "—"}
             </div>
           </div>
           <div className="radiant-card p-4">
-            <div className="text-sm font-medium text-muted-foreground">Max Drawdown</div>
+            <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+              <span>Max Drawdown</span>
+              <MetricHelpLink anchor="max-drawdown" />
+            </div>
             <div className="text-2xl font-bold font-mono mt-1 text-danger">
               {kpis?.max_drawdown_pct ? `${(Number(kpis.max_drawdown_pct) * 100).toFixed(1)}%` : "—"}
             </div>

@@ -74,8 +74,12 @@ class PortfolioService:
         if item is None:
             raise PortfolioNotFoundError("Portfolio not found.")
 
-        if await self._repo.has_accounts(item.id):
-            raise PortfolioValidationError("Portfolio has linked accounts.")
+        # Manually delete all linked accounts first to cascade
+        from app.repositories.account_repository import AccountRepository
+        account_repo = AccountRepository(self._session)
+        accounts = await account_repo.list_by_user(user_id, portfolio_id=item.id)
+        for account in accounts:
+            await account_repo.delete(account)
 
         await self._repo.delete(item)
         await self._session.commit()

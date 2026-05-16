@@ -326,7 +326,7 @@ class TradeService:
         limit: int,
         cursor: str | None,
         include_total: bool = False,
-        account_id: uuid.UUID | None = None,
+        account_ids: list[uuid.UUID] | None = None,
         user_id: uuid.UUID | None = None,
         portfolio_id: uuid.UUID | None = None,
         filters: TradeFilterParams | None = None,
@@ -340,7 +340,7 @@ class TradeService:
             include_total: When ``True``, include the total row count in
                 the response. Defaults to ``False`` to skip the extra
                 ``COUNT(*)`` query.
-            account_id: When provided, only trades for this account are
+            account_ids: When provided, only trades for these accounts are
                 returned.
             user_id: When provided, only trades belonging to this user
                 are returned.
@@ -360,7 +360,7 @@ class TradeService:
                 limit=limit,
                 cursor=cursor,
                 include_total=include_total,
-                account_id=account_id,
+                account_ids=account_ids,
                 portfolio_id=portfolio_id,
                 user_id=user_id,
                 filters=filters,

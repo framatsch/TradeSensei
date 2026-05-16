@@ -15,6 +15,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 
 export interface PerformanceDataPoint {
@@ -219,28 +220,39 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
           <h3 className="text-sm font-semibold text-foreground border-b border-border/50 pb-2">Insights</h3>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Net P&L</span>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+              Total Net P&L
+              <MetricHelpLink anchor="net-pnl" />
+            </span>
             <span className={`text-2xl font-bold font-mono ${insights.totalPnl >= 0 ? 'text-success' : 'text-danger'}`}>
               {formatCurrency(insights.totalPnl)}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Avg Net Return</span>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+              Avg Net Return
+              <MetricHelpLink anchor="avg-net-return" />
+            </span>
             <span className={`text-xl font-semibold font-mono ${insights.avgReturn >= 0 ? 'text-success' : 'text-danger'}`}>
               {formatCurrency(insights.avgReturn)}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Win Rate</span>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+              Win Rate
+              <MetricHelpLink anchor="win-rate" />
+            </span>
             <span className="text-xl font-semibold font-mono text-foreground">
               {formatPercent(insights.winRate)}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Trades</span>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+              Total Trades
+            </span>
             <span className="text-xl font-semibold font-mono text-foreground">
               {insights.totalTrades}
             </span>
@@ -266,18 +278,34 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">Shares</th>
               
               {/* Profit & Loss */}
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-widest whitespace-nowrap bg-primary/5">Net P&amp;L</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Gross P&amp;L</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">Commissions</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-widest whitespace-nowrap bg-primary/5">
+                <div className="flex items-center justify-end gap-1.5">Net P&amp;L <MetricHelpLink anchor="net-pnl" /></div>
+              </th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">
+                <div className="flex items-center justify-end gap-1.5">Gross P&amp;L <MetricHelpLink anchor="gross-pnl-trade" /></div>
+              </th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">
+                <div className="flex items-center justify-end gap-1.5">Commissions <MetricHelpLink anchor="fees-commissions" /></div>
+              </th>
               
               {/* Win/Loss */}
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Win %</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Gross Win</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Gross Loss</th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">Profit Factor</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">
+                <div className="flex items-center justify-end gap-1.5">Win % <MetricHelpLink anchor="win-rate" /></div>
+              </th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">
+                <div className="flex items-center justify-end gap-1.5">Gross Win <MetricHelpLink anchor="gross-profit" /></div>
+              </th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">
+                <div className="flex items-center justify-end gap-1.5">Gross Loss <MetricHelpLink anchor="gross-loss" /></div>
+              </th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap border-r border-[#dadbdf] dark:border-[#29292b]">
+                <div className="flex items-center justify-end gap-1.5">Profit Factor <MetricHelpLink anchor="profit-factor-time" /></div>
+              </th>
               
               {/* Averages */}
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-widest whitespace-nowrap bg-primary/5">Avg Net Return</th>
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-primary uppercase tracking-widest whitespace-nowrap bg-primary/5">
+                <div className="flex items-center justify-end gap-1.5">Avg Net Return <MetricHelpLink anchor="avg-net-return" /></div>
+              </th>
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Gross Win</th>
               <th scope="col" className="px-4 py-3 text-right text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">Avg Gross Loss</th>
             </tr>

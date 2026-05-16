@@ -42,11 +42,14 @@ export function definitionToSearchParams(
   if (d.closed_at_to) p.set("closed_at_to", String(d.closed_at_to));
   if (Array.isArray(d.tag_ids) && d.tag_ids.length)
     p.set("tag_ids", (d.tag_ids as string[]).join(","));
+  if (Array.isArray(d.account_ids) && d.account_ids.length)
+    p.set("account_ids", (d.account_ids as string[]).join(","));
+  if (d.account_id)
+    p.set("account_id", String(d.account_id));
   if (d.playbook_id) p.set("playbook_id", String(d.playbook_id));
   if (d.pnl_positive !== null && d.pnl_positive !== undefined)
     p.set("pnl_positive", String(d.pnl_positive));
   if (d.status) p.set("status", String(d.status));
-  if (d.account_id) p.set("account_id", String(d.account_id));
   if (d.hour_of_day !== undefined && d.hour_of_day !== null)
     p.set("hour_of_day", String(d.hour_of_day));
   if (d.day_of_week !== undefined && d.day_of_week !== null)

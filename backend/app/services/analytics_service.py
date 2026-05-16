@@ -56,6 +56,7 @@ class _ComputedMetrics:
     losing_trades: int
     gross_profit: Decimal
     gross_loss: Decimal
+    total_pnl: Decimal
     avg_win: Decimal
     avg_loss: Decimal
     expectancy: Decimal
@@ -189,6 +190,7 @@ class AnalyticsService:
             losing_trades=losses,
             gross_profit=gross_profit,
             gross_loss=gross_loss,
+            total_pnl=gross_profit + gross_loss,
             avg_win=avg_win,
             avg_loss=avg_loss,
             expectancy=expectancy,
@@ -361,6 +363,7 @@ class AnalyticsService:
                 total_trades=metrics.total_trades,
                 winning_trades=metrics.winning_trades,
                 losing_trades=metrics.losing_trades,
+                total_pnl=metrics.total_pnl,
                 gross_profit=metrics.gross_profit,
                 gross_loss=metrics.gross_loss,
                 avg_win=metrics.avg_win,
@@ -395,6 +398,7 @@ class AnalyticsService:
                     total_trades=metrics.total_trades,
                     winning_trades=metrics.winning_trades,
                     losing_trades=metrics.losing_trades,
+                    total_pnl=metrics.total_pnl,
                     gross_profit=metrics.gross_profit,
                     gross_loss=metrics.gross_loss,
                     avg_win=metrics.avg_win,
@@ -451,6 +455,7 @@ class AnalyticsService:
                     total_trades=global_metrics.total_trades,
                     winning_trades=global_metrics.winning_trades,
                     losing_trades=global_metrics.losing_trades,
+                    total_pnl=None,
                     gross_profit=None,
                     gross_loss=None,
                     avg_win=None,

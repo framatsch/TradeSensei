@@ -114,6 +114,7 @@ export interface MetricCardData {
   value: string;
   sublabel?: string;
   trend?: "up" | "down" | "neutral";
+  helpAnchor?: string;
 }
 
 // ─── Payoff Ratio ──────────────────────────────────────────────────────────────
@@ -149,11 +150,12 @@ export function PayoffRatio({
 
 // ─── Metric Card (reusable for key metrics) ────────────────────────────────────
 
-export function MetricCard({ label, value, sublabel, trend }: MetricCardData) {
+export function MetricCard({ label, value, sublabel, trend, helpAnchor }: MetricCardData) {
   return (
     <div className="bg-card rounded-xl border border-border p-5 flex flex-col justify-between">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
         {label}
+        {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </p>
       <p
         className={`text-2xl font-semibold font-mono ${

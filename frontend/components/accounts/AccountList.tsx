@@ -22,6 +22,7 @@
 import React, { useState } from "react";
 import { useDeleteAccount } from "@/hooks/useAccounts";
 import { AccountForm } from "./AccountForm";
+import { AccountDeleteModal } from "./AccountDeleteModal";
 import type { Account, AccountType } from "@/lib/types";
 
 // ── Type badge ─────────────────────────────────────────────────────────────────
@@ -72,11 +73,12 @@ interface Props {
 export function AccountList({ accounts }: Props) {
   const [showNewForm, setShowNewForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { mutate: deleteAccount } = useDeleteAccount();
+  const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
+  const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccount();
 
-  const handleDelete = (account: Account) => {
-    if (!window.confirm(`Delete account "${account.name}"? This cannot be undone.`)) return;
-    deleteAccount(account.id, {
+  const handleDelete = (accountId: string) => {
+    deleteAccount(accountId, {
+      onSuccess: () => setDeletingAccount(null),
       onError: (err) => {
         console.error("Failed to delete account:", err);
         alert(`Failed to delete account: ${err.message}`);
@@ -182,7 +184,7 @@ export function AccountList({ accounts }: Props) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(account)}
+                          onClick={() => setDeletingAccount(account)}
                           className="px-3 py-1 bg-red-900/40 hover:bg-red-800/60 text-red-400 rounded-md text-xs transition-colors"
                         >
                           Delete
@@ -208,6 +210,15 @@ export function AccountList({ accounts }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {deletingAccount && (
+        <AccountDeleteModal
+          account={deletingAccount}
+          onClose={() => setDeletingAccount(null)}
+          onDelete={handleDelete}
+          isDeleting={isDeleting}
+        />
       )}
     </div>
   );

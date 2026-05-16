@@ -43,7 +43,7 @@ export function MarkdownRenderer({ content, className = "" }: Props) {
         "prose-headings:text-foreground prose-headings:font-semibold",
         "prose-strong:text-foreground",
         "prose-em:text-muted-foreground",
-        "prose-code:text-amber-300 prose-code:bg-secondary/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs",
+        "prose-code:text-[color:var(--code-fg)] prose-code:bg-secondary/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs",
         "prose-pre:bg-background prose-pre:border prose-pre:border-border prose-pre:rounded-lg",
         "prose-blockquote:border-l-zinc-500 prose-blockquote:text-muted-foreground",
         "prose-ul:text-foreground prose-ol:text-foreground",

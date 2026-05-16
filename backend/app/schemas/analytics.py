@@ -196,6 +196,10 @@ class AnalyticsSummary(BaseModel):
     total_trades: int = Field(..., description="Number of included trades.")
     winning_trades: int = Field(..., description="Trades with positive PnL.")
     losing_trades: int = Field(..., description="Trades with negative PnL.")
+    total_pnl: Decimal | None = Field(
+        ...,
+        description="Net sum of all trade PnL values (gross_profit + gross_loss). Null in mixed-currency native mode.",
+    )
     gross_profit: Decimal | None = Field(
         ...,
         description="Sum of positive PnL values in reported currency.",

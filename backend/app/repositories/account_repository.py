@@ -174,6 +174,7 @@ class AccountRepository:
             user_id=user_id,
             portfolio_id=data.portfolio_id,
             name=data.name,
+            account_number=data.account_number,
             type=data.type,
             currency=portfolio_result.base_currency,
         )
@@ -201,7 +202,7 @@ class AccountRepository:
         Returns:
             The updated :class:`Account` instance after flush.
         """
-        update_dict = data.model_dump(exclude_unset=True, exclude={"properties"})
+        update_dict = data.model_dump(exclude_unset=True, exclude={"properties", "settings"})
         for field, value in update_dict.items():
             setattr(account, field, value)
         self._session.add(account)

@@ -70,9 +70,8 @@ async def test_encrypt_raises_if_no_key() -> None:
     Simulates a deployment where the ``BROKER_ENCRYPTION_KEY`` environment
     variable has not been set.
     """
-    with patch.object(enc_module.settings, "broker_encryption_key", None):
-        with pytest.raises(ConfigurationError, match="BROKER_ENCRYPTION_KEY"):
-            enc_module.encrypt_token("token")
+    with patch.object(enc_module.settings, "broker_encryption_key", None), pytest.raises(ConfigurationError, match="BROKER_ENCRYPTION_KEY"):
+        enc_module.encrypt_token("token")
 
 
 async def test_decrypt_raises_on_invalid_token() -> None:
@@ -87,6 +86,5 @@ async def test_decrypt_raises_on_invalid_token() -> None:
 
     # Reset singleton so decrypt uses the same key
     enc_module._fernet_instance = None
-    with patch.object(enc_module.settings, "broker_encryption_key", key):
-        with pytest.raises(InvalidToken):
-            enc_module.decrypt_token(ciphertext[:-4] + "XXXX")
+    with patch.object(enc_module.settings, "broker_encryption_key", key), pytest.raises(InvalidToken):
+        enc_module.decrypt_token(ciphertext[:-4] + "XXXX")

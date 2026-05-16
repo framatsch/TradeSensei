@@ -57,6 +57,7 @@ const EMPTY_FILTERS: TradeFilters = {
   closed_at_from: "",
   closed_at_to: "",
   tag_ids: [],
+  account_ids: [],
   playbook_id: "",
   pnl_positive: null,
   status: null,
@@ -89,6 +90,8 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
 
   const assetClassRaw = params.get("asset_class");
   const tagIdsRaw = params.get("tag_ids");
+  const accountIdsRaw = params.get("account_ids");
+  const legacyAccountId = params.get("account_id");
 
   const statusRaw = params.get("status");
   const status: "open" | "closed" | "all" | null =
@@ -106,6 +109,11 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     closed_at_from: params.get("closed_at_from") ?? undefined,
     closed_at_to: params.get("closed_at_to") ?? undefined,
     tag_ids: tagIdsRaw ? tagIdsRaw.split(",").filter(Boolean) : undefined,
+    account_ids: accountIdsRaw
+      ? accountIdsRaw.split(",").filter(Boolean)
+      : legacyAccountId
+      ? [legacyAccountId]
+      : undefined,
     playbook_id: params.get("playbook_id") ?? undefined,
     pnl_positive,
     status: status === "all" ? null : status,
@@ -136,6 +144,7 @@ function filtersToParams(
   if (filters.closed_at_from) p.set("closed_at_from", filters.closed_at_from);
   if (filters.closed_at_to) p.set("closed_at_to", filters.closed_at_to);
   if (filters.tag_ids?.length) p.set("tag_ids", filters.tag_ids.join(","));
+  if (filters.account_ids?.length) p.set("account_ids", filters.account_ids.join(","));
   if (filters.playbook_id) p.set("playbook_id", filters.playbook_id);
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) {
     p.set("pnl_positive", String(filters.pnl_positive));

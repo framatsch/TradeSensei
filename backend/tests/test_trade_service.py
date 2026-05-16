@@ -22,7 +22,7 @@ import pytest
 
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.trade import AssetClass, Direction, Trade
-from app.schemas.trade import TradeCreate, TradeRead, TradeUpdate, TradePartialCloseRequest
+from app.schemas.trade import TradeCreate, TradePartialCloseRequest, TradeRead, TradeUpdate
 from app.services.trade_service import TradeService
 
 
@@ -472,6 +472,20 @@ class TestListTrades:
         assert page.total == 3
         assert len(page.items) == 3
         assert page.next_cursor is None
+
+    @pytest.mark.unit
+    async def test_forwards_account_ids_to_repository(self, service: TradeService) -> None:
+        """list_trades should pass selected account IDs through to the repository."""
+        account_ids = [uuid.uuid4(), uuid.uuid4()]
+        with patch(
+            "app.services.trade_service.TradeRepository.list_cursor",
+            new_callable=AsyncMock,
+            return_value=([], None, None),
+        ) as list_cursor:
+            await service.list_trades(limit=20, cursor=None, account_ids=account_ids)
+
+        assert list_cursor.await_args is not None
+        assert list_cursor.await_args.kwargs["account_ids"] == account_ids
 
     @pytest.mark.unit
     async def test_raises_invalid_cursor_on_bad_cursor(

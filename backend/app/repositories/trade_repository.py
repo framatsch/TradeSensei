@@ -484,7 +484,7 @@ class TradeRepository:
         limit: int = PAGINATION_DEFAULT_LIMIT,
         cursor: str | None = None,
         include_total: bool = False,
-        account_id: uuid.UUID | None = None,
+        account_ids: list[uuid.UUID] | None = None,
         portfolio_id: uuid.UUID | None = None,
         user_id: uuid.UUID | None = None,
         filters: TradeFilterParams | None = None,
@@ -510,8 +510,8 @@ class TradeRepository:
             include_total: When ``True``, run an additional ``COUNT(*)``
                 query and include the result in the return value.
                 Defaults to ``False`` to avoid the extra query cost.
-            account_id: When provided, filter results to only trades
-                belonging to the specified account UUID.
+            account_ids: When provided, filter results to only trades
+                belonging to the specified account UUIDs.
             user_id: When provided, filter results to only trades
                 belonging to the specified user UUID.
             filters: Optional filter parameters to narrow the result set.
@@ -546,8 +546,8 @@ class TradeRepository:
         # ── Ownership / account filters ──────────────────────────────────────
         if user_id is not None:
             stmt = stmt.where(Trade.user_id == user_id)
-        if account_id is not None:
-            stmt = stmt.where(Trade.account_id == account_id)
+        if account_ids:
+            stmt = stmt.where(Trade.account_id.in_(account_ids))
         if portfolio_id is not None and user_id is not None:
             stmt = (
                 stmt.join(Account, Trade.account_id == Account.id)
@@ -625,8 +625,8 @@ class TradeRepository:
             base_count = select(Trade.id)
             if user_id is not None:
                 base_count = base_count.where(Trade.user_id == user_id)
-            if account_id is not None:
-                base_count = base_count.where(Trade.account_id == account_id)
+            if account_ids:
+                base_count = base_count.where(Trade.account_id.in_(account_ids))
             if portfolio_id is not None and user_id is not None:
                 base_count = (
                     base_count.join(Account, Trade.account_id == Account.id)

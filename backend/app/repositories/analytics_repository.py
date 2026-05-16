@@ -101,21 +101,22 @@ class AnalyticsRepository:
             )
             predicates.append(Trade.id.in_(taxonomy_subquery))
 
+        eff_pnl = func.coalesce(Trade.net_pnl, Trade.pnl)
         aggregate_stmt = (
             select(
                 func.count(Trade.id).label("total_trades"),
-                func.sum(case((Trade.pnl > 0, 1), else_=0)).label("winning_trades"),
-                func.sum(case((Trade.pnl < 0, 1), else_=0)).label("losing_trades"),
+                func.sum(case((eff_pnl > 0, 1), else_=0)).label("winning_trades"),
+                func.sum(case((eff_pnl < 0, 1), else_=0)).label("losing_trades"),
                 func.coalesce(
-                    func.sum(case((Trade.pnl > 0, Trade.pnl), else_=0)),
+                    func.sum(case((eff_pnl > 0, eff_pnl), else_=0)),
                     0,
                 ).label("gross_profit"),
                 func.coalesce(
-                    func.sum(case((Trade.pnl < 0, Trade.pnl), else_=0)),
+                    func.sum(case((eff_pnl < 0, eff_pnl), else_=0)),
                     0,
                 ).label("gross_loss"),
-                func.avg(case((Trade.pnl > 0, Trade.pnl), else_=None)).label("avg_win"),
-                func.avg(case((Trade.pnl < 0, Trade.pnl), else_=None)).label("avg_loss"),
+                func.avg(case((eff_pnl > 0, eff_pnl), else_=None)).label("avg_win"),
+                func.avg(case((eff_pnl < 0, eff_pnl), else_=None)).label("avg_loss"),
                 func.avg(func.extract("epoch", Trade.closed_at - Trade.opened_at) / 3600).label("avg_trade_duration_hours"),
             )
             .select_from(Trade)
@@ -128,7 +129,7 @@ class AnalyticsRepository:
             select(
                 Trade.id.label("trade_id"),
                 cast(Trade.closed_at, Date).label("closed_date"),
-                Trade.pnl.label("pnl"),
+                func.coalesce(Trade.net_pnl, Trade.pnl).label("pnl"),
                 Trade.currency.label("currency"),
             )
             .select_from(Trade)

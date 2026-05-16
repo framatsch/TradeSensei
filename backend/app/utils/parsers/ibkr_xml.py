@@ -607,6 +607,12 @@ class IBKRXMLParser(BrokerParser):
             logger.warning(msg)
             self.warnings.append(msg)
             return None
+        except Exception as exc:
+            # Catch Pydantic ValidationError or other unexpected errors per-row
+            msg = f"<Trade> element {idx}: skipped due to validation error — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
 
     def _parse_execution_element_raw(self, elem: ET.Element, idx: int) -> BrokerRawTransactionCreate | None:
         """Parse a single ``<Execution>`` element into a raw transaction record.
@@ -679,6 +685,11 @@ class IBKRXMLParser(BrokerParser):
             )
         except (ValueError, InvalidOperation, OverflowError) as exc:
             msg = f"<Execution> element {idx}: skipped — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
+        except Exception as exc:
+            msg = f"<Execution> element {idx}: skipped due to validation error — {exc}"
             logger.warning(msg)
             self.warnings.append(msg)
             return None
@@ -795,6 +806,11 @@ class IBKRXMLParser(BrokerParser):
             logger.warning(msg)
             self.warnings.append(msg)
             return None
+        except Exception as exc:
+            msg = f"<Trade> element {idx}: skipped due to validation error — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
 
     def _parse_execution_element(self, elem: ET.Element, idx: int) -> TradeCreate | None:
         """Parse a single ``<Execution>`` element from a Trade Confirmation query.
@@ -863,6 +879,11 @@ class IBKRXMLParser(BrokerParser):
             logger.warning(msg)
             self.warnings.append(msg)
             return None
+        except Exception as exc:
+            msg = f"<Execution> element {idx}: skipped due to validation error — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
 
     def _parse_cash_transaction_element(self, elem: ET.Element, idx: int) -> CashTransactionCreateRequest | None:
         """Parse a single ``<CashTransaction>`` element.
@@ -916,6 +937,11 @@ class IBKRXMLParser(BrokerParser):
             )
         except (ValueError, OverflowError) as exc:
             msg = f"<CashTransaction> element {idx}: skipped — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
+        except Exception as exc:
+            msg = f"<CashTransaction> element {idx}: skipped due to validation error — {exc}"
             logger.warning(msg)
             self.warnings.append(msg)
             return None
@@ -978,6 +1004,11 @@ class IBKRXMLParser(BrokerParser):
             )
         except (ValueError, OverflowError) as exc:
             msg = f"<TransactionTax> element {idx}: skipped — {exc}"
+            logger.warning(msg)
+            self.warnings.append(msg)
+            return None
+        except Exception as exc:
+            msg = f"<TransactionTax> element {idx}: skipped due to validation error — {exc}"
             logger.warning(msg)
             self.warnings.append(msg)
             return None

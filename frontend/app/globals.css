@@ -46,6 +46,7 @@
   --warning-foreground:  #ffffff;
   --success:             #10b981;   /* emerald-500 — more readable on light bg */
   --danger:              #f43f5e;   /* rose-500 */
+  --code-fg:             #1d4ed8;   /* blue-700 — inline code in light mode */
   --border:              #e4e4e7;   /* zinc-200 */
   --input:               #e4e4e7;
   --ring:                #6366f1;
@@ -75,6 +76,7 @@
   --warning-foreground:  #ffffff;
   --success:             #34d399;   /* emerald-400 */
   --danger:              #fb7185;   /* rose-400 */
+  --code-fg:             #fbbf24;   /* amber-400 — inline code in dark mode */
   --border:              #27272a;   /* zinc-800/50 feel */
   --input:               #27272a;
   --ring:                #6366f1;

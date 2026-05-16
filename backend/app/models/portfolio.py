@@ -81,6 +81,7 @@ class Portfolio(Base):
     accounts: Mapped[list["Account"]] = relationship(
         "Account",
         back_populates="portfolio",
+        cascade="all, delete-orphan",
     )
     saved_dashboard_views: Mapped[list["SavedDashboardView"]] = relationship(
         "SavedDashboardView",

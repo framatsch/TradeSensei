@@ -212,6 +212,37 @@ class TestTradeFilterSymbol:
 
 
 @pytest.mark.integration
+class TestTradeFilterAccounts:
+    """Tests for account filter on ``GET /api/v1/trades``."""
+
+    async def test_filter_by_multiple_accounts(self, client: AsyncClient) -> None:
+        """account_ids should return trades from any selected account."""
+        h = await _get_auth_headers(client)
+        portfolio_id, account_1 = await _create_portfolio_and_account(client, h)
+
+        account_resp = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/accounts",
+            json={"name": "Filter Sort Account 2", "type": "manual", "currency": "USD"},
+            headers=h,
+        )
+        assert account_resp.status_code == 201, account_resp.text
+        account_2 = str(account_resp.json()["data"]["id"])
+
+        await _post_trade(client, h, portfolio_id, account_1, symbol="ACC1")
+        await _post_trade(client, h, portfolio_id, account_2, symbol="ACC2")
+
+        resp = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades",
+            headers=h,
+            params=[("account_ids", account_1), ("account_ids", account_2)],
+        )
+        assert resp.status_code == 200, resp.text
+        items = list(resp.json()["data"]["items"])
+        symbols = {trade["symbol"] for trade in items}
+        assert {"ACC1", "ACC2"}.issubset(symbols)
+
+
+@pytest.mark.integration
 class TestTradeFilterDirection:
     """Tests for direction filter on ``GET /api/v1/trades``."""
 

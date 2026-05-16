@@ -60,22 +60,26 @@ export default function OverviewPage() {
               value={summary ? formatPercent(summary.win_rate) : "—"}
               sublabel={summary ? `${summary.winning_trades}W / ${summary.losing_trades}L` : undefined}
               trend={summary && parseFloat(summary.win_rate) >= 0.5 ? "up" : "down"}
+              helpAnchor="win-rate"
             />
             <MetricCard
               label="Profit Factor"
               value={summary?.profit_factor ? parseFloat(summary.profit_factor).toFixed(2) : "—"}
               trend={summary?.profit_factor && parseFloat(summary.profit_factor) >= 1.5 ? "up" : "down"}
+              helpAnchor="profit-factor"
             />
             <PayoffRatio avgWin={summary?.avg_win} avgLoss={summary?.avg_loss} />
             <MetricCard
               label="Total P&L"
-              value={summary ? formatCurrency(summary.gross_profit) : "—"}
-              trend={summary?.gross_profit && parseFloat(summary.gross_profit) > 0 ? "up" : "down"}
+              value={summary ? formatCurrency(summary.total_pnl) : "—"}
+              trend={summary?.total_pnl && parseFloat(summary.total_pnl) > 0 ? "up" : "down"}
+              helpAnchor="net-pnl"
             />
             <MetricCard
               label="Sharpe Ratio"
               value={summary?.sharpe_ratio ? parseFloat(summary.sharpe_ratio).toFixed(2) : "—"}
               trend={summary?.sharpe_ratio && parseFloat(summary.sharpe_ratio) >= 1 ? "up" : "down"}
+              helpAnchor="sharpe-ratio"
             />
             <MetricCard
               label="Total Trades"

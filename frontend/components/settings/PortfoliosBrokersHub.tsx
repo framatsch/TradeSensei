@@ -59,6 +59,11 @@ function AccountRow({ account, portfolio, onEdit }: AccountRowProps) {
     <div className="flex items-center justify-between px-4 py-3 bg-muted/20 rounded-md border border-border/50">
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-foreground">{account.name}</span>
+        {account.account_number && (
+          <span className="text-xs text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded">
+            {account.account_number}
+          </span>
+        )}
         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${brokerBadge}`}>
           {BROKER_TYPE_LABELS[account.type] || "Manual"}
         </span>

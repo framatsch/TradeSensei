@@ -42,6 +42,8 @@ export interface TradeFilters {
   playbook_id?: string;
   pnl_positive?: boolean | null;
   status?: "open" | "closed" | null;
+  /** Filter trades by one or more broker account UUIDs. */
+  account_ids?: string[];
   /** Filter by hour of day (0–23) the trade was opened. */
   hour_of_day?: number;
   /** Filter by day of week the trade was opened (0=Monday, …, 6=Sunday). */
@@ -118,6 +120,7 @@ export function useTrades({
           playbook_id: filters?.playbook_id ?? undefined,
           pnl_positive: filters?.pnl_positive ?? undefined,
           status: filters?.status ?? undefined,
+          account_ids: filters?.account_ids?.length ? filters.account_ids : undefined,
           hour_of_day: filters?.hour_of_day ?? undefined,
           day_of_week: filters?.day_of_week ?? undefined,
           opened_at_from: filters?.opened_at_from ? toUtcFrom(filters.opened_at_from) : undefined,

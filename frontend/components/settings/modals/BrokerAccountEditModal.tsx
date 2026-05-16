@@ -17,10 +17,10 @@
 
 import { useState, useId } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { client } from "@/lib/api/client.gen";
-import { updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch } from "@/lib/api/index";
+import { updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch, deleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDelete } from "@/lib/api/index";
 import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType } from "@/lib/types";
 
@@ -59,12 +59,19 @@ interface Props {
 export function BrokerAccountEditModal({ account, onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState(account.name);
+  const [accountNumber, setAccountNumber] = useState(account.account_number ?? "");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
   const [testMessage, setTestMessage] = useState("");
   const [testing, setTesting] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
+  const [isActive, setIsActive] = useState(account.is_active);
+  const [showDangerZone, setShowDangerZone] = useState(false);
+  
+  const [confirmName, setConfirmName] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const uid = useId();
 
   const portfolioId = account.portfolio_id;
@@ -76,6 +83,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
       );
       const payload: any = {
         name: name.trim(),
+        account_number: accountNumber.trim() || null,
       };
       if (Object.keys(filledCredentials).length > 0) {
         payload.properties = filledCredentials;
@@ -112,12 +120,15 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
 
     updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch({
       path: { portfolio_id: portfolioId, account_id: account.id },
-      body: { is_active: !account.is_active } as any,
+      body: { is_active: !isActive } as any,
     })
       .then(({ error: patchErr }) => {
         if (patchErr) throw patchErr;
         qc.invalidateQueries({ queryKey: ["accounts"] });
-        toast.success(account.is_active ? "Account deactivated" : "Account reactivated");
+        qc.invalidateQueries({ queryKey: ["portfolios"] });
+        
+        setIsActive(!isActive);
+        toast.success(!isActive ? "Account reactivated" : "Account deactivated");
       })
       .catch((patchErr: unknown) => {
         toast.error(extractApiError(patchErr, "Failed to update account status"));
@@ -181,9 +192,39 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
     updateMutation.mutate();
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!portfolioId) throw new Error("Account must belong to a portfolio");
+      const { error: err } = await deleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDelete({
+        path: {
+          portfolio_id: portfolioId,
+          account_id: account.id,
+        },
+      });
+      if (err) throw err;
+      return true;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["portfolios"] });
+      toast.success("Account deleted");
+      onClose();
+    },
+    onError: (err: any) => {
+      setDeleteError(extractApiError(err, "Failed to delete account"));
+    },
+  });
+
+  const handleDelete = () => {
+    if (confirmName.trim() !== account.name) return;
+    setDeleteError(null);
+    deleteMutation.mutate();
+  };
+
   const credentialFields = account.type !== "manual" ? CREDENTIAL_FIELDS[account.type] : null;
   const brokerBadge = BROKER_TYPE_BADGES[account.type] || BROKER_TYPE_BADGES.manual;
   const canSubmit = name.trim().length > 0 && !updateMutation.isPending;
+  const canDelete = confirmName.trim() === account.name && !deleteMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
@@ -223,6 +264,23 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
               {BROKER_TYPE_LABELS[account.type] || "Manual"}
             </span>
           </div>
+
+          {(account.type === "ibkr" || account.type === "schwab") && (
+            <div>
+              <label htmlFor={`${uid}-account-number`} className={LABEL_CLASS}>
+                Account Number
+              </label>
+              <input
+                id={`${uid}-account-number`}
+                type="text"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder={account.type === "ibkr" ? "e.g. U1234567" : "e.g. 12345678"}
+                className={INPUT_CLASS}
+                data-testid="edit-account-number-input"
+              />
+            </div>
+          )}
 
           {credentialFields && (
             <div className="border border-border rounded-lg p-4 space-y-3">
@@ -279,7 +337,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
 
           <div className="border-t border-border pt-4 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground">Status</p>
-            {account.is_active ? (
+            {isActive ? (
               <div className="space-y-2">
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-900/50 text-emerald-400 border border-emerald-800">
                   Active
@@ -338,6 +396,55 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
             </button>
           </div>
         </form>
+
+        <div className="border-t border-border pt-5">
+          <button
+            onClick={() => setShowDangerZone(!showDangerZone)}
+            className="flex items-center gap-2 text-danger hover:text-danger/80 transition-colors text-sm font-semibold w-full text-left"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            {showDangerZone ? "Hide Danger Zone" : "Show Danger Zone"}
+          </button>
+
+          {showDangerZone && (
+            <div className="mt-4 bg-danger/5 border border-danger/20 rounded-md p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200" data-testid="account-danger-zone">
+              <p className="text-sm text-danger">
+                This will permanently delete this account, all associated trades, and cash transactions. This action cannot be undone.
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="text-sm text-foreground font-medium">
+                  Type <span className="font-bold text-danger select-none">{account.name}</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  disabled={deleteMutation.isPending}
+                  placeholder={account.name}
+                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-danger text-foreground"
+                  data-testid="delete-confirm-input"
+                />
+              </div>
+
+              {deleteError && (
+                <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="delete-error">
+                  {deleteError}
+                </p>
+              )}
+
+              <button
+                onClick={handleDelete}
+                disabled={!canDelete}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                data-testid="delete-account-button"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

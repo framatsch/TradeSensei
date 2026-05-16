@@ -1597,7 +1597,7 @@ class ImportService:
             ExecutionValidationError: If allocation quantities exceed original quantity.
         """
         total_used = sum(alloc.quantity_used for alloc in allocations)
-        if total_used > original_qty:
+        if total_used > original_qty + (Decimal("0.00000001") * max(1, len(allocations))):
             raise ExecutionValidationError(f"Allocation overflow: total used {total_used} > original {original_qty}")
 
     def _validate_split_commissions(
@@ -1616,7 +1616,7 @@ class ImportService:
                 original commission.
         """
         total_used = sum(alloc.commission_used for alloc in allocations)
-        if total_used > original_commission:
+        if total_used > original_commission + (Decimal("0.00000001") * max(1, len(allocations))):
             raise ExecutionValidationError(f"Commission overflow: total used {total_used} > original {original_commission}")
 
     async def _validate_split_backfill_consistency(
@@ -1663,10 +1663,12 @@ class ImportService:
             children_quantity = sum(child.quantity for child in children)
             children_commission = sum(child.commission for child in children)
 
-            if children_quantity != expected_quantity:
+            quantity_diff = abs(children_quantity - expected_quantity)
+            if quantity_diff > Decimal("0.00000001") * max(1, len(children)):
                 raise ExecutionValidationError(f"Split quantity conservation failed for {parent_id}: expected={expected_quantity} actual={children_quantity}")
 
-            if children_commission != expected_commission:
+            commission_diff = abs(children_commission - expected_commission)
+            if commission_diff > Decimal("0.00000001") * max(1, len(children)):
                 raise ExecutionValidationError(
                     f"Split commission conservation failed for {parent_id}: expected={expected_commission} actual={children_commission}"
                 )

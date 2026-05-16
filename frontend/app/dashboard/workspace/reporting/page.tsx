@@ -162,11 +162,11 @@ export default function WorkspaceReportingPage() {
           <div className="space-y-6 animate-fade-in">
             {summary && (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                <MetricCard label="Win Rate" value={`${(parseFloat(summary.win_rate) * 100).toFixed(1)}%`} />
-                <MetricCard label="Profit Factor" value={summary.profit_factor ? parseFloat(summary.profit_factor).toFixed(2) : "—"} />
+                <MetricCard label="Win Rate" value={`${(parseFloat(summary.win_rate) * 100).toFixed(1)}%`} helpAnchor="win-rate" />
+                <MetricCard label="Profit Factor" value={summary.profit_factor ? parseFloat(summary.profit_factor).toFixed(2) : "—"} helpAnchor="profit-factor" />
                 <MetricCard label="Total Trades" value={String(summary.total_trades)} />
-                <MetricCard label="Gross Profit" value={summary.gross_profit ? `$${summary.gross_profit}` : "—"} trend="up" />
-                <MetricCard label="Gross Loss" value={summary.gross_loss ? `$${summary.gross_loss}` : "—"} trend="down" />
+                <MetricCard label="Gross Profit" value={summary.gross_profit ? `$${summary.gross_profit}` : "—"} trend="up" helpAnchor="gross-profit" />
+                <MetricCard label="Gross Loss" value={summary.gross_loss ? `$${summary.gross_loss}` : "—"} trend="down" helpAnchor="gross-loss" />
               </div>
             )}
 

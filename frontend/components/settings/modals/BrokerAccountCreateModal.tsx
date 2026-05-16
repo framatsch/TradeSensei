@@ -54,6 +54,7 @@ interface Props {
 export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [type, setType] = useState<AccountType>("ibkr");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [syncStartDate, setSyncStartDate] = useState(`${new Date().getFullYear()}-01-01`);
@@ -72,6 +73,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
 
       const payload: any = {
         name: name.trim(),
+        account_number: accountNumber.trim() || undefined,
         type,
         properties,
         portfolio_id: portfolioId,
@@ -92,7 +94,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts", portfolioId] });
       qc.invalidateQueries({ queryKey: ["portfolios"] });
-      toast.success("Account connected");
+      toast.success("Account created");
       onClose();
     },
     onError: (err: any) => {
@@ -160,7 +162,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
       <div className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">Connect Broker Account</h3>
+          <h3 className="text-lg font-semibold text-foreground">Create Broker Account</h3>
           <button
             onClick={onClose}
             className="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors"
@@ -213,6 +215,23 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
               ))}
             </select>
           </div>
+
+          {(type === "ibkr" || type === "schwab") && (
+            <div>
+              <label htmlFor={`${uid}-account-number`} className={LABEL_CLASS}>
+                Account Number
+              </label>
+              <input
+                id={`${uid}-account-number`}
+                type="text"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder={type === "ibkr" ? "e.g. U1234567" : "e.g. 12345678"}
+                className={INPUT_CLASS}
+                data-testid="account-number-input"
+              />
+            </div>
+          )}
 
           {credentialFields && (
             <div className="border border-border rounded-lg p-4 space-y-3">
@@ -311,7 +330,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
               className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
               data-testid="submit-create-account"
             >
-              {createMutation.isPending ? "Connecting..." : "Connect Account"}
+              {createMutation.isPending ? "Creating..." : "Create Account"}
             </button>
           </div>
         </form>

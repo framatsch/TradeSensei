@@ -18,6 +18,7 @@
  */
 
 import type { TradeMetrics } from "@/lib/types";
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 
 interface Props {
   metrics: TradeMetrics;
@@ -29,9 +30,10 @@ interface StatCardProps {
   value: string;
   sub?: string;
   positive?: boolean | null;
+  helpAnchor?: string;
 }
 
-function StatCard({ label, value, sub, positive }: StatCardProps) {
+function StatCard({ label, value, sub, positive, helpAnchor }: StatCardProps) {
   const valueColor =
     positive === null || positive === undefined
       ? "text-foreground"
@@ -41,8 +43,9 @@ function StatCard({ label, value, sub, positive }: StatCardProps) {
 
   return (
     <div className="bg-card rounded-xl p-5 border border-border shadow-sm hover:shadow-md transition-shadow">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em] mb-1">
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em] mb-1 flex items-center gap-1.5">
         {label}
+        {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </p>
       <p className={`text-2xl font-semibold tracking-tight ${valueColor}`}>{value}</p>
       {sub && <p className="text-[11px] text-muted-foreground mt-1.5 font-medium">{sub}</p>}
@@ -85,11 +88,13 @@ export function MetricsCards({ metrics, maxDrawdown }: Props) {
         label="Win Rate"
         value={formatPercent(metrics.win_rate)}
         positive={parseFloat(metrics.win_rate) >= 0.5}
+        helpAnchor="win-rate"
       />
       <StatCard
         label="Total PnL"
         value={formatPnl(metrics.total_pnl)}
         positive={totalPnlNum >= 0}
+        helpAnchor="net-pnl"
       />
       <StatCard
         label="Profit Factor"
@@ -100,6 +105,7 @@ export function MetricsCards({ metrics, maxDrawdown }: Props) {
             ? parseFloat(metrics.profit_factor) >= 1
             : null
         }
+        helpAnchor="profit-factor"
       />
       <StatCard
         label="Sharpe Ratio"
@@ -108,12 +114,14 @@ export function MetricsCards({ metrics, maxDrawdown }: Props) {
         positive={
           metrics.sharpe_ratio ? parseFloat(metrics.sharpe_ratio) >= 1 : null
         }
+        helpAnchor="sharpe-ratio"
       />
       <StatCard
         label="Max Drawdown"
         value={formatPercent(maxDrawdown)}
         sub={`$${Math.abs(parseFloat(metrics.gross_loss)).toFixed(2)} gross loss`}
         positive={maxDdNum >= -0.1}
+        helpAnchor="max-drawdown"
       />
     </div>
   );

@@ -390,6 +390,10 @@ async def list_trades(
         uuid.UUID | None,
         Query(description="Filter trades by account UUID"),
     ] = None,
+    account_ids: Annotated[
+        list[uuid.UUID] | None,
+        Query(description="Filter trades by one or more account UUIDs"),
+    ] = None,
     taxonomy_ids: Annotated[
         list[uuid.UUID] | None,
         Query(description=("Filter trades by taxonomy UUIDs (OR logic: returns trades with any of the given taxonomies)")),
@@ -404,6 +408,7 @@ async def list_trades(
         limit: Number of items to return (1–100, default 20).
         include_total: When ``True``, include the total row count.
         account_id: Optional UUID to filter trades by account.
+        account_ids: Optional list of UUIDs to filter trades by one or more accounts.
         taxonomy_ids: Optional list of taxonomy UUIDs to filter by (OR logic).
         filters: Optional filter parameters injected via ``Depends()``.
         sort: Optional sort parameters injected via ``Depends()``.
@@ -420,12 +425,16 @@ async def list_trades(
     # so taxonomy_ids is declared separately and merged here.
     if taxonomy_ids is not None:
         filters.taxonomy_ids = taxonomy_ids
+    selected_account_ids = account_ids[:] if account_ids is not None else []
+    if account_id is not None:
+        selected_account_ids.append(account_id)
+    filters.account_id = None
     try:
         page = await service.list_trades(
             limit=limit,
             cursor=cursor,
             include_total=include_total,
-            account_id=account_id,
+            account_ids=selected_account_ids or None,
             user_id=current_user.id,
             portfolio_id=portfolio_id,
             filters=filters,
