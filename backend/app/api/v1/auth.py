@@ -22,6 +22,7 @@ import contextlib
 import logging
 from typing import Annotated
 
+import httpx
 from authlib.integrations.starlette_client import (  # type: ignore[import-untyped]
     OAuth,
     OAuthError,
@@ -667,7 +668,18 @@ async def oidc_login(request: Request) -> RedirectResponse:
             detail="OIDC is not configured or enabled.",
         )
     redirect_uri = settings.oidc_redirect_uri
-    return await _oauth.oidc.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
+    try:
+        return await _oauth.oidc.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
+    except (httpx.ConnectTimeout, httpx.ConnectError, httpx.TimeoutException) as exc:
+        logger.error(
+            "OIDC metadata fetch failed — cannot reach %s: %s",
+            settings.oidc_configuration_url,
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC provider is unreachable. Check OIDC_CONFIGURATION_URL and network connectivity.",
+        ) from exc
 
 
 @router.get(
@@ -692,6 +704,12 @@ async def oidc_callback(
     except OAuthError:
         return RedirectResponse(
             url=f"{_FRONTEND_LOGIN_URL}?error=oauth_cancelled",
+            status_code=status.HTTP_302_FOUND,
+        )
+    except (httpx.ConnectTimeout, httpx.ConnectError, httpx.TimeoutException) as exc:
+        logger.error("OIDC token exchange failed — provider unreachable: %s", exc)
+        return RedirectResponse(
+            url=f"{_FRONTEND_LOGIN_URL}?error=provider_unreachable",
             status_code=status.HTTP_302_FOUND,
         )
 
