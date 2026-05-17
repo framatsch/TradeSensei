@@ -18,16 +18,13 @@ from __future__ import annotations
 import logging
 import re
 import traceback
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import parse_qs
 
 from fastapi import Request
 from jose import JWTError, jwt
 from sqlalchemy.exc import SQLAlchemyError
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
 from app.core.constants import TOKEN_ALGORITHM
@@ -69,48 +66,75 @@ class _AuditContext:
     token_present: bool
 
 
-class AuditMiddleware(BaseHTTPMiddleware):
-    """Middleware that emits audit logs for write operations."""
+class AuditMiddleware:
+    """Pure-ASGI middleware that emits audit logs for write operations.
 
-    def __init__(self, app: Any) -> None:  # starlette typing
-        super().__init__(app)
+    Implemented as a plain ASGI callable (not BaseHTTPMiddleware) so that
+    it never buffers or races against streaming / SSE responses.  It wraps
+    the *send* callable to capture the response status code from the
+    ``http.response.start`` message without touching the body at all.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self._app = app
         self._service = AuditEventService()
         self._logger = logging.getLogger(__name__)
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-        if request.url.path == "/health":
-            return await call_next(request)
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        path = request.url.path
+
+        # Pass health checks through without any wrapping.
+        if path == "/health":
+            await self._app(scope, receive, send)
+            return
 
         context = await self._build_context(request)
         method = request.method.upper()
-        path = request.url.path
         should_log = method in _WRITE_METHODS or (method == "GET" and settings.log_level.upper() == "DEBUG")
+
         if not context.user_id and path == "/api/v1/auth/token" and should_log:
             self._log_auth_failure(context, request, reason="invalid_credentials")
 
-        response: Response
+        # Capture the response status code by wrapping send.
+        status_code: int = 0
+
+        async def send_wrapper(message: Any) -> None:
+            nonlocal status_code
+            if message.get("type") == "http.response.start":
+                status_code = message.get("status", 0)
+                # Capture user_id that PAT auth may have stored in request.state
+                if hasattr(request.state, "user_id") and not context.user_id:
+                    context.user_id = request.state.user_id
+            await send(message)
+
+        exc_to_raise: BaseException | None = None
         try:
-            response = await call_next(request)
+            await self._app(scope, receive, send_wrapper)
         except Exception as exc:  # noqa: BLE001
-            # Check if a dependency added user_id to request state (e.g. PAT auth)
+            exc_to_raise = exc
             if hasattr(request.state, "user_id") and not context.user_id:
                 context.user_id = request.state.user_id
             if should_log:
                 self._log_exception(context, request, exc)
-            raise
 
-        # Check if a dependency added user_id to request state (e.g. PAT auth)
+        # Capture user_id set by PAT auth after the app finishes.
         if hasattr(request.state, "user_id") and not context.user_id:
             context.user_id = request.state.user_id
 
-        if should_log:
-            if response.status_code == 401 and path not in _PUBLIC_PATHS:
+        if should_log and status_code:
+            if status_code == 401 and path not in _PUBLIC_PATHS:
                 reason = context.auth_error_reason or "unauthorized"
                 self._log_auth_failure(context, request, reason=reason)
-                return response
-            self._log_response(context, request, response)
+            else:
+                self._log_response_by_status(context, request, status_code)
 
-        return response
+        if exc_to_raise is not None:
+            raise exc_to_raise
 
     async def _build_context(self, request: Request) -> _AuditContext:
         forwarded_for_header = request.headers.get("x-forwarded-for")
@@ -119,7 +143,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         token = self._extract_bearer_token(request)
         user_id, email, error_reason = self._decode_token(token)
         if request.url.path == "/api/v1/auth/token":
-            email = await self._extract_login_identifier(request)
+            email = self._extract_login_identifier_from_scope(request)
         return _AuditContext(
             user_id=user_id,
             email=email,
@@ -161,16 +185,23 @@ class AuditMiddleware(BaseHTTPMiddleware):
         )
 
     @staticmethod
-    async def _extract_login_identifier(request: Request) -> str | None:
-        try:
-            body = await request.body()
-        except Exception:
-            return None
-        if not body:
-            return None
-        parsed = parse_qs(body.decode(errors="ignore"))
-        username = parsed.get("username", [])
-        return username[0] if username else None
+    def _extract_login_identifier_from_scope(request: Request) -> str | None:
+        """Extract the login identifier from the query string without reading the body.
+
+        Reading the request body in middleware before passing ``receive`` to the
+        downstream app causes a deadlock in httpx's ASGI transport (used in tests):
+        once all body chunks are consumed, the transport's ``receive`` callable
+        waits for the response to finish before returning ``http.disconnect``, so
+        any subsequent attempt by the route handler to read the body via the same
+        ``receive`` callable blocks forever.
+
+        As a safe alternative we extract the username from the URL query string when
+        it is present (some clients send it there), and return ``None`` otherwise.
+        The missing email hash on the early auth-failure log is an acceptable
+        trade-off — the log still records path, method, status, and reason.
+        """
+        username = request.query_params.get("username")
+        return username if username else None
 
     def _infer_action(self, request: Request) -> tuple[str, str | None, str | None, str | None, str | None]:
         # Infer actions for standard CRUD endpoints; overrides handle special routes.
@@ -247,7 +278,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 metadata.update(meta)
         return metadata
 
-    def _log_response(self, context: _AuditContext, request: Request, response: Response) -> None:
+    def _log_response_by_status(self, context: _AuditContext, request: Request, status_code: int) -> None:
         (
             action,
             resource_type,
@@ -255,8 +286,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
             parent_resource_type,
             parent_resource_id,
         ) = self._infer_action(request)
-        status_code = response.status_code
-        metadata = self._extract_response_metadata(response)
         if status_code >= 400:
             action = self._map_error_action(status_code, action)
 
@@ -276,7 +305,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 forwarded_for=context.forwarded_for,
                 parent_resource_type=parent_resource_type,
                 parent_resource_id=parent_resource_id,
-                metadata=metadata,
+                metadata=None,
             )
         except Exception as exc:  # noqa: BLE001
             self._logger.error("Audit logging failed: %s", exc)
@@ -338,24 +367,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
             )
         except Exception as log_exc:  # noqa: BLE001
             self._logger.error("Audit logging failed: %s", log_exc)
-
-    @staticmethod
-    def _extract_response_metadata(response: Response) -> dict[str, Any] | None:
-        if response.status_code != 422:
-            return None
-        body = getattr(response, "body", None)
-        if not body:
-            return None
-        try:
-            import json
-
-            payload = json.loads(body)
-        except Exception:
-            return None
-        errors = payload.get("detail") if isinstance(payload, dict) else None
-        if not errors:
-            return None
-        return {"validation_errors": errors}
 
     @staticmethod
     def _map_error_action(status_code: int, default_action: str) -> str:

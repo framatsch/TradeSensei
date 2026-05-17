@@ -168,5 +168,19 @@ async def get_current_user_from_pat(
         )
 
     request.state.user_id = str(user.id)
-    await pat_repo.mark_used(pat, used_at=now)
+
+    # Use an independent session for mark_used so the UPDATE is committed
+    # immediately and does not hold a row lock for the lifetime of the
+    # handler's session.  For streaming / SSE responses the caller's session
+    # stays open indefinitely; leaving an uncommitted UPDATE on the PAT row
+    # blocks every concurrent request that authenticates with the same token.
+    from sqlalchemy import update as sa_update
+
+    from app.core.database import async_session_factory
+    from app.models.pat import PersonalAccessToken
+
+    async with async_session_factory() as mark_session:
+        await mark_session.execute(sa_update(PersonalAccessToken).where(PersonalAccessToken.id == pat.id).values(last_used_at=now))
+        await mark_session.commit()
+
     return user

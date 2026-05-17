@@ -448,9 +448,7 @@ async def _handle_list_portfolios(
 ) -> dict[str, Any]:
     del arguments
     result = await db.execute(
-        select(Portfolio)
-        .where(Portfolio.user_id == user_id)
-        .order_by(Portfolio.name.asc()),
+        select(Portfolio).where(Portfolio.user_id == user_id).order_by(Portfolio.name.asc()),
     )
     portfolios = result.scalars().all()
     return {
@@ -478,10 +476,7 @@ async def _handle_list_accounts(
 ) -> dict[str, Any]:
     params = ListAccountsParams.model_validate(arguments)
 
-    query = (
-        select(Account)
-        .where(Account.user_id == user_id, Account.is_active.is_(True))
-    )
+    query = select(Account).where(Account.user_id == user_id, Account.is_active.is_(True))
 
     if params.portfolio_id is not None:
         query = query.where(Account.portfolio_id == params.portfolio_id)
@@ -681,16 +676,19 @@ def _sse_event_stream(
     async def event_generator() -> AsyncGenerator[str, None]:
         yield f"event: ready\ndata: {init_payload}\n\n"
 
-        # In test environments with ASGITransport, disconnects can cause deadlocks.
+        # In test environments skip the keepalive loop entirely.
         if request.headers.get("x-test-no-sse-keepalive") == "true":
             return
 
-        while not await request.is_disconnected():
-            # Check for disconnect frequently to avoid hanging in tests
-            for _ in range(int(max(1, _KEEPALIVE_INTERVAL * 2))):
-                if await request.is_disconnected():
-                    return
-                await asyncio.sleep(0.5)
+        # Do not call request.is_disconnected() here: under uvicorn's h11
+        # transport (spec_version 2.3) Starlette 1.x already runs a
+        # listen_for_disconnect task that calls receive().  A second concurrent
+        # receive() call on the same connection deadlocks the response and
+        # prevents headers from ever being flushed to the client.
+        # Instead, yield keepalives unconditionally; Starlette will cancel this
+        # generator automatically when the client disconnects.
+        while True:
+            await asyncio.sleep(_KEEPALIVE_INTERVAL)
             yield ": keepalive\n\n"
 
     return StreamingResponse(
