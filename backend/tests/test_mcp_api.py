@@ -237,6 +237,8 @@ async def test_mcp_tools_list_returns_all_domain_tools(client: AsyncClient) -> N
     names = {tool["name"] for tool in tools}
     assert names == {
         "get_metadata_schema",
+        "list_portfolios",
+        "list_accounts",
         "search_trades_advanced",
         "sync_trade_metadata",
         "create_strategy_playbook",
@@ -304,6 +306,96 @@ async def test_get_metadata_schema_excludes_archived_and_supports_empty(
     definition_ids = {item["id"] for item in payload["result"]["annotation_definitions"]}
     assert taxonomy_id in taxonomy_ids
     assert definition_id in definition_ids
+
+
+@pytest.mark.integration
+async def test_list_portfolios_returns_user_portfolios(client: AsyncClient) -> None:
+    headers, token = await _auth_and_pat(client)
+    me = await client.get("/api/v1/users/me", headers=headers)
+    user_id = uuid.UUID(str(me.json()["data"]["id"]))
+
+    payload = await _mcp_tools_call(client, token, tool_name="list_portfolios", arguments={}, message_id=40)
+    assert payload["result"]["portfolios"] == []
+
+    created = await client.post(
+        "/api/v1/portfolios",
+        json={"name": "Schwab Main", "base_currency": "USD"},
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    portfolio_id = created.json()["data"]["id"]
+
+    payload = await _mcp_tools_call(client, token, tool_name="list_portfolios", arguments={}, message_id=41)
+    portfolios = payload["result"]["portfolios"]
+    assert len(portfolios) == 1
+    assert portfolios[0]["id"] == portfolio_id
+    assert portfolios[0]["name"] == "Schwab Main"
+    assert portfolios[0]["base_currency"] == "USD"
+
+
+@pytest.mark.integration
+async def test_list_accounts_filters_by_portfolio_and_broker(client: AsyncClient) -> None:
+    headers, token = await _auth_and_pat(client)
+
+    payload = await _mcp_tools_call(client, token, tool_name="list_accounts", arguments={}, message_id=50)
+    assert payload["result"]["accounts"] == []
+
+    portfolio = await client.post(
+        "/api/v1/portfolios",
+        json={"name": "My PF", "base_currency": "USD"},
+        headers=headers,
+    )
+    assert portfolio.status_code == 201, portfolio.text
+    pf_id = portfolio.json()["data"]["id"]
+
+    acct1 = await client.post(
+        f"/api/v1/portfolios/{pf_id}/accounts",
+        json={"name": "Schwab", "type": "schwab", "currency": "USD", "account_number": "U9876543"},
+        headers=headers,
+    )
+    assert acct1.status_code == 201, acct1.text
+    acct1_id = acct1.json()["data"]["id"]
+
+    acct2 = await client.post(
+        f"/api/v1/portfolios/{pf_id}/accounts",
+        json={"name": "IBKR Main", "type": "ibkr", "currency": "EUR", "account_number": "IB123456"},
+        headers=headers,
+    )
+    assert acct2.status_code == 201, acct2.text
+    acct2_id = acct2.json()["data"]["id"]
+
+    # All accounts for portfolio
+    payload = await _mcp_tools_call(
+        client, token, tool_name="list_accounts",
+        arguments={"portfolio_id": pf_id}, message_id=51,
+    )
+    accounts = payload["result"]["accounts"]
+    assert len(accounts) == 2
+
+    # Filter by broker
+    payload = await _mcp_tools_call(
+        client, token, tool_name="list_accounts",
+        arguments={"portfolio_id": pf_id, "broker": "schwab"}, message_id=52,
+    )
+    accounts = payload["result"]["accounts"]
+    assert len(accounts) == 1
+    assert accounts[0]["id"] == acct1_id
+    assert accounts[0]["name"] == "Schwab"
+    assert accounts[0]["broker"] == "schwab"
+    assert accounts[0]["account_number_masked"] == "****6543"
+    assert accounts[0]["currency"] == "USD"
+    assert accounts[0]["portfolio_id"] == pf_id
+
+    # Filter by broker only (no portfolio_id)
+    payload = await _mcp_tools_call(
+        client, token, tool_name="list_accounts",
+        arguments={"broker": "ibkr"}, message_id=53,
+    )
+    accounts = payload["result"]["accounts"]
+    assert len(accounts) == 1
+    assert accounts[0]["id"] == acct2_id
+    assert accounts[0]["broker"] == "ibkr"
+    assert accounts[0]["account_number_masked"] == "****3456"
 
 
 @pytest.mark.integration

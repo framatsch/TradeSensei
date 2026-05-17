@@ -33,9 +33,10 @@ from sqlalchemy.orm import aliased
 
 from app.core.database import get_session
 from app.core.deps import get_current_user_from_pat
-from app.models.account import Account
+from app.models.account import Account, AccountType
 from app.models.annotation_definition import AnnotationDefinition
 from app.models.playbook import Playbook
+from app.models.portfolio import Portfolio
 from app.models.taxonomy import Taxonomy
 from app.models.trade import AssetClass, Trade
 from app.models.trade_annotation import TradeAnnotation
@@ -101,6 +102,11 @@ class CreateStrategyPlaybookParams(BaseModel):
     description: str | None = None
     rules: list[str] = Field(min_length=1)
     target_winrate: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class ListAccountsParams(BaseModel):
+    portfolio_id: uuid.UUID | None = None
+    broker: str | None = Field(default=None, max_length=50)
 
 
 def _tool_error(code: int, message: str) -> dict[str, Any]:
@@ -435,11 +441,103 @@ async def _handle_create_strategy_playbook(
     return {"playbook_id": str(playbook.id), "name": playbook.name}
 
 
+async def _handle_list_portfolios(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    del arguments
+    result = await db.execute(
+        select(Portfolio)
+        .where(Portfolio.user_id == user_id)
+        .order_by(Portfolio.name.asc()),
+    )
+    portfolios = result.scalars().all()
+    return {
+        "portfolios": [
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "base_currency": p.base_currency,
+            }
+            for p in portfolios
+        ],
+    }
+
+
+def _mask_account_number(account_number: str | None) -> str | None:
+    if account_number is None or len(account_number) <= 4:
+        return account_number
+    return f"****{account_number[-4:]}"
+
+
+async def _handle_list_accounts(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = ListAccountsParams.model_validate(arguments)
+
+    query = (
+        select(Account)
+        .where(Account.user_id == user_id, Account.is_active.is_(True))
+    )
+
+    if params.portfolio_id is not None:
+        query = query.where(Account.portfolio_id == params.portfolio_id)
+    if params.broker is not None:
+        query = query.where(Account.type == AccountType(params.broker))
+
+    query = query.order_by(Account.name.asc())
+    result = await db.execute(query)
+    accounts = result.scalars().all()
+
+    return {
+        "accounts": [
+            {
+                "id": str(a.id),
+                "name": a.name,
+                "broker": a.type.value,
+                "account_number_masked": _mask_account_number(a.account_number),
+                "currency": a.currency,
+                "portfolio_id": str(a.portfolio_id) if a.portfolio_id else None,
+            }
+            for a in accounts
+        ],
+    }
+
+
 _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     "get_metadata_schema": {
         "description": "Return active taxonomies and annotation definitions for the authenticated user.",
         "inputSchema": {"type": "object", "properties": {}},
         "handler": _handle_get_metadata_schema,
+        "mutating": False,
+    },
+    "list_portfolios": {
+        "description": "List all portfolios for the authenticated user. Returns id, name, and base currency.",
+        "inputSchema": {"type": "object", "properties": {}},
+        "handler": _handle_list_portfolios,
+        "mutating": False,
+    },
+    "list_accounts": {
+        "description": "List non-archived accounts for the authenticated user. Optionally filter by portfolio_id or broker (manual, schwab, ibkr).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "portfolio_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Filter accounts by portfolio UUID",
+                },
+                "broker": {
+                    "type": "string",
+                    "enum": ["manual", "schwab", "ibkr"],
+                    "description": "Filter accounts by broker type",
+                },
+            },
+        },
+        "handler": _handle_list_accounts,
         "mutating": False,
     },
     "search_trades_advanced": {
