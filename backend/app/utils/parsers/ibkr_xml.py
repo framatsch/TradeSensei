@@ -42,10 +42,8 @@ from decimal import Decimal, InvalidOperation
 
 from app.core.constants import NUMERIC_SCALE
 from app.core.exceptions import ImportParseError
-from app.models.cash_transaction import CashTransactionType
 from app.models.trade import AssetClass, Direction
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
-from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import (
@@ -101,25 +99,6 @@ _ASSET_CLASS_MAP: dict[str, AssetClass] = {
     "FXCFD": AssetClass.FOREX,
     "CRYPTO": AssetClass.CRYPTO,
 }
-
-# ─── Cash Transaction Type mapping ────────────────────────────────────────────
-
-
-def _map_cash_transaction_type(ibkr_type: str, amount: Decimal) -> CashTransactionType:
-    """Map IBKR cash transaction type to CashTransactionType."""
-    ibkr_type_upper = ibkr_type.upper()
-    if "DIVIDEND" in ibkr_type_upper:
-        return CashTransactionType.DIVIDEND
-    if "WITHHOLDING TAX" in ibkr_type_upper:
-        return CashTransactionType.WITHHOLDING_TAX
-    if "DEPOSITS" in ibkr_type_upper or "WITHDRAWALS" in ibkr_type_upper:
-        return CashTransactionType.DEPOSIT if amount > 0 else CashTransactionType.WITHDRAWAL
-    if "INTEREST" in ibkr_type_upper:
-        return CashTransactionType.INTEREST
-    if "FEE" in ibkr_type_upper:
-        return CashTransactionType.FEE
-    return CashTransactionType.OTHER
-
 
 # ─── Timestamp offset for closed trades ──────────────────────────────────────
 # IBKR XML carries a single timestamp per row.  TradeCreate requires
@@ -232,7 +211,6 @@ class IBKRXMLParser(BrokerParser):
         filename: str,
     ) -> tuple[
         list[BrokerRawTransactionCreate],
-        list[CashTransactionCreateRequest],
         list[CorporateActionCreateRequest],
     ]:
         """Parse an IBKR Flex Query XML and return one raw record per execution.
@@ -241,8 +219,7 @@ class IBKRXMLParser(BrokerParser):
         element that represents a tradeable instrument (non-CASH asset category)
         is converted to a
         :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
-        record.  FX conversions and tax elements are returned as
-        :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`.
+        record.
 
         The ``id`` field of each record is set to
         ``"ibkr:{transactionID}"`` when the attribute is present, or falls back
@@ -254,7 +231,7 @@ class IBKRXMLParser(BrokerParser):
             filename: Original filename (present for interface compatibility).
 
         Returns:
-            A tuple of raw transaction records and cash transactions.
+            A tuple of raw transaction records and corporate actions.
 
         Raises:
             ImportParseError: If the bytes cannot be decoded or the XML
@@ -264,7 +241,6 @@ class IBKRXMLParser(BrokerParser):
         root = self._parse_xml(content)
 
         raw_transactions: list[BrokerRawTransactionCreate] = []
-        cash_transactions: list[CashTransactionCreateRequest] = []
         corporate_actions: list[CorporateActionCreateRequest] = []
 
         # Extract corporate actions (type="RS" or "FS")
@@ -315,8 +291,6 @@ class IBKRXMLParser(BrokerParser):
             result = self._parse_trade_element_raw(elem, idx)
             if isinstance(result, BrokerRawTransactionCreate):
                 raw_transactions.append(result)
-            elif isinstance(result, CashTransactionCreateRequest):
-                cash_transactions.append(result)
 
         # Trade Confirmation: <Execution> elements
         for idx, elem in enumerate(root.findall(".//Execution"), start=1):
@@ -324,24 +298,11 @@ class IBKRXMLParser(BrokerParser):
             if result is not None:
                 raw_transactions.append(result)
 
-        # Cash Transactions: <CashTransaction> elements
-        for idx, elem in enumerate(root.findall(".//CashTransaction"), start=1):
-            ct_result = self._parse_cash_transaction_element(elem, idx)
-            if ct_result is not None:
-                cash_transactions.append(ct_result)
-
-        # Transaction Taxes: <TransactionTax> elements (FTT, stamp duty, etc.)
-        for idx, elem in enumerate(root.findall(".//TransactionTax"), start=1):
-            tt_result = self._parse_transaction_tax_element(elem, idx)
-            if tt_result is not None:
-                cash_transactions.append(tt_result)
-
         logger.info(
-            "parse_raw: extracted %d raw transactions and %d cash transactions from IBKR Flex XML.",
+            "parse_raw: extracted %d raw transactions from IBKR Flex XML.",
             len(raw_transactions),
-            len(cash_transactions),
         )
-        return raw_transactions, cash_transactions, corporate_actions
+        return raw_transactions, corporate_actions
 
     # ─── Legacy aggregated parsing ────────────────────────────────────────────
 
@@ -352,7 +313,7 @@ class IBKRXMLParser(BrokerParser):
         corporate_actions: Sequence[CorporateActionLike] | None = None,
         seed_open_lots: Sequence[SeedLotLike] | None = None,
         seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
-    ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
+    ) -> tuple[list[TradeCreate], list[object]]:
         """Parse an IBKR Flex Query XML response.
 
          Args:
@@ -379,35 +340,18 @@ class IBKRXMLParser(BrokerParser):
         root = self._parse_xml(content)
 
         trades: list[TradeCreate] = []
-        cash_transactions: list[CashTransactionCreateRequest] = []
 
         # Activity Flex Query: <Trade> elements
         for idx, elem in enumerate(root.findall(".//Trade"), start=1):
             result = self._parse_trade_element(elem, idx)
             if isinstance(result, TradeCreate):
                 trades.append(result)
-            elif isinstance(result, CashTransactionCreateRequest):
-                cash_transactions.append(result)
 
         # Trade Confirmation: <Execution> elements
         for idx, elem in enumerate(root.findall(".//Execution"), start=1):
             result = self._parse_execution_element(elem, idx)
             if isinstance(result, TradeCreate):
                 trades.append(result)
-            elif isinstance(result, CashTransactionCreateRequest):
-                cash_transactions.append(result)
-
-        # Cash Transactions: <CashTransaction> elements
-        for idx, elem in enumerate(root.findall(".//CashTransaction"), start=1):
-            ct_result = self._parse_cash_transaction_element(elem, idx)
-            if ct_result is not None:
-                cash_transactions.append(ct_result)
-
-        # Transaction Taxes: <TransactionTax> elements (FTT, stamp duty, etc.)
-        for idx, elem in enumerate(root.findall(".//TransactionTax"), start=1):
-            tt_result = self._parse_transaction_tax_element(elem, idx)
-            if tt_result is not None:
-                cash_transactions.append(tt_result)
 
         # Extract Open Positions for final validation
         open_positions_conids = set()
@@ -437,12 +381,11 @@ class IBKRXMLParser(BrokerParser):
         )
 
         logger.info(
-            "Parsed %d executions, aggregated into %d trades and parsed %d cash transactions from IBKR Flex XML.",
+            "Parsed %d executions, aggregated into %d trades from IBKR Flex XML.",
             len(trades),
             len(aggregated_trades),
-            len(cash_transactions),
         )
-        return aggregated_trades, cash_transactions
+        return aggregated_trades, []
 
     # ─── XML helpers ──────────────────────────────────────────────────────────
 
@@ -498,7 +441,7 @@ class IBKRXMLParser(BrokerParser):
 
     # ─── Raw element parsers ──────────────────────────────────────────────────
 
-    def _parse_trade_element_raw(self, elem: ET.Element, idx: int) -> BrokerRawTransactionCreate | CashTransactionCreateRequest | None:
+    def _parse_trade_element_raw(self, elem: ET.Element, idx: int) -> BrokerRawTransactionCreate | None:
         """Parse a single ``<Trade>`` element into a raw transaction record.
 
         Args:
@@ -506,9 +449,8 @@ class IBKRXMLParser(BrokerParser):
             idx: 1-based element index for warning messages.
 
         Returns:
-            A :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`,
-            a :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`
-            (for FX conversions), or ``None`` if the element was skipped.
+            A :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
+            or ``None`` if the element was skipped.
         """
         try:
             asset_category = elem.get("assetCategory", "").upper()
@@ -528,20 +470,8 @@ class IBKRXMLParser(BrokerParser):
 
             executed_at = _parse_ibkr_datetime(trade_date_str, datetime_str)
 
-            # CASH asset category → FX conversion commission (cash transaction)
+            # CASH asset category → FX conversion; skip (no longer tracked)
             if asset_category == "CASH":
-                ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
-                gen_comm = abs(_safe_decimal(elem.get("commission")))
-                commission = max(ib_comm, gen_comm)
-                if commission > Decimal("0"):
-                    currency = (elem.get("currency") or "").upper().strip() or "USD"
-                    return CashTransactionCreateRequest(
-                        date=executed_at,
-                        type=CashTransactionType.FEE,
-                        amount=-commission,
-                        currency=currency,
-                        description=f"FX Conversion Commission ({symbol})",
-                    )
                 return None
 
             asset_class = _map_asset_class(asset_category)
@@ -702,7 +632,7 @@ class IBKRXMLParser(BrokerParser):
 
     # ─── Legacy TradeCreate element parsers ───────────────────────────────────
 
-    def _parse_trade_element(self, elem: ET.Element, idx: int) -> TradeCreate | CashTransactionCreateRequest | None:
+    def _parse_trade_element(self, elem: ET.Element, idx: int) -> TradeCreate | None:
         """Parse a single ``<Trade>`` element from an Activity Flex Query.
 
         Args:
@@ -710,8 +640,7 @@ class IBKRXMLParser(BrokerParser):
             idx: 1-based element index for warning messages.
 
         Returns:
-            A :class:`~app.schemas.trade.TradeCreate`, a cash transaction
-            creation request (for FX conversions), or ``None`` if the element
+            A :class:`~app.schemas.trade.TradeCreate` or ``None`` if the element
             was skipped.
         """
         try:
@@ -732,20 +661,8 @@ class IBKRXMLParser(BrokerParser):
 
             opened_at = _parse_ibkr_datetime(trade_date_str, datetime_str)
 
-            # Task 4.1: filter out <Trade assetCategory="CASH">
+            # Filter out <Trade assetCategory="CASH"> (FX conversions)
             if asset_category == "CASH":
-                ib_comm = abs(_safe_decimal(elem.get("ibCommission")))
-                gen_comm = abs(_safe_decimal(elem.get("commission")))
-                commission = max(ib_comm, gen_comm)
-                if commission > Decimal("0"):
-                    currency = (elem.get("currency") or "").upper().strip() or "USD"
-                    return CashTransactionCreateRequest(
-                        date=opened_at,
-                        type=CashTransactionType.FEE,
-                        amount=-commission,
-                        currency=currency,
-                        description=f"FX Conversion Commission ({symbol})",
-                    )
                 return None
 
             asset_class = _map_asset_class(asset_category)
@@ -889,134 +806,6 @@ class IBKRXMLParser(BrokerParser):
             return None
         except Exception as exc:
             msg = f"<Execution> element {idx}: skipped due to validation error — {exc}"
-            logger.warning(msg)
-            self.warnings.append(msg)
-            return None
-
-    def _parse_cash_transaction_element(self, elem: ET.Element, idx: int) -> CashTransactionCreateRequest | None:
-        """Parse a single ``<CashTransaction>`` element.
-
-        Args:
-            elem: The ``<CashTransaction>`` XML element.
-            idx: 1-based element index for warning messages.
-
-        Returns:
-            A cash transaction creation request or ``None``.
-        """
-        try:
-            report_date = elem.get("reportDate", "")
-            datetime_str = elem.get("dateTime", "")
-
-            # If reportDate is missing, try to use dateTime date part
-            if not report_date and datetime_str:
-                report_date = datetime_str.split(";")[0]
-
-            if not report_date:
-                self.warnings.append(f"<CashTransaction> element {idx}: skipped — missing reportDate or dateTime.")
-                return None
-
-            date = _parse_ibkr_datetime(report_date, datetime_str)
-
-            amount_str = elem.get("amount")
-            if amount_str is None:
-                self.warnings.append(f"<CashTransaction> element {idx}: skipped — missing amount.")
-                return None
-
-            try:
-                amount = Decimal(amount_str.strip())
-            except InvalidOperation:
-                self.warnings.append(f"<CashTransaction> element {idx}: skipped — invalid amount '{amount_str}'.")
-                return None
-
-            currency = (elem.get("currency") or "").upper().strip() or "USD"
-            ibkr_type = elem.get("type", "")
-            tx_type = _map_cash_transaction_type(ibkr_type, amount)
-
-            symbol = elem.get("symbol", "").strip() or None
-            description = elem.get("description", "").strip() or None
-
-            return CashTransactionCreateRequest(
-                date=date,
-                type=tx_type,
-                symbol=symbol,
-                amount=amount,
-                currency=currency,
-                description=description,
-            )
-        except (ValueError, OverflowError) as exc:
-            msg = f"<CashTransaction> element {idx}: skipped — {exc}"
-            logger.warning(msg)
-            self.warnings.append(msg)
-            return None
-        except Exception as exc:
-            msg = f"<CashTransaction> element {idx}: skipped due to validation error — {exc}"
-            logger.warning(msg)
-            self.warnings.append(msg)
-            return None
-
-    def _parse_transaction_tax_element(self, elem: ET.Element, idx: int) -> CashTransactionCreateRequest | None:
-        """Parse a single ``<TransactionTax>`` element (FTT, stamp duty, etc.).
-
-        These are financial-transaction taxes charged at the time of a trade
-        (e.g. French FTT, Italian stamp duty).  They are recorded as a
-        ``FEE``-type cash transaction so they appear in the cash ledger and
-        are included in tax exports.
-
-        Args:
-            elem: The ``<TransactionTax>`` XML element.
-            idx: 1-based element index for warning messages.
-
-        Returns:
-            A :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest`
-            or ``None`` if the element was skipped.
-        """
-        try:
-            report_date = elem.get("reportDate", "")
-            datetime_str = elem.get("date", "")
-
-            if not report_date and datetime_str:
-                report_date = datetime_str.split(";")[0]
-
-            if not report_date:
-                self.warnings.append(f"<TransactionTax> element {idx}: skipped — missing reportDate or date.")
-                return None
-
-            date = _parse_ibkr_datetime(report_date, datetime_str)
-
-            tax_amount_str = elem.get("taxAmount")
-            if tax_amount_str is None:
-                self.warnings.append(f"<TransactionTax> element {idx}: skipped — missing taxAmount.")
-                return None
-
-            try:
-                amount = Decimal(tax_amount_str.strip())
-            except InvalidOperation:
-                self.warnings.append(f"<TransactionTax> element {idx}: skipped — invalid taxAmount '{tax_amount_str}'.")
-                return None
-
-            if amount == Decimal("0"):
-                return None  # skip zero-amount entries silently
-
-            currency = (elem.get("currency") or "").upper().strip() or "USD"
-            symbol = elem.get("symbol", "").strip() or None
-            tax_description = (elem.get("taxDescription") or "").strip()
-            description = tax_description or f"Transaction Tax ({symbol or 'unknown'})"
-
-            return CashTransactionCreateRequest(
-                date=date,
-                type=CashTransactionType.FEE,
-                symbol=symbol,
-                amount=amount,
-                currency=currency,
-                description=description,
-            )
-        except (ValueError, OverflowError) as exc:
-            msg = f"<TransactionTax> element {idx}: skipped — {exc}"
-            logger.warning(msg)
-            self.warnings.append(msg)
-            return None
-        except Exception as exc:
-            msg = f"<TransactionTax> element {idx}: skipped due to validation error — {exc}"
             logger.warning(msg)
             self.warnings.append(msg)
             return None

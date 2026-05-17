@@ -23,9 +23,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ImportParseError
-from app.models.cash_transaction import CashTransactionType
 from app.models.trade import AssetClass, Direction
-from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import CorporateActionLike
 from app.utils.parsers.base import BrokerParser
@@ -54,36 +52,6 @@ _SCHWAB_DATE_FORMAT: str = "%m/%d/%Y"
 _ACTION_BUY: str = "Buy"
 _ACTION_SELL: str = "Sell"
 _PROCESSABLE_ACTIONS: frozenset[str] = frozenset({_ACTION_BUY, _ACTION_SELL})
-
-
-def _map_cash_transaction_type(action: str, amount: Decimal) -> CashTransactionType | None:
-    """Map a Schwab Action string to a CashTransactionType.
-
-    Returns None if the action is not a cash transaction.
-    """
-    action_upper = action.upper()
-
-    if action_upper in {"BUY", "SELL", "BUY TO COVER", "SELL SHORT"}:
-        return None
-
-    if "DIVIDEND" in action_upper:
-        return CashTransactionType.DIVIDEND
-    if "TAX" in action_upper:
-        return CashTransactionType.WITHHOLDING_TAX
-    if "INTEREST" in action_upper:
-        return CashTransactionType.INTEREST
-    if "DEPOSIT" in action_upper or "FUNDS RECEIVED" in action_upper or "WIRE IN" in action_upper:
-        return CashTransactionType.DEPOSIT
-    if "WITHDRAWAL" in action_upper or "FUNDS PAID" in action_upper or "WIRE OUT" in action_upper or "FUNDS SENT" in action_upper:
-        return CashTransactionType.WITHDRAWAL
-    if "FEE" in action_upper or "COMMISSION" in action_upper:
-        return CashTransactionType.FEE
-
-    # Other cash events typically have an amount
-    if amount != Decimal("0"):
-        return CashTransactionType.OTHER
-
-    return None
 
 
 def _strip_currency_symbol(raw: str) -> str:
@@ -162,7 +130,7 @@ class SchwabParser(BrokerParser):
         corporate_actions: Sequence[CorporateActionLike] | None = None,  # noqa: ARG002
         seed_open_lots: Sequence[object] | None = None,  # noqa: ARG002
         seed_orphaned_lots: Sequence[object] | None = None,  # noqa: ARG002
-    ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
+    ) -> tuple[list[TradeCreate], list[object]]:
         """Parse a Schwab trade history CSV into :class:`TradeCreate` objects.
 
         Sets ``currency="USD"`` on every parsed trade.  ``pnl_eur`` is not
@@ -176,7 +144,8 @@ class SchwabParser(BrokerParser):
                 by this parser.
 
         Returns:
-            A list of :class:`~app.schemas.trade.TradeCreate` instances.
+            A tuple of :class:`~app.schemas.trade.TradeCreate` instances and
+            an empty list (reserved for backward compatibility).
 
         Raises:
             ImportParseError: If the file cannot be decoded or is missing
@@ -199,21 +168,18 @@ class SchwabParser(BrokerParser):
             raise ImportParseError(f"Schwab CSV is missing required column(s): {', '.join(sorted(missing))}.")
 
         trades: list[TradeCreate] = []
-        cash_transactions: list[CashTransactionCreateRequest] = []
 
         for row_num, row in enumerate(reader, start=2):  # 1-based; row 1 is the header
             try:
                 result = self._parse_row(row)
                 if isinstance(result, TradeCreate):
                     trades.append(result)
-                elif isinstance(result, CashTransactionCreateRequest):
-                    cash_transactions.append(result)
             except (ValueError, InvalidOperation, KeyError) as exc:
                 msg = f"Schwab row {row_num}: skipped — {exc}"
                 logger.warning(msg)
                 self.warnings.append(msg)
 
-        return trades, cash_transactions
+        return trades, []
 
     async def enrich_pnl_eur(
         self,
@@ -261,17 +227,17 @@ class SchwabParser(BrokerParser):
                 if rate is not None:
                     trades[i] = trade.model_copy(update={"pnl_eur": trade.pnl * rate})
 
-    def _parse_row(self, row: dict[str, str]) -> TradeCreate | CashTransactionCreateRequest | None:
+    def _parse_row(self, row: dict[str, str]) -> TradeCreate | None:
         """Convert a single Schwab CSV row dict into a Pydantic schema.
 
-        Sets ``currency="USD"`` on every trade and cash transaction.
+        Sets ``currency="USD"`` on every trade.
 
         Args:
             row: Dictionary of column name → raw string value.
 
         Returns:
-            A validated :class:`~app.schemas.trade.TradeCreate`,
-            cash transaction request, or None.
+            A validated :class:`~app.schemas.trade.TradeCreate` or ``None``
+            if the row is not a tradeable action.
 
         Raises:
             ValueError: If a required field is empty or invalid.
@@ -279,28 +245,6 @@ class SchwabParser(BrokerParser):
             decimal.InvalidOperation: If a numeric field cannot be parsed.
         """
         action = row[_COL_ACTION].strip()
-
-        # Check if it's a cash transaction
-        amount_raw = row.get(_COL_AMOUNT, "").strip()
-        amount = _parse_decimal(amount_raw) if amount_raw else Decimal("0")
-
-        cash_tx_type = _map_cash_transaction_type(action, amount)
-        if cash_tx_type is not None:
-            if amount == Decimal("0"):
-                return None  # Skip cash transactions with zero amount
-
-            date = _parse_schwab_date(row[_COL_DATE])
-            symbol = row.get(_COL_SYMBOL, "").strip() or None
-            description = row.get(_COL_DESCRIPTION, "").strip() or action
-
-            return CashTransactionCreateRequest(
-                date=date,
-                type=cash_tx_type,
-                symbol=symbol,
-                amount=amount,
-                currency="USD",
-                description=description,
-            )
 
         if action not in _PROCESSABLE_ACTIONS:
             return None

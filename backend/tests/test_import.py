@@ -115,7 +115,7 @@ class TestSchwabParserParse:
         """A 'Buy' row should produce a LONG trade."""
         csv_bytes = _make_schwab_csv([_schwab_row(action="Buy")])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert len(trades) == 1
         assert trades[0].direction == Direction.LONG
         assert trades[0].symbol == "AAPL"
@@ -126,7 +126,7 @@ class TestSchwabParserParse:
         """A 'Sell' row should produce a SHORT trade."""
         csv_bytes = _make_schwab_csv([_schwab_row(action="Sell")])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert len(trades) == 1
         assert trades[0].direction == Direction.SHORT
 
@@ -136,7 +136,7 @@ class TestSchwabParserParse:
         dividend_row = "03/15/2024,Dividend,AAPL,Description,0,$0.00,$0.00,$0.52"
         csv_bytes = _make_schwab_csv([dividend_row, _schwab_row()])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert len(trades) == 1
 
     @pytest.mark.unit
@@ -144,7 +144,7 @@ class TestSchwabParserParse:
         """Dollar-prefixed fee should be parsed to a positive Decimal."""
         csv_bytes = _make_schwab_csv([_schwab_row(fees="$2.99")])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert trades[0].commission == Decimal("2.99")
 
     @pytest.mark.unit
@@ -153,7 +153,7 @@ class TestSchwabParserParse:
         row = "03/15/2024,Buy,AAPL,Description,10,$150.25,,$-1502.50"
         csv_bytes = _make_schwab_csv([row])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert trades[0].commission == Decimal("0")
 
     @pytest.mark.unit
@@ -161,7 +161,7 @@ class TestSchwabParserParse:
         """Parsed opened_at should be a UTC midnight datetime."""
         csv_bytes = _make_schwab_csv([_schwab_row(date="06/01/2024")])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert trades[0].opened_at == datetime(2024, 6, 1, 0, 0, 0, tzinfo=UTC)
 
     @pytest.mark.unit
@@ -170,7 +170,7 @@ class TestSchwabParserParse:
         bad_row = "03/15/2024,Buy,AAPL,Description,10,not-a-price,$1.50,-1502.50"
         csv_bytes = _make_schwab_csv([bad_row])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert len(trades) == 0
         assert len(parser.warnings) == 1
 
@@ -202,7 +202,7 @@ class TestSchwabParserParse:
         rows = [_schwab_row(symbol="AAPL"), _schwab_row(symbol="MSFT")]
         csv_bytes = _make_schwab_csv(rows)
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert len(trades) == 2
 
     @pytest.mark.unit
@@ -210,7 +210,7 @@ class TestSchwabParserParse:
         """Schwab trades are open positions; closed_at should be None."""
         csv_bytes = _make_schwab_csv([_schwab_row()])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert trades[0].closed_at is None
 
 
@@ -597,7 +597,7 @@ class TestSchwabParserCurrencyField:
         """Every parsed Schwab trade should have currency='USD'."""
         csv_bytes = _make_schwab_csv([_schwab_row()])
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
         assert trades[0].currency == "USD"
 
 
@@ -672,7 +672,7 @@ class TestSchwabParserEnrichPnlEur:
         """Trades without pnl (open positions) should not trigger an FX lookup."""
         csv_bytes = _make_schwab_csv([_schwab_row()])  # pnl=None (open)
         parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
+        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
 
         mock_session = AsyncMock()
         mock_fx = AsyncMock()
@@ -723,46 +723,14 @@ class TestSchwabParserEnrichPnlEur:
         assert mock_fx.get_usd_to_eur.call_count == 2
 
 
-class TestSchwabCashTransactionParsing:
-    @pytest.mark.unit
-    def test_parses_dividend_row(self) -> None:
-        """A Dividend row should produce a DIVIDEND CashTransactionCreateRequest."""
-        from app.models.cash_transaction import CashTransactionType
-
-        dividend_row = "03/15/2024,Dividend,AAPL,Apple Div,0,$0.00,$0.00,$0.52"
-        csv_bytes = _make_schwab_csv([dividend_row])
-        parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
-        assert len(trades) == 0
-        assert len(cash_txs) == 1
-        assert cash_txs[0].type == CashTransactionType.DIVIDEND
-        assert cash_txs[0].amount == Decimal("0.52")
-        assert cash_txs[0].symbol == "AAPL"
-
-    @pytest.mark.unit
-    def test_parses_tax_withholding_row(self) -> None:
-        """A Tax Withholding row should produce a WITHHOLDING_TAX CashTransactionCreateRequest."""
-        from app.models.cash_transaction import CashTransactionType
-
-        tax_row = "03/15/2024,Tax Withholding,,,0,$0.00,$0.00,$-0.15"
-        csv_bytes = _make_schwab_csv([tax_row])
-        parser = SchwabParser()
-        trades, cash_txs = parser.parse(csv_bytes, "trade_history.csv")
-        assert len(trades) == 0
-        assert len(cash_txs) == 1
-        assert cash_txs[0].type == CashTransactionType.WITHHOLDING_TAX
-        assert cash_txs[0].amount == Decimal("-0.15")
+# ─── IBKRXMLParser helpers ────────────────────────────────────────────────────
 
 
-# ─── IBKRXMLParser cash transaction tests ─────────────────────────────────────
-
-
-def _make_ibkr_xml(trades_xml: str = "", cash_txs_xml: str = "") -> bytes:
+def _make_ibkr_xml(trades_xml: str = "") -> bytes:
     """Build a minimal IBKR Flex Query XML document.
 
     Args:
         trades_xml: Inner XML string containing ``<Trade>`` elements.
-        cash_txs_xml: Inner XML string containing ``<CashTransaction>`` elements.
 
     Returns:
         UTF-8 encoded XML bytes.
@@ -775,9 +743,6 @@ def _make_ibkr_xml(trades_xml: str = "", cash_txs_xml: str = "") -> bytes:
         "<Trades>"
         f"{trades_xml}"
         "</Trades>"
-        "<CashTransactions>"
-        f"{cash_txs_xml}"
-        "</CashTransactions>"
         "</FlexStatement>"
         "</FlexStatements>"
         "</FlexQueryResponse>"
@@ -785,56 +750,15 @@ def _make_ibkr_xml(trades_xml: str = "", cash_txs_xml: str = "") -> bytes:
     return xml.encode("utf-8")
 
 
-class TestIBKRXMLParserCashTransactions:
-    """Unit tests for IBKRXMLParser cash transaction and CASH trade handling."""
-
-    @pytest.mark.unit
-    def test_parses_dividend_cash_transaction(self) -> None:
-        """A <CashTransaction type='Dividends'> element should produce a DIVIDEND record."""
-        from app.models.cash_transaction import CashTransactionType
-        from app.utils.parsers.ibkr_xml import IBKRXMLParser
-
-        cash_tx_xml = (
-            '<CashTransaction reportDate="20240315" dateTime="20240315;093000" '
-            'amount="52.00" currency="USD" type="Dividends" symbol="AAPL" '
-            'description="AAPL Dividend" />'
-        )
-        xml_bytes = _make_ibkr_xml(cash_txs_xml=cash_tx_xml)
-        parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
-
-        assert len(trades) == 0
-        assert len(cash_txs) == 1
-        assert cash_txs[0].type == CashTransactionType.DIVIDEND
-        assert cash_txs[0].amount == Decimal("52.00")
-        assert cash_txs[0].currency == "USD"
-        assert cash_txs[0].symbol == "AAPL"
-
-    @pytest.mark.unit
-    def test_parses_withholding_tax_cash_transaction(self) -> None:
-        """A <CashTransaction type='Withholding Tax'> element should produce a WITHHOLDING_TAX record."""
-        from app.models.cash_transaction import CashTransactionType
-        from app.utils.parsers.ibkr_xml import IBKRXMLParser
-
-        cash_tx_xml = (
-            '<CashTransaction reportDate="20240315" dateTime="20240315;093000" '
-            'amount="-5.20" currency="USD" type="Withholding Tax" symbol="AAPL" '
-            'description="AAPL WHT" />'
-        )
-        xml_bytes = _make_ibkr_xml(cash_txs_xml=cash_tx_xml)
-        parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
-
-        assert len(cash_txs) == 1
-        assert cash_txs[0].type == CashTransactionType.WITHHOLDING_TAX
-        assert cash_txs[0].amount == Decimal("-5.20")
+class TestIBKRXMLParserCashTradeFiltering:
+    """Unit tests for IBKRXMLParser CASH asset category filtering."""
 
     @pytest.mark.unit
     def test_cash_trade_filtered_out_as_trade(self) -> None:
         """A <Trade assetCategory='CASH'> must NOT appear in the trades list."""
         from app.utils.parsers.ibkr_xml import IBKRXMLParser
 
-        # A currency-conversion trade (EUR.USD) with a commission
+        # A currency-conversion trade (EUR.USD)
         trade_xml = (
             '<Trade assetCategory="CASH" symbol="EUR.USD" tradeDate="20240315" '
             'dateTime="20240315;093000" quantity="1000" tradePrice="1.08" '
@@ -842,46 +766,9 @@ class TestIBKRXMLParserCashTransactions:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
         parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
+        trades, _ = parser.parse(xml_bytes, "flex.xml")
 
         assert len(trades) == 0, "CASH assetCategory must not produce a Trade record"
-
-    @pytest.mark.unit
-    def test_cash_trade_commission_extracted_as_fee(self) -> None:
-        """A <Trade assetCategory='CASH'> with commission should produce a FEE cash transaction."""
-        from app.models.cash_transaction import CashTransactionType
-        from app.utils.parsers.ibkr_xml import IBKRXMLParser
-
-        trade_xml = (
-            '<Trade assetCategory="CASH" symbol="EUR.USD" tradeDate="20240315" '
-            'dateTime="20240315;093000" quantity="1000" tradePrice="1.08" '
-            'commission="-2.00" currency="USD" fifoPnlRealized="0" />'
-        )
-        xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
-        parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
-
-        assert len(cash_txs) == 1
-        assert cash_txs[0].type == CashTransactionType.FEE
-        assert cash_txs[0].amount == Decimal("-2.00")
-        assert cash_txs[0].currency == "USD"
-
-    @pytest.mark.unit
-    def test_cash_trade_zero_commission_skipped(self) -> None:
-        """A <Trade assetCategory='CASH'> with zero commission should produce no cash transaction."""
-        from app.utils.parsers.ibkr_xml import IBKRXMLParser
-
-        trade_xml = (
-            '<Trade assetCategory="CASH" symbol="EUR.USD" tradeDate="20240315" '
-            'dateTime="20240315;093000" quantity="1000" tradePrice="1.08" '
-            'commission="0" currency="USD" fifoPnlRealized="0" />'
-        )
-        xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
-        parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
-
-        assert len(trades) == 0
-        assert len(cash_txs) == 0
 
     @pytest.mark.unit
     def test_normal_trade_still_parsed_alongside_cash_trade(self) -> None:
@@ -900,30 +787,10 @@ class TestIBKRXMLParserCashTransactions:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=normal_trade + cash_trade)
         parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
+        trades, _ = parser.parse(xml_bytes, "flex.xml")
 
         assert len(trades) == 1
         assert trades[0].symbol == "AAPL"
-        assert len(cash_txs) == 1
-        assert cash_txs[0].description is not None
-        assert "EUR.USD" in cash_txs[0].description
-
-    @pytest.mark.unit
-    def test_cash_transaction_missing_amount_skipped(self) -> None:
-        """A <CashTransaction> with no amount attribute should be skipped with a warning."""
-        from app.utils.parsers.ibkr_xml import IBKRXMLParser
-
-        cash_tx_xml = (
-            '<CashTransaction reportDate="20240315" dateTime="20240315;093000" '
-            'currency="USD" type="Dividends" symbol="AAPL" />'
-        )
-        xml_bytes = _make_ibkr_xml(cash_txs_xml=cash_tx_xml)
-        parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
-
-        assert len(cash_txs) == 0
-        assert len(parser.warnings) == 1
-        assert "missing amount" in parser.warnings[0]
 
 
 # ─── Corporate action stub ─────────────────────────────────────────────────────
@@ -1298,7 +1165,7 @@ class TestIBKRXMLParserCommission:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
         parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
+        trades, _ = parser.parse(xml_bytes, "flex.xml")
 
         assert len(trades) == 1
         assert trades[0].commission == Decimal("1.50")
@@ -1316,7 +1183,7 @@ class TestIBKRXMLParserCommission:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
         parser = IBKRXMLParser()
-        trades, cash_txs = parser.parse(xml_bytes, "flex.xml")
+        trades, _ = parser.parse(xml_bytes, "flex.xml")
 
         assert len(trades) == 1
         assert trades[0].commission == Decimal("2.50")

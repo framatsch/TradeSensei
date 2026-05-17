@@ -93,7 +93,7 @@ def _make_split_xml(trade_count: int) -> bytes:
         '<?xml version="1.0" encoding="UTF-8"?>'
         "<FlexQueryResponse><FlexStatements><FlexStatement><Trades>"
         + "".join(rows)
-        + "</Trades><CashTransactions /></FlexStatement>"
+        + "</Trades></FlexStatement>"
         + "</FlexStatements></FlexQueryResponse>"
     )
     return xml.encode("utf-8")

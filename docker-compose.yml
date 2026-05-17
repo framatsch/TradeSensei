@@ -47,7 +47,8 @@ services:
       LOG_LEVEL: DEBUG
       SECRET_KEY: dev-secret-key-change-in-production
       ACCESS_TOKEN_EXPIRE_MINUTES: "120"
-      CORS_ORIGINS: "http://localhost:3000"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000}"
+      MCP_ENABLED: "true"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       OIDC_ENABLED: "${OIDC_ENABLED:-false}"
@@ -69,15 +70,15 @@ services:
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
       # S3-compatible storage for trade image uploads and check-in screenshots.
       # By default, this connects to the bundled SeaweedFS instance.
-      # STORAGE_PUBLIC_URL must use the host-reachable address, NOT the internal Docker hostname, 
+      # STORAGE_PUBLIC_URL must use the host-reachable address, NOT the internal Docker hostname,
       # because presigned URLs are accessed directly by the browser.
       STORAGE_BACKEND: "${STORAGE_BACKEND:-s3}"
       STORAGE_BUCKET: "${STORAGE_BUCKET:-tradesensei}"
       STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-http://localhost:8333/tradesensei}"
       STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-any}"
       STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-any}"
-      # Note: STORAGE_ENDPOINT_URL is used to generate the presigned URL. 
-      # Because the browser (frontend) uploads directly, this must be a host-reachable URL 
+      # Note: STORAGE_ENDPOINT_URL is used to generate the presigned URL.
+      # Because the browser (frontend) uploads directly, this must be a host-reachable URL
       # (like http://localhost:8333) rather than the internal docker service name.
       STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-http://localhost:8333}"
     ports:

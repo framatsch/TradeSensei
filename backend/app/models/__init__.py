@@ -23,7 +23,6 @@ from app.models.annotation_definition import AnnotationDefinition as AnnotationD
 from app.models.broker_raw_transaction import (
     BrokerRawTransaction as BrokerRawTransaction,
 )
-from app.models.cash_transaction import CashTransaction as CashTransaction
 from app.models.checkin_annotation import CheckinAnnotation as CheckinAnnotation
 from app.models.checkin_taxonomy import CheckinTaxonomy as CheckinTaxonomy
 from app.models.corporate_action import CorporateAction as CorporateAction

@@ -16,10 +16,6 @@
 /**
  * Dashboard layout — sidebar nav with auth guard.
  * Redirects to /login when no access_token is found in localStorage.
- *
- * Navigation is controlled by per-user feature flags:
- *   - tax_report:        shows/hides Cash Report
- *   - cash_and_dividends: shows/hides Cash & Dividends
  */
 
 "use client";
@@ -35,7 +31,6 @@ import { AppConfig } from "@/lib/appConfig";
 import { useSettings } from "@/hooks/useSettings";
 import { useSavedViews } from "@/hooks/useReportingViews";
 import type { SavedDashboardViewRead } from "@/lib/api/types.gen";
-import FeatureGatedNavItems from "@/components/dashboard/FeatureGatedNavItems";
 import { TopBar } from "@/components/layout/TopBar";
 import { useAppContext } from "@/hooks/useAppContext";
 import type { AppContext } from "@/stores/appContextStore";
@@ -332,8 +327,7 @@ export default function DashboardLayout({ children }: Props) {
       pathname === "/dashboard" ||
       pathname.startsWith("/dashboard/workspace") ||
       pathname.startsWith("/dashboard/trades") ||
-      pathname.startsWith("/dashboard/reports") ||
-      pathname.startsWith("/dashboard/cash")
+      pathname.startsWith("/dashboard/reports")
     ) {
       expected = "portfolio";
     } else if (pathname.startsWith("/dashboard/library")) {
@@ -381,8 +375,6 @@ export default function DashboardLayout({ children }: Props) {
 
   const { data: settings } = useSettings();
   const features = (settings?.features ?? {}) as Record<string, boolean>;
-  const showCash = features["cash_and_dividends"] ?? false;
-  const showTax = features["tax_report"] ?? false;
   const showRisk = features["risk_analytics"] ?? false;
   const showReporting = features["reporting_hub"] ?? false;
 
@@ -495,10 +487,7 @@ export default function DashboardLayout({ children }: Props) {
                 {activeContext === 'portfolio' && (
                   <WorkspaceSidebarNav />
                 )}
-                {/* Client-side injected per-user feature nav items (Cash / Tax) */}
-                {activeContext === 'portfolio' && (
-                  <FeatureGatedNavItems showCash={showCash} showTax={showTax} />
-                )}
+
               </nav>
             </div>
           </aside>

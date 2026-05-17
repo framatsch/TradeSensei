@@ -184,6 +184,14 @@ export AUTHORIZATION="Bearer <YOUR_PAT>"
 opencode --mcp http://localhost:8000/mcp/sse
 ```
 
+### Claude Configuration Example
+```bash
+claude mcp add tradesensei \
+  npx mcp-remote http://localhost:8000/mcp/sse \
+  --header "Authorization: Bearer  <YOUR_PAT>"
+```
+
+
 ## Generating a Personal Access Token (PAT)
 
 1. Log in to the Trade Sensei web UI.

@@ -18,7 +18,6 @@ The script mirrors the production import math in an offline context:
 - Parse XML through :class:`~app.utils.parsers.ibkr_xml.IBKRXMLParser.parse_raw`.
 - Aggregate executions with :func:`aggregate_executions_fifo`.
 - Sum closed trade PnL by year (preferring ``net_pnl``, fallback ``pnl``).
-- Add all ``FEE`` cash transactions (taxes, fee cash flows, FX conversion fees).
 
 This produces a deterministic yearly baseline used by integration tests to
 verify DB import aggregation results.
@@ -33,9 +32,7 @@ from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from app.models.cash_transaction import CashTransactionType
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
-from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import (
@@ -56,19 +53,16 @@ def _parse_raw_files(
     paths: Iterable[Path],
 ) -> tuple[
     list[BrokerRawTransactionCreate],
-    list[CashTransactionCreateRequest],
     list[CorporateActionCreateRequest],
 ]:
-    """Parse XML files into raw executions and cash transactions."""
+    """Parse XML files into raw executions and corporate actions."""
     parser = IBKRXMLParser()
     raw_records: list[BrokerRawTransactionCreate] = []
-    cash_transactions: list[CashTransactionCreateRequest] = []
-    corporate_actions = []
+    corporate_actions: list[CorporateActionCreateRequest] = []
     seen_raw_ids: set[str] = set()
-    seen_cash_keys: set[tuple[object, object, object, object]] = set()
 
     for path in paths:
-        raw, cash, ca = parser.parse_raw(path.read_bytes(), filename=path.name)
+        raw, ca = parser.parse_raw(path.read_bytes(), filename=path.name)
         corporate_actions.extend(ca)
         for record in raw:
             if record.id in seen_raw_ids:
@@ -76,19 +70,7 @@ def _parse_raw_files(
             seen_raw_ids.add(record.id)
             raw_records.append(record)
 
-        for cash_tx in cash:
-            cash_key = (
-                cash_tx.date,
-                cash_tx.type,
-                cash_tx.amount,
-                cash_tx.symbol,
-            )
-            if cash_key in seen_cash_keys:
-                continue
-            seen_cash_keys.add(cash_key)
-            cash_transactions.append(cash_tx)
-
-    return raw_records, cash_transactions, corporate_actions
+    return raw_records, corporate_actions
 
 
 def _stable_sort_executions(
@@ -99,8 +81,15 @@ def _stable_sort_executions(
 
 
 def aggregate_files_yearly(paths: Iterable[Path]) -> dict[str, dict]:
-    """Aggregate yearly net PnL across multiple Flex Query XML files."""
-    raw_records, cash_transactions, corporate_actions = _parse_raw_files(paths)
+    """Aggregate yearly net PnL across multiple Flex Query XML files.
+
+    Only trade-level net P&L is included (entry/exit prices minus per-trade
+    commissions).  Platform-level FEE cash transactions (FX conversion
+    commissions, market data subscriptions, etc.) are intentionally excluded
+    because they are not associated with individual trades and are reported
+    separately in the cash transactions view.
+    """
+    raw_records, corporate_actions = _parse_raw_files(paths)
 
     sorted_raw_records = _stable_sort_executions(raw_records)
     execution_trades: list[TradeCreate] = logical_executions_to_trade_creates(
@@ -120,10 +109,6 @@ def aggregate_files_yearly(paths: Iterable[Path]) -> dict[str, dict]:
         if value is not None:
             yearly_total[trade.closed_at.year] += _quantize_db(value)
             yearly_trades[trade.closed_at.year] += 1
-
-    for cash_tx in cash_transactions:
-        if cash_tx.type == CashTransactionType.FEE:
-            yearly_total[cash_tx.date.year] += _quantize_db(cash_tx.amount)
 
     return {
         year: {"pnl": _quantize_db(value), "trades": yearly_trades[year]}

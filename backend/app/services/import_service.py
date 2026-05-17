@@ -56,16 +56,13 @@ from app.repositories.account_repository import AccountRepository
 from app.repositories.broker_raw_transaction_repository import (
     BrokerRawTransactionRepository,
 )
-from app.repositories.cash_transaction_repository import CashTransactionRepository
 from app.repositories.corporate_action_repository import CorporateActionRepository
 from app.repositories.execution import ExecutionRepository
 from app.repositories.portfolio_repository import PortfolioRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
-from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.imports import FreshStartResult, ImportResult
 from app.schemas.trade import TradeCreate
-from app.services.cash_transaction_service import CashTransactionService
 from app.services.logical_execution_service import LogicalExecutionService
 from app.utils.parsers.aggregator import (
     CorporateActionLike,
@@ -254,7 +251,6 @@ class ImportService:
         seed_for_parser: Sequence[SeedLotLike] | None = cast(Sequence[SeedLotLike], open_lots) if open_lots else None
 
         parser_warnings: list[str] = []
-        parsed_cash_txs: list[CashTransactionCreateRequest] = []
         suppressed_count: int = 0
 
         # ── Raw-data pipeline (preferred) ────────────────────────────────────
@@ -268,19 +264,11 @@ class ImportService:
         else:
             if (
                 isinstance(raw_parse_result, tuple)
-                and (len(raw_parse_result) == 2 or len(raw_parse_result) == 3)
+                and len(raw_parse_result) == 2
                 and isinstance(raw_parse_result[0], list)
                 and isinstance(raw_parse_result[1], list)
             ):
-                if len(raw_parse_result) == 2:
-                    raw_records, parsed_cash_txs = raw_parse_result
-                    parsed_corporate_actions = []
-                else:
-                    (
-                        raw_records,
-                        parsed_cash_txs,
-                        parsed_corporate_actions,
-                    ) = raw_parse_result
+                raw_records, parsed_corporate_actions = raw_parse_result
                 use_raw_pipeline = True
             else:
                 use_raw_pipeline = False
@@ -379,7 +367,7 @@ class ImportService:
             parsed_trades = [tws.trade_create for tws in trades_with_sources]
         else:
             # ── Legacy pipeline (fallback) ────────────────────────────────────
-            parsed_trades, parsed_cash_txs = parser.parse(
+            parsed_trades, _ = parser.parse(
                 content,
                 filename,
                 corporate_actions=ca_for_parser,
@@ -396,7 +384,6 @@ class ImportService:
         trades_created = 0
         trades_updated = 0
         trades_skipped_manually_edited = 0
-        cash_txs_created = 0
         create_warnings: list[str] = []
         raw_projection_rebuild = use_raw_pipeline and account_id is not None
 
@@ -732,48 +719,6 @@ class ImportService:
                 logger.warning(msg)
                 create_warnings.append(msg)
 
-        if account_id is not None:
-            account = await self._account_repo.get_by_id(
-                account_id,
-                user_id,
-                portfolio_id,
-            )
-            if account is None:
-                raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
-
-            cash_service = CashTransactionService(self._session)
-            for cash_tx_data in parsed_cash_txs:
-                # Duplicate check: same account + date + type + amount + symbol
-                is_dup = await CashTransactionRepository.find_duplicate(
-                    self._session,
-                    account_id=account_id,
-                    date=cash_tx_data.date,
-                    tx_type=cash_tx_data.type,
-                    amount=cash_tx_data.amount,
-                    symbol=cash_tx_data.symbol,
-                )
-                if is_dup:
-                    logger.debug(
-                        "Skipping duplicate cash transaction: %s %s @ %s",
-                        cash_tx_data.type,
-                        cash_tx_data.symbol,
-                        cash_tx_data.date,
-                    )
-                    continue
-
-                try:
-                    await cash_service.create(
-                        user_id=user_id,
-                        portfolio_id=portfolio_id,
-                        account_id=account_id,
-                        create_request=cash_tx_data,
-                    )
-                    cash_txs_created += 1
-                except Exception as exc:  # noqa: BLE001
-                    msg = f"Failed to persist cash transaction at {cash_tx_data.date}: {exc}"
-                    logger.warning(msg)
-                    create_warnings.append(msg)
-
         all_warnings: list[str] = parser_warnings + create_warnings
 
         if portfolio_base_currency is not None:
@@ -797,7 +742,6 @@ class ImportService:
             0,
             new_trades_parsed - trades_created - trades_skipped_manually_edited,
         )
-        cash_txs_skipped = len(parsed_cash_txs) - cash_txs_created
 
         return ImportResult(
             broker=str(broker),
@@ -805,9 +749,6 @@ class ImportService:
             trades_parsed=new_trades_parsed,
             trades_created=trades_created,
             trades_skipped=trades_skipped,
-            cash_transactions_parsed=len(parsed_cash_txs),
-            cash_transactions_created=cash_txs_created,
-            cash_transactions_skipped=cash_txs_skipped,
             raw_transactions_created=len(inserted_raw_ids) if use_raw_pipeline else 0,
             raw_suppressed_skipped=suppressed_count,
             raw_deleted_skipped=0,

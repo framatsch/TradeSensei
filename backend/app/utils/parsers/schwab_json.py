@@ -22,7 +22,6 @@ from decimal import Decimal, InvalidOperation
 from app.core.exceptions import ImportParseError
 from app.models.trade import AssetClass, Direction
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
-from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import CorporateActionLike, SeedLotLike
@@ -49,7 +48,7 @@ class SchwabJSONParser(BrokerParser):
         corporate_actions: Sequence[CorporateActionLike] | None = None,
         seed_open_lots: Sequence[SeedLotLike] | None = None,
         seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
-    ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
+    ) -> tuple[list[TradeCreate], list[object]]:
         del content, filename, corporate_actions, seed_open_lots, seed_orphaned_lots
         raise NotImplementedError("SchwabJSONParser only supports parse_raw().")
 
@@ -59,7 +58,6 @@ class SchwabJSONParser(BrokerParser):
         filename: str,
     ) -> tuple[
         list[BrokerRawTransactionCreate],
-        list[CashTransactionCreateRequest],
         list[CorporateActionCreateRequest],
     ]:
         del filename
@@ -141,7 +139,7 @@ class SchwabJSONParser(BrokerParser):
                 logger.warning(msg)
                 self.warnings.append(msg)
 
-        return raw_records, [], []
+        return raw_records, []
 
     def _extract_instrument(self, txn: dict[str, object]) -> dict[str, object]:
         transaction_item = txn.get("transactionItem")

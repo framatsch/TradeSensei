@@ -128,11 +128,6 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
                       {qf.result.trades_skipped} skipped
                     </span>
                   )}
-                  {qf.result.cash_transactions_created > 0 && (
-                    <span className="text-primary dark:text-primary">
-                      +{qf.result.cash_transactions_created} cash txns
-                    </span>
-                  )}
                   {qf.result.warnings.length > 0 && (
                     <span className="text-orange-500 dark:text-orange-400">
                       {qf.result.warnings.length} warning{qf.result.warnings.length !== 1 ? "s" : ""}
@@ -158,10 +153,6 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
 export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
   const totalCreated = files.reduce((s, f) => s + (f.result?.trades_created ?? 0), 0);
   const totalSkipped = files.reduce((s, f) => s + (f.result?.trades_skipped ?? 0), 0);
-  const totalCash = files.reduce(
-    (s, f) => s + (f.result?.cash_transactions_created ?? 0),
-    0
-  );
   const errorCount = files.filter((f) => f.status === "error").length;
   const warnCount = files.reduce((s, f) => s + (f.result?.warnings.length ?? 0), 0);
 
@@ -170,10 +161,9 @@ export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
       <p className="text-sm font-semibold text-foreground">
         Import complete — {files.length} file{files.length !== 1 ? "s" : ""} processed
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <SummaryBox label="Trades Created" value={totalCreated} color="text-emerald-500" />
         <SummaryBox label="Trades Skipped" value={totalSkipped} color="text-amber-500" />
-        <SummaryBox label="Cash Txns" value={totalCash} color="text-primary" />
         <SummaryBox
           label="Files with Errors"
           value={errorCount}

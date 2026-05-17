@@ -31,7 +31,6 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.cash_transaction import CashTransaction, CashTransactionType
 from app.models.trade import Trade
 from tests.integration.ground_truth_aggregator import aggregate_files_yearly
 
@@ -161,16 +160,6 @@ async def _db_yearly_totals(
         if value is not None:
             totals[closed_at.year]["pnl"] += value
             totals[closed_at.year]["trades"] += 1
-
-    # Fee cash flows (TransactionTax + CASH-trade commissions are persisted as FEE).
-    fee_rows = await db_session.execute(
-        select(CashTransaction.date, CashTransaction.amount).where(
-            CashTransaction.account_id == account_id,
-            CashTransaction.type == CashTransactionType.FEE,
-        )
-    )
-    for date_value, amount in fee_rows.all():
-        totals[date_value.year]["pnl"] += amount
 
     return dict(sorted(totals.items(), key=lambda kv: kv[0]))
 

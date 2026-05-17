@@ -94,10 +94,6 @@ class NoteNotFoundError(Exception):
     """Raised when a trade note cannot be found."""
 
 
-class CashTransactionNotFoundError(Exception):
-    """Raised when a cash transaction cannot be found."""
-
-
 class CorporateActionNotFoundError(Exception):
     """Raised when a corporate action cannot be found for the requesting user."""
 

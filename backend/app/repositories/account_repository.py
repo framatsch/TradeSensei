@@ -19,10 +19,9 @@ logic lives here.
 """
 
 import uuid
-from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +29,6 @@ from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
 from app.models.account_property import AccountProperty
-from app.models.cash_transaction import CashTransaction, CashTransactionType
 from app.models.portfolio import Portfolio
 from app.schemas.account import (
     AccountCreate,
@@ -289,33 +287,17 @@ class AccountRepository:
         account_id: uuid.UUID,
         user_id: uuid.UUID,
     ) -> AccountMetrics:
-        """Calculate aggregate cash flow metrics for the account.
+        """Return aggregate cash flow metrics for the account.
+
+        Cash transactions have been removed; this method always returns
+        zero values for backward compatibility.
 
         Args:
             account_id: The account ID.
             user_id: The owner user ID (for scope).
 
         Returns:
-            An AccountMetrics DTO with total dividends and withholding tax in EUR.
+            An AccountMetrics DTO with zeroed totals.
         """
-        # Ensure account belongs to user
-        stmt = (
-            select(
-                CashTransaction.type,
-                func.sum(func.coalesce(CashTransaction.amount_eur, CashTransaction.amount)).label("total"),
-            )
-            .join(Account)
-            .where(
-                Account.id == account_id,
-                Account.user_id == user_id,
-                CashTransaction.type.in_([CashTransactionType.DIVIDEND, CashTransactionType.WITHHOLDING_TAX]),
-            )
-            .group_by(CashTransaction.type)
-        )
-        result = await self._session.execute(stmt)
-        totals = {row.type: row.total for row in result}
-
-        return AccountMetrics(
-            total_dividends=totals.get(CashTransactionType.DIVIDEND, Decimal("0.0")),
-            total_withholding_tax=totals.get(CashTransactionType.WITHHOLDING_TAX, Decimal("0.0")),
-        )
+        del account_id, user_id
+        return AccountMetrics()

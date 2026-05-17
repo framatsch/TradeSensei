@@ -130,19 +130,18 @@ def test_parse_raw_filters_non_trade_records() -> None:
             "transactionDate": "2024-01-01T00:00:00.000Z",
         },
     ]
-    raw, cash, corporate_actions = parser.parse_raw(
+    raw, corporate_actions = parser.parse_raw(
         json.dumps(payload).encode("utf-8"),
         "schwab.json",
     )
     assert len(raw) == 1
-    assert cash == []
     assert corporate_actions == []
 
 
 @pytest.mark.unit
 def test_parse_raw_completed_record_maps_fields() -> None:
     parser = SchwabJSONParser()
-    raw, _, _ = parser.parse_raw(
+    raw, _ = parser.parse_raw(
         json.dumps([_txn_item()]).encode("utf-8"),
         "schwab.json",
     )
@@ -159,7 +158,7 @@ def test_parse_raw_completed_record_maps_fields() -> None:
 @pytest.mark.unit
 def test_parse_raw_unknown_instruction_skips_record() -> None:
     parser = SchwabJSONParser()
-    raw, _, _ = parser.parse_raw(
+    raw, _ = parser.parse_raw(
         json.dumps([_txn_item(instruction="UNKNOWN")]).encode("utf-8"),
         "schwab.json",
     )

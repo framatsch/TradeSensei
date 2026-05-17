@@ -25,7 +25,6 @@ from app.api.v1 import (
     annotation_definitions,
     auth,
     broker,
-    cash_transactions,
     checkin_metadata,
     checkins,
     corporate_actions,
@@ -45,7 +44,6 @@ from app.api.v1 import (
     saved_trade_filters,
     screenshots,
     settings,
-    tax,
     taxonomies,
     timeseries,
     trade_metadata,
@@ -76,9 +74,7 @@ router.include_router(taxonomies.router)
 router.include_router(annotation_definitions.router)
 router.include_router(notes.router)
 router.include_router(screenshots.router)
-router.include_router(tax.router)
 router.include_router(broker.router)
-router.include_router(cash_transactions.router)
 router.include_router(deprecated.router)
 router.include_router(corporate_actions.router)
 router.include_router(market_data.router)

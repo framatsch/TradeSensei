@@ -59,6 +59,8 @@ class ImportResult(BaseModel):
         trades_created: Number of trades actually persisted to the database.
         trades_skipped: Number of rows that were skipped due to parse
             errors or other non-fatal issues.
+        raw_transactions_created: Number of broker raw transactions newly
+            inserted during this import.
         raw_suppressed_skipped: Number of BrokerRawTransaction records
             skipped because their ``suppressed`` flag is ``True``.
         raw_deleted_skipped: Number of BrokerRawTransaction records skipped
@@ -94,24 +96,6 @@ class ImportResult(BaseModel):
         ge=0,
         description=("Number of rows that were skipped due to non-fatal parse errors. Inspect the warnings list for details."),
         examples=[2, 0],
-    )
-    cash_transactions_parsed: int = Field(
-        default=0,
-        ge=0,
-        description=("Total number of cash transactions successfully parsed from the file."),
-        examples=[10, 0],
-    )
-    cash_transactions_created: int = Field(
-        default=0,
-        ge=0,
-        description="Number of cash transactions that were persisted to the database.",
-        examples=[10, 0],
-    )
-    cash_transactions_skipped: int = Field(
-        default=0,
-        ge=0,
-        description=("Number of cash transactions that were skipped due to non-fatal parse errors."),
-        examples=[0],
     )
     raw_transactions_created: int = Field(
         default=0,

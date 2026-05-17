@@ -21,7 +21,6 @@ from collections.abc import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
-from app.schemas.cash_transaction import CashTransactionCreateRequest
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import CorporateActionLike, SeedLotLike
@@ -32,8 +31,7 @@ class BrokerParser(ABC):
 
     Concrete subclasses implement :meth:`parse` for a specific broker's
     export format.  All parsers operate on raw bytes and return validated
-    :class:`~app.schemas.trade.TradeCreate` and
-    :class:`~app.schemas.cash_transaction.CashTransactionCreateRequest` instances.
+    :class:`~app.schemas.trade.TradeCreate` instances.
     They have no side effects and no dependencies on the database or HTTP layer.
 
     Optionally, subclasses may override :meth:`enrich_pnl_eur` to perform
@@ -55,7 +53,7 @@ class BrokerParser(ABC):
         corporate_actions: Sequence[CorporateActionLike] | None = None,
         seed_open_lots: Sequence[SeedLotLike] | None = None,
         seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
-    ) -> tuple[list[TradeCreate], list[CashTransactionCreateRequest]]:
+    ) -> tuple[list[TradeCreate], list[object]]:
         """Parse broker export file content into Pydantic schemas.
 
         Args:
@@ -76,7 +74,7 @@ class BrokerParser(ABC):
         Returns:
             A tuple containing:
                 - List of :class:`~app.schemas.trade.TradeCreate` instances
-                - List of cash transaction creation requests
+                - Ignored second element (reserved for backward compatibility)
 
         Raises:
             ImportParseError: If the file cannot be parsed or has an
@@ -89,7 +87,6 @@ class BrokerParser(ABC):
         filename: str,
     ) -> tuple[
         list[BrokerRawTransactionCreate],
-        list[CashTransactionCreateRequest],
         list[CorporateActionCreateRequest],
     ]:
         """Parse broker export file content into raw transaction records.
@@ -112,7 +109,7 @@ class BrokerParser(ABC):
             A tuple of:
             - List of
               :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
-            - List of cash transaction creation requests
+            - List of :class:`~app.schemas.corporate_action.CorporateActionCreateRequest`
 
         Raises:
             NotImplementedError: If the parser has not implemented raw parsing.

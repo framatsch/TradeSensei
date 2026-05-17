@@ -86,27 +86,3 @@ def deprecated_accounts() -> None:
 @router.post("/executions/{execution_id}/detach")
 def deprecated_executions() -> None:
     _gone()
-
-
-@router.get(
-    "/accounts/{account_id}/cash-transactions",
-    operation_id="deprecated_cash_transactions_list",
-)
-@router.post(
-    "/accounts/{account_id}/cash-transactions",
-    operation_id="deprecated_cash_transactions_create",
-)
-@router.get(
-    "/accounts/{account_id}/cash-transactions/{transaction_id}",
-    operation_id="deprecated_cash_transactions_get",
-)
-@router.patch(
-    "/accounts/{account_id}/cash-transactions/{transaction_id}",
-    operation_id="deprecated_cash_transactions_patch",
-)
-@router.delete(
-    "/accounts/{account_id}/cash-transactions/{transaction_id}",
-    operation_id="deprecated_cash_transactions_delete",
-)
-def deprecated_cash_transactions() -> None:
-    _gone()

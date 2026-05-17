@@ -19,7 +19,6 @@ from httpx import AsyncClient
 from sqlalchemy import delete, select
 
 from app.models.broker_raw_transaction import BrokerRawTransaction
-from app.models.cash_transaction import CashTransaction
 from app.models.corporate_action import CorporateAction
 from app.models.logical_execution import LogicalExecution
 from app.models.trade import Trade
@@ -93,7 +92,6 @@ async def test_sequential_import_matches_in_memory_ground_truth(
 
     # 3. Clean DB state for safety
     await db_session.execute(delete(Trade))
-    await db_session.execute(delete(CashTransaction))
     await db_session.execute(delete(CorporateAction))
     await db_session.execute(delete(LogicalExecution))
     await db_session.execute(delete(BrokerRawTransaction))

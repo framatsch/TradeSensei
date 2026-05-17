@@ -58,7 +58,7 @@ export function AccountDeleteModal({ account, onClose, onDelete, isDeleting }: P
 
           <div className="bg-danger/5 border border-danger/20 rounded-md p-4 space-y-3" data-testid="danger-zone">
             <p className="text-sm text-danger">
-              This will permanently delete the account <span className="font-semibold">{account.name}</span>, all associated trades, and cash transactions. This action cannot be undone.
+              This will permanently delete the account <span className="font-semibold">{account.name}</span> and all associated trades. This action cannot be undone.
             </p>
 
             <div className="space-y-1.5">

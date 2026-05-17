@@ -397,9 +397,6 @@ export interface ImportResult {
   trades_parsed: number;
   trades_created: number;
   trades_skipped: number;
-  cash_transactions_parsed: number;
-  cash_transactions_created: number;
-  cash_transactions_skipped: number;
   raw_suppressed_skipped?: number;
   raw_deleted_skipped?: number;
   warnings: string[];
@@ -464,39 +461,6 @@ export interface AccountUpdate {
   settings?: Partial<AccountSettings> | null;
 }
 
-// ─── Tax ──────────────────────────────────────────────────────────────────────
-
-export interface TaxCategoryBlock {
-  gains_eur: string;
-  losses_eur: string;
-  net_eur: string;
-  trade_count: number;
-}
-
-export interface AccountTaxSummary {
-  account_id: string | null;
-  account_name: string | null;
-  equities: TaxCategoryBlock;
-  derivatives: TaxCategoryBlock;
-  total_net_eur: string;
-  trades_missing_eur: number;
-  dividends_eur: string;
-  withholding_tax_eur: string;
-  interest_eur: string;
-}
-
-export interface TaxAnnualSummary {
-  year: number;
-  equities: TaxCategoryBlock;
-  derivatives: TaxCategoryBlock;
-  total_net_eur: string;
-  trades_missing_eur: number;
-  dividends_eur: string;
-  withholding_tax_eur: string;
-  interest_eur: string;
-  accounts: AccountTaxSummary[];
-}
-
 // ─── Rolling Winrate ──────────────────────────────────────────────────────────
 
 export interface RollingWinratePoint {
@@ -544,56 +508,6 @@ export interface UserSettingsUpdate {
   chart_show_post_exit?: boolean;
   default_portfolio_id?: string;
   home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins";
-}
-
-// ─── Cash Transactions ────────────────────────────────────────────────────────
-
-export type CashTransactionType =
-  | "DIVIDEND"
-  | "WITHHOLDING_TAX"
-  | "DEPOSIT"
-  | "WITHDRAWAL"
-  | "INTEREST"
-  | "FEE"
-  | "OTHER";
-
-export interface CashTransaction {
-  id: string;
-  account_id: string;
-  date: string;
-  type: CashTransactionType;
-  symbol: string | null;
-  amount: string;
-  currency: string;
-  amount_eur: string | null;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CashTransactionCreate {
-  date: string;
-  type: CashTransactionType;
-  symbol?: string | null;
-  amount: string;
-  currency: string;
-  amount_eur?: string | null;
-  description?: string | null;
-}
-
-export interface CashTransactionUpdate {
-  date?: string;
-  type?: CashTransactionType;
-  symbol?: string | null;
-  amount?: string;
-  currency?: string;
-  amount_eur?: string | null;
-  description?: string | null;
-}
-
-export interface AccountMetrics {
-  total_dividends: string;
-  total_withholding_tax: string;
 }
 
 // ─── Corporate Actions ────────────────────────────────────────────────────────

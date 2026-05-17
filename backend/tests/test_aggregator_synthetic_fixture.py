@@ -69,20 +69,19 @@ def _q(v: Decimal) -> Decimal:
 # ---------------------------------------------------------------------------
 
 
-def _parse_both_files() -> tuple[list, list, list]:
-    """Parse both fixture files and return (raw_records, cash_txs, corp_actions)."""
+def _parse_both_files() -> tuple[list, list]:
+    """Parse both fixture files and return (raw_records, corp_actions)."""
     parser = IBKRXMLParser()
-    raw1, cash1, ca1 = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
-    raw2, cash2, ca2 = parser.parse_raw(_YEAR2_XML.read_bytes(), _YEAR2_XML.name)
+    raw1, ca1 = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
+    raw2, ca2 = parser.parse_raw(_YEAR2_XML.read_bytes(), _YEAR2_XML.name)
     all_raw = sorted(raw1 + raw2, key=lambda r: (r.executed_at, r.id))
-    all_cash = cash1 + cash2
     all_ca = ca1 + ca2
-    return all_raw, all_cash, all_ca
+    return all_raw, all_ca
 
 
 def _ground_truth_trades() -> list:
     """Return in-memory FIFO-aggregated trades from both fixture files."""
-    all_raw, _cash, all_ca = _parse_both_files()
+    all_raw, all_ca = _parse_both_files()
     trade_creates = logical_executions_to_trade_creates(all_raw)
     return aggregate_executions_fifo(trade_creates, corporate_actions=all_ca)
 
@@ -95,11 +94,11 @@ def _ground_truth_trades() -> list:
 def test_fixtures_parse_without_errors() -> None:
     """Both XML fixture files must parse cleanly with zero warnings."""
     parser = IBKRXMLParser()
-    raw1, _, ca1 = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
+    raw1, ca1 = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
     assert parser.warnings == [], f"Year1 parse warnings: {parser.warnings}"
     assert len(raw1) == 16, f"Expected 16 raw records from year1, got {len(raw1)}"
 
-    raw2, _, ca2 = parser.parse_raw(_YEAR2_XML.read_bytes(), _YEAR2_XML.name)
+    raw2, ca2 = parser.parse_raw(_YEAR2_XML.read_bytes(), _YEAR2_XML.name)
     assert parser.warnings == [], f"Year2 parse warnings: {parser.warnings}"
     assert len(raw2) == 2, f"Expected 2 raw records from year2, got {len(raw2)}"
     assert len(ca2) == 1, f"Expected 1 corporate action from year2, got {len(ca2)}"
@@ -119,7 +118,7 @@ def test_s6_zero_pnl_closing_exec_is_treated_as_close() -> None:
     new opening — producing a sentinel entry_price (0.001) and wrong PnL.
     """
     parser = IBKRXMLParser()
-    raw, _, _ = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
+    raw, _ = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
 
     goog_sell = next(
         (r for r in raw if r.symbol == "GOOG" and str(r.direction).upper() == "SHORT"),
@@ -136,7 +135,7 @@ def test_s6_zero_pnl_closing_exec_is_treated_as_close() -> None:
 def test_s5_co_mixed_execution_flag_is_set() -> None:
     """The C;O NFLX execution must carry is_mixed_execution=True."""
     parser = IBKRXMLParser()
-    raw, _, _ = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
+    raw, _ = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
 
     nflx_co = next(
         (r for r in raw if r.symbol == "NFLX" and r.is_mixed_execution),
