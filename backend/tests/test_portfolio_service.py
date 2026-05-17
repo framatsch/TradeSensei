@@ -15,11 +15,12 @@
 
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.core.exceptions import PortfolioValidationError
+from app.models.account import Account
 from app.models.portfolio import Portfolio
 from app.schemas.portfolio import PortfolioCreate, PortfolioRead, PortfolioUpdate
 from app.services.portfolio_service import PortfolioService
@@ -118,15 +119,29 @@ async def test_update_portfolio_rejects_duplicate_name(
     
 
 @pytest.mark.unit
-async def test_delete_portfolio_rejects_when_accounts_linked(
+async def test_delete_portfolio_cascades_accounts(
     service: PortfolioService,
 ) -> None:
+    """delete_portfolio deletes linked accounts before removing the portfolio."""
     user_id = uuid.uuid4()
     existing = _make_portfolio(name="Main", base_currency="USD", user_id=user_id)
-    service._repo.get_by_id = AsyncMock(return_value=existing)  # type: ignore[method-assign]
-    service._repo.has_accounts = AsyncMock(return_value=True)  # type: ignore[method-assign]
+    linked_account = Account()
+    linked_account.id = uuid.uuid4()  # type: ignore[assignment]
 
-    with pytest.raises(PortfolioValidationError) as exc:
+    service._repo.get_by_id = AsyncMock(return_value=existing)  # type: ignore[method-assign]
+    service._repo.delete = AsyncMock()  # type: ignore[method-assign]
+
+    with patch(
+        "app.repositories.account_repository.AccountRepository.list_by_user",
+        new=AsyncMock(return_value=[linked_account]),
+    ), patch(
+        "app.repositories.account_repository.AccountRepository.delete",
+        new=AsyncMock(),
+    ) as mock_delete:
         await service.delete_portfolio(existing.id, user_id)
+
+    mock_delete.assert_awaited_once_with(linked_account)
+    service._repo.delete.assert_awaited_once_with(existing)
+    service._session.commit.assert_awaited_once()
 
     

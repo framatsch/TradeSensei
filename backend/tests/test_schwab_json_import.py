@@ -118,7 +118,7 @@ async def test_schwab_json_import_ground_truth(
     expected_trade_rows = sum(1 for item in payload if item.get("type") == "TRADE")
 
     parser = SchwabJSONParser()
-    expected_raw, _, _ = parser.parse_raw(fixture_bytes, "schwab_aggregation.json")
+    expected_raw, _ = parser.parse_raw(fixture_bytes, "schwab_aggregation.json")
     expected_trades = aggregate_executions_fifo(
         logical_executions_to_trade_creates(expected_raw)
     )
@@ -261,8 +261,8 @@ def test_pipeline_parity_schwab_vs_ibkr() -> None:
             },
     ]
 
-    ibkr_raw, _, _ = IBKRXMLParser().parse_raw(ibkr_xml, "ibkr.xml")
-    schwab_raw, _, _ = SchwabJSONParser().parse_raw(
+    ibkr_raw, _ = IBKRXMLParser().parse_raw(ibkr_xml, "ibkr.xml")
+    schwab_raw, _ = SchwabJSONParser().parse_raw(
         json.dumps(schwab_json).encode("utf-8"),
         "schwab.json",
     )

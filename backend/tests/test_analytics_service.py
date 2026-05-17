@@ -375,6 +375,7 @@ async def test_analytics_service_cache_hit_skips_repository(mock_session: AsyncM
         total_trades=0,
         winning_trades=0,
         losing_trades=0,
+        total_pnl=Decimal("0"),
         gross_profit=Decimal("0"),
         gross_loss=Decimal("0"),
         avg_win=Decimal("0"),

@@ -463,6 +463,7 @@ async def test_cache_hit_short_circuits_analytics_repo(mock_session: AsyncMock) 
         total_trades=0,
         winning_trades=0,
         losing_trades=0,
+        total_pnl=Decimal("0"),
         gross_profit=Decimal("0"),
         gross_loss=Decimal("0"),
         avg_win=Decimal("0"),
