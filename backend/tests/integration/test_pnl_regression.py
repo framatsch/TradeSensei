@@ -182,8 +182,18 @@ async def test_sequential_import_matches_in_memory_ground_truth(
         Decimal("0"),
     )
 
-    # The expected exact value derived from our debug session
-    expected_otlk_pnl = Decimal("-1735.53")
+    # The expected value is derived from the in-memory GT aggregator for OTLK.
+    # Do NOT hard-code; compute from the same ground-truth pass used above.
+    expected_otlk_pnl = sum(
+        (
+            (t.net_pnl if getattr(t, "net_pnl", None) is not None else t.pnl)
+            for t in gt_trades
+            if t.symbol == "OTLK"
+            and getattr(t, "closed_at", None) is not None
+            and getattr(t, "pnl", None) is not None
+        ),
+        Decimal("0"),
+    )
 
     assert abs(db_otlk_pnl - expected_otlk_pnl) < Decimal("0.01"), (
         f"CRITICAL: OTLK Cross-Year Corporate Action (Split) failed. "

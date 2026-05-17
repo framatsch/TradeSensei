@@ -581,7 +581,13 @@ class IBKRXMLParser(BrokerParser):
             gen_comm = abs(_safe_decimal(elem.get("commission")))
             commission = max(ib_comm, gen_comm)
             pnl_raw = _safe_decimal(elem.get("fifoPnlRealized"))
-            pnl: Decimal | None = pnl_raw if pnl_raw != Decimal("0") else None
+            open_close_raw = (elem.get("openCloseIndicator") or "").upper()
+            # A closing execution (openCloseIndicator contains "C" but not "O") with
+            # fifoPnlRealized=0 is a genuine breakeven close, not an opening.
+            # Preserve pnl=Decimal("0") so the FIFO aggregator treats it as a closing
+            # leg rather than an opening leg.
+            is_pure_close = "C" in open_close_raw and "O" not in open_close_raw
+            pnl: Decimal | None = pnl_raw if (pnl_raw != Decimal("0") or is_pure_close) else None
             currency = (elem.get("currency") or "").upper().strip() or "USD"
 
             raw_id = self._build_raw_id(elem, symbol, executed_at, quantity)
@@ -780,10 +786,12 @@ class IBKRXMLParser(BrokerParser):
             gen_comm = abs(_safe_decimal(elem.get("commission")))
             commission = max(ib_comm, gen_comm)
             pnl_raw = _safe_decimal(elem.get("fifoPnlRealized"))
-            pnl: Decimal | None = pnl_raw if pnl_raw != Decimal("0") else None
 
             open_close = (elem.get("openCloseIndicator") or "").upper()
             is_mixed_execution = "C;O" in open_close or "O;C" in open_close
+            # Preserve pnl=Decimal("0") for breakeven pure-close executions.
+            _is_pure_close = "C" in open_close and "O" not in open_close
+            pnl: Decimal | None = pnl_raw if (pnl_raw != Decimal("0") or _is_pure_close) else None
 
             closed_at = opened_at + _CLOSED_AT_OFFSET if pnl is not None else None
 

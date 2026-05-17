@@ -23,6 +23,7 @@ from app.core.constants import IMPORT_EXECUTIONS_BATCH_SIZE
 from app.models.logical_execution import (
     EXECUTION_ORIGIN_IMPORTED,
     EXECUTION_ORIGIN_MANUAL,
+    EXECUTION_ORIGIN_SPLIT,
     LogicalExecution,
 )
 
@@ -127,7 +128,8 @@ class ExecutionRepository:
             stmt = stmt.where(LogicalExecution.deleted.is_(False))
         stmt = stmt.order_by(
             LogicalExecution.executed_at.asc(),
-            LogicalExecution.id.asc(),  # Stable tie-breaker for pagination
+            LogicalExecution.source_id.asc().nulls_last(),  # Broker-native tie-breaker
+            LogicalExecution.id.asc(),  # UUID fallback for pagination stability
         )
         if offset > 0:
             stmt = stmt.offset(offset)
@@ -272,8 +274,6 @@ class ExecutionRepository:
         Returns:
             List of orphaned child executions that need trade assignment.
         """
-        from app.models.logical_execution import EXECUTION_ORIGIN_SPLIT
-
         stmt = (
             select(LogicalExecution)
             .where(
@@ -325,6 +325,68 @@ class ExecutionRepository:
                 self.session.expire(instance)
 
         return total_updated
+
+    async def delete_split_children_for_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+    ) -> int:
+        """Hard-delete all split-child executions for a user+account.
+
+        Split children (``origin='split'``) are derivative rows created by
+        the import backfill step.  They are recreated from scratch on every
+        re-import and must be purged before re-aggregation to prevent
+        double-counting.
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Account UUID whose split children are deleted.
+
+        Returns:
+            Number of rows deleted.
+        """
+        stmt = delete(LogicalExecution).where(
+            LogicalExecution.user_id == user_id,
+            LogicalExecution.account_id == account_id,
+            LogicalExecution.origin == EXECUTION_ORIGIN_SPLIT,
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return int(getattr(result, "rowcount", 0))
+
+    async def restore_split_parents_for_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+    ) -> int:
+        """Restore soft-deleted imported parent executions for a user+account.
+
+        When an ``imported`` execution is split into children, the original row
+        is soft-deleted (``deleted=True``) and replaced by ``split`` children.
+        After purging the split children (e.g. before a full re-aggregation),
+        the soft-deleted parents must be restored so the base execution layer
+        is complete for the FIFO pass.
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Account UUID whose soft-deleted parents are restored.
+
+        Returns:
+            Number of rows restored.
+        """
+        stmt = (
+            update(LogicalExecution)
+            .where(
+                LogicalExecution.user_id == user_id,
+                LogicalExecution.account_id == account_id,
+                LogicalExecution.origin == EXECUTION_ORIGIN_IMPORTED,
+                LogicalExecution.deleted.is_(True),
+            )
+            .values(deleted=False, trade_id=None)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return int(getattr(result, "rowcount", 0))
 
     async def delete_all_for_account(self, user_id: uuid.UUID, account_id: uuid.UUID) -> int:
         """Hard-delete all executions for a user+account (used in fresh-start).

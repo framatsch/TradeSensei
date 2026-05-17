@@ -76,6 +76,7 @@ class PortfolioService:
 
         # Manually delete all linked accounts first to cascade
         from app.repositories.account_repository import AccountRepository
+
         account_repo = AccountRepository(self._session)
         accounts = await account_repo.list_by_user(user_id, portfolio_id=item.id)
         for account in accounts:

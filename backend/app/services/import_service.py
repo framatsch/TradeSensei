@@ -331,6 +331,32 @@ class ImportService:
             _, suppressed_count = await self._logical_svc.bulk_create_from_raw(new_orm_raws)
             await self._session.flush()
 
+            # Purge split-child executions and restore their soft-deleted parents
+            # before re-aggregation.
+            #
+            # During backfill, an ``imported`` execution that maps to N>1 trades
+            # is soft-deleted (deleted=True) and replaced by N ``split`` children.
+            # On a subsequent import those split children must be removed and the
+            # original ``imported`` parents restored so the FIFO pass operates on
+            # the complete, non-duplicated base-execution layer.
+            if account_id is not None:
+                deleted_split = await self._exec_repo.delete_split_children_for_account(
+                    user_id=user_id,
+                    account_id=account_id,
+                )
+                if deleted_split:
+                    restored_parents = await self._exec_repo.restore_split_parents_for_account(
+                        user_id=user_id,
+                        account_id=account_id,
+                    )
+                    logger.debug(
+                        "import_split_cleanup account=%s deleted_split=%d restored_parents=%d",
+                        account_id,
+                        deleted_split,
+                        restored_parents,
+                    )
+                await self._session.flush()
+
             # Load logical executions in batches to cap peak memory during import.
             parsed_trades = await self._collect_trade_creates_from_logical_batches(
                 user_id=user_id,
@@ -1660,15 +1686,16 @@ class ImportService:
             expected_quantity = sum(allocation.quantity_used for _, allocation in usage_list)
             expected_commission = sum(allocation.commission_used for _, allocation in usage_list)
 
-            children_quantity = sum(child.quantity for child in children)
-            children_commission = sum(child.commission for child in children)
+            children_quantity = Decimal(sum(child.quantity for child in children))
+            children_commission = Decimal(sum(child.commission for child in children))
 
             quantity_diff = abs(children_quantity - expected_quantity)
-            if quantity_diff > Decimal("0.00000001") * max(1, len(children)):
+            tolerance = Decimal("0.00000001") * Decimal(len(children))
+            if quantity_diff > tolerance:
                 raise ExecutionValidationError(f"Split quantity conservation failed for {parent_id}: expected={expected_quantity} actual={children_quantity}")
 
             commission_diff = abs(children_commission - expected_commission)
-            if commission_diff > Decimal("0.00000001") * max(1, len(children)):
+            if commission_diff > tolerance:
                 raise ExecutionValidationError(
                     f"Split commission conservation failed for {parent_id}: expected={expected_commission} actual={children_commission}"
                 )

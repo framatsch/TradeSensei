@@ -227,6 +227,26 @@ class LogicalExecution(Base):
         server_default="false",
         comment="True when user patched an imported execution. Never reset.",
     )
+    is_mixed_execution: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        server_default="false",
+        comment=(
+            "True when the broker reported a position flip (C;O or O;C) for this"
+            " execution.  The FIFO aggregator uses this to allow the closing portion"
+            " to leave a new open lot rather than treating the remainder as orphaned."
+        ),
+    )
+    source_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        comment=(
+            "Original broker raw transaction ID (e.g. 'ibkr:3820422546')."
+            " Used as a stable tie-breaker when multiple executions share the"
+            " same executed_at timestamp, matching the broker-native sort order."
+        ),
+    )
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("logical_executions.id", ondelete="SET NULL"),
@@ -294,16 +314,6 @@ class LogicalExecution(Base):
         foreign_keys=[parent_id],
         back_populates="parent",
     )
-
-    @property
-    def is_mixed_execution(self) -> bool:
-        """Check if this logical execution was a mixed execution (position flip)."""
-        for raw in self.raw_transactions:
-            if isinstance(raw.raw_data, dict):
-                raw_ind = raw.raw_data.get("openCloseIndicator", "")
-                if isinstance(raw_ind, str) and ("C;O" in raw_ind or "O;C" in raw_ind):
-                    return True
-        return False
 
     def __repr__(self) -> str:
         """Return a debug string for this logical execution.

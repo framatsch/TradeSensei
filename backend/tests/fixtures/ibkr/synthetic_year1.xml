@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic IBKR Flex Query XML — Year 1 fixture.
+
+  Covers the following FIFO edge cases (in combination with synthetic_year2.xml):
+
+  S1  Simple same-year round-trip:          AAPL  BUY 10 @ 150, SELL 10 @ 155
+  S2  Partial close, same year:             MSFT  BUY 20 @ 200, SELL 10 @ 210, SELL 10 @ 220
+  S3  Cross-year open (closes in year 2):   TSLA  BUY 5 @ 100  (no close this year)
+  S4  Pre-split open (reverse split year2): SPLK  BUY 100 @ 10  conid=111
+  S5  C;O position flip (same year):
+        NFLX  BUY 10 @ 500
+        NFLX  SELL 15 @ 520  openCloseIndicator="C;O"  (closes 10, opens 5 short)
+        NFLX  BUY  5 @ 530                             (closes the 5 short)
+  S6  Zero-PnL closing exec (C indicator, pnlRealized=0):
+        GOOG  BUY 3 @ 100
+        GOOG  SELL 3 @ 100  openCloseIndicator="C"  fifoPnlRealized="0"
+  S7  Multi-lot same-timestamp close (3 lots, same second):
+        AMZN  BUY 10 @ 200  txid=7001
+        AMZN  BUY  5 @ 202  txid=7002
+        AMZN  SELL 10 @ 210  txid=7003  (closes 10@200 FIFO)
+        AMZN  SELL  5 @ 210  txid=7004  (closes 5@202 FIFO, same timestamp as 7003)
+
+  All commissions are 0.50 per side unless noted.
+  Transaction IDs are in the 1000-1999 range for Year 1.
+  Account: U99999999
+-->
+<FlexQueryResponse queryName="SyntheticY1" type="AF">
+  <FlexStatements count="1">
+    <FlexStatement accountId="U99999999" fromDate="20240101" toDate="20241231" period="Annual">
+
+      <!-- ================================================================
+           S1: AAPL simple round-trip
+           ================================================================ -->
+      <Trades>
+
+        <!-- S1 open: BUY 10 AAPL @ 150.00  2024-01-15 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="AAPL" conid="265598"
+               tradeDate="20240115" dateTime="20240115;100000"
+               quantity="10" tradePrice="150.00" ibCommission="-0.50"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1001" multiplier="1" currency="USD" />
+
+        <!-- S1 close: SELL 10 AAPL @ 155.00  2024-01-20 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="AAPL" conid="265598"
+               tradeDate="20240120" dateTime="20240120;143000"
+               quantity="-10" tradePrice="155.00" ibCommission="-0.50"
+               fifoPnlRealized="50.00" openCloseIndicator="C"
+               buySell="SELL" transactionID="1002" multiplier="1" currency="USD" />
+
+        <!-- ================================================================
+             S2: MSFT partial close
+             ================================================================ -->
+
+        <!-- S2 open: BUY 20 MSFT @ 200.00  2024-02-01 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="MSFT" conid="272093"
+               tradeDate="20240201" dateTime="20240201;093000"
+               quantity="20" tradePrice="200.00" ibCommission="-1.00"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1010" multiplier="1" currency="USD" />
+
+        <!-- S2 close1: SELL 10 MSFT @ 210.00  2024-02-15 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="MSFT" conid="272093"
+               tradeDate="20240215" dateTime="20240215;102000"
+               quantity="-10" tradePrice="210.00" ibCommission="-0.25"
+               fifoPnlRealized="99.50" openCloseIndicator="C"
+               buySell="SELL" transactionID="1011" multiplier="1" currency="USD" />
+
+        <!-- S2 close2: SELL 10 MSFT @ 220.00  2024-03-01 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="MSFT" conid="272093"
+               tradeDate="20240301" dateTime="20240301;141500"
+               quantity="-10" tradePrice="220.00" ibCommission="-0.25"
+               fifoPnlRealized="199.50" openCloseIndicator="C"
+               buySell="SELL" transactionID="1012" multiplier="1" currency="USD" />
+
+        <!-- ================================================================
+             S3: TSLA cross-year open (closed in year 2 fixture)
+             ================================================================ -->
+
+        <!-- S3 open: BUY 5 TSLA @ 100.00  2024-11-01 (stays open at year end) -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="TSLA" conid="76792991"
+               tradeDate="20241101" dateTime="20241101;093000"
+               quantity="5" tradePrice="100.00" ibCommission="-1.00"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1020" multiplier="1" currency="USD" />
+
+        <!-- ================================================================
+             S4: SPLK pre-split open (10:1 reverse split in year 2)
+             ================================================================ -->
+
+        <!-- S4 open: BUY 100 SPLK @ 10.00  2024-11-15  conid=111 (old conid) -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="SPLK" conid="111"
+               tradeDate="20241115" dateTime="20241115;100000"
+               quantity="100" tradePrice="10.00" ibCommission="-0.50"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1030" multiplier="1" currency="USD" />
+
+        <!-- ================================================================
+             S5: NFLX C;O position flip
+             ================================================================ -->
+
+        <!-- S5 open: BUY 10 NFLX @ 500.00  2024-06-01 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="NFLX" conid="15124"
+               tradeDate="20240601" dateTime="20240601;093000"
+               quantity="10" tradePrice="500.00" ibCommission="-0.50"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1040" multiplier="1" currency="USD" />
+
+        <!-- S5 C;O: SELL 15 NFLX @ 520.00  2024-06-10
+             closes 10 long, opens 5 short remainder -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="NFLX" conid="15124"
+               tradeDate="20240610" dateTime="20240610;100000"
+               quantity="-15" tradePrice="520.00" ibCommission="-0.75"
+               fifoPnlRealized="199.25" openCloseIndicator="C;O"
+               buySell="SELL" transactionID="1041" multiplier="1" currency="USD" />
+
+        <!-- S5 close short: BUY 5 NFLX @ 530.00  2024-06-15 (closes the 5 short) -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="NFLX" conid="15124"
+               tradeDate="20240615" dateTime="20240615;143000"
+               quantity="5" tradePrice="530.00" ibCommission="-0.25"
+               fifoPnlRealized="-50.00" openCloseIndicator="C"
+               buySell="BUY" transactionID="1042" multiplier="1" currency="USD" />
+
+        <!-- ================================================================
+             S6: GOOG zero-PnL closing execution (breakeven, pnlRealized=0)
+             ================================================================ -->
+
+        <!-- S6 open: BUY 3 GOOG @ 100.00  2024-07-01 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="GOOG" conid="208813719"
+               tradeDate="20240701" dateTime="20240701;093000"
+               quantity="3" tradePrice="100.00" ibCommission="-0.10"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1050" multiplier="1" currency="USD" />
+
+        <!-- S6 close: SELL 3 GOOG @ 100.00  2024-07-05  breakeven (pnl=0 but IS closing) -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="GOOG" conid="208813719"
+               tradeDate="20240705" dateTime="20240705;150000"
+               quantity="-3" tradePrice="100.00" ibCommission="-0.10"
+               fifoPnlRealized="0" openCloseIndicator="C"
+               buySell="SELL" transactionID="1051" multiplier="1" currency="USD" />
+
+        <!-- ================================================================
+             S7: AMZN multi-lot close (same timestamp for both closes)
+             ================================================================ -->
+
+        <!-- S7 open lot A: BUY 10 AMZN @ 200.00  2024-08-01 txid=7001 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="AMZN" conid="3691937"
+               tradeDate="20240801" dateTime="20240801;093000"
+               quantity="10" tradePrice="200.00" ibCommission="-0.50"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1060" multiplier="1" currency="USD" />
+
+        <!-- S7 open lot B: BUY 5 AMZN @ 202.00  2024-08-01 txid=7002  same timestamp -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="AMZN" conid="3691937"
+               tradeDate="20240801" dateTime="20240801;093000"
+               quantity="5" tradePrice="202.00" ibCommission="-0.25"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="1061" multiplier="1" currency="USD" />
+
+        <!-- S7 close1: SELL 10 AMZN @ 210.00  2024-08-15 txid=7003  closes lot A FIFO -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="AMZN" conid="3691937"
+               tradeDate="20240815" dateTime="20240815;100000"
+               quantity="-10" tradePrice="210.00" ibCommission="-0.50"
+               fifoPnlRealized="99.00" openCloseIndicator="C"
+               buySell="SELL" transactionID="1062" multiplier="1" currency="USD" />
+
+        <!-- S7 close2: SELL 5 AMZN @ 210.00  2024-08-15 txid=7004  closes lot B, same timestamp as 7003 -->
+        <Trade accountId="U99999999" assetCategory="STK" symbol="AMZN" conid="3691937"
+               tradeDate="20240815" dateTime="20240815;100000"
+               quantity="-5" tradePrice="210.00" ibCommission="-0.25"
+               fifoPnlRealized="39.75" openCloseIndicator="C"
+               buySell="SELL" transactionID="1063" multiplier="1" currency="USD" />
+
+      </Trades>
+
+    </FlexStatement>
+  </FlexStatements>
+</FlexQueryResponse>

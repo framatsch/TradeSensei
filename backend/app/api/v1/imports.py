@@ -279,8 +279,10 @@ async def upload_import(
         ) from exc
     except Exception as exc:
         import logging
+
         logging.getLogger(__name__).exception("Unhandled exception during import_file")
         from pydantic import ValidationError
+
         if isinstance(exc, ValidationError):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -414,8 +416,10 @@ async def fresh_start_import(
         ) from exc
     except Exception as exc:
         import logging
+
         logging.getLogger(__name__).exception("Unhandled exception during import_file")
         from pydantic import ValidationError
+
         if isinstance(exc, ValidationError):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
