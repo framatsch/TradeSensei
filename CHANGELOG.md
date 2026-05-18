@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-18
+
+### Added
+- [core] MCP API SSE streaming with sorting support
+- [mcp] Add `list_portfolios` and `list_accounts` MCP tools
+- [frontend] Form improvements for playbook updates
+- [mcp] License headers and cleanup
+
+### Fixed
+- [backend] IBKR FIFO P&L pipeline — 4 bug fixes with synthetic test harness
+- [backend] Audit middleware request-body deadlock in tests
+- [backend] Catch `httpx.ConnectTimeout` in OIDC login and callback endpoints
+- [test] Fix 7 stale test failures after refactoring
+- [infra] Split storage-init from compose startup to prevent CI teardown failure
+- [infra] Add `workflow_dispatch` trigger to Discord notification
+
+### Removed
+- [backend] Remove cash transactions and tax/Anlage-KAP feature entirely
+
+### Docs
+- [docs] Add more MCP prompt examples
+- [docs] Transition project to Dual-Licensing model (AGPLv3 + CLA)
+
 ## [1.0.0] - 2026-05-14
 
 Initial stable release. Complete trading analytics platform with portfolio management, daily check-ins, structured metadata system, playbook strategy hub, MCP integration, and comprehensive reporting.
@@ -298,6 +321,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.1.0]: https://github.com/scheffold/TradeSensei/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/scheffold/TradeSensei/compare/v0.27.1...v1.0.0
 [0.27.1]: https://github.com/scheffold/OpenTradeJournal/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/scheffold/TradeSensei/compare/v0.26.2...v0.27.0
@@ -313,6 +337,6 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.1.0...HEAD
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
