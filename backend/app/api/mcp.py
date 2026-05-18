@@ -23,8 +23,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, model_validator
 from sqlalchemy import and_, exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -50,6 +50,9 @@ logger = logging.getLogger(__name__)
 
 _KEEPALIVE_INTERVAL = 15
 
+# Global dictionary to map session IDs to their event queues for SSE routing.
+_ACTIVE_STREAMS: dict[str, asyncio.Queue[str]] = {}
+
 
 class AnnotationFilter(BaseModel):
     annotation_definition_id: uuid.UUID
@@ -67,6 +70,8 @@ class AdvancedTradeSearchParams(BaseModel):
     taxonomy_ids: list[uuid.UUID] = Field(default_factory=list)
     annotation_filters: list[AnnotationFilter] | None = None
     portfolio_id: uuid.UUID | None = None
+    sort_by: str | None = Field(default="opened_at", description="Field to sort by (e.g. pnl, opened_at)")
+    sort_dir: str | None = Field(default="desc", description="Sort direction (asc or desc)")
     limit: int = Field(default=50, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
 
@@ -102,6 +107,19 @@ class CreateStrategyPlaybookParams(BaseModel):
     description: str | None = None
     rules: list[str] = Field(min_length=1)
     target_winrate: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class UpdateStrategyPlaybookParams(BaseModel):
+    playbook_id: uuid.UUID
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+    rules: list[str] | None = None
+    target_winrate: float | None = Field(default=None, ge=0.0, le=1.0)
+    is_active: bool | None = None
+
+
+class GetStrategyPlaybookParams(BaseModel):
+    playbook_id: uuid.UUID
 
 
 class ListAccountsParams(BaseModel):
@@ -277,7 +295,21 @@ async def _handle_search_trades_advanced(
     total_result = await db.execute(count_query)
     total = int(total_result.scalar_one())
 
-    paginated_query = query.order_by(Trade.opened_at.desc(), Trade.id.desc()).limit(params.limit).offset(params.offset)
+    if params.sort_by == "pnl":
+        sort_col = Trade.pnl
+    elif params.sort_by == "net_pnl":
+        sort_col = Trade.net_pnl
+    elif params.sort_by == "closed_at":
+        sort_col = Trade.closed_at
+    else:
+        sort_col = Trade.opened_at
+
+    if params.sort_dir == "asc":
+        query = query.order_by(sort_col.asc().nulls_last(), Trade.id.asc())
+    else:
+        query = query.order_by(sort_col.desc().nulls_last(), Trade.id.desc())
+
+    paginated_query = query.limit(params.limit).offset(params.offset)
     result = await db.execute(paginated_query)
     trades = result.scalars().all()
 
@@ -441,6 +473,114 @@ async def _handle_create_strategy_playbook(
     return {"playbook_id": str(playbook.id), "name": playbook.name}
 
 
+async def _handle_update_strategy_playbook(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = UpdateStrategyPlaybookParams.model_validate(arguments)
+
+    result = await db.execute(
+        select(Playbook).where(Playbook.user_id == user_id, Playbook.id == params.playbook_id),
+    )
+    playbook = result.scalar_one_or_none()
+    if not playbook:
+        raise ValueError(f"Playbook {params.playbook_id} not found")
+
+    if params.name is not None and params.name != playbook.name:
+        duplicate_check = await db.execute(
+            select(Playbook.id).where(Playbook.user_id == user_id, Playbook.name == params.name),
+        )
+        if duplicate_check.scalar_one_or_none() is not None:
+            raise ValueError("A playbook with that name already exists")
+        playbook.name = params.name
+
+    if params.description is not None:
+        playbook.description = params.description
+    
+    if params.rules is not None:
+        playbook.content_markdown = "\n".join(f"- {rule}" for rule in params.rules)
+        
+    if params.target_winrate is not None:
+        playbook.target_winrate = Decimal(str(params.target_winrate))
+        
+    if params.is_active is not None:
+        playbook.is_active = params.is_active
+
+    await db.flush()
+
+    AuditEventService().create_audit_event(
+        action="playbook.updated",
+        user_id=user_id,
+        email=None,
+        resource_type="playbook",
+        resource_id=playbook.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "playbook_id": str(playbook.id)},
+    )
+
+    return {
+        "playbook_id": str(playbook.id), 
+        "name": playbook.name,
+        "is_active": playbook.is_active
+    }
+
+
+async def _handle_list_strategy_playbooks(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    del arguments
+    result = await db.execute(
+        select(Playbook).where(Playbook.user_id == user_id).order_by(Playbook.name.asc()),
+    )
+    playbooks = result.scalars().all()
+    return {
+        "playbooks": [
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "description": p.description,
+                "target_winrate": _serialize_decimal(p.target_winrate),
+                "is_active": p.is_active,
+                "created_at": _serialize_datetime(p.created_at),
+            }
+            for p in playbooks
+        ],
+    }
+
+
+async def _handle_get_strategy_playbook(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = GetStrategyPlaybookParams.model_validate(arguments)
+    result = await db.execute(
+        select(Playbook).where(Playbook.user_id == user_id, Playbook.id == params.playbook_id),
+    )
+    p = result.scalar_one_or_none()
+    if not p:
+        raise ValueError(f"Playbook {params.playbook_id} not found")
+        
+    return {
+        "id": str(p.id),
+        "name": p.name,
+        "description": p.description,
+        "content_markdown": p.content_markdown,
+        "target_winrate": _serialize_decimal(p.target_winrate),
+        "is_active": p.is_active,
+        "created_at": _serialize_datetime(p.created_at),
+        "updated_at": _serialize_datetime(p.updated_at),
+    }
+
+
 async def _handle_list_portfolios(
     user_id: uuid.UUID,
     db: AsyncSession,
@@ -579,6 +719,16 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
                     },
                 },
                 "portfolio_id": {"type": "string", "format": "uuid"},
+                "sort_by": {
+                    "type": "string", 
+                    "enum": ["opened_at", "closed_at", "pnl", "net_pnl"], 
+                    "default": "opened_at"
+                },
+                "sort_dir": {
+                    "type": "string", 
+                    "enum": ["asc", "desc"], 
+                    "default": "desc"
+                },
                 "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
                 "offset": {"type": "integer", "minimum": 0, "default": 0},
             },
@@ -628,6 +778,24 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "handler": _handle_sync_trade_metadata,
         "mutating": True,
     },
+    "list_strategy_playbooks": {
+        "description": "List all strategy playbooks (including basic metadata).",
+        "inputSchema": {"type": "object", "properties": {}},
+        "handler": _handle_list_strategy_playbooks,
+        "mutating": False,
+    },
+    "get_strategy_playbook": {
+        "description": "Get detailed information about a specific strategy playbook including its rules in markdown format.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "playbook_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["playbook_id"],
+        },
+        "handler": _handle_get_strategy_playbook,
+        "mutating": False,
+    },
     "create_strategy_playbook": {
         "description": "Create an active playbook from AI-supplied structured rules.",
         "inputSchema": {
@@ -641,6 +809,23 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
             "required": ["name", "rules"],
         },
         "handler": _handle_create_strategy_playbook,
+        "mutating": True,
+    },
+    "update_strategy_playbook": {
+        "description": "Update an existing playbook's metadata or rules.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "playbook_id": {"type": "string", "format": "uuid"},
+                "name": {"type": "string"},
+                "description": {"type": "string"},
+                "rules": {"type": "array", "items": {"type": "string"}},
+                "target_winrate": {"type": "number"},
+                "is_active": {"type": "boolean"},
+            },
+            "required": ["playbook_id"],
+        },
+        "handler": _handle_update_strategy_playbook,
         "mutating": True,
     },
 }
@@ -657,15 +842,15 @@ def _sse_event_stream(
             detail="Invalid session_id format.",
         )
 
-    base = {
-        "message_endpoint": "/mcp/messages",
-        "user_id": user_id,
-    }
-    if session_id:
-        base["message_endpoint"] = f"/mcp/messages?session_id={session_id}"
-        base["session_id"] = session_id
+    # In MCP SSE, the server controls the session_id if not provided
+    if not session_id:
+        session_id = str(uuid.uuid4())
 
-    init_payload = json.dumps(base)
+    message_endpoint = f"/mcp/messages?session_id={session_id}"
+    
+    # Create a message queue for this session
+    queue: asyncio.Queue[str] = asyncio.Queue()
+    _ACTIVE_STREAMS[session_id] = queue
 
     headers = {
         "Cache-Control": "no-cache",
@@ -674,22 +859,24 @@ def _sse_event_stream(
     }
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        yield f"event: ready\ndata: {init_payload}\n\n"
+        # MCP spec requires an 'endpoint' event containing the URI as a string
+        yield f"event: endpoint\ndata: {message_endpoint}\n\n"
 
-        # In test environments skip the keepalive loop entirely.
         if request.headers.get("x-test-no-sse-keepalive") == "true":
+            _ACTIVE_STREAMS.pop(session_id, None)
             return
 
-        # Do not call request.is_disconnected() here: under uvicorn's h11
-        # transport (spec_version 2.3) Starlette 1.x already runs a
-        # listen_for_disconnect task that calls receive().  A second concurrent
-        # receive() call on the same connection deadlocks the response and
-        # prevents headers from ever being flushed to the client.
-        # Instead, yield keepalives unconditionally; Starlette will cancel this
-        # generator automatically when the client disconnects.
-        while True:
-            await asyncio.sleep(_KEEPALIVE_INTERVAL)
-            yield ": keepalive\n\n"
+        try:
+            while True:
+                try:
+                    # Wait for a message or send a keepalive
+                    msg = await asyncio.wait_for(queue.get(), timeout=_KEEPALIVE_INTERVAL)
+                    yield f"event: message\ndata: {msg}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        finally:
+            # Cleanup when the connection drops
+            _ACTIVE_STREAMS.pop(session_id, None)
 
     return StreamingResponse(
         event_generator(),
@@ -698,40 +885,12 @@ def _sse_event_stream(
     )
 
 
-@router.get(
-    "/sse",
-    summary="Initialize MCP SSE transport",
-    responses={401: {"description": "Missing or invalid PAT."}},
-)
-async def mcp_sse(
-    request: Request,
-    current_user: Annotated[User, Depends(get_current_user_from_pat)],
-    session_id: str | None = Query(default=None, description="MCP session identifier"),
-) -> StreamingResponse:
-    return _sse_event_stream(
-        request=request,
-        session_id=session_id,
-        user_id=str(current_user.id),
-    )
-
-
-@router.post(
-    "/messages",
-    summary="Process MCP JSON-RPC message",
-    responses={401: {"description": "Missing or invalid PAT."}},
-)
-async def mcp_messages(
+async def _dispatch_jsonrpc(
     payload: dict[str, Any],
-    current_user: Annotated[User, Depends(get_current_user_from_pat)],
-    db: Annotated[AsyncSession, Depends(get_session)],
-    session_id: str | None = Query(default=None, description="MCP session identifier"),
+    user_id: uuid.UUID,
+    db: AsyncSession,
 ) -> dict[str, Any]:
-    if session_id and not re.match(r"^[A-Za-z0-9_-]{1,64}$", session_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid session_id format.",
-        )
-
+    """Shared JSON-RPC dispatch logic for both legacy and Streamable HTTP transports."""
     if payload.get("jsonrpc") != "2.0":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -747,22 +906,26 @@ async def mcp_messages(
         )
 
     if method == "initialize":
-        result: dict[str, Any] = {
-            "server": {"name": "Trade Sensei MCP", "version": "1.0"},
-            "capabilities": {
-                "tools": {},
-                "prompts": {},
-                "resources": {},
+        return {
+            "jsonrpc": "2.0",
+            "id": message_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "serverInfo": {"name": "Trade Sensei MCP", "version": "1.0"},
+                "capabilities": {"tools": {}},
             },
         }
-        return {"jsonrpc": "2.0", "id": message_id, "result": result}
 
     if method == "ping":
         return {
             "jsonrpc": "2.0",
             "id": message_id,
-            "result": {"pong": True, "user_id": str(current_user.id)},
+            "result": {"pong": True, "user_id": str(user_id)},
         }
+
+    if method == "notifications/initialized":
+        # Client acknowledgement — no response needed (notification has no id)
+        return {}
 
     if method == "tools/list":
         tools = [
@@ -812,18 +975,25 @@ async def mcp_messages(
                 "error": _tool_error(-32601, f"Unknown tool: {tool_name}"),
             }
 
-        handler = tool["handler"]
-
         try:
-            result = await handler(
-                user_id=current_user.id,
+            raw_result: dict[str, Any] = await tool["handler"](
+                user_id=user_id,
                 db=db,
                 arguments=arguments,
             )
+            # MCP spec requires tools/call result to have a "content" array
+            mcp_result = {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(raw_result),
+                    }
+                ]
+            }
             return {
                 "jsonrpc": "2.0",
                 "id": message_id,
-                "result": result,
+                "result": mcp_result,
             }
         except (ValidationError, ValueError) as exc:
             return {
@@ -844,3 +1014,113 @@ async def mcp_messages(
         "id": message_id,
         "error": {"code": -32601, "message": f"Unknown method: {method}"},
     }
+
+
+# ── Streamable HTTP transport (MCP spec 2024-11-05 / 2025-03-26) ──────────────
+# MCP Inspector and modern clients use POST /mcp with Accept: application/json
+# or Accept: text/event-stream.  A single endpoint handles both.
+
+
+@router.post(
+    "",
+    summary="MCP Streamable HTTP transport",
+    response_model=None,
+    responses={401: {"description": "Missing or invalid PAT."}},
+)
+async def mcp_streamable(
+    request: Request,
+    current_user: Annotated[User, Depends(get_current_user_from_pat)],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> JSONResponse | StreamingResponse:
+    """Handle MCP Streamable HTTP transport (POST /mcp).
+
+    Accepts a JSON-RPC 2.0 payload and returns either:
+    - A plain JSON response when ``Accept`` prefers ``application/json``.
+    - An SSE stream wrapping the response when ``Accept`` includes
+      ``text/event-stream`` (used by some MCP clients).
+    """
+    try:
+        payload: dict[str, Any] = await request.json()
+        logger.error(f"MCP PAYLOAD RECEIVED: {json.dumps(payload)}")
+    except Exception:
+        return JSONResponse(
+            {"jsonrpc": "2.0", "id": None, "error": _tool_error(-32700, "Parse error")},
+            status_code=400,
+        )
+
+    result = await _dispatch_jsonrpc(
+        payload=payload,
+        user_id=current_user.id,
+        db=db,
+    )
+
+    # Notification (no id) — respond with 202 No Content
+    if not result:
+        return JSONResponse(content=None, status_code=202)
+
+    accept = request.headers.get("accept", "application/json")
+
+    if "text/event-stream" in accept:
+        # Wrap the single response in an SSE stream so streaming-aware clients work
+        response_json = json.dumps(result)
+
+        async def _single_event() -> AsyncGenerator[str, None]:
+            yield f"event: message\ndata: {response_json}\n\n"
+
+        return StreamingResponse(
+            _single_event(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    return JSONResponse(content=result)
+
+
+@router.get(
+    "/sse",
+    summary="Initialize MCP SSE transport (legacy)",
+    responses={401: {"description": "Missing or invalid PAT."}},
+)
+async def mcp_sse(
+    request: Request,
+    current_user: Annotated[User, Depends(get_current_user_from_pat)],
+    session_id: str | None = Query(default=None, description="MCP session identifier"),
+) -> StreamingResponse:
+    return _sse_event_stream(
+        request=request,
+        session_id=session_id,
+        user_id=str(current_user.id),
+    )
+
+
+@router.post(
+    "/messages",
+    summary="Process MCP JSON-RPC message (legacy SSE transport)",
+    responses={401: {"description": "Missing or invalid PAT."}},
+)
+async def mcp_messages(
+    payload: dict[str, Any],
+    current_user: Annotated[User, Depends(get_current_user_from_pat)],
+    db: Annotated[AsyncSession, Depends(get_session)],
+    session_id: str | None = Query(default=None, description="MCP session identifier"),
+) -> Response:
+    if not session_id or session_id not in _ACTIVE_STREAMS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or missing session_id. The SSE stream must be opened first.",
+        )
+
+    result = await _dispatch_jsonrpc(
+        payload=payload,
+        user_id=current_user.id,
+        db=db,
+    )
+    
+    if result:
+        # Route the JSON-RPC response back over the active SSE stream
+        await _ACTIVE_STREAMS[session_id].put(json.dumps(result))
+        
+    return Response(status_code=status.HTTP_202_ACCEPTED)

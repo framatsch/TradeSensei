@@ -113,7 +113,7 @@ export function ImportForm() {
   // ── Fresh Start state (task 8.6) ──
   const [showFreshStart, setShowFreshStart] = useState(false);
   const [freshStartAcknowledged, setFreshStartAcknowledged] = useState(false);
-  const [freshStartFile, setFreshStartFile] = useState<File | null>(null);
+  const [freshStartFiles, setFreshStartFiles] = useState<File[]>([]);
   const [freshStartResult, setFreshStartResult] = useState<FreshStartResult | null>(null);
   const [freshStartError, setFreshStartError] = useState<string | null>(null);
   const [isFreshStartRunning, setIsFreshStartRunning] = useState(false);
@@ -141,7 +141,7 @@ export function ImportForm() {
     setOverwriteManuallyEdited(false);
     setShowFreshStart(false);
     setFreshStartAcknowledged(false);
-    setFreshStartFile(null);
+    setFreshStartFiles([]);
     setFreshStartResult(null);
     setFreshStartError(null);
     abortRef.current = false;
@@ -258,18 +258,64 @@ export function ImportForm() {
 
   // ── Fresh Start handler (task 8.6) ───────────────────────────────────────
   const handleFreshStart = async () => {
-    if (!freshStartFile || !accountType || !accountId || !freshStartAcknowledged) return;
+    if (!freshStartFiles.length || !accountType || !accountId || !freshStartAcknowledged) return;
     setIsFreshStartRunning(true);
     setFreshStartError(null);
     setFreshStartResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append("acknowledged", "true");
-      formData.append("file", freshStartFile);
+      let totalExecutionsDeleted = 0;
+      let totalTradesDeleted = 0;
+      let totalTradesCreated = 0;
+      let totalTradesSkipped = 0;
+      let allWarnings: string[] = [];
+      let totalSuppressed = 0;
 
-      const freshEnvelope = await multipartPost(`/api/v1/portfolios/${portfolioId}/imports/${accountId}/fresh-start`, formData);
-      setFreshStartResult(freshEnvelope.data);
+      for (let i = 0; i < freshStartFiles.length; i++) {
+        const file = freshStartFiles[i];
+        const formData = new FormData();
+
+        if (i === 0) {
+          // First file triggers fresh start
+          formData.append("acknowledged", "true");
+          formData.append("file", file);
+          const freshEnvelope = await multipartPost(`/api/v1/portfolios/${portfolioId}/imports/${accountId}/fresh-start`, formData);
+          const data: FreshStartResult = freshEnvelope.data;
+          totalExecutionsDeleted += data.executions_deleted;
+          totalTradesDeleted += data.trades_deleted;
+          totalTradesCreated += data.import_result.trades_created;
+          totalTradesSkipped += data.import_result.trades_skipped;
+          if (data.import_result.warnings) allWarnings.push(...data.import_result.warnings);
+          // @ts-ignore
+          totalSuppressed += data.import_result.raw_transactions_suppressed ?? 0;
+        } else {
+          // Subsequent files are normal uploads
+          formData.append("account_id", accountId);
+          formData.append("file", file);
+          // Overwrite manually edited shouldn't be strictly necessary since it's a fresh start, 
+          // but we can leave it false as default
+          const envelope = await multipartPost(`/api/v1/portfolios/${portfolioId}/imports/upload`, formData);
+          const data: ImportResult = envelope.data;
+          totalTradesCreated += data.trades_created;
+          totalTradesSkipped += data.trades_skipped;
+          if (data.warnings) allWarnings.push(...data.warnings);
+          // @ts-ignore
+          totalSuppressed += data.raw_transactions_suppressed ?? 0;
+        }
+      }
+
+      // @ts-ignore
+      setFreshStartResult({
+        executions_deleted: totalExecutionsDeleted,
+        trades_deleted: totalTradesDeleted,
+        import_result: {
+          trades_created: totalTradesCreated,
+          trades_skipped: totalTradesSkipped,
+          warnings: allWarnings,
+          // @ts-ignore
+          raw_transactions_suppressed: totalSuppressed,
+        } as unknown as any
+      });
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["metrics"] });
       void qc.invalidateQueries({ queryKey: ["tax"] });
@@ -491,13 +537,21 @@ export function ImportForm() {
                   {/* File input */}
                   {!freshStartResult && (
                     <>
-                      <input
-                        ref={freshStartFileRef}
-                        type="file"
-                        accept={accountType ? ACCOUNT_ACCEPT[accountType] : ""}
-                        onChange={(e) => setFreshStartFile(e.target.files?.[0] ?? null)}
-                        className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-muted file:text-foreground file:cursor-pointer file:font-medium"
-                      />
+                      <div className="space-y-2">
+                        <input
+                          ref={freshStartFileRef}
+                          type="file"
+                          multiple
+                          accept={accountType ? ACCOUNT_ACCEPT[accountType] : ""}
+                          onChange={(e) => setFreshStartFiles(Array.from(e.target.files ?? []))}
+                          className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-muted file:text-foreground file:cursor-pointer file:font-medium"
+                        />
+                        {freshStartFiles.length > 0 && (
+                          <p className="text-xs text-muted-foreground dark:text-zinc-400">
+                            {freshStartFiles.length} file{freshStartFiles.length !== 1 ? "s" : ""} selected
+                          </p>
+                        )}
+                      </div>
 
                       {/* Acknowledgement checkbox */}
                       <label className="flex items-start gap-2 cursor-pointer select-none">
@@ -523,7 +577,7 @@ export function ImportForm() {
                       <button
                         type="button"
                         onClick={handleFreshStart}
-                        disabled={!freshStartFile || !freshStartAcknowledged || isFreshStartRunning}
+                        disabled={!freshStartFiles.length || !freshStartAcknowledged || isFreshStartRunning}
                         className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
                       >
                         {isFreshStartRunning ? (
@@ -532,7 +586,7 @@ export function ImportForm() {
                             Running Fresh Start…
                           </>
                         ) : (
-                          "Run Fresh Start"
+                          `Run Fresh Start (${freshStartFiles.length} file${freshStartFiles.length !== 1 ? 's' : ''})`
                         )}
                       </button>
                     </>
@@ -553,7 +607,7 @@ export function ImportForm() {
                         onClick={() => {
                           setFreshStartResult(null);
                           setFreshStartAcknowledged(false);
-                          setFreshStartFile(null);
+                          setFreshStartFiles([]);
                           if (freshStartFileRef.current) freshStartFileRef.current.value = "";
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground underline"

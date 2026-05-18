@@ -15,12 +15,13 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type DailyCheckinRead, type DailyCheckinCreate, type DailyCheckinUpdate } from "@/lib/api/types.gen";
 import { X, Link2, Loader2, Check, PlusCircle, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ScreenshotUploader } from "@/components/checkin/ScreenshotUploader";
 import { useMarketIndexes } from "@/hooks/useCheckinDefinitions";
+import { useSettings } from "@/hooks/useSettings";
 
 export function CheckinForm({
   date,
@@ -52,6 +53,15 @@ export function CheckinForm({
   const activeIndexes = (marketIndexes ?? []).filter((idx) => idx.is_active);
   
   const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
+  const { data: settings } = useSettings();
+
+  useEffect(() => {
+    // @ts-ignore
+    if (settings?.default_markdown_mode === "preview") {
+      setNotesTab("preview");
+    }
+    // @ts-ignore
+  }, [settings?.default_markdown_mode]);
   const isNew = !entry;
 
   const addNewsLink = () => {

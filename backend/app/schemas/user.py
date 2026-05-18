@@ -149,6 +149,7 @@ class UserSettingsRead(BaseModel):
     chart_show_post_exit: bool = Field(default=False)
     default_portfolio_id: uuid.UUID | None = Field(default=None)
     home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library", "/dashboard/checkins"] = Field(default="/dashboard")
+    default_markdown_mode: Literal["write", "preview"] = Field(default="write")
 
 
 class UserSettingsUpdate(BaseModel):
@@ -189,6 +190,7 @@ class UserSettingsUpdate(BaseModel):
         ]
         | None
     ) = Field(default=None)
+    default_markdown_mode: Literal["write", "preview"] | None = Field(default=None)
 
 
 class UserLogin(BaseModel):
