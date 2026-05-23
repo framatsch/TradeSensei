@@ -44,6 +44,10 @@ class DashboardFilterConfig(BaseModel):
         default=None,
         description="Optional list of taxonomy IDs used to filter trades.",
     )
+    include_open_trades: bool = Field(
+        default=False,
+        description="When true, open trades (without a close date) are included in the analytics calculations where applicable.",
+    )
     direction: Direction | None = Field(
         default=None,
         description="Optional trade direction filter.",
@@ -324,6 +328,35 @@ class AnalyticsSummaryRequest(BaseModel):
 
 
 AxisType = Literal["checkin_annotation", "checkin_taxonomy", "trade_annotation", "trade_taxonomy"]
+
+
+class MetadataCorrelationRequest(BaseModel):
+    """Request body for metadata correlation computation."""
+
+    x_axis_type: AxisType = Field(..., description="Type of metadata for the X axis.")
+    x_axis_id: uuid.UUID = Field(..., description="ID of the metadata definition for the X axis.")
+    y_axis_type: AxisType = Field(..., description="Type of metadata for the Y axis.")
+    y_axis_id: uuid.UUID = Field(..., description="ID of the metadata definition for the Y axis.")
+    base_asset: str | None = Field(
+        default=None,
+        description="Optional base asset to filter trades (e.g. BTC, ETH).",
+    )
+    filter_config: DashboardFilterConfig | None = Field(
+        default=None,
+        description="Inline filter configuration.",
+    )
+    view_id: uuid.UUID | None = Field(
+        default=None,
+        description="Saved dashboard view ID used as filter alias.",
+    )
+
+    @model_validator(mode="after")
+    def validate_exactly_one_source(self) -> "MetadataCorrelationRequest":
+        """Require exactly one of filter_config or view_id."""
+        provided = int(self.filter_config is not None) + int(self.view_id is not None)
+        if provided != 1:
+            raise ValueError("exactly one of filter_config or view_id must be provided")
+        return self
 
 
 class MetadataCorrelationDataPoint(BaseModel):

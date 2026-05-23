@@ -22,7 +22,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
@@ -92,10 +92,14 @@ function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: ()
 
 export function PlaybookEditorClient({ id }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ── Load playbook ──────────────────────────────────────────────────────────
   const { data: playbooks, isLoading: playbooksLoading } = usePlaybooks();
   const playbook = playbooks?.find((pb) => pb.id === id);
+
+  // ── Mode state ─────────────────────────────────────────────────────────────
+  const [isEditMode, setIsEditMode] = useState(searchParams.get("edit") === "true");
 
   // ── Toolbar state ──────────────────────────────────────────────────────────
   const [isEditingName, setIsEditingName] = useState(false);
@@ -368,7 +372,7 @@ export function PlaybookEditorClient({ id }: Props) {
 
         {/* Inline name edit */}
         <div className="flex-1 min-w-0">
-          {isEditingName ? (
+          {isEditMode && isEditingName ? (
             <input
               ref={nameInputRef}
               type="text"
@@ -384,11 +388,12 @@ export function PlaybookEditorClient({ id }: Props) {
           ) : (
             <button
               onClick={() => {
+                if (!isEditMode) return;
                 setIsEditingName(true);
                 setTimeout(() => nameInputRef.current?.select(), 0);
               }}
-              className="text-base font-semibold text-foreground hover:text-primary transition-colors truncate max-w-md text-left"
-              title="Click to edit name"
+              className={`text-base font-semibold text-foreground truncate max-w-md text-left ${isEditMode ? "hover:text-primary transition-colors cursor-pointer" : "cursor-default"}`}
+              title={isEditMode ? "Click to edit name" : undefined}
             >
               {name || playbook.name}
             </button>
@@ -398,31 +403,62 @@ export function PlaybookEditorClient({ id }: Props) {
         {/* Target win rate */}
         <div className="flex items-center gap-1.5 shrink-0">
           <label className="text-xs text-muted-foreground whitespace-nowrap">Target Win Rate</label>
-          <div className="relative">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={targetWinrate}
-              onChange={(e) => setTargetWinrate(e.target.value)}
-              placeholder="—"
-              className="w-20 px-2 py-1 pr-5 text-sm font-mono bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-right"
-            />
-            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-              %
-            </span>
-          </div>
+          {isEditMode ? (
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={targetWinrate}
+                onChange={(e) => setTargetWinrate(e.target.value)}
+                placeholder="—"
+                className="w-20 px-2 py-1 pr-5 text-sm font-mono bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-right"
+              />
+              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                %
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm font-mono text-foreground">{targetWinrate ? `${targetWinrate}%` : "—"}</span>
+          )}
         </div>
 
-        {/* Save button */}
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-        >
-          {isSaving ? "Saving…" : "Save"}
-        </button>
+        {/* Actions */}
+        {isEditMode ? (
+          <button
+            onClick={() => {
+              handleSave();
+              setIsEditMode(false);
+            }}
+            disabled={isSaving}
+            className="px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ml-2"
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 ml-2">
+            <button
+              onClick={() => {
+                if (confirm("Delete this playbook? This cannot be undone.")) {
+                  deletePlaybook(id, { onSuccess: () => router.push("/dashboard/library/playbooks") });
+                }
+              }}
+              disabled={isDeleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+            <button
+              onClick={() => setIsEditMode(true)}
+              className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors shrink-0"
+            >
+              <Edit3 className="w-4 h-4" />
+              Edit
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Split pane ───────────────────────────────────────────────────────── */}
@@ -446,13 +482,15 @@ export function PlaybookEditorClient({ id }: Props) {
                   style={{ backgroundColor: t.color_hex }}
                 >
                   {t.name}
-                  <button
-                    onClick={() => removeTaxonomy({ playbookId: id, taxonomyId: t.id })}
-                    className="hover:opacity-70 transition-opacity"
-                    aria-label={`Remove tag ${t.name}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+                  {isEditMode && (
+                    <button
+                      onClick={() => removeTaxonomy({ playbookId: id, taxonomyId: t.id })}
+                      className="hover:opacity-70 transition-opacity"
+                      aria-label={`Remove tag ${t.name}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </span>
               ))}
               {assignedTaxonomies.length === 0 && (
@@ -461,7 +499,7 @@ export function PlaybookEditorClient({ id }: Props) {
             </div>
 
             {/* Add tag dropdown */}
-            {availableTaxonomies.length > 0 && (
+            {isEditMode && availableTaxonomies.length > 0 && (
               <select
                 value=""
                 onChange={(e) => {
@@ -489,68 +527,70 @@ export function PlaybookEditorClient({ id }: Props) {
             </h3>
 
             {/* Upload zone */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                void handleFiles(e.dataTransfer.files);
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 ${
-                isDragging || pasteHint
-                  ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
-                  : "border-border hover:border-primary hover:bg-muted/50"
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => void handleFiles(e.target.files)}
-                disabled={isUploading}
-              />
-              {isUploading ? (
-                <span className="text-sm text-primary animate-pulse">Uploading…</span>
-              ) : pasteHint ? (
-                <span className="text-sm text-primary font-medium">Pasted!</span>
-              ) : (
-                <>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    className="w-5 h-5 text-muted-foreground"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  <span className="text-xs text-muted-foreground">
-                    <span className="text-primary font-medium">Click</span>, drag & drop, or{" "}
-                    <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border rounded">
-                      ⌘V
-                    </kbd>{" "}
-                    to paste
-                  </span>
-                  <span className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP · max 20 MB</span>
-                </>
-              )}
-            </div>
+            {isEditMode && (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  void handleFiles(e.dataTransfer.files);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 ${
+                  isDragging || pasteHint
+                    ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
+                    : "border-border hover:border-primary hover:bg-muted/50"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => void handleFiles(e.target.files)}
+                  disabled={isUploading}
+                />
+                {isUploading ? (
+                  <span className="text-sm text-primary animate-pulse">Uploading…</span>
+                ) : pasteHint ? (
+                  <span className="text-sm text-primary font-medium">Pasted!</span>
+                ) : (
+                  <>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="w-5 h-5 text-muted-foreground"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span className="text-xs text-muted-foreground">
+                      <span className="text-primary font-medium">Click</span>, drag & drop, or{" "}
+                      <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border rounded">
+                        ⌘V
+                      </kbd>{" "}
+                      to paste
+                    </span>
+                    <span className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP · max 20 MB</span>
+                  </>
+                )}
+              </div>
+            )}
             {uploadError && (
               <p className="mt-1.5 text-xs text-destructive">{uploadError}</p>
             )}
 
             {/* Attachment list */}
-            {attachments.length > 0 && (
-              <ul className="mt-3 space-y-1.5">
+            {attachments.length > 0 ? (
+              <ul className={isEditMode ? "mt-3 space-y-1.5" : "space-y-1.5"}>
                 {attachments.map((att) => (
                   <li
                     key={att.id}
@@ -575,16 +615,20 @@ export function PlaybookEditorClient({ id }: Props) {
                     <span className="flex-1 text-xs text-foreground truncate" title={att.filename}>
                       {att.filename}
                     </span>
-                    <button
-                      onClick={() => deleteAttachment({ playbookId: id, attachmentId: att.id })}
-                      className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                      aria-label={`Delete ${att.filename}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {isEditMode && (
+                      <button
+                        onClick={() => deleteAttachment({ playbookId: id, attachmentId: att.id })}
+                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        aria-label={`Delete ${att.filename}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
+            ) : !isEditMode && (
+              <span className="text-xs text-muted-foreground italic">No images</span>
             )}
           </section>
 
@@ -600,8 +644,8 @@ export function PlaybookEditorClient({ id }: Props) {
             </h3>
 
             {/* Link list */}
-            {links.length > 0 && (
-              <ul className="space-y-1 mb-3">
+            {links.length > 0 ? (
+              <ul className={isEditMode ? "space-y-1 mb-3" : "space-y-1"}>
                 {links.map((link) => (
                   <li
                     key={link.id}
@@ -617,84 +661,92 @@ export function PlaybookEditorClient({ id }: Props) {
                     >
                       {link.label}
                     </a>
-                    <button
-                      onClick={() => deleteLink({ playbookId: id, linkId: link.id })}
-                      className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                      aria-label={`Delete link ${link.label}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {isEditMode && (
+                      <button
+                        onClick={() => deleteLink({ playbookId: id, linkId: link.id })}
+                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        aria-label={`Delete link ${link.label}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
+            ) : !isEditMode && (
+              <span className="text-xs text-muted-foreground italic">No links</span>
             )}
 
             {/* Add link form */}
-            <div className="space-y-1.5 p-2 bg-secondary/50 rounded-lg border border-border/50">
-              <p className="text-[11px] font-medium text-muted-foreground mb-1">Add new link</p>
-              <input
-                type="text"
-                value={linkLabel}
-                onChange={(e) => setLinkLabel(e.target.value.slice(0, 200))}
-                placeholder="Label (e.g. TradingView chart)"
-                className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <div className="flex gap-1.5">
+            {isEditMode && (
+              <div className="space-y-1.5 p-2 bg-secondary/50 rounded-lg border border-border/50">
+                <p className="text-[11px] font-medium text-muted-foreground mb-1">Add new link</p>
                 <input
                   type="text"
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAddLink();
-                  }}
-                  placeholder="https://…"
-                  className="flex-1 px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={linkLabel}
+                  onChange={(e) => setLinkLabel(e.target.value.slice(0, 200))}
+                  placeholder="Label (e.g. TradingView chart)"
+                  className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <button
-                  onClick={handleAddLink}
-                  disabled={isCreatingLink || !linkLabel.trim() || !linkUrl.trim()}
-                  className="px-2.5 py-1.5 text-sm bg-primary hover:bg-primary/90 text-white rounded-md transition-colors disabled:opacity-50 shrink-0"
-                  aria-label="Add link"
-                >
-                  {isCreatingLink ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
-                </button>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddLink();
+                    }}
+                    placeholder="https://…"
+                    className="flex-1 px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    onClick={handleAddLink}
+                    disabled={isCreatingLink || !linkLabel.trim() || !linkUrl.trim()}
+                    className="px-2.5 py-1.5 text-sm bg-primary hover:bg-primary/90 text-white rounded-md transition-colors disabled:opacity-50 shrink-0"
+                    aria-label="Add link"
+                  >
+                    {isCreatingLink ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
+                  </button>
+                </div>
+                {linkError && <p className="text-xs text-destructive mt-1">{linkError}</p>}
               </div>
-              {linkError && <p className="text-xs text-destructive mt-1">{linkError}</p>}
-            </div>
+            )}
           </section>
         </div>
 
         {/* ── Right pane (65%) ─────────────────────────────────────────────── */}
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Tab bar */}
-          <div className="flex items-center gap-1 px-4 pt-3 pb-0 border-b border-border bg-background shrink-0">
-            <button
-              onClick={() => setEditorTab("write")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-t-md transition-colors border-b-2 -mb-px ${
-                editorTab === "write"
-                  ? "border-primary text-foreground font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              Write
-            </button>
-            <button
-              onClick={() => setEditorTab("preview")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-t-md transition-colors border-b-2 -mb-px ${
-                editorTab === "preview"
-                  ? "border-primary text-foreground font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              Preview
-            </button>
-          </div>
+          {isEditMode && (
+            <div className="flex items-center gap-1 px-4 pt-3 pb-0 border-b border-border bg-background shrink-0">
+              <button
+                onClick={() => setEditorTab("write")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-t-md transition-colors border-b-2 -mb-px ${
+                  editorTab === "write"
+                    ? "border-primary text-foreground font-medium"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                Write
+              </button>
+              <button
+                onClick={() => setEditorTab("preview")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-t-md transition-colors border-b-2 -mb-px ${
+                  editorTab === "preview"
+                    ? "border-primary text-foreground font-medium"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Preview
+              </button>
+            </div>
+          )}
 
           {/* Editor / Preview */}
           <div className="flex-1 min-h-0 overflow-hidden">
-            {editorTab === "write" ? (
+            {isEditMode && editorTab === "write" ? (
               <textarea
                 value={contentMarkdown}
                 onChange={(e) => setContentMarkdown(e.target.value)}

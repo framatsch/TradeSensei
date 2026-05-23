@@ -800,9 +800,9 @@ export const updateSavedDashboardViewApiV1PortfoliosPortfolioIdViewsViewIdPatch 
  *
  * Compute correlation between two checkin/trade metadata axes.
  */
-export const getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGet = <ThrowOnError extends boolean = false>(options: Options<GetMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGetData, ThrowOnError>) => (options.client ?? client).get<GetMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGetResponses, GetMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGetErrors, ThrowOnError>({
+export const getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMetadataPost = <ThrowOnError extends boolean = false>(options: Options<any, ThrowOnError>) => (options.client ?? client).post<any, any, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/api/v1/portfolios/{portfolio_id}/analytics/metadata-correlation',
+    url: '/api/v1/portfolios/{portfolio_id}/analytics/correlations/metadata',
     ...options
 });
 
@@ -826,7 +826,7 @@ export const getAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPost =
  *
  * Group trade metrics by DailyCheckin market phase for one portfolio.
  */
-export const getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet = <ThrowOnError extends boolean = false>(options: Options<GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetData, ThrowOnError>) => (options.client ?? client).get<GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetResponses, GetMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGetErrors, ThrowOnError>({
+export const getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhasePost = <ThrowOnError extends boolean = false>(options: Options<any, ThrowOnError>) => (options.client ?? client).post<any, any, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/portfolios/{portfolio_id}/analytics/correlations/market-phase',
     ...options

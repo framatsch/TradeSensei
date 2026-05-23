@@ -1561,6 +1561,12 @@ export type DashboardFilterConfig = {
      */
     taxonomy_ids?: Array<string> | null;
     /**
+     * Include Open Trades
+     *
+     * When true, open trades (without a close date) are included in the analytics calculations where applicable.
+     */
+    include_open_trades?: boolean | null;
+    /**
      * Optional trade direction filter.
      */
     direction?: Direction | null;
@@ -2312,6 +2318,42 @@ export type MetadataCorrelationKpis = {
      * Total trades matching the global filter.
      */
     total_trades_count: number;
+};
+
+/**
+ * MetadataCorrelationRequest
+ *
+ * Request body for metadata correlation computation.
+ */
+export type MetadataCorrelationRequest = {
+    /**
+     * Type of metadata for the X axis.
+     */
+    x_axis_type: AxisType;
+    /**
+     * ID of the metadata definition for the X axis.
+     */
+    x_axis_id: string;
+    /**
+     * Type of metadata for the Y axis.
+     */
+    y_axis_type: AxisType;
+    /**
+     * ID of the metadata definition for the Y axis.
+     */
+    y_axis_id: string;
+    /**
+     * Optional base asset to filter trades (e.g. BTC, ETH).
+     */
+    base_asset?: (string | null);
+    /**
+     * Inline filter configuration.
+     */
+    filter_config?: (DashboardFilterConfig | null);
+    /**
+     * Saved dashboard view ID used as filter alias.
+     */
+    view_id?: (string | null);
 };
 
 /**

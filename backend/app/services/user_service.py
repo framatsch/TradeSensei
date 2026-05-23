@@ -41,7 +41,6 @@ _SETTINGS_DEFAULTS: dict[str, object] = {
     "chart_show_post_exit": "False",
     "default_portfolio_id": None,
     "home_route": "/dashboard",
-    "default_markdown_mode": "write",
 }
 
 logger = logging.getLogger(__name__)

@@ -56,7 +56,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
 
   useEffect(() => {
     // @ts-ignore
-    if (settings?.default_markdown_mode === "preview") {
+    if (settings?.default_markdown_mode === "preview" && content.trim().length > 0) {
       setActiveTab("preview");
     }
     // @ts-ignore

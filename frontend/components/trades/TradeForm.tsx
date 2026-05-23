@@ -351,7 +351,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       notes: data.notes || null,
       user_rating: data.user_rating ? Number(data.user_rating) : null,
       playbook_id: null,
-      tag_ids: [],
+      taxonomy_ids: [],
       image_urls: imageUrls,
     };
 
@@ -377,7 +377,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         notes: data.notes || null,
         user_rating: data.user_rating ? Number(data.user_rating) : null,
         playbook_id: null,
-        tag_ids: [],
+        taxonomy_ids: [],
         image_urls: imageUrls,
       };
       updateMutation.mutate(payload, {

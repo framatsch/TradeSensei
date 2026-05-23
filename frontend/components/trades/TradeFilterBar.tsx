@@ -60,7 +60,7 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.opened_at_to) count++;
   if (filters.closed_at_from) count++;
   if (filters.closed_at_to) count++;
-  if (filters.tag_ids?.length) count++;
+  if (filters.taxonomy_ids?.length) count++;
   if (filters.account_ids?.length) count++;
   if (filters.playbook_id) count++;
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) count++;
@@ -78,7 +78,7 @@ const EMPTY_FILTERS: TradeFilters = {
   opened_at_to: "",
   closed_at_from: "",
   closed_at_to: "",
-  tag_ids: [],
+  taxonomy_ids: [],
   account_ids: [],
   playbook_id: "",
   pnl_positive: null,
@@ -253,6 +253,14 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
       ? current.filter((c) => c !== ac)
       : [...current, ac];
     onChange({ ...filters, asset_classes: updated.length ? updated : undefined });
+  };
+
+  const toggleTag = (id: string) => {
+    const current = filters.taxonomy_ids ?? [];
+    const updated = current.includes(id)
+      ? current.filter(t => t !== id)
+      : [...current, id];
+    onChange({ ...filters, taxonomy_ids: updated.length ? updated : undefined });
   };
 
   const handleDateFrom = (value: string) => {
@@ -595,7 +603,7 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
               <label className={LABEL_CLASS}>Taxonomies</label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {taxonomies.map((taxonomy) => {
-                  const selected = filters.tag_ids?.includes(taxonomy.id);
+                  const selected = filters.taxonomy_ids?.includes(taxonomy.id);
                   return (
                     <button
                       key={taxonomy.id}

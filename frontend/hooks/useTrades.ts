@@ -38,7 +38,7 @@ export interface TradeFilters {
   opened_at_to?: string;
   closed_at_from?: string;
   closed_at_to?: string;
-  tag_ids?: string[];
+  taxonomy_ids?: string[];
   playbook_id?: string;
   pnl_positive?: boolean | null;
   status?: "open" | "closed" | null;
@@ -118,6 +118,7 @@ export function useTrades({
           symbol: filters?.symbol ?? undefined,
           direction: filters?.direction as import("@/lib/api/types.gen").Direction | undefined,
           playbook_id: filters?.playbook_id ?? undefined,
+          taxonomy_ids: filters?.taxonomy_ids?.length ? filters.taxonomy_ids : undefined,
           pnl_positive: filters?.pnl_positive ?? undefined,
           status: filters?.status ?? undefined,
           account_ids: filters?.account_ids?.length ? filters.account_ids : undefined,

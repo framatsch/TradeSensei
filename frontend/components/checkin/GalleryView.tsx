@@ -19,10 +19,12 @@ import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { format } from "date-fns";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 
 export function GalleryView() {
+  const router = useRouter();
   const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
   
   // Fetch more items for the gallery view
@@ -49,10 +51,10 @@ export function GalleryView() {
           const colorHex = phase?.color_hex ?? "var(--border)";
 
           return (
-            <Link
+            <div
               key={checkin.id}
-              href={`/dashboard/checkins/${checkin.date}`}
-              className="group block relative bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all hover:border-primary/50"
+              onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
+              className="group block relative bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all hover:border-primary/50 cursor-pointer"
               style={{ borderTopWidth: "4px", borderTopColor: colorHex }}
             >
               {/* Image Thumbnail */}
@@ -82,18 +84,30 @@ export function GalleryView() {
                   <h2 className="text-sm font-bold text-foreground">
                     {format(new Date(`${checkin.date}T12:00:00Z`), "MMM d, yyyy")}
                   </h2>
-                  {phase && (
-                    <div
-                      className="px-2 py-0.5 rounded-full text-[10px] font-medium border"
-                      style={{
-                        backgroundColor: `${colorHex}15`,
-                        borderColor: `${colorHex}40`,
-                        color: colorHex,
+                  <div className="flex items-center gap-1.5">
+                    {phase && (
+                      <div
+                        className="px-2 py-0.5 rounded-full text-[10px] font-medium border"
+                        style={{
+                          backgroundColor: `${colorHex}15`,
+                          borderColor: `${colorHex}40`,
+                          color: colorHex,
+                        }}
+                      >
+                        {phase.name}
+                      </div>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/checkins/${checkin.date}?edit=true`);
                       }}
+                      className="p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                      title="Edit Check-in"
                     >
-                      {phase.name}
-                    </div>
-                  )}
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {checkin.target_indices && checkin.target_indices.length > 0 && (
@@ -120,7 +134,7 @@ export function GalleryView() {
                   </p>
                 )}
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>

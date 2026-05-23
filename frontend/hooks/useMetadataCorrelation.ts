@@ -16,17 +16,21 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGet } from "@/lib/api/index";
+import { getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMetadataPost } from "@/lib/api/index";
 import type {
-  GetMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGetData,
   MetadataCorrelationResponse,
+  DashboardFilterConfig,
 } from "@/lib/api/types.gen";
 
-type MetadataCorrelationParams = Omit<
-  GetMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGetData["query"],
-  "portfolio_id"
-> & {
+type MetadataCorrelationParams = {
   portfolioId: string;
+  x_axis_type: any;
+  x_axis_id: string;
+  y_axis_type: any;
+  y_axis_id: string;
+  base_asset?: string;
+  filter_config?: DashboardFilterConfig;
+  view_id?: string;
 };
 
 const QUERY_KEY = ["metadata-correlation"] as const;
@@ -37,10 +41,24 @@ export function useMetadataCorrelation(params: MetadataCorrelationParams) {
   return useQuery<MetadataCorrelationResponse, Error>({
     queryKey: [...QUERY_KEY, portfolioId, query],
     queryFn: async () => {
+      const body: any = {
+        x_axis_type: query.x_axis_type,
+        x_axis_id: query.x_axis_id,
+        y_axis_type: query.y_axis_type,
+        y_axis_id: query.y_axis_id,
+        base_asset: query.base_asset,
+      };
+
+      if (query.view_id) {
+        body.view_id = query.view_id;
+      } else {
+        body.filter_config = query.filter_config || {};
+      }
+
       const { data, error } =
-        await getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGet({
+        await getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMetadataPost({
           path: { portfolio_id: portfolioId },
-          query: query as GetMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsMetadataCorrelationGetData["query"],
+          body: body as any,
         });
 
       if (error || !data) throw error ?? new Error("Request failed: no data returned");

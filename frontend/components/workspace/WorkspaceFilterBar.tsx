@@ -166,7 +166,7 @@ export function WorkspaceFilterBar() {
   const dateFrom = filter.date_from;
   const dateTo = filter.date_to;
   const playbookIds = filter.playbook_ids || [];
-  const tagIds: string[] = [];
+  const tagIds = filter.taxonomy_ids || [];
   const accountIds = filter.account_ids || [];
   const includeOpenTrades = filter.includeOpenTrades;
   const viewId = filter.viewId;
@@ -174,7 +174,7 @@ export function WorkspaceFilterBar() {
   const setDateFrom = useCallback((date: string | null) => setFilter(prev => ({ ...prev, date_from: date })), [setFilter]);
   const setDateTo = useCallback((date: string | null) => setFilter(prev => ({ ...prev, date_to: date })), [setFilter]);
   const setPlaybookIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, playbook_ids: ids })), [setFilter]);
-  const setTagIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, tag_ids: ids })), [setFilter]);
+  const setTagIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, taxonomy_ids: ids })), [setFilter]);
   const setAccountIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, account_ids: ids })), [setFilter]);
   const setIncludeOpenTrades = useCallback((inc: boolean) => setFilter(prev => ({ ...prev, includeOpenTrades: inc })), [setFilter]);
   const setViewId = useCallback((id: string | null) => setFilter(prev => ({ ...prev, viewId: id })), [setFilter]);
@@ -261,8 +261,10 @@ export function WorkspaceFilterBar() {
     if (dateTo) config.date_to = dateTo;
     if (playbookIds.length > 0) config.playbook_ids = playbookIds;
     if (accountIds.length > 0) config.account_ids = accountIds;
+    if (tagIds.length > 0) config.taxonomy_ids = tagIds;
+    if (includeOpenTrades) config.include_open_trades = includeOpenTrades;
     return config;
-  }, [dateFrom, dateTo, playbookIds, tagIds, accountIds]);
+  }, [dateFrom, dateTo, playbookIds, tagIds, accountIds, includeOpenTrades]);
 
   const handleSaveView = useCallback(() => {
     if (!saveViewName.trim() || !portfolioId) return;

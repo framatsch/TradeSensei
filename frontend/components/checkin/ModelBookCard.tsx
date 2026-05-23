@@ -15,7 +15,8 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { Star, Image as ImageIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Star, Image as ImageIcon, Pencil } from "lucide-react";
 import type { ModelBookTradeVariant, ModelBookCheckinVariant } from "@/lib/api/types.gen";
 import { StarButton } from "@/components/shared/StarButton";
 import { useCheckinModelBook } from "@/hooks/useCheckinModelBook";
@@ -26,6 +27,7 @@ export type ModelBookEntryResponse =
   | ({ type: "checkin" } & ModelBookCheckinVariant);
 
 export function ModelBookCard({ entry, onImageClick }: { entry: ModelBookEntryResponse; onImageClick: (url: string) => void }) {
+  const router = useRouter();
   const checkinMutation = useCheckinModelBook();
   const tradeMutation = useTradeModelBook();
 
@@ -150,6 +152,16 @@ export function ModelBookCard({ entry, onImageClick }: { entry: ModelBookEntryRe
             <Link href={`/dashboard/checkins/${entry.date}`} className="text-lg font-bold hover:underline">
               {format(new Date(`${entry.date}T12:00:00Z`), "MMM d, yyyy")}
             </Link>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                router.push(`/dashboard/checkins/${entry.date}?edit=true`);
+              }}
+              className="p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+              title="Edit Check-in"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
           </div>
 
           {entry.market_phase && (

@@ -16,6 +16,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
@@ -26,6 +27,7 @@ import { ExternalLink, Pencil } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 
 export function TimelineView() {
+  const router = useRouter();
   const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
   
   const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage);
@@ -52,7 +54,8 @@ export function TimelineView() {
         return (
           <div
             key={checkin.id}
-            className="relative bg-card border rounded-xl p-6 shadow-sm flex flex-col"
+            onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
+            className="relative bg-card border rounded-xl p-6 shadow-sm flex flex-col cursor-pointer hover:border-primary/50 transition-colors"
             style={{ borderLeftWidth: "4px", borderLeftColor: colorHex }}
           >
             <div className="flex justify-between items-start mb-4">
@@ -73,13 +76,16 @@ export function TimelineView() {
                     ))}
                   </div>
                 )}
-                <Link
-                  href={`/dashboard/checkins/${checkin.date}`}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/dashboard/checkins/${checkin.date}?edit=true`);
+                  }}
                   className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                   title="Edit Check-in"
                 >
                   <Pencil className="w-4 h-4" />
-                </Link>
+                </button>
               </div>
               {phase && (
                 <div

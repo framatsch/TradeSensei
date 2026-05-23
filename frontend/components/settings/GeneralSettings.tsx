@@ -72,7 +72,6 @@ export function GeneralSettings() {
   const [candlesAfter, setCandlesAfter] = useState<string>("10");
   const [showPostExit, setShowPostExit] = useState<boolean>(false);
   const [homeRoute, setHomeRoute] = useState<"/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins">("/dashboard");
-  const [defaultMarkdownMode, setDefaultMarkdownMode] = useState<"write" | "preview">("write");
 
   const { theme, setTheme } = useTheme();
 
@@ -89,8 +88,6 @@ export function GeneralSettings() {
       setShowPostExit(settings.chart_show_post_exit ?? false);
       // @ts-ignore
       setHomeRoute(settings.home_route ?? "/dashboard");
-      // @ts-ignore
-      setDefaultMarkdownMode(settings.default_markdown_mode ?? "write");
     }
   }, [settings]);
 
@@ -119,8 +116,6 @@ export function GeneralSettings() {
         chart_show_post_exit: showPostExit,
         // @ts-ignore
         home_route: homeRoute,
-        // @ts-ignore
-        default_markdown_mode: defaultMarkdownMode,
         theme: theme as Theme,
       });
       toast.success("Settings saved successfully");
@@ -256,23 +251,6 @@ export function GeneralSettings() {
             <option value="/dashboard/library">Global Library</option>
             <option value="/dashboard/checkins">Market Check-in</option>
           </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
-            Default Markdown Mode
-          </label>
-          <select
-            value={defaultMarkdownMode}
-            onChange={(e) => setDefaultMarkdownMode(e.target.value as "write" | "preview")}
-            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="write">Edit Mode</option>
-            <option value="preview">Preview Mode</option>
-          </select>
-          <p className="text-xs text-muted-foreground mt-1">
-            Choose whether markdown editors should open in edit or preview mode initially.
-          </p>
         </div>
 
         {error && (

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-05-23
+
+### Added
+- [dev] Introduce Gemini CLI commands for OCR workflow and Antigravity integration
+
+### Changed
+- [frontend] PlaybookEditorClient: add view/edit mode separation with `?edit=true` query param, delete playbook button, read-only preview mode hides edit controls, empty state indicators for images/links
+- [frontend] CheckinForm: major rework of taxonomy mapping and form layout
+- [frontend] QualitativeMetadataPanel: enhanced metadata display panel for trades
+
+### Fixed
+- [frontend/backend] Resolve taxonomy filtering: map `tag_ids` to `taxonomy_ids` consistently across all filter bars, forms, and queries
+- [backend] DashboardFilterConfig schema now accepts `include_open_trades` parameter
+- [backend] AnalyticsRepository and AttributionRepository correctly include open trades in metrics
+- [frontend] `useTrades` hook correctly populates `taxonomy_ids` in API queries
+- [frontend] Correlation dashboard and workspace filter bars use correct taxonomy field names
+- [backend] Add `source_id` and `is_mixed_execution` columns to migration chain, drop cash transactions table
+
 ## [1.1.0] - 2026-05-18
 
 ### Added
@@ -321,6 +339,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.1.1]: https://github.com/scheffold/TradeSensei/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/scheffold/TradeSensei/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/scheffold/TradeSensei/compare/v0.27.1...v1.0.0
 [0.27.1]: https://github.com/scheffold/OpenTradeJournal/compare/v0.27.0...v0.27.1
@@ -337,6 +356,6 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.1.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.1.1...HEAD
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0

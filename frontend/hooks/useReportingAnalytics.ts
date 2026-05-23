@@ -30,7 +30,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useReportData } from "@/hooks/useReportData";
 import {
   getAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPost,
-  getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet,
+  getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhasePost,
   getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet,
 } from "@/lib/api";
 import type {
@@ -111,15 +111,18 @@ export function useMarketPhaseCorrelation(
     queryFn: async ({ signal }) => {
       if (!portfolioId) throw new Error("No portfolio selected");
 
+      const body: AnalyticsSummaryRequest = {};
+      if (viewId) {
+        body.view_id = viewId;
+      } else {
+        body.filter_config = filterConfig || {};
+      }
+
       const { data, error } =
-        await getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhaseGet(
+        await getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhasePost(
           {
             path: { portfolio_id: portfolioId },
-            query: {
-              from_date: viewId ? undefined : filterConfig?.date_from ?? undefined,
-              to_date: viewId ? undefined : filterConfig?.date_to ?? undefined,
-              view_id: viewId ?? undefined,
-            },
+            body,
             signal,
           } as any
         );

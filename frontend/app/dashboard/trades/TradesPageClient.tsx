@@ -56,7 +56,7 @@ const EMPTY_FILTERS: TradeFilters = {
   opened_at_to: "",
   closed_at_from: "",
   closed_at_to: "",
-  tag_ids: [],
+  taxonomy_ids: [],
   account_ids: [],
   playbook_id: "",
   pnl_positive: null,
@@ -89,7 +89,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   else if (pnlRaw === "false") pnl_positive = false;
 
   const assetClassRaw = params.get("asset_class");
-  const tagIdsRaw = params.get("tag_ids");
+  const taxonomyIdsRaw = params.get("taxonomy_ids");
   const accountIdsRaw = params.get("account_ids");
   const legacyAccountId = params.get("account_id");
 
@@ -108,7 +108,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     opened_at_to: params.get("opened_at_to") ?? undefined,
     closed_at_from: params.get("closed_at_from") ?? undefined,
     closed_at_to: params.get("closed_at_to") ?? undefined,
-    tag_ids: tagIdsRaw ? tagIdsRaw.split(",").filter(Boolean) : undefined,
+    taxonomy_ids: taxonomyIdsRaw ? taxonomyIdsRaw.split(",").filter(Boolean) : undefined,
     account_ids: accountIdsRaw
       ? accountIdsRaw.split(",").filter(Boolean)
       : legacyAccountId
@@ -143,7 +143,7 @@ function filtersToParams(
   if (filters.opened_at_to) p.set("opened_at_to", filters.opened_at_to);
   if (filters.closed_at_from) p.set("closed_at_from", filters.closed_at_from);
   if (filters.closed_at_to) p.set("closed_at_to", filters.closed_at_to);
-  if (filters.tag_ids?.length) p.set("tag_ids", filters.tag_ids.join(","));
+  if (filters.taxonomy_ids?.length) p.set("taxonomy_ids", filters.taxonomy_ids.join(","));
   if (filters.account_ids?.length) p.set("account_ids", filters.account_ids.join(","));
   if (filters.playbook_id) p.set("playbook_id", filters.playbook_id);
   if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) {

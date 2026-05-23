@@ -15,8 +15,10 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Edit2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { useSettings } from "@/hooks/useSettings";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import {
@@ -53,6 +55,19 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
 
   // Draft state
   const [draftNotes, setDraftNotes] = useState(trade.notes ?? "");
+  const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
+  const lastTradeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      draftNotes.trim().length > 0 &&
+      trade.id === lastTradeIdRef.current
+    ) {
+      setNotesTab("preview");
+    }
+    lastTradeIdRef.current = trade.id;
+  }, [trade.id, draftNotes]);
+
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
     trade.taxonomies?.map((t) => t.id) ?? []
   );
@@ -115,7 +130,10 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
         {!isEditing ? (
           <button
             type="button"
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setIsEditing(true);
+              setNotesTab("write");
+            }}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <Edit2 size={14} />
@@ -194,14 +212,51 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
 
         {/* Journal */}
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Journal</label>
-          <textarea
-            value={draftNotes}
-            onChange={(e) => setDraftNotes(e.target.value)}
-            disabled={!isEditing}
-            placeholder={isEditing ? "Write your thoughts here..." : "No journal entry."}
-            className="w-full min-h-[100px] rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-transparent resize-y"
-          />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-medium text-foreground">Journal</label>
+            {isEditing && (
+              <div className="flex bg-muted/50 p-0.5 rounded-lg border border-border">
+                <button
+                  type="button"
+                  onClick={() => setNotesTab("write")}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    notesTab === "write"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Write
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotesTab("preview")}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    notesTab === "preview"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Preview
+                </button>
+              </div>
+            )}
+          </div>
+          {(!isEditing || notesTab === "preview") ? (
+            <div className="w-full min-h-[100px] rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground prose prose-sm dark:prose-invert max-w-none">
+              {draftNotes.trim() ? (
+                <ReactMarkdown>{draftNotes}</ReactMarkdown>
+              ) : (
+                <span className="text-muted-foreground/50 italic">No journal entry.</span>
+              )}
+            </div>
+          ) : (
+            <textarea
+              value={draftNotes}
+              onChange={(e) => setDraftNotes(e.target.value)}
+              placeholder="Write your thoughts here... (Markdown supported)"
+              className="w-full min-h-[100px] rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+            />
+          )}
         </div>
       </div>
     </div>

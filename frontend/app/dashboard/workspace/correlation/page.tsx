@@ -65,9 +65,8 @@ export default function CorrelationPage() {
     x_axis_id: xId,
     y_axis_type: yType,
     y_axis_id: yId,
-    date_from: dateFrom || undefined,
-    date_to: dateTo || undefined,
-    account_ids: accountIds.length > 0 ? accountIds : undefined,
+    filter_config: filter,
+    view_id: filter.viewId || undefined,
     base_asset: baseAsset || undefined,
   });
 

@@ -872,7 +872,7 @@ def _sse_event_stream(
                     # Wait for a message or send a keepalive
                     msg = await asyncio.wait_for(queue.get(), timeout=_KEEPALIVE_INTERVAL)
                     yield f"event: message\ndata: {msg}\n\n"
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     yield ": keepalive\n\n"
         finally:
             # Cleanup when the connection drops

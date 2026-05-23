@@ -70,11 +70,13 @@ class AttributionRepository:
     ) -> list[ColumnElement[bool]]:
         predicates: list[ColumnElement[bool]] = [
             Trade.user_id == user_id,
-            Trade.closed_at.is_not(None),
-            Trade.pnl.is_not(None),
             Trade.account_id == Account.id,
             Account.portfolio_id == portfolio_id,
         ]
+
+        if not filter_config.include_open_trades:
+            predicates.append(Trade.closed_at.is_not(None))
+            predicates.append(Trade.pnl.is_not(None))
 
         if filter_config.date_from is not None:
             predicates.append(cast(Trade.closed_at, Date) >= filter_config.date_from)

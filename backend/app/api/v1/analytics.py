@@ -34,6 +34,7 @@ from app.schemas.analytics import (
     AttributionResponse,
     AxisType,
     DashboardFilterConfig,
+    MetadataCorrelationRequest,
     MetadataCorrelationResponse,
 )
 from app.schemas.common import ResponseEnvelope
@@ -64,36 +65,42 @@ def _get_metadata_correlation_service() -> MetadataCorrelationService:
     return MetadataCorrelationService()
 
 
-@router.get(
-    "/metadata-correlation",
+@router.post(
+    "/correlations/metadata",
     response_model=ResponseEnvelope[MetadataCorrelationResponse],
-    summary="Get metadata correlation",
-    description="Compute correlation between two checkin/trade metadata axes.",
+    summary="Compute metadata correlation",
+    description="Compute correlation between two checkin/trade metadata axes using optional dashboard filters.",
 )
 async def get_metadata_correlation(
     portfolio_id: uuid.UUID,
-    x_axis_type: AxisType,
-    x_axis_id: uuid.UUID,
-    y_axis_type: AxisType,
-    y_axis_id: uuid.UUID,
+    payload: MetadataCorrelationRequest,
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
     service: Annotated[MetadataCorrelationService, Depends(_get_metadata_correlation_service)],
-    date_from: date | None = None,
-    date_to: date | None = None,
-    account_ids: Annotated[list[uuid.UUID] | None, Query(description="Optional list of account IDs")] = None,
-    base_asset: str | None = None,
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> ResponseEnvelope[MetadataCorrelationResponse]:
+    if payload.view_id is not None:
+        view_repo = SavedDashboardViewRepository(session)
+        view = await view_repo.get_by_id(payload.view_id)
+        if view is None or view.user_id != current_user.id or view.portfolio_id != portfolio_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="view not found",
+            )
+        filter_config = DashboardFilterConfig.model_validate(view.filter_config)
+    else:
+        filter_config = payload.filter_config or DashboardFilterConfig()
+
     data = await service.get_correlation(
         session=session,
         portfolio_id=portfolio_id,
-        x_axis_type=x_axis_type,
-        x_axis_id=x_axis_id,
-        y_axis_type=y_axis_type,
-        y_axis_id=y_axis_id,
-        date_from=date_from,
-        date_to=date_to,
-        account_ids=account_ids,
-        base_asset=base_asset,
+        x_axis_type=payload.x_axis_type,
+        x_axis_id=payload.x_axis_id,
+        y_axis_type=payload.y_axis_type,
+        y_axis_id=payload.y_axis_id,
+        date_from=filter_config.date_from,
+        date_to=filter_config.date_to,
+        account_ids=filter_config.account_ids,
+        base_asset=payload.base_asset,
     )
     return ResponseEnvelope[MetadataCorrelationResponse](data=data)
 
@@ -119,30 +126,19 @@ async def get_analytics_summary(
     return ResponseEnvelope[AnalyticsSummary](data=data)
 
 
-@router.get(
+@router.post(
     "/correlations/market-phase",
     response_model=ResponseEnvelope[AttributionResponse],
-    summary="Get market-phase attribution correlation",
-    description=("Group trade metrics by DailyCheckin market phase for one portfolio."),
+    summary="Compute market-phase attribution correlation",
+    description=("Group trade metrics by DailyCheckin market phase for one portfolio using optional filters."),
     response_description="Attribution buckets and exclusion counters.",
 )
 async def get_market_phase_correlation(
     portfolio_id: uuid.UUID,
+    payload: AnalyticsSummaryRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AttributionService, Depends(_get_attribution_service)],
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
-    from_date: Annotated[
-        date | None,
-        Query(description="Optional inclusive start date for trade close date filter."),
-    ] = None,
-    to_date: Annotated[
-        date | None,
-        Query(description="Optional inclusive end date for trade close date filter."),
-    ] = None,
-    view_id: Annotated[
-        uuid.UUID | None,
-        Query(description="Optional saved dashboard view ID to reuse filter config."),
-    ] = None,
 ) -> ResponseEnvelope[AttributionResponse]:
     portfolio = await PortfolioRepository(session).get_by_id(
         portfolio_id,
@@ -154,15 +150,9 @@ async def get_market_phase_correlation(
             detail="portfolio not found",
         )
 
-    if view_id is not None and (from_date is not None or to_date is not None):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="use either view_id or from_date/to_date query filters",
-        )
-
-    if view_id is not None:
+    if payload.view_id is not None:
         view_repo = SavedDashboardViewRepository(session)
-        view = await view_repo.get_by_id(view_id)
+        view = await view_repo.get_by_id(payload.view_id)
         if view is None or view.user_id != current_user.id or view.portfolio_id != portfolio_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -170,7 +160,7 @@ async def get_market_phase_correlation(
             )
         filter_config = DashboardFilterConfig.model_validate(view.filter_config)
     else:
-        filter_config = DashboardFilterConfig(date_from=from_date, date_to=to_date)
+        filter_config = payload.filter_config or DashboardFilterConfig()
 
     try:
         data = await service.get_market_phase_correlation(
