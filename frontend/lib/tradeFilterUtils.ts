@@ -40,8 +40,8 @@ export function definitionToSearchParams(
   if (d.opened_at_to) p.set("opened_at_to", String(d.opened_at_to));
   if (d.closed_at_from) p.set("closed_at_from", String(d.closed_at_from));
   if (d.closed_at_to) p.set("closed_at_to", String(d.closed_at_to));
-  if (Array.isArray(d.tag_ids) && d.tag_ids.length)
-    p.set("tag_ids", (d.tag_ids as string[]).join(","));
+  if (Array.isArray(d.taxonomy_ids) && d.taxonomy_ids.length)
+    p.set("taxonomy_ids", (d.taxonomy_ids as string[]).join(","));
   if (Array.isArray(d.account_ids) && d.account_ids.length)
     p.set("account_ids", (d.account_ids as string[]).join(","));
   if (d.account_id)

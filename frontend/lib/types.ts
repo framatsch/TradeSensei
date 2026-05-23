@@ -247,7 +247,7 @@ export interface TradeCreate {
   image_urls?: string[];
   account_id?: string | null;
   playbook_id?: string | null;
-  tag_ids?: string[];
+  taxonomy_ids?: string[];
   executions?: LogicalExecutionCreate[] | null;
 }
 
@@ -264,7 +264,7 @@ export interface TradeUpdate {
   tradingview_link?: string | null;
   image_urls?: string[] | null;
   playbook_id?: string | null;
-  tag_ids?: string[] | null;
+  taxonomy_ids?: string[] | null;
   is_manually_edited?: boolean | null;
 }
 

@@ -24,7 +24,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   else if (pnlRaw === "false") pnl_positive = false;
 
   const assetClassRaw = params.get("asset_class");
-  const tagIdsRaw = params.get("tag_ids");
+  const taxonomyIdsRaw = params.get("taxonomy_ids");
 
   const statusRaw = params.get("status");
   const status: "open" | "closed" | "all" | null =
@@ -41,7 +41,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     opened_at_to: params.get("opened_at_to") ?? undefined,
     closed_at_from: params.get("closed_at_from") ?? undefined,
     closed_at_to: params.get("closed_at_to") ?? undefined,
-    tag_ids: tagIdsRaw ? tagIdsRaw.split(",").filter(Boolean) : undefined,
+    taxonomy_ids: taxonomyIdsRaw ? taxonomyIdsRaw.split(",").filter(Boolean) : undefined,
     playbook_id: params.get("playbook_id") ?? undefined,
     pnl_positive,
     status: status === "all" ? null : status,

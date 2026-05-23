@@ -280,11 +280,11 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
   };
 
   const handleTaxonomyToggle = (taxonomyId: string) => {
-    const current = filters.tag_ids ?? [];
+    const current = filters.taxonomy_ids ?? [];
     const updated = current.includes(taxonomyId)
       ? current.filter((id) => id !== taxonomyId)
       : [...current, taxonomyId];
-    onChange({ ...filters, tag_ids: updated.length ? updated : undefined });
+    onChange({ ...filters, taxonomy_ids: updated.length ? updated : undefined });
   };
 
   const handleAccountChange = (accountIds: string[]) => {
