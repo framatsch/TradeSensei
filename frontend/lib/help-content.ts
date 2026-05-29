@@ -42,6 +42,21 @@ export interface HelpSection {
 // ─── Dictionary ───────────────────────────────────────────────────────────────
 
 export const HELP_SECTIONS: HelpSection[] = [
+  // ── Dashboard Filters ────────────────────────────────────────────────────
+  {
+    heading: "Dashboard Filters",
+    entries: [
+      {
+        id: "open-closed-filter",
+        label: "Open vs. Closed Trades",
+        summary: "Why you should usually filter by 'Closed' trades for performance analysis.",
+        detail:
+          "Open trades have no realized P&L yet, so their P&L is treated as $0. If you include 'Open' trades (or select 'Both'), these trades inflate your total trade count without contributing to wins or losses. This artificially lowers your Win Rate and Expectancy. To get accurate statistical metrics (like Win Rate, R-Multiple, Sharpe Ratio), always keep the filter set to 'Closed'. Only include 'Open' if you want to analyze your current floating exposure.",
+        bad: "Including open trades in your reporting will artificially lower your Win Rate.",
+      },
+    ],
+  },
+
   // ── Dashboard Metrics ────────────────────────────────────────────────────
   {
     heading: "Dashboard Metrics",

@@ -46,6 +46,7 @@ const baseTrade: Trade = {
   exit_price: null,
   stop_loss: null,
   take_profit: null,
+  is_modelbook: false,
   opened_at: "2024-01-01T00:00:00Z",
   closed_at: null,
   pnl: null,

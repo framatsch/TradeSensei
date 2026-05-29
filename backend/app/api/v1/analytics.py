@@ -20,6 +20,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import RETURN_DISTRIBUTION_DEFAULT_BUCKETS
 from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import Spec5NotDeployedError
@@ -38,6 +39,7 @@ from app.schemas.analytics import (
     MetadataCorrelationResponse,
 )
 from app.schemas.common import ResponseEnvelope
+from app.schemas.timeseries import ReturnDistribution
 from app.services.analytics_service import AnalyticsService
 from app.services.attribution_service import AttributionService
 from app.services.metadata_correlation_service import MetadataCorrelationService
@@ -171,3 +173,27 @@ async def get_market_phase_correlation(
     except Spec5NotDeployedError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
     return ResponseEnvelope[AttributionResponse](data=data)
+
+@router.post(
+    "/return-distribution",
+    response_model=ResponseEnvelope[list[ReturnDistribution]],
+    summary="Compute return distribution",
+    description="Compute return distribution histogram using optional dashboard filters.",
+)
+async def get_analytics_return_distribution(
+    portfolio_id: uuid.UUID,
+    payload: AnalyticsSummaryRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AnalyticsService, Depends(_get_analytics_service)],
+    buckets: int = Query(
+        RETURN_DISTRIBUTION_DEFAULT_BUCKETS,
+        description="Number of equal-width histogram bins.",
+    ),
+) -> ResponseEnvelope[list[ReturnDistribution]]:
+    data = await service.get_return_distribution(
+        portfolio_id=portfolio_id,
+        user_id=current_user.id,
+        request=payload,
+        buckets=buckets,
+    )
+    return ResponseEnvelope[list[ReturnDistribution]](data=data)

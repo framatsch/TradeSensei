@@ -24,7 +24,6 @@ import type { DashboardFilterConfig } from "@/lib/api/types.gen";
 export interface FilterConfig extends DashboardFilterConfig {
   account_ids: string[];
   viewId: string | null;
-  includeOpenTrades: boolean;
 }
 
 interface WorkspaceFilterContextValue {
@@ -48,7 +47,7 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
       playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
       taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : [],
       account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
-      includeOpenTrades: searchParams.get("include_open") === "true",
+      status: (searchParams.get("status") as "open" | "closed" | null) || null,
       viewId: searchParams.get("view_id") || null,
     };
   }, [searchParams]);
@@ -64,7 +63,7 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
         playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
         taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : [],
         account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
-        includeOpenTrades: searchParams.get("include_open") === "true",
+        status: (searchParams.get("status") as "open" | "closed" | null) || null,
         viewId: searchParams.get("view_id") || null,
       };
 
@@ -87,7 +86,7 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
     if (debouncedFilter.playbook_ids && debouncedFilter.playbook_ids.length > 0) { params.set("playbook_ids", debouncedFilter.playbook_ids.join(",")); }
     if (debouncedFilter.taxonomy_ids && debouncedFilter.taxonomy_ids.length > 0) { params.set("taxonomy_ids", debouncedFilter.taxonomy_ids.join(",")); }
     if (debouncedFilter.account_ids && debouncedFilter.account_ids.length > 0) { params.set("accountIds", debouncedFilter.account_ids.join(",")); }
-    if (debouncedFilter.includeOpenTrades) { params.set("include_open", "true"); }
+    if (debouncedFilter.status) { params.set("status", debouncedFilter.status); }
     if (debouncedFilter.viewId) { params.set("view_id", debouncedFilter.viewId); }
 
     const newSearch = params.toString();

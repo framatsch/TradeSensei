@@ -107,7 +107,7 @@ export default function WorkspaceReportingPage() {
   } = useMarketPhaseCorrelation(portfolioId, filter, filter.viewId);
 
   const { data: returnDistribution, isLoading: distributionLoading } =
-    useReturnDistribution(portfolioId, filter);
+    useReturnDistribution(portfolioId, filter, filter.viewId);
 
   const heatmapCells = useMemo(
     () => toHeatmapCells(attribution?.buckets, attribution?.unmatched_trade_count ?? 0),
@@ -165,8 +165,8 @@ export default function WorkspaceReportingPage() {
                 <MetricCard label="Win Rate" value={`${(parseFloat(summary.win_rate) * 100).toFixed(1)}%`} helpAnchor="win-rate" />
                 <MetricCard label="Profit Factor" value={summary.profit_factor ? parseFloat(summary.profit_factor).toFixed(2) : "—"} helpAnchor="profit-factor" />
                 <MetricCard label="Total Trades" value={String(summary.total_trades)} />
-                <MetricCard label="Gross Profit" value={summary.gross_profit ? `$${summary.gross_profit}` : "—"} trend="up" helpAnchor="gross-profit" />
-                <MetricCard label="Gross Loss" value={summary.gross_loss ? `$${summary.gross_loss}` : "—"} trend="down" helpAnchor="gross-loss" />
+                <MetricCard label="Gross Profit" value={summary.gross_profit ? `$${parseFloat(summary.gross_profit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"} trend="up" helpAnchor="gross-profit" />
+                <MetricCard label="Gross Loss" value={summary.gross_loss ? `$${parseFloat(summary.gross_loss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"} trend="down" helpAnchor="gross-loss" />
               </div>
             )}
 

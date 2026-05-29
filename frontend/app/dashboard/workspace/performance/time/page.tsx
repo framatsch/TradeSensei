@@ -47,13 +47,6 @@ export default function TimeAnalysisPage() {
 
       {isLoading && data.length === 0 ? (
         <WidgetGridSkeleton />
-      ) : !isLoading && data.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-base font-medium text-foreground">No data for this period</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Adjust your filters or import trades to see time analysis.
-          </p>
-        </div>
       ) : (
         <div className="animate-fade-in">
           <PerformanceAnalysisDashboard

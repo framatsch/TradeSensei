@@ -74,9 +74,11 @@ class AttributionRepository:
             Account.portfolio_id == portfolio_id,
         ]
 
-        if not filter_config.include_open_trades:
+        if filter_config.status == "closed":
             predicates.append(Trade.closed_at.is_not(None))
             predicates.append(Trade.pnl.is_not(None))
+        elif filter_config.status == "open":
+            predicates.append(Trade.closed_at.is_(None))
 
         if filter_config.date_from is not None:
             predicates.append(cast(Trade.closed_at, Date) >= filter_config.date_from)

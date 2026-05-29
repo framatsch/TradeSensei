@@ -27,6 +27,7 @@
 
 "use client";
 
+import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -168,7 +169,7 @@ export function WorkspaceFilterBar() {
   const playbookIds = filter.playbook_ids || [];
   const tagIds = filter.taxonomy_ids || [];
   const accountIds = filter.account_ids || [];
-  const includeOpenTrades = filter.includeOpenTrades;
+  const status = (filter as any).status as "open" | "closed" | null;
   const viewId = filter.viewId;
 
   const setDateFrom = useCallback((date: string | null) => setFilter(prev => ({ ...prev, date_from: date })), [setFilter]);
@@ -176,7 +177,7 @@ export function WorkspaceFilterBar() {
   const setPlaybookIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, playbook_ids: ids })), [setFilter]);
   const setTagIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, taxonomy_ids: ids })), [setFilter]);
   const setAccountIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, account_ids: ids })), [setFilter]);
-  const setIncludeOpenTrades = useCallback((inc: boolean) => setFilter(prev => ({ ...prev, includeOpenTrades: inc })), [setFilter]);
+  const setStatus = useCallback((s: "open" | "closed" | null) => setFilter(prev => ({ ...prev, status: s })), [setFilter]);
   const setViewId = useCallback((id: string | null) => setFilter(prev => ({ ...prev, viewId: id })), [setFilter]);
   const setFilters = useCallback((f: any) => setFilter(prev => ({ 
     ...prev,
@@ -184,7 +185,7 @@ export function WorkspaceFilterBar() {
     date_to: f.dateTo !== undefined ? f.dateTo : prev.date_to,
       playbook_ids: f.playbookIds !== undefined ? f.playbookIds : prev.playbook_ids,
       account_ids: f.accountIds !== undefined ? f.accountIds : prev.account_ids,
-    includeOpenTrades: f.includeOpenTrades !== undefined ? f.includeOpenTrades : prev.includeOpenTrades,
+    status: f.status !== undefined ? f.status : (prev as any).status,
     viewId: f.viewId !== undefined ? f.viewId : prev.viewId
   })), [setFilter]);
 
@@ -214,10 +215,10 @@ export function WorkspaceFilterBar() {
     setTagIds(ids);
   }, [viewId, setViewId, setTagIds]);
 
-  const handleSetIncludeOpenTrades = useCallback((val: boolean) => {
+  const handleSetStatus = useCallback((val: "open" | "closed" | null) => {
     if (viewId) setViewId(null);
-    setIncludeOpenTrades(val);
-  }, [viewId, setViewId, setIncludeOpenTrades]);
+    setStatus(val);
+  }, [viewId, setViewId, setStatus]);
 
   // ── Saved views logic ────────────────────────────────────────────────────
   const { data: savedViews } = useSavedViews(portfolioId);
@@ -241,9 +242,7 @@ export function WorkspaceFilterBar() {
       if (cfg.playbook_ids && cfg.playbook_ids.length > 0) count++;
       if (cfg.account_ids && cfg.account_ids.length > 0) count++;
       if (cfg.date_from || cfg.date_to) count++;
-      // backend doesn't have an includeOpenTrades concept currently in DashboardFilterConfig natively,
-      // but we'll just check if it existed:
-      // (For now, we count 1 for each active filter block)
+      if (cfg.status) count++;
       return count;
     }
     
@@ -251,9 +250,9 @@ export function WorkspaceFilterBar() {
     if (tagIds && tagIds.length > 0) count++;
     if (accountIds && accountIds.length > 0) count++;
     if (dateFrom || dateTo) count++;
-    if (includeOpenTrades) count++;
+    if (status) count++;
     return count;
-  }, [playbookIds, tagIds, accountIds, dateFrom, dateTo, includeOpenTrades, activeView]);
+  }, [playbookIds, tagIds, accountIds, dateFrom, dateTo, status, activeView]);
 
   const filterConfig = useMemo(() => {
     const config: DashboardFilterConfig = {};
@@ -262,9 +261,9 @@ export function WorkspaceFilterBar() {
     if (playbookIds.length > 0) config.playbook_ids = playbookIds;
     if (accountIds.length > 0) config.account_ids = accountIds;
     if (tagIds.length > 0) config.taxonomy_ids = tagIds;
-    if (includeOpenTrades) config.include_open_trades = includeOpenTrades;
+    if (status) config.status = status;
     return config;
-  }, [dateFrom, dateTo, playbookIds, tagIds, accountIds, includeOpenTrades]);
+  }, [dateFrom, dateTo, playbookIds, tagIds, accountIds, status]);
 
   const handleSaveView = useCallback(() => {
     if (!saveViewName.trim() || !portfolioId) return;
@@ -439,7 +438,7 @@ export function WorkspaceFilterBar() {
             accountIds.length > 0 ||
             dateFrom ||
             dateTo ||
-            includeOpenTrades) ? 1 : 0) > 0 && (
+            status) ? 1 : 0) > 0 && (
               <button
                 type="button"
                 className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
@@ -449,7 +448,7 @@ export function WorkspaceFilterBar() {
                   setPlaybookIds([]);
                   setTagIds([]);
                   setAccountIds([]);
-                  setIncludeOpenTrades(false);
+                  setStatus(null);
                 }}
               >
                 Clear all
@@ -514,14 +513,17 @@ export function WorkspaceFilterBar() {
 
             {/* Trade status toggle */}
             <div>
-              <label className={LABEL_CLASS}>Trade Status</label>
+              <label className={`${LABEL_CLASS} flex items-center gap-1.5`}>
+                Trade Status
+                <MetricHelpLink anchor="open-closed-filter" />
+              </label>
               <div className="flex items-center gap-3 pt-1">
                 <button
                   type="button"
-                  title="Include closed only"
-                  onClick={() => setIncludeOpenTrades(false)}
+                  title="Closed trades only"
+                  onClick={() => handleSetStatus(status === "closed" ? null : "closed")}
                   className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
-                    !includeOpenTrades
+                    status === "closed"
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
@@ -530,10 +532,10 @@ export function WorkspaceFilterBar() {
                 </button>
                 <button
                   type="button"
-                  title="Include opened only"
-                  onClick={() => setIncludeOpenTrades(true)}
+                  title="Open trades only"
+                  onClick={() => handleSetStatus(status === "open" ? null : "open")}
                   className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
-                    includeOpenTrades
+                    status === "open"
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}

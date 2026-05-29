@@ -22,7 +22,7 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import EQUITY_CURVE_MAX_POINTS, FX_ECB_FALLBACK_DAYS
+from app.core.constants import EQUITY_CURVE_MAX_POINTS, FX_ECB_FALLBACK_DAYS, RETURN_DISTRIBUTION_DEFAULT_BUCKETS
 from app.core.exceptions import (
     PlaybookNotFoundError,
     SavedDashboardViewNotFoundError,
@@ -44,9 +44,11 @@ from app.schemas.analytics import (
     EquityCurvePoint,
     PerCurrencySummary,
 )
+from app.schemas.timeseries import ReturnDistribution
 from app.services.cache_service import CacheService
 
 _ZERO = Decimal("0")
+_ONE = Decimal("1")
 
 
 @dataclass(slots=True)
@@ -474,4 +476,69 @@ class AnalyticsService:
                 )
 
         await self._cache.set(cache_key, result.model_dump_json(), ttl=300)
+        return result
+
+    async def get_return_distribution(
+        self,
+        *,
+        portfolio_id: uuid.UUID,
+        user_id: uuid.UUID,
+        request: AnalyticsSummaryRequest,
+        buckets: int = RETURN_DISTRIBUTION_DEFAULT_BUCKETS,
+    ) -> list[ReturnDistribution]:
+        """Return analytics return distribution from inline filter config or saved view."""
+        filter_config = await self._resolve_filter_config(
+            portfolio_id=portfolio_id,
+            user_id=user_id,
+            request=request,
+        )
+
+        raw = await self._repo.compute_summary(
+            portfolio_id=portfolio_id,
+            user_id=user_id,
+            filter_config=filter_config,
+            session=self._session,
+        )
+        source_rows = raw["equity_rows"]
+
+        if not source_rows:
+            return []
+
+        pnl_values = [row["pnl"] for row in source_rows]
+        total = len(pnl_values)
+
+        min_pnl = min(pnl_values)
+        max_pnl = max(pnl_values)
+
+        if min_pnl == max_pnl:
+            return [
+                ReturnDistribution(
+                    bucket_min=min_pnl,
+                    bucket_max=max_pnl,
+                    count=total,
+                    frequency=_ONE,
+                )
+            ]
+
+        bucket_width = (max_pnl - min_pnl) / Decimal(buckets)
+        counts = [0] * buckets
+
+        for pnl in pnl_values:
+            idx = int((pnl - min_pnl) / bucket_width)
+            if idx >= buckets:
+                idx = buckets - 1
+            counts[idx] += 1
+
+        result: list[ReturnDistribution] = []
+        for i in range(buckets):
+            bucket_min = min_pnl + bucket_width * Decimal(i)
+            bucket_max = bucket_min + bucket_width
+            result.append(
+                ReturnDistribution(
+                    bucket_min=bucket_min,
+                    bucket_max=bucket_max,
+                    count=counts[i],
+                    frequency=Decimal(counts[i]) / Decimal(total),
+                )
+            )
         return result

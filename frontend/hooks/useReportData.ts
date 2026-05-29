@@ -124,9 +124,32 @@ export function useReportData(portfolioIdParam?: string | null, filterConfig?: D
       const to = new Date(`${filterConfig.date_to}T23:59:59Z`).getTime();
       filtered = filtered.filter(t => t.closed_at && new Date(t.closed_at).getTime() <= to);
     }
+
+    if (filterConfig?.playbook_ids && filterConfig.playbook_ids.length > 0) {
+      filtered = filtered.filter(t => t.playbook_id && filterConfig.playbook_ids!.includes(t.playbook_id));
+    }
+
+    if (filterConfig?.taxonomy_ids && filterConfig.taxonomy_ids.length > 0) {
+      filtered = filtered.filter(t => t.taxonomies?.some(tax => filterConfig.taxonomy_ids!.includes(tax.id)));
+    }
+
+    const status = (filterConfig as any)?.status;
+    if (status === "closed") {
+      filtered = filtered.filter(t => t.closed_at !== null && t.closed_at !== undefined);
+    } else if (status === "open") {
+      filtered = filtered.filter(t => t.closed_at === null || t.closed_at === undefined);
+    }
     
     return filtered;
-  }, [allTrades, accountIds.join(","), filterConfig?.date_from, filterConfig?.date_to]);
+  }, [
+    allTrades, 
+    accountIds.join(","), 
+    filterConfig?.date_from, 
+    filterConfig?.date_to,
+    filterConfig?.playbook_ids?.join(","),
+    filterConfig?.taxonomy_ids?.join(","),
+    (filterConfig as any)?.status
+  ]);
 
 
   const calendarData = useMemo((): DailyTradeData[] => {

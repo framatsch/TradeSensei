@@ -31,7 +31,7 @@ import { useReportData } from "@/hooks/useReportData";
 import {
   getAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPost,
   getMarketPhaseCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMarketPhasePost,
-  getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet,
+  getAnalyticsReturnDistributionApiV1PortfoliosPortfolioIdAnalyticsReturnDistributionPost,
 } from "@/lib/api";
 import type {
   AnalyticsSummary,
@@ -147,28 +147,30 @@ export function useMarketPhaseCorrelation(
 export function useReturnDistribution(
   portfolioId: string | null,
   filterConfig: DashboardFilterConfig | null,
+  viewId?: string | null,
 ) {
   return useQuery<ReturnDistribution[], Error>({
     queryKey: [
       "return-distribution",
       portfolioId,
       filterConfig ? JSON.stringify(filterConfig) : null,
+      viewId ?? null,
     ],
     queryFn: async ({ signal }) => {
       if (!portfolioId) throw new Error("No portfolio selected");
 
+      const body: AnalyticsSummaryRequest = {};
+      if (viewId) {
+        body.view_id = viewId;
+      } else {
+        body.filter_config = filterConfig || {};
+      }
+
       const { data, error } =
-        await getReturnDistributionApiV1PortfoliosPortfolioIdTimeseriesReturnDistributionGet(
+        await getAnalyticsReturnDistributionApiV1PortfoliosPortfolioIdAnalyticsReturnDistributionPost(
           {
             path: { portfolio_id: portfolioId },
-            query: {
-              from_dt: filterConfig?.date_from
-                ? `${filterConfig.date_from}T00:00:00Z`
-                : undefined,
-              to_dt: filterConfig?.date_to
-                ? `${filterConfig.date_to}T23:59:59Z`
-                : undefined,
-            },
+            body,
             signal,
           } as any
         );

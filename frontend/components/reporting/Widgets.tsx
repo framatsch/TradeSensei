@@ -370,15 +370,15 @@ export function MaeMfeScatterWidget({
   return (
     <ChartShell
       title="MAE / MFE"
-      isEmpty={!data || data.length === 0 || !!exceeded}
+      isEmpty={!!exceeded}
       emptyMessage={
         exceeded
-          ? `Too many points (${data.length}). Please narrow your filter to view this chart.`
-          : "No execution data available."
+          ? `Too many points (${data?.length}). Please narrow your filter to view this chart.`
+          : ""
       }
       helpAnchor="mae-mfe"
     >
-      {!exceeded && data && data.length > 0 && (
+      {!exceeded && data && (
         <ResponsiveContainer width="100%" height={300}>
           <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -452,15 +452,15 @@ export function DurationVsPnlScatterWidget({
   return (
     <ChartShell
       title="Duration vs P&L"
-      isEmpty={!data || data.length === 0 || !!exceeded}
+      isEmpty={!!exceeded}
       emptyMessage={
         exceeded
-          ? `Too many points (${data.length}). Please narrow your filter to view this chart.`
-          : "No execution data available."
+          ? `Too many points (${data?.length}). Please narrow your filter to view this chart.`
+          : ""
       }
       helpAnchor="duration-vs-pnl"
     >
-      {!exceeded && data && data.length > 0 && (
+      {!exceeded && data && (
         <ResponsiveContainer width="100%" height={300}>
           <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" />

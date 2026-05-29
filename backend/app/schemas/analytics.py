@@ -44,9 +44,9 @@ class DashboardFilterConfig(BaseModel):
         default=None,
         description="Optional list of taxonomy IDs used to filter trades.",
     )
-    include_open_trades: bool = Field(
-        default=False,
-        description="When true, open trades (without a close date) are included in the analytics calculations where applicable.",
+    status: Literal["open", "closed"] | None = Field(
+        default=None,
+        description="Optional status filter. If 'open', only open trades are included. If 'closed', only closed trades are included. If None, both are included.",
     )
     direction: Direction | None = Field(
         default=None,
