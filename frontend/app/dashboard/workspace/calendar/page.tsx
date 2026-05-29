@@ -29,7 +29,7 @@ export default function CalendarPage() {
 
   const handleDayClick = (dateStr: string) => {
     // Calendar component ensures only days with trades are clickable
-    router.push(`/dashboard/trades?date_from=${dateStr}&date_to=${dateStr}`);
+    router.push(`/dashboard/trades?closed_at_from=${dateStr}&closed_at_to=${dateStr}`);
   };
 
   return (
