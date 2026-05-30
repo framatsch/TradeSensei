@@ -28,6 +28,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "@/lib/api/client.gen";
 import { usePortfolioStore } from "@/stores/portfolioStore";
+import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
 import type { Trade, CursorPage } from "@/lib/types";
 import type { PerformanceDataPoint } from "@/components/analytics/PerformanceAnalysisDashboard";
 import type { DailyTradeData } from "@/components/calendar/types";
@@ -96,6 +97,7 @@ async function fetchAllTrades(portfolioId?: string, signal?: AbortSignal): Promi
 
 export function useReportData(portfolioIdParam?: string | null, filterConfig?: DashboardFilterConfig | null) {
   const storePortfolioId = usePortfolioStore((state) => state.activePortfolioId);
+  const showOpenTrades = useShowOpenTrades();
   const portfolioId = portfolioIdParam || storePortfolioId;
   const accountIds = filterConfig?.account_ids || [];
 
@@ -133,7 +135,7 @@ export function useReportData(portfolioIdParam?: string | null, filterConfig?: D
       filtered = filtered.filter(t => t.taxonomies?.some(tax => filterConfig.taxonomy_ids!.includes(tax.id)));
     }
 
-    const status = (filterConfig as any)?.status;
+    const status = showOpenTrades ? (filterConfig as any)?.status : "closed";
     if (status === "closed") {
       filtered = filtered.filter(t => t.closed_at !== null && t.closed_at !== undefined);
     } else if (status === "open") {
@@ -148,7 +150,8 @@ export function useReportData(portfolioIdParam?: string | null, filterConfig?: D
     filterConfig?.date_to,
     filterConfig?.playbook_ids?.join(","),
     filterConfig?.taxonomy_ids?.join(","),
-    (filterConfig as any)?.status
+    (filterConfig as any)?.status,
+    showOpenTrades,
   ]);
 
 

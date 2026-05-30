@@ -1402,12 +1402,6 @@ export type DailyCheckinRead = {
         [key: string]: number | boolean;
     } | null;
     /**
-     * Is Modelbook
-     *
-     * True if this check-in is starred in the Model Book.
-     */
-    is_modelbook: boolean;
-    /**
      * Target Indices
      *
      * Associated market indices for this check-in.
@@ -1483,12 +1477,6 @@ export type DailyCheckinUpdate = {
     custom_metrics?: {
         [key: string]: number | boolean;
     } | null;
-    /**
-     * Is Modelbook
-     *
-     * True if this check-in should be starred in the Model Book. Omit to leave unchanged.
-     */
-    is_modelbook?: boolean | null;
 };
 
 /**
@@ -2451,172 +2439,6 @@ export type MetricsSummary = {
      * Ordered list of drawdown data points corresponding to each equity curve entry.
      */
     drawdown_curve: Array<AppSchemasMetricsDrawdownPoint>;
-};
-
-/**
- * ModelBookCheckinVariant
- *
- * Model Book entry variant representing a starred check-in.
- */
-export type ModelBookCheckinVariant = {
-    /**
-     * Type
-     */
-    type?: 'checkin';
-    /**
-     * Id
-     *
-     * Check-in ID
-     */
-    id: string;
-    /**
-     * Date
-     *
-     * Date of the check-in (stored as datetime for sorting)
-     */
-    date: string;
-    /**
-     * Market Phase
-     *
-     * Market phase
-     */
-    market_phase: string | null;
-    /**
-     * Screenshot Urls
-     *
-     * Check-in screenshot URLs
-     */
-    screenshot_urls: Array<string>;
-    /**
-     * Regime Color
-     *
-     * Calculated regime color
-     */
-    regime_color?: string | null;
-    /**
-     * Target Indices
-     *
-     * Target indices
-     */
-    target_indices?: Array<TargetIndexRead>;
-};
-
-/**
- * ModelBookEntriesPage
- *
- * Paginated list of Model Book entries.
- */
-export type ModelBookEntriesPage = {
-    /**
-     * Items
-     *
-     * Mixed list of trades and check-ins.
-     */
-    items: Array<({
-        type: 'trade';
-    } & ModelBookTradeVariant) | ({
-        type: 'checkin';
-    } & ModelBookCheckinVariant)>;
-    /**
-     * Total
-     *
-     * Total number of matched entries.
-     */
-    total: number;
-    /**
-     * Page
-     *
-     * Current page number.
-     */
-    page: number;
-    /**
-     * Per Page
-     *
-     * Number of items per page.
-     */
-    per_page: number;
-    /**
-     * Next Cursor
-     *
-     * Cursor for the next page if using cursor pagination.
-     */
-    next_cursor?: string | null;
-};
-
-/**
- * ModelBookPatchRequest
- *
- * Payload for starring/unstarring an entity.
- */
-export type ModelBookPatchRequest = {
-    /**
-     * Is Modelbook
-     *
-     * True to star, false to unstar.
-     */
-    is_modelbook: boolean;
-};
-
-/**
- * ModelBookTradeVariant
- *
- * Model Book entry variant representing a starred trade.
- */
-export type ModelBookTradeVariant = {
-    /**
-     * Type
-     */
-    type?: 'trade';
-    /**
-     * Id
-     *
-     * Trade ID
-     */
-    id: string;
-    /**
-     * Date
-     *
-     * Opened timestamp of the trade
-     */
-    date: string;
-    /**
-     * Symbol
-     *
-     * Trade symbol
-     */
-    symbol: string;
-    /**
-     * Trade direction
-     */
-    direction: Direction;
-    /**
-     * Asset class
-     */
-    asset_class: AssetClass | null;
-    /**
-     * Result R
-     *
-     * Trade Result (R-multiple)
-     */
-    result_r?: string | null;
-    /**
-     * Net Pnl
-     *
-     * Trade Net PnL
-     */
-    net_pnl?: string | null;
-    /**
-     * Image Urls
-     *
-     * Trade image URLs
-     */
-    image_urls: Array<string>;
-    /**
-     * Tags
-     *
-     * Trade tags/taxonomies
-     */
-    tags: Array<string>;
 };
 
 /**
@@ -3907,24 +3729,6 @@ export type ResponseEnvelopeMetricsSummary = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: MetricsSummary;
-    /**
-     * Meta
-     *
-     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
-     */
-    meta?: {
-        [key: string]: unknown;
-    };
-};
-
-/**
- * ResponseEnvelope[ModelBookEntriesPage]
- */
-export type ResponseEnvelopeModelBookEntriesPage = {
-    /**
-     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
-     */
-    data: ModelBookEntriesPage;
     /**
      * Meta
      *
@@ -5941,12 +5745,6 @@ export type TradeRead = {
      */
     is_manually_edited?: boolean;
     /**
-     * Is Modelbook
-     *
-     * True if this trade is starred in the Model Book.
-     */
-    is_modelbook?: boolean;
-    /**
      * Created At
      *
      * UTC timestamp of when this record was inserted into the database.
@@ -6049,12 +5847,6 @@ export type TradeUpdate = {
      * Updated playbook UUID. Set to null to clear. Omit to leave unchanged.
      */
     playbook_id?: string | null;
-    /**
-     * Is Modelbook
-     *
-     * True if this trade should be starred in the Model Book. Omit to leave unchanged.
-     */
-    is_modelbook?: boolean | null;
     /**
      * Taxonomy Ids
      *
@@ -6189,6 +5981,10 @@ export type UserSettingsRead = {
      */
     default_portfolio_id?: string | null;
     /**
+     * Show Open Trades
+     */
+    show_open_trades?: boolean;
+    /**
      * Home Route
      */
     home_route?: '/dashboard' | '/dashboard/trades' | '/dashboard/library' | '/dashboard/checkins';
@@ -6242,6 +6038,10 @@ export type UserSettingsUpdate = {
      * Default Portfolio Id
      */
     default_portfolio_id?: string | null;
+    /**
+     * Show Open Trades
+     */
+    show_open_trades?: boolean | null;
     /**
      * Home Route
      */
@@ -7980,40 +7780,6 @@ export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponses = {
 };
 
 export type MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponse = MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponses[keyof MergeTradesApiV1PortfoliosPortfolioIdTradesMergePostResponses];
-
-export type UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchData = {
-    body: ModelBookPatchRequest;
-    path: {
-        /**
-         * Trade Id
-         */
-        trade_id: string;
-        /**
-         * Portfolio Id
-         */
-        portfolio_id: string;
-    };
-    query?: never;
-    url: '/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/modelbook';
-};
-
-export type UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchError = UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchErrors[keyof UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchErrors];
-
-export type UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: ResponseEnvelopeTradeRead;
-};
-
-export type UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchResponse = UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchResponses[keyof UpdateTradeModelbookApiV1PortfoliosPortfolioIdTradesTradeIdModelbookPatchResponses];
 
 export type GetTradeImageUploadUrlApiV1TradesUploadUrlPostData = {
     body: TradeImageUploadUrlRequest;
@@ -11239,36 +11005,6 @@ export type UpdateCheckinApiV1CheckinsCheckinDatePatchResponses = {
 
 export type UpdateCheckinApiV1CheckinsCheckinDatePatchResponse = UpdateCheckinApiV1CheckinsCheckinDatePatchResponses[keyof UpdateCheckinApiV1CheckinsCheckinDatePatchResponses];
 
-export type UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchData = {
-    body: ModelBookPatchRequest;
-    path: {
-        /**
-         * Checkin Date
-         */
-        checkin_date: string;
-    };
-    query?: never;
-    url: '/api/v1/checkins/{checkin_date}/modelbook';
-};
-
-export type UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchError = UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchErrors[keyof UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchErrors];
-
-export type UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: ResponseEnvelopeDailyCheckinRead;
-};
-
-export type UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchResponse = UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchResponses[keyof UpdateCheckinModelbookApiV1CheckinsCheckinDateModelbookPatchResponses];
-
 export type AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostData = {
     body: TaxonomyAssignRequest;
     path: {
@@ -11760,62 +11496,6 @@ export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses =
 };
 
 export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponse = UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses[keyof UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses];
-
-export type GetModelBookEntriesApiV1ModelBookEntriesGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Entity Type
-         *
-         * Filter by entity type
-         */
-        entity_type?: 'trade' | 'checkin' | 'all';
-        /**
-         * From Date
-         *
-         * Start date (inclusive)
-         */
-        from_date?: string | null;
-        /**
-         * To Date
-         *
-         * End date (inclusive)
-         */
-        to_date?: string | null;
-        /**
-         * Page
-         *
-         * Page number
-         */
-        page?: number;
-        /**
-         * Per Page
-         *
-         * Items per page
-         */
-        per_page?: number;
-    };
-    url: '/api/v1/model-book/entries';
-};
-
-export type GetModelBookEntriesApiV1ModelBookEntriesGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetModelBookEntriesApiV1ModelBookEntriesGetError = GetModelBookEntriesApiV1ModelBookEntriesGetErrors[keyof GetModelBookEntriesApiV1ModelBookEntriesGetErrors];
-
-export type GetModelBookEntriesApiV1ModelBookEntriesGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ResponseEnvelopeModelBookEntriesPage;
-};
-
-export type GetModelBookEntriesApiV1ModelBookEntriesGetResponse = GetModelBookEntriesApiV1ModelBookEntriesGetResponses[keyof GetModelBookEntriesApiV1ModelBookEntriesGetResponses];
 
 export type McpStreamableMcpPostData = {
     body?: never;

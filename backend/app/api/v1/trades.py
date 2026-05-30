@@ -34,7 +34,6 @@ from app.core.exceptions import (
 )
 from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
-from app.schemas.model_book import ModelBookPatchRequest
 from app.schemas.trade import (
     BulkAssignPlaybookRequest,
     BulkAssignTaxonomiesRequest,
@@ -425,6 +424,7 @@ async def list_trades(
     # so taxonomy_ids is declared separately and merged here.
     if taxonomy_ids is not None:
         filters.taxonomy_ids = taxonomy_ids
+
     selected_account_ids = account_ids[:] if account_ids is not None else []
     if account_id is not None:
         selected_account_ids.append(account_id)
@@ -660,22 +660,3 @@ async def merge_trades(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
-
-
-@router.patch("/{trade_id}/modelbook", response_model=ResponseEnvelope[TradeRead])
-async def update_trade_modelbook(
-    trade_id: uuid.UUID,
-    payload: ModelBookPatchRequest,
-    service: Annotated[TradeService, Depends(_get_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-) -> ResponseEnvelope[TradeRead]:
-    """Star or unstar a trade for the Model Book."""
-    try:
-        trade = await service.update_modelbook_flag(
-            trade_id,
-            payload.is_modelbook,
-            current_user.id,
-        )
-        return ResponseEnvelope[TradeRead](data=trade)
-    except TradeNotFoundError:
-        _raise_not_found()

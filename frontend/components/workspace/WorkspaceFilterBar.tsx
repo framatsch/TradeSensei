@@ -35,6 +35,7 @@ import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useSavedViews, useSaveView, useUpdateView, useDeleteView } from "@/hooks/useReportingViews";
 import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
+import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw, Filter as FilterIcon, Lock } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { DashboardFilterConfig } from "@/lib/api/types.gen";
@@ -160,6 +161,7 @@ function MultiSelect({
 
 export function WorkspaceFilterBar() {
   const [collapsed, setCollapsed] = useState(false);
+  const showOpenTrades = useShowOpenTrades();
 
   const { filter, setFilter } = useWorkspaceFilter();
   const portfolioId = useActivePortfolioId();
@@ -512,38 +514,40 @@ export function WorkspaceFilterBar() {
             />
 
             {/* Trade status toggle */}
-            <div>
-              <label className={`${LABEL_CLASS} flex items-center gap-1.5`}>
-                Trade Status
-                <MetricHelpLink anchor="open-closed-filter" />
-              </label>
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  title="Closed trades only"
-                  onClick={() => handleSetStatus(status === "closed" ? null : "closed")}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
-                    status === "closed"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Closed
-                </button>
-                <button
-                  type="button"
-                  title="Open trades only"
-                  onClick={() => handleSetStatus(status === "open" ? null : "open")}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
-                    status === "open"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Open
-                </button>
+            {showOpenTrades && (
+              <div>
+                <label className={`${LABEL_CLASS} flex items-center gap-1.5`}>
+                  Trade Status
+                  <MetricHelpLink anchor="open-closed-filter" />
+                </label>
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    title="Closed trades only"
+                    onClick={() => handleSetStatus(status === "closed" ? null : "closed")}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
+                      status === "closed"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Closed
+                  </button>
+                  <button
+                    type="button"
+                    title="Open trades only"
+                    onClick={() => handleSetStatus(status === "open" ? null : "open")}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors whitespace-nowrap ${
+                      status === "open"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Open
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}

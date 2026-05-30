@@ -76,6 +76,7 @@ describe("PortfolioEditModal", () => {
 
   it("danger zone delete button is disabled until name matches", () => {
     renderComponent();
+    fireEvent.click(screen.getByRole("button", { name: /Show Danger Zone/i }));
 
     const deleteButton = screen.getByTestId("delete-portfolio-button");
     expect(deleteButton).toBeDisabled();
@@ -87,6 +88,7 @@ describe("PortfolioEditModal", () => {
 
   it("danger zone delete button is enabled when confirm name matches (case-sensitive)", () => {
     renderComponent();
+    fireEvent.click(screen.getByRole("button", { name: /Show Danger Zone/i }));
 
     const confirmInput = screen.getByTestId("delete-confirm-input");
     fireEvent.change(confirmInput, { target: { value: "Day Trading" } });
@@ -97,6 +99,7 @@ describe("PortfolioEditModal", () => {
 
   it("danger zone delete button remains disabled with wrong case", () => {
     renderComponent();
+    fireEvent.click(screen.getByRole("button", { name: /Show Danger Zone/i }));
 
     const confirmInput = screen.getByTestId("delete-confirm-input");
     fireEvent.change(confirmInput, { target: { value: "day trading" } });
@@ -107,6 +110,7 @@ describe("PortfolioEditModal", () => {
 
   it("danger zone shows warning text", () => {
     renderComponent();
+    fireEvent.click(screen.getByRole("button", { name: /Show Danger Zone/i }));
 
     const dangerZone = screen.getByTestId("danger-zone");
     expect(dangerZone).toHaveTextContent("This will permanently delete this portfolio");
@@ -120,6 +124,7 @@ describe("PortfolioEditModal", () => {
     });
 
     renderComponent();
+    fireEvent.click(screen.getByRole("button", { name: /Show Danger Zone/i }));
 
     const confirmInput = screen.getByTestId("delete-confirm-input");
     fireEvent.change(confirmInput, { target: { value: "Day Trading" } });

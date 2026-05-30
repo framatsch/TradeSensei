@@ -204,9 +204,3 @@ class DailyCheckinService:
             raise DailyCheckinNotFoundError("daily check-in not found")
         await self._session.commit()
         await self._cache.invalidate_user(user_id)
-
-    async def update_modelbook_flag(self, user_id: uuid.UUID, checkin_date: date, is_modelbook: bool) -> DailyCheckinRead:
-        checkin = await self._repo.update_modelbook_flag(user_id, checkin_date, is_modelbook)
-        if not checkin:
-            raise DailyCheckinNotFoundError("daily check-in not found")
-        return DailyCheckinRead.model_validate(checkin)

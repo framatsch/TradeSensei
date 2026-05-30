@@ -119,7 +119,8 @@ def _make_trade(
     if pnl is not None:
         payload["pnl"] = pnl
         payload["exit_price"] = "110.00000000"
-        payload["closed_at"] = datetime(2025, 1, 15, 16, 0, tzinfo=UTC).isoformat()
+        opened = datetime.fromisoformat((opened_at or datetime(2025, 1, 15, 10, 0, tzinfo=UTC).isoformat()).replace("Z", "+00:00"))
+        payload["closed_at"] = opened.replace(hour=min(opened.hour + 1, 23)).isoformat()
     payload.update(kwargs)
     return payload
 

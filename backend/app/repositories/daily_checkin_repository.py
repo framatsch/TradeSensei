@@ -185,12 +185,3 @@ class DailyCheckinRepository:
         deleted = result.scalar_one_or_none()
         await self._session.flush()
         return deleted is not None
-
-    async def update_modelbook_flag(self, user_id: uuid.UUID, checkin_date: date, is_modelbook: bool) -> DailyCheckin | None:
-        """Update the is_modelbook flag for a checkin."""
-        checkin = await self.get_by_date_and_user(checkin_date=checkin_date, user_id=user_id)
-        if checkin:
-            checkin.is_modelbook = is_modelbook
-            await self._session.commit()
-            await self._session.refresh(checkin)
-        return checkin

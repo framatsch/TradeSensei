@@ -20,6 +20,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePortfolioStore } from "@/stores/portfolioStore";
 import type { DashboardFilterConfig } from "@/lib/api/types.gen";
+import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
 
 export interface FilterConfig extends DashboardFilterConfig {
   account_ids: string[];
@@ -38,6 +39,7 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const activePortfolioId = usePortfolioStore(s => s.activePortfolioId);
+  const showOpenTrades = useShowOpenTrades();
 
   // Read initial state from URL params
   const initialState = useMemo<FilterConfig>(() => {
@@ -47,12 +49,29 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
       playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
       taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : [],
       account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
-      status: (searchParams.get("status") as "open" | "closed" | null) || null,
+      status: showOpenTrades
+        ? (searchParams.get("status") as "open" | "closed" | null) || null
+        : "closed",
       viewId: searchParams.get("view_id") || null,
     };
-  }, [searchParams]);
+  }, [searchParams, showOpenTrades]);
 
   const [filter, setFilter] = useState<FilterConfig>(initialState);
+
+  useEffect(() => {
+    setFilter((prev) => {
+      if (showOpenTrades) {
+        if (prev.status === "closed" && !searchParams.get("status")) {
+          return { ...prev, status: null };
+        }
+        return prev;
+      }
+      if (prev.status !== "closed") {
+        return { ...prev, status: "closed" };
+      }
+      return prev;
+    });
+  }, [showOpenTrades, searchParams]);
 
   // Sync URL changes to internal state (e.g. clicking a saved view in the sidebar)
   useEffect(() => {
@@ -63,7 +82,9 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
         playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
         taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : [],
         account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
-        status: (searchParams.get("status") as "open" | "closed" | null) || null,
+        status: showOpenTrades
+          ? (searchParams.get("status") as "open" | "closed" | null) || null
+          : "closed",
         viewId: searchParams.get("view_id") || null,
       };
 
@@ -73,7 +94,7 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
       }
       return prev;
     });
-  }, [searchParams]);
+  }, [searchParams, showOpenTrades]);
 
   const debouncedFilter = useDebounce(filter, 300);
 
@@ -86,7 +107,13 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
     if (debouncedFilter.playbook_ids && debouncedFilter.playbook_ids.length > 0) { params.set("playbook_ids", debouncedFilter.playbook_ids.join(",")); }
     if (debouncedFilter.taxonomy_ids && debouncedFilter.taxonomy_ids.length > 0) { params.set("taxonomy_ids", debouncedFilter.taxonomy_ids.join(",")); }
     if (debouncedFilter.account_ids && debouncedFilter.account_ids.length > 0) { params.set("accountIds", debouncedFilter.account_ids.join(",")); }
-    if (debouncedFilter.status) { params.set("status", debouncedFilter.status); }
+    if (showOpenTrades) {
+      if (debouncedFilter.status) {
+        params.set("status", debouncedFilter.status);
+      }
+    } else {
+      params.set("status", "closed");
+    }
     if (debouncedFilter.viewId) { params.set("view_id", debouncedFilter.viewId); }
 
     const newSearch = params.toString();
@@ -95,7 +122,7 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
     if (newSearch !== currentSearch) {
       router.replace(`${pathname}?${newSearch}`, { scroll: false });
     }
-  }, [debouncedFilter, pathname, router]);
+  }, [debouncedFilter, pathname, router, showOpenTrades]);
 
   return (
     <WorkspaceFilterContext.Provider value={{ filter, setFilter }}>

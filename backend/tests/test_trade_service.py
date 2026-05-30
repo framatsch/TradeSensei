@@ -113,7 +113,6 @@ def _make_trade(
     trade.updated_at = updated_at if updated_at is not None else now  # type: ignore[assignment]
     trade.image_urls = []  # type: ignore[assignment]
     trade.is_manually_edited = False  # type: ignore[assignment]
-    trade.is_modelbook = False  # type: ignore[assignment]
     trade.is_combo = False  # type: ignore[assignment]
     trade.tags = []  # type: ignore[assignment]
     trade.trade_notes = []  # type: ignore[assignment]

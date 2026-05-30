@@ -16,10 +16,8 @@
 "use client";
 
 import { useCheckinEntry, useCreateCheckin, useUpdateCheckin, useDeleteCheckin } from "@/hooks/useCheckins";
-import { useCheckinModelBook } from "@/hooks/useCheckinModelBook";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { CheckinForm } from "@/components/checkin/CheckinForm";
-import { StarButton } from "@/components/shared/StarButton";
 import type { DailyCheckinCreate, DailyCheckinUpdate } from "@/lib/api/types.gen";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -38,7 +36,6 @@ export function CheckinDateClient({ date }: Props) {
   const createMutation = useCreateCheckin();
   const updateMutation = useUpdateCheckin();
   const deleteMutation = useDeleteCheckin();
-  const modelBookMutation = useCheckinModelBook();
 
   const handleSave = (data: DailyCheckinCreate | DailyCheckinUpdate) => {
     if (!entry) {
@@ -86,15 +83,6 @@ export function CheckinDateClient({ date }: Props) {
               </p>
             )}
           </div>
-          {entry && (
-            <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border shadow-sm">
-              <StarButton 
-                isStarred={!!entry.is_modelbook}
-                isLoading={modelBookMutation.isPending}
-                onClick={() => modelBookMutation.mutate({ date, isModelbook: !entry.is_modelbook })}
-              />
-            </div>
-          )}
         </div>
       </div>
 

@@ -23,6 +23,7 @@
 import { useState } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { useTrades } from "@/hooks/useTrades";
+import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
 import type { Trade } from "@/lib/types";
 
 interface Props {
@@ -67,11 +68,13 @@ export function TradePickerModal({
 }: Props) {
   const [search, setSearch] = useState(filterSymbol ?? "");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const showOpenTrades = useShowOpenTrades();
 
   const { data: page, isLoading } = useTrades({
     limit: 50,
     filters: {
       symbol: search.trim() || undefined,
+      status: showOpenTrades ? undefined : "closed",
     },
   });
 

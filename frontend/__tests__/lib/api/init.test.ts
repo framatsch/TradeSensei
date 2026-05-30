@@ -18,6 +18,7 @@ import { registerApiInterceptors, resetInterceptors } from "@/lib/apiInterceptor
 
 jest.mock("@/lib/api/client.gen", () => ({
   client: {
+    setConfig: jest.fn(),
     interceptors: {
       request: { clear: jest.fn(), use: jest.fn() },
       response: { clear: jest.fn(), use: jest.fn() },

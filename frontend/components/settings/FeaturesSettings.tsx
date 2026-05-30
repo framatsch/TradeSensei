@@ -35,6 +35,7 @@ export default function FeaturesSettings() {
   const [draft, setDraft] = useState<Record<string, boolean>>({});
 
   const serverFeatures = (settings?.features ?? {}) as Record<string, boolean>;
+  const showOpenTradesEnabled = settings?.show_open_trades ?? false;
   // Effective values: server state with draft overrides applied on top
   const effective = { ...serverFeatures, ...draft };
 
@@ -62,6 +63,10 @@ export default function FeaturesSettings() {
     );
   };
 
+  const handleShowOpenTradesToggle = () => {
+    update.mutate({ show_open_trades: !showOpenTradesEnabled });
+  };
+
   return (
     <div className="space-y-4 max-w-lg">
       {/* Section header */}
@@ -74,6 +79,34 @@ export default function FeaturesSettings() {
 
       {/* Flag list */}
       <div className="space-y-2">
+        <div
+          className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border bg-card"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Show Open Trades</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Show open positions in trade lists and enable the Open/Closed filter.
+            </p>
+          </div>
+
+          <button
+            role="switch"
+            aria-checked={showOpenTradesEnabled}
+            aria-label="Show Open Trades"
+            onClick={handleShowOpenTradesToggle}
+            type="button"
+            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+              showOpenTradesEnabled ? "bg-primary" : "bg-muted"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-150 ${
+                showOpenTradesEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
         {FEATURE_FLAGS.map((f) => {
           const enabled = effective[f.key] ?? false;
           return (

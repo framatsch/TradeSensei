@@ -32,8 +32,6 @@ import { CorrectTradeModal } from "@/components/trades/CorrectTradeModal";
 import { TradePickerModal } from "@/components/trades/TradePickerModal";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 import { QualitativeMetadataPanel } from "@/components/trades/QualitativeMetadataPanel";
-import { StarButton } from "@/components/shared/StarButton";
-import { useTradeModelBook } from "@/hooks/useTradeModelBook";
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -164,7 +162,6 @@ export default function TradeDetailPage() {
   const { data: trade, isLoading, isError, error } = useTrade(tradeId);
   const { data: executions = [] } = useTradeExecutions(tradeId, activePortfolioId);
   const updateTrade = useUpdateTrade(tradeId);
-  const modelBookMutation = useTradeModelBook();
   const [correctModalOpen, setCorrectModalOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [tradePickerOpen, setTradePickerOpen] = useState(false);
@@ -344,11 +341,6 @@ export default function TradeDetailPage() {
           </div>
           {/* Actions */}
           <div className="flex items-center gap-1.5 border-l border-border pl-4">
-            <StarButton 
-              isStarred={!!trade.is_modelbook} 
-              isLoading={modelBookMutation.isPending}
-              onClick={() => modelBookMutation.mutate({ tradeId: trade.id, isModelbook: !trade.is_modelbook })}
-            />
             {/* Overflow menu */}
             <div ref={overflowRef} className="relative">
             <button

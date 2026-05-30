@@ -39,6 +39,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   theme: "system",
   default_date_range: "all",
   features: {},
+  show_open_trades: false,
   chart_candles_before: 20,
   chart_candles_after: 10,
   chart_show_post_exit: false,

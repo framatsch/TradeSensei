@@ -523,6 +523,12 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         <div className="bg-card rounded-xl border border-border p-5 space-y-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-semibold text-muted-foreground">Execution Legs</h3>
+            {errors.executions?.message && typeof errors.executions.message === "string" && (
+              <span className="text-xs font-medium text-danger">{errors.executions.message}</span>
+            )}
+            {errors.executions?.root?.message && (
+              <span className="text-xs font-medium text-danger">{errors.executions.root.message}</span>
+            )}
             <button
               type="button"
               onClick={() => append({ 

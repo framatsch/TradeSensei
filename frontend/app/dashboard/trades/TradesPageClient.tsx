@@ -22,7 +22,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { SaveFilterModal } from "@/components/trades/SaveFilterModal";
 import { TradeTable } from "@/components/trades/TradeTable";
@@ -43,6 +43,7 @@ import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import { useSettings } from "@/hooks/useSettings";
+import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
 import { buildDefinitionFromFilters } from "@/lib/tradeFilterUtils";
 import type { DefaultDateRange, SavedTradeFilterRead, Trade } from "@/lib/types";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
@@ -346,6 +347,7 @@ export function TradesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: settings } = useSettings();
+  const showOpenTrades = useShowOpenTrades();
   const { activePortfolioId } = useActivePortfolio();
 
   // Active view ID is read reactively from the URL (set by sidebar navigation).
@@ -380,6 +382,14 @@ export function TradesPageClient() {
   const [showSaveFilter, setShowSaveFilter] = useState(false);
   const [showRenameView, setShowRenameView] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const requestedOpenStatus = (searchParams.get("status") ?? null) === "open";
+  const enforcedStatus = showOpenTrades ? filters.status : "closed";
+
+  useEffect(() => {
+    setBannerDismissed(false);
+  }, [requestedOpenStatus, showOpenTrades]);
 
   // Sync filters state when URL changes externally (e.g. sidebar view navigation).
   useEffect(() => {
@@ -523,7 +533,7 @@ export function TradesPageClient() {
       />
 
       <TradeFilterBar
-        filters={filters}
+        filters={{ ...filters, status: enforcedStatus }}
         onChange={handleFiltersChange}
         activeView={activeView}
         onSaveView={() => setShowSaveFilter(true)}
@@ -531,11 +541,28 @@ export function TradesPageClient() {
         onUpdateView={handleUpdateView}
         onDeleteView={handleDeleteView}
         isUpdating={isUpdating}
+        showOpenTrades={showOpenTrades}
       />
+
+      {!showOpenTrades && requestedOpenStatus && !bannerDismissed && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-foreground">
+          <span>
+            Open trades are hidden. Enable 'Show Open Trades' in Settings → Features to show them.
+          </span>
+          <button
+            type="button"
+            onClick={() => setBannerDismissed(true)}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Dismiss open-trades info banner"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <TradeTable
         portfolioId={activePortfolioId ?? undefined}
-        filters={filters}
+        filters={{ ...filters, status: enforcedStatus }}
         sort={sort}
         onSortChange={handleSortChange}
         selectedIds={selectedIds}

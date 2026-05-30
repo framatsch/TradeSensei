@@ -359,9 +359,10 @@ async def test_attribution_endpoint_core_flows(client: AsyncClient) -> None:
     )
     assert checkin_unset.status_code == 201, checkin_unset.text
 
-    response = await client.get(
+    response = await client.post(
         f"/api/v1/portfolios/{portfolio_id}/analytics/correlations/market-phase",
         headers=headers,
+        json={"filter_config": {}},
     )
     assert response.status_code == 200, response.text
     data = response.json()["data"]
@@ -384,9 +385,10 @@ async def test_attribution_returns_503_when_spec5_is_unavailable(
         "app.repositories.attribution_repository.AttributionRepository._ensure_daily_checkins_table",
         new=AsyncMock(side_effect=Spec5NotDeployedError("daily_checkins table not available")),
     ):
-        response = await client.get(
+        response = await client.post(
             f"/api/v1/portfolios/{portfolio_id}/analytics/correlations/market-phase",
             headers=headers,
+            json={"filter_config": {}},
         )
 
     assert response.status_code == 503, response.text
@@ -518,7 +520,7 @@ async def test_attribution_non_owner_gets_404(client: AsyncClient) -> None:
     intruder_headers = await _auth_headers(client, prefix="attrib_intruder")
     portfolio_id = await _create_portfolio(client, owner_headers, "Attrib Owner Portfolio")
 
-    response = await client.get(
+    response = await client.post(
         f"/api/v1/portfolios/{portfolio_id}/analytics/correlations/market-phase",
         headers=intruder_headers,
     )

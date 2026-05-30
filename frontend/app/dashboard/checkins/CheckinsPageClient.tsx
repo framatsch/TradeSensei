@@ -18,7 +18,6 @@
 import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { RegimePills } from "@/components/checkin/RegimePills";
 import { TimelineView } from "@/components/checkin/TimelineView";
-import { ModelBookView } from "@/components/checkin/ModelBookView";
 import { GalleryView } from "@/components/checkin/GalleryView";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
@@ -51,8 +50,6 @@ export function CheckinsPageClient() {
 
         {view === "gallery" ? (
           <GalleryView />
-        ) : view === "modelbook" ? (
-          <ModelBookView />
         ) : (
           <TimelineView />
         )}

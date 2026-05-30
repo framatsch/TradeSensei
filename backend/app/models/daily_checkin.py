@@ -66,13 +66,6 @@ class DailyCheckin(Base):
         JSONB,
         nullable=True,
     )
-    is_modelbook: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-        comment="True if this check-in is starred in the Model Book.",
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

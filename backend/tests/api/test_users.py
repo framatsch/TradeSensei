@@ -32,6 +32,59 @@ async def test_get_settings_defaults(
     assert data["chart_show_post_exit"] is False
     assert data["default_portfolio_id"] is None
     assert data["home_route"] == "/dashboard"
+    assert data["show_open_trades"] is False
+
+
+@pytest.mark.asyncio
+async def test_show_open_trades_defaults_false(
+    client: AsyncClient, primary_user: dict[str, Any]
+) -> None:
+    """GET settings returns show_open_trades false when unset."""
+    res = await client.get("/api/v1/users/me/settings", headers=primary_user["headers"])
+    assert res.status_code == 200, res.text
+    assert res.json()["data"]["show_open_trades"] is False
+
+
+@pytest.mark.asyncio
+async def test_show_open_trades_persists_true(
+    client: AsyncClient, primary_user: dict[str, Any]
+) -> None:
+    """PUT settings persists and returns show_open_trades true."""
+    res = await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"show_open_trades": True},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["data"]["show_open_trades"] is True
+
+    res2 = await client.get("/api/v1/users/me/settings", headers=primary_user["headers"])
+    assert res2.status_code == 200, res2.text
+    assert res2.json()["data"]["show_open_trades"] is True
+
+
+@pytest.mark.asyncio
+async def test_show_open_trades_update_preserves_other_features(
+    client: AsyncClient, primary_user: dict[str, Any]
+) -> None:
+    """Updating show_open_trades keeps other feature flags unchanged."""
+    first = await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"features": {"risk_analytics": True}},
+    )
+    assert first.status_code == 200, first.text
+
+    second = await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"show_open_trades": True},
+    )
+    assert second.status_code == 200, second.text
+    data = second.json()["data"]
+
+    assert data["show_open_trades"] is True
+    assert data["features"]["risk_analytics"] is True
 
 
 @pytest.mark.asyncio
@@ -201,3 +254,30 @@ async def test_put_settings_invalid_home_route(
         json={"home_route": "/dashboard/invalid"},
     )
     assert res.status_code == 422, res.text
+
+
+@pytest.mark.asyncio
+async def test_put_settings_rejects_unknown_feature_keys(
+    client: AsyncClient, primary_user: dict[str, Any]
+) -> None:
+    res = await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"features": {"admin_mode": True}},
+    )
+    assert res.status_code == 422, res.text
+
+
+@pytest.mark.asyncio
+async def test_put_settings_accepts_allowed_feature_keys(
+    client: AsyncClient, primary_user: dict[str, Any]
+) -> None:
+    res = await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"features": {"risk_analytics": True, "tax_report": False}},
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    assert data["features"]["risk_analytics"] is True
+    assert data["features"]["tax_report"] is False

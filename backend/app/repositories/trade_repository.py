@@ -1268,12 +1268,3 @@ class TradeRepository:
             )
         result = await self._session.execute(stmt)
         return {(row.broker_conid, row.opened_at) for row in result}
-
-    async def update_modelbook_flag(self, trade_id: uuid.UUID, is_modelbook: bool, user_id: uuid.UUID) -> Trade | None:
-        """Update the is_modelbook flag for a trade."""
-        trade = await self.get_by_id(trade_id, user_id=user_id)
-        if trade:
-            trade.is_modelbook = is_modelbook
-            await self._session.commit()
-            await self._session.refresh(trade)
-        return trade

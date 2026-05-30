@@ -16,13 +16,20 @@
 import uuid
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.constants import (
     PASSWORD_MIN_LENGTH,
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
 )
+
+
+_ALLOWED_FEATURE_FLAG_KEYS = {
+    "risk_analytics",
+    "cash_and_dividends",
+    "tax_report",
+}
 
 
 class UserCreate(BaseModel):
@@ -148,6 +155,7 @@ class UserSettingsRead(BaseModel):
     chart_candles_after: int = Field(default=10, ge=1)
     chart_show_post_exit: bool = Field(default=False)
     default_portfolio_id: uuid.UUID | None = Field(default=None)
+    show_open_trades: bool = Field(default=False)
     home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library", "/dashboard/checkins"] = Field(default="/dashboard")
 
 
@@ -180,6 +188,7 @@ class UserSettingsUpdate(BaseModel):
     chart_candles_after: int | None = Field(default=None, ge=1)
     chart_show_post_exit: bool | None = Field(default=None)
     default_portfolio_id: uuid.UUID | None = Field(default=None)
+    show_open_trades: bool | None = Field(default=None)
     home_route: (
         Literal[
             "/dashboard",
@@ -189,6 +198,21 @@ class UserSettingsUpdate(BaseModel):
         ]
         | None
     ) = Field(default=None)
+
+    @field_validator("features")
+    @classmethod
+    def validate_features_keys(
+        cls,
+        value: dict[str, bool] | None,
+    ) -> dict[str, bool] | None:
+        if value is None:
+            return None
+        invalid_keys = [key for key in value if key not in _ALLOWED_FEATURE_FLAG_KEYS]
+        if invalid_keys:
+            raise ValueError(
+                f"Unsupported feature flag key(s): {', '.join(sorted(invalid_keys))}"
+            )
+        return value
 
 
 class UserLogin(BaseModel):

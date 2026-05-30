@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -10,8 +11,6 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-#!/usr/bin/env python3
 """
 mdmerge.py — Merge markdown files from directories and/or individual files into one.
 

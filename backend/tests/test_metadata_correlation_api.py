@@ -14,7 +14,7 @@
 """Integration tests for the metadata correlation endpoint.
 
 Tests cover:
-- GET /api/v1/portfolios/{portfolio_id}/analytics/metadata-correlation
+- GET /api/v1/portfolios/{portfolio_id}/analytics/correlations/metadata
 """
 
 import uuid
@@ -84,12 +84,12 @@ async def _create_annotation_def(
 
 
 def _correlation_url(portfolio_id: str) -> str:
-    return f"/api/v1/portfolios/{portfolio_id}/analytics/metadata-correlation"
+    return f"/api/v1/portfolios/{portfolio_id}/analytics/correlations/metadata"
 
 
 @pytest.mark.integration
 class TestMetadataCorrelationEndpoint:
-    """Tests for GET /api/v1/portfolios/{portfolio_id}/analytics/metadata-correlation."""
+    """Tests for GET /api/v1/portfolios/{portfolio_id}/analytics/correlations/metadata."""
 
     async def test_empty_portfolio_returns_empty_data_points(self, client: AsyncClient) -> None:
         headers = await _get_auth_headers(client, "empty")
@@ -97,13 +97,14 @@ class TestMetadataCorrelationEndpoint:
         x_id = await _create_annotation_def(client, headers, scope="checkins", suffix="empty_x")
         y_id = await _create_annotation_def(client, headers, scope="trades", suffix="empty_y")
 
-        resp = await client.get(
+        resp = await client.post(
             _correlation_url(portfolio_id),
-            params={
+            json={
                 "x_axis_type": "checkin_annotation",
                 "x_axis_id": x_id,
                 "y_axis_type": "trade_annotation",
                 "y_axis_id": y_id,
+                "filter_config": {},
             },
             headers=headers,
         )
@@ -135,13 +136,14 @@ class TestMetadataCorrelationEndpoint:
             headers=headers,
         )
 
-        resp = await client.get(
+        resp = await client.post(
             _correlation_url(portfolio_id),
-            params={
+            json={
                 "x_axis_type": "checkin_annotation",
                 "x_axis_id": x_id,
                 "y_axis_type": "trade_annotation",
                 "y_axis_id": y_id,
+                "filter_config": {},
             },
             headers=headers,
         )
@@ -176,13 +178,14 @@ class TestMetadataCorrelationEndpoint:
         )
         assert trade_resp.status_code == 201, trade_resp.text
 
-        resp = await client.get(
+        resp = await client.post(
             _correlation_url(portfolio_id),
-            params={
+            json={
                 "x_axis_type": "checkin_annotation",
                 "x_axis_id": x_id,
                 "y_axis_type": "trade_annotation",
                 "y_axis_id": y_id,
+                "filter_config": {},
             },
             headers=headers,
         )
@@ -199,13 +202,14 @@ class TestMetadataCorrelationEndpoint:
         x_id = await _create_annotation_def(client, headers, scope="checkins", suffix="mc0_x")
         y_id = await _create_annotation_def(client, headers, scope="trades", suffix="mc0_y")
 
-        resp = await client.get(
+        resp = await client.post(
             _correlation_url(portfolio_id),
-            params={
+            json={
                 "x_axis_type": "checkin_annotation",
                 "x_axis_id": x_id,
                 "y_axis_type": "trade_annotation",
                 "y_axis_id": y_id,
+                "filter_config": {},
             },
             headers=headers,
         )
@@ -219,13 +223,13 @@ class TestMetadataCorrelationEndpoint:
         x_id = await _create_annotation_def(client, headers, scope="trades", suffix="mism_x")
         y_id = await _create_annotation_def(client, headers, scope="trades", suffix="mism_y")
 
-        resp = await client.get(
+        resp = await client.post(
             _correlation_url(portfolio_id),
-            params={
+            json={
                 "x_axis_type": "checkin_annotation",  # mismatch: annotation is trades-scoped
                 "x_axis_id": x_id,
                 "y_axis_type": "trade_annotation",
-                "y_axis_id": y_id,
+                "y_axis_id": y_id, "filter_config": {},
             },
             headers=headers,
         )
@@ -236,13 +240,13 @@ class TestMetadataCorrelationEndpoint:
         portfolio_id, _ = await _create_portfolio_and_account(client, headers, "same")
         x_id = await _create_annotation_def(client, headers, scope="checkins", suffix="same_x")
 
-        resp = await client.get(
+        resp = await client.post(
             _correlation_url(portfolio_id),
-            params={
+            json={
                 "x_axis_type": "checkin_annotation",
                 "x_axis_id": x_id,
                 "y_axis_type": "checkin_annotation",
-                "y_axis_id": x_id,
+                "y_axis_id": x_id, "filter_config": {},
             },
             headers=headers,
         )
@@ -254,13 +258,13 @@ class TestMetadataCorrelationEndpoint:
         fake_id = str(uuid.uuid4())
         y_id = await _create_annotation_def(client, headers, scope="trades", suffix="unk_y")
 
-        resp = await client.get(
+        resp = await client.post(
             _correlation_url(portfolio_id),
-            params={
+            json={
                 "x_axis_type": "checkin_annotation",
                 "x_axis_id": fake_id,
                 "y_axis_type": "trade_annotation",
-                "y_axis_id": y_id,
+                "y_axis_id": y_id, "filter_config": {},
             },
             headers=headers,
         )
@@ -272,13 +276,13 @@ class TestMetadataCorrelationEndpoint:
         y_id = await _create_annotation_def(client, headers, scope="trades", suffix="nopf_y")
 
         # portfolio_id is part of the path — omitting it means hitting a different route
-        resp = await client.get(
-            "/api/v1/portfolios/not-a-uuid/analytics/metadata-correlation",
-            params={
+        resp = await client.post(
+            "/api/v1/portfolios/not-a-uuid/analytics/correlations/metadata",
+            json={
                 "x_axis_type": "checkin_annotation",
                 "x_axis_id": x_id,
                 "y_axis_type": "trade_annotation",
-                "y_axis_id": y_id,
+                "y_axis_id": y_id, "filter_config": {},
             },
             headers=headers,
         )

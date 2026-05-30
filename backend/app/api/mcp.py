@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, model_validator
 from sqlalchemy import and_, exists, func, select, update
+from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -52,6 +53,17 @@ _KEEPALIVE_INTERVAL = 15
 
 # Global dictionary to map session IDs to their event queues for SSE routing.
 _ACTIVE_STREAMS: dict[str, asyncio.Queue[str]] = {}
+
+
+async def _get_mcp_session_with_rls(
+    current_user: Annotated[User, Depends(get_current_user_from_pat)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AsyncGenerator[tuple[User, AsyncSession]]:
+    uid = str(current_user.id)
+    await session.execute(
+        text(f"SET LOCAL app.current_user_id = '{uid}'")  # noqa: S608
+    )
+    yield current_user, session
 
 
 class AnnotationFilter(BaseModel):
@@ -859,8 +871,12 @@ def _sse_event_stream(
     }
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        # MCP spec requires an 'endpoint' event containing the URI as a string
-        yield f"event: endpoint\ndata: {message_endpoint}\n\n"
+        # Contract decision: keep the legacy-compatible `ready` SSE event with a
+        # JSON payload containing both `session_id` and `endpoint`.
+        # Some clients key off `ready`, others need the endpoint URL for
+        # follow-up POSTs to /mcp/messages.
+        ready_payload = json.dumps({"session_id": session_id, "endpoint": message_endpoint})
+        yield f"event: ready\ndata: {ready_payload}\n\n"
 
         if request.headers.get("x-test-no-sse-keepalive") == "true":
             _ACTIVE_STREAMS.pop(session_id, None)
@@ -1029,8 +1045,7 @@ async def _dispatch_jsonrpc(
 )
 async def mcp_streamable(
     request: Request,
-    current_user: Annotated[User, Depends(get_current_user_from_pat)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    mcp_context: Annotated[tuple[User, AsyncSession], Depends(_get_mcp_session_with_rls)],
 ) -> JSONResponse | StreamingResponse:
     """Handle MCP Streamable HTTP transport (POST /mcp).
 
@@ -1041,12 +1056,13 @@ async def mcp_streamable(
     """
     try:
         payload: dict[str, Any] = await request.json()
-        logger.error(f"MCP PAYLOAD RECEIVED: {json.dumps(payload)}")
     except Exception:
         return JSONResponse(
             {"jsonrpc": "2.0", "id": None, "error": _tool_error(-32700, "Parse error")},
             status_code=400,
         )
+
+    current_user, db = mcp_context
 
     result = await _dispatch_jsonrpc(
         payload=payload,
@@ -1103,8 +1119,7 @@ async def mcp_sse(
 )
 async def mcp_messages(
     payload: dict[str, Any],
-    current_user: Annotated[User, Depends(get_current_user_from_pat)],
-    db: Annotated[AsyncSession, Depends(get_session)],
+    mcp_context: Annotated[tuple[User, AsyncSession], Depends(_get_mcp_session_with_rls)],
     session_id: str | None = Query(default=None, description="MCP session identifier"),
 ) -> Response:
     if not session_id or session_id not in _ACTIVE_STREAMS:
@@ -1112,6 +1127,8 @@ async def mcp_messages(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or missing session_id. The SSE stream must be opened first.",
         )
+
+    current_user, db = mcp_context
 
     result = await _dispatch_jsonrpc(
         payload=payload,

@@ -25,6 +25,11 @@ import userEvent from "@testing-library/user-event";
 import { NoteForm } from "@/components/notes/NoteForm";
 
 // Mock MarkdownRenderer to avoid ESM issues from react-markdown
+
+jest.mock("@/hooks/useSettings", () => ({
+  useSettings: () => ({ data: undefined, isLoading: false, error: null }),
+}));
+
 jest.mock("@/components/notes/MarkdownRenderer", () => ({
   MarkdownRenderer: ({ content }: { content: string }) => (
     <div data-testid="markdown-preview">{content}</div>

@@ -186,7 +186,7 @@ describe("BrokerAccountEditModal", () => {
       expect(api.updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch).toHaveBeenCalledWith(
         expect.objectContaining({
           path: { portfolio_id: "port-1", account_id: "acct-1" },
-          body: { name: "Updated Name" },
+          body: { name: "Updated Name", account_number: "U123" },
         })
       );
     });

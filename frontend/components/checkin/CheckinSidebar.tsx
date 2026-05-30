@@ -19,7 +19,7 @@ import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { CheckinMiniCalendar } from "./CheckinMiniCalendar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, List, Grid, BookOpen } from "lucide-react";
+import { Settings, List, Grid } from "lucide-react";
 
 export function CheckinSidebar() {
   const { view, setView } = useCheckinParams();
@@ -69,21 +69,6 @@ export function CheckinSidebar() {
           >
             <Grid className="w-4 h-4" />
             <span>Gallery</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=modelbook";
-              else setView("modelbook");
-            }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
-              isCheckinsRoute && view === "modelbook"
-                ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Model Book</span>
           </button>
         </div>
       </div>

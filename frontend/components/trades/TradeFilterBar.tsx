@@ -34,6 +34,7 @@ export type { TradeFilters };
 interface Props {
   filters: TradeFilters;
   onChange: (filters: TradeFilters) => void;
+  showOpenTrades?: boolean;
   /** The currently active saved view (if any). */
   activeView?: SavedTradeFilterRead;
   /** Opens the "Save as View" naming modal. */
@@ -216,7 +217,7 @@ function AccountMultiSelect({ accounts, selectedIds, onChange, isLoading = false
   );
 }
 
-export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRenameView, onUpdateView, onDeleteView, isUpdating }: Props) {
+export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activeView, onSaveView, onRenameView, onUpdateView, onDeleteView, isUpdating }: Props) {
   const [open, setOpen] = useState(() => countActiveFilters(filters) > 0);
   const activeCount = countActiveFilters(filters);
 
@@ -440,18 +441,20 @@ export function TradeFilterBar({ filters, onChange, activeView, onSaveView, onRe
           </div>
 
           {/* Status */}
-          <div>
-            <label className={LABEL_CLASS}>Status</label>
-            <select
-              value={filters.status ?? ""}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className={INPUT_CLASS}
-            >
-              <option value="">All</option>
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-            </select>
-          </div>
+          {showOpenTrades && (
+            <div>
+              <label className={LABEL_CLASS}>Status</label>
+              <select
+                value={filters.status ?? ""}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                className={INPUT_CLASS}
+              >
+                <option value="">All</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+          )}
 
           {/* Date range (Opened) */}
           <div>

@@ -27,7 +27,7 @@ _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
 _TOKENS_URL = "/api/v1/settings/tokens"
 _ME_URL = "/api/v1/users/me"
-_MCP_MESSAGES_URL = "/mcp/messages"
+_MCP_MESSAGES_URL = "/mcp"
 
 
 async def _register_and_login(client: AsyncClient) -> dict[str, str]:

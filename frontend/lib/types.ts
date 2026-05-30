@@ -222,7 +222,6 @@ export interface Trade {
   created_at: string;
   updated_at: string;
   is_manually_edited: boolean;
-  is_modelbook: boolean;
   tags: Array<{ id: string; name: string; color: string | null }>;
   trade_notes: TradeNote[];
   legs?: LogicalExecution[];
@@ -491,6 +490,7 @@ export type DefaultDateRange = "all" | "ytd" | "last30";
 export interface UserSettings {
   theme: Theme;
   default_date_range: "all" | "ytd" | "last30";
+  show_open_trades?: boolean;
   features?: Record<string, boolean>;
   chart_candles_before?: number;
   chart_candles_after?: number;
@@ -502,6 +502,7 @@ export interface UserSettings {
 export interface UserSettingsUpdate {
   theme?: Theme;
   default_date_range?: "all" | "ytd" | "last30";
+  show_open_trades?: boolean;
   features?: Record<string, boolean>;
   chart_candles_before?: number;
   chart_candles_after?: number;

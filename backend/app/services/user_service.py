@@ -38,8 +38,9 @@ _SETTINGS_DEFAULTS: dict[str, object] = {
     "features": "{}",
     "chart_candles_before": "20",
     "chart_candles_after": "10",
-    "chart_show_post_exit": "False",
+    "chart_show_post_exit": False,
     "default_portfolio_id": None,
+    "show_open_trades": "False",
     "home_route": "/dashboard",
 }
 
@@ -177,6 +178,14 @@ class UserService:
 
         if merged.get("default_portfolio_id") in ("None", "null"):
             merged["default_portfolio_id"] = None  # type: ignore[assignment]
+
+        show_open_trades = merged.get("show_open_trades")
+        if isinstance(show_open_trades, str):
+            merged["show_open_trades"] = show_open_trades.lower() == "true"
+
+        chart_show_post_exit = merged.get("chart_show_post_exit")
+        if isinstance(chart_show_post_exit, str):
+            merged["chart_show_post_exit"] = chart_show_post_exit.lower() == "true"
 
         return UserSettingsRead(**merged)  # type: ignore[arg-type]  # Type narrowing from dynamic settings dict is imperfect for mypy.
 

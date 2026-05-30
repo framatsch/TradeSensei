@@ -34,7 +34,6 @@ from app.api.v1 import (
     market_data,
     market_indexes,
     metrics,
-    model_book,
     notes,
     playbook_attachments,
     playbook_links,
@@ -88,5 +87,3 @@ router.include_router(
     prefix="/saved-trade-filters",
     tags=["saved-trade-filters"],
 )
-
-router.include_router(model_book.router)

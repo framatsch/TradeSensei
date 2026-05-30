@@ -166,6 +166,20 @@ export function HelpClient({ sections, version }: Props) {
           </div>
 
           {/* Sections */}
+          <section
+            id="show-open-trades-setting"
+            className="scroll-mt-6 rounded-xl border border-border bg-card p-6 flex flex-col gap-3"
+          >
+            <h3 className="text-base font-semibold text-foreground">Show Open Trades</h3>
+            <p className="text-sm text-muted-foreground">
+              By default, this setting is off, so trade lists only show closed trades.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Enable it in Settings -&gt; Features (UI Settings) to include open positions.
+              When enabled, the Open/Closed filter toggle appears in trade filter bars.
+            </p>
+          </section>
+
           {sections.map((section) => (
             <div key={section.heading} className="flex flex-col gap-4">
               <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">

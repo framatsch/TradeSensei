@@ -724,11 +724,6 @@ class TradeUpdate(BaseModel):
         description=("Updated playbook UUID. Set to null to clear. Omit to leave unchanged."),
         examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6", None],
     )
-    is_modelbook: bool | None = Field(
-        default=None,
-        description=("True if this trade should be starred in the Model Book. Omit to leave unchanged."),
-        examples=[False, True, None],
-    )
     taxonomy_ids: list[uuid.UUID] | None = Field(
         default=None,
         description=(
@@ -948,11 +943,6 @@ class TradeRead(BaseModel):
         description=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
         examples=[False, True],
     )
-    is_modelbook: bool = Field(
-        default=False,
-        description="True if this trade is starred in the Model Book.",
-        examples=[False, True],
-    )
     created_at: datetime = Field(
         ...,
         description="UTC timestamp of when this record was inserted into the database.",
@@ -971,16 +961,11 @@ class TradeRead(BaseModel):
         if isinstance(data, dict):
             if data.get("is_combo") is None:
                 data["is_combo"] = False
-            if data.get("is_modelbook") is None:
-                data["is_modelbook"] = False
             return data
 
         if getattr(data, "is_combo", None) is None:
             with contextlib.suppress(Exception):
                 data.__dict__["is_combo"] = False
-        if getattr(data, "is_modelbook", None) is None:
-            with contextlib.suppress(Exception):
-                data.__dict__["is_modelbook"] = False
         return data
 
     @model_validator(mode="before")

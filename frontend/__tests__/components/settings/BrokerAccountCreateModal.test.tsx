@@ -195,7 +195,7 @@ describe("BrokerAccountCreateModal", () => {
     });
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith("Account connected");
+      expect(toast.success).toHaveBeenCalledWith("Account created");
       expect(onClose).toHaveBeenCalled();
     });
   });

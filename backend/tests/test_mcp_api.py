@@ -13,6 +13,7 @@
 
 """Integration tests for MCP transport endpoints."""
 
+import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -128,7 +129,7 @@ async def _mcp_tools_call(
     message_id: int = 1,
 ) -> dict[str, object]:
     response = await client.post(
-        "/mcp/messages",
+        "/mcp",
         json={
             "jsonrpc": "2.0",
             "id": message_id,
@@ -138,7 +139,15 @@ async def _mcp_tools_call(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200, response.text
-    return response.json()
+    payload: dict[str, object] = response.json()
+    # Unwrap MCP content array so tests can access result fields directly.
+    result = payload.get("result")
+    if isinstance(result, dict) and "content" in result:
+        content = result["content"]
+        if isinstance(content, list) and content:
+            text = content[0].get("text", "")
+            payload["result"] = json.loads(text)
+    return payload
 
 
 @pytest.mark.integration
@@ -216,7 +225,7 @@ async def test_mcp_sse_valid_session_id_echoed_in_ready_event(client: AsyncClien
 @pytest.mark.integration
 async def test_mcp_messages_without_pat_returns_401(client: AsyncClient) -> None:
     response = await client.post(
-        "/mcp/messages",
+        "/mcp",
         json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
     )
     assert response.status_code == 401
@@ -226,7 +235,7 @@ async def test_mcp_messages_without_pat_returns_401(client: AsyncClient) -> None
 async def test_mcp_tools_list_returns_all_domain_tools(client: AsyncClient) -> None:
     _headers, token = await _auth_and_pat(client)
     response = await client.post(
-        "/mcp/messages",
+        "/mcp",
         json={"jsonrpc": "2.0", "id": 11, "method": "tools/list"},
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -242,6 +251,9 @@ async def test_mcp_tools_list_returns_all_domain_tools(client: AsyncClient) -> N
         "search_trades_advanced",
         "sync_trade_metadata",
         "create_strategy_playbook",
+        "list_strategy_playbooks",
+        "get_strategy_playbook",
+        "update_strategy_playbook",
     }
     for tool in tools:
         assert "description" in tool

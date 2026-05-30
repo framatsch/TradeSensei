@@ -25,6 +25,11 @@ jest.mock('next/navigation', () => ({
   useSearchParams: jest.fn(),
 }));
 
+jest.mock('@/hooks/useSettings', () => ({
+  useSettings: () => ({ data: undefined, isLoading: false, error: null }),
+  SETTINGS_KEY: ['settings'],
+}));
+
 const TestComponent = () => {
   const { filter, setFilter } = useWorkspaceFilter();
 
@@ -78,6 +83,12 @@ describe('WorkspaceFilterContext', () => {
     );
 
     expect(screen.getByTestId('date_from')).toHaveTextContent('none');
+    
+    // Allow initial sync to flush
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    mockRouterReplace.mockClear();
 
     act(() => {
       screen.getByText('Update Filter').click();
@@ -96,6 +107,6 @@ describe('WorkspaceFilterContext', () => {
     act(() => {
       jest.advanceTimersByTime(150);
     });
-    expect(mockRouterReplace).toHaveBeenCalledWith('/dashboard/workspace/reporting?date_from=2024-02-01', { scroll: false });
+    expect(mockRouterReplace).toHaveBeenCalledWith('/dashboard/workspace/reporting?date_from=2024-02-01&status=closed', { scroll: false });
   });
 });
