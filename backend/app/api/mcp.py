@@ -51,8 +51,9 @@ logger = logging.getLogger(__name__)
 
 _KEEPALIVE_INTERVAL = 15
 
-# Global dictionary to map session IDs to their event queues for SSE routing.
-_ACTIVE_STREAMS: dict[str, asyncio.Queue[str]] = {}
+# Maps session_id → (owner_user_id, message_queue). Storing the owner allows
+# mcp_messages to reject cross-user POSTs without a DB lookup.
+_ACTIVE_STREAMS: dict[str, tuple[uuid.UUID, asyncio.Queue[str]]] = {}
 
 
 async def _get_mcp_session_with_rls(
@@ -60,6 +61,10 @@ async def _get_mcp_session_with_rls(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AsyncGenerator[tuple[User, AsyncSession]]:
     uid = str(current_user.id)
+    # asyncpg/psycopg do not support parameterised SET LOCAL statements, so an
+    # f-string is the only option. `uid` is always a UUID (hex chars + dashes),
+    # making SQL injection impossible here. Same pattern as get_session_with_rls
+    # in deps.py.
     await session.execute(
         text(f"SET LOCAL app.current_user_id = '{uid}'")  # noqa: S608
     )
@@ -862,7 +867,7 @@ def _sse_event_stream(
     
     # Create a message queue for this session
     queue: asyncio.Queue[str] = asyncio.Queue()
-    _ACTIVE_STREAMS[session_id] = queue
+    _ACTIVE_STREAMS[session_id] = (uuid.UUID(user_id), queue)
 
     headers = {
         "Cache-Control": "no-cache",
@@ -1130,14 +1135,21 @@ async def mcp_messages(
 
     current_user, db = mcp_context
 
+    stream_owner, queue = _ACTIVE_STREAMS[session_id]
+    if stream_owner != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Session belongs to a different user.",
+        )
+
     result = await _dispatch_jsonrpc(
         payload=payload,
         user_id=current_user.id,
         db=db,
     )
-    
+
     if result:
         # Route the JSON-RPC response back over the active SSE stream
-        await _ACTIVE_STREAMS[session_id].put(json.dumps(result))
+        await queue.put(json.dumps(result))
         
     return Response(status_code=status.HTTP_202_ACCEPTED)

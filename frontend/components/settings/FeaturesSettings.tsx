@@ -73,7 +73,7 @@ export default function FeaturesSettings() {
       <div>
         <h3 className="text-sm font-semibold text-foreground">Features</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Enable or disable optional modules. Changes take effect after clicking Apply.
+          Enable or disable optional modules. Show Open Trades applies immediately; other flags require Apply.
         </p>
       </div>
 
@@ -95,7 +95,7 @@ export default function FeaturesSettings() {
             aria-label="Show Open Trades"
             onClick={handleShowOpenTradesToggle}
             type="button"
-            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               showOpenTradesEnabled ? "bg-primary" : "bg-muted"
             }`}
           >
@@ -127,7 +127,7 @@ export default function FeaturesSettings() {
                 onClick={() => !f.comingSoon && handleToggle(f.key, enabled)}
                 disabled={f.comingSoon}
                 type="button"
-                className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed ${
                   enabled ? "bg-primary" : "bg-muted"
                 }`}
               >

@@ -25,6 +25,8 @@ from app.core.constants import (
 )
 
 
+# Keep in sync with FEATURE_FLAGS in frontend/lib/featureFlags.ts.
+# `show_open_trades` is intentionally excluded — it is a top-level setting, not a feature flag.
 _ALLOWED_FEATURE_FLAG_KEYS = {
     "risk_analytics",
     "cash_and_dividends",

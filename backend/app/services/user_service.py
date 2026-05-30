@@ -40,7 +40,7 @@ _SETTINGS_DEFAULTS: dict[str, object] = {
     "chart_candles_after": "10",
     "chart_show_post_exit": False,
     "default_portfolio_id": None,
-    "show_open_trades": "False",
+    "show_open_trades": False,
     "home_route": "/dashboard",
 }
 

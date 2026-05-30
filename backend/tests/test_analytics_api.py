@@ -523,6 +523,7 @@ async def test_attribution_non_owner_gets_404(client: AsyncClient) -> None:
     response = await client.post(
         f"/api/v1/portfolios/{portfolio_id}/analytics/correlations/market-phase",
         headers=intruder_headers,
+        json={"filter_config": {}},
     )
 
     assert response.status_code == 404, response.text

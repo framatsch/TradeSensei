@@ -346,8 +346,9 @@ function RenameViewModal({ currentName, onSave, onClose, isPending }: RenameView
 export function TradesPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { data: settings } = useSettings();
+  const { data: settings, isPlaceholderData: isSettingsLoading } = useSettings();
   const showOpenTrades = useShowOpenTrades();
+  const enforceClosedStatus = !isSettingsLoading && !showOpenTrades;
   const { activePortfolioId } = useActivePortfolio();
 
   // Active view ID is read reactively from the URL (set by sidebar navigation).
@@ -385,11 +386,23 @@ export function TradesPageClient() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const requestedOpenStatus = (searchParams.get("status") ?? null) === "open";
-  const enforcedStatus = showOpenTrades ? filters.status : "closed";
+  const enforcedStatus = enforceClosedStatus ? "closed" : filters.status;
 
   useEffect(() => {
     setBannerDismissed(false);
-  }, [requestedOpenStatus, showOpenTrades]);
+  }, [showOpenTrades]);
+
+  // Strip stale ?status=open from URL once we know the real setting disallows open trades.
+  // Uses enforceClosedStatus (not showOpenTrades) so the cleanup only fires after
+  // settings have loaded — avoids incorrectly wiping the param during the placeholder phase.
+  useEffect(() => {
+    if (enforceClosedStatus && requestedOpenStatus) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("status");
+      const qs = params.toString();
+      router.replace(`/dashboard/trades${qs ? `?${qs}` : ""}`, { scroll: false });
+    }
+  }, [enforceClosedStatus, requestedOpenStatus, searchParams, router]);
 
   // Sync filters state when URL changes externally (e.g. sidebar view navigation).
   useEffect(() => {
@@ -533,7 +546,7 @@ export function TradesPageClient() {
       />
 
       <TradeFilterBar
-        filters={{ ...filters, status: enforcedStatus }}
+        filters={showOpenTrades ? { ...filters, status: enforcedStatus } : { ...filters, status: null }}
         onChange={handleFiltersChange}
         activeView={activeView}
         onSaveView={() => setShowSaveFilter(true)}
@@ -545,7 +558,7 @@ export function TradesPageClient() {
       />
 
       {!showOpenTrades && requestedOpenStatus && !bannerDismissed && (
-        <div className="flex items-start justify-between gap-3 rounded-md border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-foreground">
+        <div className="flex items-start justify-between gap-3 rounded-md border px-4 py-3 text-sm text-foreground [border-color:color-mix(in_srgb,var(--primary)_25%,transparent)] [background-color:color-mix(in_srgb,var(--primary)_10%,transparent)]">
           <span>
             Open trades are hidden. Enable 'Show Open Trades' in Settings → Features to show them.
           </span>

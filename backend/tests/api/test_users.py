@@ -88,6 +88,28 @@ async def test_show_open_trades_update_preserves_other_features(
 
 
 @pytest.mark.asyncio
+async def test_show_open_trades_round_trip_true_to_false(
+    client: AsyncClient, primary_user: dict[str, Any]
+) -> None:
+    """show_open_trades can be toggled true then back to false."""
+    await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"show_open_trades": True},
+    )
+    res = await client.put(
+        "/api/v1/users/me/settings",
+        headers=primary_user["headers"],
+        json={"show_open_trades": False},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["data"]["show_open_trades"] is False
+
+    res2 = await client.get("/api/v1/users/me/settings", headers=primary_user["headers"])
+    assert res2.json()["data"]["show_open_trades"] is False
+
+
+@pytest.mark.asyncio
 async def test_put_settings_all_fields(
     client: AsyncClient, primary_user: dict[str, Any]
 ) -> None:
