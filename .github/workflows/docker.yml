@@ -71,8 +71,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          append_body: true
+          generate_release_notes: false
           body: |
+            
             ## Docker Images
             - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend:${{ steps.meta.outputs.version }}`
             - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend:${{ steps.meta.outputs.version }}`
