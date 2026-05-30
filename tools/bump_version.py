@@ -156,7 +156,12 @@ def main():
                 unreleased_lines.pop()
 
             if not unreleased_lines:
-                return None
+                print(
+                    "ERROR: [Unreleased] section in CHANGELOG.md is empty. "
+                    "Add changelog entries under [Unreleased] before creating a release.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
             # Build new version section
             today = datetime.utcnow().strftime("%Y-%m-%d")

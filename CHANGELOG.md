@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Return distribution histogram endpoint `POST /analytics/return-distribution` with equal-width binning
+- [backend] Status-based dashboard filter (`open`/`closed`) replacing boolean `include_open_trades` in `DashboardFilterConfig`
+- [frontend] GitHub repository link and license display in AboutModal
+- [frontend] Metric help tooltip for open/closed trade status filter
+- [frontend] Help content for analytics and reporting page
+- [test] Test suite for `showOpenTrades` hook and `TradesPageClient` open-trades toggle
+- [test] User API integration tests for MCP session ownership validation
+
+### Fixed
+- [backend] MCP SSE security — reject cross-user `POST /mcp/messages` with HTTP 403 by storing `(user_id, queue)` in `_ACTIVE_STREAMS`
+- [backend] `show_open_trades` default type: corrected from string `'False'` to boolean `false`
+- [frontend] Race condition in `TradesPageClient`: defer `enforceClosedStatus` until settings are fully loaded to prevent incorrectly stripping `?status=open` during placeholder phase
+- [frontend] Empty scatter plot rendering when analytics return no data
+- [frontend] Calendar day click now correctly applies date range filters
+- [frontend] Workspace filter bar migrated from `includeOpenTrades` boolean to `status` enum (`open`/`closed`/`null`)
+
+### Removed
+- [backend] Model Book entity — removed API routes, service, repository, Pydantic schemas, and ORM model
+- [frontend] Model Book UI components (`ModelBookCard`, `ModelBookView`, `ModelBookFilterBar`, `StarButton`) and hooks (`useCheckinModelBook`, `useModelBookEntries`, `useTradeModelBook`)
+- [db] Dropped `is_modelbook` column from `trades` and `daily_checkins` tables via Alembic migration
+- [frontend] Trade status setting (`show_open_trades`) removed from FeaturesSettings — replaced by global `useShowOpenTrades` hook
+
+## [1.1.2] - 2026-05-27
+
+### Fixed
+- [frontend] Rename `tag_ids` to `taxonomy_ids` in all filter components, hooks, and API client types to match backend naming
+
 ## [1.1.1] - 2026-05-23
 
 ### Added
@@ -339,6 +367,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.1.2]: https://github.com/scheffold/TradeSensei/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/scheffold/TradeSensei/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/scheffold/TradeSensei/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/scheffold/TradeSensei/compare/v0.27.1...v1.0.0
