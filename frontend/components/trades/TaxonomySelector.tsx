@@ -57,20 +57,35 @@ export function TaxonomySelector({ taxonomies, selectedIds, onChange, disabled }
             type="button"
             disabled={disabled}
             onClick={() => toggle(tax.id)}
+            style={
+              isSelected && tax.color_hex
+                ? {
+                    backgroundColor: `${tax.color_hex}26`,
+                    borderColor: tax.color_hex,
+                    color: tax.color_hex,
+                  }
+                : {
+                    borderColor: tax.color_hex ? `${tax.color_hex}40` : "var(--border)",
+                  }
+            }
             className={`
               inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all
               border focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
               ${
                 isSelected
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-secondary text-foreground border-border"
+                  ? (tax.color_hex ? "shadow-sm" : "bg-primary text-primary-foreground border-primary")
+                  : "bg-secondary text-foreground hover:bg-secondary/80"
               }
-              ${disabled ? 'opacity-70 cursor-default' : 'hover:border-primary/50 cursor-pointer'}
+              ${disabled ? 'opacity-70 cursor-default' : 'cursor-pointer'}
             `}
           >
             {isSelected && <Check className="w-3.5 h-3.5" />}
-            {tax.icon_identifier && !isSelected && (
-              <DynamicIcon name={tax.icon_identifier} className="w-3.5 h-3.5 opacity-70" />
+            {tax.icon_identifier && (
+              <DynamicIcon 
+                name={tax.icon_identifier} 
+                className="w-3.5 h-3.5" 
+                style={!isSelected && tax.color_hex ? { color: tax.color_hex } : undefined}
+              />
             )}
             {tax.name}
           </button>

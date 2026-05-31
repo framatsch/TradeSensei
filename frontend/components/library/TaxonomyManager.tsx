@@ -166,7 +166,7 @@ export function TaxonomyManager() {
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  disabled={isPending}
+                  disabled={createMutation.isPending || updateMutation.isPending}
                   aria-label="Tag description"
                   className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted-foreground/50 disabled:opacity-50"
                   placeholder="Optional description..."
@@ -180,7 +180,7 @@ export function TaxonomyManager() {
                     type="text"
                     value={iconIdentifier}
                     onChange={(e) => setIconIdentifier(e.target.value)}
-                    disabled={isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                     aria-label="Icon identifier"
                     className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted-foreground/50 disabled:opacity-50"
                     placeholder="lucide icon (e.g. alert-circle)"
