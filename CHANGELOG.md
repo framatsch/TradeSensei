@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-05-31
+
+### Fixed
+- [frontend] Sidebar toggle (Cmd+B / button) now works on Trading Log and Market Check-in views — extracted shared sidebar state into Zustand store so child layouts respond to toggle
+- [frontend] Checkin news links auto-prepend `https://` when no protocol is present
+- [frontend] Checkin tag button active state uses primary colors instead of muted
+- [backend] Replace `passlib` with direct `bcrypt` calls for password hashing — removes outdated dependency
+
+### Changed
+- [backend] Remove unused `market_phase` regex validation in DailyCheckinService (field is already validated for empty/whitespace)
+
 ## [1.2.1] - 2026-05-31
 
 ### Added
@@ -405,7 +416,8 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...v1.2.1
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
