@@ -66,6 +66,8 @@ function parseScaleLabels(
   return { minVal: "", maxVal: "", options: [""] };
 }
 
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
+
 export function AnnotationManager() {
   const { data: annotations, isLoading, error } = useGetAnnotationDefinitions();
   const createMutation = useCreateAnnotationDefinition();
@@ -82,6 +84,7 @@ export function AnnotationManager() {
   const [type, setType] = useState<AnnotationType>("int");
   const [scope, setScope] = useState<"trades" | "checkins" | "both">("trades");
   const [description, setDescription] = useState("");
+  const [iconIdentifier, setIconIdentifier] = useState("");
 
   // Structured scale_labels state
   const [minVal, setMinVal] = useState("");
@@ -110,6 +113,7 @@ export function AnnotationManager() {
     setType(annotation.type);
     setScope(annotation.scope);
     setDescription(annotation.description || "");
+    setIconIdentifier(annotation.icon_identifier || "");
     const parsed = parseScaleLabels(
       annotation.type,
       annotation.scale_labels as Record<string, unknown> | null | undefined,
@@ -126,6 +130,7 @@ export function AnnotationManager() {
     setType("int");
     setScope("trades");
     setDescription("");
+    setIconIdentifier("");
     setMinVal("");
     setMaxVal("");
     setOptions([""]);
@@ -157,6 +162,7 @@ export function AnnotationManager() {
           scope,
           description: description.trim() || null,
           scale_labels: scaleLabels,
+          icon_identifier: iconIdentifier.trim() || null,
         };
         await updateMutation.mutateAsync({
           definitionId: editingAnnotation.id,
@@ -169,6 +175,7 @@ export function AnnotationManager() {
           scope,
           description: description.trim() || null,
           scale_labels: scaleLabels,
+          icon_identifier: iconIdentifier.trim() || null,
         };
         await createMutation.mutateAsync(payload);
       }
@@ -341,16 +348,32 @@ export function AnnotationManager() {
 
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-1">
-                Description
+                Description & Icon
               </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                aria-label="Metric description"
-                className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground resize-none"
-                placeholder="Optional description..."
-              />
+              <div className="flex gap-4">
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  aria-label="Metric description"
+                  className="flex-1 px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground resize-y"
+                  placeholder="Optional description..."
+                />
+                
+                <div className="w-1/3 relative h-[38px]">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    <DynamicIcon name={iconIdentifier || "tag"} className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={iconIdentifier}
+                    onChange={(e) => setIconIdentifier(e.target.value)}
+                    aria-label="Icon identifier"
+                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="lucide icon (e.g. tag)"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
@@ -388,7 +411,13 @@ export function AnnotationManager() {
               className="p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group flex flex-col gap-2"
             >
               <div className="flex items-start justify-between">
-                <h3 className="font-medium truncate">{ann.name}</h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-muted-foreground/30 rounded-full flex-shrink-0" />
+                  {ann.icon_identifier && (
+                    <DynamicIcon name={ann.icon_identifier} className="w-4 h-4 text-muted-foreground" />
+                  )}
+                  <h3 className="font-medium truncate">{ann.name}</h3>
+                </div>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 ml-2">
                   <button
                     aria-label={`Edit ${ann.name}`}

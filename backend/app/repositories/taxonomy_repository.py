@@ -46,6 +46,8 @@ class TaxonomyRepository:
             {"name": "FOMO", "scope": "trades", "color_hex": "#ec4899", "icon_identifier": "alert-circle"},
             {"name": "Discipline", "scope": "trades", "color_hex": "#3b82f6", "icon_identifier": "shield"},
             {"name": "High Conviction", "scope": "trades", "color_hex": "#facc15", "icon_identifier": "zap"},
+            {"name": "Stop Loss", "scope": "trades", "color_hex": "#ef4444", "icon_identifier": "octagon"},
+            {"name": "Textbook Trade", "scope": "trades", "color_hex": "#fbbf24", "icon_identifier": "award"},
             {"name": "Breakout", "scope": "both", "color_hex": "#10b981", "icon_identifier": "arrow-up-right"},
             {"name": "Mean Reversion", "scope": "both", "color_hex": "#6366f1", "icon_identifier": "repeat"},
             {"name": "Momentum", "scope": "both", "color_hex": "#f97316", "icon_identifier": "rocket"},

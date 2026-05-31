@@ -14,6 +14,7 @@
  */
 
 import type { AnnotationDefinitionResponse } from "@/lib/api/types.gen";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 interface Props {
   definitions: AnnotationDefinitionResponse[];
@@ -56,12 +57,17 @@ export function AnnotationInputs({ definitions, values, onChange, disabled }: Pr
         return (
           <div key={def.id}>
             <label className={labelCls}>
-              {def.name}
-              {def.description && (
-                <span className="ml-1.5 font-normal text-muted-foreground/70" title={def.description}>
-                  ⓘ
-                </span>
-              )}
+              <div className="flex items-center gap-1.5">
+                {def.icon_identifier && (
+                  <DynamicIcon name={def.icon_identifier} className="w-3.5 h-3.5" />
+                )}
+                <span>{def.name}</span>
+                {def.description && (
+                  <span className="font-normal text-muted-foreground/70" title={def.description}>
+                    ⓘ
+                  </span>
+                )}
+              </div>
             </label>
             
             {def.type === "bool" && (

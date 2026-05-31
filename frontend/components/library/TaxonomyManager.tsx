@@ -27,6 +27,8 @@ import {
 import { THEME_COLORS } from "@/lib/constants/colors";
 import type { TaxonomyResponse, TaxonomyCreate } from "@/lib/api/types.gen";
 
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
+
 export function TaxonomyManager() {
   const { data: taxonomies, isLoading, error } = useGetTaxonomies();
   const createMutation = useCreateTaxonomy();
@@ -43,6 +45,7 @@ export function TaxonomyManager() {
   const [scope, setScope] = useState<"trades" | "checkins" | "both" | "playbook">("trades");
   const [colorHex, setColorHex] = useState("#3b82f6");
   const [description, setDescription] = useState("");
+  const [iconIdentifier, setIconIdentifier] = useState("");
 
   if (isLoading) {
     return (
@@ -66,6 +69,7 @@ export function TaxonomyManager() {
     setScope(taxonomy.scope);
     setColorHex(taxonomy.color_hex);
     setDescription(taxonomy.description || "");
+    setIconIdentifier(taxonomy.icon_identifier || "");
     setIsEditing(true);
   };
 
@@ -75,6 +79,7 @@ export function TaxonomyManager() {
     setScope("trades");
     setColorHex("#3b82f6");
     setDescription("");
+    setIconIdentifier("");
     setIsEditing(true);
   };
 
@@ -96,7 +101,8 @@ export function TaxonomyManager() {
             scope,
             color_hex: colorHex,
             description: description.trim() || null,
-          },
+            icon_identifier: iconIdentifier.trim() || null,
+          }
         });
       } else {
         const payload: TaxonomyCreate = {
@@ -106,6 +112,9 @@ export function TaxonomyManager() {
         };
         if (description.trim()) {
           payload.description = description.trim();
+        }
+        if (iconIdentifier.trim()) {
+          payload.icon_identifier = iconIdentifier.trim();
         }
         await createMutation.mutateAsync(payload);
       }
@@ -152,13 +161,32 @@ export function TaxonomyManager() {
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
                   Name
                 </label>
+              <div className="flex gap-4">
                 <input
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
-                  required
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isPending}
+                  aria-label="Tag description"
+                  className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted-foreground/50 disabled:opacity-50"
+                  placeholder="Optional description..."
                 />
+                
+                <div className="w-1/3 relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    <DynamicIcon name={iconIdentifier || "tag"} className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={iconIdentifier}
+                    onChange={(e) => setIconIdentifier(e.target.value)}
+                    disabled={isPending}
+                    aria-label="Icon identifier"
+                    className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-muted-foreground/50 disabled:opacity-50"
+                    placeholder="lucide icon (e.g. alert-circle)"
+                  />
+                </div>
+              </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">
@@ -256,6 +284,9 @@ export function TaxonomyManager() {
                     className="w-4 h-4 rounded-full flex-shrink-0"
                     style={{ backgroundColor: tax.color_hex }}
                   />
+                  {tax.icon_identifier && (
+                    <DynamicIcon name={tax.icon_identifier} className="w-4 h-4 text-muted-foreground" />
+                  )}
                   <h3 className="font-medium truncate">{tax.name}</h3>
                 </div>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">

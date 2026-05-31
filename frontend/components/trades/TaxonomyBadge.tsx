@@ -14,9 +14,10 @@
  */
 
 import type { TaxonomyResponse } from "@/lib/types";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 interface Props {
-  taxonomy: Pick<TaxonomyResponse, "id" | "name" | "color_hex">;
+  taxonomy: Pick<TaxonomyResponse, "id" | "name" | "color_hex" | "icon_identifier">;
 }
 
 export function TaxonomyBadge({ taxonomy }: Props) {
@@ -32,6 +33,9 @@ export function TaxonomyBadge({ taxonomy }: Props) {
       }}
       title={taxonomy.name}
     >
+      {taxonomy.icon_identifier && (
+        <DynamicIcon name={taxonomy.icon_identifier} className="w-3 h-3" />
+      )}
       {taxonomy.name}
     </span>
   );

@@ -153,8 +153,12 @@ services:
       AWS_EC2_METADATA_DISABLED: "true"
     entrypoint: >
       /bin/sh -c "
-        aws --endpoint-url http://seaweedfs:8333 s3 mb s3://tradesensei --region us-east-1 || true &&
-        echo '{\"CORSRules\":[{\"AllowedHeaders\":[\"*\"],\"AllowedMethods\":[\"PUT\",\"POST\",\"GET\",\"HEAD\"],\"AllowedOrigins\":[\"*\"],\"ExposeHeaders\":[]}]}' > cors.json &&
+        until aws --endpoint-url http://seaweedfs:8333 s3 ls > /dev/null 2>&1; do
+          echo 'Waiting for SeaweedFS S3 API...';
+          sleep 2;
+        done;
+        aws --endpoint-url http://seaweedfs:8333 s3 ls s3://tradesensei > /dev/null 2>&1 || aws --endpoint-url http://seaweedfs:8333 s3 mb s3://tradesensei --region us-east-1;
+        echo '{\"CORSRules\":[{\"AllowedHeaders\":[\"*\"],\"AllowedMethods\":[\"PUT\",\"POST\",\"GET\",\"HEAD\"],\"AllowedOrigins\":[\"*\"],\"ExposeHeaders\":[]}]}' > cors.json;
         aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-cors --bucket tradesensei --cors-configuration file://cors.json || true
       "
 

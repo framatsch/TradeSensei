@@ -15,6 +15,7 @@
 
 import type { TaxonomyResponse } from "@/lib/types";
 import { Check, Hash } from "lucide-react";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 interface Props {
   taxonomies: TaxonomyResponse[];
@@ -68,6 +69,9 @@ export function TaxonomySelector({ taxonomies, selectedIds, onChange, disabled }
             `}
           >
             {isSelected && <Check className="w-3.5 h-3.5" />}
+            {tax.icon_identifier && !isSelected && (
+              <DynamicIcon name={tax.icon_identifier} className="w-3.5 h-3.5 opacity-70" />
+            )}
             {tax.name}
           </button>
         );
