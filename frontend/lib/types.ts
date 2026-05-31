@@ -497,6 +497,7 @@ export interface UserSettings {
   chart_show_post_exit?: boolean;
   default_portfolio_id?: string | null;
   home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins";
+  chart_intervals?: Array<"1h" | "4h" | "1d" | "1w">;
 }
 
 export interface UserSettingsUpdate {
@@ -509,6 +510,7 @@ export interface UserSettingsUpdate {
   chart_show_post_exit?: boolean;
   default_portfolio_id?: string;
   home_route?: "/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins";
+  chart_intervals?: Array<"1h" | "4h" | "1d" | "1w"> | null;
 }
 
 // ─── Corporate Actions ────────────────────────────────────────────────────────

@@ -40,9 +40,10 @@
 
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { AssetClass, Trade, LogicalExecution } from "@/lib/types";
 import { parseOccSymbol } from "@/lib/parseOccSymbol";
+import { useSettings } from "@/hooks/useSettings";
 import {
   createChart,
   createSeriesMarkers,
@@ -65,12 +66,13 @@ const API_BASE = "/api/proxy";
 
 const MARKET_DATA_PROXY = `${API_BASE}/api/v1/market-data`;
 
-type Interval = "1h" | "4h" | "1d";
+type Interval = "1h" | "4h" | "1d" | "1w";
 
 const INTERVAL_SECONDS: Record<Interval, number> = {
   "1h": 3600,
   "4h": 14400,
   "1d": 86400,
+  "1w": 604800,
 };
 
 // Well-known index tickers (without the ^ prefix used by some data sources)
@@ -96,19 +98,27 @@ function isIndexSymbol(symbol: string, assetClass: AssetClass): boolean {
 function smartDefaultInterval(
   entryDate: Date,
   exitDate: Date | null,
+  allowedIntervals: Interval[],
 ): Interval {
+  const fallback = allowedIntervals.length > 0 ? allowedIntervals[allowedIntervals.length - 1] : "1d";
+
   const now = Date.now();
   // If the trade is very old (entry is > 60 days ago), intraday data is likely unavailable.
   // The LSEG hub only keeps ~1000 bars of 1h data (approx 2.5 months).
   const daysSinceEntry = (now - entryDate.getTime()) / (1000 * 60 * 60 * 24);
   if (daysSinceEntry > 60) {
-    return "1d";
+    if (allowedIntervals.includes("1d")) return "1d";
+    return fallback;
   }
 
   const end = exitDate ?? new Date(now);
   const diffMs = end.getTime() - entryDate.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  return diffDays < 7 ? "1h" : "1d";
+  
+  if (diffDays < 7 && allowedIntervals.includes("1h")) return "1h";
+  if (diffDays < 14 && allowedIntervals.includes("4h")) return "4h";
+  if (allowedIntervals.includes("1d")) return "1d";
+  return fallback;
 }
 
 function buildApiUrl(
@@ -463,6 +473,13 @@ export interface TradeChartProps {
 }
 
 export function TradeChart({ trade, executions }: TradeChartProps) {
+  const { data: settings } = useSettings();
+  const allowedIntervals = useMemo(() => {
+    return settings?.chart_intervals && settings.chart_intervals.length > 0 
+      ? settings.chart_intervals as Interval[] 
+      : (["1h", "4h", "1d", "1w"] as Interval[]);
+  }, [settings?.chart_intervals]);
+
   const occ = parseOccSymbol(trade.symbol);
 
   // Chart symbol: for options use the underlying, otherwise raw symbol
@@ -473,8 +490,15 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   const exitDate = trade.closed_at ? new Date(trade.closed_at) : null;
 
   const [interval, setInterval] = useState<Interval>(() =>
-    smartDefaultInterval(entryDate, exitDate),
+    smartDefaultInterval(entryDate, exitDate, allowedIntervals),
   );
+
+  // Sync interval if allowedIntervals changes and the current one is not allowed
+  useEffect(() => {
+    if (!allowedIntervals.includes(interval)) {
+      setInterval(smartDefaultInterval(entryDate, exitDate, allowedIntervals));
+    }
+  }, [allowedIntervals, interval, entryDate, exitDate]);
   const [chartMode, setChartMode] = useState<"full" | "to-exit" | "to-entry">(
     "full",
   );
@@ -796,7 +820,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
       {/* Interval toolbar */}
       <div className="shrink-0 flex items-center gap-1.5 px-3 pt-3 pb-2">
         <div className="flex p-0.5 rounded-full bg-secondary border border-border backdrop-blur-md shadow-inner">
-          {(["1h", "4h", "1d"] as Interval[]).map((iv) => (
+          {allowedIntervals.map((iv) => (
             <button
               key={iv}
               onClick={() => handleIntervalChange(iv)}

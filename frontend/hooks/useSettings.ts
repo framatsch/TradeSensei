@@ -45,6 +45,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   chart_show_post_exit: false,
   default_portfolio_id: null,
   home_route: "/dashboard",
+  chart_intervals: ["1h", "4h", "1d", "1w"],
 };
 
 // ─── useSettings ─────────────────────────────────────────────────────────────

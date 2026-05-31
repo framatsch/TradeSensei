@@ -72,6 +72,7 @@ export function GeneralSettings() {
   const [candlesAfter, setCandlesAfter] = useState<string>("10");
   const [showPostExit, setShowPostExit] = useState<boolean>(false);
   const [homeRoute, setHomeRoute] = useState<"/dashboard" | "/dashboard/trades" | "/dashboard/library" | "/dashboard/checkins">("/dashboard");
+  const [chartIntervals, setChartIntervals] = useState<Array<"1h" | "4h" | "1d" | "1w">>(["1h", "4h", "1d", "1w"]);
 
   const { theme, setTheme } = useTheme();
 
@@ -88,6 +89,7 @@ export function GeneralSettings() {
       setShowPostExit(settings.chart_show_post_exit ?? false);
       // @ts-ignore
       setHomeRoute(settings.home_route ?? "/dashboard");
+      setChartIntervals(settings.chart_intervals ?? ["1h", "4h", "1d", "1w"]);
     }
   }, [settings]);
 
@@ -105,6 +107,11 @@ export function GeneralSettings() {
       return;
     }
 
+    if (chartIntervals.length === 0) {
+      setError("At least one chart timeframe must be selected.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       await updateSettings({
@@ -117,6 +124,7 @@ export function GeneralSettings() {
         // @ts-ignore
         home_route: homeRoute,
         theme: theme as Theme,
+        chart_intervals: chartIntervals,
       });
       toast.success("Settings saved successfully");
       queryClient.invalidateQueries({ queryKey: ["users", "me", "settings"] });
@@ -128,6 +136,7 @@ export function GeneralSettings() {
         setCandlesAfter(String(settings.chart_candles_after ?? 10));
         setShowPostExit(settings.chart_show_post_exit ?? false);
         setHomeRoute(settings.home_route ?? "/dashboard");
+        setChartIntervals(settings.chart_intervals ?? ["1h", "4h", "1d", "1w"]);
         setTheme(settings.theme ?? "system");
       }
     } finally {
@@ -138,6 +147,19 @@ export function GeneralSettings() {
   const handleThemeChange = (value: Theme) => {
     setTheme(value);
     updateSettings({ theme: value });
+  };
+
+  const handleIntervalToggle = (interval: "1h" | "4h" | "1d" | "1w") => {
+    setChartIntervals((prev) => {
+      if (prev.includes(interval)) {
+        return prev.filter((i) => i !== interval);
+      } else {
+        // preserve order: 1h, 4h, 1d, 1w
+        const order = ["1h", "4h", "1d", "1w"];
+        const next = [...prev, interval];
+        return next.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+      }
+    });
   };
 
   if (isLoading) {
@@ -251,6 +273,30 @@ export function GeneralSettings() {
             <option value="/dashboard/library">Global Library</option>
             <option value="/dashboard/checkins">Market Check-in</option>
           </select>
+        </div>
+
+        <hr className="border-border" />
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Chart Timeframes
+          </label>
+          <p className="text-xs text-muted-foreground mb-3">
+            Select which intervals should be available when viewing charts. Useful if your market data provider only supports certain timeframes (e.g., EOD only).
+          </p>
+          <div className="flex gap-3">
+            {(["1h", "4h", "1d", "1w"] as const).map((interval) => (
+              <label key={interval} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={chartIntervals.includes(interval)}
+                  onChange={() => handleIntervalToggle(interval)}
+                  className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                />
+                <span className="text-sm text-foreground uppercase">{interval}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         {error && (
