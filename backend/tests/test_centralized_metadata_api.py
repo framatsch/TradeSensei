@@ -611,12 +611,12 @@ async def test_trade_delete_cascades_metadata(
     assert delete_trade.status_code == 204, delete_trade.text
 
     trade_taxonomy_count = await db_session.execute(
-        select(func.count()).select_from(TradeTaxonomy)
+        select(func.count()).select_from(TradeTaxonomy).where(TradeTaxonomy.trade_id == trade_id)
     )
     assert int(trade_taxonomy_count.scalar_one()) == 0
 
     trade_annotation_count = await db_session.execute(
-        select(func.count()).select_from(TradeAnnotation)
+        select(func.count()).select_from(TradeAnnotation).where(TradeAnnotation.trade_id == trade_id)
     )
     assert int(trade_annotation_count.scalar_one()) == 0
 

@@ -33,11 +33,15 @@ class StorageService:
     @cached_property
     def _s3_client(self) -> Any:
         # Cached per-instance only — StorageService is instantiated per request.
+        # Use public URL for presigning if available, otherwise internal endpoint.
+        # This ensures the browser can reach the generated URL.
+        endpoint = settings.storage_public_url or settings.storage_endpoint_url
         return boto3.client(
             "s3",
-            endpoint_url=settings.storage_endpoint_url,
+            endpoint_url=endpoint,
             aws_access_key_id=settings.storage_access_key,
             aws_secret_access_key=settings.storage_secret_key,
+            config=boto3.session.Config(s3={"addressing_style": "path"}),
         )
 
     def _generate_upload_url(
