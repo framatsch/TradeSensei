@@ -132,7 +132,7 @@ export function GalleryView() {
                       return (
                         <span
                           key={index.id}
-                          className="px-1.5 py-0.5 rounded-md text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border"
+                          className="px-1.5 py-0.5 rounded-md text-[10px] font-bold border bg-primary/10 text-primary border-primary/20"
                           title={index.name}
                         >
                           {index.symbol}

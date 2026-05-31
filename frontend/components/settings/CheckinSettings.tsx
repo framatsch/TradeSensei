@@ -140,7 +140,7 @@ function MarketIndexesSection() {
         <input
           value={tradingviewUrl}
           onChange={(e) => setTradingviewUrl(e.target.value)}
-          placeholder="TradingView URL"
+          placeholder="External Link URL (e.g. TradingView)"
           className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
         />
       </div>
@@ -164,7 +164,7 @@ function MarketIndexesSection() {
               <tr className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
                 <th className="px-4 py-3 text-left">Symbol</th>
                 <th className="px-4 py-3 text-left">Name</th>
-                <th className="px-4 py-3 text-left">TradingView</th>
+                <th className="px-4 py-3 text-left">External Link</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
