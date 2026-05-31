@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-05-31
+
+### Added
+- [frontend] News links now render prominently in Check-in Timeline and Gallery views with domain badges
+- [frontend] TradingView chart links styled as distinct blue chips with icon in Check-in overviews
+
+### Fixed
+- [frontend] External links inside clickable check-in cards no longer trigger card navigation (`stopPropagation`)
+
+### Changed
+- [frontend] Market index badges in Timeline view now use primary colors and bold text for better visibility
+- [frontend] Renamed "TradingView" column/placeholder to "External Link" in Check-in settings to reflect generic use
+
 ## [1.2.2] - 2026-05-31
 
 ### Fixed
@@ -416,7 +429,8 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.2...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/scheffold/TradeSensei/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...v1.2.1
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
