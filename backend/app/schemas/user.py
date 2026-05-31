@@ -159,6 +159,11 @@ class UserSettingsRead(BaseModel):
     default_portfolio_id: uuid.UUID | None = Field(default=None)
     show_open_trades: bool = Field(default=False)
     home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library", "/dashboard/checkins"] = Field(default="/dashboard")
+    chart_intervals: list[Literal["1h", "4h", "1d", "1w"]] = Field(
+        default=["1h", "4h", "1d", "1w"],
+        description="Allowed chart timeframes.",
+        examples=[["1h", "4h", "1d", "1w"]]
+    )
 
 
 class UserSettingsUpdate(BaseModel):
@@ -200,6 +205,11 @@ class UserSettingsUpdate(BaseModel):
         ]
         | None
     ) = Field(default=None)
+    chart_intervals: list[Literal["1h", "4h", "1d", "1w"]] | None = Field(
+        default=None,
+        description="Updated allowed chart timeframes. Omit to leave unchanged.",
+        examples=[["1d"], None],
+    )
 
     @field_validator("features")
     @classmethod
@@ -214,6 +224,16 @@ class UserSettingsUpdate(BaseModel):
             raise ValueError(
                 f"Unsupported feature flag key(s): {', '.join(sorted(invalid_keys))}"
             )
+        return value
+
+    @field_validator("chart_intervals")
+    @classmethod
+    def validate_chart_intervals(
+        cls,
+        value: list[Literal["1h", "4h", "1d", "1w"]] | None,
+    ) -> list[Literal["1h", "4h", "1d", "1w"]] | None:
+        if value is not None and len(value) == 0:
+            raise ValueError("chart_intervals must contain at least one interval.")
         return value
 
 

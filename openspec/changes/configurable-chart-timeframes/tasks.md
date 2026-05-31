@@ -1,8 +1,8 @@
 ## 1. Backend Updates
 
-- [ ] 1.1 Add `chart_intervals` field to `UserSettingsRead` and `UserSettingsUpdate` schemas in `backend/app/schemas/user.py`. It should be `list[Literal["1h", "4h", "1d"]]` with default `["1h", "4h", "1d"]`.
-- [ ] 1.2 Validate that the user provides at least one interval in `UserSettingsUpdate`.
-- [ ] 1.3 Ensure `chart_intervals` is handled properly when updating and returning user settings in the API route.
+- [x] 1.1 Add `chart_intervals` field to `UserSettingsRead` and `UserSettingsUpdate` schemas in `backend/app/schemas/user.py`. It should be `list[Literal["1h", "4h", "1d"]]` with default `["1h", "4h", "1d"]`.
+- [x] 1.2 Validate that the user provides at least one interval in `UserSettingsUpdate`.
+- [x] 1.3 Ensure `chart_intervals` is handled properly when updating and returning user settings in the API route.
 
 ## 2. Frontend Settings API & Types
 

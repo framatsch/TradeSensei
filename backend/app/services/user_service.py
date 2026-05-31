@@ -42,6 +42,7 @@ _SETTINGS_DEFAULTS: dict[str, object] = {
     "default_portfolio_id": None,
     "show_open_trades": False,
     "home_route": "/dashboard",
+    "chart_intervals": '["1h", "4h", "1d", "1w"]',
 }
 
 logger = logging.getLogger(__name__)
@@ -168,6 +169,19 @@ class UserService:
             merged_features = {}
         merged["features"] = merged_features
 
+        # Deserialize chart_intervals JSON into list
+        try:
+            chart_intervals_val = merged.get("chart_intervals", '["1h", "4h", "1d", "1w"]')
+            merged_chart_intervals = json.loads(chart_intervals_val) if isinstance(chart_intervals_val, str) else chart_intervals_val
+        except Exception:
+            logger.warning(
+                "Failed to parse chart_intervals JSON for user %s",
+                user_id,
+                exc_info=True,
+            )
+            merged_chart_intervals = ["1h", "4h", "1d", "1w"]
+        merged["chart_intervals"] = merged_chart_intervals
+
         if merged.get("home_route") not in {
             "/dashboard",
             "/dashboard/trades",
@@ -236,10 +250,11 @@ class UserService:
 
         for key, value in update_dict.items():
             if value is not None and key != "features":
+                value_str = json.dumps(value) if isinstance(value, list) else str(value)
                 await self._settings_repo.upsert(
                     user_id=user_id,
                     key=key,
-                    value=str(value),
+                    value=value_str,
                 )
         await self._session.commit()
         # expire_all() is required here: upsert() uses
