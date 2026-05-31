@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-05-31
+
+### Added
+- [frontend] Taxonomy and Annotation managers synced with backend repositories (full CRUD via API)
+- [frontend] Color-coded taxonomy chips with `color_hex` rendering and icon display in TaxonomySelector
+- [frontend] Configurable chart interval (weekly, monthly, quarterly, yearly) in user settings with GeneralSettings UI
+- [frontend] 1-week (1w) interval option in TradeChart time range selector
+- [db] Seed default market indexes (SPX, NDX, DAX) for existing users via Alembic data migration
+
+### Fixed
+- [frontend] Fix undefined `isPending` variable reference in TaxonomyManager (use correct mutation pending states)
+- [frontend] Fix DynamicIcon interface type conflict with LucideProps `name` prop
+- [test] Fix broken `scalar_one()` query syntax in two backend tests (missing `.where()` clause)
+
+### Changed
+- [frontend] Add AGPLv3 license headers to multiple frontend components
+
 ## [1.2.0] - 2026-05-30
 
 ### Added
@@ -388,6 +405,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...v1.2.1
 [0.7.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.5.1...v0.6.0
