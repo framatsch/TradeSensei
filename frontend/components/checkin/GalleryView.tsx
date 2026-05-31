@@ -20,7 +20,7 @@ import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, ExternalLink, Link2 } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 
 export function GalleryView() {
@@ -111,16 +111,60 @@ export function GalleryView() {
                 </div>
 
                 {checkin.target_indices && checkin.target_indices.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {checkin.target_indices.map((index) => (
-                      <span
-                        key={index.id}
-                        className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border"
-                        title={index.name}
-                      >
-                        {index.symbol}
-                      </span>
-                    ))}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {checkin.target_indices.map((index) => {
+                      if (index.tradingview_url) {
+                        return (
+                          <a
+                            key={index.id}
+                            href={index.tradingview_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#2962FF]/10 hover:bg-[#2962FF]/20 border border-[#2962FF]/20 rounded-md text-[10px] font-medium text-[#2962FF] dark:text-[#739aff] transition-colors"
+                            title={`${index.name} Chart`}
+                          >
+                            <ExternalLink className="w-2.5 h-2.5" />
+                            {index.symbol}
+                          </a>
+                        );
+                      }
+                      return (
+                        <span
+                          key={index.id}
+                          className="px-1.5 py-0.5 rounded-md text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border"
+                          title={index.name}
+                        >
+                          {index.symbol}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* News Links */}
+                {checkin.news_links && checkin.news_links.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {checkin.news_links.map((link, i) => {
+                      try {
+                        const domain = new URL(link).hostname.replace('www.', '');
+                        return (
+                          <a
+                            key={i}
+                            href={link}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted/40 hover:bg-muted border border-border rounded-md text-[10px] font-medium text-foreground transition-colors"
+                          >
+                            <Link2 className="w-2.5 h-2.5 text-primary" />
+                            <span className="truncate max-w-[100px]">{domain}</span>
+                          </a>
+                        );
+                      } catch {
+                        return null;
+                      }
+                    })}
                   </div>
                 )}
 

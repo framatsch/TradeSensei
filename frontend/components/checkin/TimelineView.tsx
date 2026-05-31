@@ -23,7 +23,7 @@ import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
 import Link from "next/link";
-import { ExternalLink, Pencil } from "lucide-react";
+import { ExternalLink, Pencil, Link2 } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 
 export function TimelineView() {
@@ -107,7 +107,8 @@ export function TimelineView() {
               </div>
             )}
 
-            {checkin.target_indices && checkin.target_indices.length > 0 && (
+            {/* TradingView Charts for Indices */}
+            {checkin.target_indices && checkin.target_indices.some(idx => idx.tradingview_url) && (
               <div className="mb-4 flex flex-wrap gap-2">
                 {checkin.target_indices.map((index) => (
                   index.tradingview_url ? (
@@ -116,13 +117,52 @@ export function TimelineView() {
                       href={index.tradingview_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2962FF]/10 hover:bg-[#2962FF]/20 border border-[#2962FF]/20 rounded-md text-xs font-medium text-[#2962FF] dark:text-[#739aff] transition-colors shadow-sm"
                     >
-                      <ExternalLink className="w-3 h-3" />
-                      {index.symbol}
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      {index.symbol} Chart
                     </a>
                   ) : null
                 ))}
+              </div>
+            )}
+
+            {/* News / External Links */}
+            {checkin.news_links && checkin.news_links.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {checkin.news_links.map((link, i) => {
+                  try {
+                    const domain = new URL(link).hostname.replace('www.', '');
+                    return (
+                      <a
+                        key={i}
+                      href={link}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors shadow-sm"
+                      >
+                        <Link2 className="w-3.5 h-3.5 text-primary" />
+                        <span className="truncate max-w-[200px]">{domain}</span>
+                      </a>
+                    );
+                  } catch {
+                    return (
+                      <a
+                        key={i}
+                      href={link}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors shadow-sm"
+                      >
+                        <Link2 className="w-3.5 h-3.5 text-primary" />
+                        <span className="truncate max-w-[200px]">Link</span>
+                      </a>
+                    );
+                  }
+                })}
               </div>
             )}
 
