@@ -13,7 +13,6 @@
 
 """Service layer for daily check-in operations."""
 
-import re
 import uuid
 from datetime import date
 
@@ -45,7 +44,6 @@ class DailyCheckinService:
         self._repo = DailyCheckinRepository(session)
         self._index_repo = MarketIndexDefinitionRepository(session)
         self._cache = CacheService()
-        self._market_phase_pattern = re.compile(r"^[a-z0-9_]{1,50}$")
 
     async def _validate_target_indices(
         self,
@@ -70,8 +68,6 @@ class DailyCheckinService:
         """Validate market phase value shape."""
         _ = user_id
         if market_phase is not None and not market_phase.strip():
-            raise DailyCheckinValidationError("unknown market_phase")
-        if market_phase is not None and not self._market_phase_pattern.fullmatch(market_phase):
             raise DailyCheckinValidationError("unknown market_phase")
 
     async def _validate_custom_metrics(

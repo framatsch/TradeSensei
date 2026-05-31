@@ -13,15 +13,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+"use client";
+
 import { ReactNode } from "react";
 import { CheckinSidebar } from "@/components/checkin/CheckinSidebar";
 import { ContextSetter } from "@/components/layout/ContextSetter";
+import { useSidebarStore } from "@/stores/sidebarStore";
 
 export default function CheckinLayout({ children }: { children: ReactNode }) {
+  const { desktopSidebarOpen } = useSidebarStore();
+
   return (
     <div className="flex w-full h-full">
-      <div className="w-[220px] shrink-0 border-r border-border bg-sidebar">
-        <CheckinSidebar />
+      <div
+        className={`shrink-0 border-r border-border bg-sidebar transition-all duration-300 ease-in-out overflow-hidden ${
+          desktopSidebarOpen ? "w-[220px]" : "w-0"
+        }`}
+      >
+        <div className="w-[220px] h-full">
+          <CheckinSidebar />
+        </div>
       </div>
       <div className="flex-1 overflow-auto bg-background">
         {children}

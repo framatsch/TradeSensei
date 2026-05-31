@@ -59,8 +59,13 @@ export function CheckinForm({
   const [isEditMode, setIsEditMode] = useState(isNew || searchParams.get("edit") === "true");
 
   const addNewsLink = () => {
-    const trimmed = newsLink.trim();
-    if (trimmed && !newsLinks.includes(trimmed)) {
+    let trimmed = newsLink.trim();
+    if (!trimmed) return;
+    // Auto-prepend https:// if no protocol is present
+    if (!/^https?:\/\//i.test(trimmed)) {
+      trimmed = `https://${trimmed}`;
+    }
+    if (!newsLinks.includes(trimmed)) {
       setNewsLinks((prev) => [...prev, trimmed]);
       setNewsLink("");
     }
@@ -161,7 +166,7 @@ export function CheckinForm({
                 }}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors disabled:cursor-default ${
                   selected
-                    ? "bg-muted text-foreground border-border"
+                    ? "bg-primary text-primary-foreground border-primary"
                     : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:bg-muted/50"
                 }`}
                 title={idx.name}

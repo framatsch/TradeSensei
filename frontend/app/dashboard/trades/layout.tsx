@@ -13,6 +13,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+"use client";
+
+import { useSidebarStore } from "@/stores/sidebarStore";
 import { TradingLogSidebar } from "@/components/trading-log/TradingLogSidebar";
 
 export default function TradesLayout({
@@ -20,10 +23,18 @@ export default function TradesLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { desktopSidebarOpen } = useSidebarStore();
+
   return (
     <div className="flex h-full w-full">
-      <div className="w-64 border-r border-border bg-sidebar flex-shrink-0">
-        <TradingLogSidebar />
+      <div
+        className={`border-r border-border bg-sidebar flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
+          desktopSidebarOpen ? "w-64" : "w-0"
+        }`}
+      >
+        <div className="w-64 h-full">
+          <TradingLogSidebar />
+        </div>
       </div>
       <div className="flex-1 overflow-auto bg-background p-6 pt-14">
         {children}

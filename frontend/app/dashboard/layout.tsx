@@ -37,6 +37,7 @@ import type { AppContext } from "@/stores/appContextStore";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { useAccounts } from "@/hooks/useAccounts";
 import { EmptyPortfolioGate } from "@/components/layout/EmptyPortfolioGate";
+import { useSidebarStore } from "@/stores/sidebarStore";
 
 import { PanelLeftClose, PanelLeftOpen, Filter } from "lucide-react";
 
@@ -303,13 +304,7 @@ interface Props {
 
 export default function DashboardLayout({ children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem("desktopSidebarOpen");
-      if (stored !== null) return stored === "true";
-    }
-    return true;
-  });
+  const { desktopSidebarOpen, toggle: toggleDesktopSidebar } = useSidebarStore();
   
   const pathname = usePathname();
   const router = useRouter();
@@ -349,14 +344,6 @@ export default function DashboardLayout({ children }: Props) {
   const { data: accounts, isLoading: isAccountsLoading } = useAccounts(activePortfolioId || undefined);
 
   const hideGlobalSidebar = pathname.startsWith("/dashboard/checkins") || pathname.startsWith("/dashboard/settings") || pathname.startsWith("/dashboard/trades");
-
-  const toggleDesktopSidebar = () => {
-    setDesktopSidebarOpen((prev) => {
-      const next = !prev;
-      window.localStorage.setItem("desktopSidebarOpen", String(next));
-      return next;
-    });
-  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

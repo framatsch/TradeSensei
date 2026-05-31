@@ -26,8 +26,9 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any  # JWT payload values are heterogeneous (str, int, float)
 
+import bcrypt
+
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,7 +47,7 @@ from app.schemas.auth import TokenPayload
 # Password hashing
 # ---------------------------------------------------------------------------
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_BCRYPT_ROUNDS = 12
 
 
 def hash_password(plain: str) -> str:
@@ -58,7 +59,7 @@ def hash_password(plain: str) -> str:
     Returns:
         A bcrypt hash string suitable for storing in the database.
     """
-    return str(_pwd_context.hash(plain))
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(_BCRYPT_ROUNDS)).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -71,7 +72,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     Returns:
         ``True`` if the password matches, ``False`` otherwise.
     """
-    result: bool = _pwd_context.verify(plain, hashed)
+    result: bool = bcrypt.checkpw(plain.encode(), hashed.encode())
     return result
 
 
