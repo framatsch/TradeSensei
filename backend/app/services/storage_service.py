@@ -143,6 +143,7 @@ class StorageService:
             endpoint_url=endpoint,
             aws_access_key_id=settings.storage_access_key,
             aws_secret_access_key=settings.storage_secret_key,
+            config=boto3.session.Config(s3={"addressing_style": "path"}),
         )
 
     def upload_file_content(
