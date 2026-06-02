@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-06-02
+
 ### Changed
 - [backend] Upload endpoint responses now return `{presigned_url, key}` instead of full `public_url`.
 - [frontend] Updated upload hooks to store the image `key` (`{bucket}/{key}`) instead of the full URL.
@@ -419,6 +421,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.2.4]: https://github.com/scheffold/TradeSensei/compare/v1.2.3...v1.2.4
 [1.2.0]: https://github.com/scheffold/TradeSensei/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/scheffold/TradeSensei/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/scheffold/TradeSensei/compare/v1.1.0...v1.1.1
@@ -438,7 +441,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.3...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.4...HEAD
 [1.2.3]: https://github.com/scheffold/TradeSensei/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...v1.2.1
