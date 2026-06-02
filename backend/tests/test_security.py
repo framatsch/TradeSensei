@@ -17,13 +17,6 @@ Covers password hashing, password verification, JWT creation, and JWT
 decoding including the expired-token and garbage-input error paths.
 All tests are self-contained and rely only on the ``SECRET_KEY`` env var
 seeded by ``conftest.py``.
-
-Note on passlib/bcrypt compatibility: ``passlib 1.7.4`` is incompatible with
-``bcrypt 5+`` under Python 3.14.  The ``_fix_passlib_bcrypt_backend`` fixture
-patches the internal ``_finalize_backend_mixin`` so that passlib can load its
-bcrypt backend without triggering the 72-byte wrap-bug detection failure.
-This fixture is applied automatically (``autouse=True``) to every test in this
-module and does **not** affect the correctness of the tested functions.
 """
 
 import uuid
@@ -47,22 +40,17 @@ from app.core.security import (
 
 @pytest.fixture(autouse=True)
 def _fix_passlib_bcrypt_backend() -> Any:
-    """Patch passlib's bcrypt backend initialisation for Python 3.14 compatibility.
+    """No-op fixture retained for API compatibility.
 
-    ``passlib 1.7.4`` generates a 256-byte internal test vector to detect a
-    bcrypt wrap-bug, but ``bcrypt 5.0`` enforces the 72-byte limit strictly,
-    raising ``ValueError`` during the backend selection that passlib performs
-    on its first hash/verify call.  This patch bypasses the detection so that
-    ``hash_password`` and ``verify_password`` can exercise their real logic.
+    The security module uses ``bcrypt`` directly (no passlib dependency).
+    The original passlib patch was written for an older implementation and
+    is no longer needed.  The fixture is kept as a no-op so that test
+    collection succeeds without changes to individual test methods.
 
     Yields:
-        Nothing — the patch is active for the duration of each test.
+        Nothing.
     """
-    with patch(
-        "passlib.handlers.bcrypt._BcryptCommon._finalize_backend_mixin",
-        return_value=True,
-    ):
-        yield
+    yield
 
 
 # ---------------------------------------------------------------------------

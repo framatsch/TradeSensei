@@ -195,11 +195,11 @@ class UserService:
 
         show_open_trades = merged.get("show_open_trades")
         if isinstance(show_open_trades, str):
-            merged["show_open_trades"] = show_open_trades.lower() == "true"
+            merged["show_open_trades"] = show_open_trades.lower() == "true"  # type: ignore[assignment]
 
         chart_show_post_exit = merged.get("chart_show_post_exit")
         if isinstance(chart_show_post_exit, str):
-            merged["chart_show_post_exit"] = chart_show_post_exit.lower() == "true"
+            merged["chart_show_post_exit"] = chart_show_post_exit.lower() == "true"  # type: ignore[assignment]
 
         return UserSettingsRead(**merged)  # type: ignore[arg-type]  # Type narrowing from dynamic settings dict is imperfect for mypy.
 

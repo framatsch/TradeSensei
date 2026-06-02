@@ -50,7 +50,7 @@ class StorageService:
             endpoint_url=endpoint,
             aws_access_key_id=settings.storage_access_key,
             aws_secret_access_key=settings.storage_secret_key,
-            config=boto3.session.Config(s3={"addressing_style": "path"}),
+            config=boto3.session.Config(s3={"addressing_style": "path"}),  # type: ignore[attr-defined]
         )
 
     def _generate_upload_url(
@@ -93,7 +93,7 @@ class StorageService:
         if not settings.storage_backend:
             return storage_ref
         bucket, key = self.parse_storage_ref(storage_ref)
-        return self._s3_client.generate_presigned_url(
+        return self._s3_client.generate_presigned_url(  # type: ignore[no-any-return]
             ClientMethod="get_object",
             Params={
                 "Bucket": bucket,
@@ -165,7 +165,7 @@ class StorageService:
             endpoint_url=endpoint,
             aws_access_key_id=settings.storage_access_key,
             aws_secret_access_key=settings.storage_secret_key,
-            config=boto3.session.Config(s3={"addressing_style": "path"}),
+            config=boto3.session.Config(s3={"addressing_style": "path"}),  # type: ignore[attr-defined]
         )
 
     def upload_file_content(

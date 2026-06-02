@@ -313,7 +313,7 @@ async def _handle_search_trades_advanced(
     total = int(total_result.scalar_one())
 
     if params.sort_by == "pnl":
-        sort_col = Trade.pnl
+        sort_col: Any = Trade.pnl
     elif params.sort_by == "net_pnl":
         sort_col = Trade.net_pnl
     elif params.sort_by == "closed_at":

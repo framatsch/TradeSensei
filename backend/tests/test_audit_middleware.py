@@ -89,6 +89,7 @@ def _capture_audit_logger() -> tuple[logging.Logger, logging.Handler, io.StringI
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False
+    logger.disabled = False  # reset in case alembic fileConfig disabled this logger
     return logger, handler, stream
 
 
