@@ -49,9 +49,9 @@ async def test_generate_trade_image_upload_url_success(
     assert response.status_code == 200
     data = response.json()["data"]
     assert "presigned_url" in data
-    assert "public_url" in data
-    assert data["public_url"].startswith("https://storage.test/trades/")
-    assert "chart.png" in data["public_url"]
+    assert "key" in data
+    assert data["key"].startswith("test-bucket/trades/")
+    assert "chart.png" in data["key"]
 
 
 @pytest.mark.asyncio
@@ -99,9 +99,8 @@ async def test_generate_trade_image_upload_url_storage_not_configured(
 
 
 def test_schema_validation_success(override_storage_settings):
-    """Test TradeCreateRequest and TradeUpdate validation succeeds with valid URLs."""
-    valid_url = "https://storage.test/trades/some-id-chart.png"
-    
+    valid_ref = "test-bucket/trades/some-id/chart.png"
+
     req = TradeCreateRequest(
         symbol="AAPL",
         direction="LONG",
@@ -109,19 +108,16 @@ def test_schema_validation_success(override_storage_settings):
         quantity="10",
         entry_price="150",
         opened_at="2024-01-01T10:00:00Z",
-        image_urls=[valid_url],
+        image_urls=[valid_ref],
     )
-    assert req.image_urls == [valid_url]
-    
-    upd = TradeUpdate(image_urls=[valid_url])
-    assert upd.image_urls == [valid_url]
+    assert req.image_urls == [valid_ref]
+
+    upd = TradeUpdate(image_urls=[valid_ref])
+    assert upd.image_urls == [valid_ref]
 
 
-def test_schema_validation_invalid_url(override_storage_settings):
-    """Test validation fails if URL does not match STORAGE_PUBLIC_URL."""
-    invalid_url = "https://malicious.test/image.png"
-    
-    with pytest.raises(ValueError, match="image URL must start with"):
+def test_schema_validation_rejects_full_url(override_storage_settings):
+    with pytest.raises(ValueError, match="image_urls entries must use"):
         TradeCreateRequest(
             symbol="AAPL",
             direction="LONG",
@@ -129,16 +125,19 @@ def test_schema_validation_invalid_url(override_storage_settings):
             quantity="10",
             entry_price="150",
             opened_at="2024-01-01T10:00:00Z",
-            image_urls=[invalid_url],
+            image_urls=["https://malicious.test/image.png"],
         )
 
-    with pytest.raises(ValueError, match="image URL must start with"):
-        TradeUpdate(image_urls=[invalid_url])
+    with pytest.raises(ValueError, match="image_urls entries must use"):
+        TradeUpdate(image_urls=["https://malicious.test/image.png"])
 
 
-def test_schema_validation_storage_not_configured(monkeypatch: pytest.MonkeyPatch):
-    """Test validation fails if image_urls provided but storage is not configured."""
-    monkeypatch.setattr(settings, "storage_public_url", None)
-    
-    with pytest.raises(ValueError, match="storage_public_url is not configured"):
-        TradeUpdate(image_urls=["https://some.url/image.png"])
+def test_schema_validation_rejects_wrong_bucket(override_storage_settings):
+    with pytest.raises(ValueError, match="configured storage bucket"):
+        TradeUpdate(image_urls=["other-bucket/trades/image.png"])
+
+
+def test_schema_validation_allows_any_bucket_when_unconfigured(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "storage_bucket", None)
+    upd = TradeUpdate(image_urls=["any-bucket/trades/image.png"])
+    assert upd.image_urls == ["any-bucket/trades/image.png"]

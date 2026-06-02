@@ -22,6 +22,11 @@ interface Props {
   onUploaded: (url: string) => void;
 }
 
+type ScreenshotUploadUrlResult = {
+  presigned_url: string;
+  key: string;
+};
+
 export function ScreenshotUploader({ onUploaded }: Props) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -60,7 +65,13 @@ export function ScreenshotUploader({ onUploaded }: Props) {
         return;
       }
 
-      const { presigned_url, public_url } = res.data.data;
+      const { presigned_url, key } = res.data.data as ScreenshotUploadUrlResult;
+      const storageRef = key;
+      if (!storageRef) {
+        setError("Upload URL response is missing key");
+        setIsUploading(false);
+        return;
+      }
 
       const uploadRes = await fetch(presigned_url, {
         method: "PUT",
@@ -76,7 +87,7 @@ export function ScreenshotUploader({ onUploaded }: Props) {
         return;
       }
 
-      onUploaded(public_url);
+      onUploaded(storageRef);
     } catch (err) {
       console.error(err);
       setError("An unexpected error occurred");

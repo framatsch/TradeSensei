@@ -88,8 +88,13 @@ export function useUpdateTrade(id: string) {
 
 export interface TradeImageUploadUrlResult {
   presigned_url: string;
-  public_url: string;
+  key: string;
 }
+
+type TradeImageUploadEnvelope = {
+  presigned_url: string;
+  key: string;
+};
 
 export function useTradeImageUploadUrl() {
   return useMutation<TradeImageUploadUrlResult, Error, { filename: string; contentType: string }>({
@@ -101,7 +106,11 @@ export function useTradeImageUploadUrl() {
         },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
-      return data.data;
+      const payload = data.data as TradeImageUploadEnvelope;
+      return {
+        presigned_url: payload.presigned_url,
+        key: payload.key,
+      };
     },
   });
 }

@@ -183,6 +183,10 @@ class Settings(BaseSettings):
     storage_access_key: str | None = None
     storage_secret_key: str | None = None
     storage_endpoint_url: str | None = None
+    storage_presigned_get_ttl_seconds: int = 3600
+    """Expiry for presigned GET URLs on trade images and check-in screenshots (seconds). Default: 1 hour."""
+    storage_presigned_get_ttl_playbook_seconds: int = 14400
+    """Expiry for presigned GET URLs on playbook attachments (seconds). Default: 4 hours."""
 
     # Cache
     redis_url: str | None = None

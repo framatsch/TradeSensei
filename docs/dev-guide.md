@@ -462,36 +462,45 @@ class (`StorageService`) is reused by both domains.
 
 ```
 1. Client  →  POST /api/v1/trades/upload-url  { content_type, filename }
-             ← { presigned_url, public_url }
+             ← { presigned_url, key }
 
 2. Client  →  PUT <presigned_url>  (binary file, no auth header)
              ← 200 from S3
 
-3. Client  →  PATCH /api/v1/trades/{id}  { image_urls: [..., public_url] }
+3. Client  →  PATCH /api/v1/trades/{id}  { image_urls: [..., key] }
+
+4. Client  →  GET /api/v1/portfolios/{portfolio_id}/trades/{trade_id}
+             ← { image_urls: [<presigned-get-url>, ...] }
 ```
 
 The backend is stateless throughout — it only generates the presigned URL and
-validates that any `image_urls` array submitted by the client starts with the
-configured `STORAGE_PUBLIC_URL` prefix.
+validates that any stored image reference is in `{bucket}/{key}` format.
+Read responses return short-lived presigned GET URLs generated server-side.
 
 ### Backend files
 
 | File | Role |
 |------|------|
-| `app/services/storage_service.py` | Generates presigned PUT URLs via `boto3` |
+| `app/services/storage_service.py` | Generates presigned PUT and GET URLs via `boto3` |
 | `app/api/v1/trades.py` — `POST /upload-url` | Trade image upload URL endpoint |
 | `app/api/v1/checkins.py` — `POST /screenshot-upload-url` | Check-in screenshot upload URL endpoint |
-| `app/schemas/trade.py` — `validate_image_urls` | Validates `image_urls` prefix against `STORAGE_PUBLIC_URL` |
+| `app/schemas/trade.py` — `validate_image_urls` | Validates `image_urls` entries use `{bucket}/{key}` |
+| `app/schemas/*` read models | Convert stored `{bucket}/{key}` refs into presigned GET URLs |
 
 ### Adding the pattern to a new entity
 
 1. Add a JSONB `image_urls` column (default `[]`) via an Alembic migration.
 2. Add a `field_validator("image_urls")` in the Pydantic update schema that
-   rejects non-empty lists when `settings.storage_public_url` is falsy and
-   validates the URL prefix otherwise.
+   validates each entry uses `{bucket}/{key}` format.
 3. Add an `upload-url` POST endpoint that calls `StorageService.generate_upload_url()`.
-   Return HTTP 503 when `STORAGE_PUBLIC_URL` is not set.
+   Return HTTP 503 when storage is disabled.
 4. The frontend uses the standard two-step flow: request URL → PUT file → PATCH entity.
+5. Ensure read/list schemas return presigned GET URLs from stored refs.
+
+### Presigned GET expiry defaults
+
+- Trades and daily check-ins: 1 hour (`3600s`)
+- Playbook attachments: 4 hours (`14400s`)
 
 ### Environment variables
 
@@ -499,7 +508,7 @@ configured `STORAGE_PUBLIC_URL` prefix.
 |---|---|
 | `STORAGE_BACKEND` | `s3` to enable; empty to disable |
 | `STORAGE_BUCKET` | S3 bucket name |
-| `STORAGE_PUBLIC_URL` | Public base URL returned to the client (e.g. `https://cdn.example.com/bucket`) |
+| `STORAGE_PUBLIC_URL` | Optional base URL override for generated presigned URLs (e.g. `https://cdn.example.com/bucket`) |
 | `STORAGE_ACCESS_KEY` | S3 access key ID |
 | `STORAGE_SECRET_KEY` | S3 secret access key |
 | `STORAGE_ENDPOINT_URL` | Override endpoint for S3-compatible services (MinIO, Cloudflare R2, etc.) |
@@ -516,7 +525,7 @@ The backend reads six environment variables:
 |---|---|
 | `STORAGE_BACKEND` | Set to `s3` to enable; leave empty to disable |
 | `STORAGE_BUCKET` | Bucket name |
-| `STORAGE_PUBLIC_URL` | Base URL for public file access — **must be browser-reachable** |
+| `STORAGE_PUBLIC_URL` | Base URL override for presigned URLs — **must be browser-reachable** |
 | `STORAGE_ACCESS_KEY` | Access key / key ID |
 | `STORAGE_SECRET_KEY` | Secret key |
 | `STORAGE_ENDPOINT_URL` | S3 endpoint URL (leave empty for AWS S3) |
@@ -635,9 +644,7 @@ The secure configuration is:
 
 1. **Bucket access: private** (no public-read ACL).
 2. **Upload flow**: client uses a presigned PUT URL issued by the backend (already implemented).
-3. **Download flow**: client requests a presigned GET URL from the backend; the backend verifies ownership before issuing it.
-
-> ⚠️ **The presigned GET endpoint is not yet implemented.** Until it is, do not store sensitive files in a public bucket in production. See the roadmap note at the end of this section.
+3. **Download flow**: backend returns presigned GET URLs in read/list responses after ownership checks in authenticated entity endpoints.
 
 ### Provider-specific configuration
 
@@ -702,10 +709,13 @@ aws --endpoint-url http://localhost:8333 s3api get-bucket-acl --bucket tradesens
 # "URI": "http://acs.amazonaws.com/groups/global/AllUsers" must NOT appear with "READ" permission
 ```
 
-### Roadmap: presigned GET endpoint
+### Current state: presigned GET is implemented
 
-The backend currently only issues presigned **PUT** URLs (upload). Presigned **GET** URLs (download) are tracked in issue `tmp/issue_13` and are required before exposing storage in a production environment with multiple users. Until that endpoint is implemented:
+The backend now issues presigned **PUT** URLs for upload endpoints and returns
+presigned **GET** URLs in authenticated read/list responses for:
 
-- Keep the bucket private.
-- Serve stored images through the backend as a proxy (`/api/v1/storage/object?key=...`) with an auth check, or
-- Accept that image display is broken in production until the GET presign endpoint ships.
+- Daily check-ins (`screenshot_urls`, 1h expiry)
+- Trades (`image_urls`, 1h expiry)
+- Playbook attachments (`storage_url`, 4h expiry)
+
+Buckets must still remain private; presigned URLs are the intended read path.

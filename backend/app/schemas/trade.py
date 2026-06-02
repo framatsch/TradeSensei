@@ -20,7 +20,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from app.core.config import settings
 from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
@@ -55,7 +55,7 @@ class TradeImageUploadUrlResponse(BaseModel):
     """Response schema containing presigned and public URLs."""
 
     presigned_url: str = Field(..., description="Short-lived presigned PUT URL.")
-    public_url: str = Field(..., description="Public URL to store in image_urls.")
+    key: str = Field(..., description="Storage reference in {bucket}/{key} format to store in image_urls.")
 
 
 class TradePartialCloseRequest(BaseModel):
@@ -225,8 +225,8 @@ class TradeCreate(BaseModel):
     )
     image_urls: list[str] = Field(
         default_factory=list,
-        description="List of image URLs for this trade.",
-        examples=[["https://example.com/image1.png"], []],
+        description="List of image storage references in '{bucket}/{key}' format for this trade.",
+        examples=[["tradesensei/trades/user-1/image1.png"], []],
     )
     currency: str | None = Field(
         default=None,
@@ -599,12 +599,16 @@ class TradeCreateRequest(BaseModel):
     @classmethod
     def validate_image_urls(cls, v: list[str] | None) -> list[str] | None:
         if v:
-            if not settings.storage_public_url:
-                raise ValueError("storage_public_url is not configured")
-            public_url = settings.storage_public_url.rstrip("/")
-            for url in v:
-                if not url.startswith(f"{public_url}/"):
-                    raise ValueError(f"image URL must start with {public_url}/")
+            allowed_bucket = settings.storage_bucket
+            for storage_ref in v:
+                if "://" in storage_ref or "/" not in storage_ref:
+                    raise ValueError("image_urls entries must use '{bucket}/{key}' format")
+                if allowed_bucket:
+                    bucket = storage_ref.split("/", 1)[0]
+                    if bucket != allowed_bucket:
+                        raise ValueError(
+                            f"image_urls entries must reference the configured storage bucket '{allowed_bucket}'"
+                        )
         return v
 
     def to_trade_create(self, user_id: uuid.UUID) -> "TradeCreate":
@@ -738,12 +742,16 @@ class TradeUpdate(BaseModel):
     @classmethod
     def validate_image_urls(cls, v: list[str] | None) -> list[str] | None:
         if v:
-            if not settings.storage_public_url:
-                raise ValueError("storage_public_url is not configured")
-            public_url = settings.storage_public_url.rstrip("/")
-            for url in v:
-                if not url.startswith(f"{public_url}/"):
-                    raise ValueError(f"image URL must start with {public_url}/")
+            allowed_bucket = settings.storage_bucket
+            for storage_ref in v:
+                if "://" in storage_ref or "/" not in storage_ref:
+                    raise ValueError("image_urls entries must use '{bucket}/{key}' format")
+                if allowed_bucket:
+                    bucket = storage_ref.split("/", 1)[0]
+                    if bucket != allowed_bucket:
+                        raise ValueError(
+                            f"image_urls entries must reference the configured storage bucket '{allowed_bucket}'"
+                        )
         return v
 
 
@@ -870,8 +878,8 @@ class TradeRead(BaseModel):
     )
     image_urls: list[str] = Field(
         default_factory=list,
-        description="List of image URLs for this trade.",
-        examples=[["https://example.com/image1.png"]],
+        description="Short-lived presigned GET URLs for trade images (expires in 1 hour).",
+        examples=[["https://storage.example.com/bucket/key?AWSAccessKeyId=...&Signature=...&Expires=..."]],
     )
     currency: str | None = Field(
         default=None,
@@ -1047,6 +1055,21 @@ class TradeRead(BaseModel):
                 with contextlib.suppress(Exception):
                     data.__dict__["legs"] = data.__dict__["logical_executions"]
         return data
+
+    @model_validator(mode="after")
+    def _resolve_image_urls(self, info: ValidationInfo) -> "TradeRead":
+        context = info.context if isinstance(info.context, dict) else None
+        storage_service = context.get("storage_service") if context else None
+        if storage_service is None or not self.image_urls:
+            return self
+        self.image_urls = [
+            storage_service.generate_presigned_get_url(
+                storage_ref=storage_ref,
+                expires_in=settings.storage_presigned_get_ttl_seconds,
+            )
+            for storage_ref in self.image_urls
+        ]
+        return self
 
 
 # ─── Filter / Sort schemas ────────────────────────────────────────────────────

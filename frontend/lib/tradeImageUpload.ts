@@ -15,7 +15,7 @@
 
 export interface TradeImageUploadUrls {
   presigned_url: string;
-  public_url: string;
+  key: string;
 }
 
 export type TradeImageUploadUrlRequester = (
@@ -32,7 +32,7 @@ export async function uploadTradeImages(
 
   for (const file of files) {
     const contentType = file.type || "application/octet-stream";
-    const { presigned_url, public_url } = await requestUploadUrl(file.name, contentType);
+    const { presigned_url, key } = await requestUploadUrl(file.name, contentType);
 
     const response = await putFile(presigned_url, {
       method: "PUT",
@@ -46,7 +46,7 @@ export async function uploadTradeImages(
       throw new Error(`Upload failed for ${file.name} (${response.status})`);
     }
 
-    uploadedUrls.push(public_url);
+    uploadedUrls.push(key);
   }
 
   return uploadedUrls;

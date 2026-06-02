@@ -149,7 +149,7 @@ async def delete_screenshot(
     import contextlib
 
     with contextlib.suppress(Exception):
-        storage.delete_file_by_url(target_url)
+        storage.delete_file_by_storage_ref(target_url)
 
     from app.schemas.trade import TradeUpdate  # local import to avoid circular
 

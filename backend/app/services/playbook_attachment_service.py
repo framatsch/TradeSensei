@@ -62,12 +62,12 @@ class PlaybookAttachmentService:
             raise UnsupportedContentTypeError("only image content types are accepted (png, jpeg, webp, gif)")
         if not settings.storage_backend:
             raise ConfigurationError("object storage is not configured")
-        upload_url, public_url = self._storage.generate_playbook_upload_url(
+        upload_url, key = self._storage.generate_playbook_upload_url(
             user_id=user_id,
             filename=filename,
             content_type=content_type,
         )
-        return PlaybookImageUploadUrlResponse(upload_url=upload_url, public_url=public_url)
+        return PlaybookImageUploadUrlResponse(upload_url=upload_url, key=key)
 
     async def register(
         self,
@@ -76,12 +76,15 @@ class PlaybookAttachmentService:
         payload: PlaybookImageRegisterRequest,
     ) -> PlaybookImageResponse:
         await self._ensure_playbook_exists(playbook_id, user_id)
-        storage_url_str = str(payload.storage_url)
-        # Trust check: URL must originate from our configured storage
-        if settings.storage_public_url:
-            base = settings.storage_public_url.rstrip("/")
-            if not storage_url_str.startswith(base):
-                raise UnsupportedContentTypeError("storage_url does not match configured STORAGE_PUBLIC_URL")
+        storage_url_str = payload.storage_url
+        try:
+            bucket, _ = self._storage.parse_storage_ref(storage_url_str)
+        except ValueError as exc:
+            raise UnsupportedContentTypeError("storage_url must use '{bucket}/{key}' format") from exc
+        if settings.storage_bucket and bucket != settings.storage_bucket:
+            raise UnsupportedContentTypeError(
+                f"storage_url must reference the configured storage bucket '{settings.storage_bucket}'"
+            )
         if payload.content_type not in _ALLOWED_IMAGE_TYPES:
             raise UnsupportedContentTypeError("only image content types are accepted")
         attachment = await self._attachment_repo.create(
@@ -91,12 +94,12 @@ class PlaybookAttachmentService:
             storage_url=storage_url_str,
             content_type=payload.content_type,
         )
-        return PlaybookImageResponse.model_validate(attachment)
+        return PlaybookImageResponse.model_validate(attachment, context={"storage_service": self._storage})
 
     async def list(self, playbook_id: uuid.UUID, user_id: uuid.UUID) -> list[PlaybookImageResponse]:
         await self._ensure_playbook_exists(playbook_id, user_id)
         attachments = await self._attachment_repo.list_for_playbook(playbook_id)
-        return [PlaybookImageResponse.model_validate(a) for a in attachments]
+        return [PlaybookImageResponse.model_validate(a, context={"storage_service": self._storage}) for a in attachments]
 
     async def delete(
         self,

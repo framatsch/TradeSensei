@@ -30,6 +30,15 @@ class StorageService:
 
     _ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
 
+    @staticmethod
+    def parse_storage_ref(storage_ref: str) -> tuple[str, str]:
+        if "://" in storage_ref:
+            raise ValueError("storage_ref must be in '{bucket}/{key}' format")
+        bucket, sep, key = storage_ref.partition("/")
+        if not sep or not bucket or not key:
+            raise ValueError("storage_ref must be in '{bucket}/{key}' format")
+        return bucket, key
+
     @cached_property
     def _s3_client(self) -> Any:
         # Cached per-instance only — StorageService is instantiated per request.
@@ -58,7 +67,7 @@ class StorageService:
         if not settings.storage_backend:
             raise ConfigurationError("object storage is not configured")
 
-        if not settings.storage_bucket or not settings.storage_public_url:
+        if not settings.storage_bucket:
             raise ConfigurationError("object storage is not configured")
 
         clean_name = Path(filename).name
@@ -77,8 +86,21 @@ class StorageService:
             ExpiresIn=900,
         )
 
-        public_url = f"{settings.storage_public_url.rstrip('/')}/{key}"
-        return presigned_url, public_url
+        storage_ref = f"{settings.storage_bucket}/{key}"
+        return presigned_url, storage_ref
+
+    def generate_presigned_get_url(self, storage_ref: str, expires_in: int = 3600) -> str:
+        if not settings.storage_backend:
+            return storage_ref
+        bucket, key = self.parse_storage_ref(storage_ref)
+        return self._s3_client.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={
+                "Bucket": bucket,
+                "Key": key,
+            },
+            ExpiresIn=expires_in,
+        )
 
     def generate_screenshot_upload_url(
         self,
@@ -152,8 +174,7 @@ class StorageService:
         key: str,
         content_type: str,
     ) -> str:
-        """Upload raw bytes to object storage and return the public URL."""
-        if not settings.storage_bucket or not settings.storage_public_url:
+        if not settings.storage_bucket:
             raise ConfigurationError("object storage is not configured")
 
         self._s3_client_internal.put_object(
@@ -163,23 +184,15 @@ class StorageService:
             ContentType=content_type,
         )
 
-        public_url = f"{settings.storage_public_url.rstrip('/')}/{key}"
-        return public_url
+        storage_ref = f"{settings.storage_bucket}/{key}"
+        return storage_ref
 
-    def delete_file_by_url(
+    def delete_file_by_storage_ref(
         self,
-        public_url: str,
+        storage_ref: str,
     ) -> None:
-        """Extract the key from the public URL and delete the object."""
-        if not settings.storage_bucket or not settings.storage_public_url:
-            raise ConfigurationError("object storage is not configured")
-
-        base = settings.storage_public_url.rstrip("/") + "/"
-        if not public_url.startswith(base):
-            return  # Not an object storage URL
-
-        key = public_url[len(base) :]
+        bucket, key = self.parse_storage_ref(storage_ref)
         self._s3_client_internal.delete_object(
-            Bucket=settings.storage_bucket,
+            Bucket=bucket,
             Key=key,
         )

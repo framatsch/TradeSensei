@@ -61,7 +61,7 @@ async def generate_screenshot_upload_url(
 ) -> ResponseEnvelope[ScreenshotUploadUrlResponse]:
     service = StorageService()
     try:
-        presigned_url, public_url = service.generate_screenshot_upload_url(
+        presigned_url, key = service.generate_screenshot_upload_url(
             user_id=current_user.id,
             filename=payload.filename,
             content_type=payload.content_type,
@@ -79,7 +79,7 @@ async def generate_screenshot_upload_url(
     return ResponseEnvelope[ScreenshotUploadUrlResponse](
         data=ScreenshotUploadUrlResponse(
             presigned_url=presigned_url,
-            public_url=public_url,
+            key=key,
         )
     )
 

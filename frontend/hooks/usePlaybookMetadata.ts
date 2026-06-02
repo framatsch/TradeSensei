@@ -35,9 +35,13 @@ import {
 import type {
   TaxonomyResponse,
   PlaybookImageResponse,
-  PlaybookImageUploadUrlResponse,
   PlaybookLinkResponse,
 } from "@/lib/api/types.gen";
+
+type PlaybookUploadUrlResult = {
+  upload_url: string;
+  key: string;
+};
 
 // ─── Taxonomy assignments ────────────────────────────────────────────────────
 
@@ -104,7 +108,7 @@ export function usePlaybookAttachments(playbookId: string) {
 
 export function usePlaybookImageUploadUrl() {
   return useMutation<
-    PlaybookImageUploadUrlResponse,
+    PlaybookUploadUrlResult,
     Error,
     { playbookId: string; filename: string; contentType: string }
   >({
@@ -114,7 +118,11 @@ export function usePlaybookImageUploadUrl() {
         body: { filename, content_type: contentType },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
-      return data as PlaybookImageUploadUrlResponse;
+      const payload = data as PlaybookUploadUrlResult;
+      return {
+        upload_url: payload.upload_url,
+        key: payload.key,
+      };
     },
   });
 }

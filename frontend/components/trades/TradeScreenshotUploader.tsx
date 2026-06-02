@@ -67,7 +67,7 @@ export function TradeScreenshotUploader({ onUploaded, disabled = false }: Props)
           continue;
         }
 
-        uploadedUrls.push(res.public_url);
+        uploadedUrls.push(res.key);
       }
 
       if (uploadedUrls.length > 0) {

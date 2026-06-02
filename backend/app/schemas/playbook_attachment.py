@@ -16,7 +16,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
 
 class PlaybookImageUploadRequest(BaseModel):
@@ -30,7 +30,7 @@ class PlaybookImageUploadUrlResponse(BaseModel):
     """Response with presigned upload URL and public read URL."""
 
     upload_url: str = Field(..., description="Presigned PUT URL for direct upload to S3.")
-    public_url: str = Field(..., description="Stable public URL that will be the attachment's storage_url after registration.")
+    key: str = Field(..., description="Storage reference in {bucket}/{key} format to register as attachment storage_url.")
 
 
 class PlaybookImageRegisterRequest(BaseModel):
@@ -38,7 +38,7 @@ class PlaybookImageRegisterRequest(BaseModel):
 
     filename: str = Field(..., min_length=1, description="Original filename of the image.")
     content_type: str = Field(..., description="MIME type of the image.")
-    storage_url: AnyHttpUrl = Field(..., description="Public URL of the uploaded image (must match STORAGE_PUBLIC_URL prefix).")
+    storage_url: str = Field(..., description="Uploaded image storage reference in {bucket}/{key} format.")
 
 
 class PlaybookImageResponse(BaseModel):
@@ -50,5 +50,19 @@ class PlaybookImageResponse(BaseModel):
     playbook_id: uuid.UUID = Field(..., description="Owning playbook identifier.")
     filename: str = Field(..., description="Original filename.")
     content_type: str = Field(..., description="MIME type.")
-    storage_url: str = Field(..., description="Stable public URL of the image.")
+    storage_url: str = Field(..., description="Short-lived presigned GET URL of the image.")
     created_at: datetime = Field(..., description="UTC creation timestamp.")
+
+    @model_validator(mode="after")
+    def _resolve_storage_url(self, info: ValidationInfo) -> "PlaybookImageResponse":
+        context = info.context if isinstance(info.context, dict) else None
+        storage_service = context.get("storage_service") if context else None
+        if storage_service is None or not self.storage_url:
+            return self
+        from app.core.config import settings
+
+        self.storage_url = storage_service.generate_presigned_get_url(
+            storage_ref=self.storage_url,
+            expires_in=settings.storage_presigned_get_ttl_playbook_seconds,
+        )
+        return self

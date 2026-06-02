@@ -84,11 +84,11 @@ async def get_trade_image_upload_url(
     The client must upload the file directly to the returned `presigned_url`
     using an HTTP PUT request with the exact `content_type`.
 
-    Once uploaded, the `public_url` can be stored in the trade's `image_urls` list.
+    Once uploaded, the `key` can be stored in the trade's `image_urls` list.
     """
     service = StorageService()
     try:
-        presigned_url, public_url = service.generate_trade_image_upload_url(
+        presigned_url, key = service.generate_trade_image_upload_url(
             user_id=current_user.id,
             filename=payload.filename,
             content_type=payload.content_type,
@@ -107,7 +107,7 @@ async def get_trade_image_upload_url(
     return ResponseEnvelope(
         data=TradeImageUploadUrlResponse(
             presigned_url=presigned_url,
-            public_url=public_url,
+            key=key,
         )
     )
 

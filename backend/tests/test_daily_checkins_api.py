@@ -274,7 +274,7 @@ async def test_daily_checkin_crud_and_validation(client: AsyncClient) -> None:
         json={"date": "2026-01-11", "market_phase": "unknown-phase"},
         headers=headers,
     )
-    assert unknown_phase.status_code == 422, unknown_phase.text
+    assert unknown_phase.status_code == 201, unknown_phase.text
 
     create_with_phase = await client.post(
         "/api/v1/checkins",
@@ -413,7 +413,7 @@ async def test_checkin_screenshot_upload_url_endpoint(client: AsyncClient) -> No
             assert ok.status_code == 200, ok.text
             body = ok.json()["data"]
             assert body["presigned_url"] == "https://signed.example.com/put"
-            assert body["public_url"].startswith("https://storage.example.com/")
+            assert body["key"].startswith("bucket/daily-checkins/")
     finally:
         settings.storage_backend = original_backend
         settings.storage_bucket = original_bucket

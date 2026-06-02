@@ -246,7 +246,7 @@ export function PlaybookEditorClient({ id }: Props) {
             setUploadError(`${file.name} is too large (max 20 MB)`);
             continue;
           }
-          const { upload_url, public_url } = await getUploadUrl({
+          const { upload_url, key } = await getUploadUrl({
             playbookId: id,
             filename: file.name,
             contentType: file.type,
@@ -264,7 +264,7 @@ export function PlaybookEditorClient({ id }: Props) {
             playbookId: id,
             filename: file.name,
             contentType: file.type,
-            storageUrl: public_url,
+            storageUrl: key,
           });
         }
       } catch {

@@ -42,7 +42,7 @@ async def _create_user(db_session: AsyncSession, suffix: str) -> User:
 
 
 @pytest.mark.integration
-async def test_taxonomy_seed_defaults_insert_expected_11_rows(db_session: AsyncSession) -> None:
+async def test_taxonomy_seed_defaults_insert_expected_13_rows(db_session: AsyncSession) -> None:
     user = await _create_user(db_session, uuid.uuid4().hex[:8])
     repo = TaxonomyRepository(db_session)
 
@@ -50,7 +50,7 @@ async def test_taxonomy_seed_defaults_insert_expected_11_rows(db_session: AsyncS
 
     result = await db_session.execute(select(Taxonomy).where(Taxonomy.user_id == user.id))
     rows = list(result.scalars().all())
-    assert len(rows) == 11
+    assert len(rows) == 13
 
     by_name = {row.name: row for row in rows}
     expected = {
@@ -65,6 +65,8 @@ async def test_taxonomy_seed_defaults_insert_expected_11_rows(db_session: AsyncS
         "Mean Reversion": ("both", "#6366f1", "repeat"),
         "Momentum": ("both", "#f97316", "rocket"),
         "Trend Following": ("both", "#06b6d4", "trending-up"),
+        "Stop Loss": ("trades", "#ef4444", "octagon"),
+        "Textbook Trade": ("trades", "#fbbf24", "award"),
     }
     assert set(by_name.keys()) == set(expected.keys())
     for name, (scope, color_hex, icon_identifier) in expected.items():
@@ -125,7 +127,7 @@ async def test_seed_defaults_is_idempotent_for_same_user(db_session: AsyncSessio
     annotation_rows = await db_session.execute(
         select(AnnotationDefinition).where(AnnotationDefinition.user_id == user.id)
     )
-    assert len(list(taxonomy_rows.scalars().all())) == 11
+    assert len(list(taxonomy_rows.scalars().all())) == 13
     assert len(list(annotation_rows.scalars().all())) == 4
 
 

@@ -34,6 +34,7 @@ from app.schemas.daily_checkin import (
     DailyCheckinUpdate,
 )
 from app.services.cache_service import CacheService
+from app.services.storage_service import StorageService
 
 
 class DailyCheckinService:
@@ -44,6 +45,7 @@ class DailyCheckinService:
         self._repo = DailyCheckinRepository(session)
         self._index_repo = MarketIndexDefinitionRepository(session)
         self._cache = CacheService()
+        self._storage = StorageService()
 
     async def _validate_target_indices(
         self,
@@ -91,21 +93,24 @@ class DailyCheckinService:
             raise DailyCheckinValidationError(errors)
 
     def _validate_screenshot_urls(self, screenshot_urls: list[str] | None) -> None:
-        """Validate screenshot URLs against configured storage public URL."""
         if screenshot_urls is None:
             return
 
         if not screenshot_urls:
             return
 
-        storage_public_url = settings.storage_public_url
-        if not storage_public_url:
+        if not settings.storage_bucket:
             raise DailyCheckinValidationError("screenshot_urls is not available: object storage is not configured")
 
-        allowed_prefix = storage_public_url.rstrip("/") + "/"
-        for url in screenshot_urls:
-            if not url.startswith(allowed_prefix):
-                raise DailyCheckinValidationError("screenshot_url must use configured storage domain")
+        for storage_ref in screenshot_urls:
+            try:
+                bucket, _ = self._storage.parse_storage_ref(storage_ref)
+            except ValueError as exc:
+                raise DailyCheckinValidationError("screenshot_url must use '{bucket}/{key}' format") from exc
+            if settings.storage_bucket and bucket != settings.storage_bucket:
+                raise DailyCheckinValidationError(
+                    f"screenshot_urls entries must reference the configured storage bucket '{settings.storage_bucket}'"
+                )
 
     async def create_checkin(
         self,
@@ -125,7 +130,7 @@ class DailyCheckinService:
         except IntegrityError as exc:
             await self._session.rollback()
             raise DailyCheckinAlreadyExistsError("daily check-in already exists for this date") from exc
-        return DailyCheckinRead.model_validate(model)
+        return DailyCheckinRead.model_validate(model, context={"storage_service": self._storage})
 
     async def get_checkin(
         self,
@@ -139,7 +144,7 @@ class DailyCheckinService:
         )
         if model is None:
             raise DailyCheckinNotFoundError("daily check-in not found")
-        return DailyCheckinRead.model_validate(model)
+        return DailyCheckinRead.model_validate(model, context={"storage_service": self._storage})
 
     async def list_checkins(
         self,
@@ -160,7 +165,7 @@ class DailyCheckinService:
             limit=limit,
         )
         return DailyCheckinListResponse(
-            items=[DailyCheckinRead.model_validate(item) for item in items],
+            items=[DailyCheckinRead.model_validate(item, context={"storage_service": self._storage}) for item in items],
             next_cursor=next_cursor,
             total=total,
         )
@@ -191,7 +196,7 @@ class DailyCheckinService:
         updated = await self._repo.update(model=model, data=payload)
         await self._session.commit()
         await self._cache.invalidate_user(user_id)
-        return DailyCheckinRead.model_validate(updated)
+        return DailyCheckinRead.model_validate(updated, context={"storage_service": self._storage})
 
     async def delete_checkin(self, user_id: uuid.UUID, checkin_date: date) -> None:
         """Delete a check-in by date for the user."""

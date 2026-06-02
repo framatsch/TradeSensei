@@ -44,6 +44,7 @@ from app.schemas.trade import (
     TradeUpdate,
 )
 from app.services.cache_service import CacheService
+from app.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class TradeService:
         self._taxonomy_repo = TaxonomyRepository(session)
         self._account_repo = AccountRepository(session)
         self._cache = CacheService()
+        self._storage = StorageService()
 
     def _screenshot_dir(self, trade_id: uuid.UUID) -> Path:
         """Return the filesystem directory used for trade screenshots."""
@@ -110,9 +112,6 @@ class TradeService:
 
         import mimetypes
 
-        from app.services.storage_service import StorageService
-
-        storage = StorageService()
         content_type, _ = mimetypes.guess_type(filename)
         content_type = content_type or "application/octet-stream"
 
@@ -122,24 +121,28 @@ class TradeService:
         from app.core.config import settings
 
         is_test = os.environ.get("PYTEST_CURRENT_TEST") is not None
-        url = f"/uploads/{key}" if is_test and not settings.storage_bucket else storage.upload_file_content(content, key, content_type)
+        bucket = settings.storage_bucket or "test-bucket"
+        storage_ref = f"{bucket}/uploads/{key}" if is_test and not settings.storage_bucket else self._storage.upload_file_content(content, key, content_type)
 
         try:
-            trade = await self.get_trade(trade_id, user_id)
-            current_image_urls: list[str] = list(trade.image_urls or [])
-            current_image_urls.append(url)
+            trade_model = await self._repo.get_by_id(trade_id, user_id)
+            if trade_model is None:
+                raise TradeNotFoundError(f"Trade {trade_id} not found.")
+            portfolio_id = trade_model.account.portfolio_id if trade_model.account else None
+            current_image_urls: list[str] = list(trade_model.image_urls or [])
+            current_image_urls.append(storage_ref)
             return await self.update_trade(
                 trade_id,
                 TradeUpdate(image_urls=current_image_urls),
                 user_id,
-                trade.portfolio_id,
+                portfolio_id,
             )
         except Exception:
             # If update fails, clean up the orphaned file
             import contextlib
 
             with contextlib.suppress(Exception):
-                storage.delete_file_by_url(url)
+                self._storage.delete_file_by_storage_ref(storage_ref)
             raise
 
     async def _re_aggregate_trade(self, trade_id: uuid.UUID) -> None:
@@ -296,7 +299,7 @@ class TradeService:
                 )
         trade_reloaded = await self._repo.get_by_id(trade.id, trade.user_id)
 
-        return TradeRead.model_validate(trade_reloaded)
+        return TradeRead.model_validate(trade_reloaded, context={"storage_service": self._storage})
 
     async def get_trade(
         self,
@@ -319,7 +322,7 @@ class TradeService:
         trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
-        return TradeRead.model_validate(trade)
+        return TradeRead.model_validate(trade, context={"storage_service": self._storage})
 
     async def list_trades(
         self,
@@ -370,7 +373,7 @@ class TradeService:
             raise InvalidCursorError("Invalid pagination cursor.") from exc
 
         return CursorPage[TradeRead](
-            items=[TradeRead.model_validate(t) for t in items],
+            items=[TradeRead.model_validate(t, context={"storage_service": self._storage}) for t in items],
             next_cursor=next_cursor,
             total=total,
         )
@@ -437,7 +440,7 @@ class TradeService:
             if account is not None and account.portfolio_id is not None:
                 await self._cache.invalidate_portfolio(account.portfolio_id, user_id)
         await self._session.commit()
-        return TradeRead.model_validate(updated)
+        return TradeRead.model_validate(updated, context={"storage_service": self._storage})
 
     async def delete_trade(
         self,
@@ -661,7 +664,7 @@ class TradeService:
         survivor_reloaded = await self._repo.get_by_id(survivor.id, user_id)
         if portfolio_id is not None:
             await self._cache.invalidate_portfolio(portfolio_id, user_id)
-        return TradeRead.model_validate(survivor_reloaded)
+        return TradeRead.model_validate(survivor_reloaded, context={"storage_service": self._storage})
 
     async def partial_close_trade(
         self,
@@ -755,7 +758,7 @@ class TradeService:
                     )
             await self._session.commit()
             updated = await self._repo.get_by_id(trade.id, user_id)
-            return TradeRead.model_validate(updated)
+            return TradeRead.model_validate(updated, context={"storage_service": self._storage})
 
         # 2. Perform Split (Partial Close).
         # Refresh trade from DB to ensure all associations are correctly loaded
@@ -826,4 +829,4 @@ class TradeService:
         if portfolio_id is not None:
             await self._cache.invalidate_portfolio(portfolio_id, user_id)
 
-        return TradeRead.model_validate(new_trade_orm)
+        return TradeRead.model_validate(new_trade_orm, context={"storage_service": self._storage})

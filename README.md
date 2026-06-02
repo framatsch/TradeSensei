@@ -299,7 +299,7 @@ An S3-compatible storage backend must be configured. Set the following environme
 |---|---|
 | `STORAGE_BACKEND` | Set to `s3` to enable S3 storage |
 | `STORAGE_BUCKET` | Bucket name (must exist) |
-| `STORAGE_PUBLIC_URL` | Public base URL used to build image URLs (e.g. `https://cdn.example.com/tradesensei`) |
+| `STORAGE_PUBLIC_URL` | Optional base URL override for generated presigned URLs (e.g. `https://cdn.example.com/tradesensei`) |
 | `STORAGE_ACCESS_KEY` | S3 access key |
 | `STORAGE_SECRET_KEY` | S3 secret key |
 | `STORAGE_ENDPOINT_URL` | Custom endpoint for S3-compatible services (e.g. MinIO at `http://minio:9000`) |

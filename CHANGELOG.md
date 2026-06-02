@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [backend] Upload endpoint responses now return `{presigned_url, key}` instead of full `public_url`.
+- [frontend] Updated upload hooks to store the image `key` (`{bucket}/{key}`) instead of the full URL.
+- [backend] List and get API endpoints for trades, check-ins, and playbooks now generate temporary, short-lived presigned GET URLs dynamically.
+
+### Security
+- [backend] Migrated storage references to remove public hostnames; domain models now store generic `{bucket}/{key}` keys.
+- [backend] Read access to images now explicitly requires authentication.
+
 ## [1.2.3] - 2026-05-31
 
 ### Added

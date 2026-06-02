@@ -17,7 +17,7 @@ import datetime as dt
 import uuid
 from typing import Any
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
 from app.schemas.annotation_definition import CheckinAnnotationResponse
 from app.schemas.taxonomy import TaxonomyResponse
@@ -48,7 +48,7 @@ class DailyCheckinCreate(BaseModel):
     )
     screenshot_urls: list[str] = Field(
         default_factory=list,
-        description="Optional list of screenshot URLs.",
+        description="Optional list of screenshot storage references in '{bucket}/{key}' format.",
     )
     custom_metrics: dict[str, int | bool] | None = Field(
         default=None,
@@ -80,7 +80,7 @@ class DailyCheckinUpdate(BaseModel):
     )
     screenshot_urls: list[str] | None = Field(
         default=None,
-        description="Updated list of screenshot URLs.",
+        description="Updated list of screenshot storage references in '{bucket}/{key}' format.",
     )
     custom_metrics: dict[str, int | bool] | None = Field(
         default=None,
@@ -110,7 +110,10 @@ class DailyCheckinRead(BaseModel):
     market_phase: str | None = Field(..., description="Stored market phase name.")
     notes: str | None = Field(..., description="Daily notes.")
     news_links: list[str] = Field(..., description="Validated news links.")
-    screenshot_urls: list[str] = Field(..., description="Stored screenshot URLs.")
+    screenshot_urls: list[str] = Field(
+        ...,
+        description="Short-lived presigned GET URLs for screenshots (expires in 1 hour).",
+    )
     custom_metrics: dict[str, int | bool] | None = Field(..., description="Stored custom metric values.")
     target_indices: list[TargetIndexRead] = Field(
         default_factory=list,
@@ -162,6 +165,23 @@ class DailyCheckinRead(BaseModel):
                 data.__dict__["annotations"] = resolved_annotations
         return data
 
+    @model_validator(mode="after")
+    def _resolve_screenshot_urls(self, info: ValidationInfo) -> "DailyCheckinRead":
+        context = info.context if isinstance(info.context, dict) else None
+        storage_service = context.get("storage_service") if context else None
+        if storage_service is None or not self.screenshot_urls:
+            return self
+        from app.core.config import settings
+
+        self.screenshot_urls = [
+            storage_service.generate_presigned_get_url(
+                storage_ref=storage_ref,
+                expires_in=settings.storage_presigned_get_ttl_seconds,
+            )
+            for storage_ref in self.screenshot_urls
+        ]
+        return self
+
 
 class ScreenshotUploadUrlRequest(BaseModel):
     """Request schema to obtain a screenshot upload URL."""
@@ -182,7 +202,7 @@ class ScreenshotUploadUrlResponse(BaseModel):
     """Response schema containing presigned and public URLs."""
 
     presigned_url: str = Field(..., description="Short-lived presigned PUT URL.")
-    public_url: str = Field(..., description="Public URL to store in screenshot_urls.")
+    key: str = Field(..., description="Storage reference in {bucket}/{key} format to store in screenshot_urls.")
 
 
 class DailyCheckinListResponse(BaseModel):

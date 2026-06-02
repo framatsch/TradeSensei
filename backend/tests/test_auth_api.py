@@ -182,6 +182,8 @@ class TestRegister:
             "Mean Reversion",
             "Momentum",
             "Trend Following",
+            "Stop Loss",
+            "Textbook Trade",
         }
 
     @pytest.mark.integration
@@ -244,7 +246,7 @@ class TestRegister:
 
         assert taxonomies.status_code == 200, taxonomies.text
         assert annotations.status_code == 200, annotations.text
-        assert len(taxonomies.json()["data"]) == 11
+        assert len(taxonomies.json()["data"]) == 13
         assert len(annotations.json()["data"]) == 4
 
 
