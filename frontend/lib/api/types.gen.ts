@@ -1321,7 +1321,7 @@ export type DailyCheckinCreate = {
     /**
      * Screenshot Urls
      *
-     * Optional list of screenshot URLs.
+     * Optional list of screenshot storage references in '{bucket}/{key}' format.
      */
     screenshot_urls?: Array<string>;
     /**
@@ -1405,9 +1405,15 @@ export type DailyCheckinRead = {
     /**
      * Screenshot Urls
      *
-     * Stored screenshot URLs.
+     * Short-lived presigned GET URLs for screenshots (expires in 1 hour).
      */
     screenshot_urls: Array<string>;
+    /**
+     * Screenshot Keys
+     *
+     * Raw storage references in '{bucket}/{key}' format; use these when writing back screenshot_urls on PATCH.
+     */
+    screenshot_keys?: Array<string>;
     /**
      * Custom Metrics
      *
@@ -1481,7 +1487,7 @@ export type DailyCheckinUpdate = {
     /**
      * Screenshot Urls
      *
-     * Updated list of screenshot URLs.
+     * Updated list of screenshot storage references in '{bucket}/{key}' format.
      */
     screenshot_urls?: Array<string> | null;
     /**
@@ -5672,7 +5678,7 @@ export type TradeRead = {
     /**
      * Image Urls
      *
-     * List of image URLs for this trade.
+     * Short-lived presigned GET URLs for trade images (expires in 1 hour).
      */
     image_urls?: Array<string>;
     /**

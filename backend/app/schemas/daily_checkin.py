@@ -114,6 +114,10 @@ class DailyCheckinRead(BaseModel):
         ...,
         description="Short-lived presigned GET URLs for screenshots (expires in 1 hour).",
     )
+    screenshot_keys: list[str] = Field(
+        default_factory=list,
+        description="Raw storage references in '{bucket}/{key}' format; use these when writing back screenshot_urls on PATCH.",
+    )
     custom_metrics: dict[str, int | bool] | None = Field(..., description="Stored custom metric values.")
     target_indices: list[TargetIndexRead] = Field(
         default_factory=list,
@@ -169,7 +173,10 @@ class DailyCheckinRead(BaseModel):
     def _resolve_screenshot_urls(self, info: ValidationInfo) -> "DailyCheckinRead":
         context = info.context if isinstance(info.context, dict) else None
         storage_service = context.get("storage_service") if context else None
-        if storage_service is None or not self.screenshot_urls:
+        if not self.screenshot_urls:
+            return self
+        self.screenshot_keys = list(self.screenshot_urls)
+        if storage_service is None:
             return self
         from app.core.config import settings
 

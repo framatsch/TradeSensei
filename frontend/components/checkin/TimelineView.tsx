@@ -24,7 +24,7 @@ import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
 import Link from "next/link";
 import { ExternalLink, Pencil, Link2 } from "lucide-react";
-import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
+
 
 export function TimelineView() {
   const router = useRouter();
@@ -167,8 +167,17 @@ export function TimelineView() {
             )}
 
             {checkin.screenshot_urls && checkin.screenshot_urls.length > 0 && (
-              <div className="mt-4">
-                <TradeImageGallery imageUrls={checkin.screenshot_urls} />
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                {checkin.screenshot_urls.map((url, i) => (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`Screenshot ${i + 1}`}
+                    className="w-10 h-10 rounded object-cover border border-border shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ))}
               </div>
             )}
           </div>

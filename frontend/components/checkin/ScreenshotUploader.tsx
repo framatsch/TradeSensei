@@ -19,7 +19,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { generateScreenshotUploadUrlApiV1CheckinsScreenshotUploadUrlPost } from "@/lib/api/index";
 
 interface Props {
-  onUploaded: (url: string) => void;
+  onUploaded: (storageRef: string, previewUrl: string) => void;
 }
 
 type ScreenshotUploadUrlResult = {
@@ -87,7 +87,8 @@ export function ScreenshotUploader({ onUploaded }: Props) {
         return;
       }
 
-      onUploaded(storageRef);
+      const previewUrl = URL.createObjectURL(file);
+      onUploaded(storageRef, previewUrl);
     } catch (err) {
       console.error(err);
       setError("An unexpected error occurred");

@@ -48,7 +48,8 @@ export function CheckinForm({
   const [notes, setNotes] = useState(entry?.notes ?? "");
   const [newsLink, setNewsLink] = useState("");
   const [newsLinks, setNewsLinks] = useState<string[]>(entry?.news_links ?? []);
-  const [screenshotUrls, setScreenshotUrls] = useState<string[]>(entry?.screenshot_urls ?? []);
+  const [screenshotKeys, setScreenshotKeys] = useState<string[]>(entry?.screenshot_keys ?? []);
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>(entry?.screenshot_urls ?? []);
   const activePhases = marketPhases;
   const { data: marketIndexes } = useMarketIndexes();
   const activeIndexes = (marketIndexes ?? []).filter((idx) => idx.is_active);
@@ -87,7 +88,7 @@ export function CheckinForm({
         target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks.length > 0 ? newsLinks : undefined,
-        screenshot_urls: screenshotUrls.length > 0 ? screenshotUrls : undefined,
+        screenshot_urls: screenshotKeys.length > 0 ? screenshotKeys : undefined,
       };
       onSave(payload);
     } else {
@@ -96,7 +97,7 @@ export function CheckinForm({
         target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks,
-        screenshot_urls: screenshotUrls,
+        screenshot_urls: screenshotKeys,
       };
       onSave(payload);
     }
@@ -238,20 +239,23 @@ export function CheckinForm({
         <label className="block text-sm font-medium text-foreground mb-2">
           Screenshots
         </label>
-        {screenshotUrls.length > 0 ? (
+        {screenshotKeys.length > 0 ? (
           <div className="flex flex-wrap gap-3 mb-3">
-            {screenshotUrls.map((url, i) => (
+            {screenshotKeys.map((_, i) => (
               <div key={i} className="relative group w-32 h-20 rounded-md overflow-hidden border border-border">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={url}
+                  src={screenshotPreviews[i]}
                   alt={`Screenshot ${i + 1}`}
                   className="w-full h-full object-cover"
                 />
                 {isEditMode && (
                   <button
                     type="button"
-                    onClick={() => setScreenshotUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                    onClick={() => {
+                      setScreenshotKeys((prev) => prev.filter((_, idx) => idx !== i));
+                      setScreenshotPreviews((prev) => prev.filter((_, idx) => idx !== i));
+                    }}
                     className="absolute top-1 right-1 bg-background/80 hover:bg-destructive hover:text-destructive-foreground text-foreground p-1 rounded-sm opacity-0 group-hover:opacity-100 transition-all"
                     aria-label="Remove screenshot"
                   >
@@ -264,7 +268,14 @@ export function CheckinForm({
         ) : !isEditMode && (
           <span className="text-sm text-muted-foreground italic">No screenshots attached</span>
         )}
-        {isEditMode && <ScreenshotUploader onUploaded={(url) => setScreenshotUrls((prev) => [...prev, url])} />}
+        {isEditMode && (
+          <ScreenshotUploader
+            onUploaded={(storageRef, previewUrl) => {
+              setScreenshotKeys((prev) => [...prev, storageRef]);
+              setScreenshotPreviews((prev) => [...prev, previewUrl]);
+            }}
+          />
+        )}
       </div>
 
       {/* News Links */}

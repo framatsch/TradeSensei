@@ -71,8 +71,9 @@ frontend/tests/.auth/
 frontend/test-results/
 frontend/playwright-report/
 
-# oppencode codebase index
+# OpenCode state
 .opencode/index
+.omo/
 
 #tmp
 tmp

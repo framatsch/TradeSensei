@@ -51,8 +51,8 @@ export function useDeleteScreenshot(tradeId: string) {
   const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Trade, Error, string>({
     mutationFn: async (url: string) => {
-      // Extract only the filename from the full URL path
-      const filename = url.split("/").pop()!;
+      const pathPart = url.split("?")[0];
+      const filename = pathPart.split("/").pop()!;
       const { data, error } = await deleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDelete({
         path: { trade_id: tradeId, filename },
       });
