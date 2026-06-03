@@ -173,11 +173,14 @@ class DailyCheckinRead(BaseModel):
     def _resolve_screenshot_urls(self, info: ValidationInfo) -> "DailyCheckinRead":
         context = info.context if isinstance(info.context, dict) else None
         storage_service = context.get("storage_service") if context else None
-        if not self.screenshot_urls:
-            return self
-        self.screenshot_keys = list(self.screenshot_urls)
         if storage_service is None:
             return self
+
+        if not self.screenshot_urls:
+            return self
+            
+        self.screenshot_keys = list(self.screenshot_urls)
+        
         from app.core.config import settings
 
         self.screenshot_urls = [

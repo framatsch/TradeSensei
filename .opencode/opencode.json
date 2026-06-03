@@ -6,6 +6,5 @@
   },
   "plugin": [
     ".opencode/plugins/graphify.js",
-    "opencode-codebase-index"
   ]
 }

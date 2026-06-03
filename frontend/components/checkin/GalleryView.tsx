@@ -20,12 +20,15 @@ import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Pencil, ExternalLink, Link2 } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
+import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
 
 export function GalleryView() {
   const router = useRouter();
   const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
+  const [lightboxData, setLightboxData] = useState<{ urls: string[]; index: number } | null>(null);
   
   // Fetch more items for the gallery view
   const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage * 2);
@@ -58,21 +61,31 @@ export function GalleryView() {
               style={{ borderTopWidth: "4px", borderTopColor: colorHex }}
             >
               {/* Image Thumbnail */}
-              <div className="aspect-video w-full bg-muted border-b border-border overflow-hidden relative">
+              <div 
+                className="aspect-video w-full bg-muted border-b border-border overflow-hidden relative p-4"
+                onClick={(e) => {
+                  if (checkin.screenshot_urls && checkin.screenshot_urls.length > 0) {
+                    e.stopPropagation();
+                    setLightboxData({ urls: checkin.screenshot_urls, index: 0 });
+                  }
+                }}
+              >
                 {checkin.screenshot_urls && checkin.screenshot_urls.length > 0 ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img 
-                    src={checkin.screenshot_urls[0]} 
-                    alt={`Screenshot for ${checkin.date}`}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  />
+                  <div className="w-full h-full relative rounded-lg overflow-hidden shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={checkin.screenshot_urls[0]} 
+                      alt={`Screenshot for ${checkin.date}`}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  </div>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/40 bg-muted/30">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/40 bg-background rounded-lg shadow-sm border border-border/50">
                     <span className="text-sm font-medium">No Image</span>
                   </div>
                 )}
                 {checkin.screenshot_urls && checkin.screenshot_urls.length > 1 && (
-                  <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm text-foreground text-xs px-1.5 py-0.5 rounded font-medium border border-border">
+                  <div className="absolute bottom-6 right-6 bg-background/80 backdrop-blur-sm text-foreground text-xs px-2 py-1 rounded-md font-medium border border-border shadow-sm">
                     +{checkin.screenshot_urls.length - 1}
                   </div>
                 )}
@@ -206,6 +219,14 @@ export function GalleryView() {
               </button>
            </div>
         </div>
+      )}
+
+      {lightboxData && (
+        <CheckinLightbox
+          urls={lightboxData.urls}
+          initialIndex={lightboxData.index}
+          onClose={() => setLightboxData(null)}
+        />
       )}
     </div>
   );

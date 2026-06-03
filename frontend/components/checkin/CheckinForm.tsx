@@ -23,6 +23,7 @@ import ReactMarkdown from "react-markdown";
 import { ScreenshotUploader } from "@/components/checkin/ScreenshotUploader";
 import { useMarketIndexes } from "@/hooks/useCheckinDefinitions";
 import { useSettings } from "@/hooks/useSettings";
+import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
 
 export function CheckinForm({
   date,
@@ -58,6 +59,8 @@ export function CheckinForm({
   const searchParams = useSearchParams();
   const isNew = !entry;
   const [isEditMode, setIsEditMode] = useState(isNew || searchParams.get("edit") === "true");
+  const [lightboxData, setLightboxData] = useState<{ urls: string[]; index: number } | null>(null);
+
 
   const addNewsLink = () => {
     let trimmed = newsLink.trim();
@@ -247,7 +250,8 @@ export function CheckinForm({
                 <img
                   src={screenshotPreviews[i]}
                   alt={`Screenshot ${i + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setLightboxData({ urls: screenshotPreviews, index: i })}
                 />
                 {isEditMode && (
                   <button
@@ -386,6 +390,14 @@ export function CheckinForm({
           </button>
         )}
       </div>
+
+      {lightboxData && (
+        <CheckinLightbox
+          urls={lightboxData.urls}
+          initialIndex={lightboxData.index}
+          onClose={() => setLightboxData(null)}
+        />
+      )}
     </form>
   );
 }

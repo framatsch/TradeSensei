@@ -23,7 +23,7 @@ import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-
+import { toast } from "react-hot-toast";
 interface Props {
   date: string;
 }
@@ -40,13 +40,13 @@ export function CheckinDateClient({ date }: Props) {
   const handleSave = (data: DailyCheckinCreate | DailyCheckinUpdate) => {
     if (!entry) {
       createMutation.mutate(data as DailyCheckinCreate, {
-        onSuccess: () => router.push("/dashboard/checkins"),
+        onSuccess: () => toast.success("Check-in saved successfully"),
       });
     } else {
       updateMutation.mutate(
         { date, payload: data as DailyCheckinUpdate },
         {
-          onSuccess: () => router.push("/dashboard/checkins"),
+          onSuccess: () => toast.success("Check-in updated successfully"),
         }
       );
     }
