@@ -104,9 +104,6 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     uvicorn_reloader_logs: bool = True
     cors_origins: list[str] = ["http://localhost:3000"]
-    upload_dir: str = "/app/uploads"
-    """Directory where uploaded files (screenshots etc.) are stored."""
-
     ibkr_flex_token: str | None = None
 
     # Frontend

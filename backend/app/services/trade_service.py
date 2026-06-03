@@ -19,7 +19,6 @@ No HTTP concepts (``Request``, ``Response``, status codes) appear here.
 
 import logging
 import uuid
-from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -74,12 +73,6 @@ class TradeService:
         self._account_repo = AccountRepository(session)
         self._cache = CacheService()
         self._storage = StorageService()
-
-    def _screenshot_dir(self, trade_id: uuid.UUID) -> Path:
-        """Return the filesystem directory used for trade screenshots."""
-        base = Path(settings.upload_dir) / "screenshots" / str(trade_id)
-        base.mkdir(parents=True, exist_ok=True)
-        return base
 
     async def add_screenshot(
         self,
