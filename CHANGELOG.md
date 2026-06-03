@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-06-03
+
+### Added
+- [frontend] Lightbox image viewer now supports drag-to-pan and mouse wheel zoom navigation
+- [docs] OpenSpec plan created for saved check-in filters
+
+### Fixed
+- [backend] Fixed image URL validation bug during check-in updates that caused screenshot keys to become corrupted
+- [frontend] Prevented page reload/navigation when saving check-in updates, showing a toast instead
+- [frontend] Timeline text is now properly truncated to prevent overly long notes from breaking the layout
+
+
 ## [1.2.4] - 2026-06-02
 
 ### Changed
