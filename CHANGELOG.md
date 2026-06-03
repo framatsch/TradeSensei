@@ -12,12 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [frontend] Lightbox image viewer now supports drag-to-pan and mouse wheel zoom navigation
 - [docs] OpenSpec plan created for saved check-in filters
+- [backend] Add `screenshot_keys` field to `DailyCheckinRead` schema to expose raw storage references alongside presigned URLs
 
 ### Fixed
 - [backend] Fixed image URL validation bug during check-in updates that caused screenshot keys to become corrupted
 - [frontend] Prevented page reload/navigation when saving check-in updates, showing a toast instead
 - [frontend] Timeline text is now properly truncated to prevent overly long notes from breaking the layout
-
+- [frontend] Split screenshot state into storage keys and preview URLs to prevent PATCH failures
+- [frontend] Fixed URL parsing in `useScreenshots` to strip query params from presigned URLs before extracting filename
+- [frontend] Replaced `TradeImageGallery` grid with compact inline thumbnails in Timeline view
+- [backend] Removed dead file-upload code (`StaticFiles` mount, `upload_dir` config, `_screenshot_dir` method)
 
 ## [1.2.4] - 2026-06-02
 
@@ -433,6 +437,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.2.5]: https://github.com/scheffold/TradeSensei/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/scheffold/TradeSensei/compare/v1.2.3...v1.2.4
 [1.2.0]: https://github.com/scheffold/TradeSensei/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/scheffold/TradeSensei/compare/v1.1.1...v1.1.2
@@ -453,7 +458,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.4...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.5...HEAD
 [1.2.3]: https://github.com/scheffold/TradeSensei/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...v1.2.1
