@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useMarketIndexes } from "@/hooks/useCheckinDefinitions";
 import {
   useSavedCheckinFilters,
@@ -24,7 +24,7 @@ import {
   useDeleteSavedCheckinFilter,
 } from "@/hooks/useSavedCheckinFilters";
 import { useCheckinFilter } from "@/components/checkin/CheckinFilterContext";
-import { ChevronDown, ChevronRight, Save, Trash2, Edit2, RefreshCw, Filter as FilterIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 export function CheckinFilterBar() {
@@ -44,22 +44,10 @@ export function CheckinFilterBar() {
   const updateViewMutation = useUpdateSavedCheckinFilter();
   const deleteViewMutation = useDeleteSavedCheckinFilter();
 
-  const activeViewName = useMemo(() => {
+  const activeView = useMemo(() => {
     if (!filter.viewId) return null;
-    return savedViews?.find((v) => v.id === filter.viewId)?.name ?? null;
+    return savedViews?.find((v) => v.id === filter.viewId) ?? null;
   }, [filter.viewId, savedViews]);
-
-  // Click outside to close expanded bar
-  const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (isExpanded && containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsExpanded(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isExpanded]);
 
   const toggleTargetIndex = useCallback((id: string) => {
     setFilter((prev) => {
@@ -80,7 +68,6 @@ export function CheckinFilterBar() {
       target_indices: view.filter_config.target_indices ?? null,
       has_media: view.filter_config.has_media ?? null,
     });
-    setIsExpanded(false);
   }, [savedViews, setFilter]);
 
   const handleSaveView = useCallback(async () => {
@@ -139,8 +126,8 @@ export function CheckinFilterBar() {
     }
   }, [selectedViewIdToRename, renameViewName, updateViewMutation]);
 
-  const handleDeleteView = useCallback(async (e: React.MouseEvent, viewId: string) => {
-    e.stopPropagation();
+  const handleDeleteView = useCallback(async (viewId: string) => {
+    if (!confirm("Delete this saved view?")) return;
     try {
       await deleteViewMutation.mutateAsync(viewId);
       if (filter.viewId === viewId) {
@@ -171,115 +158,115 @@ export function CheckinFilterBar() {
   ].reduce((a, b) => a + b, 0);
 
   return (
-    <div ref={containerRef} className="relative z-30 mb-6 bg-card border-b border-border">
-      {/* Top Row: Current Selection & Toggle */}
-      <div className="flex flex-wrap items-center justify-between px-4 sm:px-6 lg:px-8 py-3 gap-y-3">
-        <div className="flex items-center gap-3">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-foreground bg-secondary hover:bg-secondary/80 rounded-md transition-colors">
-                <FilterIcon size={14} />
-                <span>{activeViewName ?? "Custom View"}</span>
-                <ChevronDown size={14} className="text-muted-foreground" />
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                className="min-w-[200px] rounded-lg bg-card border border-border shadow-lg p-1 z-50 animate-in fade-in-80 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-100 data-[state=closed]:zoom-out-95"
-                sideOffset={4}
-                align="start"
-              >
-                <DropdownMenu.Group>
-                  <DropdownMenu.Label className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Saved Views</DropdownMenu.Label>
-                  {savedViews?.map((v) => (
-                    <DropdownMenu.Item
-                      key={v.id}
-                      className="group relative flex items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-foreground hover:bg-secondary cursor-pointer"
-                      onClick={() => handleSelectView(v.id)}
-                    >
-                      <span className="truncate pr-4">{v.name}</span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          className="p-1 hover:bg-muted rounded text-muted-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedViewIdToRename(v.id);
-                            setRenameViewName(v.name);
-                            setShowRenameModal(true);
-                          }}
-                          title="Rename"
-                        >
-                          <Edit2 size={12} />
-                        </button>
-                        <button
-                          className="p-1 hover:bg-red-500/20 hover:text-red-500 rounded text-muted-foreground"
-                          onClick={(e) => handleDeleteView(e, v.id)}
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </DropdownMenu.Item>
-                  ))}
-                  {(!savedViews || savedViews.length === 0) && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground italic">No saved views</div>
-                  )}
-                </DropdownMenu.Group>
-                <DropdownMenu.Separator className="h-px bg-border my-1" />
-                <DropdownMenu.Item
-                  className="rounded-md px-2 py-1.5 text-sm font-medium text-foreground hover:bg-secondary cursor-pointer flex items-center gap-2"
-                  onClick={handleClearFilters}
-                >
-                  <RefreshCw size={14} className="text-muted-foreground" />
-                  Clear Filters
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+    <div className="w-full bg-card border border-border rounded-md shadow-sm mb-6">
+      {/* Header bar with toggle */}
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+          >
+            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Filters
+            {activeFiltersCount > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
 
-          {activeFiltersCount > 0 && (
-            <span className="inline-flex items-center justify-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              {activeFiltersCount} active
-            </span>
-          )}
+          {/* Views Dropdown */}
+          <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
+            <span className="text-xs font-medium text-muted-foreground">Saved View</span>
+            {savedViews && savedViews.length > 0 ? (
+              <select
+                value={filter.viewId ?? ""}
+                onChange={(e) => handleSelectView(e.target.value)}
+                className="w-40 px-2 py-1.5 bg-secondary border border-border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="" disabled>Select view...</option>
+                {savedViews.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">No saved views</span>
+            )}
+          </div>
         </div>
 
+        {/* Save Controls in Header */}
         <div className="flex items-center gap-2">
-          {filter.viewId && (
-            <button
-              onClick={handleUpdateCurrentView}
-              disabled={updateViewMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-              title="Save changes to this view"
-            >
-              <RefreshCw size={14} className={updateViewMutation.isPending ? "animate-spin" : ""} />
-              Update View
-            </button>
-          )}
           <button
+            type="button"
             onClick={() => {
               setSaveViewName("");
               setShowSaveModal(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 bg-primary/10 rounded-md"
           >
-            <Save size={14} />
-            Save As
+            <Save className="w-3.5 h-3.5" />
+            Save View
           </button>
-          <div className="h-4 w-px bg-border mx-1" />
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {isExpanded ? "Hide Filters" : "Show Filters"}
-            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
+
+          {activeView && (
+            <button
+              type="button"
+              onClick={handleUpdateCurrentView}
+              disabled={updateViewMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 rounded-md"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              {updateViewMutation.isPending ? "Updating…" : "Update"}
+            </button>
+          )}
+
+          {activeView && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedViewIdToRename(activeView.id);
+                setRenameViewName(activeView.name);
+                setShowRenameModal(true);
+              }}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors rounded-md"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              Rename
+            </button>
+          )}
+
+          {activeView && (
+            <button
+              type="button"
+              onClick={() => handleDeleteView(activeView.id)}
+              disabled={deleteViewMutation.isPending}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors rounded-md disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete View
+            </button>
+          )}
+
+          {/* Clear Filters (always available if there are active filters) */}
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
       {/* Expanded Filter Panel */}
       {isExpanded && (
-        <div className="border-t border-border bg-secondary/30 p-4 sm:px-6 lg:px-8 space-y-4">
+        <div className="border-t border-border bg-secondary/20 p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             
             {/* Date Range */}
@@ -364,7 +351,7 @@ export function CheckinFilterBar() {
             {/* Media */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Has Media</label>
-              <div className="flex rounded-md border border-border overflow-hidden">
+              <div className="flex rounded-md border border-border overflow-hidden h-[34px]">
                 <button
                   onClick={() => setFilter(prev => ({ ...prev, has_media: null, viewId: null }))}
                   className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors ${filter.has_media === null ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
