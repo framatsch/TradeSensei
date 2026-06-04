@@ -1,0 +1,37 @@
+EXISTING USER MIGRATION NOTE — NOT FOR COMMIT
+=============================================
+
+After deploying checkin-metadata-ui, existing users will notice:
+
+1. The "Market Phase" pill section is gone from the Check-in form.
+   Your old market_phase values are still in the database but are no
+   longer shown in the UI.
+
+2. A new "Market Regime" annotation is now available under the
+   Annotations section of the Check-in form. It has the same options
+   you're familiar with: Bull, Bear, Chop, Sideways.
+
+3. To restore your historical data: you would need to manually re-enter
+   the Market Regime annotation for past check-ins, or an admin can run
+   a one-time SQL script to populate checkin_annotations from market_phase.
+
+   One-time SQL (run manually if desired):
+   ------------------------------------------------------------
+   INSERT INTO checkin_annotations (id, checkin_id, annotation_definition_id, value_string, created_at, updated_at)
+   SELECT
+     gen_random_uuid(),
+     dc.id,
+     ad.id,
+     dc.market_phase,
+     now(),
+     now()
+   FROM daily_checkins dc
+   JOIN annotation_definitions ad
+     ON ad.user_id = dc.user_id
+     AND ad.name = 'Market Regime'
+     AND ad.scope = 'checkins'
+   WHERE dc.market_phase IS NOT NULL
+   ON CONFLICT (checkin_id, annotation_definition_id) DO NOTHING;
+   ------------------------------------------------------------
+
+This script is safe to run multiple times (ON CONFLICT DO NOTHING).

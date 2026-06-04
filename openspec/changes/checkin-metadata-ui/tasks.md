@@ -1,36 +1,50 @@
 # Tasks: checkin-metadata-ui
 
-## Phase 1 — Backend: Generic Annotation Filter utility
+## Phase 1 — Backend: Generic Annotation Filter utility + Market Regime seed
 
-- [ ] 1.1 Create `backend/app/repositories/_annotation_filter.py` — extract `_annotation_value_column_and_value` and `_annotation_operator_expression` helpers from `mcp.py`; add support for `logic: AND | OR` chaining
-- [ ] 1.2 Add `AnnotationFilterItem` Pydantic schema to `backend/app/schemas/` (fields: `annotation_definition_id`, `operator`, `value`, `logic`)
-- [ ] 1.3 Extend `DailyCheckinRepository.list_by_user` with `taxonomy_ids` and `annotation_filters` params using the shared utility
-- [ ] 1.4 Extend `TradeRepository.list_trades` with `annotation_filters` param using the shared utility
-- [ ] 1.5 Pass new params through `DailyCheckinService` and `TradeService`
-- [ ] 1.6 Expose `taxonomy_ids` and `annotation_filters` as query params on `GET /api/v1/checkins`
-- [ ] 1.7 Expose `annotation_filters` as query param on `GET /api/v1/trades`
-- [ ] 1.8 Expose `annotation_filters` on the Workspace filter endpoint (if applicable)
+- [ ] 1.1 Create `backend/app/repositories/_annotation_filter.py` — extract `_annotation_value_column_and_value` and `_annotation_operator_expression` from `mcp.py`; add `logic: AND|OR` chaining
+- [ ] 1.2 Add `AnnotationFilterItem` Pydantic schema to `backend/app/schemas/annotation_filter.py`
+- [ ] 1.3 Add "Market Regime" `string_enum` default to `AnnotationDefinitionRepository.seed_defaults` (options: Bull, Bear, Chop, Sideways)
+- [ ] 1.4 Extend `DailyCheckinRepository.list_by_user` — add `taxonomy_ids` and `annotation_filters`; remove `market_phase`/`regime` param
+- [ ] 1.5 Extend `TradeRepository.list_trades` — add `annotation_filters` using shared utility
+- [ ] 1.6 Pass new params through `DailyCheckinService` (remove regime) and `TradeService`
+- [ ] 1.7 Expose `taxonomy_ids` + `annotation_filters` on `GET /api/v1/checkins`; remove `regime` query param
+- [ ] 1.8 Expose `annotation_filters` on `GET /api/v1/trades`
 
-## Phase 2 — Frontend: Check-in Form
+## Phase 2 — Backend: MCP tools
 
-- [ ] 2.1 Create `frontend/components/checkin/AnnotationEditor.tsx` — renders a typed input per AnnotationDefinition; calls assign/update/remove endpoints on change; buffers for new check-ins
-- [ ] 2.2 Update `CheckinForm.tsx` — add Tags multi-select section (assign/remove via taxonomy endpoints, buffer for new check-ins)
-- [ ] 2.3 Update `CheckinForm.tsx` — add Annotations section using `AnnotationEditor`
+- [ ] 2.1 Add `list_checkins` MCP tool — date range, taxonomy_ids, annotation_filters, pagination; returns taxonomy + annotation assignments per check-in
+- [ ] 2.2 Add `sync_checkin_metadata` MCP tool — bulk assign taxonomy_ids and annotation values to a list of checkin_ids (upsert)
+- [ ] 2.3 Extend `search_trades_advanced` MCP tool — add `annotation_filters` input schema and pass to query handler
 
-## Phase 3 — Frontend: Shared AnnotationFilterRows component
+## Phase 3 — Frontend: Shared components
 
-- [ ] 3.1 Create `frontend/components/ui/AnnotationFilterRows.tsx` — definition selector, type-aware operator dropdown, typed value input, AND/OR toggle, add/remove row controls
-- [ ] 3.2 Wire up `useAnnotationDefinitions` hook (or extend existing) to fetch definitions by scope for the filter UI
+- [ ] 3.1 Create `frontend/components/ui/AnnotationFilterRows.tsx` — definition selector, type-scoped operator dropdown, typed value input (toggle/dropdown/number), AND/OR logic toggle, add/remove row
+- [ ] 3.2 Create `frontend/components/checkin/AnnotationEditor.tsx` — renders one typed input per AnnotationDefinition (scope=checkins|both); calls assign/update/remove endpoints; buffers for new check-ins
 
-## Phase 4 — Frontend: Filter bars
+## Phase 4 — Frontend: Check-in Form
 
-- [ ] 4.1 Extend `CheckinFilterContext` and `useCheckinParams` — add `taxonomy_ids` and `annotation_filters` to filter state and URL params
-- [ ] 4.2 Extend `useCheckins` hook — pass new params to the API call
-- [ ] 4.3 Update `CheckinFilterBar` — add Tags multi-select filter and `AnnotationFilterRows` section
-- [ ] 4.4 Update `TradeFilterBar` — add `AnnotationFilterRows` section
-- [ ] 4.5 Update `WorkspaceFilterBar` — add `AnnotationFilterRows` section
-- [ ] 4.6 Extend `SavedCheckinFilter` schema to persist `annotation_filters` and `taxonomy_ids` in `filter_config`
+- [ ] 4.1 Update `CheckinForm.tsx` — remove Market Phase section; add Tags multi-select (assign/remove via taxonomy endpoints, buffer for new)
+- [ ] 4.2 Update `CheckinForm.tsx` — add Annotations section using `AnnotationEditor`
 
-## Phase 5 — OpenAPI sync & Regenerate client
+## Phase 5 — Frontend: Filter bars
 
-- [ ] 5.1 Run `openapi-sync` skill to regenerate frontend types after backend changes
+- [ ] 5.1 Update `CheckinFilterContext.tsx` + `useCheckinParams.ts` — remove regime; add taxonomy_ids + annotation_filters
+- [ ] 5.2 Update `useCheckins.ts` — pass new filter params to API call
+- [ ] 5.3 Update `CheckinFilterBar.tsx` — remove regime select; add Tags multi-select + AnnotationFilterRows
+- [ ] 5.4 Update `TradeFilterBar.tsx` — add AnnotationFilterRows section
+- [ ] 5.5 Update `WorkspaceFilterBar.tsx` — add AnnotationFilterRows section
+- [ ] 5.6 Extend `SavedCheckinFilter` schema and `CheckinFilterContext` to persist taxonomy_ids + annotation_filters in saved views
+
+## Phase 6 — OpenAPI sync
+
+- [ ] 6.1 Run `openapi-sync` skill to regenerate frontend client types
+
+## Phase 7 — Tests
+
+- [ ] 7.1 Backend unit tests: `_annotation_filter.py` helpers — operator expressions, AND/OR chaining, all 4 type dispatches
+- [ ] 7.2 Backend integration tests: `list_by_user` with taxonomy_ids; `list_by_user` with annotation_filters; `list_trades` with annotation_filters
+- [ ] 7.3 Backend integration tests: MCP `list_checkins` tool; `sync_checkin_metadata` tool
+- [ ] 7.4 Frontend unit tests: `AnnotationFilterRows` — correct operators per type, onChange
+- [ ] 7.5 Frontend unit tests: `AnnotationEditor` — renders per type, fires endpoints
+- [ ] 7.6 Playwright E2E: assign tag + annotation on check-in form; filter check-ins by tag; filter check-ins by annotation; filter trades by annotation
