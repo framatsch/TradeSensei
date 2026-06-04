@@ -18,7 +18,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TypedDict
 
-from sqlalchemy import Date, and_, case, cast, func, select
+from sqlalchemy import Date, and_, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -82,6 +82,14 @@ class AnalyticsRepository:
             predicates.append(Trade.account_id.in_(filter_config.account_ids))
         if filter_config.playbook_ids:
             predicates.append(Trade.playbook_id.in_(filter_config.playbook_ids))
+        if filter_config.symbols:
+            symbol_conditions = [Trade.symbol.ilike(f"{sym}%") for sym in filter_config.symbols]
+            predicates.append(or_(*symbol_conditions))
+        if filter_config.excluded_symbols:
+            for sym in filter_config.excluded_symbols:
+                predicates.append(Trade.symbol.not_ilike(f"{sym}%"))
+        if filter_config.asset_classes:
+            predicates.append(Trade.asset_class.in_(filter_config.asset_classes))
 
         return predicates
 

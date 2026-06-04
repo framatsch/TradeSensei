@@ -73,7 +73,7 @@ export function TradePickerModal({
   const { data: page, isLoading } = useTrades({
     limit: 50,
     filters: {
-      symbol: search.trim() || undefined,
+      symbols: search.trim() ? [search.trim()] : undefined,
       status: showOpenTrades ? undefined : "closed",
     },
   });

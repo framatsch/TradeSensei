@@ -50,7 +50,8 @@ import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 
 
 const EMPTY_FILTERS: TradeFilters = {
-  symbol: "",
+  symbols: [],
+  excluded_symbols: [],
   direction: "",
   asset_classes: [],
   opened_at_from: "",
@@ -102,7 +103,8 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const dowRaw = params.get("day_of_week");
 
   return {
-    symbol: params.get("symbol") ?? undefined,
+    symbols: params.get("symbols") ? params.get("symbols")!.split(",").filter(Boolean) : (params.get("symbol") ? params.get("symbol")!.split(",").filter(Boolean) : undefined),
+    excluded_symbols: params.get("excluded_symbols") ? params.get("excluded_symbols")!.split(",").filter(Boolean) : undefined,
     direction: params.get("direction") ?? undefined,
     asset_classes: assetClassRaw ? assetClassRaw.split(",").filter(Boolean) : undefined,
     opened_at_from: params.get("opened_at_from") ?? undefined,
@@ -137,7 +139,8 @@ function filtersToParams(
   viewId?: string
 ): URLSearchParams {
   const p = new URLSearchParams();
-  if (filters.symbol) p.set("symbol", filters.symbol);
+  if (filters.symbols?.length) p.set("symbols", filters.symbols.join(","));
+  if (filters.excluded_symbols?.length) p.set("excluded_symbols", filters.excluded_symbols.join(","));
   if (filters.direction) p.set("direction", filters.direction);
   if (filters.asset_classes?.length) p.set("asset_class", filters.asset_classes.join(","));
   if (filters.opened_at_from) p.set("opened_at_from", filters.opened_at_from);

@@ -33,8 +33,18 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const hourRaw = params.get("hour_of_day");
   const dowRaw = params.get("day_of_week");
 
+  const symbolsRaw = params.get("symbols");
+  const excludedSymbolsRaw = params.get("excluded_symbols");
+  const oldSymbolRaw = params.get("symbol");
+  
+  let symbols = symbolsRaw ? symbolsRaw.split(",").filter(Boolean) : undefined;
+  if (!symbols && oldSymbolRaw) {
+    symbols = [oldSymbolRaw];
+  }
+
   return {
-    symbol: params.get("symbol") ?? undefined,
+    symbols,
+    excluded_symbols: excludedSymbolsRaw ? excludedSymbolsRaw.split(",").filter(Boolean) : undefined,
     direction: params.get("direction") ?? undefined,
     asset_classes: assetClassRaw ? assetClassRaw.split(",").filter(Boolean) : undefined,
     opened_at_from: params.get("opened_at_from") ?? undefined,

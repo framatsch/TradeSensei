@@ -26,6 +26,7 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
+import { SymbolTagInput } from "@/components/ui/SymbolTagInput";
 import type { TradeFilters } from "@/hooks/useTrades";
 import type { Account, SavedTradeFilterRead } from "@/lib/types";
 
@@ -54,7 +55,8 @@ const ASSET_CLASSES = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"] as const
 /** Count how many filter fields are non-empty. */
 function countActiveFilters(filters: TradeFilters): number {
   let count = 0;
-  if (filters.symbol) count++;
+  if (filters.symbols?.length) count++;
+  if (filters.excluded_symbols?.length) count++;
   if (filters.direction) count++;
   if (filters.asset_classes?.length) count++;
   if (filters.opened_at_from) count++;
@@ -72,7 +74,8 @@ function countActiveFilters(filters: TradeFilters): number {
 }
 
 const EMPTY_FILTERS: TradeFilters = {
-  symbol: "",
+  symbols: [],
+  excluded_symbols: [],
   direction: "",
   asset_classes: [],
   opened_at_from: "",
@@ -221,28 +224,11 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
   const [open, setOpen] = useState(() => countActiveFilters(filters) > 0);
   const activeCount = countActiveFilters(filters);
 
-  // Debounced symbol input
-  const [symbolInput, setSymbolInput] = useState(filters.symbol ?? "");
-  const symbolTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const { activePortfolioId, isLoading: isPortfolioLoading } = useActivePortfolio();
   const { data: taxonomies } = useGetTaxonomies("trades");
   const { data: playbooks } = usePlaybooks();
   const { data: accounts = [], isLoading: isLoadingAccounts } = useAccounts(activePortfolioId ?? undefined);
   const isLoadingAccountOptions = isPortfolioLoading || isLoadingAccounts;
-
-  // Sync external filter changes back into local symbol input
-  useEffect(() => {
-    setSymbolInput(filters.symbol ?? "");
-  }, [filters.symbol]);
-
-  const handleSymbolChange = (value: string) => {
-    setSymbolInput(value);
-    if (symbolTimerRef.current) clearTimeout(symbolTimerRef.current);
-    symbolTimerRef.current = setTimeout(() => {
-      onChange({ ...filters, symbol: value || undefined });
-    }, 400);
-  };
 
   const handleDirectionChange = (value: string) => {
     onChange({ ...filters, direction: value || undefined });
@@ -309,7 +295,6 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
   };
 
   const handleClearAll = () => {
-    setSymbolInput("");
     onChange(EMPTY_FILTERS);
   };
 
@@ -417,12 +402,16 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">          {/* Symbol */}
           <div>
             <label className={LABEL_CLASS}>Symbol</label>
-            <input
-              type="text"
-              value={symbolInput}
-              onChange={(e) => handleSymbolChange(e.target.value)}
-              placeholder="e.g. AAPL"
-              className={INPUT_CLASS}
+            <SymbolTagInput
+              included={filters.symbols ?? []}
+              excluded={filters.excluded_symbols ?? []}
+              onChange={(included, excluded) => {
+                onChange({
+                  ...filters,
+                  symbols: included.length > 0 ? included : undefined,
+                  excluded_symbols: excluded.length > 0 ? excluded : undefined,
+                });
+              }}
             />
           </div>
 

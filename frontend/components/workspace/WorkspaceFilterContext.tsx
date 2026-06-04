@@ -54,6 +54,9 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
       playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
       taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : [],
       account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
+      symbols: searchParams.get("symbols") ? searchParams.get("symbols")!.split(",") : [],
+      excluded_symbols: searchParams.get("excluded_symbols") ? searchParams.get("excluded_symbols")!.split(",") : [],
+      asset_classes: searchParams.get("asset_classes") ? (searchParams.get("asset_classes")!.split(",") as any) : [],
       status: enforceClosedStatus
         ? "closed"
         : (searchParams.get("status") as "open" | "closed" | null) || null,
@@ -72,6 +75,9 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
         playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
         taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : [],
         account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
+        symbols: searchParams.get("symbols") ? searchParams.get("symbols")!.split(",") : [],
+        excluded_symbols: searchParams.get("excluded_symbols") ? searchParams.get("excluded_symbols")!.split(",") : [],
+        asset_classes: searchParams.get("asset_classes") ? (searchParams.get("asset_classes")!.split(",") as any) : [],
         status: enforceClosedStatus
           ? "closed"
           : (searchParams.get("status") as "open" | "closed" | null) || null,
@@ -97,6 +103,9 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
     if (debouncedFilter.playbook_ids && debouncedFilter.playbook_ids.length > 0) { params.set("playbook_ids", debouncedFilter.playbook_ids.join(",")); }
     if (debouncedFilter.taxonomy_ids && debouncedFilter.taxonomy_ids.length > 0) { params.set("taxonomy_ids", debouncedFilter.taxonomy_ids.join(",")); }
     if (debouncedFilter.account_ids && debouncedFilter.account_ids.length > 0) { params.set("accountIds", debouncedFilter.account_ids.join(",")); }
+    if (debouncedFilter.symbols && debouncedFilter.symbols.length > 0) { params.set("symbols", debouncedFilter.symbols.join(",")); }
+    if (debouncedFilter.excluded_symbols && debouncedFilter.excluded_symbols.length > 0) { params.set("excluded_symbols", debouncedFilter.excluded_symbols.join(",")); }
+    if (debouncedFilter.asset_classes && debouncedFilter.asset_classes.length > 0) { params.set("asset_classes", debouncedFilter.asset_classes.join(",")); }
     if (enforceClosedStatus) {
       params.set("status", "closed");
     } else if (debouncedFilter.status) {

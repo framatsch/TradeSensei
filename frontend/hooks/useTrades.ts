@@ -31,7 +31,8 @@ import type { CursorPage, ResponseEnvelope, Trade } from "@/lib/types";
 // ─── Filter & sort types ──────────────────────────────────────────────────────
 
 export interface TradeFilters {
-  symbol?: string;
+  symbols?: string[];
+  excluded_symbols?: string[];
   direction?: string;
   asset_classes?: string[];
   opened_at_from?: string;
@@ -115,7 +116,8 @@ export function useTrades({
         query: {
           limit,
           cursor: cursor ?? undefined,
-          symbol: filters?.symbol ?? undefined,
+          symbols: filters?.symbols?.length ? filters.symbols : undefined,
+          excluded_symbols: filters?.excluded_symbols?.length ? filters.excluded_symbols : undefined,
           direction: filters?.direction as import("@/lib/api/types.gen").Direction | undefined,
           playbook_id: filters?.playbook_id ?? undefined,
           taxonomy_ids: filters?.taxonomy_ids?.length ? filters.taxonomy_ids : undefined,

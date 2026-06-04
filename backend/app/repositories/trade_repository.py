@@ -226,14 +226,19 @@ def _apply_filters(
     Returns:
         The augmented SELECT statement with WHERE clauses applied.
     """
-    if filters.symbol:
-        stmt = stmt.where(Trade.symbol.ilike(f"%{filters.symbol}%"))
+    if filters.symbols:
+        symbol_conditions = [Trade.symbol.ilike(f"{sym}%") for sym in filters.symbols]
+        stmt = stmt.where(or_(*symbol_conditions))
+
+    if filters.excluded_symbols:
+        for sym in filters.excluded_symbols:
+            stmt = stmt.where(Trade.symbol.not_ilike(f"{sym}%"))
 
     if filters.direction is not None:
         stmt = stmt.where(Trade.direction == filters.direction)
 
-    if filters.asset_class is not None:
-        stmt = stmt.where(Trade.asset_class == filters.asset_class)
+    if filters.asset_classes is not None and len(filters.asset_classes) > 0:
+        stmt = stmt.where(Trade.asset_class.in_(filters.asset_classes))
 
     if filters.taxonomy_ids:
         if filters.taxonomy_filter_mode == "and":

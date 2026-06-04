@@ -39,6 +39,9 @@ import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw, Filter as FilterIcon, Lock } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { DashboardFilterConfig } from "@/lib/api/types.gen";
+import { SymbolTagInput } from "@/components/ui/SymbolTagInput";
+
+const ASSET_CLASSES = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"] as const;
 
 // ─── Shared input style ───────────────────────────────────────────────────────
 
@@ -171,6 +174,9 @@ export function WorkspaceFilterBar() {
   const playbookIds = filter.playbook_ids || [];
   const tagIds = filter.taxonomy_ids || [];
   const accountIds = filter.account_ids || [];
+  const symbols = (filter as any).symbols || [];
+  const excludedSymbols = (filter as any).excluded_symbols || [];
+  const assetClasses = (filter as any).asset_classes || [];
   const status = (filter as any).status as "open" | "closed" | null;
   const viewId = filter.viewId;
 
@@ -179,14 +185,20 @@ export function WorkspaceFilterBar() {
   const setPlaybookIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, playbook_ids: ids })), [setFilter]);
   const setTagIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, taxonomy_ids: ids })), [setFilter]);
   const setAccountIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, account_ids: ids })), [setFilter]);
+  const setSymbols = useCallback((s: string[]) => setFilter(prev => ({ ...prev, symbols: s })), [setFilter]);
+  const setExcludedSymbols = useCallback((s: string[]) => setFilter(prev => ({ ...prev, excluded_symbols: s })), [setFilter]);
+  const setAssetClasses = useCallback((s: string[]) => setFilter(prev => ({ ...prev, asset_classes: s as any })), [setFilter]);
   const setStatus = useCallback((s: "open" | "closed" | null) => setFilter(prev => ({ ...prev, status: s })), [setFilter]);
   const setViewId = useCallback((id: string | null) => setFilter(prev => ({ ...prev, viewId: id })), [setFilter]);
   const setFilters = useCallback((f: any) => setFilter(prev => ({ 
     ...prev,
     date_from: f.dateFrom !== undefined ? f.dateFrom : prev.date_from,
     date_to: f.dateTo !== undefined ? f.dateTo : prev.date_to,
-      playbook_ids: f.playbookIds !== undefined ? f.playbookIds : prev.playbook_ids,
-      account_ids: f.accountIds !== undefined ? f.accountIds : prev.account_ids,
+    playbook_ids: f.playbookIds !== undefined ? f.playbookIds : prev.playbook_ids,
+    account_ids: f.accountIds !== undefined ? f.accountIds : prev.account_ids,
+    symbols: f.symbols !== undefined ? f.symbols : (prev as any).symbols,
+    excluded_symbols: f.excluded_symbols !== undefined ? f.excluded_symbols : (prev as any).excluded_symbols,
+    asset_classes: f.asset_classes !== undefined ? f.asset_classes : (prev as any).asset_classes,
     status: f.status !== undefined ? f.status : (prev as any).status,
     viewId: f.viewId !== undefined ? f.viewId : prev.viewId
   })), [setFilter]);
@@ -217,6 +229,19 @@ export function WorkspaceFilterBar() {
     setTagIds(ids);
   }, [viewId, setViewId, setTagIds]);
 
+  const handleSetSymbolsAndExcluded = useCallback((inc: string[], exc: string[]) => {
+    if (viewId) setViewId(null);
+    setSymbols(inc);
+    setExcludedSymbols(exc);
+  }, [viewId, setViewId, setSymbols, setExcludedSymbols]);
+
+  const handleAssetClassToggle = useCallback((ac: string) => {
+    if (viewId) setViewId(null);
+    const current = assetClasses;
+    const updated = current.includes(ac) ? current.filter((c: string) => c !== ac) : [...current, ac];
+    setAssetClasses(updated);
+  }, [viewId, setViewId, assetClasses, setAssetClasses]);
+
   const handleSetStatus = useCallback((val: "open" | "closed" | null) => {
     if (viewId) setViewId(null);
     setStatus(val);
@@ -237,12 +262,35 @@ export function WorkspaceFilterBar() {
     return savedViews.find((v) => v.id === viewId) || null;
   }, [viewId, savedViews]);
 
+  const extendedCount = (symbols.length > 0 ? 1 : 0) + (excludedSymbols.length > 0 ? 1 : 0) + (assetClasses.length > 0 ? 1 : 0);
+
+  const [showExtended, setShowExtended] = useState(() => {
+    if (typeof window !== "undefined") {
+      if (extendedCount > 0) return true;
+      return localStorage.getItem("ts_workspace_extended_filters") === "true";
+    }
+    return false;
+  });
+
+  const toggleExtended = () => {
+    setShowExtended((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ts_workspace_extended_filters", String(next));
+      }
+      return next;
+    });
+  };
+
   const activeCount = useMemo(() => {
     let count = 0;
     if (activeView) {
       const cfg = activeView.filter_config;
       if (cfg.playbook_ids && cfg.playbook_ids.length > 0) count++;
       if (cfg.account_ids && cfg.account_ids.length > 0) count++;
+      if (cfg.symbols && cfg.symbols.length > 0) count++;
+      if (cfg.excluded_symbols && cfg.excluded_symbols.length > 0) count++;
+      if (cfg.asset_classes && cfg.asset_classes.length > 0) count++;
       if (cfg.date_from || cfg.date_to) count++;
       if (cfg.status) count++;
       return count;
@@ -251,10 +299,13 @@ export function WorkspaceFilterBar() {
     if (playbookIds && playbookIds.length > 0) count++;
     if (tagIds && tagIds.length > 0) count++;
     if (accountIds && accountIds.length > 0) count++;
+    if (symbols.length > 0) count++;
+    if (excludedSymbols.length > 0) count++;
+    if (assetClasses.length > 0) count++;
     if (dateFrom || dateTo) count++;
     if (status) count++;
     return count;
-  }, [playbookIds, tagIds, accountIds, dateFrom, dateTo, status, activeView]);
+  }, [playbookIds, tagIds, accountIds, dateFrom, dateTo, status, activeView, symbols, excludedSymbols, assetClasses]);
 
   const filterConfig = useMemo(() => {
     const config: DashboardFilterConfig = {};
@@ -263,9 +314,12 @@ export function WorkspaceFilterBar() {
     if (playbookIds.length > 0) config.playbook_ids = playbookIds;
     if (accountIds.length > 0) config.account_ids = accountIds;
     if (tagIds.length > 0) config.taxonomy_ids = tagIds;
+    if (symbols.length > 0) config.symbols = symbols;
+    if (excludedSymbols.length > 0) config.excluded_symbols = excludedSymbols;
+    if (assetClasses.length > 0) config.asset_classes = assetClasses;
     if (status) config.status = status;
     return config;
-  }, [dateFrom, dateTo, playbookIds, tagIds, accountIds, status]);
+  }, [dateFrom, dateTo, playbookIds, tagIds, accountIds, status, symbols, excludedSymbols, assetClasses]);
 
   const handleSaveView = useCallback(() => {
     if (!saveViewName.trim() || !portfolioId) return;
@@ -545,6 +599,61 @@ export function WorkspaceFilterBar() {
                   >
                     Open
                   </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Extended Filters Toggle */}
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <button
+              type="button"
+              onClick={toggleExtended}
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showExtended ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              Extended Filters
+              {!showExtended && extendedCount > 0 && (
+                <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-[10px] font-bold rounded-full bg-primary/20 text-primary">
+                  {extendedCount}
+                </span>
+              )}
+            </button>
+            
+            {showExtended && (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                {/* Symbol */}
+                <div className="sm:col-span-2">
+                  <label className={LABEL_CLASS}>Symbol</label>
+                  <SymbolTagInput
+                    included={symbols}
+                    excluded={excludedSymbols}
+                    onChange={handleSetSymbolsAndExcluded}
+                  />
+                </div>
+
+                {/* Asset classes */}
+                <div className="sm:col-span-3">
+                  <label className={LABEL_CLASS}>Asset Class</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {ASSET_CLASSES.map((ac) => {
+                      const selected = assetClasses.includes(ac);
+                      return (
+                        <button
+                          key={ac}
+                          type="button"
+                          onClick={() => handleAssetClassToggle(ac)}
+                          className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                            selected
+                              ? "bg-primary/15 border-primary/40 text-primary"
+                              : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                          }`}
+                        >
+                          {ac}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

@@ -151,10 +151,10 @@ export function CheckinFilterBar() {
 
   // Derived counts for badge
   const activeFiltersCount = [
-    filter.from_date || filter.to_date ? 1 : 0,
+    filter.from_date ? 1 : 0,
+    filter.to_date ? 1 : 0,
     filter.regime ? 1 : 0,
     (filter.target_indices?.length ?? 0) > 0 ? 1 : 0,
-    filter.has_media !== null && filter.has_media !== undefined ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   return (
@@ -269,25 +269,28 @@ export function CheckinFilterBar() {
         <div className="border-t border-border bg-secondary/20 p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             
-            {/* Date Range */}
+            {/* Date From */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date Range</label>
-              <div className="flex flex-col gap-2">
-                <input
-                  type="date"
-                  value={filter.from_date || ""}
-                  onChange={(e) => setFilter(prev => ({ ...prev, from_date: e.target.value || null, viewId: null }))}
-                  className="w-full bg-secondary text-foreground text-sm rounded border border-border px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                  title="From"
-                />
-                <input
-                  type="date"
-                  value={filter.to_date || ""}
-                  onChange={(e) => setFilter(prev => ({ ...prev, to_date: e.target.value || null, viewId: null }))}
-                  className="w-full bg-secondary text-foreground text-sm rounded border border-border px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                  title="To"
-                />
-              </div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date From</label>
+              <input
+                type="date"
+                value={filter.from_date || ""}
+                onChange={(e) => setFilter(prev => ({ ...prev, from_date: e.target.value || null, viewId: null }))}
+                className="w-full bg-secondary text-foreground text-sm rounded border border-border px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                title="From"
+              />
+            </div>
+
+            {/* Date To */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date To</label>
+              <input
+                type="date"
+                value={filter.to_date || ""}
+                onChange={(e) => setFilter(prev => ({ ...prev, to_date: e.target.value || null, viewId: null }))}
+                className="w-full bg-secondary text-foreground text-sm rounded border border-border px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                title="To"
+              />
             </div>
 
             {/* Regime */}
@@ -346,33 +349,6 @@ export function CheckinFilterBar() {
                   </DropdownMenu.Content>
                 </DropdownMenu.Portal>
               </DropdownMenu.Root>
-            </div>
-
-            {/* Media */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Has Media</label>
-              <div className="flex rounded-md border border-border overflow-hidden h-[34px]">
-                <button
-                  onClick={() => setFilter(prev => ({ ...prev, has_media: null, viewId: null }))}
-                  className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors ${filter.has_media === null ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                >
-                  Any
-                </button>
-                <div className="w-px bg-border" />
-                <button
-                  onClick={() => setFilter(prev => ({ ...prev, has_media: true, viewId: null }))}
-                  className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors ${filter.has_media === true ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                >
-                  Yes
-                </button>
-                <div className="w-px bg-border" />
-                <button
-                  onClick={() => setFilter(prev => ({ ...prev, has_media: false, viewId: null }))}
-                  className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors ${filter.has_media === false ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                >
-                  No
-                </button>
-              </div>
             </div>
           </div>
         </div>

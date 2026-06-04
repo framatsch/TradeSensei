@@ -35,6 +35,7 @@ from app.core.exceptions import (
 from app.models.user import User
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.schemas.trade import (
+    AssetClass,
     BulkAssignPlaybookRequest,
     BulkAssignTaxonomiesRequest,
     BulkDeleteRequest,
@@ -397,6 +398,18 @@ async def list_trades(
         list[uuid.UUID] | None,
         Query(description=("Filter trades by taxonomy UUIDs (OR logic: returns trades with any of the given taxonomies)")),
     ] = None,
+    symbols: Annotated[
+        list[str] | None,
+        Query(description="List of symbols to include."),
+    ] = None,
+    excluded_symbols: Annotated[
+        list[str] | None,
+        Query(description="List of symbols to exclude."),
+    ] = None,
+    asset_classes: Annotated[
+        list[AssetClass] | None,
+        Query(description="Filter by asset classes."),
+    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 
@@ -424,6 +437,12 @@ async def list_trades(
     # so taxonomy_ids is declared separately and merged here.
     if taxonomy_ids is not None:
         filters.taxonomy_ids = taxonomy_ids
+    if symbols is not None:
+        filters.symbols = symbols
+    if excluded_symbols is not None:
+        filters.excluded_symbols = excluded_symbols
+    if asset_classes is not None:
+        filters.asset_classes = asset_classes
 
     selected_account_ids = account_ids[:] if account_ids is not None else []
     if account_id is not None:

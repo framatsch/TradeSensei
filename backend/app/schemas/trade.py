@@ -1082,9 +1082,10 @@ class TradeFilterParams(BaseModel):
     they are combined with AND logic.
 
     Attributes:
-        symbol: Case-insensitive partial match on symbol.
+        symbols: List of symbols to include (case-insensitive partial match).
+        excluded_symbols: List of symbols to exclude (case-insensitive partial match).
         direction: Filter by LONG or SHORT.
-        asset_class: Filter by asset class.
+        asset_classes: Filter by asset classes.
         taxonomy_ids: Filter by taxonomy UUIDs.
         taxonomy_filter_mode: AND or OR logic when multiple taxonomy_ids are given.
         playbook_id: Filter by playbook UUID.
@@ -1099,17 +1100,21 @@ class TradeFilterParams(BaseModel):
             (0 = Monday, …, 6 = Sunday).
     """
 
-    symbol: str | None = Field(
+    symbols: list[str] | None = Field(
         default=None,
-        description="Case-insensitive partial match on symbol",
+        description="List of symbols to include (case-insensitive partial match).",
+    )
+    excluded_symbols: list[str] | None = Field(
+        default=None,
+        description="List of symbols to exclude (case-insensitive partial match).",
     )
     direction: Direction | None = Field(
         default=None,
         description="Filter by LONG or SHORT",
     )
-    asset_class: AssetClass | None = Field(
+    asset_classes: list[AssetClass] | None = Field(
         default=None,
-        description="Filter by asset class",
+        description="Filter by asset classes",
     )
     taxonomy_ids: list[uuid.UUID] | None = Field(
         default=None,

@@ -20,7 +20,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models.trade import Direction
+from app.models.trade import AssetClass, Direction
 
 CurrencyMode = Literal["NATIVE", "NORMALIZED"]
 
@@ -55,6 +55,18 @@ class DashboardFilterConfig(BaseModel):
     account_ids: list[uuid.UUID] | None = Field(
         default=None,
         description="Optional list of account IDs used to filter trades.",
+    )
+    symbols: list[str] | None = Field(
+        default=None,
+        description="Optional list of symbols to include.",
+    )
+    excluded_symbols: list[str] | None = Field(
+        default=None,
+        description="Optional list of symbols to exclude.",
+    )
+    asset_classes: list[AssetClass] | None = Field(
+        default=None,
+        description="Optional list of asset classes to include.",
     )
     currency_mode: CurrencyMode = Field(
         default="NATIVE",
