@@ -49,6 +49,7 @@ from app.models.playbook_attachment import PlaybookAttachment as PlaybookAttachm
 from app.models.playbook_link import PlaybookLink as PlaybookLink
 from app.models.playbook_taxonomy import PlaybookTaxonomy as PlaybookTaxonomy
 from app.models.portfolio import Portfolio as Portfolio
+from app.models.saved_checkin_filter import SavedCheckinFilter as SavedCheckinFilter
 from app.models.saved_dashboard_view import SavedDashboardView as SavedDashboardView
 from app.models.saved_trade_filter import FilterScope as FilterScope
 from app.models.saved_trade_filter import SavedTradeFilter as SavedTradeFilter

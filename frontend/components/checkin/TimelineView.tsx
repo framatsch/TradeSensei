@@ -29,10 +29,10 @@ import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
 
 export function TimelineView() {
   const router = useRouter();
-  const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
+  const { regime, fromDate, toDate, targetIndices, hasMedia, page, perPage, setPage } = useCheckinParams();
   const [lightboxData, setLightboxData] = useState<{ urls: string[]; index: number } | null>(null);
   
-  const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage);
+  const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, targetIndices ?? undefined, hasMedia ?? undefined, perPage);
   const { data: phases } = useGetTaxonomies("checkins");
 
   if (isLoading) {

@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from app.models.market_index import MarketIndexDefinition
     from app.models.pat import PersonalAccessToken
     from app.models.portfolio import Portfolio
+    from app.models.saved_checkin_filter import SavedCheckinFilter
     from app.models.saved_dashboard_view import SavedDashboardView
     from app.models.saved_trade_filter import SavedTradeFilter
     from app.models.trade import Trade
@@ -143,6 +144,11 @@ class User(Base):
     )
     saved_dashboard_views: Mapped[list["SavedDashboardView"]] = relationship(
         "SavedDashboardView",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+    )
+    saved_checkin_filters: Mapped[list["SavedCheckinFilter"]] = relationship(
+        "SavedCheckinFilter",
         back_populates="owner",
         cascade="all, delete-orphan",
     )

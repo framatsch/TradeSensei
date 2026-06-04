@@ -29,6 +29,8 @@ export function useCheckinParams() {
   const regime = searchParams.get("regime") ?? null;
   const fromDate = searchParams.get("from_date") ?? null;
   const toDate = searchParams.get("to_date") ?? null;
+  const targetIndices = searchParams.get("target_indices") ?? null;
+  const hasMedia = searchParams.get("has_media") === "true" ? true : searchParams.get("has_media") === "false" ? false : null;
   
   const pageStr = searchParams.get("page");
   const page = pageStr ? parseInt(pageStr, 10) : 1;
@@ -47,7 +49,7 @@ export function useCheckinParams() {
       }
 
       // Automatically reset page to 1 if we change regime, month, or date range
-      if (key === "regime" || key === "month" || key === "from_date" || key === "to_date" || key === "entity_type") {
+      if (key === "regime" || key === "month" || key === "from_date" || key === "to_date" || key === "entity_type" || key === "target_indices" || key === "has_media") {
         params.set("page", "1");
       }
 
@@ -69,6 +71,10 @@ export function useCheckinParams() {
     setFromDate: (d: string | null) => setParam("from_date", d),
     toDate,
     setToDate: (d: string | null) => setParam("to_date", d),
+    targetIndices,
+    setTargetIndices: (t: string | null) => setParam("target_indices", t),
+    hasMedia,
+    setHasMedia: (h: boolean | null) => setParam("has_media", h === null ? null : String(h)),
     page,
     setPage: (p: number) => setParam("page", p.toString()),
     perPage,

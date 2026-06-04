@@ -1067,6 +1067,44 @@ export type CheckinAnnotationResponse = {
 };
 
 /**
+ * CheckinFilterConfig
+ *
+ * Schema for the filter configuration JSONB payload.
+ */
+export type CheckinFilterConfig = {
+    /**
+     * Regime
+     *
+     * Market regime filter
+     */
+    regime?: string | null;
+    /**
+     * From Date
+     *
+     * Start date filter (YYYY-MM-DD)
+     */
+    from_date?: string | null;
+    /**
+     * To Date
+     *
+     * End date filter (YYYY-MM-DD)
+     */
+    to_date?: string | null;
+    /**
+     * Target Indices
+     *
+     * List of target index UUIDs to filter by
+     */
+    target_indices?: Array<string> | null;
+    /**
+     * Has Media
+     *
+     * Filter for check-ins with media
+     */
+    has_media?: boolean | null;
+};
+
+/**
  * CorporateActionCreateRequest
  *
  * Public API request body for creating a new corporate action.
@@ -3833,6 +3871,24 @@ export type ResponseEnvelopeReassignExecutionResponse = {
 };
 
 /**
+ * ResponseEnvelope[SavedCheckinFilterResponse]
+ */
+export type ResponseEnvelopeSavedCheckinFilterResponse = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: SavedCheckinFilterResponse;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ResponseEnvelope[SavedDashboardViewRead]
  */
 export type ResponseEnvelopeSavedDashboardViewRead = {
@@ -4375,6 +4431,26 @@ export type ResponseEnvelopeListRollingWinratePoint = {
 };
 
 /**
+ * ResponseEnvelope[list[SavedCheckinFilterResponse]]
+ */
+export type ResponseEnvelopeListSavedCheckinFilterResponse = {
+    /**
+     * Data
+     *
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<SavedCheckinFilterResponse>;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ResponseEnvelope[list[SavedDashboardViewRead]]
  */
 export type ResponseEnvelopeListSavedDashboardViewRead = {
@@ -4513,6 +4589,94 @@ export type RollingWinratePoint = {
      * Number of trades in the sliding window used for this point.
      */
     window: number;
+};
+
+/**
+ * SavedCheckinFilterCreate
+ *
+ * Schema for creating a new SavedCheckinFilter.
+ */
+export type SavedCheckinFilterCreate = {
+    /**
+     * Name
+     *
+     * Name of the saved filter
+     */
+    name: string;
+    /**
+     * Is Default
+     *
+     * Whether this is the default view
+     */
+    is_default?: boolean;
+    /**
+     * The filter configuration payload
+     */
+    filter_config: CheckinFilterConfig;
+};
+
+/**
+ * SavedCheckinFilterResponse
+ *
+ * Schema for returning a SavedCheckinFilter.
+ */
+export type SavedCheckinFilterResponse = {
+    /**
+     * Name
+     *
+     * Name of the saved filter
+     */
+    name: string;
+    /**
+     * Is Default
+     *
+     * Whether this is the default view
+     */
+    is_default?: boolean;
+    /**
+     * The filter configuration payload
+     */
+    filter_config: CheckinFilterConfig;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * SavedCheckinFilterUpdate
+ *
+ * Schema for updating an existing SavedCheckinFilter.
+ */
+export type SavedCheckinFilterUpdate = {
+    /**
+     * Name
+     *
+     * Name of the saved filter
+     */
+    name?: string | null;
+    /**
+     * Is Default
+     *
+     * Whether this is the default view
+     */
+    is_default?: boolean | null;
+    /**
+     * The filter configuration payload
+     */
+    filter_config?: CheckinFilterConfig | null;
 };
 
 /**
@@ -10883,16 +11047,34 @@ export type ListCheckinsApiV1CheckinsGetData = {
     query?: {
         /**
          * From Date
+         *
+         * Start date (YYYY-MM-DD).
          */
         from_date?: string | null;
         /**
          * To Date
+         *
+         * End date (YYYY-MM-DD).
          */
         to_date?: string | null;
         /**
          * Market Phase
+         *
+         * Filter by market phase.
          */
         market_phase?: string | null;
+        /**
+         * Target Indices
+         *
+         * Comma-separated list of target index UUIDs to filter by.
+         */
+        target_indices?: string | null;
+        /**
+         * Has Media
+         *
+         * Filter for check-ins with media.
+         */
+        has_media?: boolean | null;
         /**
          * Cursor
          */
@@ -11037,6 +11219,107 @@ export type UpdateCheckinApiV1CheckinsCheckinDatePatchResponses = {
 };
 
 export type UpdateCheckinApiV1CheckinsCheckinDatePatchResponse = UpdateCheckinApiV1CheckinsCheckinDatePatchResponses[keyof UpdateCheckinApiV1CheckinsCheckinDatePatchResponses];
+
+export type ListSavedCheckinFiltersApiV1CheckinsFiltersGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/checkins/filters';
+};
+
+export type ListSavedCheckinFiltersApiV1CheckinsFiltersGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeListSavedCheckinFilterResponse;
+};
+
+export type ListSavedCheckinFiltersApiV1CheckinsFiltersGetResponse = ListSavedCheckinFiltersApiV1CheckinsFiltersGetResponses[keyof ListSavedCheckinFiltersApiV1CheckinsFiltersGetResponses];
+
+export type CreateSavedCheckinFilterApiV1CheckinsFiltersPostData = {
+    body: SavedCheckinFilterCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/checkins/filters';
+};
+
+export type CreateSavedCheckinFilterApiV1CheckinsFiltersPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateSavedCheckinFilterApiV1CheckinsFiltersPostError = CreateSavedCheckinFilterApiV1CheckinsFiltersPostErrors[keyof CreateSavedCheckinFilterApiV1CheckinsFiltersPostErrors];
+
+export type CreateSavedCheckinFilterApiV1CheckinsFiltersPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ResponseEnvelopeSavedCheckinFilterResponse;
+};
+
+export type CreateSavedCheckinFilterApiV1CheckinsFiltersPostResponse = CreateSavedCheckinFilterApiV1CheckinsFiltersPostResponses[keyof CreateSavedCheckinFilterApiV1CheckinsFiltersPostResponses];
+
+export type DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Filter Id
+         */
+        filter_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkins/filters/{filter_id}';
+};
+
+export type DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteError = DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteErrors[keyof DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteErrors];
+
+export type DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteResponse = DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteResponses[keyof DeleteSavedCheckinFilterApiV1CheckinsFiltersFilterIdDeleteResponses];
+
+export type UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutData = {
+    body: SavedCheckinFilterUpdate;
+    path: {
+        /**
+         * Filter Id
+         */
+        filter_id: string;
+    };
+    query?: never;
+    url: '/api/v1/checkins/filters/{filter_id}';
+};
+
+export type UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutError = UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutErrors[keyof UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutErrors];
+
+export type UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeSavedCheckinFilterResponse;
+};
+
+export type UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutResponse = UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutResponses[keyof UpdateSavedCheckinFilterApiV1CheckinsFiltersFilterIdPutResponses];
 
 export type AssignTradeTaxonomyApiV1TradesTradeIdTaxonomiesPostData = {
     body: TaxonomyAssignRequest;
@@ -11529,97 +11812,3 @@ export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses =
 };
 
 export type UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponse = UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses[keyof UpdateSavedTradeFilterApiV1SavedTradeFiltersFilterIdPatchResponses];
-
-export type McpStreamableMcpPostData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/mcp';
-};
-
-export type McpStreamableMcpPostErrors = {
-    /**
-     * Missing or invalid PAT.
-     */
-    401: unknown;
-};
-
-export type McpStreamableMcpPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type McpSseMcpSseGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Session Id
-         *
-         * MCP session identifier
-         */
-        session_id?: string | null;
-    };
-    url: '/mcp/sse';
-};
-
-export type McpSseMcpSseGetErrors = {
-    /**
-     * Missing or invalid PAT.
-     */
-    401: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type McpSseMcpSseGetError = McpSseMcpSseGetErrors[keyof McpSseMcpSseGetErrors];
-
-export type McpSseMcpSseGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type McpMessagesMcpMessagesPostData = {
-    /**
-     * Payload
-     */
-    body: {
-        [key: string]: unknown;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Session Id
-         *
-         * MCP session identifier
-         */
-        session_id?: string | null;
-    };
-    url: '/mcp/messages';
-};
-
-export type McpMessagesMcpMessagesPostErrors = {
-    /**
-     * Missing or invalid PAT.
-     */
-    401: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type McpMessagesMcpMessagesPostError = McpMessagesMcpMessagesPostErrors[keyof McpMessagesMcpMessagesPostErrors];
-
-export type McpMessagesMcpMessagesPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};

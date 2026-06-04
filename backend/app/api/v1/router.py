@@ -40,6 +40,7 @@ from app.api.v1 import (
     playbook_taxonomies,
     playbooks,
     portfolios,
+    saved_checkin_filters,
     saved_trade_filters,
     screenshots,
     settings,
@@ -79,6 +80,7 @@ router.include_router(corporate_actions.router)
 router.include_router(market_data.router)
 router.include_router(market_indexes.router)
 router.include_router(checkins.router)
+router.include_router(saved_checkin_filters.router)
 router.include_router(trade_metadata.router)
 router.include_router(checkin_metadata.router)
 router.include_router(settings.router)

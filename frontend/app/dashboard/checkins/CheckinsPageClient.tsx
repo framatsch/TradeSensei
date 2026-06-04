@@ -19,6 +19,7 @@ import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { RegimePills } from "@/components/checkin/RegimePills";
 import { TimelineView } from "@/components/checkin/TimelineView";
 import { GalleryView } from "@/components/checkin/GalleryView";
+import { CheckinFilterBar } from "@/components/checkin/CheckinFilterBar";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 
@@ -45,8 +46,7 @@ export function CheckinsPageClient() {
           </Link>
         </div>
         
-        {/* Render RegimePills at the top of the main content area */}
-        <RegimePills />
+        <CheckinFilterBar />
 
         {view === "gallery" ? (
           <GalleryView />

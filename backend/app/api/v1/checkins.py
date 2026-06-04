@@ -16,7 +16,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
@@ -120,9 +120,11 @@ async def create_checkin(
 async def list_checkins(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[DailyCheckinService, Depends(_get_service)],
-    from_date: date | None = None,
-    to_date: date | None = None,
-    market_phase: str | None = None,
+    from_date: date | None = Query(None, description="Start date (YYYY-MM-DD)."),
+    to_date: date | None = Query(None, description="End date (YYYY-MM-DD)."),
+    market_phase: str | None = Query(None, description="Filter by market phase."),
+    target_indices: str | None = Query(None, description="Comma-separated list of target index UUIDs to filter by."),
+    has_media: bool | None = Query(None, description="Filter for check-ins with media."),
     cursor: date | None = None,
     limit: int = 30,
 ) -> ResponseEnvelope[DailyCheckinListResponse]:
@@ -131,6 +133,8 @@ async def list_checkins(
         from_date=from_date,
         to_date=to_date,
         market_phase=market_phase,
+        target_indices=target_indices,
+        has_media=has_media,
         cursor=cursor,
         limit=limit,
     )

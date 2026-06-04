@@ -53,7 +53,7 @@ export function CheckinMiniCalendar() {
   // Fetch checkins for this month
   const fromDate = `${month}-01`;
   const toDate = `${month}-${daysInMonth.toString().padStart(2, "0")}`;
-  const { data } = useCheckinEntries(fromDate, toDate, undefined, 31);
+  const { data } = useCheckinEntries(fromDate, toDate, undefined, undefined, undefined, 31);
 
   // Map dates to regime colors
   const dateColors = useMemo(() => {

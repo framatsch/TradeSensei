@@ -36,15 +36,17 @@ import type {
 
 export const CHECKINS_KEY = ["checkin", "entries"] as const;
 
-export function useCheckinEntries(fromDate?: string, toDate?: string, marketPhase?: string, limit = 30) {
+export function useCheckinEntries(fromDate?: string, toDate?: string, marketPhase?: string, targetIndices?: string, hasMedia?: boolean, limit = 30) {
   return useQuery<DailyCheckinListResponse, Error>({
-    queryKey: [...CHECKINS_KEY, { fromDate, toDate, marketPhase, limit }],
+    queryKey: [...CHECKINS_KEY, { fromDate, toDate, marketPhase, targetIndices, hasMedia, limit }],
     queryFn: async () => {
       const { data, error } = await listCheckinsApiV1CheckinsGet({
         query: {
           from_date: fromDate ?? null,
           to_date: toDate ?? null,
           market_phase: marketPhase ?? null,
+          target_indices: targetIndices ?? null,
+          has_media: hasMedia ?? null,
           limit,
         },
       });

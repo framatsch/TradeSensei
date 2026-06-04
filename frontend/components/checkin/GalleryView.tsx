@@ -27,11 +27,11 @@ import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
 
 export function GalleryView() {
   const router = useRouter();
-  const { regime, fromDate, toDate, page, perPage, setPage } = useCheckinParams();
+  const { regime, fromDate, toDate, targetIndices, hasMedia, page, perPage, setPage } = useCheckinParams();
   const [lightboxData, setLightboxData] = useState<{ urls: string[]; index: number } | null>(null);
   
   // Fetch more items for the gallery view
-  const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, perPage * 2);
+  const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, targetIndices ?? undefined, hasMedia ?? undefined, perPage * 2);
   const { data: phases } = useGetTaxonomies("checkins");
 
   if (isLoading) {

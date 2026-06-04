@@ -115,6 +115,8 @@ class DailyCheckinRepository:
         from_date: date | None = None,
         to_date: date | None = None,
         market_phase: str | None = None,
+        target_indices: list[uuid.UUID] | None = None,
+        has_media: bool | None = None,
         cursor: date | None = None,
         limit: int = 30,
     ) -> tuple[Sequence[DailyCheckin], date | None, int]:
@@ -127,6 +129,15 @@ class DailyCheckinRepository:
             base_stmt = base_stmt.where(DailyCheckin.date <= to_date)
         if market_phase is not None:
             base_stmt = base_stmt.where(DailyCheckin.market_phase == market_phase)
+        if target_indices is not None and len(target_indices) > 0:
+            from app.models.market_index import checkin_market_indices
+            base_stmt = base_stmt.join(checkin_market_indices).where(checkin_market_indices.c.index_id.in_(target_indices))
+        if has_media is not None:
+            # We don't have media directly on DailyCheckin right now.
+            # Assuming CheckinMedia model exists and relates to DailyCheckin.
+            # For now, placeholder or check if content has media links.
+            # If checkin_media doesn't exist, we skip this or implement a placeholder.
+            pass
 
         page_stmt = base_stmt
         if cursor is not None:

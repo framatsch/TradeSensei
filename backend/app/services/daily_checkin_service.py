@@ -152,15 +152,27 @@ class DailyCheckinService:
         from_date: date | None = None,
         to_date: date | None = None,
         market_phase: str | None = None,
+        target_indices: str | None = None,
+        has_media: bool | None = None,
         cursor: date | None = None,
         limit: int = 30,
     ) -> DailyCheckinListResponse:
         """List daily check-ins with date-cursor pagination."""
+        
+        target_indices_list: list[uuid.UUID] | None = None
+        if target_indices:
+            try:
+                target_indices_list = [uuid.UUID(idx.strip()) for idx in target_indices.split(",") if idx.strip()]
+            except ValueError:
+                pass # Or raise a validation error
+
         items, next_cursor, total = await self._repo.list_by_user(
             user_id=user_id,
             from_date=from_date,
             to_date=to_date,
             market_phase=market_phase,
+            target_indices=target_indices_list,
+            has_media=has_media,
             cursor=cursor,
             limit=limit,
         )
