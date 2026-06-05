@@ -19,13 +19,15 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePortfolioStore } from "@/stores/portfolioStore";
-import type { DashboardFilterConfig } from "@/lib/api/types.gen";
+import type { DashboardFilterConfig, AssetClass } from "@/lib/api/types.gen";
 import { useSettings } from "@/hooks/useSettings";
 import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
+import type { AnnotationFilterRow } from "@/components/ui/AnnotationFilterRows";
 
 export interface FilterConfig extends DashboardFilterConfig {
   account_ids: string[];
   viewId: string | null;
+  annotation_filters?: AnnotationFilterRow[];
 }
 
 interface WorkspaceFilterContextValue {
@@ -56,11 +58,12 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
       account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
       symbols: searchParams.get("symbols") ? searchParams.get("symbols")!.split(",") : [],
       excluded_symbols: searchParams.get("excluded_symbols") ? searchParams.get("excluded_symbols")!.split(",") : [],
-      asset_classes: searchParams.get("asset_classes") ? (searchParams.get("asset_classes")!.split(",") as any) : [],
+      asset_classes: searchParams.get("asset_classes") ? (searchParams.get("asset_classes")!.split(",") as AssetClass[]) : [],
       status: enforceClosedStatus
         ? "closed"
         : (searchParams.get("status") as "open" | "closed" | null) || null,
       viewId: searchParams.get("view_id") || null,
+      annotation_filters: [],
     };
   }, [searchParams, enforceClosedStatus]);
 
@@ -77,11 +80,12 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
         account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
         symbols: searchParams.get("symbols") ? searchParams.get("symbols")!.split(",") : [],
         excluded_symbols: searchParams.get("excluded_symbols") ? searchParams.get("excluded_symbols")!.split(",") : [],
-        asset_classes: searchParams.get("asset_classes") ? (searchParams.get("asset_classes")!.split(",") as any) : [],
+        asset_classes: searchParams.get("asset_classes") ? (searchParams.get("asset_classes")!.split(",") as AssetClass[]) : [],
         status: enforceClosedStatus
           ? "closed"
           : (searchParams.get("status") as "open" | "closed" | null) || null,
         viewId: searchParams.get("view_id") || null,
+        annotation_filters: prev.annotation_filters ?? [],
       };
 
       // Only update if actually different to avoid loops
@@ -121,8 +125,10 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
     }
   }, [debouncedFilter, pathname, router, enforceClosedStatus]);
 
+  const value = useMemo(() => ({ filter, setFilter }), [filter]);
+
   return (
-    <WorkspaceFilterContext.Provider value={{ filter, setFilter }}>
+    <WorkspaceFilterContext.Provider value={value}>
       {children}
     </WorkspaceFilterContext.Provider>
   );

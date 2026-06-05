@@ -15,8 +15,7 @@
 
 "use client";
 
-import { useCheckinParams } from "@/hooks/useCheckinParams";
-import { RegimePills } from "@/components/checkin/RegimePills";
+import { useCheckinFilter } from "@/components/checkin/CheckinFilterContext";
 import { TimelineView } from "@/components/checkin/TimelineView";
 import { GalleryView } from "@/components/checkin/GalleryView";
 import { CheckinFilterBar } from "@/components/checkin/CheckinFilterBar";
@@ -28,7 +27,7 @@ function today(): string {
 }
 
 export function CheckinsPageClient() {
-  const { view } = useCheckinParams();
+  const { filter } = useCheckinFilter();
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -39,7 +38,7 @@ export function CheckinsPageClient() {
           </h1>
           <Link 
             href={`/dashboard/checkins/${today()}`}
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary)_90%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             <PlusCircle className="w-4 h-4" />
             Today's Check-in
@@ -48,7 +47,7 @@ export function CheckinsPageClient() {
         
         <CheckinFilterBar />
 
-        {view === "gallery" ? (
+        {filter.view === "gallery" ? (
           <GalleryView />
         ) : (
           <TimelineView />

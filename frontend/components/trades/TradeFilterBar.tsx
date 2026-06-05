@@ -19,7 +19,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -29,6 +29,8 @@ import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import { SymbolTagInput } from "@/components/ui/SymbolTagInput";
 import type { TradeFilters } from "@/hooks/useTrades";
 import type { Account, SavedTradeFilterRead } from "@/lib/types";
+import { AnnotationFilterRows, type AnnotationFilterRow } from "@/components/ui/AnnotationFilterRows";
+import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 
 export type { TradeFilters };
 
@@ -70,6 +72,7 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.status) count++;
   if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) count++;
   if (filters.day_of_week !== undefined && filters.day_of_week !== null) count++;
+  if (filters.annotation_filters?.length) count++;
   return count;
 }
 
@@ -89,6 +92,7 @@ const EMPTY_FILTERS: TradeFilters = {
   status: null,
   hour_of_day: undefined,
   day_of_week: undefined,
+  annotation_filters: [],
 };
 
 const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -229,6 +233,17 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
   const { data: playbooks } = usePlaybooks();
   const { data: accounts = [], isLoading: isLoadingAccounts } = useAccounts(activePortfolioId ?? undefined);
   const isLoadingAccountOptions = isPortfolioLoading || isLoadingAccounts;
+  const { data: annotationDefs } = useGetAnnotationDefinitions();
+  const tradeAnnotationDefs = (annotationDefs ?? []).filter(
+    (d) => !d.is_archived && (d.scope === "trades" || d.scope === "both")
+  );
+
+  const handleAnnotationFiltersChange = useCallback(
+    (rows: AnnotationFilterRow[]) => {
+      onChange({ ...filters, annotation_filters: rows.length > 0 ? rows : undefined });
+    },
+    [filters, onChange]
+  );
 
   const handleDirectionChange = (value: string) => {
     onChange({ ...filters, direction: value || undefined });
@@ -242,13 +257,7 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
     onChange({ ...filters, asset_classes: updated.length ? updated : undefined });
   };
 
-  const toggleTag = (id: string) => {
-    const current = filters.taxonomy_ids ?? [];
-    const updated = current.includes(id)
-      ? current.filter(t => t !== id)
-      : [...current, id];
-    onChange({ ...filters, taxonomy_ids: updated.length ? updated : undefined });
-  };
+
 
   const handleDateFrom = (value: string) => {
     onChange({ ...filters, opened_at_from: value || undefined });
@@ -610,7 +619,20 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
               </div>
             </div>
           )}
+
           </div>
+
+          {/* Annotation Filters — full width below grid */}
+          {tradeAnnotationDefs.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <label className={`${LABEL_CLASS} mb-1.5`}>Annotation Filters</label>
+              <AnnotationFilterRows
+                rows={filters.annotation_filters ?? []}
+                definitions={tradeAnnotationDefs}
+                onChange={handleAnnotationFiltersChange}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

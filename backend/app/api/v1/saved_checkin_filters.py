@@ -14,10 +14,14 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
+from app.core.exceptions import (
+    SavedCheckinFilterConflictError,
+    SavedCheckinFilterNotFoundError,
+)
 from app.models.user import User
 from app.repositories.saved_checkin_filter_repository import SavedCheckinFilterRepository
 from app.schemas.common import ResponseEnvelope
@@ -31,7 +35,7 @@ from app.services.saved_checkin_filter_service import SavedCheckinFilterService
 router = APIRouter(prefix="/checkins/filters", tags=["checkin-filters"])
 
 
-async def _get_service(
+def _get_service(
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> SavedCheckinFilterService:
     repo = SavedCheckinFilterRepository(session)
@@ -50,8 +54,14 @@ async def create_saved_checkin_filter(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[SavedCheckinFilterService, Depends(_get_service)],
 ) -> ResponseEnvelope[SavedCheckinFilterResponse]:
-    filter_obj = await service.create(user_id=current_user.id, schema=schema)
-    return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj) # type: ignore[arg-type]
+    try:
+        filter_obj = await service.create(user_id=current_user.id, schema=schema)
+        return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj) # type: ignore[arg-type]
+    except SavedCheckinFilterConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get(
@@ -80,12 +90,23 @@ async def update_saved_checkin_filter(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[SavedCheckinFilterService, Depends(_get_service)],
 ) -> ResponseEnvelope[SavedCheckinFilterResponse]:
-    filter_obj = await service.update(
-        user_id=current_user.id,
-        filter_id=filter_id,
-        schema=schema,
-    )
-    return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj) # type: ignore[arg-type]
+    try:
+        filter_obj = await service.update(
+            user_id=current_user.id,
+            filter_id=filter_id,
+            schema=schema,
+        )
+        return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj) # type: ignore[arg-type]
+    except SavedCheckinFilterNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except SavedCheckinFilterConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.delete(
@@ -99,4 +120,10 @@ async def delete_saved_checkin_filter(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[SavedCheckinFilterService, Depends(_get_service)],
 ) -> None:
-    await service.delete(user_id=current_user.id, filter_id=filter_id)
+    try:
+        await service.delete(user_id=current_user.id, filter_id=filter_id)
+    except SavedCheckinFilterNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

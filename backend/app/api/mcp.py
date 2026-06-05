@@ -19,7 +19,7 @@ import logging
 import re
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -30,12 +30,15 @@ from sqlalchemy import and_, exists, func, select, update
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from app.core.database import get_session
 from app.core.deps import get_current_user_from_pat
 from app.models.account import Account, AccountType
 from app.models.annotation_definition import AnnotationDefinition
+from app.models.checkin_annotation import CheckinAnnotation
+from app.models.checkin_taxonomy import CheckinTaxonomy
+from app.models.daily_checkin import DailyCheckin
 from app.models.playbook import Playbook
 from app.models.portfolio import Portfolio
 from app.models.taxonomy import Taxonomy
@@ -43,6 +46,8 @@ from app.models.trade import AssetClass, Trade
 from app.models.trade_annotation import TradeAnnotation
 from app.models.trade_taxonomy import TradeTaxonomy
 from app.models.user import User
+from app.repositories._annotation_filter import apply_annotation_filters as _apply_annotation_filters
+from app.schemas.annotation_filter import AnnotationFilterItem
 from app.services.audit_service import AuditEventService, generate_request_id
 from app.utils.annotation_mapping import map_value_to_column
 
@@ -71,12 +76,6 @@ async def _get_mcp_session_with_rls(
     yield current_user, session
 
 
-class AnnotationFilter(BaseModel):
-    annotation_definition_id: uuid.UUID
-    operator: str
-    value: int | float | bool | str
-
-
 class AdvancedTradeSearchParams(BaseModel):
     date_from: datetime | None = None
     date_to: datetime | None = None
@@ -85,7 +84,7 @@ class AdvancedTradeSearchParams(BaseModel):
     pnl_min: Decimal | None = None
     pnl_max: Decimal | None = None
     taxonomy_ids: list[uuid.UUID] = Field(default_factory=list)
-    annotation_filters: list[AnnotationFilter] | None = None
+    annotation_filters: list[AnnotationFilterItem] | None = None
     portfolio_id: uuid.UUID | None = None
     sort_by: str | None = Field(default="opened_at", description="Field to sort by (e.g. pnl, opened_at)")
     sort_dir: str | None = Field(default="desc", description="Sort direction (asc or desc)")
@@ -139,6 +138,27 @@ class GetStrategyPlaybookParams(BaseModel):
     playbook_id: uuid.UUID
 
 
+class ListCheckinsParams(BaseModel):
+    date_from: date | None = None
+    date_to: date | None = None
+    taxonomy_ids: list[uuid.UUID] = Field(default_factory=list)
+    annotation_filters: list[AnnotationFilterItem] | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class SyncCheckinMetadataParams(BaseModel):
+    checkin_ids: list[uuid.UUID]
+    taxonomy_ids: list[uuid.UUID] | None = None
+    annotations: list[SyncAnnotationInput] | None = None
+
+    @model_validator(mode="after")
+    def validate_max_checkin_ids(self) -> "SyncCheckinMetadataParams":
+        if len(self.checkin_ids) > 50:
+            raise ValueError("Maximum 50 checkin IDs per call")
+        return self
+
+
 class ListAccountsParams(BaseModel):
     portfolio_id: uuid.UUID | None = None
     broker: str | None = Field(default=None, max_length=50)
@@ -158,43 +178,6 @@ def _serialize_decimal(value: Decimal | None) -> str | None:
     if value is None:
         return None
     return str(value)
-
-
-def _annotation_value_column_and_value(
-    operator: str,
-    value: int | float | bool | str,
-) -> tuple[Any, Any]:
-    if isinstance(value, bool):
-        if operator != "eq":
-            raise ValueError("bool annotation filters support only 'eq' operator")
-        return TradeAnnotation.value_bool, value
-
-    if isinstance(value, int):
-        return TradeAnnotation.value_int, value
-
-    if isinstance(value, float):
-        return TradeAnnotation.value_float, Decimal(str(value))
-
-    if isinstance(value, str):
-        if operator != "eq":
-            raise ValueError("string annotation filters support only 'eq' operator")
-        return TradeAnnotation.value_string, value
-
-    raise ValueError("Unsupported annotation filter value type")
-
-
-def _annotation_operator_expression(operator: str, column: Any, value: Any) -> Any:
-    if operator == "eq":
-        return column == value
-    if operator == "lt":
-        return column < value
-    if operator == "gt":
-        return column > value
-    if operator == "lte":
-        return column <= value
-    if operator == "gte":
-        return column >= value
-    raise ValueError(f"Unsupported annotation filter operator: {operator}")
 
 
 async def _handle_get_metadata_schema(
@@ -276,32 +259,14 @@ async def _handle_search_trades_advanced(
         )
 
     if params.annotation_filters:
-        for annotation_filter in params.annotation_filters:
-            column, typed_value = _annotation_value_column_and_value(
-                annotation_filter.operator,
-                annotation_filter.value,
-            )
-            condition = _annotation_operator_expression(
-                annotation_filter.operator,
-                column,
-                typed_value,
-            )
-            annotation_exists = exists(
-                select(1)
-                .select_from(TradeAnnotation)
-                .join(
-                    AnnotationDefinition,
-                    TradeAnnotation.annotation_definition_id == AnnotationDefinition.id,
-                )
-                .where(
-                    TradeAnnotation.trade_id == Trade.id,
-                    AnnotationDefinition.user_id == user_id,
-                    AnnotationDefinition.is_archived.is_(False),
-                    TradeAnnotation.annotation_definition_id == annotation_filter.annotation_definition_id,
-                    condition,
-                ),
-            )
-            query = query.where(annotation_exists)
+        query = _apply_annotation_filters(
+            query,
+            TradeAnnotation,
+            TradeAnnotation.trade_id,
+            Trade.id,
+            user_id,
+            params.annotation_filters,
+        )
 
     if params.portfolio_id is not None:
         query = query.join(Account, Trade.account_id == Account.id).where(
@@ -659,6 +624,183 @@ async def _handle_list_accounts(
     }
 
 
+async def _handle_list_checkins(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = ListCheckinsParams.model_validate(arguments)
+
+    query = (
+        select(DailyCheckin)
+        .where(DailyCheckin.user_id == user_id)
+        .options(
+            selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy),
+            selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition),
+        )
+    )
+
+    if params.date_from is not None:
+        query = query.where(DailyCheckin.date >= params.date_from)
+    if params.date_to is not None:
+        query = query.where(DailyCheckin.date <= params.date_to)
+
+    if params.taxonomy_ids:
+        for taxonomy_id in params.taxonomy_ids:
+            taxonomy_alias = aliased(CheckinTaxonomy)
+            query = query.join(
+                taxonomy_alias,
+                and_(
+                    taxonomy_alias.checkin_id == DailyCheckin.id,
+                    taxonomy_alias.taxonomy_id == taxonomy_id,
+                ),
+            )
+
+    if params.annotation_filters:
+        query = _apply_annotation_filters(
+            query,
+            CheckinAnnotation,
+            CheckinAnnotation.checkin_id,
+            DailyCheckin.id,
+            user_id,
+            params.annotation_filters,
+        )
+
+    count_query = select(func.count()).select_from(query.with_only_columns(DailyCheckin.id).order_by(None).subquery())
+    total_result = await db.execute(count_query)
+    total = int(total_result.scalar_one())
+
+    query = query.order_by(DailyCheckin.date.desc()).limit(params.limit).offset(params.offset)
+    result = await db.execute(query)
+    checkins = result.scalars().all()
+
+    def _annotation_value(ann: CheckinAnnotation) -> int | float | bool | str | None:
+        if ann.value_bool is not None:
+            return ann.value_bool
+        if ann.value_int is not None:
+            return ann.value_int
+        if ann.value_float is not None:
+            return float(ann.value_float)
+        if ann.value_string is not None:
+            return ann.value_string
+        return None
+
+    return {
+        "checkins": [
+            {
+                "id": str(c.id),
+                "date": c.date.isoformat(),
+                "notes": c.notes,
+                "taxonomy_assignments": [
+                    {"taxonomy_id": str(t.taxonomy_id), "name": t.taxonomy.name if t.taxonomy else None}
+                    for t in (c.taxonomy_assignments or [])
+                ],
+                "annotation_assignments": [
+                    {
+                        "annotation_definition_id": str(a.annotation_definition_id),
+                        "name": a.annotation_definition.name if a.annotation_definition else None,
+                        "value": _annotation_value(a),
+                    }
+                    for a in (c.annotation_assignments or [])
+                ],
+            }
+            for c in checkins
+        ],
+        "total": total,
+        "limit": params.limit,
+        "offset": params.offset,
+    }
+
+
+async def _handle_sync_checkin_metadata(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = SyncCheckinMetadataParams.model_validate(arguments)
+
+    owned_result = await db.execute(
+        select(DailyCheckin.id).where(DailyCheckin.user_id == user_id, DailyCheckin.id.in_(params.checkin_ids)),
+    )
+    owned_checkin_ids = list(owned_result.scalars().all())
+
+    if not owned_checkin_ids:
+        return {"updated_count": 0}
+
+    if params.taxonomy_ids is not None:
+        taxonomy_result = await db.execute(
+            select(Taxonomy.id).where(
+                Taxonomy.user_id == user_id,
+                Taxonomy.is_archived.is_(False),
+                Taxonomy.id.in_(params.taxonomy_ids),
+            ),
+        )
+        valid_taxonomy_ids = set(taxonomy_result.scalars().all())
+        if len(valid_taxonomy_ids) != len(set(params.taxonomy_ids)):
+            raise ValueError("One or more taxonomy_ids are invalid for this user")
+
+        for checkin_id in owned_checkin_ids:
+            for taxonomy_id in params.taxonomy_ids:
+                insert_stmt = (
+                    pg_insert(CheckinTaxonomy)
+                    .values(checkin_id=checkin_id, taxonomy_id=taxonomy_id)
+                    .on_conflict_do_nothing(constraint="uq_checkin_taxonomy_pair")
+                )
+                await db.execute(insert_stmt)
+
+    if params.annotations is not None:
+        definition_ids = [entry.annotation_definition_id for entry in params.annotations]
+        definition_result = await db.execute(
+            select(AnnotationDefinition).where(
+                AnnotationDefinition.user_id == user_id,
+                AnnotationDefinition.is_archived.is_(False),
+                AnnotationDefinition.id.in_(definition_ids),
+            ),
+        )
+        definitions = {item.id: item for item in definition_result.scalars().all()}
+        if len(definitions) != len(set(definition_ids)):
+            raise ValueError("One or more annotations use invalid annotation_definition_id")
+
+        for checkin_id in owned_checkin_ids:
+            for entry in params.annotations:
+                definition = definitions[entry.annotation_definition_id]
+                typed_values = map_value_to_column(
+                    definition.type,
+                    entry.value,
+                    definition.scale_labels,
+                )
+                insert_stmt = (
+                    pg_insert(CheckinAnnotation)
+                    .values(
+                        checkin_id=checkin_id,
+                        annotation_definition_id=entry.annotation_definition_id,
+                        **typed_values,
+                    )
+                    .on_conflict_do_update(
+                        constraint="uq_checkin_annotation_pair",
+                        set_=typed_values,
+                    )
+                )
+                await db.execute(insert_stmt)
+
+    AuditEventService().create_audit_event(
+        action="checkin.bulk_metadata_synced",
+        user_id=user_id,
+        email=None,
+        resource_type="checkin",
+        resource_id=None,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "checkin_count": len(owned_checkin_ids)},
+    )
+
+    return {"updated_count": len(owned_checkin_ids)}
+
+
 _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     "get_metadata_schema": {
         "description": "Return active taxonomies and annotation definitions for the authenticated user.",
@@ -692,6 +834,69 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "handler": _handle_list_accounts,
         "mutating": False,
     },
+    "list_checkins": {
+        "description": "List check-ins with optional date range, taxonomy, and annotation filters. Returns taxonomy and annotation assignments per check-in.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "date_from": {"type": "string", "format": "date"},
+                "date_to": {"type": "string", "format": "date"},
+                "taxonomy_ids": {
+                    "type": "array",
+                    "items": {"type": "string", "format": "uuid"},
+                    "description": "Filter by taxonomy UUIDs (AND logic: check-in must have all listed tags)",
+                },
+                "annotation_filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "annotation_definition_id": {"type": "string", "format": "uuid"},
+                            "operator": {"type": "string", "enum": ["eq", "neq", "lt", "lte", "gt", "gte"]},
+                            "value": {"oneOf": [{"type": "integer"}, {"type": "number"}, {"type": "boolean"}, {"type": "string"}]},
+                            "logic": {"type": "string", "enum": ["and", "or"], "default": "and"},
+                        },
+                        "required": ["annotation_definition_id", "operator", "value"],
+                    },
+                },
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+                "offset": {"type": "integer", "minimum": 0, "default": 0},
+            },
+        },
+        "handler": _handle_list_checkins,
+        "mutating": False,
+    },
+    "sync_checkin_metadata": {
+        "description": "Bulk assign taxonomy tags and annotation values to a list of check-ins (upsert).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "checkin_ids": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {"type": "string", "format": "uuid"},
+                },
+                "taxonomy_ids": {
+                    "type": "array",
+                    "items": {"type": "string", "format": "uuid"},
+                },
+                "annotations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "annotation_definition_id": {"type": "string", "format": "uuid"},
+                            "value": {"oneOf": [{"type": "integer"}, {"type": "number"}, {"type": "boolean"}, {"type": "string"}]},
+                        },
+                        "required": ["annotation_definition_id", "value"],
+                    },
+                },
+            },
+            "required": ["checkin_ids"],
+        },
+        "handler": _handle_sync_checkin_metadata,
+        "mutating": True,
+    },
     "search_trades_advanced": {
         "description": "Search user trades with date, symbol, metadata, and portfolio filters.",
         "inputSchema": {
@@ -721,7 +926,7 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
                             },
                             "operator": {
                                 "type": "string",
-                                "enum": ["eq", "lt", "gt", "lte", "gte"],
+                                "enum": ["eq", "neq", "lt", "gt", "lte", "gte"],
                             },
                             "value": {
                                 "oneOf": [
@@ -730,6 +935,11 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
                                     {"type": "boolean"},
                                     {"type": "string"},
                                 ]
+                            },
+                            "logic": {
+                                "type": "string",
+                                "enum": ["and", "or"],
+                                "default": "and",
                             },
                         },
                         "required": ["annotation_definition_id", "operator", "value"],

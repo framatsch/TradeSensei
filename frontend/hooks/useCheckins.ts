@@ -36,18 +36,27 @@ import type {
 
 export const CHECKINS_KEY = ["checkin", "entries"] as const;
 
-export function useCheckinEntries(fromDate?: string, toDate?: string, marketPhase?: string, targetIndices?: string, hasMedia?: boolean, limit = 30) {
+export function useCheckinEntries(
+  fromDate?: string,
+  toDate?: string,
+  targetIndices?: string,
+  taxonomyIds?: string,
+  annotationFilters?: string,
+  limit = 30,
+  offset?: number
+) {
   return useQuery<DailyCheckinListResponse, Error>({
-    queryKey: [...CHECKINS_KEY, { fromDate, toDate, marketPhase, targetIndices, hasMedia, limit }],
+    queryKey: [...CHECKINS_KEY, { fromDate, toDate, targetIndices, taxonomyIds, annotationFilters, limit, offset }],
     queryFn: async () => {
       const { data, error } = await listCheckinsApiV1CheckinsGet({
         query: {
           from_date: fromDate ?? null,
           to_date: toDate ?? null,
-          market_phase: marketPhase ?? null,
           target_indices: targetIndices ?? null,
-          has_media: hasMedia ?? null,
+          taxonomy_ids: taxonomyIds ?? null,
+          annotation_filters: annotationFilters ?? null,
           limit,
+          offset: offset ?? null,
         },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
@@ -93,9 +102,7 @@ export function useCreateCheckin() {
   });
 }
 
-export function useCreateCheckinWithTargetIndices() {
-  return useCreateCheckin();
-}
+
 
 export function useUpdateCheckin() {
   const qc = useQueryClient();
@@ -114,9 +121,7 @@ export function useUpdateCheckin() {
   });
 }
 
-export function useUpdateCheckinWithTargetIndices() {
-  return useUpdateCheckin();
-}
+
 
 export function useDeleteCheckin() {
   const qc = useQueryClient();

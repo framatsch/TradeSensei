@@ -26,11 +26,21 @@ from app.core.config import settings
 from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
 from app.schemas.annotation_definition import TradeAnnotationResponse
+from app.schemas.annotation_filter import AnnotationFilterItem
 from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionRead
 from app.schemas.note import TradeNoteRead
 from app.schemas.taxonomy import TaxonomyResponse
 
-# Sentinel singleton used to distinguish "field not provided" from "field set to None"
+__all__ = [
+    "AssetClass",
+    "Direction",
+    "TradeCreate",
+    "TradeRead",
+    "TradeUpdate",
+    "TradeFilterParams",
+    "TradeSortField",
+    "TradeSortParams",
+]
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
 _UNSET: object = object()
@@ -1171,6 +1181,10 @@ class TradeFilterParams(BaseModel):
         ge=0,
         le=6,
         description=("Filter trades by ISO day of week of opened_at: 0 = Monday, 1 = Tuesday, …, 6 = Sunday."),
+    )
+    annotation_filters: list[AnnotationFilterItem] | None = Field(
+        default=None,
+        description="Annotation-based filter conditions.",
     )
 
     @field_validator(

@@ -77,7 +77,7 @@ async def test_taxonomy_seed_defaults_insert_expected_13_rows(db_session: AsyncS
 
 
 @pytest.mark.integration
-async def test_annotation_seed_defaults_insert_expected_4_rows(db_session: AsyncSession) -> None:
+async def test_annotation_seed_defaults_insert_expected_5_rows(db_session: AsyncSession) -> None:
     user = await _create_user(db_session, uuid.uuid4().hex[:8])
     repo = AnnotationDefinitionRepository(db_session)
 
@@ -87,7 +87,7 @@ async def test_annotation_seed_defaults_insert_expected_4_rows(db_session: Async
         select(AnnotationDefinition).where(AnnotationDefinition.user_id == user.id)
     )
     rows = list(result.scalars().all())
-    assert len(rows) == 4
+    assert len(rows) == 5
 
     by_name = {row.name: row for row in rows}
     expected = {
@@ -99,6 +99,12 @@ async def test_annotation_seed_defaults_insert_expected_4_rows(db_session: Async
             "trades",
             {"options": ["A+", "B", "C"]},
             "award",
+        ),
+        "Market Regime": (
+            "string_enum",
+            "checkins",
+            {"options": ["Bull", "Bear", "Chop", "Sideways"]},
+            "trending-up",
         ),
     }
     assert set(by_name.keys()) == set(expected.keys())
@@ -128,7 +134,7 @@ async def test_seed_defaults_is_idempotent_for_same_user(db_session: AsyncSessio
         select(AnnotationDefinition).where(AnnotationDefinition.user_id == user.id)
     )
     assert len(list(taxonomy_rows.scalars().all())) == 13
-    assert len(list(annotation_rows.scalars().all())) == 4
+    assert len(list(annotation_rows.scalars().all())) == 5
 
 
 @pytest.mark.integration

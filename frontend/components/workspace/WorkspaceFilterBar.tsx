@@ -29,16 +29,19 @@
 
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { AnnotationFilterRows, type AnnotationFilterRow } from "@/components/ui/AnnotationFilterRows";
+import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useAccounts } from "@/hooks/useAccounts";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useSavedViews, useSaveView, useUpdateView, useDeleteView } from "@/hooks/useReportingViews";
-import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
+import { useWorkspaceFilter, useActivePortfolioId, type FilterConfig } from "@/components/workspace/WorkspaceFilterContext";
 import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
 import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw, Filter as FilterIcon, Lock } from "lucide-react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as Dialog from "@radix-ui/react-dialog";
 import type { DashboardFilterConfig } from "@/lib/api/types.gen";
+
 import { SymbolTagInput } from "@/components/ui/SymbolTagInput";
 
 const ASSET_CLASSES = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"] as const;
@@ -174,10 +177,10 @@ export function WorkspaceFilterBar() {
   const playbookIds = filter.playbook_ids || [];
   const tagIds = filter.taxonomy_ids || [];
   const accountIds = filter.account_ids || [];
-  const symbols = (filter as any).symbols || [];
-  const excludedSymbols = (filter as any).excluded_symbols || [];
-  const assetClasses = (filter as any).asset_classes || [];
-  const status = (filter as any).status as "open" | "closed" | null;
+  const symbols = filter.symbols || [];
+  const excludedSymbols = filter.excluded_symbols || [];
+  const assetClasses = filter.asset_classes || [];
+  const status = filter.status;
   const viewId = filter.viewId;
 
   const setDateFrom = useCallback((date: string | null) => setFilter(prev => ({ ...prev, date_from: date })), [setFilter]);
@@ -187,26 +190,37 @@ export function WorkspaceFilterBar() {
   const setAccountIds = useCallback((ids: string[]) => setFilter(prev => ({ ...prev, account_ids: ids })), [setFilter]);
   const setSymbols = useCallback((s: string[]) => setFilter(prev => ({ ...prev, symbols: s })), [setFilter]);
   const setExcludedSymbols = useCallback((s: string[]) => setFilter(prev => ({ ...prev, excluded_symbols: s })), [setFilter]);
-  const setAssetClasses = useCallback((s: string[]) => setFilter(prev => ({ ...prev, asset_classes: s as any })), [setFilter]);
+  const setAssetClasses = useCallback((s: import("@/lib/api/types.gen").AssetClass[]) => setFilter(prev => ({ ...prev, asset_classes: s })), [setFilter]);
   const setStatus = useCallback((s: "open" | "closed" | null) => setFilter(prev => ({ ...prev, status: s })), [setFilter]);
   const setViewId = useCallback((id: string | null) => setFilter(prev => ({ ...prev, viewId: id })), [setFilter]);
-  const setFilters = useCallback((f: any) => setFilter(prev => ({ 
+    const setFilters = useCallback((f: Partial<FilterConfig>) => setFilter(prev => ({ 
     ...prev,
-    date_from: f.dateFrom !== undefined ? f.dateFrom : prev.date_from,
-    date_to: f.dateTo !== undefined ? f.dateTo : prev.date_to,
-    playbook_ids: f.playbookIds !== undefined ? f.playbookIds : prev.playbook_ids,
-    account_ids: f.accountIds !== undefined ? f.accountIds : prev.account_ids,
-    symbols: f.symbols !== undefined ? f.symbols : (prev as any).symbols,
-    excluded_symbols: f.excluded_symbols !== undefined ? f.excluded_symbols : (prev as any).excluded_symbols,
-    asset_classes: f.asset_classes !== undefined ? f.asset_classes : (prev as any).asset_classes,
-    status: f.status !== undefined ? f.status : (prev as any).status,
+    date_from: f.date_from !== undefined ? f.date_from : prev.date_from,
+    date_to: f.date_to !== undefined ? f.date_to : prev.date_to,
+    playbook_ids: f.playbook_ids !== undefined ? f.playbook_ids : prev.playbook_ids,
+    account_ids: f.account_ids !== undefined ? f.account_ids : prev.account_ids,
+    taxonomy_ids: f.taxonomy_ids !== undefined ? f.taxonomy_ids : prev.taxonomy_ids,
+    symbols: f.symbols !== undefined ? f.symbols : prev.symbols,
+    excluded_symbols: f.excluded_symbols !== undefined ? f.excluded_symbols : prev.excluded_symbols,
+    asset_classes: f.asset_classes !== undefined ? f.asset_classes : prev.asset_classes,
+    status: f.status !== undefined ? f.status : prev.status,
     viewId: f.viewId !== undefined ? f.viewId : prev.viewId
   })), [setFilter]);
-
-  const { portfolios } = usePortfolios();
   const { data: accounts } = useAccounts(portfolioId ?? undefined);
   const { data: playbooks } = usePlaybooks();
   const { data: taxonomies } = useGetTaxonomies("trades");
+  const { data: annotationDefs } = useGetAnnotationDefinitions();
+  const tradeAnnotationDefs = (annotationDefs ?? []).filter(
+    (d) => !d.is_archived && (d.scope === "trades" || d.scope === "both")
+  );
+
+  const handleAnnotationFiltersChange = useCallback(
+    (rows: AnnotationFilterRow[]) => {
+      if (viewId) setViewId(null);
+      setFilter((prev) => ({ ...prev, annotation_filters: rows.length > 0 ? rows : [] }));
+    },
+    [viewId, setViewId, setFilter]
+  );
 
   // ── Wrappers to clear viewId when manual filters change ──────────────
   const handleSetDateFrom = useCallback((val: string | null) => {
@@ -235,10 +249,10 @@ export function WorkspaceFilterBar() {
     setExcludedSymbols(exc);
   }, [viewId, setViewId, setSymbols, setExcludedSymbols]);
 
-  const handleAssetClassToggle = useCallback((ac: string) => {
+  const handleAssetClassToggle = useCallback((ac: import("@/lib/api/types.gen").AssetClass) => {
     if (viewId) setViewId(null);
     const current = assetClasses;
-    const updated = current.includes(ac) ? current.filter((c: string) => c !== ac) : [...current, ac];
+    const updated = current.includes(ac) ? current.filter((c) => c !== ac) : [...current, ac];
     setAssetClasses(updated);
   }, [viewId, setViewId, assetClasses, setAssetClasses]);
 
@@ -256,31 +270,13 @@ export function WorkspaceFilterBar() {
   const [saveViewName, setSaveViewName] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const activeView = useMemo(() => {
     if (!viewId || !savedViews) return null;
     return savedViews.find((v) => v.id === viewId) || null;
   }, [viewId, savedViews]);
 
-  const extendedCount = (symbols.length > 0 ? 1 : 0) + (excludedSymbols.length > 0 ? 1 : 0) + (assetClasses.length > 0 ? 1 : 0);
-
-  const [showExtended, setShowExtended] = useState(() => {
-    if (typeof window !== "undefined") {
-      if (extendedCount > 0) return true;
-      return localStorage.getItem("ts_workspace_extended_filters") === "true";
-    }
-    return false;
-  });
-
-  const toggleExtended = () => {
-    setShowExtended((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("ts_workspace_extended_filters", String(next));
-      }
-      return next;
-    });
-  };
 
   const activeCount = useMemo(() => {
     let count = 0;
@@ -364,12 +360,12 @@ export function WorkspaceFilterBar() {
 
   const handleDeleteView = useCallback(
     (id: string) => {
-      if (!confirm("Delete this saved view?")) return;
       deleteViewMutation.mutate(id, {
         onSuccess: () => {
           if (viewId === id) {
             setViewId(null);
           }
+          setDeleteConfirmId(null);
         },
       });
     },
@@ -382,10 +378,15 @@ export function WorkspaceFilterBar() {
       if (view) {
         setViewId(view.id);
         setFilters({
-          dateFrom: view.filter_config.date_from ?? null,
-          dateTo: view.filter_config.date_to ?? null,
-          playbookIds: view.filter_config.playbook_ids ?? [],
-          accountIds: view.filter_config.account_ids ?? [],
+          date_from: view.filter_config.date_from ?? null,
+          date_to: view.filter_config.date_to ?? null,
+          playbook_ids: view.filter_config.playbook_ids ?? [],
+          account_ids: view.filter_config.account_ids ?? [],
+          taxonomy_ids: view.filter_config.taxonomy_ids ?? [],
+          symbols: view.filter_config.symbols ?? [],
+          excluded_symbols: view.filter_config.excluded_symbols ?? [],
+          asset_classes: view.filter_config.asset_classes ?? [],
+          status: view.filter_config.status ?? null,
         });
       }
     },
@@ -478,20 +479,44 @@ export function WorkspaceFilterBar() {
           )}
 
           {activeView && (
-            <button
-              type="button"
-              onClick={() => handleDeleteView(activeView.id)}
-              disabled={deleteViewMutation.isPending}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors rounded-md disabled:opacity-50"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete View
-            </button>
+            deleteConfirmId === activeView.id ? (
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)]">
+                <span className="text-destructive">Are you sure?</span>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteView(activeView.id)}
+                  disabled={deleteViewMutation.isPending}
+                  className="px-2 py-0.5 bg-destructive text-white rounded hover:bg-destructive/90 transition-colors"
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="px-2 py-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(activeView.id)}
+                disabled={deleteViewMutation.isPending}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] transition-colors rounded-md disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete View
+              </button>
+            )
           )}
           {/* Clear Filters (always available if there are active filters) */}
           {((playbookIds.length > 0 ||
             tagIds.length > 0 ||
             accountIds.length > 0 ||
+            symbols.length > 0 ||
+            excludedSymbols.length > 0 ||
+            assetClasses.length > 0 ||
             dateFrom ||
             dateTo ||
             status) ? 1 : 0) > 0 && (
@@ -504,6 +529,9 @@ export function WorkspaceFilterBar() {
                   setPlaybookIds([]);
                   setTagIds([]);
                   setAccountIds([]);
+                  setSymbols([]);
+                  setExcludedSymbols([]);
+                  setAssetClasses([]);
                   setStatus(null);
                 }}
               >
@@ -604,69 +632,69 @@ export function WorkspaceFilterBar() {
             )}
           </div>
 
-          {/* Extended Filters Toggle */}
-          <div className="mt-4 pt-4 border-t border-border/50">
-            <button
-              type="button"
-              onClick={toggleExtended}
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showExtended ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              Extended Filters
-              {!showExtended && extendedCount > 0 && (
-                <span className="inline-flex items-center justify-center w-5 h-5 ml-1 text-[10px] font-bold rounded-full bg-primary/20 text-primary">
-                  {extendedCount}
-                </span>
-              )}
-            </button>
-            
-            {showExtended && (
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                {/* Symbol */}
-                <div className="sm:col-span-2">
-                  <label className={LABEL_CLASS}>Symbol</label>
-                  <SymbolTagInput
-                    included={symbols}
-                    excluded={excludedSymbols}
-                    onChange={handleSetSymbolsAndExcluded}
-                  />
-                </div>
-
-                {/* Asset classes */}
-                <div className="sm:col-span-3">
-                  <label className={LABEL_CLASS}>Asset Class</label>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {ASSET_CLASSES.map((ac) => {
-                      const selected = assetClasses.includes(ac);
-                      return (
-                        <button
-                          key={ac}
-                          type="button"
-                          onClick={() => handleAssetClassToggle(ac)}
-                          className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
-                            selected
-                              ? "bg-primary/15 border-primary/40 text-primary"
-                              : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
-                          }`}
-                        >
-                          {ac}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+          {/* Annotation Filters — full width */}
+          {tradeAnnotationDefs.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <label className={LABEL_CLASS}>Annotation Filters</label>
+              <div className="mt-1">
+                <AnnotationFilterRows
+                  rows={filter.annotation_filters ?? []}
+                  definitions={tradeAnnotationDefs}
+                  onChange={handleAnnotationFiltersChange}
+                />
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Symbol + Asset Class — always visible */}
+          <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {/* Symbol */}
+            <div className="sm:col-span-2">
+              <label className={LABEL_CLASS}>Symbol</label>
+              <SymbolTagInput
+                included={symbols}
+                excluded={excludedSymbols}
+                onChange={handleSetSymbolsAndExcluded}
+              />
+            </div>
+
+            {/* Asset classes */}
+            <div className="sm:col-span-3">
+              <label className={LABEL_CLASS}>Asset Class</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {ASSET_CLASSES.map((ac) => {
+                  const selected = assetClasses.includes(ac);
+                  return (
+                    <button
+                      key={ac}
+                      type="button"
+                      onClick={() => handleAssetClassToggle(ac)}
+                      className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                        selected
+                          ? "bg-primary/15 border-primary/40 text-primary"
+                          : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                      }`}
+                    >
+                      {ac}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Save View Modal */}
-      {showSaveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-2xl">
-            <h2 className="mb-4 text-base font-semibold text-foreground">Save Current View</h2>
-            <label className="mb-2 block text-sm font-medium text-muted-foreground">View Name</label>
+      <Dialog.Root open={showSaveModal} onOpenChange={(open: boolean) => {
+        setShowSaveModal(open);
+        if (!open) setSaveViewName("");
+      }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-xl bg-card border border-border p-6 shadow-2xl">
+            <Dialog.Title className="mb-4 text-base font-semibold text-foreground">Save Current View</Dialog.Title>
+            <label className="mb-2 block text-sm font-medium text-[color-mix(in_srgb,var(--muted-foreground)_100%,transparent)]">View Name</label>
             <input
               type="text"
               className="w-full rounded-lg border border-border bg-secondary px-4 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -696,15 +724,19 @@ export function WorkspaceFilterBar() {
                 {saveViewMutation.isPending ? "Saving…" : "Save View"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {/* Rename View Modal */}
-      {showRenameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-2xl">
-            <h2 className="mb-4 text-base font-semibold text-foreground">Rename View</h2>
+      <Dialog.Root open={showRenameModal} onOpenChange={(open: boolean) => {
+        setShowRenameModal(open);
+        if (!open) setSaveViewName("");
+      }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-xl bg-card border border-border p-6 shadow-2xl">
+            <Dialog.Title className="mb-4 text-base font-semibold text-foreground">Rename View</Dialog.Title>
             <input
               type="text"
               className="w-full rounded-lg border border-border bg-secondary px-4 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -733,9 +765,9 @@ export function WorkspaceFilterBar() {
                 {updateViewMutation.isPending ? "Saving…" : "Save"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

@@ -12,18 +12,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.annotation_filter import AnnotationFilterItem
 
 
 class CheckinFilterConfig(BaseModel):
     """Schema for the filter configuration JSONB payload."""
 
-    regime: str | None = Field(default=None, description="Market regime filter")
     from_date: str | None = Field(default=None, description="Start date filter (YYYY-MM-DD)")
     to_date: str | None = Field(default=None, description="End date filter (YYYY-MM-DD)")
     target_indices: list[UUID] | None = Field(default=None, description="List of target index UUIDs to filter by")
+    taxonomy_ids: list[UUID] | None = Field(default=None, description="Taxonomy UUIDs to filter by (OR logic)")
+    annotation_filters: list[AnnotationFilterItem] | None = Field(default=None, description="Annotation filter rows")
+    # Legacy fields — kept for backward compat with saved views from previous versions
+    regime: str | None = Field(default=None, description="Deprecated: market regime filter (superseded by annotation_filters)")
     has_media: bool | None = Field(default=None, description="Filter for check-ins with media")
 
 

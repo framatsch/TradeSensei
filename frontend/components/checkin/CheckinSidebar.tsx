@@ -15,14 +15,14 @@
 
 "use client";
 
-import { useCheckinParams } from "@/hooks/useCheckinParams";
+import { useCheckinFilter } from "@/components/checkin/CheckinFilterContext";
 import { CheckinMiniCalendar } from "./CheckinMiniCalendar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Settings, List, Grid } from "lucide-react";
 
 export function CheckinSidebar() {
-  const { view, setView } = useCheckinParams();
+  const { filter, setFilter } = useCheckinFilter();
   const pathname = usePathname();
 
   const isCheckinsRoute = pathname === "/dashboard/checkins" || pathname.startsWith("/dashboard/checkins/");
@@ -44,12 +44,12 @@ export function CheckinSidebar() {
           <button
             onClick={() => {
               if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=timeline";
-              else setView("timeline");
+              else setFilter(prev => ({ ...prev, view: "timeline", page: 1 }));
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
-              isCheckinsRoute && (view === "timeline" || !view)
+              isCheckinsRoute && (filter.view === "timeline" || !filter.view)
                 ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                : "text-muted-foreground hover:text-foreground hover:bg-[color-mix(in_srgb,var(--muted)_60%,transparent)]"
             }`}
           >
             <List className="w-4 h-4" />
@@ -59,12 +59,12 @@ export function CheckinSidebar() {
           <button
             onClick={() => {
               if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=gallery";
-              else setView("gallery");
+              else setFilter(prev => ({ ...prev, view: "gallery", page: 1 }));
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
-              isCheckinsRoute && view === "gallery"
+              isCheckinsRoute && filter.view === "gallery"
                 ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                : "text-muted-foreground hover:text-foreground hover:bg-[color-mix(in_srgb,var(--muted)_60%,transparent)]"
             }`}
           >
             <Grid className="w-4 h-4" />
@@ -76,7 +76,7 @@ export function CheckinSidebar() {
       <div className="mt-auto pt-4 border-t border-border">
         <Link
           href="/dashboard/settings?tab=checkin"
-          className="flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+          className="flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg text-muted-foreground hover:text-foreground hover:bg-[color-mix(in_srgb,var(--muted)_60%,transparent)]"
         >
           <Settings className="w-4 h-4" />
           <span>Check-in Settings</span>

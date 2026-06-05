@@ -96,7 +96,6 @@ export function CheckinDateClient({ date }: Props) {
             key={date}
             date={date}
             entry={entry}
-            marketPhases={phases ?? []}
             onSave={handleSave}
             onDelete={handleDelete}
             isSaving={createMutation.isPending || updateMutation.isPending}

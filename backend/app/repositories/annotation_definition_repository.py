@@ -70,6 +70,14 @@ class AnnotationDefinitionRepository:
                 "scale_labels": {"options": ["A+", "B", "C"]},
                 "icon_identifier": "award",
             },
+            {
+                "name": "Market Regime",
+                "type": "string_enum",
+                "scope": "checkins",
+                "description": "Overall market condition for the session",
+                "scale_labels": {"options": ["Bull", "Bear", "Chop", "Sideways"]},
+                "icon_identifier": "trending-up",
+            },
         ]
         stmt = pg_insert(AnnotationDefinition).values(
             [

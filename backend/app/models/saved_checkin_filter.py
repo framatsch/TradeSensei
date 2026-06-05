@@ -41,7 +41,6 @@ class SavedCheckinFilter(Base):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     name: Mapped[str] = mapped_column(
         String(255),
@@ -70,7 +69,13 @@ class SavedCheckinFilter(Base):
     )
 
     __table_args__ = (
-        Index("ix_saved_checkin_filters_user", "user_id"),
+        Index("ix_saved_checkin_filters_user_id", "user_id"),
+        Index(
+            "uq_saved_checkin_filters_default",
+            "user_id",
+            unique=True,
+            postgresql_where="is_default = true",
+        ),
     )
 
     owner: Mapped["User"] = relationship(

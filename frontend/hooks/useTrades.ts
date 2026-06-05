@@ -20,6 +20,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AnnotationFilterRow } from "@/components/ui/AnnotationFilterRows";
 import {
   listTradesApiV1PortfoliosPortfolioIdTradesGet,
   bulkDeleteTradesApiV1PortfoliosPortfolioIdTradesBulkDeletePost,
@@ -49,6 +50,8 @@ export interface TradeFilters {
   hour_of_day?: number;
   /** Filter by day of week the trade was opened (0=Monday, …, 6=Sunday). */
   day_of_week?: number;
+  /** Annotation filter rows (serialized as JSON for the API). */
+  annotation_filters?: AnnotationFilterRow[];
 }
 
 export interface TradeSortConfig {
@@ -130,8 +133,13 @@ export function useTrades({
           opened_at_to: filters?.opened_at_to ? toUtcTo(filters.opened_at_to) : undefined,
           closed_at_from: filters?.closed_at_from ? toUtcFrom(filters.closed_at_from) : undefined,
           closed_at_to: filters?.closed_at_to ? toUtcTo(filters.closed_at_to) : undefined,
+          asset_classes: filters?.asset_classes?.length ? (filters.asset_classes as import("@/lib/api/types.gen").AssetClass[]) : undefined,
           sort_by: sort?.sort_by as import("@/lib/api/types.gen").TradeSortField | undefined,
           sort_dir: sort?.sort_dir ?? undefined,
+          annotation_filters:
+            filters?.annotation_filters && filters.annotation_filters.length > 0
+              ? JSON.stringify(filters.annotation_filters)
+              : undefined,
         },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");

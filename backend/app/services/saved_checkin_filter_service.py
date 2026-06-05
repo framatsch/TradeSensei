@@ -13,8 +13,12 @@
 
 import uuid
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
+
+from app.core.exceptions import (
+    SavedCheckinFilterConflictError,
+    SavedCheckinFilterNotFoundError,
+)
 
 from app.models.saved_checkin_filter import SavedCheckinFilter
 from app.repositories.saved_checkin_filter_repository import SavedCheckinFilterRepository
@@ -48,9 +52,8 @@ class SavedCheckinFilterService:
             )
         except IntegrityError as exc:
             # Handle potential unique constraint violations (if any are added later)
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Could not create saved filter due to a conflict.",
+            raise SavedCheckinFilterConflictError(
+                "Could not create saved filter due to a conflict."
             ) from exc
 
     async def list_by_user(
@@ -70,10 +73,7 @@ class SavedCheckinFilterService:
         # Get existing to ensure it belongs to user
         existing = await self._repo.get_by_id(filter_id)
         if not existing or existing.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Saved checkin filter not found.",
-            )
+            raise SavedCheckinFilterNotFoundError("Saved checkin filter not found.")
 
         update_data = schema.model_dump(exclude_unset=True)
         if not update_data:
@@ -85,15 +85,11 @@ class SavedCheckinFilterService:
         try:
             updated = await self._repo.update(filter_id, **update_data)
             if not updated:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Saved checkin filter not found.",
-                )
+                raise SavedCheckinFilterNotFoundError("Saved checkin filter not found.")
             return updated
         except IntegrityError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Could not update saved filter due to a conflict.",
+            raise SavedCheckinFilterConflictError(
+                "Could not update saved filter due to a conflict."
             ) from exc
 
     async def delete(
@@ -105,14 +101,8 @@ class SavedCheckinFilterService:
         # Check ownership
         existing = await self._repo.get_by_id(filter_id)
         if not existing or existing.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Saved checkin filter not found.",
-            )
+            raise SavedCheckinFilterNotFoundError("Saved checkin filter not found.")
 
         deleted = await self._repo.delete(filter_id)
         if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Saved checkin filter not found.",
-            )
+            raise SavedCheckinFilterNotFoundError("Saved checkin filter not found.")

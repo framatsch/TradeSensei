@@ -62,9 +62,12 @@ class SavedCheckinFilterRepository:
             update(SavedCheckinFilter)
             .where(SavedCheckinFilter.user_id == user_id)
             .where(SavedCheckinFilter.is_default.is_(True))
+            .values(is_default=False)
         )
-        if exclude_id:
+        if exclude_id is not None:
             stmt = stmt.where(SavedCheckinFilter.id != exclude_id)
+            
+        await self.session.execute(stmt)
             
     async def create(
         self,

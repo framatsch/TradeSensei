@@ -34,6 +34,14 @@ class SavedTradeFilterNotFoundError(Exception):
     """Raised when a saved trade filter cannot be found."""
 
 
+class SavedCheckinFilterNotFoundError(Exception):
+    """Raised when a saved checkin filter cannot be found."""
+
+
+class SavedCheckinFilterConflictError(Exception):
+    """Raised when a saved checkin filter operation conflicts with existing data."""
+
+
 class SavedTradeFilterPermissionError(PermissionError):
     """Raised when a user cannot modify a saved trade filter."""
 

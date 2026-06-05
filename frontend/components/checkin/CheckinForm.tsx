@@ -15,20 +15,26 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { type DailyCheckinRead, type DailyCheckinCreate, type DailyCheckinUpdate } from "@/lib/api/types.gen";
 import { X, Link2, Loader2, Check, PlusCircle, Trash2, Edit3 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ScreenshotUploader } from "@/components/checkin/ScreenshotUploader";
+import { AnnotationEditor } from "@/components/checkin/AnnotationEditor";
 import { useMarketIndexes } from "@/hooks/useCheckinDefinitions";
 import { useSettings } from "@/hooks/useSettings";
 import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
+import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
+import { useGetTaxonomies } from "@/hooks/useTaxonomies";
+import {
+  useAssignCheckinTaxonomy,
+  useRemoveCheckinTaxonomy,
+} from "@/hooks/useCheckinMetadata";
 
 export function CheckinForm({
   date,
   entry,
-  marketPhases,
   onSave,
   onDelete,
   isSaving,
@@ -36,13 +42,12 @@ export function CheckinForm({
 }: {
   date: string;
   entry: DailyCheckinRead | null | undefined;
-  marketPhases: { name: string; color_hex: string }[];
+  /** marketPhases prop removed — now handled by AnnotationEditor */
   onSave: (data: DailyCheckinCreate | DailyCheckinUpdate) => void;
   onDelete: () => void;
   isSaving: boolean;
   isDeleting: boolean;
 }) {
-  const [marketPhase, setMarketPhase] = useState(entry?.market_phase ?? "");
   const [targetIndexIds, setTargetIndexIds] = useState<string[]>(
     entry?.target_indices?.map((index) => index.id) ?? []
   );
@@ -51,21 +56,38 @@ export function CheckinForm({
   const [newsLinks, setNewsLinks] = useState<string[]>(entry?.news_links ?? []);
   const [screenshotKeys, setScreenshotKeys] = useState<string[]>(entry?.screenshot_keys ?? []);
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>(entry?.screenshot_urls ?? []);
-  const activePhases = marketPhases;
+
+  // Buffered annotations + tags for new (not-yet-created) check-ins
+  const [bufferedAnnotations, setBufferedAnnotations] = useState<Record<string, unknown>>({});
+  const [bufferedTagIds, setBufferedTagIds] = useState<string[]>([]);
+
   const { data: marketIndexes } = useMarketIndexes();
   const activeIndexes = (marketIndexes ?? []).filter((idx) => idx.is_active);
-  
+
+  const { data: annotationDefinitions } = useGetAnnotationDefinitions("checkins");
+  const checkinAnnotationDefs = (annotationDefinitions ?? []).filter(
+    (d) => !d.is_archived && (d.scope === "checkins" || d.scope === "both")
+  );
+
+  const { data: taxonomies } = useGetTaxonomies("checkins");
+  const checkinTaxonomies = (taxonomies ?? []).filter((t) => !t.is_archived);
+
+  const assignTaxonomyMutation = useAssignCheckinTaxonomy();
+  const removeTaxonomyMutation = useRemoveCheckinTaxonomy();
+
+  const assignedTagIds = new Set(
+    (entry?.taxonomies ?? []).map((t) => t.id)
+  );
+
   const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
   const searchParams = useSearchParams();
   const isNew = !entry;
   const [isEditMode, setIsEditMode] = useState(isNew || searchParams.get("edit") === "true");
   const [lightboxData, setLightboxData] = useState<{ urls: string[]; index: number } | null>(null);
 
-
   const addNewsLink = () => {
     let trimmed = newsLink.trim();
     if (!trimmed) return;
-    // Auto-prepend https:// if no protocol is present
     if (!/^https?:\/\//i.test(trimmed)) {
       trimmed = `https://${trimmed}`;
     }
@@ -79,15 +101,34 @@ export function CheckinForm({
     setNewsLinks((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const handleToggleTag = useCallback(
+    async (taxonomyId: string) => {
+      if (!isEditMode) return;
+      if (isNew) {
+        // Buffer for new check-in
+        setBufferedTagIds((prev) =>
+          prev.includes(taxonomyId) ? prev.filter((id) => id !== taxonomyId) : [...prev, taxonomyId]
+        );
+        return;
+      }
+      if (!entry) return;
+      if (assignedTagIds.has(taxonomyId)) {
+        await removeTaxonomyMutation.mutateAsync({ checkinId: entry.id, taxonomyId });
+      } else {
+        await assignTaxonomyMutation.mutateAsync({ checkinId: entry.id, taxonomyId });
+      }
+    },
+    [isEditMode, isNew, entry, assignedTagIds, assignTaxonomyMutation, removeTaxonomyMutation]
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const showPhase = marketPhase || null;
     const showNotes = notes || null;
 
     if (isNew) {
       const payload: DailyCheckinCreate = {
         date,
-        market_phase: showPhase,
+        market_phase: null,
         target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks.length > 0 ? newsLinks : undefined,
@@ -96,7 +137,7 @@ export function CheckinForm({
       onSave(payload);
     } else {
       const payload: DailyCheckinUpdate = {
-        market_phase: showPhase,
+        market_phase: null,
         target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks,
@@ -106,48 +147,67 @@ export function CheckinForm({
     }
   };
 
+  const visibleTagIds = isNew ? bufferedTagIds : Array.from(assignedTagIds);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Market Phase */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          Market Phase
-        </label>
-        {activePhases.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No check-in taxonomies available.</p>
-        ) : (
-        <div className="flex flex-wrap gap-2">
-          {activePhases.map((p) => {
-            const isActive = marketPhase === p.name;
-            if (!isEditMode && !isActive) return null;
-            return (
-              <button
-                key={p.name}
-                type="button"
-                disabled={!isEditMode}
-                onClick={() => setMarketPhase(isActive ? "" : p.name)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:cursor-default"
-                style={{
-                  backgroundColor: isActive ? p.color_hex + "20" : "transparent",
-                  color: isActive ? p.color_hex : "var(--muted-foreground)",
-                  borderColor: isActive ? p.color_hex + "40" : "var(--border)",
-                  borderWidth: 1,
-                }}
-              >
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: isActive ? p.color_hex : "var(--muted-foreground)" }}
-                />
-                {p.name}
-              </button>
-            );
-          })}
-          {!isEditMode && !marketPhase && (
-            <span className="text-sm text-muted-foreground italic">No phase selected</span>
-          )}
+      {/* Tags */}
+      {checkinTaxonomies.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Tags
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {checkinTaxonomies.map((tag) => {
+              const isActive = visibleTagIds.includes(tag.id);
+              if (!isEditMode && !isActive) return null;
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  disabled={!isEditMode}
+                  onClick={() => void handleToggleTag(tag.id)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors disabled:cursor-default"
+                  style={{
+                    backgroundColor: isActive ? (tag.color_hex ?? "#888") + "20" : "transparent",
+                    color: isActive ? (tag.color_hex ?? "#888") : "var(--muted-foreground)",
+                    borderColor: isActive ? (tag.color_hex ?? "#888") + "40" : "var(--border)",
+                    borderWidth: 1,
+                  }}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: isActive ? (tag.color_hex ?? "#888") : "var(--muted-foreground)" }}
+                  />
+                  {tag.name}
+                </button>
+              );
+            })}
+            {!isEditMode && visibleTagIds.length === 0 && (
+              <span className="text-sm text-muted-foreground italic">No tags assigned</span>
+            )}
+          </div>
         </div>
-        )}
-      </div>
+      )}
+
+      {/* Annotations */}
+      {checkinAnnotationDefs.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-3">
+            Annotations
+          </label>
+          <AnnotationEditor
+            checkinId={isNew ? null : (entry?.id ?? null)}
+            definitions={checkinAnnotationDefs}
+            assigned={entry?.annotations ?? []}
+            onBufferChange={(defId, value) =>
+              setBufferedAnnotations((prev) => ({ ...prev, [defId]: value }))
+            }
+            buffered={isNew ? bufferedAnnotations : undefined}
+            isEditMode={isEditMode}
+          />
+        </div>
+      )}
 
       {/* Target Market Indexes */}
       <div>

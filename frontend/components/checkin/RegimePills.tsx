@@ -16,11 +16,11 @@
 "use client";
 
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
-import { useCheckinParams } from "@/hooks/useCheckinParams";
+import { useCheckinFilter } from "@/components/checkin/CheckinFilterContext";
 
 export function RegimePills() {
   const { data: phases } = useGetTaxonomies("checkins");
-  const { regime, setRegime } = useCheckinParams();
+  const { filter, setFilter } = useCheckinFilter();
 
   const activePhases = phases ?? [];
 
@@ -31,11 +31,19 @@ export function RegimePills() {
   return (
     <div className="flex flex-wrap gap-2 mb-6">
       {activePhases.map((phase) => {
-        const isActive = regime === phase.name;
+        const isActive = filter.taxonomy_ids?.includes(phase.id) ?? false;
         return (
           <button
             key={phase.id}
-            onClick={() => setRegime(isActive ? null : phase.name)}
+            onClick={() => {
+              setFilter((prev) => {
+                const current = prev.taxonomy_ids ?? [];
+                const updated = isActive
+                  ? current.filter((id) => id !== phase.id)
+                  : [...current, phase.id];
+                return { ...prev, taxonomy_ids: updated.length ? updated : null };
+              });
+            }}
             className={`px-3 py-1 text-sm font-medium rounded-full border transition-colors ${
               isActive
                 ? "bg-muted text-foreground"

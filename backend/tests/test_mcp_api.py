@@ -248,6 +248,8 @@ async def test_mcp_tools_list_returns_all_domain_tools(client: AsyncClient) -> N
         "get_metadata_schema",
         "list_portfolios",
         "list_accounts",
+        "list_checkins",
+        "sync_checkin_metadata",
         "search_trades_advanced",
         "sync_trade_metadata",
         "create_strategy_playbook",

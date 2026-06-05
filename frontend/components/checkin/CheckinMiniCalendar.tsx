@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useCheckinParams } from "@/hooks/useCheckinParams";
+import { useCheckinFilter } from "@/components/checkin/CheckinFilterContext";
 import { useCheckinEntries } from "@/hooks/useCheckins";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -23,7 +23,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
 
 export function CheckinMiniCalendar() {
-  const { month, setMonth } = useCheckinParams();
+  const { filter, setFilter } = useCheckinFilter();
+  const { month } = filter;
+  const setMonth = (m: string) => setFilter(prev => ({ ...prev, month: m, page: 1 }));
   const router = useRouter();
   const params = useParams();
   const selectedDate = params?.date as string | undefined;
@@ -90,11 +92,11 @@ export function CheckinMiniCalendar() {
       const dayOfWeek = (firstDay + i - 1) % 7;
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-      let textClass = "text-muted-foreground/70";
+      let textClass = "text-[color-mix(in_srgb,var(--muted-foreground)_70%,transparent)]";
       if (isSelected) {
         textClass = "text-primary-foreground";
       } else if (isWeekend) {
-        textClass = "text-destructive font-medium hover:text-destructive/80";
+        textClass = "text-destructive font-medium hover:text-[color-mix(in_srgb,var(--destructive)_80%,transparent)]";
       } else if (hasCheckin) {
         textClass = "text-foreground font-medium";
       }
@@ -191,7 +193,7 @@ export function CheckinMiniCalendar() {
       {/* Days of week */}
     <div className="grid grid-cols-7 gap-1 mb-2 text-center">
       {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-        <div key={day} className={`text-[10px] font-medium uppercase ${day === "Sa" || day === "Su" ? "text-destructive/80" : "text-muted-foreground"}`}>
+        <div key={day} className={`text-[10px] font-medium uppercase ${day === "Sa" || day === "Su" ? "text-[color-mix(in_srgb,var(--destructive)_80%,transparent)]" : "text-muted-foreground"}`}>
           {day}
         </div>
       ))}

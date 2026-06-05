@@ -227,12 +227,16 @@ def _apply_filters(
         The augmented SELECT statement with WHERE clauses applied.
     """
     if filters.symbols:
-        symbol_conditions = [Trade.symbol.ilike(f"{sym}%") for sym in filters.symbols]
+        symbol_conditions = []
+        for sym in filters.symbols:
+            escaped_sym = sym.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            symbol_conditions.append(Trade.symbol.ilike(f"{escaped_sym}%", escape="\\"))
         stmt = stmt.where(or_(*symbol_conditions))
 
     if filters.excluded_symbols:
         for sym in filters.excluded_symbols:
-            stmt = stmt.where(Trade.symbol.not_ilike(f"{sym}%"))
+            escaped_sym = sym.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            stmt = stmt.where(Trade.symbol.not_ilike(f"{escaped_sym}%", escape="\\"))
 
     if filters.direction is not None:
         stmt = stmt.where(Trade.direction == filters.direction)
@@ -566,6 +570,10 @@ class TradeRepository:
         # ── Domain filters ───────────────────────────────────────────────────
         if filters is not None:
             stmt = _apply_filters(stmt, filters)
+            if filters.annotation_filters and user_id is not None:
+                from app.models.trade_annotation import TradeAnnotation as _TA
+                from app.repositories._annotation_filter import apply_annotation_filters as _apply_af
+                stmt = _apply_af(stmt, _TA, _TA.trade_id, Trade.id, user_id, filters.annotation_filters)
 
         # ── Cursor keyset condition ───────────────────────────────────────────
         if cursor is not None:
@@ -643,6 +651,10 @@ class TradeRepository:
                 )
             if filters is not None:
                 base_count = _apply_filters(base_count, filters)
+                if filters.annotation_filters and user_id is not None:
+                    from app.models.trade_annotation import TradeAnnotation as _TA
+                    from app.repositories._annotation_filter import apply_annotation_filters as _apply_af
+                    base_count = _apply_af(base_count, _TA, _TA.trade_id, Trade.id, user_id, filters.annotation_filters)
             count_stmt = select(func.count()).select_from(base_count.subquery())
             count_result = await self._session.execute(count_stmt)
             total = count_result.scalar_one_or_none()

@@ -179,33 +179,33 @@ class TestTradeFilterSymbol:
     """Tests for symbol filter on ``GET /api/v1/trades``."""
 
     async def test_filter_by_symbol_exact(self, client: AsyncClient) -> None:
-        """symbol filter should return only trades with matching symbol."""
+        """symbols filter should return only trades with matching symbol."""
         h = await _get_auth_headers(client)
         portfolio_id, account_id = await _create_portfolio_and_account(client, h)
         await _post_trade(client, h, portfolio_id, account_id, symbol="AAPL")
         await _post_trade(client, h, portfolio_id, account_id, symbol="GOOG")
 
-        items = await _list_trades(client, h, portfolio_id, symbol="AAPL")
+        items = await _list_trades(client, h, portfolio_id, symbols=["AAPL"])
         assert all(t["symbol"] == "AAPL" for t in items)
         assert len(items) >= 1
 
     async def test_filter_by_symbol_case_insensitive(self, client: AsyncClient) -> None:
-        """symbol filter should be case-insensitive."""
+        """symbols filter should be case-insensitive."""
         h = await _get_auth_headers(client)
         portfolio_id, account_id = await _create_portfolio_and_account(client, h)
         await _post_trade(client, h, portfolio_id, account_id, symbol="MSFT")
 
-        items = await _list_trades(client, h, portfolio_id, symbol="msft")
+        items = await _list_trades(client, h, portfolio_id, symbols=["msft"])
         assert any(t["symbol"] == "MSFT" for t in items)
 
     async def test_filter_by_symbol_partial_match(self, client: AsyncClient) -> None:
-        """symbol filter should support partial match (ILIKE %value%)."""
+        """symbols filter should support partial match (ILIKE %value%)."""
         h = await _get_auth_headers(client)
         portfolio_id, account_id = await _create_portfolio_and_account(client, h)
         await _post_trade(client, h, portfolio_id, account_id, symbol="NVDA")
         await _post_trade(client, h, portfolio_id, account_id, symbol="NVDX")
 
-        items = await _list_trades(client, h, portfolio_id, symbol="NVD")
+        items = await _list_trades(client, h, portfolio_id, symbols=["NVD"])
         assert len(items) >= 2
         symbols = [t["symbol"] for t in items]
         assert "NVDA" in symbols
@@ -259,7 +259,7 @@ class TestTradeFilterDirection:
         )
 
         items = await _list_trades(
-            client, h, portfolio_id, symbol="SPY", direction="LONG"
+            client, h, portfolio_id, symbols=["SPY"], direction="LONG"
         )
         assert all(t["direction"] == "LONG" for t in items)
 
@@ -275,7 +275,7 @@ class TestTradeFilterDirection:
         )
 
         items = await _list_trades(
-            client, h, portfolio_id, symbol="QQQ", direction="SHORT"
+            client, h, portfolio_id, symbols=["QQQ"], direction="SHORT"
         )
         assert all(t["direction"] == "SHORT" for t in items)
 
@@ -285,7 +285,7 @@ class TestTradeFilterAssetClass:
     """Tests for asset_class filter on ``GET /api/v1/trades``."""
 
     async def test_filter_equity_only(self, client: AsyncClient) -> None:
-        """asset_class=EQUITY should exclude non-equity trades."""
+        """asset_classes=EQUITY should exclude non-equity trades."""
         h = await _get_auth_headers(client)
         portfolio_id, account_id = await _create_portfolio_and_account(client, h)
         await _post_trade(
@@ -296,7 +296,7 @@ class TestTradeFilterAssetClass:
         )
 
         items = await _list_trades(
-            client, h, portfolio_id, symbol="EQF1", asset_class="EQUITY"
+            client, h, portfolio_id, symbols=["EQF1"], asset_classes=["EQUITY"]
         )
         assert all(t["asset_class"] == "EQUITY" for t in items)
 
@@ -313,7 +313,7 @@ class TestTradeFilterPnl:
         await _post_trade(client, h, portfolio_id, account_id, symbol="WIN1", pnl="-50.00")
 
         items = await _list_trades(
-            client, h, portfolio_id, symbol="WIN1", pnl_positive="true"
+            client, h, portfolio_id, symbols=["WIN1"], pnl_positive="true"
         )
         assert all(float(t["pnl"]) > 0 for t in items if t["pnl"] is not None)
 
@@ -325,7 +325,7 @@ class TestTradeFilterPnl:
         await _post_trade(client, h, portfolio_id, account_id, symbol="LOSE1", pnl="-75.00")
 
         items = await _list_trades(
-            client, h, portfolio_id, symbol="LOSE1", pnl_positive="false"
+            client, h, portfolio_id, symbols=["LOSE1"], pnl_positive="false"
         )
         pnl_values = [float(t["pnl"]) for t in items if t["pnl"] is not None]
         assert all(v <= 0 for v in pnl_values)
@@ -346,7 +346,7 @@ class TestTradeFilterDateRange:
 
         cutoff = datetime(2025, 1, 1, tzinfo=UTC).isoformat()
         items = await _list_trades(
-            client, h, portfolio_id, symbol="DT1", opened_at_from=cutoff
+            client, h, portfolio_id, symbols=["DT1"], opened_at_from=cutoff
         )
         opened_dates = [t["opened_at"] for t in items]
         assert all(d >= cutoff for d in opened_dates)
@@ -362,7 +362,7 @@ class TestTradeFilterDateRange:
 
         cutoff = datetime(2024, 12, 31, tzinfo=UTC).isoformat()
         items = await _list_trades(
-            client, h, portfolio_id, symbol="DT2", opened_at_to=cutoff
+            client, h, portfolio_id, symbols=["DT2"], opened_at_to=cutoff
         )
         opened_dates = [t["opened_at"] for t in items]
         assert all(d <= cutoff for d in opened_dates)
@@ -413,12 +413,13 @@ class TestTradeSort:
             client,
             h,
             portfolio_id,
-            symbol="SORT1",
+            symbols=["SORT1"],
             sort_by="opened_at",
             sort_dir="asc",
         )
         dates = [t["opened_at"] for t in items]
         assert dates == sorted(dates)
+
 
     async def test_invalid_sort_by_returns_422(self, client: AsyncClient) -> None:
         """An invalid sort_by value should return HTTP 422."""
@@ -441,3 +442,6 @@ class TestTradeSort:
             params={"sort_dir": "sideways"},
         )
         assert resp.status_code == 422
+22
+22
+22

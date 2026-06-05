@@ -65,6 +65,7 @@ const EMPTY_FILTERS: TradeFilters = {
   status: null,
   hour_of_day: undefined,
   day_of_week: undefined,
+  annotation_filters: [],
 };
 
 // ─── Date range helpers ───────────────────────────────────────────────────────

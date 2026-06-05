@@ -15,18 +15,34 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useDebounce } from "@/hooks/useDebounce";
-import type { CheckinFilterConfig } from "@/lib/api/types.gen";
+import type { AnnotationFilterRow } from "@/components/ui/AnnotationFilterRows";
 
-export interface ExtendedCheckinFilterConfig extends CheckinFilterConfig {
+export interface CheckinFilterState {
+  /** Active saved-view ID, or null if none selected. */
   viewId: string | null;
+  from_date: string | null;
+  to_date: string | null;
+  target_indices: string[] | null;
+  /** Tag (taxonomy) UUIDs to filter by (OR logic). */
+  taxonomy_ids: string[] | null;
+  /** Annotation filter rows. */
+  annotation_filters: AnnotationFilterRow[];
+  /** Display mode: timeline, gallery, etc. */
+  view: string;
+  /** Filter by a specific month (YYYY-MM). */
+  month: string;
+  /** Pagination: current page. */
+  page: number;
+  /** Pagination: items per page. */
+  perPage: number;
 }
 
 interface CheckinFilterContextValue {
-  filter: ExtendedCheckinFilterConfig;
-  setFilter: React.Dispatch<React.SetStateAction<ExtendedCheckinFilterConfig>>;
+  filter: CheckinFilterState;
+  setFilter: React.Dispatch<React.SetStateAction<CheckinFilterState>>;
 }
 
 const CheckinFilterContext = createContext<CheckinFilterContextValue | null>(null);
@@ -36,55 +52,65 @@ export function CheckinFilterProvider({ children }: { children: React.ReactNode 
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // Initialize from URL
-  const initialFilter = useMemo<ExtendedCheckinFilterConfig>(() => {
-    const hasMediaParam = searchParams.get("has_media");
-    const targetIndicesParam = searchParams.get("target_indices");
-    
+  // Read initial state from URL params
+  const computeInitialState = useCallback(() => {
     return {
-      from_date: searchParams.get("from_date"),
-      to_date: searchParams.get("to_date"),
-      regime: searchParams.get("regime"),
-      target_indices: targetIndicesParam ? targetIndicesParam.split(",") : null,
-      has_media: hasMediaParam === "true" ? true : hasMediaParam === "false" ? false : null,
-      viewId: searchParams.get("view_id"),
+      from_date: searchParams.get("from_date") || null,
+      to_date: searchParams.get("to_date") || null,
+      target_indices: searchParams.get("target_indices") ? searchParams.get("target_indices")!.split(",") : null,
+      taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : null,
+      viewId: searchParams.get("view_id") || null,
+      annotation_filters: [],
+      view: searchParams.get("view") || "timeline",
+      month: searchParams.get("month") || new Date().toISOString().slice(0, 7),
+      page: searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1,
+      perPage: searchParams.get("per_page") ? parseInt(searchParams.get("per_page")!, 10) : 12,
     };
-  }, []); // Only on mount
+  }, [searchParams]);
 
-  const [filter, setFilter] = useState<ExtendedCheckinFilterConfig>(initialFilter);
+  const [filter, setFilter] = useState<CheckinFilterState>(computeInitialState);
+
+  // Sync URL changes to internal state
+  useEffect(() => {
+    setFilter((prev) => {
+      const newState: CheckinFilterState = {
+        from_date: searchParams.get("from_date") || null,
+        to_date: searchParams.get("to_date") || null,
+        target_indices: searchParams.get("target_indices") ? searchParams.get("target_indices")!.split(",") : null,
+        taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : null,
+        viewId: searchParams.get("view_id") || null,
+        annotation_filters: prev.annotation_filters ?? [],
+        view: searchParams.get("view") || "timeline",
+        month: searchParams.get("month") || new Date().toISOString().slice(0, 7),
+        page: searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1,
+        perPage: searchParams.get("per_page") ? parseInt(searchParams.get("per_page")!, 10) : 12,
+      };
+
+      if (JSON.stringify(prev) !== JSON.stringify(newState)) {
+        return newState;
+      }
+      return prev;
+    });
+  }, [searchParams]);
+
   const debouncedFilter = useDebounce(filter, 300);
 
-  // Sync to URL
+  // Sync internal state to URL
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams();
 
-    // Keep non-filter params (like view, entity_type, page, per_page)
-    const view = params.get("view");
-    const entityType = params.get("entity_type");
-    const page = params.get("page");
-    const perPage = params.get("per_page");
-
-    // Clear all existing filter params
-    params.delete("from_date");
-    params.delete("to_date");
-    params.delete("regime");
-    params.delete("target_indices");
-    params.delete("has_media");
-    params.delete("view_id");
-
-    // Re-add non-filter params if they existed
-    if (view) params.set("view", view);
-    if (entityType) params.set("entity_type", entityType);
-    // Don't keep page param here, let it naturally reset if filters change
-    if (perPage) params.set("per_page", perPage);
-
-    // Add current filters
     if (debouncedFilter.from_date) { params.set("from_date", debouncedFilter.from_date); }
     if (debouncedFilter.to_date) { params.set("to_date", debouncedFilter.to_date); }
-    if (debouncedFilter.regime) { params.set("regime", debouncedFilter.regime); }
     if (debouncedFilter.target_indices && debouncedFilter.target_indices.length > 0) { params.set("target_indices", debouncedFilter.target_indices.join(",")); }
-    if (debouncedFilter.has_media !== null && debouncedFilter.has_media !== undefined) { params.set("has_media", String(debouncedFilter.has_media)); }
+    if (debouncedFilter.taxonomy_ids && debouncedFilter.taxonomy_ids.length > 0) { params.set("taxonomy_ids", debouncedFilter.taxonomy_ids.join(",")); }
     if (debouncedFilter.viewId) { params.set("view_id", debouncedFilter.viewId); }
+    if (debouncedFilter.view !== "timeline") { params.set("view", debouncedFilter.view); }
+    if (debouncedFilter.month !== new Date().toISOString().slice(0, 7)) { params.set("month", debouncedFilter.month); }
+    if (debouncedFilter.page > 1) { params.set("page", debouncedFilter.page.toString()); }
+    if (debouncedFilter.perPage !== 12) { params.set("per_page", debouncedFilter.perPage.toString()); }
+    
+    // Note: annotation_filters are intentionally not written to the URL to keep the URL length manageable.
+    // They are stored in local state only and will be lost on hard refresh.
 
     const newSearch = params.toString();
     const currentSearch = window.location.search.replace(/^\?/, "");
@@ -94,15 +120,17 @@ export function CheckinFilterProvider({ children }: { children: React.ReactNode 
     }
   }, [debouncedFilter, pathname, router]);
 
+  const value = useMemo(() => ({ filter, setFilter }), [filter]);
+
   return (
-    <CheckinFilterContext.Provider value={{ filter, setFilter }}>
+    <CheckinFilterContext.Provider value={value}>
       {children}
     </CheckinFilterContext.Provider>
   );
 }
 
 export function useCheckinFilter() {
-  const context = useContext(CheckinFilterContext);
-  if (!context) throw new Error("useCheckinFilter must be used within a CheckinFilterProvider");
-  return context;
+  const ctx = useContext(CheckinFilterContext);
+  if (!ctx) throw new Error("useCheckinFilter must be used within a CheckinFilterProvider");
+  return ctx;
 }

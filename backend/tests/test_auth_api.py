@@ -190,7 +190,7 @@ class TestRegister:
     async def test_register_seeds_default_annotation_definitions(
         self, client: AsyncClient
     ) -> None:
-        """A fresh registration exposes all 4 default annotation definitions."""
+        """A fresh registration exposes all 5 default annotation definitions."""
         token = await _register_and_login(
             client,
             username="seededannouser",
@@ -209,6 +209,7 @@ class TestRegister:
             "Focus",
             "Rule Followed",
             "Setup Quality",
+            "Market Regime",
         }
 
     @pytest.mark.integration
@@ -247,7 +248,7 @@ class TestRegister:
         assert taxonomies.status_code == 200, taxonomies.text
         assert annotations.status_code == 200, annotations.text
         assert len(taxonomies.json()["data"]) == 13
-        assert len(annotations.json()["data"]) == 4
+        assert len(annotations.json()["data"]) == 5
 
 
 # ---------------------------------------------------------------------------

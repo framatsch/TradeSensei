@@ -13,6 +13,7 @@
 
 """Route handlers for the ``/api/v1/trades`` resource."""
 
+import json
 import uuid
 from typing import Annotated, NoReturn
 
@@ -33,6 +34,7 @@ from app.core.exceptions import (
     UnsupportedContentTypeError,
 )
 from app.models.user import User
+from app.schemas.annotation_filter import AnnotationFilterItem
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.schemas.trade import (
     AssetClass,
@@ -410,6 +412,10 @@ async def list_trades(
         list[AssetClass] | None,
         Query(description="Filter by asset classes."),
     ] = None,
+    annotation_filters: Annotated[
+        str | None,
+        Query(description="JSON-encoded list of AnnotationFilterItem objects."),
+    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 
@@ -443,6 +449,15 @@ async def list_trades(
         filters.excluded_symbols = excluded_symbols
     if asset_classes is not None:
         filters.asset_classes = asset_classes
+    if annotation_filters is not None:
+        try:
+            raw = json.loads(annotation_filters)
+            filters.annotation_filters = [AnnotationFilterItem.model_validate(item) for item in raw]
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid annotation_filters format — expected JSON array of filter objects.",
+            ) from exc
 
     selected_account_ids = account_ids[:] if account_ids is not None else []
     if account_id is not None:

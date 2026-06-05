@@ -17,23 +17,36 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCheckinParams } from "@/hooks/useCheckinParams";
 import { useCheckinEntries } from "@/hooks/useCheckins";
-import { useGetTaxonomies } from "@/hooks/useTaxonomies";
+import { useCheckinFilter } from "@/components/checkin/CheckinFilterContext";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
 import Link from "next/link";
-import { ExternalLink, Pencil, Link2 } from "lucide-react";
+import { ExternalLink, Pencil, Link2, Tag } from "lucide-react";
 import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
 
 
 export function TimelineView() {
   const router = useRouter();
-  const { regime, fromDate, toDate, targetIndices, hasMedia, page, perPage, setPage } = useCheckinParams();
+  const { filter, setFilter } = useCheckinFilter();
   const [lightboxData, setLightboxData] = useState<{ urls: string[]; index: number } | null>(null);
-  
-  const { data, isLoading } = useCheckinEntries(fromDate ?? undefined, toDate ?? undefined, regime ?? undefined, targetIndices ?? undefined, hasMedia ?? undefined, perPage);
-  const { data: phases } = useGetTaxonomies("checkins");
+
+  const targetIndicesStr = filter.target_indices?.join(",") ?? undefined;
+  const taxonomyIdsStr = filter.taxonomy_ids?.join(",") ?? undefined;
+  const annotationFiltersStr =
+    filter.annotation_filters && filter.annotation_filters.length > 0
+      ? JSON.stringify(filter.annotation_filters)
+      : undefined;
+
+  const { data, isLoading } = useCheckinEntries(
+    filter.from_date ?? undefined,
+    filter.to_date ?? undefined,
+    targetIndicesStr,
+    taxonomyIdsStr,
+    annotationFiltersStr,
+    filter.perPage,
+    (filter.page - 1) * filter.perPage
+  );
 
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading check-ins...</div>;
@@ -50,14 +63,14 @@ export function TimelineView() {
   return (
     <div className="space-y-6">
       {data.items.map((checkin) => {
-        const phase = phases?.find((p) => p.name === checkin.market_phase);
-        const colorHex = phase?.color_hex ?? "#94a3b8";
+        // Market regime is now shown via annotation_assignments; use a neutral accent for the border
+        const colorHex = "#94a3b8";
 
         return (
           <div
             key={checkin.id}
             onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
-            className="group relative bg-card border rounded-xl shadow-sm flex flex-col sm:flex-row cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+            className="group relative bg-card border rounded-xl shadow-sm flex flex-col sm:flex-row cursor-pointer hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] transition-colors overflow-hidden"
             style={{ borderLeftWidth: "4px", borderLeftColor: colorHex }}
           >
             {/* Image Thumbnail on the left */}
@@ -77,7 +90,7 @@ export function TimelineView() {
                     className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
                   />
                   {checkin.screenshot_urls.length > 1 && (
-                    <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm text-foreground text-xs px-2 py-1 rounded-md font-medium border border-border shadow-sm">
+                    <div className="absolute bottom-2 right-2 bg-[color-mix(in_srgb,var(--background)_80%,transparent)] backdrop-blur-sm text-foreground text-xs px-2 py-1 rounded-md font-medium border border-border shadow-sm">
                       +{checkin.screenshot_urls.length - 1}
                     </div>
                   )}
@@ -96,7 +109,7 @@ export function TimelineView() {
                       {checkin.target_indices.map((index) => (
                         <span
                           key={index.id}
-                          className="px-2 py-0.5 rounded-md text-xs font-bold border bg-primary/10 text-primary border-primary/20 shadow-sm"
+                          className="px-2 py-0.5 rounded-md text-xs font-bold border bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border-[color-mix(in_srgb,var(--primary)_20%,transparent)] shadow-sm"
                           title={index.name}
                         >
                           {index.symbol}
@@ -115,18 +128,20 @@ export function TimelineView() {
                     <Pencil className="w-4 h-4" />
                   </button>
                 </div>
-                {phase && (
-                  <div
-                    className="px-2.5 py-0.5 rounded-full text-xs font-medium border"
-                    style={{
-                      backgroundColor: `${colorHex}15`,
-                      borderColor: `${colorHex}40`,
-                      color: colorHex,
-                    }}
-                  >
-                      {phase.name}
-                    </div>
-                  )}
+                {/* Taxonomy tag badges */}
+                {checkin.taxonomies && checkin.taxonomies.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {checkin.taxonomies.map((ta) => (
+                      <span
+                        key={ta.id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]"
+                      >
+                        <Tag className="w-2.5 h-2.5" />
+                        {ta.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {checkin.notes && (
@@ -169,7 +184,7 @@ export function TimelineView() {
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--muted)_40%,transparent)] hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors shadow-sm"
                         >
                           <Link2 className="w-3.5 h-3.5 text-primary" />
                           <span className="truncate max-w-[200px]">{domain}</span>
@@ -183,7 +198,7 @@ export function TimelineView() {
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--muted)_40%,transparent)] hover:bg-muted border border-border rounded-md text-xs font-medium text-foreground transition-colors shadow-sm"
                         >
                           <Link2 className="w-3.5 h-3.5 text-primary" />
                           <span className="truncate max-w-[200px]">Link</span>
@@ -197,31 +212,32 @@ export function TimelineView() {
           </div>
         );
       })}
-
-      {/* Pagination placeholder */}
-      {data.total > perPage && (
-        <div className="flex items-center justify-between pt-4">
-           <div className="text-sm text-muted-foreground">
-             Showing {data.items.length} of {data.total}
-           </div>
-           <div className="flex gap-2">
-             <button 
-                onClick={() => setPage(page - 1)} 
-                disabled={page <= 1}
-                className="px-3 py-1 text-sm border rounded hover:bg-muted disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button 
-                onClick={() => setPage(page + 1)} 
-                disabled={!data.next_cursor}
-                className="px-3 py-1 text-sm border rounded hover:bg-muted disabled:opacity-50"
-              >
-                Next
-              </button>
-           </div>
-        </div>
-      )}
+{/* Pagination placeholder */}
+{data.total > filter.perPage && (
+  <div className="flex items-center justify-between pt-4">
+     <div className="text-sm text-muted-foreground">
+       Showing {data.items.length} of {data.total}
+     </div>
+     <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setFilter(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+          disabled={filter.page <= 1}
+          className="px-3 py-1 text-sm border rounded hover:bg-muted disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter(prev => ({ ...prev, page: prev.page + 1 }))}
+          disabled={!data.next_cursor}
+          className="px-3 py-1 text-sm border rounded hover:bg-muted disabled:opacity-50"
+        >
+          Next
+        </button>
+     </div>
+  </div>
+)}
 
       {lightboxData && (
         <CheckinLightbox

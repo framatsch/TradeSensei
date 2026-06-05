@@ -42,7 +42,7 @@ _PUBLIC_PATHS = {
     "/api/v1/auth/forgot-password",
     "/api/v1/auth/reset-password",
 }
-_ACTION_OVERRIDES: dict[tuple[str, str], str] = {
+_ACTION_OVERRIDES: dict[tuple[str, str], str | tuple[str, str | None]] = {
     ("POST", "/api/v1/auth/token"): "auth.login",
     ("POST", "/api/v1/auth/logout"): "auth.logout",
     ("POST", "/api/v1/imports/upload"): "import.started",
@@ -51,6 +51,9 @@ _ACTION_OVERRIDES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/trades/bulk/delete"): "trade.deleted",
     ("POST", "/api/v1/trades/bulk/assign-tags"): "trade.updated",
     ("POST", "/api/v1/trades/bulk/assign-playbook"): "trade.updated",
+    ("POST", "/api/v1/checkins/filters"): ("checkin_filter.created", "checkin_filter"),
+    ("PUT", "/api/v1/checkins/filters/*"): ("checkin_filter.updated", "checkin_filter"),
+    ("DELETE", "/api/v1/checkins/filters/*"): ("checkin_filter.deleted", "checkin_filter"),
 }
 
 
@@ -210,7 +213,17 @@ class AuditMiddleware:
 
         override = _ACTION_OVERRIDES.get((method, path))
         if override:
+            if isinstance(override, tuple):
+                return override[0], override[1], None, None, None
             return override, None, None, None, None
+            
+        for (o_method, o_path), override in _ACTION_OVERRIDES.items():
+            if method == o_method and o_path.endswith("*") and path.startswith(o_path[:-1]):
+                # For wildcard matches, extract the resource_id if possible
+                resource_id = path[len(o_path) - 1 :] if len(path) > len(o_path) - 1 else None
+                if isinstance(override, tuple):
+                    return override[0], override[1], resource_id, None, None
+                return override, "checkin_filter" if "checkin_filter" in override else None, resource_id, None, None
 
         route_metadata = self._extract_route_metadata(request)
         if route_metadata.get("action"):

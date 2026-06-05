@@ -13,10 +13,13 @@
 
 """Route handlers for daily check-ins."""
 
+import json
+import uuid
 from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
@@ -28,6 +31,7 @@ from app.core.exceptions import (
     UnsupportedContentTypeError,
 )
 from app.models.user import User
+from app.schemas.annotation_filter import AnnotationFilterItem
 from app.schemas.common import ResponseEnvelope
 from app.schemas.daily_checkin import (
     DailyCheckinCreate,
@@ -47,6 +51,46 @@ def _get_service(
     session: Annotated[AsyncSession, Depends(get_session_with_rls)],
 ) -> DailyCheckinService:
     return DailyCheckinService(session)
+
+
+def _parse_taxonomy_ids(raw: str | None) -> list[uuid.UUID] | None:
+    """Parse a comma-separated string of UUIDs into a list."""
+    if not raw:
+        return None
+    try:
+        return [uuid.UUID(tid.strip()) for tid in raw.split(",") if tid.strip()]
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid taxonomy_ids format — expected comma-separated UUIDs.",
+        ) from exc
+
+
+def _parse_target_indices(raw: str | None) -> list[uuid.UUID] | None:
+    """Parse a comma-separated string of UUIDs into a list."""
+    if not raw:
+        return None
+    try:
+        return [uuid.UUID(tid.strip()) for tid in raw.split(",") if tid.strip()]
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid target_indices format — expected comma-separated UUIDs.",
+        ) from exc
+
+
+def _parse_annotation_filters(raw: str | None) -> list[AnnotationFilterItem] | None:
+    """Parse a JSON-encoded list of AnnotationFilterItem dicts."""
+    if not raw:
+        return None
+    try:
+        items = json.loads(raw)
+        return [AnnotationFilterItem.model_validate(item) for item in items]
+    except (ValueError, KeyError, TypeError, ValidationError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid annotation_filters format — expected JSON array of filter objects.",
+        ) from exc
 
 
 @router.post(
@@ -115,27 +159,35 @@ async def create_checkin(
     "",
     response_model=ResponseEnvelope[DailyCheckinListResponse],
     summary="List daily check-ins",
-    description="List user check-ins with optional date filters and date cursor.",
+    description="List user check-ins with optional date, taxonomy, and annotation filters.",
 )
 async def list_checkins(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[DailyCheckinService, Depends(_get_service)],
     from_date: date | None = Query(None, description="Start date (YYYY-MM-DD)."),
     to_date: date | None = Query(None, description="End date (YYYY-MM-DD)."),
-    market_phase: str | None = Query(None, description="Filter by market phase."),
     target_indices: str | None = Query(None, description="Comma-separated list of target index UUIDs to filter by."),
+    taxonomy_ids: str | None = Query(None, description="Comma-separated taxonomy UUIDs (OR logic across selected tags)."),
+    annotation_filters: str | None = Query(None, description="JSON-encoded list of AnnotationFilterItem objects."),
     has_media: bool | None = Query(None, description="Filter for check-ins with media."),
     cursor: date | None = None,
+    offset: int | None = Query(None, description="Numeric offset for pagination."),
     limit: int = 30,
 ) -> ResponseEnvelope[DailyCheckinListResponse]:
+    target_indices_list = _parse_target_indices(target_indices)
+    taxonomy_ids_list = _parse_taxonomy_ids(taxonomy_ids)
+    annotation_filters_list = _parse_annotation_filters(annotation_filters)
+
     data = await service.list_checkins(
         user_id=current_user.id,
         from_date=from_date,
         to_date=to_date,
-        market_phase=market_phase,
-        target_indices=target_indices,
+        target_indices=target_indices_list,
+        taxonomy_ids=taxonomy_ids_list,
+        annotation_filters=annotation_filters_list,
         has_media=has_media,
         cursor=cursor,
+        offset=offset,
         limit=limit,
     )
     return ResponseEnvelope[DailyCheckinListResponse](data=data)
