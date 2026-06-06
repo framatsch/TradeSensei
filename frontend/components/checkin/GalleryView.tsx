@@ -33,7 +33,7 @@ export function GalleryView() {
   const taxonomyIdsStr = filter.taxonomy_ids?.join(",") ?? undefined;
   const annotationFiltersStr =
     filter.annotation_filters && filter.annotation_filters.length > 0
-      ? JSON.stringify(filter.annotation_filters)
+      ? JSON.stringify(filter.annotation_filters.map(({ _key: _, ...rest }) => rest))
       : undefined;
 
   // Fetch more items for the gallery view

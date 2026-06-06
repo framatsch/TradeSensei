@@ -16,7 +16,6 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { client } from "@/lib/api/client.gen";
 import {
   archiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatch,
   createAnnotationDefinitionApiV1AnnotationDefinitionsPost,
@@ -24,6 +23,7 @@ import {
   unarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatch,
   updateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPut,
 } from "@/lib/api/index";
+import { deleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDelete, getAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGet } from "@/lib/api/sdk.gen";
 import type {
   AnnotationDefinitionCreate,
   AnnotationDefinitionResponse,
@@ -92,9 +92,8 @@ export function useDeleteAnnotationDefinition() {
 
   return useMutation<void, Error, { definitionId: string; force?: boolean }>({
     mutationFn: async ({ definitionId, force }) => {
-      const { error } = await client.delete({
-        security: [{ scheme: "bearer", type: "http" }],
-        url: `/api/v1/annotation-definitions/${definitionId}`,
+      const { error } = await deleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDelete({
+        path: { definition_id: definitionId },
         query: { force: force ?? false },
       });
       if (error) throw error ?? new Error("Request failed");
@@ -140,14 +139,10 @@ export function useUnarchiveAnnotationDefinition() {
 }
 
 export async function fetchAnnotationDefinitionAssignmentCount(definitionId: string) {
-  const { data, error } = await client.get<any>({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: `/api/v1/annotation-definitions/${definitionId}/assignments/count`,
+  const { data, error } = await getAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGet({
+    path: { definition_id: definitionId },
   });
   if (error || !data) throw error ?? new Error("Request failed");
-  return data.data as {
-    trade_count: number;
-    checkin_count: number;
-    total_count: number;
-  };
+  const payload = data as { data: { trade_count: number; checkin_count: number; total_count: number } };
+  return payload.data;
 }

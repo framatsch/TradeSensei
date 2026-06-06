@@ -198,7 +198,7 @@ export function AnnotationFilterRows({
 
         return (
           <div
-            key={idx}
+            key={row._key ?? idx}
             className="inline-flex items-center gap-1 bg-secondary border border-border/70 rounded-full pl-2 pr-1 py-1 text-xs"
           >
             {/* Logic connector pill — only for rows after the first */}
@@ -212,7 +212,7 @@ export function AnnotationFilterRows({
                 }
                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border transition-colors mr-0.5 ${
                   row.logic === "or"
-                    ? "bg-orange-500/15 border-orange-500/40 text-orange-500"
+                    ? "bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-warning"
                     : "bg-primary/10 border-primary/30 text-primary"
                 }`}
                 title="Click to toggle AND / OR"

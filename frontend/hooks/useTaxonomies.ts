@@ -16,7 +16,6 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { client } from "@/lib/api/client.gen";
 import {
   archiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatch,
   createTaxonomyApiV1TaxonomiesPost,
@@ -24,6 +23,7 @@ import {
   unarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatch,
   updateTaxonomyApiV1TaxonomiesTaxonomyIdPut,
 } from "@/lib/api/index";
+import { deleteTaxonomyApiV1TaxonomiesTaxonomyIdDelete, getTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGet } from "@/lib/api/sdk.gen";
 import type {
   TaxonomyCreate,
   TaxonomyResponse,
@@ -89,9 +89,8 @@ export function useDeleteTaxonomy() {
 
   return useMutation<void, Error, { taxonomyId: string; force?: boolean }>({
     mutationFn: async ({ taxonomyId, force }) => {
-      const { error } = await client.delete({
-        security: [{ scheme: "bearer", type: "http" }],
-        url: `/api/v1/taxonomies/${taxonomyId}`,
+      const { error } = await deleteTaxonomyApiV1TaxonomiesTaxonomyIdDelete({
+        path: { taxonomy_id: taxonomyId },
         query: { force: force ?? false },
       });
       if (error) throw error ?? new Error("Request failed");
@@ -137,15 +136,10 @@ export function useUnarchiveTaxonomy() {
 }
 
 export async function fetchTaxonomyAssignmentCount(taxonomyId: string) {
-  const { data, error } = await client.get<any>({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: `/api/v1/taxonomies/${taxonomyId}/assignments/count`,
+  const { data, error } = await getTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGet({
+    path: { taxonomy_id: taxonomyId },
   });
   if (error || !data) throw error ?? new Error("Request failed");
-  return data.data as {
-    trade_count: number;
-    checkin_count: number;
-    playbook_count: number;
-    total_count: number;
-  };
+  const payload = data as { data: { trade_count: number; checkin_count: number; playbook_count: number; total_count: number } };
+  return payload.data;
 }

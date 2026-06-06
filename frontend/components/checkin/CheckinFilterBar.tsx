@@ -30,6 +30,7 @@ import { AnnotationFilterRows, type AnnotationFilterRow } from "@/components/ui/
 import { ChevronDown, ChevronRight, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Dialog from "@radix-ui/react-dialog";
+import { toast } from 'react-hot-toast';
 
 export function CheckinFilterBar() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -115,6 +116,7 @@ export function CheckinFilterBar() {
       setSaveViewName("");
     } catch (e) {
       console.error("Failed to save view", e);
+      toast.error("Failed to save view. Please try again.");
     }
   }, [saveViewName, filter, createViewMutation, setFilter]);
 
@@ -135,6 +137,7 @@ export function CheckinFilterBar() {
       });
     } catch (e) {
       console.error("Failed to update view", e);
+      toast.error("Failed to update view. Please try again.");
     }
   }, [filter, updateViewMutation]);
 
@@ -149,6 +152,7 @@ export function CheckinFilterBar() {
       setSelectedViewIdToRename(null);
     } catch (e) {
       console.error("Failed to rename view", e);
+      toast.error("Failed to rename view. Please try again.");
     }
   }, [selectedViewIdToRename, renameViewName, updateViewMutation]);
 
@@ -161,6 +165,7 @@ export function CheckinFilterBar() {
       setDeleteConfirmId(null);
     } catch (err) {
       console.error("Failed to delete view", err);
+      toast.error("Failed to delete view. Please try again.");
     }
   }, [deleteViewMutation, filter.viewId, setFilter]);
 
@@ -486,7 +491,7 @@ export function CheckinFilterBar() {
                 type="button"
                 disabled={!saveViewName.trim() || createViewMutation.isPending}
                 onClick={() => void handleSaveView()}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+                className="btn-primary disabled:opacity-50"
               >
                 {createViewMutation.isPending ? "Saving…" : "Save View"}
               </button>
@@ -526,7 +531,7 @@ export function CheckinFilterBar() {
                 type="button"
                 disabled={!renameViewName.trim() || updateViewMutation.isPending}
                 onClick={() => void handleRenameView()}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+                className="btn-primary disabled:opacity-50"
               >
                 {updateViewMutation.isPending ? "Saving…" : "Save Changes"}
               </button>

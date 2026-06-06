@@ -15,6 +15,7 @@
 
 "use client";
 
+import { scopeLabel } from '@/lib/utils/scopeLabel';
 import { useState } from "react";
 import { Plus, Edit2, Trash2, Archive, ArchiveRestore, Loader2, AlertCircle, ChevronDown, Check, ArrowLeft, Edit3 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -34,18 +35,7 @@ import type { TaxonomyResponse, TaxonomyCreate } from "@/lib/api/types.gen";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 function getDisplayScope(scopeStr: string): string {
-  if (!scopeStr) return "";
-  if (scopeStr === "both") return "Trades & Check-ins";
-  return scopeStr
-    .split(",")
-    .map((s) => {
-      const part = s.trim();
-      if (part === "trades") return "Trades";
-      if (part === "checkins") return "Check-ins";
-      if (part === "playbook") return "Playbook";
-      return part;
-    })
-    .join(", ");
+  return scopeLabel(scopeStr);
 }
 
 export function TaxonomyManager() {
@@ -188,7 +178,7 @@ export function TaxonomyManager() {
           taxonomyId: selectedTaxonomy.id,
           payload: {
             name: name.trim(),
-            scope: scopePayload as "trades",
+            scope: scopePayload,
             color_hex: colorHex,
             description: description.trim() || null,
             icon_identifier: iconIdentifier.trim() || null,
@@ -199,7 +189,7 @@ export function TaxonomyManager() {
         const updatedTaxonomy: TaxonomyResponse = {
           ...selectedTaxonomy,
           name: name.trim(),
-          scope: scopePayload as "trades",
+          scope: scopePayload,
           color_hex: colorHex,
           description: description.trim() || null,
           icon_identifier: iconIdentifier.trim() || null,
@@ -208,7 +198,7 @@ export function TaxonomyManager() {
       } else {
         const payload: TaxonomyCreate = {
           name: name.trim(),
-          scope: scopePayload as "trades",
+          scope: scopePayload,
           color_hex: colorHex,
         };
         if (description.trim()) {
@@ -290,13 +280,15 @@ export function TaxonomyManager() {
             <div
               role="switch"
               aria-checked={showArchived}
+              tabIndex={0}
               onClick={() => setShowArchived((v) => !v)}
+              onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setShowArchived((v) => !v); } }}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                 showArchived ? "bg-primary" : "bg-secondary border border-border"
               }`}
             >
               <span
-                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-primary-foreground shadow transition-transform ${
                   showArchived ? "translate-x-4" : "translate-x-1"
                 }`}
               />
@@ -305,7 +297,7 @@ export function TaxonomyManager() {
           </label>
           <button
             onClick={handleCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+            className="btn-primary"
           >
             <Plus className="w-4 h-4" />
             New Tag
@@ -338,7 +330,7 @@ export function TaxonomyManager() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleEdit(selectedTaxonomy)}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors shrink-0"
+                className="btn-primary shrink-0"
               >
                 <Edit3 className="w-4 h-4" />
                 Edit
@@ -402,7 +394,7 @@ export function TaxonomyManager() {
                         )}
                       </ul>
                       <p className="text-xs text-muted-foreground pt-1">
-                        Deleting this tag will **permanently remove all of these assignments** from your trades/check-ins/playbooks! This action cannot be undone.
+                        Deleting this tag will <strong>permanently remove all of these assignments</strong> from your trades/check-ins/playbooks! This action cannot be undone.
                       </p>
                     </div>
                   </div>
@@ -517,7 +509,7 @@ export function TaxonomyManager() {
           </div>
         </div>
       ) : isEditing ? (
-        <div className="p-4 border border-border rounded-xl bg-card">
+        <div className="solid-card p-4">
           <h3 className="text-lg font-medium mb-4">
             {selectedTaxonomy ? "Edit Tag" : "Create Tag"}
           </h3>
@@ -702,7 +694,7 @@ export function TaxonomyManager() {
               <button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
+                className="btn-primary disabled:opacity-50"
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? "Saving..."

@@ -15,6 +15,8 @@
 
 "use client";
 
+import { DynamicIcon } from '@/components/ui/DynamicIcon';
+import { scopeLabel } from '@/lib/utils/scopeLabel';
 import { useState } from "react";
 import { Plus, Edit2, Trash2, Archive, ArchiveRestore, Loader2, X, AlertCircle, ArrowLeft, Edit3, ChevronDown, Check } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -71,20 +73,8 @@ function parseScaleLabels(
 }
 
 function getDisplayScope(scopeStr: string): string {
-  if (!scopeStr) return "";
-  if (scopeStr === "both") return "Trades & Check-ins";
-  return scopeStr
-    .split(",")
-    .map((s) => {
-      const part = s.trim();
-      if (part === "trades") return "Trades";
-      if (part === "checkins") return "Check-ins";
-      return part;
-    })
-    .join(", ");
+  return scopeLabel(scopeStr);
 }
-
-import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 export function AnnotationManager() {
   const [showArchived, setShowArchived] = useState(false);
@@ -354,13 +344,15 @@ export function AnnotationManager() {
             <div
               role="switch"
               aria-checked={showArchived}
+              tabIndex={0}
               onClick={() => setShowArchived((v) => !v)}
+              onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setShowArchived((v) => !v); } }}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                 showArchived ? "bg-primary" : "bg-secondary border border-border"
               }`}
             >
               <span
-                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-primary-foreground shadow transition-transform ${
                   showArchived ? "translate-x-4" : "translate-x-1"
                 }`}
               />
@@ -369,7 +361,7 @@ export function AnnotationManager() {
           </label>
           <button
             onClick={handleCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+            className="btn-primary"
           >
             <Plus className="w-4 h-4" />
             New Metric
@@ -399,7 +391,7 @@ export function AnnotationManager() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleEdit(selectedAnnotation)}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors shrink-0"
+                className="btn-primary shrink-0"
               >
                 <Edit3 className="w-4 h-4" />
                 Edit
@@ -460,7 +452,7 @@ export function AnnotationManager() {
                         )}
                       </ul>
                       <p className="text-xs text-muted-foreground pt-1">
-                        Deleting this metric will **permanently remove all of these assignments and recorded values** from your trades and check-ins! This action cannot be undone.
+                        Deleting this metric will <strong>permanently remove all of these assignments and recorded values</strong> from your trades and check-ins! This action cannot be undone.
                       </p>
                     </div>
                   </div>
@@ -628,7 +620,7 @@ export function AnnotationManager() {
           </div>
         </div>
       ) : isEditing ? (
-        <div className="p-4 border border-border rounded-xl bg-card">
+        <div className="solid-card p-4">
           <h3 className="text-lg font-medium mb-4">
             {selectedAnnotation ? "Edit Metric" : "Create Metric"}
           </h3>
@@ -834,7 +826,7 @@ export function AnnotationManager() {
               <button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
+                className="btn-primary disabled:opacity-50"
               >
                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
               </button>

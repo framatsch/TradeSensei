@@ -15,6 +15,18 @@
 
 /**
  * Playwright Global Setup — seeds the E2E test database via REST API.
+ *
+ * Runs once before all tests. Creates:
+ *  - A dedicated E2E test user with a default portfolio
+ *  - A second destructive test user used exclusively for tests that need
+ *    an isolated, disposable context (e.g. EmptyPortfolioGate)
+ *
+ * The auth state (access_token in localStorage) is written to
+ * frontend/tests/.auth/user.json so all specs can reuse it without
+ * re-logging in.
+ *
+ * Teardown counterpart: global-teardown.ts calls DELETE /api/v1/users/me
+ * which cascade-deletes all owned data in one API call.
  */
 
 import { type FullConfig } from '@playwright/test';
@@ -183,7 +195,11 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   if (dTokenRes.ok) {
     const dToken = (await dTokenRes.json()).access_token;
     const dPortRes = await apiPost('/api/v1/portfolios', { name: 'E2E Destructive Portfolio', base_currency: 'USD' }, dToken);
-    const dPortId = (await dPortRes.json()).data.id;
+    if (!dPortRes.ok) {
+      throw new Error(`[global-setup] Destructive portfolio creation failed: ${dPortRes.status} ${dPortRes.statusText}`);
+    }
+    const dPortId = ((await dPortRes.json()) as { data: { id: string } }).data.id;
+    fs.mkdirSync(path.dirname(DESTRUCTIVE_AUTH_FILE), { recursive: true });
     fs.writeFileSync(DESTRUCTIVE_AUTH_FILE, JSON.stringify({
       cookies: [],
       origins: [{ origin: BASE_URL, localStorage: [
