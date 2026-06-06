@@ -42,6 +42,8 @@ def normalize_scope(scope_str: str) -> str:
     ``"checkins,trades"`` are treated as the same value.
     """
     tokens = {p.strip() for p in scope_str.split(",") if p.strip()}
+    if not tokens:
+        raise ValueError("scope must contain at least one valid token")
     invalid = tokens - VALID_SCOPE_TOKENS
     if invalid:
         raise ValueError(f"Invalid scope token(s): {', '.join(sorted(invalid))}. Allowed: {', '.join(sorted(VALID_SCOPE_TOKENS))}")

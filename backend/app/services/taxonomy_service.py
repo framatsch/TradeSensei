@@ -22,7 +22,7 @@ from app.core.exceptions import TaxonomyNotFoundError, TaxonomyValidationError
 from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyResponse, TaxonomyUpdate
 from app.services.cache_service import CacheService
-from app.utils.scope_utils import scope_contains
+from app.utils.scope_utils import VALID_SCOPE_TOKENS, scope_contains
 
 
 class TaxonomyService:
@@ -48,6 +48,8 @@ class TaxonomyService:
         return TaxonomyResponse.model_validate(item)
 
     async def list(self, user_id: uuid.UUID, scope: str | None = None, show_archived: bool = False) -> list[TaxonomyResponse]:
+        if scope is not None and scope not in VALID_SCOPE_TOKENS:
+            raise TaxonomyValidationError(f"Invalid scope filter '{scope}'. Allowed: {sorted(VALID_SCOPE_TOKENS)}")
         if show_archived:
             items = await self._repo.list_including_archived(user_id=user_id, scope=scope)
         else:
