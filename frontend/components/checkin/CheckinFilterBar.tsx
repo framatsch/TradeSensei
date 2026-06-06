@@ -108,7 +108,7 @@ export function CheckinFilterBar() {
           to_date: filter.to_date,
           target_indices: filter.target_indices,
           taxonomy_ids: filter.taxonomy_ids,
-          annotation_filters: (filter.annotation_filters ?? []).map(({ _key: _, ...rest }) => rest),
+          annotation_filters: (filter.annotation_filters ?? []).map(({ _key: _, ...rest }) => rest as import("@/lib/api/types.gen").AnnotationFilterItem),
         },
       });
       setFilter((prev) => ({ ...prev, viewId: res.id }));
@@ -131,7 +131,7 @@ export function CheckinFilterBar() {
             to_date: filter.to_date,
             target_indices: filter.target_indices,
             taxonomy_ids: filter.taxonomy_ids,
-            annotation_filters: (filter.annotation_filters ?? []).map(({ _key: _, ...rest }) => rest),
+            annotation_filters: (filter.annotation_filters ?? []).map(({ _key: _, ...rest }) => rest as import("@/lib/api/types.gen").AnnotationFilterItem),
           },
         },
       });
