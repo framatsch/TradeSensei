@@ -101,6 +101,26 @@ class AnnotationDefinitionService:
             await self._cache.invalidate_user(user_id)
         return AnnotationDefinitionResponse.model_validate(updated)
 
+    async def get_assignment_counts(
+        self,
+        definition_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> dict[str, int]:
+        """Return assignment counts for a definition, scoped to the owning user.
+
+        Raises :class:`AnnotationDefinitionNotFoundError` when the caller does
+        not own the definition or when it does not exist.
+        """
+        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
+        if item is None:
+            raise AnnotationDefinitionNotFoundError("annotation definition not found")
+        trade_count, checkin_count = await self._repo.count_assignments(definition_id)
+        return {
+            "trade_count": trade_count,
+            "checkin_count": checkin_count,
+            "total_count": trade_count + checkin_count,
+        }
+
     async def archive(self, definition_id: uuid.UUID, user_id: uuid.UUID) -> AnnotationDefinitionResponse:
         item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
         if item is None:

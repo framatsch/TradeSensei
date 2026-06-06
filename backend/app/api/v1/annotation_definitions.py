@@ -121,6 +121,7 @@ async def update_annotation_definition(
     "/{definition_id}",
     response_model=None,
     status_code=status.HTTP_200_OK,
+    responses={204: {"description": "Definition permanently deleted (no assignments)."}},
     summary="Delete annotation definition",
 )
 async def delete_annotation_definition(
@@ -189,11 +190,8 @@ async def get_annotation_definition_assignments_count(
     service: Annotated[AnnotationDefinitionService, Depends(_get_service)],
 ) -> ResponseEnvelope[dict[str, int]]:
     """Return assignment counts (trades, checkins) for an annotation definition."""
-    counts = await service._repo.count_assignments(definition_id)
-    trade_count, checkin_count = counts[0], counts[1]
-    total_count = trade_count + checkin_count
-    return ResponseEnvelope[dict[str, int]](data={
-        "trade_count": trade_count,
-        "checkin_count": checkin_count,
-        "total_count": total_count,
-    })
+    try:
+        counts = await service.get_assignment_counts(definition_id=definition_id, user_id=_current_user.id)
+    except AnnotationDefinitionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope[dict[str, int]](data=counts)

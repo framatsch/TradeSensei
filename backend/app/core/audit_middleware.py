@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import logging
 import re
-import traceback
 from dataclasses import dataclass
 from typing import Any
 
@@ -373,10 +372,15 @@ class AuditMiddleware:
                 forwarded_for=context.forwarded_for,
                 metadata={
                     "exception_type": type(exc).__name__,
-                    "stack_trace": "".join(
-                        traceback.format_exception(type(exc), exc, exc.__traceback__)
-                    ),
+                    "exception_message": str(exc),
                 },
+            )
+            self._logger.error(
+                "Request failed: %s %s — %s",
+                request.method,
+                request.url.path,
+                exc,
+                exc_info=True,
             )
         except Exception as log_exc:  # noqa: BLE001
             self._logger.error("Audit logging failed: %s", log_exc)

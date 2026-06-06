@@ -119,6 +119,7 @@ async def update_taxonomy(
     "/{taxonomy_id}",
     response_model=None,
     status_code=status.HTTP_200_OK,
+    responses={204: {"description": "Taxonomy permanently deleted (no assignments)."}},
     summary="Delete taxonomy",
 )
 async def delete_taxonomy(
@@ -187,13 +188,8 @@ async def get_taxonomy_assignments_count(
     service: Annotated[TaxonomyService, Depends(_get_service)],
 ) -> ResponseEnvelope[dict[str, int]]:
     """Return assignment counts (trades, checkins, playbooks) for a taxonomy."""
-    counts = await service._repo.count_assignments(taxonomy_id)
-    trade_count, checkin_count = counts[0], counts[1]
-    playbook_count = counts[2] if len(counts) > 2 else 0
-    total_count = trade_count + checkin_count + playbook_count
-    return ResponseEnvelope[dict[str, int]](data={
-        "trade_count": trade_count,
-        "checkin_count": checkin_count,
-        "playbook_count": playbook_count,
-        "total_count": total_count,
-    })
+    try:
+        counts = await service.get_assignment_counts(taxonomy_id=taxonomy_id, user_id=_current_user.id)
+    except TaxonomyNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope[dict[str, int]](data=counts)

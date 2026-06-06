@@ -81,7 +81,10 @@ class TaxonomyService:
             losing_playbook = scope_contains(current_scope, "playbook") and not scope_contains(new_scope, "playbook")
 
             if (losing_trades and trade_count > 0) or (losing_checkins and checkin_count > 0) or (losing_playbook and playbook_count > 0):
-                raise TaxonomyValidationError(f"Cannot remove a scope that is currently in use (trade_count={trade_count}, checkin_count={checkin_count}, playbook_count={playbook_count})")
+                raise TaxonomyValidationError(
+                    f"Cannot remove a scope that is currently in use "
+                    f"(trade_count={trade_count}, checkin_count={checkin_count}, playbook_count={playbook_count})"
+                )
 
         try:
             updated = await self._repo.update(item, payload)
@@ -90,6 +93,27 @@ class TaxonomyService:
         if user_id is not None:
             await self._cache.invalidate_user(user_id)
         return TaxonomyResponse.model_validate(updated)
+
+    async def get_assignment_counts(
+        self,
+        taxonomy_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> dict[str, int]:
+        """Return assignment counts for a taxonomy, scoped to the owning user.
+
+        Raises :class:`TaxonomyNotFoundError` when the caller does not own the
+        taxonomy or when it does not exist.
+        """
+        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
+        if item is None:
+            raise TaxonomyNotFoundError("taxonomy not found")
+        trade_count, checkin_count, playbook_count = await self._repo.count_assignments(taxonomy_id)
+        return {
+            "trade_count": trade_count,
+            "checkin_count": checkin_count,
+            "playbook_count": playbook_count,
+            "total_count": trade_count + checkin_count + playbook_count,
+        }
 
     async def archive(self, taxonomy_id: uuid.UUID, user_id: uuid.UUID) -> TaxonomyResponse:
         item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)

@@ -26,8 +26,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, model_validator
-from sqlalchemy import and_, exists, func, select, update
-from sqlalchemy import text
+from sqlalchemy import and_, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
@@ -83,7 +82,7 @@ class AdvancedTradeSearchParams(BaseModel):
     asset_class: AssetClass | None = None
     pnl_min: Decimal | None = None
     pnl_max: Decimal | None = None
-    taxonomy_ids: list[uuid.UUID] = Field(default_factory=list)
+    taxonomy_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50)
     annotation_filters: list[AnnotationFilterItem] | None = None
     portfolio_id: uuid.UUID | None = None
     sort_by: str | None = Field(default="opened_at", description="Field to sort by (e.g. pnl, opened_at)")
@@ -141,7 +140,7 @@ class GetStrategyPlaybookParams(BaseModel):
 class ListCheckinsParams(BaseModel):
     date_from: date | None = None
     date_to: date | None = None
-    taxonomy_ids: list[uuid.UUID] = Field(default_factory=list)
+    taxonomy_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50)
     annotation_filters: list[AnnotationFilterItem] | None = None
     limit: int = Field(default=50, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
@@ -645,9 +644,10 @@ async def _handle_list_checkins(
     if params.date_from is not None:
         query = query.where(DailyCheckin.date >= params.date_from)
     if params.date_to is not None:
-    # MCP uses AND semantics for taxonomies (strict intersection)
         query = query.where(DailyCheckin.date <= params.date_to)
 
+    # MCP uses AND semantics for taxonomy_ids (strict intersection):
+    # the checkin must have ALL requested tags, not just any one of them.
     if params.taxonomy_ids:
         for taxonomy_id in params.taxonomy_ids:
             taxonomy_alias = aliased(CheckinTaxonomy)
