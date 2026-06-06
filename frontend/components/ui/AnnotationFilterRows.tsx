@@ -213,7 +213,7 @@ export function AnnotationFilterRows({
                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border transition-colors mr-0.5 ${
                   row.logic === "or"
                     ? "bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-warning"
-                    : "bg-primary/10 border-primary/30 text-primary"
+                    : "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] border-[color-mix(in_srgb,var(--primary)_30%,transparent)] text-primary"
                 }`}
                 title="Click to toggle AND / OR"
               >

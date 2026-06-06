@@ -138,7 +138,7 @@ export function useTrades({
           sort_dir: sort?.sort_dir ?? undefined,
           annotation_filters:
             filters?.annotation_filters && filters.annotation_filters.length > 0
-              ? JSON.stringify(filters.annotation_filters)
+              ? JSON.stringify(filters.annotation_filters.map(({ _key: _, ...rest }) => rest))
               : undefined,
         },
       });

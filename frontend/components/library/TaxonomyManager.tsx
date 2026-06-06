@@ -108,13 +108,11 @@ export function TaxonomyManager() {
     setSelectedTaxonomy(taxonomy);
     setName(taxonomy.name);
     
-    // Parse taxonomy.scope to set initial scopes array
-    let parsedScopes: string[] = [];
-    if (taxonomy.scope === "both") {
-      parsedScopes = ["trades", "checkins"];
-    } else {
-      parsedScopes = taxonomy.scope.split(",").map((s) => s.trim());
-    }
+    // Parse taxonomy.scope to set initial scopes array (comma-separated post-migration).
+    const parsedScopes: string[] = taxonomy.scope
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     setSelectedScopes(parsedScopes);
     setColorHex(taxonomy.color_hex);
     setDescription(taxonomy.description || "");
@@ -170,7 +168,7 @@ export function TaxonomyManager() {
       return;
     }
 
-    const scopePayload = selectedScopes.join(",");
+    const scopePayload = [...selectedScopes].sort().join(",");
 
     try {
       if (selectedTaxonomy && isEditing) {
@@ -307,7 +305,7 @@ export function TaxonomyManager() {
 
       {isViewing && selectedTaxonomy && !isEditing ? (
         /* Read-Only Details View modeled after Playbooks */
-        <div className="p-6 border border-border rounded-xl bg-card space-y-6">
+        <div className="solid-card p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-3">
               <button
@@ -470,8 +468,8 @@ export function TaxonomyManager() {
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium border ${
                     selectedTaxonomy.is_archived
-                      ? "bg-warning/10 text-warning border-warning/30"
-                      : "bg-success/10 text-success border-success/30"
+                      ? "surface-warning text-warning"
+                      : "surface-success text-success"
                   }`}
                 >
                   {selectedTaxonomy.is_archived ? "Archived" : "Active"}
@@ -704,7 +702,7 @@ export function TaxonomyManager() {
           </form>
         </div>
       ) : taxonomies?.length === 0 ? (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="solid-card overflow-hidden">
           <div className="px-4 py-16 text-center text-muted-foreground">
             <p className="text-base font-medium mb-1">No tags yet</p>
             <p className="text-sm">
@@ -758,7 +756,7 @@ export function TaxonomyManager() {
                   {getDisplayScope(tax.scope)}
                 </span>
                 {tax.is_archived && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-warning/10 text-warning border border-border">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium surface-warning text-warning border">
                     <Archive className="w-3 h-3" /> Archived
                   </span>
                 )}

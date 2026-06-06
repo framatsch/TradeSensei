@@ -45,8 +45,8 @@ export default function CorrelationPage() {
 
   const { data: accounts } = useAccounts(portfolioId ?? undefined);
 
-  const { data: annotationDefs } = useGetAnnotationDefinitions("both");
-  const { data: taxonomyDefs } = useGetTaxonomies("both");
+  const { data: annotationDefs } = useGetAnnotationDefinitions(undefined);
+  const { data: taxonomyDefs } = useGetTaxonomies(undefined);
 
   // Parse selected axes
   const xParts = xAxisRaw.split("|");
@@ -79,10 +79,11 @@ export default function CorrelationPage() {
   }, [correlationData]);
 
   // Group definitions for selects
-  const tradeAnnotations = annotationDefs?.filter(d => d.scope === "trades" || d.scope === "both") || [];
-  const checkinAnnotations = annotationDefs?.filter(d => d.scope === "checkins" || d.scope === "both") || [];
-  const tradeTaxonomies = taxonomyDefs?.filter(d => d.scope === "trades" || d.scope === "both") || [];
-  const checkinTaxonomies = taxonomyDefs?.filter(d => d.scope === "checkins" || d.scope === "both") || [];
+  // Group definitions for selects — use token-based scope matching
+  const tradeAnnotations = annotationDefs?.filter(d => d.scope.split(",").some(t => t.trim() === "trades")) || [];
+  const checkinAnnotations = annotationDefs?.filter(d => d.scope.split(",").some(t => t.trim() === "checkins")) || [];
+  const tradeTaxonomies = taxonomyDefs?.filter(d => d.scope.split(",").some(t => t.trim() === "trades")) || [];
+  const checkinTaxonomies = taxonomyDefs?.filter(d => d.scope.split(",").some(t => t.trim() === "checkins")) || [];
 
   const renderAxisOptions = () => (
     <>
