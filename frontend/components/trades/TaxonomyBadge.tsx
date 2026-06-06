@@ -13,11 +13,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { TaxonomyResponse } from "@/lib/types";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 interface Props {
-  taxonomy: Pick<TaxonomyResponse, "id" | "name" | "color_hex" | "icon_identifier">;
+  taxonomy: { id: string; name: string; color_hex: string; icon_identifier?: string | null };
 }
 
 export function TaxonomyBadge({ taxonomy }: Props) {

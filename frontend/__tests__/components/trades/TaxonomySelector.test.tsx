@@ -18,8 +18,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { TaxonomySelector } from "@/components/trades/TaxonomySelector";
 
 const mockTaxonomies = [
-  { id: "1", name: "Trend Following", description: null, color: null, color_hex: "#000000", user_id: "u1", scope: "both" as const, created_at: "", updated_at: "", is_archived: false },
-  { id: "2", name: "Reversal", description: null, color: null, color_hex: "#ffffff", user_id: "u1", scope: "both" as const, created_at: "", updated_at: "", is_archived: false },
+  { id: "1", name: "Trend Following", description: null, color_hex: "#000000", scope: "trades", created_at: "", updated_at: "", is_archived: false, icon_identifier: null },
+  { id: "2", name: "Reversal", description: null, color_hex: "#ffffff", scope: "trades", created_at: "", updated_at: "", is_archived: false, icon_identifier: null },
 ];
 
 describe("TaxonomySelector", () => {

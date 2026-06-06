@@ -13,7 +13,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { TaxonomyResponse } from "@/lib/types";
+import type { TaxonomyResponse } from "@/lib/api/types.gen";
 import { Check, Hash } from "lucide-react";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
