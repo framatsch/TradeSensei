@@ -48,10 +48,10 @@ class TaxonomyRepository:
             {"name": "High Conviction", "scope": "trades", "color_hex": "#facc15", "icon_identifier": "zap"},
             {"name": "Stop Loss", "scope": "trades", "color_hex": "#ef4444", "icon_identifier": "octagon"},
             {"name": "Textbook Trade", "scope": "trades", "color_hex": "#fbbf24", "icon_identifier": "award"},
-            {"name": "Breakout", "scope": "both", "color_hex": "#10b981", "icon_identifier": "arrow-up-right"},
-            {"name": "Mean Reversion", "scope": "both", "color_hex": "#6366f1", "icon_identifier": "repeat"},
-            {"name": "Momentum", "scope": "both", "color_hex": "#f97316", "icon_identifier": "rocket"},
-            {"name": "Trend Following", "scope": "both", "color_hex": "#06b6d4", "icon_identifier": "trending-up"},
+            {"name": "Breakout", "scope": "trades,checkins", "color_hex": "#10b981", "icon_identifier": "arrow-up-right"},
+            {"name": "Mean Reversion", "scope": "trades,checkins", "color_hex": "#6366f1", "icon_identifier": "repeat"},
+            {"name": "Momentum", "scope": "trades,checkins", "color_hex": "#f97316", "icon_identifier": "rocket"},
+            {"name": "Trend Following", "scope": "trades,checkins", "color_hex": "#06b6d4", "icon_identifier": "trending-up"},
         ]
         stmt = pg_insert(Taxonomy).values(
             [
@@ -87,7 +87,13 @@ class TaxonomyRepository:
     async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[Taxonomy]:
         stmt = select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.is_archived.is_(False)).order_by(Taxonomy.name.asc())
         if scope is not None:
-            stmt = stmt.where(Taxonomy.scope.in_([scope, "both"]))
+            # Match taxonomies whose comma-separated scope contains the requested token.
+            stmt = stmt.where(
+                (Taxonomy.scope == scope)
+                | Taxonomy.scope.like(f"{scope},%")
+                | Taxonomy.scope.like(f"%,{scope}")
+                | Taxonomy.scope.like(f"%,{scope},%")
+            )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -133,7 +139,12 @@ class TaxonomyRepository:
     async def list_including_archived(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[Taxonomy]:
         stmt = select(Taxonomy).where(Taxonomy.user_id == user_id).order_by(Taxonomy.name.asc())
         if scope is not None:
-            stmt = stmt.where(Taxonomy.scope.in_([scope, "both"]))
+            stmt = stmt.where(
+                (Taxonomy.scope == scope)
+                | Taxonomy.scope.like(f"{scope},%")
+                | Taxonomy.scope.like(f"%,{scope}")
+                | Taxonomy.scope.like(f"%,{scope},%")
+            )
         result = await self._session.execute(stmt)
         return builtins.list(result.scalars().all())
 

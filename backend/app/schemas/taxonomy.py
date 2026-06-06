@@ -16,9 +16,10 @@
 import re
 import uuid
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.utils.scope_utils import normalize_scope
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -43,6 +44,12 @@ class TaxonomyCreate(BaseModel):
             raise ValueError("color_hex must match #RRGGBB")
         return value
 
+    @field_validator("scope")
+    @classmethod
+    def validate_scope(cls, value: str) -> str:
+        """Normalise and validate comma-separated scope tokens."""
+        return normalize_scope(value)
+
 
 class TaxonomyUpdate(BaseModel):
     """Payload for updating a taxonomy definition."""
@@ -66,6 +73,14 @@ class TaxonomyUpdate(BaseModel):
         if not _HEX_COLOR_RE.fullmatch(value):
             raise ValueError("color_hex must match #RRGGBB")
         return value
+
+    @field_validator("scope")
+    @classmethod
+    def validate_scope(cls, value: str | None) -> str | None:
+        """Normalise and validate comma-separated scope tokens when provided."""
+        if value is None:
+            return None
+        return normalize_scope(value)
 
 
 class TaxonomyResponse(BaseModel):

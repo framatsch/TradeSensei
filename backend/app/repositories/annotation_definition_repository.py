@@ -121,7 +121,12 @@ class AnnotationDefinitionRepository:
             .order_by(AnnotationDefinition.name.asc())
         )
         if scope is not None:
-            stmt = stmt.where(AnnotationDefinition.scope.in_([scope, "both"]))
+            stmt = stmt.where(
+                (AnnotationDefinition.scope == scope)
+                | AnnotationDefinition.scope.like(f"{scope},%")
+                | AnnotationDefinition.scope.like(f"%,{scope}")
+                | AnnotationDefinition.scope.like(f"%,{scope},%")
+            )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -177,6 +182,11 @@ class AnnotationDefinitionRepository:
             .order_by(AnnotationDefinition.name.asc())
         )
         if scope is not None:
-            stmt = stmt.where(AnnotationDefinition.scope.in_([scope, "both"]))
+            stmt = stmt.where(
+                (AnnotationDefinition.scope == scope)
+                | AnnotationDefinition.scope.like(f"{scope},%")
+                | AnnotationDefinition.scope.like(f"%,{scope}")
+                | AnnotationDefinition.scope.like(f"%,{scope},%")
+            )
         result = await self._session.execute(stmt)
         return builtins.list(result.scalars().all())

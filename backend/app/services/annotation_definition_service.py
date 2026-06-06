@@ -31,6 +31,7 @@ from app.schemas.annotation_definition import (
     AnnotationDefinitionUpdate,
 )
 from app.services.cache_service import CacheService
+from app.utils.scope_utils import scope_contains
 
 
 class AnnotationDefinitionService:
@@ -84,11 +85,12 @@ class AnnotationDefinitionService:
 
         current_scope = item.scope
         new_scope = payload.scope
-        if new_scope is not None and new_scope != current_scope and current_scope == "both":
+        if new_scope is not None and new_scope != current_scope:
             trade_count, checkin_count = await self._repo.count_assignments(definition_id)
-            narrowing_to_trades = new_scope == "trades" and checkin_count > 0
-            narrowing_to_checkins = new_scope == "checkins" and trade_count > 0
-            if narrowing_to_trades or narrowing_to_checkins:
+
+            losing_trades = scope_contains(current_scope, "trades") and not scope_contains(new_scope, "trades")
+            losing_checkins = scope_contains(current_scope, "checkins") and not scope_contains(new_scope, "checkins")
+            if (losing_trades and trade_count > 0) or (losing_checkins and checkin_count > 0):
                 raise AnnotationDefinitionValidationError("scope narrowing is not permitted while assignments exist")
 
         try:

@@ -32,12 +32,16 @@ if TYPE_CHECKING:
 
 
 class DefinitionScope(StrEnum):
-    """Scope for where a definition can be assigned."""
+    """Scope for where a definition can be assigned.
+
+    Taxonomy/annotation scope is stored as a comma-separated string of these
+    tokens (e.g. ``"trades,checkins"``).  The old ``"both"`` alias has been
+    replaced by explicit multi-token strings.
+    """
 
     TRADES = "trades"
     CHECKINS = "checkins"
     PLAYBOOK = "playbook"
-    BOTH = "both"
 
 
 class Taxonomy(Base):
@@ -56,7 +60,7 @@ class Taxonomy(Base):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    scope: Mapped[str] = mapped_column(String(20), nullable=False)
+    scope: Mapped[str] = mapped_column(String(50), nullable=False)
     color_hex: Mapped[str] = mapped_column(String(7), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     icon_identifier: Mapped[str | None] = mapped_column(String(100), nullable=True)

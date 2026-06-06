@@ -34,6 +34,7 @@ from app.repositories.checkin_taxonomy_repository import CheckinTaxonomyReposito
 from app.repositories.daily_checkin_repository import DailyCheckinRepository
 from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.utils.annotation_mapping import map_value_to_column
+from app.utils.scope_utils import scope_contains
 
 
 class CheckinMetadataService:
@@ -64,7 +65,7 @@ class CheckinMetadataService:
             raise TaxonomyNotFoundError("taxonomy not found")
         if taxonomy.is_archived:
             raise MetadataAssignmentValidationError("cannot assign archived taxonomy")
-        if taxonomy.scope not in {"checkins", "both"}:
+        if not scope_contains(taxonomy.scope, "checkins"):
             raise MetadataAssignmentValidationError("taxonomy scope is incompatible with check-ins")
         try:
             async with self._session.begin_nested():
@@ -152,7 +153,7 @@ class CheckinMetadataService:
     ) -> dict[str, Any]:
         if definition.is_archived:
             raise MetadataAssignmentValidationError("cannot assign archived annotation definition")
-        if definition.scope not in {"checkins", "both"}:
+        if not scope_contains(definition.scope, "checkins"):
             raise MetadataAssignmentValidationError("annotation definition scope is incompatible with check-ins")
         try:
             return map_value_to_column(definition.type, value, definition.scale_labels)

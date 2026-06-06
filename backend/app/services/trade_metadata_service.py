@@ -34,6 +34,7 @@ from app.repositories.trade_annotation_repository import TradeAnnotationReposito
 from app.repositories.trade_repository import TradeRepository
 from app.repositories.trade_taxonomy_repository import TradeTaxonomyRepository
 from app.utils.annotation_mapping import map_value_to_column
+from app.utils.scope_utils import scope_contains
 
 
 class TradeMetadataService:
@@ -64,7 +65,7 @@ class TradeMetadataService:
             raise TaxonomyNotFoundError("taxonomy not found")
         if taxonomy.is_archived:
             raise MetadataAssignmentValidationError("cannot assign archived taxonomy")
-        if taxonomy.scope not in {"trades", "both"}:
+        if not scope_contains(taxonomy.scope, "trades"):
             raise MetadataAssignmentValidationError("taxonomy scope is incompatible with trades")
         try:
             async with self._session.begin_nested():
@@ -152,7 +153,7 @@ class TradeMetadataService:
     ) -> dict[str, Any]:
         if definition.is_archived:
             raise MetadataAssignmentValidationError("cannot assign archived annotation definition")
-        if definition.scope not in {"trades", "both"}:
+        if not scope_contains(definition.scope, "trades"):
             raise MetadataAssignmentValidationError("annotation definition scope is incompatible with trades")
         try:
             return map_value_to_column(definition.type, value, definition.scale_labels)

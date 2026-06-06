@@ -28,6 +28,7 @@ from app.repositories.playbook_repository import PlaybookRepository
 from app.repositories.playbook_taxonomy_repository import PlaybookTaxonomyRepository
 from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.schemas.taxonomy import TaxonomyResponse
+from app.utils.scope_utils import scope_contains
 
 
 class PlaybookTaxonomyService:
@@ -56,7 +57,7 @@ class PlaybookTaxonomyService:
             raise TaxonomyNotFoundError("taxonomy not found")
         if taxonomy.is_archived:
             raise MetadataAssignmentValidationError("cannot assign archived taxonomy")
-        if taxonomy.scope not in {"playbook", "both"}:
+        if not scope_contains(taxonomy.scope, "playbook"):
             raise MetadataAssignmentValidationError("taxonomy scope is incompatible with playbooks")
         try:
             async with self._session.begin_nested():

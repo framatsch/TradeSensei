@@ -22,6 +22,7 @@ from app.core.exceptions import TaxonomyNotFoundError, TaxonomyValidationError
 from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyResponse, TaxonomyUpdate
 from app.services.cache_service import CacheService
+from app.utils.scope_utils import scope_contains
 
 
 class TaxonomyService:
@@ -73,18 +74,12 @@ class TaxonomyService:
         current_scope = item.scope
         new_scope = payload.scope
         if new_scope is not None and new_scope != current_scope:
-            assignment_counts = await self._repo.count_assignments(taxonomy_id)
-            trade_count, checkin_count = assignment_counts[0], assignment_counts[1]
-            playbook_count = assignment_counts[2] if len(assignment_counts) > 2 else 0
-            # Support multi-select comma-separated scopes (or old 'both')
-            def _has(scope_str: str, target: str) -> bool:
-                parts = [p.strip() for p in scope_str.split(",")]
-                return target in parts or "both" in parts
+            trade_count, checkin_count, playbook_count = await self._repo.count_assignments(taxonomy_id)
 
-            losing_trades = _has(current_scope, "trades") and not _has(new_scope, "trades")
-            losing_checkins = _has(current_scope, "checkins") and not _has(new_scope, "checkins")
-            losing_playbook = _has(current_scope, "playbook") and not _has(new_scope, "playbook")
-            
+            losing_trades = scope_contains(current_scope, "trades") and not scope_contains(new_scope, "trades")
+            losing_checkins = scope_contains(current_scope, "checkins") and not scope_contains(new_scope, "checkins")
+            losing_playbook = scope_contains(current_scope, "playbook") and not scope_contains(new_scope, "playbook")
+
             if (losing_trades and trade_count > 0) or (losing_checkins and checkin_count > 0) or (losing_playbook and playbook_count > 0):
                 raise TaxonomyValidationError(f"Cannot remove a scope that is currently in use (trade_count={trade_count}, checkin_count={checkin_count}, playbook_count={playbook_count})")
 
@@ -131,8 +126,7 @@ class TaxonomyService:
             return None
 
         assignment_counts = await self._repo.count_assignments(taxonomy_id)
-        trade_count, checkin_count = assignment_counts[0], assignment_counts[1]
-        playbook_count = assignment_counts[2] if len(assignment_counts) > 2 else 0
+        trade_count, checkin_count, playbook_count = assignment_counts
         if trade_count + checkin_count + playbook_count == 0:
             await self._repo.delete(item)
             if user_id is not None:
