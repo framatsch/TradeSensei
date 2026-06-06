@@ -58,7 +58,7 @@ async def _create_playbook(client: AsyncClient, headers: dict[str, str], suffix:
 
 
 async def _create_taxonomy(
-    client: AsyncClient, headers: dict[str, str], scope: str = "both", suffix: str = ""
+    client: AsyncClient, headers: dict[str, str], scope: str = "checkins,playbook,trades", suffix: str = ""
 ) -> str:
     uid = uuid.uuid4().hex[:6]
     resp = await client.post(
@@ -74,10 +74,10 @@ async def _create_taxonomy(
 class TestAssignPlaybookTaxonomy:
     """Tests for POST /api/v1/playbooks/{playbook_id}/taxonomies."""
 
-    async def test_assign_taxonomy_scope_both_returns_201(self, client: AsyncClient) -> None:
-        headers = await _get_auth_headers(client, "both")
-        playbook_id = await _create_playbook(client, headers, "both")
-        taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="both")
+    async def test_assign_taxonomy_scope_all_returns_201(self, client: AsyncClient) -> None:
+        headers = await _get_auth_headers(client, "all")
+        playbook_id = await _create_playbook(client, headers, "all")
+        taxonomy_id = await _create_taxonomy(client, headers, scope="checkins,playbook,trades", suffix="all")
 
         resp = await client.post(
             f"/api/v1/playbooks/{playbook_id}/taxonomies",
@@ -126,7 +126,7 @@ class TestAssignPlaybookTaxonomy:
     async def test_assign_archived_taxonomy_returns_422(self, client: AsyncClient) -> None:
         headers = await _get_auth_headers(client, "arch")
         playbook_id = await _create_playbook(client, headers, "arch")
-        taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="arch")
+        taxonomy_id = await _create_taxonomy(client, headers, scope="checkins,playbook,trades", suffix="arch_all")
 
         # Archive by assigning to a trade and then deleting the taxonomy 
         # (DELETE archives when assignments exist).
@@ -187,7 +187,7 @@ class TestAssignPlaybookTaxonomy:
     async def test_assign_duplicate_returns_409(self, client: AsyncClient) -> None:
         headers = await _get_auth_headers(client, "dup")
         playbook_id = await _create_playbook(client, headers, "dup")
-        taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="dup")
+        taxonomy_id = await _create_taxonomy(client, headers, scope="checkins,playbook,trades", suffix="dup")
 
         await client.post(
             f"/api/v1/playbooks/{playbook_id}/taxonomies",
@@ -205,7 +205,7 @@ class TestAssignPlaybookTaxonomy:
         self, client: AsyncClient, other_users_playbook: dict
     ) -> None:
         headers = await _get_auth_headers(client, "xpb")
-        taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="xpb")
+        taxonomy_id = await _create_taxonomy(client, headers, scope="checkins,playbook,trades", suffix="xpb")
 
         resp = await client.post(
             f"/api/v1/playbooks/{other_users_playbook['id']}/taxonomies",
@@ -222,7 +222,7 @@ class TestListPlaybookTaxonomies:
     async def test_list_returns_200_with_assigned_taxonomies(self, client: AsyncClient) -> None:
         headers = await _get_auth_headers(client, "lst")
         playbook_id = await _create_playbook(client, headers, "lst")
-        taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="lst")
+        taxonomy_id = await _create_taxonomy(client, headers, scope="checkins,playbook,trades", suffix="lst")
 
         await client.post(
             f"/api/v1/playbooks/{playbook_id}/taxonomies",
@@ -259,7 +259,7 @@ class TestRemovePlaybookTaxonomy:
     async def test_delete_existing_assignment_returns_204(self, client: AsyncClient) -> None:
         headers = await _get_auth_headers(client, "del")
         playbook_id = await _create_playbook(client, headers, "del")
-        taxonomy_id = await _create_taxonomy(client, headers, scope="both", suffix="del")
+        taxonomy_id = await _create_taxonomy(client, headers, scope="checkins,playbook,trades", suffix="del")
 
         await client.post(
             f"/api/v1/playbooks/{playbook_id}/taxonomies",

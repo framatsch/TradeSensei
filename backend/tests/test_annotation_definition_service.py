@@ -31,7 +31,7 @@ from app.schemas.annotation_definition import (
 from app.services.annotation_definition_service import AnnotationDefinitionService
 
 
-def _definition_obj(*, scope: str = "both", type_value: str = "int", is_archived: bool = False) -> SimpleNamespace:
+def _definition_obj(*, scope: str = "checkins,trades", type_value: str = "int", is_archived: bool = False) -> SimpleNamespace:
     now = datetime.now(tz=UTC)
     return SimpleNamespace(
         id=uuid.uuid4(),
@@ -104,7 +104,7 @@ async def test_update_blocks_type_change(
 async def test_update_blocks_scope_narrowing_with_assignments(
     service: AnnotationDefinitionService,
 ) -> None:
-    definition = _definition_obj(scope="both")
+    definition = _definition_obj(scope="checkins,trades")
     service._repo.get_by_id = AsyncMock(return_value=definition)  # type: ignore[method-assign]
     service._repo.count_assignments = AsyncMock(return_value=(2, 0))  # type: ignore[method-assign]
 
@@ -117,7 +117,7 @@ async def test_update_blocks_scope_narrowing_with_assignments(
 async def test_update_allows_scope_change_without_excluded_assignments(
     service: AnnotationDefinitionService,
 ) -> None:
-    definition = _definition_obj(scope="both")
+    definition = _definition_obj(scope="checkins,trades")
     updated = _definition_obj(scope="trades")
     updated.id = definition.id
     service._repo.get_by_id = AsyncMock(return_value=definition)  # type: ignore[method-assign]

@@ -25,7 +25,7 @@ from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
 from app.services.taxonomy_service import TaxonomyService
 
 
-def _taxonomy_obj(*, scope: str = "both", is_archived: bool = False) -> SimpleNamespace:
+def _taxonomy_obj(*, scope: str = "checkins,trades", is_archived: bool = False) -> SimpleNamespace:
     now = datetime.now(tz=UTC)
     return SimpleNamespace(
         id=uuid.uuid4(),
@@ -50,7 +50,7 @@ def service(mock_session: AsyncMock) -> TaxonomyService:
 async def test_delete_hard_delete_when_no_assignments(service: TaxonomyService) -> None:
     taxonomy = _taxonomy_obj()
     service._repo.get_by_id = AsyncMock(return_value=taxonomy)  # type: ignore[method-assign]
-    service._repo.count_assignments = AsyncMock(return_value=(0, 0))  # type: ignore[method-assign]
+    service._repo.count_assignments = AsyncMock(return_value=(0, 0, 0))  # type: ignore[method-assign]
     service._repo.delete = AsyncMock()  # type: ignore[method-assign]
 
     result = await service.delete(taxonomy.id)
@@ -63,10 +63,10 @@ async def test_delete_hard_delete_when_no_assignments(service: TaxonomyService) 
 @pytest.mark.asyncio
 async def test_delete_soft_delete_when_assignments_exist(service: TaxonomyService) -> None:
     taxonomy = _taxonomy_obj()
-    archived = _taxonomy_obj(scope="both", is_archived=True)
+    archived = _taxonomy_obj(scope="checkins,trades", is_archived=True)
     archived.id = taxonomy.id
     service._repo.get_by_id = AsyncMock(return_value=taxonomy)  # type: ignore[method-assign]
-    service._repo.count_assignments = AsyncMock(return_value=(1, 0))  # type: ignore[method-assign]
+    service._repo.count_assignments = AsyncMock(return_value=(1, 0, 0))  # type: ignore[method-assign]
     service._repo.archive = AsyncMock(return_value=archived)  # type: ignore[method-assign]
 
     result = await service.delete(taxonomy.id)
@@ -81,9 +81,9 @@ async def test_delete_soft_delete_when_assignments_exist(service: TaxonomyServic
 async def test_update_blocks_scope_narrowing_with_assignments(
     service: TaxonomyService,
 ) -> None:
-    taxonomy = _taxonomy_obj(scope="both")
+    taxonomy = _taxonomy_obj(scope="checkins,trades")
     service._repo.get_by_id = AsyncMock(return_value=taxonomy)  # type: ignore[method-assign]
-    service._repo.count_assignments = AsyncMock(return_value=(0, 2))  # type: ignore[method-assign]
+    service._repo.count_assignments = AsyncMock(return_value=(0, 2, 0))  # type: ignore[method-assign]
 
     with pytest.raises(TaxonomyValidationError, match="is currently in use"):
         await service.update(taxonomy.id, TaxonomyUpdate(scope="trades"))
@@ -94,11 +94,11 @@ async def test_update_blocks_scope_narrowing_with_assignments(
 async def test_update_allows_scope_change_without_excluded_assignments(
     service: TaxonomyService,
 ) -> None:
-    taxonomy = _taxonomy_obj(scope="both")
+    taxonomy = _taxonomy_obj(scope="checkins,trades")
     updated = _taxonomy_obj(scope="trades")
     updated.id = taxonomy.id
     service._repo.get_by_id = AsyncMock(return_value=taxonomy)  # type: ignore[method-assign]
-    service._repo.count_assignments = AsyncMock(return_value=(3, 0))  # type: ignore[method-assign]
+    service._repo.count_assignments = AsyncMock(return_value=(3, 0, 0))  # type: ignore[method-assign]
     service._repo.update = AsyncMock(return_value=updated)  # type: ignore[method-assign]
 
     result = await service.update(taxonomy.id, TaxonomyUpdate(scope="trades"))
