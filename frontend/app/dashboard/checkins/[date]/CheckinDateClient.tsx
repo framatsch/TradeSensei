@@ -16,7 +16,6 @@
 "use client";
 
 import { useCheckinEntry, useCreateCheckin, useUpdateCheckin, useDeleteCheckin } from "@/hooks/useCheckins";
-import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { CheckinForm } from "@/components/checkin/CheckinForm";
 import type { DailyCheckinCreate, DailyCheckinUpdate } from "@/lib/api/types.gen";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
@@ -31,7 +30,6 @@ interface Props {
 export function CheckinDateClient({ date }: Props) {
   const router = useRouter();
   const { data: entry, isLoading: isEntryLoading } = useCheckinEntry(date);
-  const { data: phases, isLoading: isPhasesLoading } = useGetTaxonomies("checkins");
 
   const createMutation = useCreateCheckin();
   const updateMutation = useUpdateCheckin();
@@ -60,7 +58,7 @@ export function CheckinDateClient({ date }: Props) {
     }
   };
 
-  const isLoading = isEntryLoading || isPhasesLoading;
+  const isLoading = isEntryLoading;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">

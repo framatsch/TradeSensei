@@ -126,7 +126,7 @@ class DailyCheckinRepository:
     ) -> tuple[Sequence[DailyCheckin], date | None, int]:
         """Cursor-paginated check-ins ordered by date descending."""
         clamped_limit = max(1, min(limit, 90))
-        base_stmt = select(DailyCheckin).where(DailyCheckin.user_id == user_id).options(selectinload(DailyCheckin.target_indices))
+        base_stmt = select(DailyCheckin).where(DailyCheckin.user_id == user_id).options(selectinload(DailyCheckin.target_indices), selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy), selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition))
         if from_date is not None:
             base_stmt = base_stmt.where(DailyCheckin.date >= from_date)
         if to_date is not None:
@@ -137,6 +137,7 @@ class DailyCheckinRepository:
         if taxonomy_ids is not None and len(taxonomy_ids) > 0:
             base_stmt = base_stmt.join(
                 CheckinTaxonomy,
+                # Use OR semantics for REST API (consistent with trade list)
                 and_(CheckinTaxonomy.checkin_id == DailyCheckin.id, CheckinTaxonomy.taxonomy_id.in_(taxonomy_ids)),
             )
         if annotation_filters:
@@ -149,9 +150,9 @@ class DailyCheckinRepository:
                 annotation_filters,
             )
         if has_media is True:
-            base_stmt = base_stmt.where(text("daily_checkins.screenshot_urls IS NOT NULL AND daily_checkins.screenshot_urls != '[]'::jsonb"))
+            base_stmt = base_stmt.where(func.cardinality(DailyCheckin.screenshot_urls) > 0)
         elif has_media is False:
-            base_stmt = base_stmt.where(text("daily_checkins.screenshot_urls IS NULL OR daily_checkins.screenshot_urls = '[]'::jsonb"))
+            base_stmt = base_stmt.where(func.cardinality(DailyCheckin.screenshot_urls) == 0)
 
         page_stmt = base_stmt
         if cursor is not None:

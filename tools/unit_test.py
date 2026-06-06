@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -11,7 +12,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#!/usr/bin/env python3
 """Unit and integration test runner for the tradesensei backend.
 
 Runs pytest via uv against the backend test suite with proper

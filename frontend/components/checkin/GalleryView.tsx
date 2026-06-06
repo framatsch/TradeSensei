@@ -37,7 +37,7 @@ export function GalleryView() {
       : undefined;
 
   // Fetch more items for the gallery view
-  const { data, isLoading } = useCheckinEntries(
+  const { data, isLoading, isError } = useCheckinEntries(
     filter.from_date ?? undefined,
     filter.to_date ?? undefined,
     targetIndicesStr,
@@ -47,6 +47,14 @@ export function GalleryView() {
     (filter.page - 1) * (filter.perPage * 2)
   );
 
+  if (isError) {
+    return (
+      <div className="p-12 text-center text-destructive border rounded-xl border-dashed bg-destructive/5">
+        <p className="font-semibold">Failed to load check-ins</p>
+        <p className="text-sm opacity-80 mt-1">Please check your filters or try again later.</p>
+      </div>
+    );
+  }
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading check-ins...</div>;
   }

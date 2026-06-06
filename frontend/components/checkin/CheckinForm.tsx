@@ -128,7 +128,6 @@ export function CheckinForm({
     if (isNew) {
       const payload: DailyCheckinCreate = {
         date,
-        market_phase: null,
         target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks.length > 0 ? newsLinks : undefined,
@@ -137,7 +136,6 @@ export function CheckinForm({
       onSave(payload);
     } else {
       const payload: DailyCheckinUpdate = {
-        market_phase: null,
         target_index_ids: targetIndexIds,
         notes: showNotes,
         news_links: newsLinks,
@@ -287,7 +285,7 @@ export function CheckinForm({
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)] focus:border-primary transition-colors resize-y"
           />
         ) : (
-          <div className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-foreground min-h-[148px] prose prose-sm dark:prose-invert max-w-none">
+          <div className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-foreground min-h-[148px] prose prose-sm max-w-none">
             {notes.trim() ? (
               <ReactMarkdown>{notes}</ReactMarkdown>
             ) : (

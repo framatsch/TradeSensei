@@ -53,7 +53,7 @@ def _get_service(
     return DailyCheckinService(session)
 
 
-def _parse_taxonomy_ids(raw: str | None) -> list[uuid.UUID] | None:
+def _parse_uuid_list(raw: str | None, param_name: str) -> list[uuid.UUID] | None:
     """Parse a comma-separated string of UUIDs into a list."""
     if not raw:
         return None
@@ -62,21 +62,16 @@ def _parse_taxonomy_ids(raw: str | None) -> list[uuid.UUID] | None:
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid taxonomy_ids format — expected comma-separated UUIDs.",
+            detail=f"Invalid {param_name} format — expected comma-separated UUIDs.",
         ) from exc
+
+
+def _parse_taxonomy_ids(raw: str | None) -> list[uuid.UUID] | None:
+    return _parse_uuid_list(raw, "taxonomy_ids")
 
 
 def _parse_target_indices(raw: str | None) -> list[uuid.UUID] | None:
-    """Parse a comma-separated string of UUIDs into a list."""
-    if not raw:
-        return None
-    try:
-        return [uuid.UUID(tid.strip()) for tid in raw.split(",") if tid.strip()]
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid target_indices format — expected comma-separated UUIDs.",
-        ) from exc
+    return _parse_uuid_list(raw, "target_indices")
 
 
 def _parse_annotation_filters(raw: str | None) -> list[AnnotationFilterItem] | None:
@@ -174,6 +169,8 @@ async def list_checkins(
     offset: int | None = Query(None, description="Numeric offset for pagination."),
     limit: int = 30,
 ) -> ResponseEnvelope[DailyCheckinListResponse]:
+    if cursor is not None and offset is not None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Provide 'cursor' or 'offset', not both.")
     target_indices_list = _parse_target_indices(target_indices)
     taxonomy_ids_list = _parse_taxonomy_ids(taxonomy_ids)
     annotation_filters_list = _parse_annotation_filters(annotation_filters)

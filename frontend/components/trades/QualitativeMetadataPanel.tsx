@@ -178,11 +178,6 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
         <div>
           <div className="flex justify-between items-center mb-1.5">
             <label className="block text-sm font-medium text-foreground">Tags (Taxonomies)</label>
-            {isEditing && (
-              <Link href="/dashboard/library/tags" className="text-xs text-primary hover:underline" target="_blank">
-                Manage Tags
-              </Link>
-            )}
           </div>
           <TaxonomySelector
             taxonomies={activeTaxonomies}
@@ -196,11 +191,6 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
         <div>
           <div className="flex justify-between items-center mb-1.5">
             <label className="block text-sm font-medium text-foreground">Annotations</label>
-            {isEditing && (
-              <Link href="/dashboard/settings" className="text-xs text-primary hover:underline" target="_blank">
-                Manage Annotations
-              </Link>
-            )}
           </div>
           <AnnotationInputs
             definitions={annotationDefs}

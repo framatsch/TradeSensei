@@ -64,9 +64,10 @@ async def list_taxonomies(
     _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TaxonomyService, Depends(_get_service)],
     scope: Annotated[str | None, Query()] = None,
+    show_archived: Annotated[bool, Query()] = False,
 ) -> ResponseEnvelope[list[TaxonomyResponse]]:
-    """List non-archived taxonomies with optional scope filter."""
-    items = await service.list(user_id=_current_user.id, scope=scope)
+    """List taxonomies with optional scope filter. Excludes archived by default."""
+    items = await service.list(user_id=_current_user.id, scope=scope, show_archived=show_archived)
     return ResponseEnvelope[list[TaxonomyResponse]](data=items)
 
 
@@ -124,10 +125,11 @@ async def delete_taxonomy(
     taxonomy_id: uuid.UUID,
     _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TaxonomyService, Depends(_get_service)],
+    force: bool = False,
 ) -> ResponseEnvelope[TaxonomyResponse] | Response:
-    """Delete taxonomy; archives instead when assignments exist."""
+    """Delete taxonomy; archives instead when assignments exist, unless force=True."""
     try:
-        result = await service.delete(user_id=_current_user.id, taxonomy_id=taxonomy_id)
+        result = await service.delete(user_id=_current_user.id, taxonomy_id=taxonomy_id, force=force)
     except TaxonomyNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
@@ -135,3 +137,63 @@ async def delete_taxonomy(
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     return ResponseEnvelope[TaxonomyResponse](data=result)
+
+
+@router.patch(
+    "/{taxonomy_id}/archive",
+    response_model=ResponseEnvelope[TaxonomyResponse],
+    summary="Archive taxonomy",
+)
+async def archive_taxonomy(
+    taxonomy_id: uuid.UUID,
+    _current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[TaxonomyService, Depends(_get_service)],
+) -> ResponseEnvelope[TaxonomyResponse]:
+    """Archive a taxonomy definition."""
+    try:
+        result = await service.archive(taxonomy_id=taxonomy_id, user_id=_current_user.id)
+    except TaxonomyNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope[TaxonomyResponse](data=result)
+
+
+@router.patch(
+    "/{taxonomy_id}/unarchive",
+    response_model=ResponseEnvelope[TaxonomyResponse],
+    summary="Unarchive taxonomy",
+)
+async def unarchive_taxonomy(
+    taxonomy_id: uuid.UUID,
+    _current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[TaxonomyService, Depends(_get_service)],
+) -> ResponseEnvelope[TaxonomyResponse]:
+    """Unarchive a taxonomy definition."""
+    try:
+        result = await service.unarchive(taxonomy_id=taxonomy_id, user_id=_current_user.id)
+    except TaxonomyNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope[TaxonomyResponse](data=result)
+
+
+@router.get(
+    "/{taxonomy_id}/assignments/count",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Get taxonomy assignment counts",
+)
+async def get_taxonomy_assignments_count(
+    taxonomy_id: uuid.UUID,
+    _current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[TaxonomyService, Depends(_get_service)],
+) -> ResponseEnvelope[dict[str, int]]:
+    """Return assignment counts (trades, checkins, playbooks) for a taxonomy."""
+    counts = await service._repo.count_assignments(taxonomy_id)
+    trade_count, checkin_count = counts[0], counts[1]
+    playbook_count = counts[2] if len(counts) > 2 else 0
+    total_count = trade_count + checkin_count + playbook_count
+    return ResponseEnvelope[dict[str, int]](data={
+        "trade_count": trade_count,
+        "checkin_count": checkin_count,
+        "playbook_count": playbook_count,
+        "total_count": total_count,
+    })

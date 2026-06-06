@@ -31,16 +31,6 @@ from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionRead
 from app.schemas.note import TradeNoteRead
 from app.schemas.taxonomy import TaxonomyResponse
 
-__all__ = [
-    "AssetClass",
-    "Direction",
-    "TradeCreate",
-    "TradeRead",
-    "TradeUpdate",
-    "TradeFilterParams",
-    "TradeSortField",
-    "TradeSortParams",
-]
 
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
 _UNSET: object = object()
@@ -1030,7 +1020,8 @@ class TradeRead(BaseModel):
             if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
                 with contextlib.suppress(Exception):
                     data.__dict__["taxonomies"] = [
-                        assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"] if getattr(assignment, "taxonomy", None) is not None
+                        assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"]
+                        if getattr(assignment, "taxonomy", None) is not None
                     ]
 
             if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:

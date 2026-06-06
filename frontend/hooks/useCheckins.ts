@@ -102,8 +102,6 @@ export function useCreateCheckin() {
   });
 }
 
-
-
 export function useUpdateCheckin() {
   const qc = useQueryClient();
   return useMutation<DailyCheckinRead, Error, { date: string; payload: DailyCheckinUpdate }>({
@@ -120,8 +118,6 @@ export function useUpdateCheckin() {
     },
   });
 }
-
-
 
 export function useDeleteCheckin() {
   const qc = useQueryClient();

@@ -38,7 +38,7 @@ export function TimelineView() {
       ? JSON.stringify(filter.annotation_filters)
       : undefined;
 
-  const { data, isLoading } = useCheckinEntries(
+  const { data, isLoading, isError } = useCheckinEntries(
     filter.from_date ?? undefined,
     filter.to_date ?? undefined,
     targetIndicesStr,
@@ -48,6 +48,14 @@ export function TimelineView() {
     (filter.page - 1) * filter.perPage
   );
 
+  if (isError) {
+    return (
+      <div className="p-12 text-center text-destructive border rounded-xl border-dashed bg-destructive/5">
+        <p className="font-semibold">Failed to load check-ins</p>
+        <p className="text-sm opacity-80 mt-1">Please check your filters or try again later.</p>
+      </div>
+    );
+  }
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading check-ins...</div>;
   }
@@ -70,7 +78,7 @@ export function TimelineView() {
           <div
             key={checkin.id}
             onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
-            className="group relative bg-card border rounded-xl shadow-sm flex flex-col sm:flex-row cursor-pointer hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] transition-colors overflow-hidden"
+            className="group relative bg-card border rounded-xl shadow-sm flex flex-col sm:flex-row cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
             style={{ borderLeftWidth: "4px", borderLeftColor: colorHex }}
           >
             {/* Image Thumbnail on the left */}
@@ -109,7 +117,7 @@ export function TimelineView() {
                       {checkin.target_indices.map((index) => (
                         <span
                           key={index.id}
-                          className="px-2 py-0.5 rounded-md text-xs font-bold border bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border-[color-mix(in_srgb,var(--primary)_20%,transparent)] shadow-sm"
+                          className="px-2 py-0.5 rounded-md text-xs font-bold border bg-primary/10 text-primary border-primary/20 shadow-sm"
                           title={index.name}
                         >
                           {index.symbol}
@@ -134,7 +142,7 @@ export function TimelineView() {
                     {checkin.taxonomies.map((ta) => (
                       <span
                         key={ta.id}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
                       >
                         <Tag className="w-2.5 h-2.5" />
                         {ta.name}

@@ -50,7 +50,7 @@ export function RegimePills() {
                 : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
             }`}
             style={{
-              borderColor: isActive ? phase.color_hex : `${phase.color_hex}40`,
+              borderColor: isActive ? (phase.color_hex ?? "var(--border)") : `${phase.color_hex ?? "var(--border)"}40`,
             }}
           >
             {phase.name}

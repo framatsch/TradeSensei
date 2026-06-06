@@ -79,7 +79,7 @@ function SingleAnnotationInput({ definition, value, onChange, onClear, isEditMod
           aria-label={`Toggle ${definition.name}`}
         >
           <span
-            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${value ? "translate-x-4" : "translate-x-0.5"}`}
+            className={`absolute top-0.5 h-4 w-4 rounded-full bg-primary-foreground shadow transition-transform ${value ? "translate-x-4" : "translate-x-0.5"}`}
           />
         </button>
         <span className="text-sm text-muted-foreground">{value ? "Yes" : "No"}</span>
@@ -100,6 +100,7 @@ function SingleAnnotationInput({ definition, value, onChange, onClear, isEditMod
     return (
       <div className="flex items-center gap-1.5">
         <select
+          aria-label={definition.name}
           value={hasValue ? String(value) : ""}
           onChange={(e) => onChange(e.target.value || null)}
           className={inputClass}
@@ -130,6 +131,7 @@ function SingleAnnotationInput({ definition, value, onChange, onClear, isEditMod
   return (
     <div className="flex items-center gap-1.5">
       <input
+        aria-label={definition.name}
         type="number"
         step={isFloat ? "any" : "1"}
         min={scaleMeta?.min}

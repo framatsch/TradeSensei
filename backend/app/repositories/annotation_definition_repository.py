@@ -13,6 +13,7 @@
 
 """Repository for annotation definition persistence and assignment counts."""
 
+import builtins
 import uuid
 from typing import Any
 
@@ -145,6 +146,12 @@ class AnnotationDefinitionRepository:
         )
         return int(trade_result.scalar_one() or 0), int(checkin_result.scalar_one() or 0)
 
+    async def delete_assignments(self, definition_id: uuid.UUID) -> None:
+        from sqlalchemy import delete
+        await self._session.execute(delete(TradeAnnotation).where(TradeAnnotation.annotation_definition_id == definition_id))
+        await self._session.execute(delete(CheckinAnnotation).where(CheckinAnnotation.annotation_definition_id == definition_id))
+        await self._session.flush()
+
     async def delete(self, definition: AnnotationDefinition) -> None:
         await self._session.delete(definition)
         await self._session.flush()
@@ -155,3 +162,21 @@ class AnnotationDefinitionRepository:
         await self._session.flush()
         await self._session.refresh(definition)
         return definition
+
+    async def unarchive(self, definition: AnnotationDefinition) -> AnnotationDefinition:
+        definition.is_archived = False
+        self._session.add(definition)
+        await self._session.flush()
+        await self._session.refresh(definition)
+        return definition
+
+    async def list_including_archived(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[AnnotationDefinition]:
+        stmt = (
+            select(AnnotationDefinition)
+            .where(AnnotationDefinition.user_id == user_id)
+            .order_by(AnnotationDefinition.name.asc())
+        )
+        if scope is not None:
+            stmt = stmt.where(AnnotationDefinition.scope.in_([scope, "both"]))
+        result = await self._session.execute(stmt)
+        return builtins.list(result.scalars().all())

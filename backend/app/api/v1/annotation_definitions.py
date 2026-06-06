@@ -71,9 +71,10 @@ async def list_annotation_definitions(
     _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AnnotationDefinitionService, Depends(_get_service)],
     scope: Annotated[str | None, Query()] = None,
+    show_archived: Annotated[bool, Query()] = False,
 ) -> ResponseEnvelope[list[AnnotationDefinitionResponse]]:
-    """List non-archived annotation definitions with optional scope filter."""
-    items = await service.list(user_id=_current_user.id, scope=scope)
+    """List annotation definitions with optional scope filter. Excludes archived by default."""
+    items = await service.list(user_id=_current_user.id, scope=scope, show_archived=show_archived)
     return ResponseEnvelope[list[AnnotationDefinitionResponse]](data=items)
 
 
@@ -126,10 +127,11 @@ async def delete_annotation_definition(
     definition_id: uuid.UUID,
     _current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AnnotationDefinitionService, Depends(_get_service)],
+    force: bool = False,
 ) -> ResponseEnvelope[AnnotationDefinitionResponse] | Response:
-    """Delete annotation definition; archives instead when assignments exist."""
+    """Delete annotation definition; archives instead when assignments exist, unless force=True."""
     try:
-        result = await service.delete(user_id=_current_user.id, definition_id=definition_id)
+        result = await service.delete(user_id=_current_user.id, definition_id=definition_id, force=force)
     except AnnotationDefinitionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
@@ -137,3 +139,61 @@ async def delete_annotation_definition(
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     return ResponseEnvelope[AnnotationDefinitionResponse](data=result)
+
+
+@router.patch(
+    "/{definition_id}/archive",
+    response_model=ResponseEnvelope[AnnotationDefinitionResponse],
+    summary="Archive annotation definition",
+)
+async def archive_annotation_definition(
+    definition_id: uuid.UUID,
+    _current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AnnotationDefinitionService, Depends(_get_service)],
+) -> ResponseEnvelope[AnnotationDefinitionResponse]:
+    """Archive an annotation definition."""
+    try:
+        result = await service.archive(definition_id=definition_id, user_id=_current_user.id)
+    except AnnotationDefinitionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope[AnnotationDefinitionResponse](data=result)
+
+
+@router.patch(
+    "/{definition_id}/unarchive",
+    response_model=ResponseEnvelope[AnnotationDefinitionResponse],
+    summary="Unarchive annotation definition",
+)
+async def unarchive_annotation_definition(
+    definition_id: uuid.UUID,
+    _current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AnnotationDefinitionService, Depends(_get_service)],
+) -> ResponseEnvelope[AnnotationDefinitionResponse]:
+    """Unarchive an annotation definition."""
+    try:
+        result = await service.unarchive(definition_id=definition_id, user_id=_current_user.id)
+    except AnnotationDefinitionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope[AnnotationDefinitionResponse](data=result)
+
+
+@router.get(
+    "/{definition_id}/assignments/count",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Get annotation definition assignment counts",
+)
+async def get_annotation_definition_assignments_count(
+    definition_id: uuid.UUID,
+    _current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AnnotationDefinitionService, Depends(_get_service)],
+) -> ResponseEnvelope[dict[str, int]]:
+    """Return assignment counts (trades, checkins) for an annotation definition."""
+    counts = await service._repo.count_assignments(definition_id)
+    trade_count, checkin_count = counts[0], counts[1]
+    total_count = trade_count + checkin_count
+    return ResponseEnvelope[dict[str, int]](data={
+        "trade_count": trade_count,
+        "checkin_count": checkin_count,
+        "total_count": total_count,
+    })

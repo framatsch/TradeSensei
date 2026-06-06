@@ -1,7 +1,10 @@
+## Purpose
+Define how users save, update, and delete reusable check-in filter configurations.
+
 ## Requirements
 
 ### Requirement: Save Checkin Filters
-The system SHALL allow users to save their current check-in filter configuration (date range, regime, target indices) under a custom name.
+The system SHALL allow users to save their current check-in filter configuration (date range, regime, target indices, has media) under a custom name.
 
 #### Scenario: User saves a new checkin filter view
 - **WHEN** the user configures filters and clicks "Save View"

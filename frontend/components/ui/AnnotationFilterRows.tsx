@@ -24,6 +24,7 @@ export interface AnnotationFilterRow {
   operator: string;
   value: string | number | boolean;
   logic: "and" | "or";
+  _key?: string;
 }
 
 const OPERATORS_BY_TYPE: Record<string, { value: string; label: string }[]> = {
@@ -80,6 +81,7 @@ function AnnotationValueInput({ definition, value, onChange }: AnnotationValueIn
   if (definition.type === "bool") {
     return (
       <select
+        aria-label={`${definition.name} value`}
         value={String(value)}
         onChange={(e) => onChange(e.target.value === "true")}
         className={CHIP_INPUT}
@@ -95,6 +97,7 @@ function AnnotationValueInput({ definition, value, onChange }: AnnotationValueIn
       (definition.scale_labels as { options?: string[] })?.options ?? [];
     return (
       <select
+        aria-label={`${definition.name} value`}
         value={String(value)}
         onChange={(e) => onChange(e.target.value)}
         className={CHIP_INPUT}
@@ -147,6 +150,7 @@ export function AnnotationFilterRows({
         operator: defaultOperatorForType(def.type),
         value: defaultValueForType(def.type, def),
         logic: "and",
+        _key: crypto.randomUUID(),
       },
     ]);
   }, [definitions, rows, onChange]);
@@ -219,6 +223,7 @@ export function AnnotationFilterRows({
 
             {/* Definition selector */}
             <select
+              aria-label="Annotation field"
               value={row.annotation_definition_id}
               onChange={(e) =>
                 updateRow(idx, { annotation_definition_id: e.target.value })
@@ -237,6 +242,7 @@ export function AnnotationFilterRows({
 
             {/* Operator */}
             <select
+              aria-label="Operator"
               value={row.operator}
               onChange={(e) => updateRow(idx, { operator: e.target.value })}
               className={`${CHIP_INPUT} text-muted-foreground w-14`}

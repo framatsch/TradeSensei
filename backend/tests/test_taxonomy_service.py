@@ -85,7 +85,7 @@ async def test_update_blocks_scope_narrowing_with_assignments(
     service._repo.get_by_id = AsyncMock(return_value=taxonomy)  # type: ignore[method-assign]
     service._repo.count_assignments = AsyncMock(return_value=(0, 2))  # type: ignore[method-assign]
 
-    with pytest.raises(TaxonomyValidationError, match="scope narrowing"):
+    with pytest.raises(TaxonomyValidationError, match="is currently in use"):
         await service.update(taxonomy.id, TaxonomyUpdate(scope="trades"))
 
 

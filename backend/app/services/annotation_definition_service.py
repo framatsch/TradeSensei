@@ -55,8 +55,11 @@ class AnnotationDefinitionService:
             await self._cache.invalidate_user(user_id)
         return AnnotationDefinitionResponse.model_validate(item)
 
-    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[AnnotationDefinitionResponse]:
-        items = await self._repo.list(user_id=user_id, scope=scope)
+    async def list(self, user_id: uuid.UUID, scope: str | None = None, show_archived: bool = False) -> list[AnnotationDefinitionResponse]:
+        if show_archived:
+            items = await self._repo.list_including_archived(user_id=user_id, scope=scope)
+        else:
+            items = await self._repo.list(user_id=user_id, scope=scope)
         return [AnnotationDefinitionResponse.model_validate(item) for item in items]
 
     async def get(self, user_id: uuid.UUID, definition_id: uuid.UUID) -> AnnotationDefinitionResponse:
@@ -96,15 +99,39 @@ class AnnotationDefinitionService:
             await self._cache.invalidate_user(user_id)
         return AnnotationDefinitionResponse.model_validate(updated)
 
+    async def archive(self, definition_id: uuid.UUID, user_id: uuid.UUID) -> AnnotationDefinitionResponse:
+        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
+        if item is None:
+            raise AnnotationDefinitionNotFoundError("annotation definition not found")
+        archived = await self._repo.archive(item)
+        await self._cache.invalidate_user(user_id)
+        return AnnotationDefinitionResponse.model_validate(archived)
+
+    async def unarchive(self, definition_id: uuid.UUID, user_id: uuid.UUID) -> AnnotationDefinitionResponse:
+        item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)
+        if item is None:
+            raise AnnotationDefinitionNotFoundError("annotation definition not found")
+        unarchived = await self._repo.unarchive(item)
+        await self._cache.invalidate_user(user_id)
+        return AnnotationDefinitionResponse.model_validate(unarchived)
+
     async def delete(
         self,
         definition_id: uuid.UUID,
         user_id: uuid.UUID | None = None,
+        force: bool = False,
     ) -> AnnotationDefinitionResponse | None:
         resolved_user_id = user_id or uuid.UUID(int=0)
         item = await self._repo.get_by_id(user_id=resolved_user_id, definition_id=definition_id)
         if item is None:
             raise AnnotationDefinitionNotFoundError("annotation definition not found")
+
+        if force:
+            await self._repo.delete_assignments(definition_id)
+            await self._repo.delete(item)
+            if user_id is not None:
+                await self._cache.invalidate_user(user_id)
+            return None
 
         trade_count, checkin_count = await self._repo.count_assignments(definition_id)
         if trade_count + checkin_count == 0:

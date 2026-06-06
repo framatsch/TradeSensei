@@ -17,7 +17,6 @@
 
 import { useCheckinFilter } from "@/components/checkin/CheckinFilterContext";
 import { useCheckinEntries } from "@/hooks/useCheckins";
-import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -29,7 +28,6 @@ export function CheckinMiniCalendar() {
   const router = useRouter();
   const params = useParams();
   const selectedDate = params?.date as string | undefined;
-  const { data: phases } = useGetTaxonomies("checkins");
 
   // Parse current month
   const currentDate = new Date(`${month}-01T00:00:00Z`);
@@ -62,8 +60,8 @@ export function CheckinMiniCalendar() {
     const map = new Map<string, string>();
     if (data?.items) {
       for (const checkin of data.items) {
-        if (checkin.market_phase) {
-          const phase = phases?.find(p => p.name === checkin.market_phase);
+        if (checkin.taxonomies && checkin.taxonomies.length > 0) {
+          const phase = checkin.taxonomies[0];
           map.set(checkin.date, phase?.color_hex ?? "#94a3b8");
         } else {
            map.set(checkin.date, "#94a3b8"); // fallback color
@@ -71,7 +69,7 @@ export function CheckinMiniCalendar() {
       }
     }
     return map;
-  }, [data, phases]);
+  }, [data]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
 

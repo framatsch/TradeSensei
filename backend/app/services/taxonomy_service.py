@@ -46,8 +46,11 @@ class TaxonomyService:
             await self._cache.invalidate_user(user_id)
         return TaxonomyResponse.model_validate(item)
 
-    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[TaxonomyResponse]:
-        items = await self._repo.list(user_id=user_id, scope=scope)
+    async def list(self, user_id: uuid.UUID, scope: str | None = None, show_archived: bool = False) -> list[TaxonomyResponse]:
+        if show_archived:
+            items = await self._repo.list_including_archived(user_id=user_id, scope=scope)
+        else:
+            items = await self._repo.list(user_id=user_id, scope=scope)
         return [TaxonomyResponse.model_validate(item) for item in items]
 
     async def get(self, user_id: uuid.UUID, taxonomy_id: uuid.UUID) -> TaxonomyResponse:
@@ -73,12 +76,17 @@ class TaxonomyService:
             assignment_counts = await self._repo.count_assignments(taxonomy_id)
             trade_count, checkin_count = assignment_counts[0], assignment_counts[1]
             playbook_count = assignment_counts[2] if len(assignment_counts) > 2 else 0
-            # Narrowing away from a scope that has existing assignments is blocked
-            losing_trades = current_scope in {"trades", "both"} and new_scope not in {"trades", "both"}
-            losing_checkins = current_scope in {"checkins", "both"} and new_scope not in {"checkins", "both"}
-            losing_playbook = current_scope in {"playbook", "both"} and new_scope not in {"playbook", "both"}
+            # Support multi-select comma-separated scopes (or old 'both')
+            def _has(scope_str: str, target: str) -> bool:
+                parts = [p.strip() for p in scope_str.split(",")]
+                return target in parts or "both" in parts
+
+            losing_trades = _has(current_scope, "trades") and not _has(new_scope, "trades")
+            losing_checkins = _has(current_scope, "checkins") and not _has(new_scope, "checkins")
+            losing_playbook = _has(current_scope, "playbook") and not _has(new_scope, "playbook")
+            
             if (losing_trades and trade_count > 0) or (losing_checkins and checkin_count > 0) or (losing_playbook and playbook_count > 0):
-                raise TaxonomyValidationError("scope narrowing is not permitted while assignments exist")
+                raise TaxonomyValidationError(f"Cannot remove a scope that is currently in use (trade_count={trade_count}, checkin_count={checkin_count}, playbook_count={playbook_count})")
 
         try:
             updated = await self._repo.update(item, payload)
@@ -88,15 +96,39 @@ class TaxonomyService:
             await self._cache.invalidate_user(user_id)
         return TaxonomyResponse.model_validate(updated)
 
+    async def archive(self, taxonomy_id: uuid.UUID, user_id: uuid.UUID) -> TaxonomyResponse:
+        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
+        if item is None:
+            raise TaxonomyNotFoundError("taxonomy not found")
+        archived = await self._repo.archive(item)
+        await self._cache.invalidate_user(user_id)
+        return TaxonomyResponse.model_validate(archived)
+
+    async def unarchive(self, taxonomy_id: uuid.UUID, user_id: uuid.UUID) -> TaxonomyResponse:
+        item = await self._repo.get_by_id(user_id=user_id, taxonomy_id=taxonomy_id)
+        if item is None:
+            raise TaxonomyNotFoundError("taxonomy not found")
+        unarchived = await self._repo.unarchive(item)
+        await self._cache.invalidate_user(user_id)
+        return TaxonomyResponse.model_validate(unarchived)
+
     async def delete(
         self,
         taxonomy_id: uuid.UUID,
         user_id: uuid.UUID | None = None,
+        force: bool = False,
     ) -> TaxonomyResponse | None:
         resolved_user_id = user_id or uuid.UUID(int=0)
         item = await self._repo.get_by_id(user_id=resolved_user_id, taxonomy_id=taxonomy_id)
         if item is None:
             raise TaxonomyNotFoundError("taxonomy not found")
+
+        if force:
+            await self._repo.delete_assignments(taxonomy_id)
+            await self._repo.delete(item)
+            if user_id is not None:
+                await self._cache.invalidate_user(user_id)
+            return None
 
         assignment_counts = await self._repo.count_assignments(taxonomy_id)
         trade_count, checkin_count = assignment_counts[0], assignment_counts[1]

@@ -16,10 +16,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { client } from "@/lib/api/client.gen";
 import {
+  archiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatch,
   createTaxonomyApiV1TaxonomiesPost,
-  deleteTaxonomyApiV1TaxonomiesTaxonomyIdDelete,
   listTaxonomiesApiV1TaxonomiesGet,
+  unarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatch,
   updateTaxonomyApiV1TaxonomiesTaxonomyIdPut,
 } from "@/lib/api/index";
 import type {
@@ -30,12 +32,15 @@ import type {
 
 const QUERY_KEY = ["taxonomies"] as const;
 
-export function useGetTaxonomies(scope?: "trades" | "checkins" | "both" | "playbook") {
+export function useGetTaxonomies(
+  scope?: "trades" | "checkins" | "both" | "playbook",
+  showArchived?: boolean,
+) {
   return useQuery<TaxonomyResponse[], Error>({
-    queryKey: [...QUERY_KEY, scope ?? "all"],
+    queryKey: [...QUERY_KEY, scope ?? "all", showArchived ?? false],
     queryFn: async () => {
       const { data, error } = await listTaxonomiesApiV1TaxonomiesGet({
-        query: { scope: scope ?? null },
+        query: { scope: scope ?? null, show_archived: showArchived ?? false },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as TaxonomyResponse[];
@@ -82,10 +87,12 @@ export function useUpdateTaxonomy() {
 export function useDeleteTaxonomy() {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, string>({
-    mutationFn: async (taxonomyId) => {
-      const { error } = await deleteTaxonomyApiV1TaxonomiesTaxonomyIdDelete({
-        path: { taxonomy_id: taxonomyId },
+  return useMutation<void, Error, { taxonomyId: string; force?: boolean }>({
+    mutationFn: async ({ taxonomyId, force }) => {
+      const { error } = await client.delete({
+        security: [{ scheme: "bearer", type: "http" }],
+        url: `/api/v1/taxonomies/${taxonomyId}`,
+        query: { force: force ?? false },
       });
       if (error) throw error ?? new Error("Request failed");
     },
@@ -93,4 +100,52 @@ export function useDeleteTaxonomy() {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
+}
+
+export function useArchiveTaxonomy() {
+  const queryClient = useQueryClient();
+
+  return useMutation<TaxonomyResponse, Error, { taxonomyId: string }>({
+    mutationFn: async ({ taxonomyId }) => {
+      const { data, error } = await archiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatch({
+        path: { taxonomy_id: taxonomyId },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as TaxonomyResponse;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useUnarchiveTaxonomy() {
+  const queryClient = useQueryClient();
+
+  return useMutation<TaxonomyResponse, Error, { taxonomyId: string }>({
+    mutationFn: async ({ taxonomyId }) => {
+      const { data, error } = await unarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatch({
+        path: { taxonomy_id: taxonomyId },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as TaxonomyResponse;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export async function fetchTaxonomyAssignmentCount(taxonomyId: string) {
+  const { data, error } = await client.get<any>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: `/api/v1/taxonomies/${taxonomyId}/assignments/count`,
+  });
+  if (error || !data) throw error ?? new Error("Request failed");
+  return data.data as {
+    trade_count: number;
+    checkin_count: number;
+    playbook_count: number;
+    total_count: number;
+  };
 }

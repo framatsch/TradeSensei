@@ -16,10 +16,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { client } from "@/lib/api/client.gen";
 import {
+  archiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatch,
   createAnnotationDefinitionApiV1AnnotationDefinitionsPost,
-  deleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDelete,
   listAnnotationDefinitionsApiV1AnnotationDefinitionsGet,
+  unarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatch,
   updateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPut,
 } from "@/lib/api/index";
 import type {
@@ -30,14 +32,18 @@ import type {
 
 const QUERY_KEY = ["annotation-definitions"] as const;
 
-export function useGetAnnotationDefinitions(scope?: "trades" | "checkins" | "both") {
+export function useGetAnnotationDefinitions(
+  scope?: "trades" | "checkins" | "both",
+  showArchived?: boolean,
+) {
   return useQuery<AnnotationDefinitionResponse[], Error>({
-    queryKey: [...QUERY_KEY, scope ?? "all"],
+    queryKey: [...QUERY_KEY, scope ?? "all", showArchived ?? false],
     queryFn: async () => {
       const { data, error } = await listAnnotationDefinitionsApiV1AnnotationDefinitionsGet({
-        // Omit the query param entirely when no scope is requested — passing null
-        // would make the backend treat it as a filter for a null scope value.
-        query: scope ? { scope } : {},
+        query: {
+          ...(scope ? { scope } : {}),
+          show_archived: showArchived ?? false,
+        },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as AnnotationDefinitionResponse[];
@@ -84,10 +90,12 @@ export function useUpdateAnnotationDefinition() {
 export function useDeleteAnnotationDefinition() {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, string>({
-    mutationFn: async (definitionId) => {
-      const { error } = await deleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDelete({
-        path: { definition_id: definitionId },
+  return useMutation<void, Error, { definitionId: string; force?: boolean }>({
+    mutationFn: async ({ definitionId, force }) => {
+      const { error } = await client.delete({
+        security: [{ scheme: "bearer", type: "http" }],
+        url: `/api/v1/annotation-definitions/${definitionId}`,
+        query: { force: force ?? false },
       });
       if (error) throw error ?? new Error("Request failed");
     },
@@ -95,4 +103,51 @@ export function useDeleteAnnotationDefinition() {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
+}
+
+export function useArchiveAnnotationDefinition() {
+  const queryClient = useQueryClient();
+
+  return useMutation<AnnotationDefinitionResponse, Error, { definitionId: string }>({
+    mutationFn: async ({ definitionId }) => {
+      const { data, error } = await archiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatch({
+        path: { definition_id: definitionId },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as AnnotationDefinitionResponse;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useUnarchiveAnnotationDefinition() {
+  const queryClient = useQueryClient();
+
+  return useMutation<AnnotationDefinitionResponse, Error, { definitionId: string }>({
+    mutationFn: async ({ definitionId }) => {
+      const { data, error } = await unarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatch({
+        path: { definition_id: definitionId },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as AnnotationDefinitionResponse;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export async function fetchAnnotationDefinitionAssignmentCount(definitionId: string) {
+  const { data, error } = await client.get<any>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: `/api/v1/annotation-definitions/${definitionId}/assignments/count`,
+  });
+  if (error || !data) throw error ?? new Error("Request failed");
+  return data.data as {
+    trade_count: number;
+    checkin_count: number;
+    total_count: number;
+  };
 }

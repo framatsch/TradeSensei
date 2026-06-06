@@ -1,0 +1,14 @@
+<<<<
+        for (o_method, o_path), override in _ACTION_OVERRIDES.items():
+            if method == o_method and o_path.endswith("*") and path.startswith(o_path[:-1]):
+                # For wildcard matches, extract the resource_id if possible
+                resource_id = path[len(o_path) - 1 :] if len(path) > len(o_path) - 1 else None
+                if isinstance(override, tuple):
+                    return override[0], override[1], resource_id, None, None
+                return override, "checkin_filter" if "checkin_filter" in override else None, resource_id, None, None
+====
+        for (o_method, o_path), override in _WILDCARD_ACTION_OVERRIDES.items():
+            if method == o_method and path.startswith(o_path):
+                resource_id = path[len(o_path) :] or None
+                return override[0], override[1], resource_id, None, None
+>>>>

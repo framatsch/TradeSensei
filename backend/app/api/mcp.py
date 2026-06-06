@@ -394,6 +394,8 @@ async def _handle_sync_trade_metadata(
                 )
                 await db.execute(insert_stmt)
 
+    await db.flush()
+
     AuditEventService().create_audit_event(
         action="trade.bulk_metadata_synced",
         user_id=user_id,
@@ -643,6 +645,7 @@ async def _handle_list_checkins(
     if params.date_from is not None:
         query = query.where(DailyCheckin.date >= params.date_from)
     if params.date_to is not None:
+    # MCP uses AND semantics for taxonomies (strict intersection)
         query = query.where(DailyCheckin.date <= params.date_to)
 
     if params.taxonomy_ids:
@@ -783,6 +786,7 @@ async def _handle_sync_checkin_metadata(
                 )
                 await db.execute(insert_stmt)
 
+    await db.flush()
     AuditEventService().create_audit_event(
         action="checkin.bulk_metadata_synced",
         user_id=user_id,

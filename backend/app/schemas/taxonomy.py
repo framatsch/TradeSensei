@@ -22,14 +22,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
-ScopeType = Literal["trades", "checkins", "playbook", "both"]
-
-
 class TaxonomyCreate(BaseModel):
     """Payload for creating a taxonomy definition."""
 
     name: str = Field(..., min_length=1, max_length=100, description="Unique taxonomy name within a scope.")
-    scope: ScopeType = Field(..., description="Assignment scope: trades, checkins, or both.")
+    scope: str = Field(..., description="Comma-separated assignment scope (e.g. 'trades,checkins').")
     color_hex: str = Field(..., description="Hex color in #RRGGBB format.")
     description: str | None = Field(default=None, max_length=500, description="Optional taxonomy description.")
     icon_identifier: str | None = Field(
@@ -51,7 +48,7 @@ class TaxonomyUpdate(BaseModel):
     """Payload for updating a taxonomy definition."""
 
     name: str | None = Field(default=None, min_length=1, max_length=100, description="Updated taxonomy name.")
-    scope: ScopeType | None = Field(default=None, description="Updated assignment scope.")
+    scope: str | None = Field(default=None, description="Updated comma-separated assignment scope.")
     color_hex: str | None = Field(default=None, description="Updated hex color in #RRGGBB format.")
     description: str | None = Field(default=None, max_length=500, description="Updated description.")
     icon_identifier: str | None = Field(
@@ -78,7 +75,7 @@ class TaxonomyResponse(BaseModel):
 
     id: uuid.UUID = Field(..., description="Taxonomy identifier.")
     name: str = Field(..., description="Taxonomy name.")
-    scope: ScopeType = Field(..., description="Assignment scope.")
+    scope: str = Field(..., description="Assignment scope.")
     color_hex: str = Field(..., description="Hex color in #RRGGBB format.")
     description: str | None = Field(..., description="Optional taxonomy description.")
     icon_identifier: str | None = Field(..., description="Optional icon identifier.")

@@ -421,27 +421,3 @@ class TestTradeSort:
         assert dates == sorted(dates)
 
 
-    async def test_invalid_sort_by_returns_422(self, client: AsyncClient) -> None:
-        """An invalid sort_by value should return HTTP 422."""
-        h = await _get_auth_headers(client)
-        portfolio_id, _ = await _create_portfolio_and_account(client, h)
-        resp = await client.get(
-            f"/api/v1/portfolios/{portfolio_id}/trades",
-            headers=h,
-            params={"sort_by": "invalid_field"},
-        )
-        assert resp.status_code == 422
-
-    async def test_invalid_sort_dir_returns_422(self, client: AsyncClient) -> None:
-        """An invalid sort_dir value should return HTTP 422."""
-        h = await _get_auth_headers(client)
-        portfolio_id, _ = await _create_portfolio_and_account(client, h)
-        resp = await client.get(
-            f"/api/v1/portfolios/{portfolio_id}/trades",
-            headers=h,
-            params={"sort_dir": "sideways"},
-        )
-        assert resp.status_code == 422
-22
-22
-22

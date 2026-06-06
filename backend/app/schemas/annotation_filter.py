@@ -37,7 +37,7 @@ class AnnotationFilterItem(BaseModel):
     annotation_definition_id: uuid.UUID = Field(
         ..., description="UUID of the AnnotationDefinition to filter on."
     )
-    operator: str = Field(
+    operator: Literal["eq", "neq", "lt", "lte", "gt", "gte"] = Field(
         ..., description="Comparison operator: eq, neq, lt, lte, gt, gte."
     )
     value: int | float | bool | str = Field(

@@ -140,7 +140,11 @@ class DailyCheckinRead(BaseModel):
         """Map assignment relationships into response fields."""
         if not isinstance(data, dict):
             if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
-                taxonomies = [assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"] if getattr(assignment, "taxonomy", None) is not None]
+                taxonomies = [
+                    assignment.taxonomy
+                    for assignment in data.__dict__["taxonomy_assignments"]
+                    if getattr(assignment, "taxonomy", None) is not None
+                ]
                 data.__dict__["taxonomies"] = taxonomies
 
             if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:

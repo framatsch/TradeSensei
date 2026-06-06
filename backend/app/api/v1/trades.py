@@ -18,6 +18,7 @@ import uuid
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import (
@@ -33,11 +34,11 @@ from app.core.exceptions import (
     TradeNotFoundError,
     UnsupportedContentTypeError,
 )
+from app.models.trade import AssetClass
 from app.models.user import User
 from app.schemas.annotation_filter import AnnotationFilterItem
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.schemas.trade import (
-    AssetClass,
     BulkAssignPlaybookRequest,
     BulkAssignTaxonomiesRequest,
     BulkDeleteRequest,
@@ -453,7 +454,7 @@ async def list_trades(
         try:
             raw = json.loads(annotation_filters)
             filters.annotation_filters = [AnnotationFilterItem.model_validate(item) for item in raw]
-        except Exception as exc:
+        except (ValueError, KeyError, TypeError, ValidationError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Invalid annotation_filters format — expected JSON array of filter objects.",

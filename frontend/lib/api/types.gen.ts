@@ -659,7 +659,7 @@ export type AnnotationFilterItem = {
      *
      * Comparison operator: eq, neq, lt, lte, gt, gte.
      */
-    operator: string;
+    operator: 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte';
     /**
      * Value
      *
@@ -1170,9 +1170,7 @@ export type CheckinFilterConfig = {
      *
      * Annotation filter rows
      */
-    annotation_filters?: Array<{
-        [key: string]: unknown;
-    }> | null;
+    annotation_filters?: Array<AnnotationFilterItem> | null;
     /**
      * Regime
      *
@@ -1182,7 +1180,7 @@ export type CheckinFilterConfig = {
     /**
      * Has Media
      *
-     * Deprecated: filter for check-ins with media
+     * Filter for check-ins with media
      */
     has_media?: boolean | null;
 };
@@ -5112,9 +5110,9 @@ export type TaxonomyCreate = {
     /**
      * Scope
      *
-     * Assignment scope: trades, checkins, or both.
+     * Comma-separated assignment scope (e.g. 'trades,checkins').
      */
-    scope: 'trades' | 'checkins' | 'playbook' | 'both';
+    scope: string;
     /**
      * Color Hex
      *
@@ -5158,7 +5156,7 @@ export type TaxonomyResponse = {
      *
      * Assignment scope.
      */
-    scope: 'trades' | 'checkins' | 'playbook' | 'both';
+    scope: string;
     /**
      * Color Hex
      *
@@ -5212,9 +5210,9 @@ export type TaxonomyUpdate = {
     /**
      * Scope
      *
-     * Updated assignment scope.
+     * Updated comma-separated assignment scope.
      */
-    scope?: 'trades' | 'checkins' | 'playbook' | 'both' | null;
+    scope?: string | null;
     /**
      * Color Hex
      *
@@ -9675,6 +9673,10 @@ export type ListTaxonomiesApiV1TaxonomiesGetData = {
          * Scope
          */
         scope?: string | null;
+        /**
+         * Show Archived
+         */
+        show_archived?: boolean;
     };
     url: '/api/v1/taxonomies';
 };
@@ -9730,7 +9732,12 @@ export type DeleteTaxonomyApiV1TaxonomiesTaxonomyIdDeleteData = {
          */
         taxonomy_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Force
+         */
+        force?: boolean;
+    };
     url: '/api/v1/taxonomies/{taxonomy_id}';
 };
 
@@ -9840,6 +9847,94 @@ export type UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponses = {
 
 export type UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponse = UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponses[keyof UpdateTaxonomyApiV1TaxonomiesTaxonomyIdPutResponses];
 
+export type ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchData = {
+    body?: never;
+    path: {
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/taxonomies/{taxonomy_id}/archive';
+};
+
+export type ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchError = ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchErrors[keyof ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchErrors];
+
+export type ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeTaxonomyResponse;
+};
+
+export type ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchResponse = ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchResponses[keyof ArchiveTaxonomyApiV1TaxonomiesTaxonomyIdArchivePatchResponses];
+
+export type UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchData = {
+    body?: never;
+    path: {
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/taxonomies/{taxonomy_id}/unarchive';
+};
+
+export type UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchError = UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchErrors[keyof UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchErrors];
+
+export type UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeTaxonomyResponse;
+};
+
+export type UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchResponse = UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchResponses[keyof UnarchiveTaxonomyApiV1TaxonomiesTaxonomyIdUnarchivePatchResponses];
+
+export type GetTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGetData = {
+    body?: never;
+    path: {
+        /**
+         * Taxonomy Id
+         */
+        taxonomy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/taxonomies/{taxonomy_id}/assignments/count';
+};
+
+export type GetTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGetError = GetTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGetErrors[keyof GetTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGetErrors];
+
+export type GetTaxonomyAssignmentsCountApiV1TaxonomiesTaxonomyIdAssignmentsCountGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetData = {
     body?: never;
     path?: never;
@@ -9848,6 +9943,10 @@ export type ListAnnotationDefinitionsApiV1AnnotationDefinitionsGetData = {
          * Scope
          */
         scope?: string | null;
+        /**
+         * Show Archived
+         */
+        show_archived?: boolean;
     };
     url: '/api/v1/annotation-definitions';
 };
@@ -9903,7 +10002,12 @@ export type DeleteAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdDele
          */
         definition_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Force
+         */
+        force?: boolean;
+    };
     url: '/api/v1/annotation-definitions/{definition_id}';
 };
 
@@ -9982,6 +10086,94 @@ export type UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutR
 };
 
 export type UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutResponse = UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutResponses[keyof UpdateAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdPutResponses];
+
+export type ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchData = {
+    body?: never;
+    path: {
+        /**
+         * Definition Id
+         */
+        definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/annotation-definitions/{definition_id}/archive';
+};
+
+export type ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchError = ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchErrors[keyof ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchErrors];
+
+export type ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeAnnotationDefinitionResponse;
+};
+
+export type ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchResponse = ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchResponses[keyof ArchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdArchivePatchResponses];
+
+export type UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchData = {
+    body?: never;
+    path: {
+        /**
+         * Definition Id
+         */
+        definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/annotation-definitions/{definition_id}/unarchive';
+};
+
+export type UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchError = UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchErrors[keyof UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchErrors];
+
+export type UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeAnnotationDefinitionResponse;
+};
+
+export type UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchResponse = UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchResponses[keyof UnarchiveAnnotationDefinitionApiV1AnnotationDefinitionsDefinitionIdUnarchivePatchResponses];
+
+export type GetAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGetData = {
+    body?: never;
+    path: {
+        /**
+         * Definition Id
+         */
+        definition_id: string;
+    };
+    query?: never;
+    url: '/api/v1/annotation-definitions/{definition_id}/assignments/count';
+};
+
+export type GetAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGetError = GetAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGetErrors[keyof GetAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGetErrors];
+
+export type GetAnnotationDefinitionAssignmentsCountApiV1AnnotationDefinitionsDefinitionIdAssignmentsCountGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ListNotesApiV1TradesTradeIdNotesGetData = {
     body?: never;
@@ -11190,19 +11382,25 @@ export type ListCheckinsApiV1CheckinsGetData = {
          */
         annotation_filters?: string | null;
         /**
+         * Has Media
+         *
+         * Filter for check-ins with media.
+         */
+        has_media?: boolean | null;
+        /**
          * Cursor
          */
         cursor?: string | null;
-        /**
-         * Limit
-         */
-        limit?: number;
         /**
          * Offset
          *
          * Numeric offset for pagination.
          */
         offset?: number | null;
+        /**
+         * Limit
+         */
+        limit?: number;
     };
     url: '/api/v1/checkins';
 };

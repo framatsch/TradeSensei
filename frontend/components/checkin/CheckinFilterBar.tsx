@@ -107,7 +107,7 @@ export function CheckinFilterBar() {
           to_date: filter.to_date,
           target_indices: filter.target_indices,
           taxonomy_ids: filter.taxonomy_ids,
-          annotation_filters: filter.annotation_filters as any,
+          annotation_filters: (filter.annotation_filters ?? []).map(({ _key: _, ...rest }) => rest),
         },
       });
       setFilter((prev) => ({ ...prev, viewId: res.id }));
@@ -129,7 +129,7 @@ export function CheckinFilterBar() {
             to_date: filter.to_date,
             target_indices: filter.target_indices,
             taxonomy_ids: filter.taxonomy_ids,
-            annotation_filters: filter.annotation_filters as any,
+            annotation_filters: (filter.annotation_filters ?? []).map(({ _key: _, ...rest }) => rest),
           },
         },
       });
@@ -206,7 +206,7 @@ export function CheckinFilterBar() {
           </button>
 
           {/* Views Dropdown */}
-          <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-[color-mix(in_srgb,var(--border)_50%,transparent)]">
+          <div className="hidden sm:flex items-center gap-2 border-l pl-4 border-border/50">
             <span className="text-xs font-medium text-muted-foreground">Saved View</span>
             {savedViews && savedViews.length > 0 ? (
               <select
@@ -235,7 +235,7 @@ export function CheckinFilterBar() {
               setSaveViewName("");
               setShowSaveModal(true);
             }}
-            className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-[color-mix(in_srgb,var(--primary)_80%,transparent)] transition-colors px-3 py-1.5 bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] rounded-md"
+            className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 bg-primary/10 rounded-md"
           >
             <Save className="w-3.5 h-3.5" />
             Save View
@@ -270,13 +270,13 @@ export function CheckinFilterBar() {
 
           {activeView && (
             deleteConfirmId === activeView.id ? (
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)]">
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-destructive/10">
                 <span className="text-destructive">Are you sure?</span>
                 <button
                   type="button"
                   onClick={() => handleDeleteView(activeView.id)}
                   disabled={deleteViewMutation.isPending}
-                  className="px-2 py-0.5 bg-destructive text-white rounded hover:bg-[color-mix(in_srgb,var(--destructive)_90%,transparent)] transition-colors"
+                  className="px-2 py-0.5 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 transition-colors"
                 >
                   Yes
                 </button>
@@ -293,7 +293,7 @@ export function CheckinFilterBar() {
                 type="button"
                 onClick={() => setDeleteConfirmId(activeView.id)}
                 disabled={deleteViewMutation.isPending}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] transition-colors rounded-md disabled:opacity-50"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors rounded-md disabled:opacity-50"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete View
@@ -315,7 +315,7 @@ export function CheckinFilterBar() {
 
       {/* Expanded Filter Panel */}
       {isExpanded && (
-        <div className="border-t border-[color-mix(in_srgb,var(--border)_50%,transparent)] bg-[color-mix(in_srgb,var(--secondary)_20%,transparent)] p-4 space-y-4">
+        <div className="border-t border-border/50 bg-secondary/20 p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
 
             {/* Date From */}
@@ -370,7 +370,7 @@ export function CheckinFilterBar() {
                             key={tag.id}
                             checked={isSelected}
                             onCheckedChange={() => toggleTaxonomy(tag.id)}
-                            className="relative flex items-center px-2 py-1.5 pl-8 hover:bg-[color-mix(in_srgb,var(--secondary)_100%,transparent)] focus:bg-[color-mix(in_srgb,var(--secondary)_100%,transparent)] rounded cursor-pointer outline-none"
+                            className="relative flex items-center px-2 py-1.5 pl-8 hover:bg-secondary focus:bg-secondary rounded cursor-pointer outline-none"
                           >
                             <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
                               <DropdownMenu.ItemIndicator>
@@ -416,7 +416,7 @@ export function CheckinFilterBar() {
                           key={idx.id}
                           checked={isSelected}
                           onCheckedChange={() => toggleTargetIndex(idx.id)}
-                          className="relative flex items-center px-2 py-1.5 pl-8 hover:bg-[color-mix(in_srgb,var(--secondary)_100%,transparent)] focus:bg-[color-mix(in_srgb,var(--secondary)_100%,transparent)] rounded cursor-pointer outline-none"
+                          className="relative flex items-center px-2 py-1.5 pl-8 hover:bg-secondary focus:bg-secondary rounded cursor-pointer outline-none"
                         >
                           <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
                             <DropdownMenu.ItemIndicator>
@@ -440,7 +440,7 @@ export function CheckinFilterBar() {
 
           {/* Annotation Filters — full width below grid */}
           {checkinAnnotationDefs.length > 0 && (
-            <div className="pt-3 border-t border-[color-mix(in_srgb,var(--border)_50%,transparent)]">
+            <div className="pt-3 border-t border-border/50">
               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Annotation Filters</label>
               <AnnotationFilterRows
                 rows={filter.annotation_filters ?? []}
@@ -453,7 +453,7 @@ export function CheckinFilterBar() {
       )}
 
       {/* Save View Modal */}
-      <Dialog.Root open={showSaveModal} onOpenChange={(open: boolean) => {
+      <Dialog.Root open={showSaveModal} onOpenChange={(open) => {
         setShowSaveModal(open);
         if (!open) setSaveViewName("");
       }}>
@@ -486,7 +486,7 @@ export function CheckinFilterBar() {
                 type="button"
                 disabled={!saveViewName.trim() || createViewMutation.isPending}
                 onClick={() => void handleSaveView()}
-                className="px-4 py-2 bg-primary hover:bg-[color-mix(in_srgb,var(--primary)_90%,transparent)] disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
                 {createViewMutation.isPending ? "Saving…" : "Save View"}
               </button>
@@ -496,13 +496,7 @@ export function CheckinFilterBar() {
       </Dialog.Root>
 
       {/* Rename View Modal */}
-      <Dialog.Root open={showRenameModal} onOpenChange={(open: boolean) => {
-        setShowRenameModal(open);
-        if (!open) {
-          setSelectedViewIdToRename(null);
-          setRenameViewName("");
-        }
-      }}>
+      <Dialog.Root open={showRenameModal} onOpenChange={(open) => { setShowRenameModal(open); if (!open) { setSelectedViewIdToRename(null); setRenameViewName(""); } }}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
           <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-xl bg-card border border-border p-6 shadow-2xl">
@@ -523,7 +517,6 @@ export function CheckinFilterBar() {
                 onClick={() => {
                   setShowRenameModal(false);
                   setSelectedViewIdToRename(null);
-                  setRenameViewName("");
                 }}
                 className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -533,7 +526,7 @@ export function CheckinFilterBar() {
                 type="button"
                 disabled={!renameViewName.trim() || updateViewMutation.isPending}
                 onClick={() => void handleRenameView()}
-                className="px-4 py-2 bg-primary hover:bg-[color-mix(in_srgb,var(--primary)_90%,transparent)] disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
                 {updateViewMutation.isPending ? "Saving…" : "Save Changes"}
               </button>

@@ -42,9 +42,9 @@
 
 ## Phase 7 — Tests
 
-- [ ] 7.1 Backend unit tests: `_annotation_filter.py` helpers — operator expressions, AND/OR chaining, all 4 type dispatches
-- [ ] 7.2 Backend integration tests: `list_by_user` with taxonomy_ids; `list_by_user` with annotation_filters; `list_trades` with annotation_filters
-- [ ] 7.3 Backend integration tests: MCP `list_checkins` tool; `sync_checkin_metadata` tool
-- [ ] 7.4 Frontend unit tests: `AnnotationFilterRows` — correct operators per type, onChange
-- [ ] 7.5 Frontend unit tests: `AnnotationEditor` — renders per type, fires endpoints
-- [ ] 7.6 Playwright E2E: assign tag + annotation on check-in form; filter check-ins by tag; filter check-ins by annotation; filter trades by annotation
+- [x] 7.1 Backend unit tests: `_annotation_filter.py` helpers — operator expressions, AND/OR chaining, all 4 type dispatches
+- [x] 7.2 Backend integration tests: `list_by_user` with taxonomy_ids; `list_by_user` with annotation_filters; `list_trades` with annotation_filters
+- [x] 7.3 Backend integration tests: MCP `list_checkins` tool; `sync_checkin_metadata` tool
+- [x] 7.4 Frontend unit tests: `AnnotationFilterRows` — correct operators per type, onChange
+- [x] 7.5 Frontend unit tests: `AnnotationEditor` — renders per type, fires endpoints
+- [x] 7.6 Playwright E2E: assign tag + annotation on check-in form; filter check-ins by tag; filter check-ins by annotation; filter trades by annotation

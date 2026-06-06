@@ -105,6 +105,13 @@ class TaxonomyRepository:
         playbook_result = await self._session.execute(select(func.count()).select_from(PlaybookTaxonomy).where(PlaybookTaxonomy.taxonomy_id == taxonomy_id))
         return int(trade_result.scalar_one() or 0), int(checkin_result.scalar_one() or 0), int(playbook_result.scalar_one() or 0)
 
+    async def delete_assignments(self, taxonomy_id: uuid.UUID) -> None:
+        from sqlalchemy import delete
+        await self._session.execute(delete(TradeTaxonomy).where(TradeTaxonomy.taxonomy_id == taxonomy_id))
+        await self._session.execute(delete(CheckinTaxonomy).where(CheckinTaxonomy.taxonomy_id == taxonomy_id))
+        await self._session.execute(delete(PlaybookTaxonomy).where(PlaybookTaxonomy.taxonomy_id == taxonomy_id))
+        await self._session.flush()
+
     async def delete(self, taxonomy: Taxonomy) -> None:
         await self._session.delete(taxonomy)
         await self._session.flush()
@@ -115,6 +122,20 @@ class TaxonomyRepository:
         await self._session.flush()
         await self._session.refresh(taxonomy)
         return taxonomy
+
+    async def unarchive(self, taxonomy: Taxonomy) -> Taxonomy:
+        taxonomy.is_archived = False
+        self._session.add(taxonomy)
+        await self._session.flush()
+        await self._session.refresh(taxonomy)
+        return taxonomy
+
+    async def list_including_archived(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[Taxonomy]:
+        stmt = select(Taxonomy).where(Taxonomy.user_id == user_id).order_by(Taxonomy.name.asc())
+        if scope is not None:
+            stmt = stmt.where(Taxonomy.scope.in_([scope, "both"]))
+        result = await self._session.execute(stmt)
+        return builtins.list(result.scalars().all())
 
     async def get_many_by_ids(
         self,
