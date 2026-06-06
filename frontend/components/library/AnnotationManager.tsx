@@ -151,13 +151,12 @@ export function AnnotationManager() {
     setName(annotation.name);
     setType(annotation.type);
     
-    // Parse annotation.scope into selectedScopes array
-    let parsedScopes: string[] = [];
-    if (annotation.scope === "both") {
-      parsedScopes = ["trades", "checkins"];
-    } else {
-      parsedScopes = [annotation.scope];
-    }
+    // Parse annotation.scope into selectedScopes array (comma-separated post-migration;
+    // "both" handled as backwards-compat for any un-migrated rows).
+    const parsedScopes: string[] =
+      annotation.scope === "both"
+        ? ["checkins", "trades"]
+        : annotation.scope.split(",").map((s) => s.trim()).filter(Boolean);
     setSelectedScopes(parsedScopes);
     
     setDescription(annotation.description || "");
@@ -229,13 +228,8 @@ export function AnnotationManager() {
       return;
     }
 
-    // Map selected scopes back to "both" | "trades" | "checkins"
-    let scopePayload: "trades" | "checkins" | "both" = "trades";
-    if (selectedScopes.includes("trades") && selectedScopes.includes("checkins")) {
-      scopePayload = "both";
-    } else if (selectedScopes.includes("checkins")) {
-      scopePayload = "checkins";
-    }
+    // Build comma-separated scope string (alphabetically sorted to match backend normalize_scope)
+    const scopePayload = [...selectedScopes].sort().join(",");
 
     const scaleLabels = buildScaleLabels(type, minVal, maxVal, options);
 
@@ -243,7 +237,7 @@ export function AnnotationManager() {
       if (selectedAnnotation && isEditing) {
         const payload: AnnotationDefinitionUpdate = {
           name: name.trim(),
-          scope: scopePayload,
+          scope: scopePayload as AnnotationDefinitionUpdate["scope"],
           description: description.trim() || null,
           scale_labels: scaleLabels as Record<string, unknown> | null,
           icon_identifier: iconIdentifier.trim() || null,
@@ -257,7 +251,7 @@ export function AnnotationManager() {
         const updatedAnnotation: AnnotationDefinitionResponse = {
           ...selectedAnnotation,
           name: name.trim(),
-          scope: scopePayload,
+          scope: scopePayload as AnnotationDefinitionResponse["scope"],
           description: description.trim() || null,
           scale_labels: scaleLabels as any,
           icon_identifier: iconIdentifier.trim() || null,
@@ -267,7 +261,7 @@ export function AnnotationManager() {
         const payload: AnnotationDefinitionCreate = {
           name: name.trim(),
           type,
-          scope: scopePayload,
+          scope: scopePayload as AnnotationDefinitionCreate["scope"],
           description: description.trim() || null,
           scale_labels: scaleLabels as Record<string, unknown> | null,
           icon_identifier: iconIdentifier.trim() || null,
@@ -541,20 +535,15 @@ export function AnnotationManager() {
                   Scopes
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {selectedAnnotation.scope === "both" ? (
-                    <>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-secondary text-foreground border border-border">
-                        Trades
+                  {selectedAnnotation.scope
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .map((token) => (
+                      <span key={token} className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-secondary text-foreground border border-border">
+                        {token === "checkins" ? "Check-ins" : token === "trades" ? "Trades" : token === "playbook" ? "Playbook" : token}
                       </span>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-secondary text-foreground border border-border">
-                        Check-ins
-                      </span>
-                    </>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-secondary text-foreground border border-border uppercase">
-                      {selectedAnnotation.scope === "checkins" ? "Check-ins" : "Trades"}
-                    </span>
-                  )}
+                    ))}
                 </div>
               </div>
 

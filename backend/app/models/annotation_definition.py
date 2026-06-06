@@ -56,7 +56,7 @@ class AnnotationDefinition(Base):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False)
-    scope: Mapped[str] = mapped_column(String(20), nullable=False)
+    scope: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     scale_labels: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     icon_identifier: Mapped[str | None] = mapped_column(String(100), nullable=True)
