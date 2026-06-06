@@ -95,6 +95,7 @@ class TaxonomyResponse(BaseModel):
     description: str | None = Field(..., description="Optional taxonomy description.")
     icon_identifier: str | None = Field(..., description="Optional icon identifier.")
     is_archived: bool = Field(..., description="Archived flag.")
+    usage_count: int = Field(default=0, description="Total number of assignments across all scopes.")
     created_at: datetime = Field(..., description="UTC creation timestamp.")
     updated_at: datetime = Field(..., description="UTC update timestamp.")
 

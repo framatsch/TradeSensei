@@ -40,7 +40,10 @@ function getDisplayScope(scopeStr: string): string {
 
 export function TaxonomyManager() {
   const [showArchived, setShowArchived] = useState(false);
-  const { data: taxonomies, isLoading, error } = useGetTaxonomies(undefined, showArchived);
+  const { data: rawTaxonomies, isLoading, error } = useGetTaxonomies(undefined, showArchived);
+  const taxonomies = showArchived
+    ? rawTaxonomies?.filter((t) => t.is_archived)
+    : rawTaxonomies;
   const createMutation = useCreateTaxonomy();
   const updateMutation = useUpdateTaxonomy();
   const deleteMutation = useDeleteTaxonomy();
@@ -719,35 +722,41 @@ export function TaxonomyManager() {
               className="p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group flex flex-col cursor-pointer"
             >
               <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div
                     className="w-4 h-4 rounded-full flex-shrink-0"
                     style={{ backgroundColor: tax.color_hex }}
                   />
                   {tax.icon_identifier && (
-                    <DynamicIcon name={tax.icon_identifier} className="w-4 h-4 text-muted-foreground" />
+                    <DynamicIcon name={tax.icon_identifier} className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   )}
                   <h3 className="font-medium truncate">{tax.name}</h3>
                 </div>
-                <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    aria-label={`Edit ${tax.name}`}
-                    onClick={() => handleEdit(tax)}
-                    className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    aria-label={`Delete ${tax.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleView(tax);
-                      void handleDeleteClick(tax);
-                    }}
-                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      aria-label={`Edit ${tax.name}`}
+                      onClick={() => handleEdit(tax)}
+                      className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      aria-label={`Delete ${tax.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleView(tax);
+                        void handleDeleteClick(tax);
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div
+                    title={(tax.usage_count ?? 0) > 0 ? `Used ${tax.usage_count} time${tax.usage_count === 1 ? "" : "s"}` : "Not in use"}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${(tax.usage_count ?? 0) > 0 ? "bg-green-500" : "bg-muted-foreground/30"}`}
+                  />
                 </div>
               </div>
 

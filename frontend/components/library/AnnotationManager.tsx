@@ -34,6 +34,13 @@ import type { AnnotationDefinitionResponse, AnnotationDefinitionCreate, Annotati
 
 type AnnotationType = "int" | "float" | "bool" | "string_enum";
 
+const TYPE_LABELS: Record<AnnotationType, string> = {
+  int: "Number",
+  float: "Decimal",
+  bool: "Toggle",
+  string_enum: "Multiple Choice",
+};
+
 function buildScaleLabels(
   type: AnnotationType,
   minVal: string,
@@ -78,7 +85,10 @@ function getDisplayScope(scopeStr: string): string {
 
 export function AnnotationManager() {
   const [showArchived, setShowArchived] = useState(false);
-  const { data: annotations, isLoading, error } = useGetAnnotationDefinitions(undefined, showArchived);
+  const { data: rawAnnotations, isLoading, error } = useGetAnnotationDefinitions(undefined, showArchived);
+  const annotations = showArchived
+    ? rawAnnotations?.filter((a) => a.is_archived)
+    : rawAnnotations;
   const createMutation = useCreateAnnotationDefinition();
   const updateMutation = useUpdateAnnotationDefinition();
   const deleteMutation = useDeleteAnnotationDefinition();
@@ -552,7 +562,7 @@ export function AnnotationManager() {
                   Type
                 </h4>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20 uppercase">
-                  {selectedAnnotation.type}
+                  {TYPE_LABELS[selectedAnnotation.type as AnnotationType] ?? selectedAnnotation.type}
                 </span>
               </div>
             </div>
@@ -637,10 +647,10 @@ export function AnnotationManager() {
                   disabled={!!selectedAnnotation}
                   className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground disabled:opacity-50"
                 >
-                  <option value="int">Integer (e.g. Rating 1–5)</option>
-                  <option value="float">Float (e.g. Risk Multiple)</option>
-                  <option value="bool">Boolean (Yes / No)</option>
-                  <option value="string_enum">Enum (Multiple Choice)</option>
+                  <option value="int">Number (e.g. Rating 1–5)</option>
+                  <option value="float">Decimal (e.g. Risk Multiple)</option>
+                  <option value="bool">Toggle (Yes / No)</option>
+                  <option value="string_enum">Multiple Choice</option>
                 </select>
                 {selectedAnnotation && (
                   <p className="text-xs mt-1 text-muted-foreground">
@@ -691,6 +701,53 @@ export function AnnotationManager() {
                         </span>
                         <span className="text-sm font-medium text-foreground">Check-ins</span>
                       </DropdownMenu.CheckboxItem>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">
+                  Icon
+                </label>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button
+                      type="button"
+                      disabled={createMutation.isPending || updateMutation.isPending}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <DynamicIcon name={iconIdentifier || "tag"} className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">{iconIdentifier || "Select icon..."}</span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content className="w-64 rounded-lg bg-card border border-border shadow-lg p-2 z-50 max-h-60 overflow-y-auto">
+                      <div className="grid grid-cols-4 gap-2">
+                        {["tag", "trending-up", "trending-down", "alert-circle", "check-circle", "book-open", "zap", "target", "shield", "bar-chart-2", "activity", "clock", "calendar", "star", "bookmark", "flag", "heart", "award", "thumbs-up", "thumbs-down"].map((iconName) => (
+                          <DropdownMenu.Item
+                            key={iconName}
+                            onSelect={() => setIconIdentifier(iconName)}
+                            className="flex items-center justify-center p-2 hover:bg-secondary rounded cursor-pointer outline-none transition-colors"
+                            title={iconName}
+                          >
+                            <DynamicIcon name={iconName} className="w-5 h-5 text-foreground" />
+                          </DropdownMenu.Item>
+                        ))}
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-border">
+                        <input
+                          type="text"
+                          value={iconIdentifier}
+                          onChange={(e) => setIconIdentifier(e.target.value)}
+                          className="w-full px-2 py-1 bg-secondary border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary placeholder-muted-foreground/50"
+                          placeholder="Or type lucide name..."
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
                     </DropdownMenu.Content>
                   </DropdownMenu.Portal>
                 </DropdownMenu.Root>
@@ -776,32 +833,16 @@ export function AnnotationManager() {
 
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-1">
-                Description & Icon
+                Description
               </label>
-              <div className="flex gap-4">
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  aria-label="Metric description"
-                  className="flex-1 px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground resize-y"
-                  placeholder="Optional description..."
-                />
-                
-                <div className="w-1/3 relative h-[38px]">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    <DynamicIcon name={iconIdentifier || "tag"} className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="text"
-                    value={iconIdentifier}
-                    onChange={(e) => setIconIdentifier(e.target.value)}
-                    aria-label="Icon identifier"
-                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="lucide icon (e.g. tag)"
-                  />
-                </div>
-              </div>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                aria-label="Metric description"
+                className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground"
+                placeholder="Optional description..."
+              />
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
@@ -840,38 +881,44 @@ export function AnnotationManager() {
               className="p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group flex flex-col gap-2 cursor-pointer"
             >
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className="w-1.5 h-4 bg-muted-foreground/30 rounded-full flex-shrink-0" />
                   {ann.icon_identifier && (
-                    <DynamicIcon name={ann.icon_identifier} className="w-4 h-4 text-muted-foreground" />
+                    <DynamicIcon name={ann.icon_identifier} className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   )}
                   <h3 className="font-medium truncate">{ann.name}</h3>
                 </div>
-                <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    aria-label={`Edit ${ann.name}`}
-                    onClick={() => handleEdit(ann)}
-                    className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    aria-label={`Delete ${ann.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleView(ann);
-                      void handleDeleteClick(ann);
-                    }}
-                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      aria-label={`Edit ${ann.name}`}
+                      onClick={() => handleEdit(ann)}
+                      className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      aria-label={`Delete ${ann.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleView(ann);
+                        void handleDeleteClick(ann);
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div
+                    title={(ann.usage_count ?? 0) > 0 ? `Used ${ann.usage_count} time${ann.usage_count === 1 ? "" : "s"}` : "Not in use"}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${(ann.usage_count ?? 0) > 0 ? "bg-green-500" : "bg-muted-foreground/30"}`}
+                  />
                 </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-border">
-                  {ann.type}
+                  {TYPE_LABELS[ann.type as AnnotationType] ?? ann.type}
                 </span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground border border-border">
                   {getDisplayScope(ann.scope)}

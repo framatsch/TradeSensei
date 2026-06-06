@@ -13,6 +13,8 @@
 
 """Repository for annotation definition persistence and assignment counts."""
 
+from __future__ import annotations
+
 import builtins
 import uuid
 from typing import Any
@@ -129,6 +131,37 @@ class AnnotationDefinitionRepository:
             )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_with_usage_counts(self, user_id: uuid.UUID, scope: str | None = None) -> list[tuple[AnnotationDefinition, int]]:
+        """Return active annotation definitions together with their total assignment count."""
+        trade_count = (
+            select(func.count())
+            .select_from(TradeAnnotation)
+            .where(TradeAnnotation.annotation_definition_id == AnnotationDefinition.id)
+            .correlate(AnnotationDefinition)
+            .scalar_subquery()
+        )
+        checkin_count = (
+            select(func.count())
+            .select_from(CheckinAnnotation)
+            .where(CheckinAnnotation.annotation_definition_id == AnnotationDefinition.id)
+            .correlate(AnnotationDefinition)
+            .scalar_subquery()
+        )
+        stmt = (
+            select(AnnotationDefinition, (trade_count + checkin_count).label("usage_count"))
+            .where(AnnotationDefinition.user_id == user_id, AnnotationDefinition.is_archived.is_(False))
+            .order_by(AnnotationDefinition.name.asc())
+        )
+        if scope is not None:
+            stmt = stmt.where(
+                (AnnotationDefinition.scope == scope)
+                | AnnotationDefinition.scope.like(f"{scope},%")
+                | AnnotationDefinition.scope.like(f"%,{scope}")
+                | AnnotationDefinition.scope.like(f"%,{scope},%")
+            )
+        result = await self._session.execute(stmt)
+        return [(row.AnnotationDefinition, int(row.usage_count)) for row in result.all()]
 
     async def update(
         self,

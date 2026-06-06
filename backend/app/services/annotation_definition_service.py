@@ -61,9 +61,9 @@ class AnnotationDefinitionService:
             raise AnnotationDefinitionValidationError(f"Invalid scope filter '{scope}'. Allowed: {sorted(VALID_SCOPE_TOKENS)}")
         if show_archived:
             items = await self._repo.list_including_archived(user_id=user_id, scope=scope)
-        else:
-            items = await self._repo.list(user_id=user_id, scope=scope)
-        return [AnnotationDefinitionResponse.model_validate(item) for item in items]
+            return [AnnotationDefinitionResponse.model_validate(item) for item in items]
+        pairs = await self._repo.list_with_usage_counts(user_id=user_id, scope=scope)
+        return [AnnotationDefinitionResponse.model_validate(item).model_copy(update={"usage_count": count}) for item, count in pairs]
 
     async def get(self, user_id: uuid.UUID, definition_id: uuid.UUID) -> AnnotationDefinitionResponse:
         item = await self._repo.get_by_id(user_id=user_id, definition_id=definition_id)

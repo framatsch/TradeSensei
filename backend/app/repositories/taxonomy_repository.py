@@ -97,6 +97,44 @@ class TaxonomyRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_with_usage_counts(self, user_id: uuid.UUID, scope: str | None = None) -> list[tuple[Taxonomy, int]]:
+        """Return active taxonomies together with their total assignment count."""
+        trade_count = (
+            select(func.count())
+            .select_from(TradeTaxonomy)
+            .where(TradeTaxonomy.taxonomy_id == Taxonomy.id)
+            .correlate(Taxonomy)
+            .scalar_subquery()
+        )
+        checkin_count = (
+            select(func.count())
+            .select_from(CheckinTaxonomy)
+            .where(CheckinTaxonomy.taxonomy_id == Taxonomy.id)
+            .correlate(Taxonomy)
+            .scalar_subquery()
+        )
+        playbook_count = (
+            select(func.count())
+            .select_from(PlaybookTaxonomy)
+            .where(PlaybookTaxonomy.taxonomy_id == Taxonomy.id)
+            .correlate(Taxonomy)
+            .scalar_subquery()
+        )
+        stmt = (
+            select(Taxonomy, (trade_count + checkin_count + playbook_count).label("usage_count"))
+            .where(Taxonomy.user_id == user_id, Taxonomy.is_archived.is_(False))
+            .order_by(Taxonomy.name.asc())
+        )
+        if scope is not None:
+            stmt = stmt.where(
+                (Taxonomy.scope == scope)
+                | Taxonomy.scope.like(f"{scope},%")
+                | Taxonomy.scope.like(f"%,{scope}")
+                | Taxonomy.scope.like(f"%,{scope},%")
+            )
+        result = await self._session.execute(stmt)
+        return [(row.Taxonomy, int(row.usage_count)) for row in result.all()]
+
     async def update(self, taxonomy: Taxonomy, payload: TaxonomyUpdate) -> Taxonomy:
         for field, value in payload.model_dump(exclude_unset=True).items():
             setattr(taxonomy, field, value)
