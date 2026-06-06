@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-06
+
+### Added
+- [backend] Checkin metadata: annotation filtering, taxonomies, MCP tools, and archive support
+- [frontend] Annotation filtering and checkin metadata UI with taxonomy browser
+- [frontend] Checkin filters and saved views with persisted filter state
+- [frontend] Metrics/tags library UX improvements with usage indicators
+
+### Changed
+- [backend] Migrate AnnotationDefinition scope to comma-separated tokens
+- [backend] Replace 'both' scope with explicit comma-separated scope tokens
+- [frontend] Align CheckinFilterBar with Trade/Workspace paradigm
+- [frontend] Format checkin dates and remove media filter
+
+### Fixed
+- [backend] IDOR vulnerability on assignment count endpoints
+- [backend] normalize_scope empty guard and scope filter validation
+- [backend] Update test suite for comma-separated scope format
+- [frontend] Blocker, a11y, design system, and quality fixes (Round 2)
+
+### Removed
+- [backend] Committed development artifacts
+
 ## [1.2.5] - 2026-06-03
 
 ### Added
@@ -437,6 +460,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.3.0]: https://github.com/scheffold/TradeSensei/compare/v1.2.5...v1.3.0
 [1.2.5]: https://github.com/scheffold/TradeSensei/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/scheffold/TradeSensei/compare/v1.2.3...v1.2.4
 [1.2.0]: https://github.com/scheffold/TradeSensei/compare/v1.1.2...v1.2.0
@@ -458,7 +482,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.2.5...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.3.0...HEAD
 [1.2.3]: https://github.com/scheffold/TradeSensei/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...v1.2.1
