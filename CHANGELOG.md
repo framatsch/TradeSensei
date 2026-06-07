@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-06-07
+
+### Fixed
+- [frontend] Add `color-scheme: light/dark` and native `<option>` element dark mode theming to globals.css
+
 ## [1.3.0] - 2026-06-06
 
 ### Added
@@ -460,6 +465,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.3.1]: https://github.com/scheffold/TradeSensei/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/scheffold/TradeSensei/compare/v1.2.5...v1.3.0
 [1.2.5]: https://github.com/scheffold/TradeSensei/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/scheffold/TradeSensei/compare/v1.2.3...v1.2.4
@@ -482,7 +488,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.3.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.3.1...HEAD
 [1.2.3]: https://github.com/scheffold/TradeSensei/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/scheffold/TradeSensei/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/scheffold/TradeSensei/compare/v1.2.0...v1.2.1
