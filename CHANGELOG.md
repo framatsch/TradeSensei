@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-06-21
+
+### Added
+- [backend] Add MCP taxonomy and annotation definition CRUD support
+- [docs] Add OpenSpec proposal, design, specs, and tasks for MCP taxonomy and annotation CRUD
+
+### Fixed
+- [frontend] Fix mobile sidebar overlay layout for trades, check-ins, and playbooks
+- [backend] Resolve strict mypy errors in metadata repositories and correlation scope validation
+
 ## [1.3.1] - 2026-06-07
 
 ### Fixed
