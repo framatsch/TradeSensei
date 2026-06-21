@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      BACKEND_IMAGE: ghcr.io/scheffold/tradesensei-backend
+      FRONTEND_IMAGE: ghcr.io/scheffold/tradesensei-frontend
     permissions:
       contents: write
       packages: write
@@ -38,7 +40,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend
+          images: ${{ env.BACKEND_IMAGE }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -76,8 +78,8 @@ jobs:
           body: |
             
             ## Docker Images
-            - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend:${{ steps.meta.outputs.version }}`
-            - `ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend:${{ steps.meta.outputs.version }}`
+            - `${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.version }}`
+            - `${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.version }}`
           files: |
             docker-compose.release.yml
             env.example
@@ -88,6 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FRONTEND_IMAGE: ghcr.io/scheffold/tradesensei-frontend
     permissions:
       contents: read
       packages: write
@@ -113,7 +116,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend
+          images: ${{ env.FRONTEND_IMAGE }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
