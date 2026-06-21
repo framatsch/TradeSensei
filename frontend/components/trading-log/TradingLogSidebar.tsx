@@ -20,15 +20,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Download, Upload, TrendingUp, Lock, Filter } from "lucide-react";
 import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
+import { useSidebarStore } from "@/stores/sidebarStore";
 
 export function TradingLogSidebar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeViewId = searchParams.get("view_id");
+  const setMobileOpen = useSidebarStore((state) => state.setMobileOpen);
 
   const { data: views, isLoading } = useSavedTradeFilters();
 
   const handleViewClick = (viewId: string, definition?: any) => {
+    setMobileOpen(false);
     if (!definition) {
       // Clear filters (All Trades)
       router.push("/dashboard/trades", { scroll: false });
@@ -40,6 +43,7 @@ export function TradingLogSidebar() {
   };
 
   const handleExport = () => {
+    setMobileOpen(false);
     // Implement CSV export based on current filters
     const currentQuery = searchParams.toString();
     window.open(`/api/v1/trades/export?${currentQuery}`, "_blank");

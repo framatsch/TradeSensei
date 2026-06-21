@@ -23,20 +23,22 @@ export default function TradesLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { desktopSidebarOpen } = useSidebarStore();
+  const { desktopSidebarOpen, mobileSidebarOpen } = useSidebarStore();
 
   return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full relative">
       <div
-        className={`border-r border-border bg-sidebar flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
-          desktopSidebarOpen ? "w-64" : "w-0"
+        className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 border-r border-border bg-sidebar flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
+          mobileSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 lg:translate-x-0"
+        } ${
+          desktopSidebarOpen ? "lg:w-64" : "lg:w-0 lg:border-r-0"
         }`}
       >
         <div className="w-64 h-full">
           <TradingLogSidebar />
         </div>
       </div>
-      <div className="flex-1 overflow-auto bg-background p-6 pt-14">
+      <div className="flex-1 overflow-auto bg-background p-4 sm:p-6">
         {children}
       </div>
     </div>

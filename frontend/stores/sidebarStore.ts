@@ -25,20 +25,27 @@ function readFromStorage(): boolean {
 
 interface SidebarState {
   desktopSidebarOpen: boolean;
+  mobileSidebarOpen: boolean;
   toggle: () => void;
+  toggleMobile: () => void;
   setOpen: (open: boolean) => void;
+  setMobileOpen: (open: boolean) => void;
 }
 
 export const useSidebarStore = create<SidebarState>((set) => ({
   desktopSidebarOpen: readFromStorage(),
+  mobileSidebarOpen: false,
   toggle: () =>
     set((state) => {
       const next = !state.desktopSidebarOpen;
       window.localStorage.setItem(STORAGE_KEY, String(next));
       return { desktopSidebarOpen: next };
     }),
+  toggleMobile: () =>
+    set((state) => ({ mobileSidebarOpen: !state.mobileSidebarOpen })),
   setOpen: (open: boolean) => {
     window.localStorage.setItem(STORAGE_KEY, String(open));
     set({ desktopSidebarOpen: open });
   },
+  setMobileOpen: (open: boolean) => set({ mobileSidebarOpen: open }),
 }));

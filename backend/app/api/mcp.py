@@ -21,7 +21,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -33,6 +33,7 @@ from sqlalchemy.orm import aliased, selectinload
 
 from app.core.database import get_session
 from app.core.deps import get_current_user_from_pat
+from app.core.exceptions import AnnotationDefinitionNotFoundError, AnnotationDefinitionValidationError, TaxonomyNotFoundError, TaxonomyValidationError
 from app.models.account import Account, AccountType
 from app.models.annotation_definition import AnnotationDefinition
 from app.models.checkin_annotation import CheckinAnnotation
@@ -46,8 +47,12 @@ from app.models.trade_annotation import TradeAnnotation
 from app.models.trade_taxonomy import TradeTaxonomy
 from app.models.user import User
 from app.repositories._annotation_filter import apply_annotation_filters as _apply_annotation_filters
+from app.schemas.annotation_definition import AnnotationDefinitionCreate, AnnotationDefinitionUpdate
 from app.schemas.annotation_filter import AnnotationFilterItem
+from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
+from app.services.annotation_definition_service import AnnotationDefinitionService
 from app.services.audit_service import AuditEventService, generate_request_id
+from app.services.taxonomy_service import TaxonomyService
 from app.utils.annotation_mapping import map_value_to_column
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
@@ -161,6 +166,52 @@ class SyncCheckinMetadataParams(BaseModel):
 class ListAccountsParams(BaseModel):
     portfolio_id: uuid.UUID | None = None
     broker: str | None = Field(default=None, max_length=50)
+
+
+class CreateTaxonomyParams(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    scope: str
+    color_hex: str
+    description: str | None = Field(default=None, max_length=500)
+    icon_identifier: str | None = Field(default=None, max_length=100)
+
+
+class UpdateTaxonomyParams(BaseModel):
+    taxonomy_id: uuid.UUID
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    scope: str | None = None
+    color_hex: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+    icon_identifier: str | None = Field(default=None, max_length=100)
+    is_archived: bool | None = None
+
+
+class DeleteTaxonomyParams(BaseModel):
+    taxonomy_id: uuid.UUID
+
+
+class CreateAnnotationDefinitionParams(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    type: Literal["int", "float", "bool", "string_enum"]
+    scope: str
+    description: str | None = Field(default=None, max_length=500)
+    icon_identifier: str | None = Field(default=None, max_length=100)
+    scale_labels: dict[str, Any] | None = None
+
+
+class UpdateAnnotationDefinitionParams(BaseModel):
+    annotation_definition_id: uuid.UUID
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    type: Literal["int", "float", "bool", "string_enum"] | None = None
+    scope: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+    icon_identifier: str | None = Field(default=None, max_length=100)
+    scale_labels: dict[str, Any] | None = None
+    is_archived: bool | None = None
+
+
+class DeleteAnnotationDefinitionParams(BaseModel):
+    annotation_definition_id: uuid.UUID
 
 
 def _tool_error(code: int, message: str) -> dict[str, Any]:
@@ -805,6 +856,308 @@ async def _handle_sync_checkin_metadata(
     return {"updated_count": len(owned_checkin_ids)}
 
 
+async def _handle_create_taxonomy(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = CreateTaxonomyParams.model_validate(arguments)
+    service = TaxonomyService(db)
+
+    try:
+        taxonomy = await service.create(
+            payload=TaxonomyCreate(
+                name=params.name,
+                scope=params.scope,
+                color_hex=params.color_hex,
+                description=params.description,
+                icon_identifier=params.icon_identifier,
+            ),
+            user_id=user_id,
+        )
+    except (TaxonomyNotFoundError, TaxonomyValidationError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    AuditEventService().create_audit_event(
+        action="taxonomy.created",
+        user_id=user_id,
+        email=None,
+        resource_type="taxonomy",
+        resource_id=taxonomy.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "taxonomy_id": str(taxonomy.id)},
+    )
+
+    return {"taxonomy_id": str(taxonomy.id), "name": taxonomy.name}
+
+
+async def _handle_update_taxonomy(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = UpdateTaxonomyParams.model_validate(arguments)
+    service = TaxonomyService(db)
+
+    update_payload_data: dict[str, Any] = {}
+    if params.name is not None:
+        update_payload_data["name"] = params.name
+    if params.scope is not None:
+        update_payload_data["scope"] = params.scope
+    if params.color_hex is not None:
+        update_payload_data["color_hex"] = params.color_hex
+    if params.description is not None:
+        update_payload_data["description"] = params.description
+    if params.icon_identifier is not None:
+        update_payload_data["icon_identifier"] = params.icon_identifier
+
+    update_payload = TaxonomyUpdate(**update_payload_data)
+
+    try:
+        taxonomy = await service.get(user_id=user_id, taxonomy_id=params.taxonomy_id)
+        if update_payload.model_dump(exclude_unset=True):
+            taxonomy = await service.update(
+                taxonomy_id=params.taxonomy_id,
+                payload=update_payload,
+                user_id=user_id,
+            )
+
+        if params.is_archived is True:
+            taxonomy = await service.archive(taxonomy_id=params.taxonomy_id, user_id=user_id)
+        elif params.is_archived is False:
+            taxonomy = await service.unarchive(taxonomy_id=params.taxonomy_id, user_id=user_id)
+    except (TaxonomyNotFoundError, TaxonomyValidationError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    AuditEventService().create_audit_event(
+        action="taxonomy.updated",
+        user_id=user_id,
+        email=None,
+        resource_type="taxonomy",
+        resource_id=taxonomy.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "taxonomy_id": str(taxonomy.id)},
+    )
+
+    return {
+        "taxonomy_id": str(taxonomy.id),
+        "name": taxonomy.name,
+        "is_archived": taxonomy.is_archived,
+    }
+
+
+async def _handle_delete_taxonomy(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = DeleteTaxonomyParams.model_validate(arguments)
+    service = TaxonomyService(db)
+
+    try:
+        assignment_counts = await service.get_assignment_counts(
+            taxonomy_id=params.taxonomy_id,
+            user_id=user_id,
+        )
+        if assignment_counts["total_count"] > 0:
+            raise ValueError("has active assignments - remove assignments before deleting")
+        taxonomy = await service.archive(taxonomy_id=params.taxonomy_id, user_id=user_id)
+    except (TaxonomyNotFoundError, TaxonomyValidationError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    AuditEventService().create_audit_event(
+        action="taxonomy.deleted",
+        user_id=user_id,
+        email=None,
+        resource_type="taxonomy",
+        resource_id=taxonomy.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "taxonomy_id": str(taxonomy.id)},
+    )
+
+    return {"archived": True}
+
+
+async def _handle_create_annotation_definition(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = CreateAnnotationDefinitionParams.model_validate(arguments)
+    service = AnnotationDefinitionService(db)
+
+    try:
+        definition = await service.create(
+            payload=AnnotationDefinitionCreate(
+                name=params.name,
+                type=params.type,
+                scope=params.scope,
+                description=params.description,
+                icon_identifier=params.icon_identifier,
+                scale_labels=params.scale_labels,
+            ),
+            user_id=user_id,
+        )
+    except (AnnotationDefinitionNotFoundError, AnnotationDefinitionValidationError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    AuditEventService().create_audit_event(
+        action="annotation_definition.created",
+        user_id=user_id,
+        email=None,
+        resource_type="annotation_definition",
+        resource_id=definition.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={
+            "user_id": str(user_id),
+            "annotation_definition_id": str(definition.id),
+        },
+    )
+
+    return {
+        "annotation_definition_id": str(definition.id),
+        "name": definition.name,
+        "type": definition.type,
+    }
+
+
+async def _handle_update_annotation_definition(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = UpdateAnnotationDefinitionParams.model_validate(arguments)
+    service = AnnotationDefinitionService(db)
+
+    update_payload_data: dict[str, Any] = {}
+    if params.name is not None:
+        update_payload_data["name"] = params.name
+    if params.type is not None:
+        update_payload_data["type"] = params.type
+    if params.scope is not None:
+        update_payload_data["scope"] = params.scope
+    if params.description is not None:
+        update_payload_data["description"] = params.description
+    if params.icon_identifier is not None:
+        update_payload_data["icon_identifier"] = params.icon_identifier
+    if params.scale_labels is not None:
+        update_payload_data["scale_labels"] = params.scale_labels
+
+    update_payload = AnnotationDefinitionUpdate(**update_payload_data)
+
+    try:
+        definition = await service.get(
+            user_id=user_id,
+            definition_id=params.annotation_definition_id,
+        )
+        if update_payload.model_dump(exclude_unset=True):
+            definition = await service.update(
+                definition_id=params.annotation_definition_id,
+                payload=update_payload,
+                user_id=user_id,
+            )
+
+        if params.is_archived is True:
+            definition = await service.archive(
+                definition_id=params.annotation_definition_id,
+                user_id=user_id,
+            )
+        elif params.is_archived is False:
+            definition = await service.unarchive(
+                definition_id=params.annotation_definition_id,
+                user_id=user_id,
+            )
+    except (AnnotationDefinitionNotFoundError, AnnotationDefinitionValidationError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    AuditEventService().create_audit_event(
+        action="annotation_definition.updated",
+        user_id=user_id,
+        email=None,
+        resource_type="annotation_definition",
+        resource_id=definition.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={
+            "user_id": str(user_id),
+            "annotation_definition_id": str(definition.id),
+        },
+    )
+
+    return {
+        "annotation_definition_id": str(definition.id),
+        "name": definition.name,
+        "is_archived": definition.is_archived,
+    }
+
+
+async def _handle_delete_annotation_definition(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = DeleteAnnotationDefinitionParams.model_validate(arguments)
+    service = AnnotationDefinitionService(db)
+
+    try:
+        assignment_counts = await service.get_assignment_counts(
+            definition_id=params.annotation_definition_id,
+            user_id=user_id,
+        )
+        if assignment_counts["total_count"] > 0:
+            raise ValueError("has active assignments - remove assignments before deleting")
+        definition = await service.archive(
+            definition_id=params.annotation_definition_id,
+            user_id=user_id,
+        )
+    except (AnnotationDefinitionNotFoundError, AnnotationDefinitionValidationError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    AuditEventService().create_audit_event(
+        action="annotation_definition.deleted",
+        user_id=user_id,
+        email=None,
+        resource_type="annotation_definition",
+        resource_id=definition.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={
+            "user_id": str(user_id),
+            "annotation_definition_id": str(definition.id),
+        },
+    )
+
+    return {"archived": True}
+
+
 _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     "get_metadata_schema": {
         "description": "Return active taxonomies and annotation definitions for the authenticated user.",
@@ -837,6 +1190,106 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         },
         "handler": _handle_list_accounts,
         "mutating": False,
+    },
+    "create_taxonomy": {
+        "description": "Create a taxonomy definition with name, scope, color, and optional metadata.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                "scope": {"type": "string"},
+                "color_hex": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                "description": {"type": "string", "maxLength": 500},
+                "icon_identifier": {"type": "string", "maxLength": 100},
+            },
+            "required": ["name", "scope", "color_hex"],
+        },
+        "handler": _handle_create_taxonomy,
+        "mutating": True,
+    },
+    "update_taxonomy": {
+        "description": "Update taxonomy metadata and optionally archive or unarchive it.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "taxonomy_id": {"type": "string", "format": "uuid"},
+                "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                "scope": {"type": "string"},
+                "color_hex": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                "description": {"type": "string", "maxLength": 500},
+                "icon_identifier": {"type": "string", "maxLength": 100},
+                "is_archived": {"type": "boolean"},
+            },
+            "required": ["taxonomy_id"],
+        },
+        "handler": _handle_update_taxonomy,
+        "mutating": True,
+    },
+    "delete_taxonomy": {
+        "description": "Archive a taxonomy definition when it has no active assignments.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "taxonomy_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["taxonomy_id"],
+        },
+        "handler": _handle_delete_taxonomy,
+        "mutating": True,
+    },
+    "create_annotation_definition": {
+        "description": "Create an annotation definition with type, scope, and optional metadata.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                "type": {
+                    "type": "string",
+                    "enum": ["int", "float", "bool", "string_enum"],
+                },
+                "scope": {"type": "string"},
+                "description": {"type": "string", "maxLength": 500},
+                "icon_identifier": {"type": "string", "maxLength": 100},
+                "scale_labels": {"type": "object"},
+            },
+            "required": ["name", "type", "scope"],
+        },
+        "handler": _handle_create_annotation_definition,
+        "mutating": True,
+    },
+    "update_annotation_definition": {
+        "description": "Update annotation definition metadata and optionally archive or unarchive it.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "annotation_definition_id": {"type": "string", "format": "uuid"},
+                "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                "type": {
+                    "type": "string",
+                    "enum": ["int", "float", "bool", "string_enum"],
+                },
+                "scope": {"type": "string"},
+                "description": {"type": "string", "maxLength": 500},
+                "icon_identifier": {"type": "string", "maxLength": 100},
+                "scale_labels": {"type": "object"},
+                "is_archived": {"type": "boolean"},
+            },
+            "required": ["annotation_definition_id"],
+        },
+        "handler": _handle_update_annotation_definition,
+        "mutating": True,
+    },
+    "delete_annotation_definition": {
+        "description": "Archive an annotation definition when it has no active assignments.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "annotation_definition_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["annotation_definition_id"],
+        },
+        "handler": _handle_delete_annotation_definition,
+        "mutating": True,
     },
     "list_checkins": {
         "description": "List check-ins with optional date range, taxonomy, and annotation filters. Returns taxonomy and annotation assignments per check-in.",

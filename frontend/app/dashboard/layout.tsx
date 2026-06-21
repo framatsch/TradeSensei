@@ -20,7 +20,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
@@ -303,8 +303,13 @@ interface Props {
 }
 
 export default function DashboardLayout({ children }: Props) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { desktopSidebarOpen, toggle: toggleDesktopSidebar } = useSidebarStore();
+  const {
+    desktopSidebarOpen,
+    mobileSidebarOpen,
+    toggle: toggleDesktopSidebar,
+    toggleMobile: toggleMobileSidebar,
+    setMobileOpen,
+  } = useSidebarStore();
   
   const pathname = usePathname();
   const router = useRouter();
@@ -358,7 +363,11 @@ export default function DashboardLayout({ children }: Props) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [toggleDesktopSidebar]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname, setMobileOpen]);
 
   const { data: settings } = useSettings();
   const features = (settings?.features ?? {}) as Record<string, boolean>;
@@ -375,7 +384,7 @@ export default function DashboardLayout({ children }: Props) {
     }
   }, [hydrated, token, router]);
 
-  const closeSidebar = () => setSidebarOpen(false);
+  const closeSidebar = () => setMobileOpen(false);
 
   if (!hydrated || !token) {
     return (
@@ -418,15 +427,15 @@ export default function DashboardLayout({ children }: Props) {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden" style={{ "--topbar-height": "3.5rem" } as React.CSSProperties}>
       <TopBar 
-        onToggleMobileSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onToggleMobileSidebar={toggleMobileSidebar}
         onToggleDesktopSidebar={toggleDesktopSidebar}
-        isMobileSidebarOpen={sidebarOpen}
+        isMobileSidebarOpen={mobileSidebarOpen}
         isDesktopSidebarOpen={desktopSidebarOpen}
       />
       
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile overlay */}
-        {sidebarOpen && (
+        {mobileSidebarOpen && (
           <div
             className="fixed inset-0 z-20 bg-black/60 lg:hidden"
             onClick={closeSidebar}
@@ -437,7 +446,7 @@ export default function DashboardLayout({ children }: Props) {
         {!hideGlobalSidebar && (
           <aside
             className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 flex flex-col bg-sidebar border-border transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
-              sidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
+              mobileSidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
             } ${
               desktopSidebarOpen
                 ? "lg:w-56 lg:border-r lg:opacity-100 lg:visible"
@@ -482,7 +491,7 @@ export default function DashboardLayout({ children }: Props) {
 
         {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-          <main className={`flex-1 overflow-y-auto bg-background text-foreground ${hideGlobalSidebar ? "" : "p-6 pt-14"}`}>
+          <main className={`flex-1 overflow-y-auto bg-background text-foreground ${hideGlobalSidebar ? "" : "p-4 sm:p-6"}`}>
             {renderContent()}
           </main>
         </div>

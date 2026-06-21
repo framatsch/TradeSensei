@@ -20,10 +20,12 @@ import { CheckinMiniCalendar } from "./CheckinMiniCalendar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Settings, List, Grid } from "lucide-react";
+import { useSidebarStore } from "@/stores/sidebarStore";
 
 export function CheckinSidebar() {
   const { filter, setFilter } = useCheckinFilter();
   const pathname = usePathname();
+  const setMobileOpen = useSidebarStore((state) => state.setMobileOpen);
 
   const isCheckinsRoute = pathname === "/dashboard/checkins" || pathname.startsWith("/dashboard/checkins/");
 
@@ -45,6 +47,7 @@ export function CheckinSidebar() {
             onClick={() => {
               if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=timeline";
               else setFilter(prev => ({ ...prev, view: "timeline", page: 1 }));
+              setMobileOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
               isCheckinsRoute && (filter.view === "timeline" || !filter.view)
@@ -60,6 +63,7 @@ export function CheckinSidebar() {
             onClick={() => {
               if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=gallery";
               else setFilter(prev => ({ ...prev, view: "gallery", page: 1 }));
+              setMobileOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
               isCheckinsRoute && filter.view === "gallery"

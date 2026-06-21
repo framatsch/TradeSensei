@@ -21,14 +21,22 @@ import { CheckinFilterProvider } from "@/components/checkin/CheckinFilterContext
 import { useSidebarStore } from "@/stores/sidebarStore";
 
 export default function CheckinLayout({ children }: { children: ReactNode }) {
-  const { desktopSidebarOpen } = useSidebarStore();
+  const { desktopSidebarOpen, mobileSidebarOpen, setMobileOpen } = useSidebarStore();
 
   return (
     <CheckinFilterProvider>
-      <div className="flex w-full h-full">
+      <div className="flex w-full h-full relative">
+        {mobileSidebarOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-black/60 lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
         <div
-          className={`shrink-0 border-r border-border bg-sidebar transition-all duration-300 ease-in-out overflow-hidden ${
-            desktopSidebarOpen ? "w-[220px]" : "w-0"
+          className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 shrink-0 border-r border-border bg-sidebar transition-all duration-300 ease-in-out overflow-hidden ${
+            mobileSidebarOpen ? "translate-x-0 w-[220px]" : "-translate-x-full w-[220px] lg:translate-x-0"
+          } ${
+            desktopSidebarOpen ? "lg:w-[220px]" : "lg:w-0 lg:border-r-0"
           }`}
         >
           <div className="w-[220px] h-full">
