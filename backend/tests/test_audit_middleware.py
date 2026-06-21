@@ -487,7 +487,8 @@ async def test_audit_logs_unhandled_exception_with_stack_trace(
     _assert_action(payloads, "error.unhandled")
     metadata = payloads[-1].get("metadata")
     assert isinstance(metadata, dict)
-    assert "stack_trace" in metadata
+    assert metadata["exception_type"] == "ValueError"
+    assert metadata["exception_message"] == "boom"
     logger.removeHandler(handler)
 
 

@@ -256,6 +256,12 @@ async def test_mcp_tools_list_returns_all_domain_tools(client: AsyncClient) -> N
         "list_strategy_playbooks",
         "get_strategy_playbook",
         "update_strategy_playbook",
+        "create_taxonomy",
+        "update_taxonomy",
+        "delete_taxonomy",
+        "create_annotation_definition",
+        "update_annotation_definition",
+        "delete_annotation_definition",
     }
     for tool in tools:
         assert "description" in tool
