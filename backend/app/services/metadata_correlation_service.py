@@ -19,7 +19,6 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.annotation_definition import AnnotationDefinition
-from app.models.taxonomy import DefinitionScope
 from app.repositories.metadata_correlation_repository import MetadataCorrelationRepository
 from app.schemas.analytics import (
     AxisType,
@@ -27,6 +26,7 @@ from app.schemas.analytics import (
     MetadataCorrelationKPIs,
     MetadataCorrelationResponse,
 )
+from app.utils.scope_utils import scope_contains
 
 
 class MetadataCorrelationService:
@@ -50,9 +50,9 @@ class MetadataCorrelationService:
                 raise HTTPException(status_code=404, detail=f"Taxonomy {axis_id} not found")
 
             # Validate scope for taxonomies too
-            if axis_type == "checkin_taxonomy" and tax.scope != DefinitionScope.CHECKINS and tax.scope != DefinitionScope.BOTH:
+            if axis_type == "checkin_taxonomy" and not scope_contains(tax.scope, "checkins"):
                 raise HTTPException(status_code=422, detail=f"Taxonomy {axis_id} scope mismatch")
-            if axis_type == "trade_taxonomy" and tax.scope != DefinitionScope.TRADES and tax.scope != DefinitionScope.BOTH:
+            if axis_type == "trade_taxonomy" and not scope_contains(tax.scope, "trades"):
                 raise HTTPException(status_code=422, detail=f"Taxonomy {axis_id} scope mismatch")
 
             return "taxonomy", tax.name
@@ -66,9 +66,9 @@ class MetadataCorrelationService:
             raise HTTPException(status_code=404, detail=f"AnnotationDefinition {axis_id} not found")
 
         # Validate scope
-        if axis_type == "checkin_annotation" and ad.scope != DefinitionScope.CHECKINS and ad.scope != DefinitionScope.BOTH:
+        if axis_type == "checkin_annotation" and not scope_contains(ad.scope, "checkins"):
             raise HTTPException(status_code=422, detail=f"Annotation {axis_id} scope mismatch")
-        if axis_type == "trade_annotation" and ad.scope != DefinitionScope.TRADES and ad.scope != DefinitionScope.BOTH:
+        if axis_type == "trade_annotation" and not scope_contains(ad.scope, "trades"):
             raise HTTPException(status_code=422, detail=f"Annotation {axis_id} scope mismatch")
 
         data_type_raw = str(ad.type).lower()

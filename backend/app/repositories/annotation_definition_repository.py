@@ -116,7 +116,7 @@ class AnnotationDefinitionRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[AnnotationDefinition]:
+    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[AnnotationDefinition]:
         stmt = (
             select(AnnotationDefinition)
             .where(AnnotationDefinition.user_id == user_id, AnnotationDefinition.is_archived.is_(False))
@@ -130,9 +130,9 @@ class AnnotationDefinitionRepository:
                 | AnnotationDefinition.scope.like(f"%,{scope},%")
             )
         result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+        return builtins.list(result.scalars().all())
 
-    async def list_with_usage_counts(self, user_id: uuid.UUID, scope: str | None = None) -> list[tuple[AnnotationDefinition, int]]:
+    async def list_with_usage_counts(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[tuple[AnnotationDefinition, int]]:
         """Return active annotation definitions together with their total assignment count."""
         trade_count = (
             select(func.count())

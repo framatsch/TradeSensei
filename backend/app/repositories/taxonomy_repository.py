@@ -84,7 +84,7 @@ class TaxonomyRepository:
         result = await self._session.execute(select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.id == taxonomy_id))
         return result.scalar_one_or_none()
 
-    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> list[Taxonomy]:
+    async def list(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[Taxonomy]:
         stmt = select(Taxonomy).where(Taxonomy.user_id == user_id, Taxonomy.is_archived.is_(False)).order_by(Taxonomy.name.asc())
         if scope is not None:
             # Match taxonomies whose comma-separated scope contains the requested token.
@@ -95,9 +95,9 @@ class TaxonomyRepository:
                 | Taxonomy.scope.like(f"%,{scope},%")
             )
         result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+        return builtins.list(result.scalars().all())
 
-    async def list_with_usage_counts(self, user_id: uuid.UUID, scope: str | None = None) -> list[tuple[Taxonomy, int]]:
+    async def list_with_usage_counts(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[tuple[Taxonomy, int]]:
         """Return active taxonomies together with their total assignment count."""
         trade_count = (
             select(func.count())
@@ -201,4 +201,4 @@ class TaxonomyRepository:
                 Taxonomy.is_archived.is_(False),
             )
         )
-        return list(result.scalars().all())
+        return builtins.list(result.scalars().all())
