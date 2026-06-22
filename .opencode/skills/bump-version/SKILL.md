@@ -56,39 +56,44 @@ When the user asks to "create release version <X.Y.Z>":
 1. **Check latest tag (optional)**
    `git describe --tags --abbrev=0`
 
-2. **Run bump script**
-   `python tools/bump_version.py <X.Y.Z>`
+2. **Ensure CHANGELOG.md `[Unreleased]` is populated**
+   The bump script will fail if `[Unreleased]` is empty. Before bumping:
+   - Check `## [Unreleased]` in CHANGELOG.md contains entries for all commits since the last tag
+   - If empty, add entries under `## [Unreleased]` grouped by `### Added`, `### Fixed`, `### Changed`
+   - Also ensure compare links at the bottom of CHANGELOG.md are up to date:
+     ```
+     [unreleased]: https://github.com/scheffold/TradeSensei/compare/v<X.Y.Z>...HEAD
+     [<X.Y.Z>]: https://github.com/scheffold/TradeSensei/compare/v<prev>...v<X.Y.Z>
+     ```
+   - Commit the CHANGELOG update before bumping:
+     ```bash
+     git add CHANGELOG.md
+     git commit -m "📝 docs: update CHANGELOG for <X.Y.Z>"
+     ```
 
-3. **Commit the version bump**
+3. **Run bump script** (moves `[Unreleased]` → `[X.Y.Z]` in CHANGELOG automatically)
    ```bash
-   git add package.json frontend/package.json backend/pyproject.toml
-   git commit -m "⚙️ config: bump version to <X.Y.Z>"
+   python tools/bump_version.py <X.Y.Z> --release --yes
    ```
+   This commits the version bump and creates+pushes the tag.
 
-4. **Tag the release**
-   ```bash
-   git tag -a v<X.Y.Z> -m "v<X.Y.Z>"
-   git push origin main v<X.Y.Z>
-   ```
-
-5. **Create GitHub Release**
-   Create a temporary file for notes to avoid shell newline issues:
+4. **Create GitHub Release** from the CHANGELOG content
+   The bump script extracts the `[Unreleased]` content as release notes. If it ran
+   successfully with `--release`, create the GitHub release:
    ```bash
    cat > /tmp/release_notes.md << 'HEREDOC'
-   ## v<X.Y.Z>
+   ## v<X.Y.Z> - <short title>
 
-   ### Changed
-   - Describe changes here
+   ### Fixed
+   - <entry from CHANGELOG>
    HEREDOC
    gh release create v<X.Y.Z> --title "v<X.Y.Z>" --notes-file /tmp/release_notes.md
    rm /tmp/release_notes.md
    ```
 
-6. **Automatic Development Version Progression (Next Version)**
-   Immediately ask the user what the *next* version should be (e.g. `0.11.0` or `0.10.1.dev0`).
-   If they approve, run `python tools/bump_version.py <next-version> [--snapshot]` and commit the new development version:
+5. **Start next dev cycle**
+   Ask the user what the next version should be (e.g. `X.Y+1.Z` or `X.Y.Z+1`).
    ```bash
-   git add package.json frontend/package.json backend/pyproject.toml
-   git commit -m "⚙️ config: start next dev cycle <next-version>"
+   python tools/bump_version.py <next-version> --snapshot --yes
    git push origin main
    ```
