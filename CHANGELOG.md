@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-06-22
+
+### Fixed
+- [infra] Route all file uploads and image downloads through Next.js `/api/storage-proxy` — SeaweedFS port 8333 no longer needs to be publicly exposed
+- [infra] Fix `ECONNREFUSED 127.0.0.1:8333` in Docker: set `STORAGE_ENDPOINT_URL` and `STORAGE_PUBLIC_URL` to internal `seaweedfs:8333` hostname in both backend and frontend containers
+- [backend] Sanitize S3 key filenames in storage service — replace spaces and special characters with underscores to prevent `SignatureDoesNotMatch` 403 errors on presigned PUT URLs
+- [frontend] Add missing `storageUploadUrl` import in `PlaybookEditorClient` that caused playbook image uploads to fail silently
+- [backend] Fix `MissingGreenlet` crash on `PATCH /playbooks/{id}` by eager-loading `taxonomy_assignments` after flush in `playbook_repository.update`
+- [backend] Fix same `MissingGreenlet` risk in `playbook_repository.get_by_id` and `create` by adding `selectinload` for `taxonomy_assignments`
+
 ## [1.3.2] - 2026-06-21
 
 ### Added
