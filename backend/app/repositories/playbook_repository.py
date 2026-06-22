@@ -21,8 +21,10 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.playbook import Playbook
+from app.models.playbook_taxonomy import PlaybookTaxonomy
 from app.schemas.playbook import PlaybookCreate, PlaybookUpdate
 
 
@@ -60,9 +62,15 @@ class PlaybookRepository:
             not owned by the given user.
         """
         result = await self._session.execute(
-            select(Playbook).where(
+            select(Playbook)
+            .where(
                 Playbook.id == playbook_id,
                 Playbook.user_id == user_id,
+            )
+            .options(
+                selectinload(Playbook.taxonomy_assignments).selectinload(
+                    PlaybookTaxonomy.taxonomy
+                )
             )
         )
         return result.scalar_one_or_none()
@@ -100,7 +108,16 @@ class PlaybookRepository:
         Returns:
             A list of :class:`Playbook` ORM instances (may be empty).
         """
-        result = await self._session.execute(select(Playbook).where(Playbook.user_id == user_id).order_by(Playbook.created_at.asc()))
+        result = await self._session.execute(
+            select(Playbook)
+            .where(Playbook.user_id == user_id)
+            .options(
+                selectinload(Playbook.taxonomy_assignments).selectinload(
+                    PlaybookTaxonomy.taxonomy
+                )
+            )
+            .order_by(Playbook.created_at.asc())
+        )
         return list(result.scalars().all())
 
     async def create(self, data: PlaybookCreate, user_id: uuid.UUID) -> Playbook:
@@ -124,8 +141,18 @@ class PlaybookRepository:
         )
         self._session.add(playbook)
         await self._session.flush()
-        await self._session.refresh(playbook)
-        return playbook
+        # Re-fetch with eager-load so taxonomy_assignments are available for
+        # the PlaybookRead Pydantic validator without triggering a lazy-load.
+        result = await self._session.execute(
+            select(Playbook)
+            .where(Playbook.id == playbook.id)
+            .options(
+                selectinload(Playbook.taxonomy_assignments).selectinload(
+                    PlaybookTaxonomy.taxonomy
+                )
+            )
+        )
+        return result.scalar_one()
 
     async def update(
         self,
@@ -149,8 +176,18 @@ class PlaybookRepository:
             setattr(playbook, field, value)
         self._session.add(playbook)
         await self._session.flush()
-        await self._session.refresh(playbook)
-        return playbook
+        # Re-fetch with taxonomy_assignments eager-loaded so the Pydantic
+        # validator can access them synchronously without triggering a lazy-load.
+        result = await self._session.execute(
+            select(Playbook)
+            .where(Playbook.id == playbook.id)
+            .options(
+                selectinload(Playbook.taxonomy_assignments).selectinload(
+                    PlaybookTaxonomy.taxonomy
+                )
+            )
+        )
+        return result.scalar_one()
 
     async def delete(self, playbook: Playbook) -> None:
         """Delete a playbook from the database.

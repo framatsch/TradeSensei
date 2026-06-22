@@ -124,7 +124,7 @@ export function PlaybookList() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {["Name", "Description", "Status", "Created", ""].map((col) => (
+                {["Name", "Tags", "Status", "Created", ""].map((col) => (
                   <th
                     key={col}
                     className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap"
@@ -144,9 +144,25 @@ export function PlaybookList() {
                   <td className="px-4 py-3 text-sm font-medium text-foreground">
                     {pb.name}
                   </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate">
-                    {pb.description ?? (
-                      <span className="italic text-muted-foreground">—</span>
+                  <td className="px-4 py-3">
+                    {pb.taxonomies && pb.taxonomies.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {pb.taxonomies.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border"
+                            style={{
+                              backgroundColor: (tag.color_hex ?? "#888") + "20",
+                              borderColor: (tag.color_hex ?? "#888") + "50",
+                              color: tag.color_hex ?? "#888",
+                            }}
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="italic text-muted-foreground text-sm">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">

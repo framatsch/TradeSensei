@@ -16,9 +16,11 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.taxonomy import TaxonomyResponse
 from app.core.constants import (
     PLAYBOOK_DESCRIPTION_MAX_LENGTH,
     PLAYBOOK_NAME_MAX_LENGTH,
@@ -159,3 +161,21 @@ class PlaybookRead(BaseModel):
         description="UTC timestamp of the most recent update to this playbook.",
         examples=["2024-03-15T10:00:00Z"],
     )
+    taxonomies: list[TaxonomyResponse] = Field(
+        default_factory=list,
+        description="Taxonomy tags assigned to this playbook.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _resolve_taxonomies(cls, data: Any) -> Any:
+        """Flatten taxonomy_assignments relationship into taxonomies list."""
+        if isinstance(data, dict):
+            return data
+        if hasattr(data, "taxonomy_assignments") and not hasattr(data, "taxonomies"):
+            data.__dict__["taxonomies"] = [
+                a.taxonomy
+                for a in data.taxonomy_assignments
+                if getattr(a, "taxonomy", None) is not None
+            ]
+        return data
