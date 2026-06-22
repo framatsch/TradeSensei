@@ -43,6 +43,7 @@ import {
   useCreatePlaybookLink,
   useDeletePlaybookLink,
 } from "@/hooks/usePlaybookMetadata";
+import { resolveStorageUrl, storageUploadUrl } from "@/lib/storageUrl";
 
 interface Props {
   id: string;
@@ -251,7 +252,7 @@ export function PlaybookEditorClient({ id }: Props) {
             filename: file.name,
             contentType: file.type,
           });
-          const res = await fetch(upload_url, {
+          const res = await fetch(storageUploadUrl(upload_url), {
             method: "PUT",
             body: file,
             headers: { "Content-Type": file.type },
@@ -599,7 +600,7 @@ export function PlaybookEditorClient({ id }: Props) {
                     <button
                       type="button"
                       onClick={() => {
-                        setLightboxSrc(att.storage_url);
+                        setLightboxSrc(resolveStorageUrl(att.storage_url));
                         setLightboxAlt(att.filename);
                       }}
                       className="shrink-0"
@@ -607,7 +608,7 @@ export function PlaybookEditorClient({ id }: Props) {
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={att.storage_url}
+                        src={resolveStorageUrl(att.storage_url)}
                         alt={att.filename}
                         className="w-10 h-10 rounded object-cover border border-border"
                       />

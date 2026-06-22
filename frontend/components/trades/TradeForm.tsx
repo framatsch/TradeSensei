@@ -28,6 +28,7 @@ import { Trash2, Plus } from "lucide-react";
 import { ExecutionSummaryCard } from "./ExecutionSummaryCard";
 import { extractApiError } from "@/lib/apiErrors";
 import { TradeScreenshotUploader } from "./TradeScreenshotUploader";
+import { resolveStorageUrl } from "@/lib/storageUrl";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import { TaxonomySelector } from "./TaxonomySelector";
@@ -842,7 +843,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
               {imageUrls.map((url) => (
                 <div key={url} className="relative rounded-md overflow-hidden border border-border bg-secondary">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="Trade attachment" className="w-full h-28 object-cover cursor-pointer" onClick={() => window.open(url, "_blank", "noopener,noreferrer")} />
+                  <img src={resolveStorageUrl(url)} alt="Trade attachment" className="w-full h-28 object-cover cursor-pointer" onClick={() => window.open(resolveStorageUrl(url), "_blank", "noopener,noreferrer")} />
                   <button
                     type="button"
                     onClick={() => removeImage(url)}

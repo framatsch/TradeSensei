@@ -17,6 +17,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTradeImageUploadUrl } from "@/hooks/useTrade";
+import { storageUploadUrl } from "@/lib/storageUrl";
 
 interface Props {
   onUploaded: (urls: string[]) => void;
@@ -54,7 +55,7 @@ export function TradeScreenshotUploader({ onUploaded, disabled = false }: Props)
           contentType: file.type,
         });
 
-        const uploadRes = await fetch(res.presigned_url, {
+        const uploadRes = await fetch(storageUploadUrl(res.presigned_url), {
           method: "PUT",
           body: file,
           headers: {

@@ -13,6 +13,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { storageUploadUrl } from "@/lib/storageUrl";
+
 export interface TradeImageUploadUrls {
   presigned_url: string;
   key: string;
@@ -34,7 +36,7 @@ export async function uploadTradeImages(
     const contentType = file.type || "application/octet-stream";
     const { presigned_url, key } = await requestUploadUrl(file.name, contentType);
 
-    const response = await putFile(presigned_url, {
+    const response = await putFile(storageUploadUrl(presigned_url), {
       method: "PUT",
       headers: {
         "Content-Type": contentType,

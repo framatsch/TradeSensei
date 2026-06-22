@@ -13,6 +13,7 @@
 
 """Object storage service for presigned upload URLs."""
 
+import re
 import uuid
 from datetime import UTC, datetime
 from functools import cached_property
@@ -73,6 +74,12 @@ class StorageService:
         clean_name = Path(filename).name
         if not clean_name:
             raise ValueError("filename is required")
+        # Replace spaces and other S3-unsafe characters with underscores.
+        # Spaces in S3 keys cause presigned URL signature mismatches with some
+        # S3-compatible backends (including SeaweedFS) because boto3 encodes
+        # spaces as %20 in the signed URL but the backend may expect a
+        # different encoding when validating the signature.
+        clean_name = re.sub(r"[^\w.\-]", "_", clean_name)
 
         key = f"{key_prefix}{user_id}/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4()}-{clean_name}"
 

@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { ExternalLink, Pencil, Link2, Tag } from "lucide-react";
 import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
+import { resolveStorageUrl } from "@/lib/storageUrl";
 
 
 export function TimelineView() {
@@ -87,13 +88,13 @@ export function TimelineView() {
                 className="w-full sm:w-1/3 lg:w-1/4 shrink-0 bg-muted border-b sm:border-b-0 sm:border-r border-border relative p-4 flex items-center justify-center cursor-pointer min-h-[200px]"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setLightboxData({ urls: checkin.screenshot_urls!, index: 0 });
+                  setLightboxData({ urls: checkin.screenshot_urls!.map(resolveStorageUrl), index: 0 });
                 }}
               >
                 <div className="w-full h-full relative rounded-lg overflow-hidden shadow-sm min-h-[160px] sm:min-h-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={checkin.screenshot_urls[0]}
+                    src={resolveStorageUrl(checkin.screenshot_urls[0])}
                     alt={`Screenshot for ${checkin.date}`}
                     className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
                   />

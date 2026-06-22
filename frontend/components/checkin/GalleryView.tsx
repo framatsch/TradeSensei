@@ -23,6 +23,7 @@ import { useState } from "react";
 import { Pencil, ExternalLink, Link2 } from "lucide-react";
 import { TradeImageGallery } from "@/components/trades/TradeImageGallery";
 import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
+import { resolveStorageUrl } from "@/lib/storageUrl";
 
 export function GalleryView() {
   const router = useRouter();
@@ -83,7 +84,7 @@ export function GalleryView() {
                 onClick={(e) => {
                   if (checkin.screenshot_urls && checkin.screenshot_urls.length > 0) {
                     e.stopPropagation();
-                    setLightboxData({ urls: checkin.screenshot_urls, index: 0 });
+                    setLightboxData({ urls: checkin.screenshot_urls.map(resolveStorageUrl), index: 0 });
                   }
                 }}
               >
@@ -91,7 +92,7 @@ export function GalleryView() {
                   <div className="w-full h-full relative rounded-lg overflow-hidden shadow-sm">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
-                      src={checkin.screenshot_urls[0]} 
+                      src={resolveStorageUrl(checkin.screenshot_urls[0])} 
                       alt={`Screenshot for ${checkin.date}`}
                       className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
                     />

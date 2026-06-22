@@ -16,6 +16,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { resolveStorageUrl } from "@/lib/storageUrl";
 
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   useEffect(() => {
@@ -64,10 +65,10 @@ export function TradeImageGallery({ imageUrls }: TradeImageGalleryProps) {
             type="button"
             key={url}
             className="rounded-lg overflow-hidden border border-border bg-secondary aspect-[4/3]"
-            onClick={() => setActiveImage(url)}
+            onClick={() => setActiveImage(resolveStorageUrl(url))}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="Trade image" className="w-full h-full object-cover" />
+            <img src={resolveStorageUrl(url)} alt="Trade image" className="w-full h-full object-cover" />
           </button>
         ))}
       </div>

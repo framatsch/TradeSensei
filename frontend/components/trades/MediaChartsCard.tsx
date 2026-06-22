@@ -30,9 +30,10 @@ import { useUploadScreenshot, useDeleteScreenshot } from "@/hooks/useScreenshots
 import { useUpdateTrade } from "@/hooks/useTrade";
 import type { Trade, LogicalExecution } from "@/lib/types";
 import { TradeChart } from "@/components/charts/TradeChart";
+import { resolveStorageUrl } from "@/lib/storageUrl";
 
 function resolveUrl(url: string): string {
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http")) return resolveStorageUrl(url);
   return `/api/proxy${url}`;
 }
 

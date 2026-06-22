@@ -25,6 +25,7 @@ import { AnnotationEditor } from "@/components/checkin/AnnotationEditor";
 import { useMarketIndexes } from "@/hooks/useCheckinDefinitions";
 import { useSettings } from "@/hooks/useSettings";
 import { CheckinLightbox } from "@/components/checkin/CheckinLightbox";
+import { resolveStorageUrl } from "@/lib/storageUrl";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import {
@@ -306,10 +307,10 @@ export function CheckinForm({
               <div key={i} className="relative group w-32 h-20 rounded-md overflow-hidden border border-border">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={screenshotPreviews[i]}
+                  src={resolveStorageUrl(screenshotPreviews[i])}
                   alt={`Screenshot ${i + 1}`}
                   className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => setLightboxData({ urls: screenshotPreviews, index: i })}
+                  onClick={() => setLightboxData({ urls: screenshotPreviews.map(resolveStorageUrl), index: i })}
                 />
                 {isEditMode && (
                   <button

@@ -70,17 +70,16 @@ services:
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
       # S3-compatible storage for trade image uploads and check-in screenshots.
       # By default, this connects to the bundled SeaweedFS instance.
-      # STORAGE_PUBLIC_URL must be the S3 endpoint host ONLY (no bucket path suffix),
-      # host-reachable by the browser. boto3 appends /{bucket}/{key} automatically.
+      # Presigned URLs use seaweedfs:8333 (internal Docker hostname) so the
+      # Next.js storage-proxy can reach SeaweedFS server-side. The browser
+      # never contacts SeaweedFS directly — all uploads/downloads go through
+      # the /api/storage-proxy Next.js route.
       STORAGE_BACKEND: "${STORAGE_BACKEND:-s3}"
       STORAGE_BUCKET: "${STORAGE_BUCKET:-tradesensei}"
-      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-http://localhost:8333}"
+      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-http://seaweedfs:8333}"
       STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-any}"
       STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-any}"
-      # Note: STORAGE_ENDPOINT_URL is used to generate the presigned URL.
-      # Because the browser (frontend) uploads directly, this must be a host-reachable URL
-      # (like http://localhost:8333) rather than the internal docker service name.
-      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-http://localhost:8333}"
+      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-http://seaweedfs:8333}"
     ports:
       - "8000:8000"
     volumes:
@@ -109,6 +108,8 @@ services:
     environment:
       API_URL: http://backend:8000
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
+      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-http://seaweedfs:8333}"
+      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-http://seaweedfs:8333}"
     ports:
       - "3000:3000"
     volumes:
@@ -127,10 +128,13 @@ services:
     environment:
       - WEED_JWT_FILER_SIGNING_KEY=${WEED_JWT_FILER_SIGNING_KEY:-7a8f9c1b2d3e4f5a6b7c8d9e0f1a2b3c}
     command: server -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/security.json -dir=/data
-    ports:
-      - "8333:8333"
-      - "8888:8888"
-      - "9333:9333"
+    # No ports exposed — storage is internal only.
+    # Access goes through the Next.js /api/storage-proxy route.
+    # expose: keeps the ports reachable within the Docker network.
+    expose:
+      - "8333"
+      - "8888"
+      - "9333"
     volumes:
       - seaweedfs_data:/data
       - ./security.json:/etc/seaweedfs/security.json
@@ -158,8 +162,6 @@ services:
           sleep 2;
         done;
         aws --endpoint-url http://seaweedfs:8333 s3 ls s3://tradesensei > /dev/null 2>&1 || aws --endpoint-url http://seaweedfs:8333 s3 mb s3://tradesensei --region us-east-1;
-        echo '{\"CORSRules\":[{\"AllowedHeaders\":[\"*\"],\"AllowedMethods\":[\"PUT\",\"POST\",\"GET\",\"HEAD\"],\"AllowedOrigins\":[\"*\"],\"ExposeHeaders\":[]}]}' > cors.json;
-        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-cors --bucket tradesensei --cors-configuration file://cors.json || true
       "
 
 volumes:

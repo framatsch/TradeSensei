@@ -17,6 +17,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { generateScreenshotUploadUrlApiV1CheckinsScreenshotUploadUrlPost } from "@/lib/api/index";
+import { storageUploadUrl } from "@/lib/storageUrl";
 
 interface Props {
   onUploaded: (storageRef: string, previewUrl: string) => void;
@@ -73,7 +74,7 @@ export function ScreenshotUploader({ onUploaded }: Props) {
         return;
       }
 
-      const uploadRes = await fetch(presigned_url, {
+      const uploadRes = await fetch(storageUploadUrl(presigned_url), {
         method: "PUT",
         body: file,
         headers: {
