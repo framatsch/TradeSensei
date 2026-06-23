@@ -53,4 +53,5 @@ testpaths = ["tests"]
 markers = [
     "integration: marks tests that require a live database (deselect with -m 'not integration')",
     "unit: marks fast unit tests with no external dependencies",
+    "slow: marks tests that are too slow for CI (run locally with -m slow)",
 ]

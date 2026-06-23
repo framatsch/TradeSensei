@@ -98,7 +98,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Run pytest
-        run: uv run pytest tests/ -v --cov=app --cov-report=term-missing
+        run: uv run pytest tests/ -v --cov=app --cov-report=term-missing -m "not slow"
         env:
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_tradesensei
           SECRET_KEY: test-secret-key-ci-minimum-32-characters

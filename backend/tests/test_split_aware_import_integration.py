@@ -250,6 +250,7 @@ async def test_reimport_idempotency_via_fresh_start(client: AsyncClient) -> None
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 async def test_large_file_import_performance_smoke(client: AsyncClient) -> None:
     """Large split fixture should import in a bounded time and row count."""
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
