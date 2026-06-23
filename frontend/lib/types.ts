@@ -131,6 +131,7 @@ export interface Playbook {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  taxonomies?: TaxonomyResponse[];
 }
 
 export interface PlaybookCreate {
