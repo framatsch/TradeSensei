@@ -111,7 +111,6 @@ class TradeService:
         key = f"trades/{user_id}/{trade_id}/{filename}"
         import os
 
-        from app.core.config import settings
 
         is_test = os.environ.get("PYTEST_CURRENT_TEST") is not None
         bucket = settings.storage_bucket or "test-bucket"

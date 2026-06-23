@@ -159,8 +159,8 @@ async def create_checkin(
 async def list_checkins(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[DailyCheckinService, Depends(_get_service)],
-    from_date: date | None = Query(None, description="Start date (YYYY-MM-DD)."),
-    to_date: date | None = Query(None, description="End date (YYYY-MM-DD)."),
+    from_date: Annotated[date | None, Query(description="Start date (YYYY-MM-DD).")] = None,
+    to_date: Annotated[date | None, Query(description="End date (YYYY-MM-DD).")] = None,
     target_indices: str | None = Query(None, description="Comma-separated list of target index UUIDs to filter by."),
     taxonomy_ids: str | None = Query(None, description="Comma-separated taxonomy UUIDs (OR logic across selected tags)."),
     annotation_filters: str | None = Query(None, description="JSON-encoded list of AnnotationFilterItem objects."),

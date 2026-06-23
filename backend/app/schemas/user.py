@@ -24,7 +24,6 @@ from app.core.constants import (
     USERNAME_MIN_LENGTH,
 )
 
-
 # Keep in sync with FEATURE_FLAGS in frontend/lib/featureFlags.ts.
 # `show_open_trades` is intentionally excluded — it is a top-level setting, not a feature flag.
 _ALLOWED_FEATURE_FLAG_KEYS = {

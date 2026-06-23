@@ -17,7 +17,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

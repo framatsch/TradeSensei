@@ -17,7 +17,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import date
 
-from sqlalchemy import and_, delete, func, select, text
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -126,7 +126,19 @@ class DailyCheckinRepository:
     ) -> tuple[Sequence[DailyCheckin], date | None, int]:
         """Cursor-paginated check-ins ordered by date descending."""
         clamped_limit = max(1, min(limit, 90))
-        base_stmt = select(DailyCheckin).where(DailyCheckin.user_id == user_id).options(selectinload(DailyCheckin.target_indices), selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy), selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition))
+        base_stmt = (
+            select(DailyCheckin)
+            .where(DailyCheckin.user_id == user_id)
+            .options(
+                selectinload(DailyCheckin.target_indices),
+                selectinload(DailyCheckin.taxonomy_assignments).selectinload(
+                    CheckinTaxonomy.taxonomy
+                ),
+                selectinload(DailyCheckin.annotation_assignments).selectinload(
+                    CheckinAnnotation.annotation_definition
+                ),
+            )
+        )
         if from_date is not None:
             base_stmt = base_stmt.where(DailyCheckin.date >= from_date)
         if to_date is not None:

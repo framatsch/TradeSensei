@@ -12,7 +12,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field

@@ -181,9 +181,6 @@ def apply_annotation_filters(
 
     # Each group is an OR chain; groups are ANDed together at WHERE level.
     for group in groups:
-        if len(group) == 1:
-            stmt = stmt.where(group[0])
-        else:
-            stmt = stmt.where(or_(*group))
+        stmt = stmt.where(group[0]) if len(group) == 1 else stmt.where(or_(*group))
 
     return stmt

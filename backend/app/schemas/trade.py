@@ -31,7 +31,6 @@ from app.schemas.execution import LogicalExecutionCreate, LogicalExecutionRead
 from app.schemas.note import TradeNoteRead
 from app.schemas.taxonomy import TaxonomyResponse
 
-
 # Sentinel singleton used to distinguish "field not provided" from "field set to None"
 _UNSET: object = object()
 

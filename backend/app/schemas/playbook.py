@@ -20,12 +20,12 @@ from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from app.schemas.taxonomy import TaxonomyResponse
 from app.core.constants import (
     PLAYBOOK_DESCRIPTION_MAX_LENGTH,
     PLAYBOOK_NAME_MAX_LENGTH,
     PLAYBOOK_NAME_MIN_LENGTH,
 )
+from app.schemas.taxonomy import TaxonomyResponse
 
 
 class PlaybookCreate(BaseModel):

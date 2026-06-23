@@ -27,7 +27,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any  # JWT payload values are heterogeneous (str, int, float)
 
 import bcrypt
-
 from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession

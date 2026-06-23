@@ -19,7 +19,6 @@ from app.core.exceptions import (
     SavedCheckinFilterConflictError,
     SavedCheckinFilterNotFoundError,
 )
-
 from app.models.saved_checkin_filter import SavedCheckinFilter
 from app.repositories.saved_checkin_filter_repository import SavedCheckinFilterRepository
 from app.schemas.saved_checkin_filter import (

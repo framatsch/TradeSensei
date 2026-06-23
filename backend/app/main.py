@@ -19,6 +19,7 @@ middleware, mounts all API routers, and applies startup migrations.
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
