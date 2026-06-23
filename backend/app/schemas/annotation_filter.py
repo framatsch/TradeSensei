@@ -34,15 +34,9 @@ class AnnotationFilterItem(BaseModel):
                The first filter always uses AND regardless of this field.
     """
 
-    annotation_definition_id: uuid.UUID = Field(
-        ..., description="UUID of the AnnotationDefinition to filter on."
-    )
-    operator: Literal["eq", "neq", "lt", "lte", "gt", "gte"] = Field(
-        ..., description="Comparison operator: eq, neq, lt, lte, gt, gte."
-    )
-    value: int | float | bool | str = Field(
-        ..., description="Filter value; must match the annotation's type."
-    )
+    annotation_definition_id: uuid.UUID = Field(..., description="UUID of the AnnotationDefinition to filter on.")
+    operator: Literal["eq", "neq", "lt", "lte", "gt", "gte"] = Field(..., description="Comparison operator: eq, neq, lt, lte, gt, gte.")
+    value: int | float | bool | str = Field(..., description="Filter value; must match the annotation's type.")
     logic: Literal["and", "or"] = Field(
         default="and",
         description="Logic connector: 'and' (default) or 'or'.",

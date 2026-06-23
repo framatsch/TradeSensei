@@ -605,9 +605,7 @@ class TradeCreateRequest(BaseModel):
                 if allowed_bucket:
                     bucket = storage_ref.split("/", 1)[0]
                     if bucket != allowed_bucket:
-                        raise ValueError(
-                            f"image_urls entries must reference the configured storage bucket '{allowed_bucket}'"
-                        )
+                        raise ValueError(f"image_urls entries must reference the configured storage bucket '{allowed_bucket}'")
         return v
 
     def to_trade_create(self, user_id: uuid.UUID) -> "TradeCreate":
@@ -748,9 +746,7 @@ class TradeUpdate(BaseModel):
                 if allowed_bucket:
                     bucket = storage_ref.split("/", 1)[0]
                     if bucket != allowed_bucket:
-                        raise ValueError(
-                            f"image_urls entries must reference the configured storage bucket '{allowed_bucket}'"
-                        )
+                        raise ValueError(f"image_urls entries must reference the configured storage bucket '{allowed_bucket}'")
         return v
 
 
@@ -1019,8 +1015,7 @@ class TradeRead(BaseModel):
             if "taxonomy_assignments" in data.__dict__ and "taxonomies" not in data.__dict__:
                 with contextlib.suppress(Exception):
                     data.__dict__["taxonomies"] = [
-                        assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"]
-                        if getattr(assignment, "taxonomy", None) is not None
+                        assignment.taxonomy for assignment in data.__dict__["taxonomy_assignments"] if getattr(assignment, "taxonomy", None) is not None
                     ]
 
             if "annotation_assignments" in data.__dict__ and "annotations" not in data.__dict__:

@@ -42,6 +42,7 @@ class SavedCheckinFilterBase(BaseModel):
 
 class SavedCheckinFilterCreate(SavedCheckinFilterBase):
     """Schema for creating a new SavedCheckinFilter."""
+
     pass
 
 

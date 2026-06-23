@@ -173,9 +173,5 @@ class PlaybookRead(BaseModel):
         if isinstance(data, dict):
             return data
         if hasattr(data, "taxonomy_assignments") and not hasattr(data, "taxonomies"):
-            data.__dict__["taxonomies"] = [
-                a.taxonomy
-                for a in data.taxonomy_assignments
-                if getattr(a, "taxonomy", None) is not None
-            ]
+            data.__dict__["taxonomies"] = [a.taxonomy for a in data.taxonomy_assignments if getattr(a, "taxonomy", None) is not None]
         return data

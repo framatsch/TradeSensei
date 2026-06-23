@@ -159,9 +159,7 @@ class UserSettingsRead(BaseModel):
     show_open_trades: bool = Field(default=False)
     home_route: Literal["/dashboard", "/dashboard/trades", "/dashboard/library", "/dashboard/checkins"] = Field(default="/dashboard")
     chart_intervals: list[Literal["1h", "4h", "1d", "1w"]] = Field(
-        default=["1h", "4h", "1d", "1w"],
-        description="Allowed chart timeframes.",
-        examples=[["1h", "4h", "1d", "1w"]]
+        default=["1h", "4h", "1d", "1w"], description="Allowed chart timeframes.", examples=[["1h", "4h", "1d", "1w"]]
     )
 
 
@@ -220,9 +218,7 @@ class UserSettingsUpdate(BaseModel):
             return None
         invalid_keys = [key for key in value if key not in _ALLOWED_FEATURE_FLAG_KEYS]
         if invalid_keys:
-            raise ValueError(
-                f"Unsupported feature flag key(s): {', '.join(sorted(invalid_keys))}"
-            )
+            raise ValueError(f"Unsupported feature flag key(s): {', '.join(sorted(invalid_keys))}")
         return value
 
     @field_validator("chart_intervals")

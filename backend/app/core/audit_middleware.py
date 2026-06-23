@@ -217,10 +217,10 @@ class AuditMiddleware:
             if isinstance(override, tuple):
                 return override[0], override[1], None, None, None
             return override, None, None, None, None
-            
+
         for (o_method, o_path), override in _WILDCARD_ACTION_OVERRIDES.items():
             if method == o_method and path.startswith(o_path):
-                resource_id = path[len(o_path):] or None
+                resource_id = path[len(o_path) :] or None
                 return override[0], override[1], resource_id, None, None
 
         route_metadata = self._extract_route_metadata(request)

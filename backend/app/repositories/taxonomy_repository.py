@@ -89,36 +89,19 @@ class TaxonomyRepository:
         if scope is not None:
             # Match taxonomies whose comma-separated scope contains the requested token.
             stmt = stmt.where(
-                (Taxonomy.scope == scope)
-                | Taxonomy.scope.like(f"{scope},%")
-                | Taxonomy.scope.like(f"%,{scope}")
-                | Taxonomy.scope.like(f"%,{scope},%")
+                (Taxonomy.scope == scope) | Taxonomy.scope.like(f"{scope},%") | Taxonomy.scope.like(f"%,{scope}") | Taxonomy.scope.like(f"%,{scope},%")
             )
         result = await self._session.execute(stmt)
         return builtins.list(result.scalars().all())
 
     async def list_with_usage_counts(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[tuple[Taxonomy, int]]:
         """Return active taxonomies together with their total assignment count."""
-        trade_count = (
-            select(func.count())
-            .select_from(TradeTaxonomy)
-            .where(TradeTaxonomy.taxonomy_id == Taxonomy.id)
-            .correlate(Taxonomy)
-            .scalar_subquery()
-        )
+        trade_count = select(func.count()).select_from(TradeTaxonomy).where(TradeTaxonomy.taxonomy_id == Taxonomy.id).correlate(Taxonomy).scalar_subquery()
         checkin_count = (
-            select(func.count())
-            .select_from(CheckinTaxonomy)
-            .where(CheckinTaxonomy.taxonomy_id == Taxonomy.id)
-            .correlate(Taxonomy)
-            .scalar_subquery()
+            select(func.count()).select_from(CheckinTaxonomy).where(CheckinTaxonomy.taxonomy_id == Taxonomy.id).correlate(Taxonomy).scalar_subquery()
         )
         playbook_count = (
-            select(func.count())
-            .select_from(PlaybookTaxonomy)
-            .where(PlaybookTaxonomy.taxonomy_id == Taxonomy.id)
-            .correlate(Taxonomy)
-            .scalar_subquery()
+            select(func.count()).select_from(PlaybookTaxonomy).where(PlaybookTaxonomy.taxonomy_id == Taxonomy.id).correlate(Taxonomy).scalar_subquery()
         )
         stmt = (
             select(Taxonomy, (trade_count + checkin_count + playbook_count).label("usage_count"))
@@ -127,10 +110,7 @@ class TaxonomyRepository:
         )
         if scope is not None:
             stmt = stmt.where(
-                (Taxonomy.scope == scope)
-                | Taxonomy.scope.like(f"{scope},%")
-                | Taxonomy.scope.like(f"%,{scope}")
-                | Taxonomy.scope.like(f"%,{scope},%")
+                (Taxonomy.scope == scope) | Taxonomy.scope.like(f"{scope},%") | Taxonomy.scope.like(f"%,{scope}") | Taxonomy.scope.like(f"%,{scope},%")
             )
         result = await self._session.execute(stmt)
         return [(row.Taxonomy, int(row.usage_count)) for row in result.all()]
@@ -151,6 +131,7 @@ class TaxonomyRepository:
 
     async def delete_assignments(self, taxonomy_id: uuid.UUID) -> None:
         from sqlalchemy import delete
+
         await self._session.execute(delete(TradeTaxonomy).where(TradeTaxonomy.taxonomy_id == taxonomy_id))
         await self._session.execute(delete(CheckinTaxonomy).where(CheckinTaxonomy.taxonomy_id == taxonomy_id))
         await self._session.execute(delete(PlaybookTaxonomy).where(PlaybookTaxonomy.taxonomy_id == taxonomy_id))
@@ -178,10 +159,7 @@ class TaxonomyRepository:
         stmt = select(Taxonomy).where(Taxonomy.user_id == user_id).order_by(Taxonomy.name.asc())
         if scope is not None:
             stmt = stmt.where(
-                (Taxonomy.scope == scope)
-                | Taxonomy.scope.like(f"{scope},%")
-                | Taxonomy.scope.like(f"%,{scope}")
-                | Taxonomy.scope.like(f"%,{scope},%")
+                (Taxonomy.scope == scope) | Taxonomy.scope.like(f"{scope},%") | Taxonomy.scope.like(f"%,{scope}") | Taxonomy.scope.like(f"%,{scope},%")
             )
         result = await self._session.execute(stmt)
         return builtins.list(result.scalars().all())

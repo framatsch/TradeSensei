@@ -56,7 +56,7 @@ async def create_saved_checkin_filter(
 ) -> ResponseEnvelope[SavedCheckinFilterResponse]:
     try:
         filter_obj = await service.create(user_id=current_user.id, schema=schema)
-        return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj) # type: ignore[arg-type]
+        return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj)  # type: ignore[arg-type]
     except SavedCheckinFilterConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -75,7 +75,7 @@ async def list_saved_checkin_filters(
     service: Annotated[SavedCheckinFilterService, Depends(_get_service)],
 ) -> ResponseEnvelope[list[SavedCheckinFilterResponse]]:
     filters = await service.list_by_user(user_id=current_user.id)
-    return ResponseEnvelope[list[SavedCheckinFilterResponse]](data=filters) # type: ignore[arg-type]
+    return ResponseEnvelope[list[SavedCheckinFilterResponse]](data=filters)  # type: ignore[arg-type]
 
 
 @router.put(
@@ -96,7 +96,7 @@ async def update_saved_checkin_filter(
             filter_id=filter_id,
             schema=schema,
         )
-        return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj) # type: ignore[arg-type]
+        return ResponseEnvelope[SavedCheckinFilterResponse](data=filter_obj)  # type: ignore[arg-type]
     except SavedCheckinFilterNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

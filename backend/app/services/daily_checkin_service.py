@@ -109,9 +109,7 @@ class DailyCheckinService:
             except ValueError as exc:
                 raise DailyCheckinValidationError("screenshot_url must use '{bucket}/{key}' format") from exc
             if settings.storage_bucket and bucket != settings.storage_bucket:
-                raise DailyCheckinValidationError(
-                    f"screenshot_urls entries must reference the configured storage bucket '{settings.storage_bucket}'"
-                )
+                raise DailyCheckinValidationError(f"screenshot_urls entries must reference the configured storage bucket '{settings.storage_bucket}'")
 
     async def create_checkin(
         self,

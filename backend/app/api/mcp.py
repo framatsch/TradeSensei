@@ -531,13 +531,13 @@ async def _handle_update_strategy_playbook(
 
     if params.description is not None:
         playbook.description = params.description
-    
+
     if params.rules is not None:
         playbook.content_markdown = "\n".join(f"- {rule}" for rule in params.rules)
-        
+
     if params.target_winrate is not None:
         playbook.target_winrate = Decimal(str(params.target_winrate))
-        
+
     if params.is_active is not None:
         playbook.is_active = params.is_active
 
@@ -558,11 +558,7 @@ async def _handle_update_strategy_playbook(
         metadata={"user_id": str(user_id), "playbook_id": str(playbook.id)},
     )
 
-    return {
-        "playbook_id": str(playbook.id), 
-        "name": playbook.name,
-        "is_active": playbook.is_active
-    }
+    return {"playbook_id": str(playbook.id), "name": playbook.name, "is_active": playbook.is_active}
 
 
 async def _handle_list_strategy_playbooks(
@@ -602,7 +598,7 @@ async def _handle_get_strategy_playbook(
     p = result.scalar_one_or_none()
     if not p:
         raise ValueError(f"Playbook {params.playbook_id} not found")
-        
+
     return {
         "id": str(p.id),
         "name": p.name,
@@ -746,8 +742,7 @@ async def _handle_list_checkins(
                 "date": c.date.isoformat(),
                 "notes": c.notes,
                 "taxonomy_assignments": [
-                    {"taxonomy_id": str(t.taxonomy_id), "name": t.taxonomy.name if t.taxonomy else None}
-                    for t in (c.taxonomy_assignments or [])
+                    {"taxonomy_id": str(t.taxonomy_id), "name": t.taxonomy.name if t.taxonomy else None} for t in (c.taxonomy_assignments or [])
                 ],
                 "annotation_assignments": [
                     {
@@ -1403,16 +1398,8 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
                     },
                 },
                 "portfolio_id": {"type": "string", "format": "uuid"},
-                "sort_by": {
-                    "type": "string", 
-                    "enum": ["opened_at", "closed_at", "pnl", "net_pnl"], 
-                    "default": "opened_at"
-                },
-                "sort_dir": {
-                    "type": "string", 
-                    "enum": ["asc", "desc"], 
-                    "default": "desc"
-                },
+                "sort_by": {"type": "string", "enum": ["opened_at", "closed_at", "pnl", "net_pnl"], "default": "opened_at"},
+                "sort_dir": {"type": "string", "enum": ["asc", "desc"], "default": "desc"},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
                 "offset": {"type": "integer", "minimum": 0, "default": 0},
             },
@@ -1531,7 +1518,7 @@ def _sse_event_stream(
         session_id = str(uuid.uuid4())
 
     message_endpoint = f"/mcp/messages?session_id={session_id}"
-    
+
     # Create a message queue for this session
     queue: asyncio.Queue[str] = asyncio.Queue()
     _ACTIVE_STREAMS[session_id] = (uuid.UUID(user_id), queue)
@@ -1818,5 +1805,5 @@ async def mcp_messages(
     if result:
         # Route the JSON-RPC response back over the active SSE stream
         await queue.put(json.dumps(result))
-        
+
     return Response(status_code=status.HTTP_202_ACCEPTED)

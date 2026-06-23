@@ -172,6 +172,7 @@ async def get_market_phase_correlation(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
     return ResponseEnvelope[AttributionResponse](data=data)
 
+
 @router.post(
     "/return-distribution",
     response_model=ResponseEnvelope[list[ReturnDistribution]],

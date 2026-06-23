@@ -186,6 +186,7 @@ class AnnotationDefinitionRepository:
 
     async def delete_assignments(self, definition_id: uuid.UUID) -> None:
         from sqlalchemy import delete
+
         await self._session.execute(delete(TradeAnnotation).where(TradeAnnotation.annotation_definition_id == definition_id))
         await self._session.execute(delete(CheckinAnnotation).where(CheckinAnnotation.annotation_definition_id == definition_id))
         await self._session.flush()
@@ -209,11 +210,7 @@ class AnnotationDefinitionRepository:
         return definition
 
     async def list_including_archived(self, user_id: uuid.UUID, scope: str | None = None) -> builtins.list[AnnotationDefinition]:
-        stmt = (
-            select(AnnotationDefinition)
-            .where(AnnotationDefinition.user_id == user_id)
-            .order_by(AnnotationDefinition.name.asc())
-        )
+        stmt = select(AnnotationDefinition).where(AnnotationDefinition.user_id == user_id).order_by(AnnotationDefinition.name.asc())
         if scope is not None:
             stmt = stmt.where(
                 (AnnotationDefinition.scope == scope)

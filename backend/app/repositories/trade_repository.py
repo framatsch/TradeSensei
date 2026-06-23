@@ -573,6 +573,7 @@ class TradeRepository:
             if filters.annotation_filters and user_id is not None:
                 from app.models.trade_annotation import TradeAnnotation as _TA
                 from app.repositories._annotation_filter import apply_annotation_filters as _apply_af
+
                 stmt = _apply_af(stmt, _TA, _TA.trade_id, Trade.id, user_id, filters.annotation_filters)
 
         # ── Cursor keyset condition ───────────────────────────────────────────
@@ -654,6 +655,7 @@ class TradeRepository:
                 if filters.annotation_filters and user_id is not None:
                     from app.models.trade_annotation import TradeAnnotation as _TA
                     from app.repositories._annotation_filter import apply_annotation_filters as _apply_af
+
                     base_count = _apply_af(base_count, _TA, _TA.trade_id, Trade.id, user_id, filters.annotation_filters)
             count_stmt = select(func.count()).select_from(base_count.subquery())
             count_result = await self._session.execute(count_stmt)

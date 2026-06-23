@@ -51,9 +51,7 @@ class SavedCheckinFilterService:
             )
         except IntegrityError as exc:
             # Handle potential unique constraint violations (if any are added later)
-            raise SavedCheckinFilterConflictError(
-                "Could not create saved filter due to a conflict."
-            ) from exc
+            raise SavedCheckinFilterConflictError("Could not create saved filter due to a conflict.") from exc
 
     async def list_by_user(
         self,
@@ -87,9 +85,7 @@ class SavedCheckinFilterService:
                 raise SavedCheckinFilterNotFoundError("Saved checkin filter not found.")
             return updated
         except IntegrityError as exc:
-            raise SavedCheckinFilterConflictError(
-                "Could not update saved filter due to a conflict."
-            ) from exc
+            raise SavedCheckinFilterConflictError("Could not update saved filter due to a conflict.") from exc
 
     async def delete(
         self,

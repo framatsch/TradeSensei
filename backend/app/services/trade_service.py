@@ -111,7 +111,6 @@ class TradeService:
         key = f"trades/{user_id}/{trade_id}/{filename}"
         import os
 
-
         is_test = os.environ.get("PYTEST_CURRENT_TEST") is not None
         bucket = settings.storage_bucket or "test-bucket"
         storage_ref = f"{bucket}/uploads/{key}" if is_test and not settings.storage_bucket else self._storage.upload_file_content(content, key, content_type)

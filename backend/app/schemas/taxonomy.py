@@ -23,6 +23,7 @@ from app.utils.scope_utils import normalize_scope
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
+
 class TaxonomyCreate(BaseModel):
     """Payload for creating a taxonomy definition."""
 

@@ -82,9 +82,7 @@ class PlaybookAttachmentService:
         except ValueError as exc:
             raise UnsupportedContentTypeError("storage_url must use '{bucket}/{key}' format") from exc
         if settings.storage_bucket and bucket != settings.storage_bucket:
-            raise UnsupportedContentTypeError(
-                f"storage_url must reference the configured storage bucket '{settings.storage_bucket}'"
-            )
+            raise UnsupportedContentTypeError(f"storage_url must reference the configured storage bucket '{settings.storage_bucket}'")
         if payload.content_type not in _ALLOWED_IMAGE_TYPES:
             raise UnsupportedContentTypeError("only image content types are accepted")
         attachment = await self._attachment_repo.create(

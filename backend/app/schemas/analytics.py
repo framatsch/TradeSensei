@@ -47,8 +47,7 @@ class DashboardFilterConfig(BaseModel):
     status: Literal["open", "closed"] | None = Field(
         default=None,
         description=(
-            "Optional status filter. If 'open', only open trades are included. "
-            "If 'closed', only closed trades are included. If None, both are included."
+            "Optional status filter. If 'open', only open trades are included. If 'closed', only closed trades are included. If None, both are included."
         ),
     )
     direction: Direction | None = Field(

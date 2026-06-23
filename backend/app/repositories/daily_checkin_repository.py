@@ -131,12 +131,8 @@ class DailyCheckinRepository:
             .where(DailyCheckin.user_id == user_id)
             .options(
                 selectinload(DailyCheckin.target_indices),
-                selectinload(DailyCheckin.taxonomy_assignments).selectinload(
-                    CheckinTaxonomy.taxonomy
-                ),
-                selectinload(DailyCheckin.annotation_assignments).selectinload(
-                    CheckinAnnotation.annotation_definition
-                ),
+                selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy),
+                selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition),
             )
         )
         if from_date is not None:
@@ -145,6 +141,7 @@ class DailyCheckinRepository:
             base_stmt = base_stmt.where(DailyCheckin.date <= to_date)
         if target_indices is not None and len(target_indices) > 0:
             from app.models.market_index import checkin_market_indices
+
             base_stmt = base_stmt.join(checkin_market_indices).where(checkin_market_indices.c.index_id.in_(target_indices))
         if taxonomy_ids is not None and len(taxonomy_ids) > 0:
             base_stmt = base_stmt.join(
@@ -175,10 +172,10 @@ class DailyCheckinRepository:
         total = int(count_result.scalar_one() or 0)
 
         page_stmt = page_stmt.order_by(DailyCheckin.date.desc())
-        
+
         if offset is not None:
             page_stmt = page_stmt.offset(offset)
-            
+
         page_stmt = page_stmt.limit(clamped_limit + 1)
         page_result = await self._session.execute(page_stmt)
         rows = list(page_result.scalars().all())
