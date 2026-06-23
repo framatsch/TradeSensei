@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-06-23
+
+### Fixed
+- [backend] Resolve all ruff lint errors across the codebase
+- [backend] Apply ruff format to 22 files for consistent code style
+- [frontend] Add missing `taxonomies` field to `Playbook` TypeScript interface
+- [tests] Skip flaky performance smoke test in CI to improve pipeline reliability
+
 ## [1.3.3] - 2026-06-22
 
 ### Fixed
@@ -508,7 +516,8 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.3.3...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.3.4...HEAD
+[1.3.4]: https://github.com/scheffold/TradeSensei/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/scheffold/TradeSensei/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/scheffold/TradeSensei/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/scheffold/TradeSensei/compare/v1.3.0...v1.3.1
