@@ -76,6 +76,28 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
     setIsDragging(false);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (scale > 1 && e.touches.length === 1) {
+      setIsDragging(true);
+      dragStart.current = { x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isDragging && scale > 1 && e.touches.length === 1) {
+      // Prevent default scrolling when panning a zoomed image
+      if (e.cancelable) e.preventDefault();
+      setPosition({
+        x: e.touches[0].clientX - dragStart.current.x,
+        y: e.touches[0].clientY - dragStart.current.y,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (e.deltaY < 0) {
@@ -105,6 +127,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
     >
       {/* Top right close button */}
       <button
+        type="button"
         onClick={onClose}
         className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-50"
       >
@@ -115,6 +138,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
       {urls.length > 1 && (
         <>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               handlePrev();
@@ -125,6 +149,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
           </button>
           
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               handleNext();
@@ -142,11 +167,15 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div 
-          className={`flex-1 flex items-center justify-center w-full min-h-0 ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          className={`flex-1 flex items-center justify-center w-full min-h-0 touch-none ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
           onWheel={handleWheel}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -168,6 +197,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
           {/* Zoom Controls */}
           <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full p-1 border border-white/10">
             <button
+              type="button"
               onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}
               className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
               title="Zoom Out"
@@ -175,6 +205,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
               <ZoomOut className="w-5 h-5" />
             </button>
             <button
+              type="button"
               onClick={resetZoom}
               className="p-2 text-white hover:bg-white/20 rounded-full transition-colors flex items-center justify-center min-w-[48px] text-xs font-medium"
               title="Reset Zoom"
@@ -182,6 +213,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
               {Math.round(scale * 100)}%
             </button>
             <button
+              type="button"
               onClick={() => setScale((s) => Math.min(4, s + 0.25))}
               className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
               title="Zoom In"
