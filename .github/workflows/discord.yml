@@ -25,3 +25,4 @@ jobs:
           content: "||@everyone||"
           footer_title: "Changelog"
           reduce_headings: true
+          release_name: ${{ github.event.inputs.tag || '' }}
