@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Use dynamic viewport height (`h-[100dvh]`) for mobile browsers to prevent bottom UI cutoff
+- [api] Fix 422 Unprocessable Content error on `/api/v1/checkins/filters` by reordering FastAPI router inclusions
+- [frontend] Fix accidental form submission in CheckinLightbox zoom controls and add touch-pan support for zoomed images on mobile Safari
+- [frontend] Fix root page blank screen and Safari Private Mode `localStorage` hydration crashes
+- [frontend] Fix root page hardcoded redirect to `/dashboard`, now correctly redirects to the user's configured `home_route`
+
 ## [1.3.5] - 2026-06-24
 
 ### Added
