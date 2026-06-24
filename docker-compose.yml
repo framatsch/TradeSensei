@@ -108,8 +108,6 @@ services:
     environment:
       API_URL: http://backend:8000
       MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-}"
-      STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-http://seaweedfs:8333}"
-      STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-http://seaweedfs:8333}"
     ports:
       - "3000:3000"
     volumes:

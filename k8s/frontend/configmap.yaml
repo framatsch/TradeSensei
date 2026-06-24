@@ -9,3 +9,4 @@ metadata:
 data:
   NEXTAUTH_URL: "https://tradesensei.example.com"
   NEXT_PUBLIC_API_URL: "https://api.tradesensei.example.com"
+

@@ -14,39 +14,65 @@
  */
 
 /**
- * Returns the proxy URL to use for a presigned PUT upload.
- * Instead of the browser uploading directly to SeaweedFS, it goes through
- * the Next.js server so port 8333 never needs to be exposed.
+ * Returns true if the hostname is not directly reachable by a browser client
+ * (localhost, Kubernetes cluster-internal DNS, RFC-1918 private IPs).
  *
- * Usage:
- *   await fetch(storageUploadUrl(presignedUrl), { method: "PUT", body: file, ... })
+ * External hostnames (e.g. *.amazonaws.com, custom CDN domains) return false
+ * and will be used directly by the browser without going through the proxy —
+ * preserving performance for production S3/CloudFront setups.
  */
-export function storageUploadUrl(presignedUrl: string): string {
-  return `/api/storage-proxy?url=${encodeURIComponent(presignedUrl)}`;
+function needsProxy(hostname: string): boolean {
+  // Localhost variants
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "0.0.0.0"
+  ) return true;
+
+  // Kubernetes cluster-internal DNS (*.svc.cluster.local, *.cluster.local)
+  if (hostname.endsWith(".cluster.local")) return true;
+
+  // RFC-1918 private IP ranges (10.x, 172.16-31.x, 192.168.x)
+  if (/^10\./.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+  if (/^192\.168\./.test(hostname)) return true;
+
+  return false;
 }
 
 /**
- * Resolves a storage URL (presigned S3/SeaweedFS GET URL) for use in <img> tags.
+ * Resolves a storage URL for use in <img> tags.
  *
- * All absolute storage URLs are tunnelled through the Next.js server-side proxy
- * at /api/storage-proxy. This means:
- *   - The storage backend (SeaweedFS/S3) never needs to be publicly exposed.
- *   - No CORS configuration is required on the storage bucket.
- *   - Mobile devices and any client that cannot reach the storage host directly
- *     still get images served correctly.
- *
- * Relative paths (e.g. /api/proxy/...) are returned unchanged.
+ * - Internal URLs (localhost, Kubernetes cluster DNS, private IPs) are
+ *   tunnelled through /api/storage-proxy so the browser never needs direct
+ *   access to the storage backend.
+ * - External URLs (real S3, CloudFront, etc.) are returned as-is so the
+ *   browser fetches them directly — no proxy overhead, full CDN performance.
+ * - Relative paths are returned unchanged.
  */
 export function resolveStorageUrl(url: string): string {
   if (!url) return url;
-
-  // Already a relative path — no transformation needed.
   if (url.startsWith("/")) return url;
 
-  // Any absolute URL (http/https) goes through the server-side storage proxy.
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return `/api/storage-proxy?url=${encodeURIComponent(url)}`;
+  try {
+    const { hostname } = new URL(url);
+    if (needsProxy(hostname)) {
+      return `/api/storage-proxy?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    // not a valid URL — return as-is
   }
 
   return url;
+}
+
+/**
+ * Returns the URL to use for a presigned PUT upload.
+ *
+ * Same logic as resolveStorageUrl: internal storage goes through the proxy,
+ * external S3 endpoints are used directly (browsers can PUT to public S3).
+ */
+export function storageUploadUrl(presignedUrl: string): string {
+  return resolveStorageUrl(presignedUrl);
 }
