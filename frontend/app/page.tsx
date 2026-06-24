@@ -39,7 +39,7 @@ export default function RootPage() {
   const hydrated = useAuthStore((s) => s.hydrated);
   const token = useAuthStore((s) => s.token);
   const hydrate = useAuthStore((s) => s.hydrate);
-  const { data: settings, isFetched } = useSettings();
+  const { data: settings, isFetched, isError } = useSettings();
 
   // Hydrate token from localStorage on mount
   useEffect(() => {
@@ -55,8 +55,8 @@ export default function RootPage() {
       return;
     }
 
-    // Wait for settings to load before redirecting
-    if (!isFetched) return;
+    // Wait for settings to resolve (success or error) before redirecting
+    if (!isFetched && !isError) return;
 
     const home: HomeRoute = ALLOWED_HOME_ROUTES.includes(
       settings?.home_route as HomeRoute,
@@ -65,8 +65,12 @@ export default function RootPage() {
       : "/dashboard";
 
     router.replace(home);
-  }, [hydrated, token, isFetched, settings, router]);
+  }, [hydrated, token, isFetched, isError, settings, router]);
 
-  // Render nothing while waiting
-  return null;
+  // Render a minimal fallback while waiting so it's not completely blank
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
 }

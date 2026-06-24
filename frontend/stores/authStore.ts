@@ -56,8 +56,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   hydrate: () => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token");
-      set({ token: token ?? null, hydrated: true });
+      try {
+        const token = localStorage.getItem("access_token");
+        set({ token: token ?? null, hydrated: true });
+      } catch (error) {
+        console.warn("localStorage access denied:", error);
+        set({ token: null, hydrated: true });
+      }
     }
   },
 }));
