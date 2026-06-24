@@ -388,7 +388,7 @@ export default function DashboardLayout({ children }: Props) {
 
   if (!hydrated || !token) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-[100dvh] bg-background">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -425,7 +425,7 @@ export default function DashboardLayout({ children }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden" style={{ "--topbar-height": "3.5rem" } as React.CSSProperties}>
+    <div className="flex flex-col h-[100dvh] bg-background overflow-hidden" style={{ "--topbar-height": "3.5rem" } as React.CSSProperties}>
       <TopBar 
         onToggleMobileSidebar={toggleMobileSidebar}
         onToggleDesktopSidebar={toggleDesktopSidebar}
