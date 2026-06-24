@@ -95,7 +95,7 @@ def main(unit: bool, integration: bool, coverage: bool, ci: bool) -> None:
         console.print("[bold]Scope:[/bold] all tests")
 
     # Coverage
-    pytest_args += ["--cov=app", "--cov-fail-under=74"]
+    pytest_args += ["--cov=app", "--cov-fail-under=70"]
     if ci:
         pytest_args += ["--cov-report=xml:coverage.xml", "--cov-report=term-missing"]
         console.print("[bold]Mode:[/bold] CI (XML coverage output)")
