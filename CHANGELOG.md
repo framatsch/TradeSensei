@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-06-24
+
+### Added
+- [frontend] Render assigned tags (colored pill badges) instead of description in the playbook library overview table
+- [backend] Embed `taxonomies` in `PlaybookRead` response — list endpoint now returns tags in a single query via `selectinload` (no N+1)
+
+### Fixed
+- [frontend] Fix image previews not loading on mobile devices — presigned S3/SeaweedFS URLs are now tunnelled through `/api/storage-proxy` when the storage host is not reachable by the browser directly (localhost, `*.cluster.local`, RFC-1918 IPs)
+- [frontend] Fix file uploads failing after storage port was closed — `PUT` requests to presigned upload URLs now go through the same proxy
+- [frontend] External storage URLs (real S3, CloudFront) bypass the proxy and go directly to the browser — no performance overhead for cloud deployments
+- [infra] Remove `STORAGE_ENDPOINT_URL` / `STORAGE_PUBLIC_URL` from frontend container env — proxy routing is now self-contained with no configuration required
+- [infra] Remove SeaweedFS port 8333 host binding — storage is internal-only; all access goes through Next.js proxy
+
 ## [1.3.4] - 2026-06-23
 
 ### Fixed
@@ -516,7 +529,8 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.3.4...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.3.5...HEAD
+[1.3.5]: https://github.com/scheffold/TradeSensei/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/scheffold/TradeSensei/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/scheffold/TradeSensei/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/scheffold/TradeSensei/compare/v1.3.1...v1.3.2
