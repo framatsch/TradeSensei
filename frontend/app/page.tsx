@@ -14,13 +14,59 @@
  */
 
 /**
- * Root page — redirect to /dashboard if token present, else /login.
+ * Root page — redirects to the user's configured home_route (from settings),
+ * falling back to /dashboard. If no token is present after hydration, the
+ * dashboard layout handles the redirect to /login.
  */
 
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/authStore";
+import { useSettings } from "@/hooks/useSettings";
+
+const ALLOWED_HOME_ROUTES = [
+  "/dashboard",
+  "/dashboard/trades",
+  "/dashboard/library",
+  "/dashboard/checkins",
+] as const;
+type HomeRoute = (typeof ALLOWED_HOME_ROUTES)[number];
 
 export default function RootPage() {
-  // Server component: can't read localStorage, so redirect to dashboard.
-  // Dashboard layout handles the auth guard for unauthenticated users.
-  redirect("/dashboard");
+  const router = useRouter();
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const token = useAuthStore((s) => s.token);
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const { data: settings, isFetched } = useSettings();
+
+  // Hydrate token from localStorage on mount
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    // No token — let the dashboard layout handle the /login redirect
+    if (!token) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    // Wait for settings to load before redirecting
+    if (!isFetched) return;
+
+    const home: HomeRoute = ALLOWED_HOME_ROUTES.includes(
+      settings?.home_route as HomeRoute,
+    )
+      ? (settings!.home_route as HomeRoute)
+      : "/dashboard";
+
+    router.replace(home);
+  }, [hydrated, token, isFetched, settings, router]);
+
+  // Render nothing while waiting
+  return null;
 }
