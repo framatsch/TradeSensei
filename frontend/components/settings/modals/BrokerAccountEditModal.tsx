@@ -17,7 +17,7 @@
 
 import { useState, useId } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { X, Loader2, AlertTriangle, Trash2 } from "lucide-react";
+import { X, Loader2, AlertTriangle, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { client } from "@/lib/api/client.gen";
 import { updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch, deleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDelete } from "@/lib/api/index";
@@ -38,12 +38,12 @@ const BROKER_TYPE_BADGES: Record<string, string> = {
 
 const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[]> = {
   schwab: [
-    { key: "SCHWAB_APP_KEY", label: "App Key" },
-    { key: "SCHWAB_APP_SECRET", label: "App Secret" },
+    { key: "schwab_app_key", label: "App Key" },
+    { key: "schwab_app_secret", label: "App Secret" },
   ],
   ibkr: [
-    { key: "IBKR_FLEX_TOKEN", label: "Flex Token" },
-    { key: "IBKR_FLEX_QUERY_ID", label: "Flex Query ID" },
+    { key: "ibkr_flex_token", label: "Flex Token" },
+    { key: "ibkr_flex_query_id", label: "Flex Query ID" },
   ],
 };
 
@@ -68,6 +68,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
   const [togglingActive, setTogglingActive] = useState(false);
   const [isActive, setIsActive] = useState(account.is_active);
   const [showDangerZone, setShowDangerZone] = useState(false);
+  const [showCredentials, setShowCredentials] = useState<Record<string, boolean>>({});
   
   const [confirmName, setConfirmName] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -151,9 +152,8 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
         : {};
 
       const { error: testErr } = await client.post<unknown, unknown, false>({
-        url: "/api/v1/accounts/test-connection",
+        url: `/api/v1/portfolios/${portfolioId}/accounts/test-connection`,
         body: {
-          name: name.trim(),
           type: account.type,
           properties: Object.keys(credValues).length > 0 ? credValues : null,
           account_id: account.id,
@@ -296,16 +296,32 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
                     <label htmlFor={`cred-${field.key}`} className={LABEL_CLASS}>
                       {field.label}
                     </label>
-                    <input
-                      id={`cred-${field.key}`}
-                      type="password"
-                      autoComplete="off"
-                      value={credentials[field.key] ?? ""}
-                      onChange={(e) => handleCredentialChange(field.key, e.target.value)}
-                      placeholder="Leave blank to keep existing"
-                      className={INPUT_CLASS}
-                      data-testid={`credential-${field.key}`}
-                    />
+                    <div className="relative">
+                      <input
+                        id={`cred-${field.key}`}
+                        type={showCredentials[field.key] ? "text" : "password"}
+                        autoComplete="off"
+                        value={credentials[field.key] ?? ""}
+                        onChange={(e) => handleCredentialChange(field.key, e.target.value)}
+                        placeholder="Leave blank to keep existing"
+                        className={`${INPUT_CLASS} pr-10`}
+                        data-testid={`credential-${field.key}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowCredentials((prev) => ({
+                            ...prev,
+                            [field.key]: !prev[field.key],
+                          }))
+                        }
+                        className="absolute inset-y-0 right-0 px-2 text-muted-foreground hover:text-foreground"
+                        aria-label={showCredentials[field.key] ? `Hide ${field.label}` : `Show ${field.label}`}
+                        data-testid={`toggle-credential-${field.key}`}
+                      >
+                        {showCredentials[field.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

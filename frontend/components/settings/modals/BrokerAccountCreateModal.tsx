@@ -17,7 +17,7 @@
 
 import { useState, useId } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { client } from "@/lib/api/client.gen";
 import { createAccountApiV1PortfoliosPortfolioIdAccountsPost } from "@/lib/api/index";
@@ -32,12 +32,12 @@ const BROKER_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
 
 const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[]> = {
   schwab: [
-    { key: "SCHWAB_APP_KEY", label: "App Key" },
-    { key: "SCHWAB_APP_SECRET", label: "App Secret" },
+    { key: "schwab_app_key", label: "App Key" },
+    { key: "schwab_app_secret", label: "App Secret" },
   ],
   ibkr: [
-    { key: "IBKR_FLEX_TOKEN", label: "Flex Token" },
-    { key: "IBKR_FLEX_QUERY_ID", label: "Flex Query ID" },
+    { key: "ibkr_flex_token", label: "Flex Token" },
+    { key: "ibkr_flex_query_id", label: "Flex Query ID" },
   ],
 };
 
@@ -62,6 +62,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
   const [testMessage, setTestMessage] = useState("");
   const [testing, setTesting] = useState(false);
+  const [showCredentials, setShowCredentials] = useState<Record<string, boolean>>({});
   const uid = useId();
 
   const createMutation = useMutation({
@@ -119,9 +120,8 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
         : {};
 
       const { error: testErr } = await client.post<unknown, unknown, false>({
-        url: "/api/v1/accounts/test-connection",
+        url: `/api/v1/portfolios/${portfolioId}/accounts/test-connection`,
         body: {
-          name: name.trim(),
           type,
           properties: Object.keys(credValues).length > 0 ? credValues : null,
         },
@@ -247,16 +247,32 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
                     <label htmlFor={`cred-${field.key}`} className={LABEL_CLASS}>
                       {field.label}
                     </label>
-                    <input
-                      id={`cred-${field.key}`}
-                      type="password"
-                      autoComplete="off"
-                      value={credentials[field.key] ?? ""}
-                      onChange={(e) => handleCredentialChange(field.key, e.target.value)}
-                      placeholder=""
-                      className={INPUT_CLASS}
-                      data-testid={`credential-${field.key}`}
-                    />
+                    <div className="relative">
+                      <input
+                        id={`cred-${field.key}`}
+                        type={showCredentials[field.key] ? "text" : "password"}
+                        autoComplete="off"
+                        value={credentials[field.key] ?? ""}
+                        onChange={(e) => handleCredentialChange(field.key, e.target.value)}
+                        placeholder=""
+                        className={`${INPUT_CLASS} pr-10`}
+                        data-testid={`credential-${field.key}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowCredentials((prev) => ({
+                            ...prev,
+                            [field.key]: !prev[field.key],
+                          }))
+                        }
+                        className="absolute inset-y-0 right-0 px-2 text-muted-foreground hover:text-foreground"
+                        aria-label={showCredentials[field.key] ? `Hide ${field.label}` : `Show ${field.label}`}
+                        data-testid={`toggle-credential-${field.key}`}
+                      >
+                        {showCredentials[field.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

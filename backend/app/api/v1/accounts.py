@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
-from app.core.exceptions import AccountNotFoundError
+from app.core.exceptions import AccountNotFoundError, ConfigurationError
 from app.models.user import User
 from app.schemas.account import (
     AccountCreate,
@@ -33,8 +33,10 @@ from app.schemas.account import (
     AccountRead,
     AccountUpdate,
 )
+from app.schemas.broker import BrokerConnectionTestRequest, BrokerConnectionTestResult
 from app.schemas.common import CursorPage, ResponseEnvelope
 from app.services.account_service import AccountService
+from app.services.broker_service import BrokerService
 
 router = APIRouter(
     prefix="/portfolios/{portfolio_id}/accounts",
@@ -55,6 +57,12 @@ def _get_service(
         An :class:`AccountService` bound to the current session.
     """
     return AccountService(session)
+
+
+def _get_broker_service(
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
+) -> BrokerService:
+    return BrokerService(session)
 
 
 @router.get(
@@ -94,6 +102,43 @@ async def list_accounts(
     """
     page = await service.list_accounts(current_user.id, portfolio_id)
     return ResponseEnvelope[CursorPage[AccountRead]](data=page)
+
+
+@router.post(
+    "/test-connection",
+    response_model=ResponseEnvelope[BrokerConnectionTestResult],
+    summary="Test Broker API Connection",
+    description=(
+        "Validate supplied (or stored) broker credentials for IBKR or Schwab "
+        "without creating or updating an account."
+    ),
+    response_description="Credential validation result wrapped in a response envelope.",
+    responses={
+        200: {"description": "Connection test succeeded."},
+        400: {"description": "Credential validation failed."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found when account_id is provided."},
+        422: {"description": "Request payload failed schema validation."},
+    },
+)
+async def test_connection(
+    portfolio_id: uuid.UUID,
+    payload: BrokerConnectionTestRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    broker_service: Annotated[BrokerService, Depends(_get_broker_service)],
+) -> ResponseEnvelope[BrokerConnectionTestResult]:
+    """Validate broker credentials for the current user and portfolio."""
+    try:
+        result = await broker_service.test_connection(
+            payload=payload,
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+        )
+    except AccountNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.") from exc
+    except ConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return ResponseEnvelope[BrokerConnectionTestResult](data=result)
 
 
 @router.post(
