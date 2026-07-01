@@ -19,9 +19,10 @@ No HTTP concepts (``Request``, ``Response``, status codes) appear here.
 
 import uuid
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import PlaybookNotFoundError
+from app.core.exceptions import PlaybookAlreadyExistsError, PlaybookNotFoundError
 from app.repositories.playbook_repository import PlaybookRepository
 from app.schemas.playbook import PlaybookCreate, PlaybookRead, PlaybookUpdate
 
@@ -43,6 +44,7 @@ class PlaybookService:
             session: The session to use for all operations within this
                 request.
         """
+        self._session = session
         self._repo = PlaybookRepository(session)
 
     async def list_playbooks(self, user_id: uuid.UUID) -> list[PlaybookRead]:
@@ -94,7 +96,11 @@ class PlaybookService:
         Returns:
             A :class:`PlaybookRead` DTO for the newly created playbook.
         """
-        playbook = await self._repo.create(data, user_id)
+        try:
+            playbook = await self._repo.create(data, user_id)
+        except IntegrityError as exc:
+            await self._session.rollback()
+            raise PlaybookAlreadyExistsError("playbook name already exists") from exc
         return PlaybookRead.model_validate(playbook)
 
     async def update_playbook(

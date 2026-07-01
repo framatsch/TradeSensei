@@ -94,6 +94,10 @@ class PlaybookNotFoundError(Exception):
     """Raised when a playbook cannot be found for the requesting user."""
 
 
+class PlaybookAlreadyExistsError(ValueError):
+    """Raised when a playbook name already exists for the requesting user."""
+
+
 class TagNotFoundError(Exception):
     """Raised when a tag cannot be found for the requesting user."""
 

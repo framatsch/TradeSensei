@@ -34,16 +34,30 @@ export function PlaybookList() {
   const { data: playbooks, isLoading, isError, error, refetch } = usePlaybooks();
   const { mutate: create, isPending: creating } = useCreatePlaybook();
   const { mutate: remove } = useDeletePlaybook();
+  const DRAFT_PLAYBOOK_NAME = "Untitled Playbook";
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCreate = () => {
+    const existingDraft = (playbooks ?? []).find((pb) => pb.name === DRAFT_PLAYBOOK_NAME);
+    if (existingDraft) {
+      router.push(`/dashboard/library/playbooks/${existingDraft.id}?edit=true`);
+      return;
+    }
+
     create(
-      { name: "Untitled Playbook" },
+      { name: DRAFT_PLAYBOOK_NAME },
       {
         onSuccess: (newPlaybook) => {
-          router.push(`/dashboard/library/playbooks/${newPlaybook.id}`);
+          router.push(`/dashboard/library/playbooks/${newPlaybook.id}?edit=true`);
+        },
+        onError: async () => {
+          const refreshed = await refetch();
+          const refreshedDraft = (refreshed.data ?? []).find((pb) => pb.name === DRAFT_PLAYBOOK_NAME);
+          if (refreshedDraft) {
+            router.push(`/dashboard/library/playbooks/${refreshedDraft.id}?edit=true`);
+          }
         },
       }
     );
