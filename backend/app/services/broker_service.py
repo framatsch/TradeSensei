@@ -32,13 +32,18 @@ from app.models.account import Account, AccountType
 from app.models.account_property import AccountProperty
 from app.repositories.account_repository import AccountRepository
 from app.repositories.trade_repository import TradeRepository
-from app.schemas.broker import BrokerSyncResult
+from app.schemas.broker import BrokerConnectionTestRequest, BrokerConnectionTestResult, BrokerSyncResult
 from app.schemas.trade import TradeCreate
 from app.utils.encryption import decrypt_token
 from app.utils.schwab_client import SchwabClient
 from app.utils.schwab_normalizer import SchwabOrderNormalizer
 
 logger = logging.getLogger(__name__)
+
+SCHWAB_APP_KEY_KEYS = ("schwab_app_key", "SCHWAB_APP_KEY")
+SCHWAB_APP_SECRET_KEYS = ("schwab_app_secret", "SCHWAB_APP_SECRET")
+IBKR_FLEX_TOKEN_KEYS = ("ibkr_flex_token", "IBKR_FLEX_TOKEN")
+IBKR_FLEX_QUERY_ID_KEYS = ("ibkr_flex_query_id", "IBKR_FLEX_QUERY_ID")
 
 
 class BrokerService:
@@ -116,6 +121,34 @@ class BrokerService:
         else:
             raise ConfigurationError("Account type MANUAL does not support API sync.")
 
+    async def test_connection(
+        self,
+        payload: BrokerConnectionTestRequest,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+    ) -> BrokerConnectionTestResult:
+        """Validate broker credentials for Schwab or IBKR without persisting changes.
+
+        Uses credentials provided in ``payload.properties`` and falls back to
+        stored account properties when ``payload.account_id`` is supplied.
+        """
+        account: Account | None = None
+        if payload.account_id is not None:
+            account = await self._account_repo.get_by_id_with_properties(
+                payload.account_id,
+                user_id,
+                portfolio_id,
+            )
+            if account is None:
+                raise AccountNotFoundError(f"Account {payload.account_id} not found.")
+
+        if payload.type == AccountType.SCHWAB.value:
+            await self._test_schwab(payload.properties or {}, account)
+            return BrokerConnectionTestResult(success=True, message="Connection successful.")
+
+        await self._test_ibkr(payload.properties or {}, account, user_id, portfolio_id)
+        return BrokerConnectionTestResult(success=True, message="Connection successful.")
+
     def _get_property(self, account: Account, key: str) -> str:
         """Retrieve and decrypt a named property from the account.
 
@@ -140,6 +173,67 @@ class BrokerService:
         except Exception as exc:
             raise ConfigurationError(f"Failed to decrypt property {key}.") from exc
 
+    def _resolve_property(
+        self,
+        provided: dict[str, str],
+        account: Account | None,
+        keys: tuple[str, ...],
+    ) -> str:
+        for key in keys:
+            value = provided.get(key)
+            if value is not None and value.strip() != "":
+                return value.strip()
+
+        if account is not None:
+            for key in keys:
+                prop: AccountProperty | None = next(
+                    (p for p in account.properties if p.key == key),
+                    None,
+                )
+                if prop is None:
+                    continue
+                try:
+                    return decrypt_token(prop.value)
+                except Exception as exc:
+                    raise ConfigurationError(f"Failed to decrypt property {key}.") from exc
+
+        raise ConfigurationError(f"Missing account property: {keys[0]}")
+
+    async def _test_schwab(self, provided: dict[str, str], account: Account | None) -> None:
+        app_key = self._resolve_property(provided, account, SCHWAB_APP_KEY_KEYS)
+        self._resolve_property(provided, account, SCHWAB_APP_SECRET_KEYS)
+
+        client = SchwabClient()
+        now = datetime.now(UTC)
+        to_date = now.strftime("%Y-%m-%d")
+        from_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        try:
+            await client.get_orders(
+                access_token=app_key,
+                from_date=from_date,
+                to_date=to_date,
+            )
+        except Exception as exc:
+            raise ConfigurationError(f"Schwab connection test failed: {exc}") from exc
+
+    async def _test_ibkr(
+        self,
+        provided: dict[str, str],
+        account: Account | None,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+    ) -> None:
+        flex_token = self._resolve_property(provided, account, IBKR_FLEX_TOKEN_KEYS)
+        query_id = self._resolve_property(provided, account, IBKR_FLEX_QUERY_ID_KEYS)
+
+        from app.services.flex_import_service import FlexImportService
+
+        service = FlexImportService(self._session, flex_token)
+        try:
+            await service._fetch_flex_xml(query_id=query_id, from_date=None)
+        except Exception as exc:
+            raise ConfigurationError(f"IBKR connection test failed: {exc}") from exc
+
     async def _sync_schwab(self, account: Account, days: int) -> BrokerSyncResult:
         """Fetch orders from Schwab and import new trades for the account.
 
@@ -155,9 +249,9 @@ class BrokerService:
         Returns:
             A :class:`~app.schemas.broker.BrokerSyncResult` with import counts.
         """
-        app_key = self._get_property(account, "SCHWAB_APP_KEY")
+        app_key = self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
         # Validate that the secret is present even if not used directly here
-        self._get_property(account, "SCHWAB_APP_SECRET")
+        self._resolve_property({}, account, SCHWAB_APP_SECRET_KEYS)
         client = SchwabClient()
         now = datetime.now(UTC)
         to_date = now.strftime("%Y-%m-%d")
@@ -197,8 +291,8 @@ class BrokerService:
             :class:`~app.core.exceptions.ConfigurationError`: If required
                 credentials are missing or if the API returns an error.
         """
-        flex_token = self._get_property(account, "IBKR_FLEX_TOKEN")
-        query_id = self._get_property(account, "IBKR_FLEX_QUERY_ID")
+        flex_token = self._resolve_property({}, account, IBKR_FLEX_TOKEN_KEYS)
+        query_id = self._resolve_property({}, account, IBKR_FLEX_QUERY_ID_KEYS)
 
         if from_date is None:
             now = datetime.now(UTC)

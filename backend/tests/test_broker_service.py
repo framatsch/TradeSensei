@@ -172,8 +172,8 @@ class TestSyncAccountRouting:
         mock_decrypt.side_effect = lambda x: x.replace("encrypted-", "")
 
         mock_session = AsyncMock()
-        prop1 = _make_account_property("IBKR_FLEX_TOKEN", "encrypted-test-token")
-        prop2 = _make_account_property("IBKR_FLEX_QUERY_ID", "encrypted-12345")
+        prop1 = _make_account_property("ibkr_flex_token", "encrypted-test-token")
+        prop2 = _make_account_property("ibkr_flex_query_id", "encrypted-12345")
         account = _make_account(AccountType.IBKR, properties=[prop1, prop2])
 
         mock_result = MagicMock()
@@ -205,6 +205,38 @@ class TestSyncAccountRouting:
             overwrite_manually_edited=False,
         )
         assert result.imported_count == 2
+
+
+class TestConnectionValidation:
+    """Unit tests for BrokerService.test_connection."""
+
+    @pytest.mark.unit
+    async def test_test_connection_ibkr_uses_provided_properties(self) -> None:
+        """Provided IBKR credentials should be used without DB account lookup."""
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+
+        request = MagicMock()
+        request.type = "ibkr"
+        request.properties = {
+            "ibkr_flex_token": "token-1",
+            "ibkr_flex_query_id": "query-1",
+        }
+        request.account_id = None
+
+        with patch("app.services.flex_import_service.FlexImportService") as mock_flex_cls:
+            mock_flex_instance = MagicMock()
+            mock_flex_instance._fetch_flex_xml = AsyncMock(return_value="<xml/>")
+            mock_flex_cls.return_value = mock_flex_instance
+
+            result = await svc.test_connection(request, uuid.uuid4(), uuid.uuid4())
+
+        assert result.success is True
+        mock_flex_cls.assert_called_once_with(mock_session, "token-1")
+        mock_flex_instance._fetch_flex_xml.assert_awaited_once_with(
+            query_id="query-1",
+            from_date=None,
+        )
 
 
 # ---------------------------------------------------------------------------

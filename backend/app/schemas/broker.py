@@ -13,7 +13,9 @@
 
 """Pydantic DTOs for broker sync request and response shapes."""
 
+import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -69,4 +71,47 @@ class BrokerSyncResult(BaseModel):
         default_factory=list,
         description="Error messages for any orders that could not be processed.",
         examples=[[], ["Order 12345: unsupported asset type"]],
+    )
+
+
+class BrokerConnectionTestRequest(BaseModel):
+    """Request payload to validate broker credentials for an account type.
+
+    Attributes:
+        type: Broker/account type to validate.
+        properties: Optional plaintext credential map. When omitted on edit,
+            stored encrypted account credentials are used.
+        account_id: Optional existing account UUID for edit-mode validation.
+    """
+
+    type: Literal["schwab", "ibkr"] = Field(
+        ...,
+        description="Broker type to validate. Only 'schwab' and 'ibkr' support connection tests.",
+        examples=["ibkr", "schwab"],
+    )
+    properties: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "Optional plaintext credential overrides keyed by provider field "
+            "name (e.g. IBKR_FLEX_TOKEN)."
+        ),
+    )
+    account_id: uuid.UUID | None = Field(
+        default=None,
+        description="Optional account ID to use stored encrypted credentials for missing fields.",
+    )
+
+
+class BrokerConnectionTestResult(BaseModel):
+    """Response payload for broker credential validation."""
+
+    success: bool = Field(
+        ...,
+        description="True when the credential test call succeeded.",
+        examples=[True, False],
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable outcome summary.",
+        examples=["Connection successful.", "Missing account property: IBKR_FLEX_TOKEN"],
     )
