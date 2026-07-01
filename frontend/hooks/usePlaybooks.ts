@@ -42,6 +42,7 @@ export function usePlaybooks() {
       return (data as unknown as ResponseEnvelope<Playbook[]>).data;
     },
     staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 

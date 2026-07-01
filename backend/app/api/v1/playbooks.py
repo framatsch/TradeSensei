@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
-from app.core.exceptions import PlaybookNotFoundError
+from app.core.exceptions import PlaybookAlreadyExistsError, PlaybookNotFoundError
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.playbook import PlaybookCreate, PlaybookRead, PlaybookUpdate
@@ -105,7 +105,13 @@ async def create_playbook(
         A :class:`ResponseEnvelope` containing the created
         :class:`PlaybookRead` DTO.
     """
-    playbook = await service.create_playbook(payload, current_user.id)
+    try:
+        playbook = await service.create_playbook(payload, current_user.id)
+    except PlaybookAlreadyExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.args[0] if exc.args else str(exc),
+        ) from exc
     return ResponseEnvelope[PlaybookRead](data=playbook)
 
 

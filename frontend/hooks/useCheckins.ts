@@ -63,6 +63,7 @@ export function useCheckinEntries(
       return data.data as DailyCheckinListResponse;
     },
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -83,6 +84,7 @@ export function useCheckinEntry(date: string) {
       return data.data as DailyCheckinRead;
     },
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
