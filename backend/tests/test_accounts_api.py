@@ -26,6 +26,8 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from app.services.broker_service import BrokerService
+
 # ---------------------------------------------------------------------------
 # URL constants
 # ---------------------------------------------------------------------------
@@ -353,6 +355,124 @@ class TestUpdateAccount:
             headers=_auth(token),
         )
         assert resp.status_code == 404
+
+
+class TestAccountConnectionTest:
+    """Integration tests for POST /accounts/test-connection."""
+
+    @pytest.mark.integration
+    async def test_test_connection_missing_required_property_returns_400(
+        self, client: AsyncClient
+    ) -> None:
+        token = await _register_and_get_token(
+            client, username="acc_conn_missing", email="conn-missing@example.com"
+        )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Connection Portfolio",
+        )
+
+        resp = await client.post(
+            f"{_accounts_url(portfolio_id)}/test-connection",
+            json={
+                "type": "ibkr",
+                "properties": {"ibkr_flex_query_id": "12345"},
+            },
+            headers=_auth(token),
+        )
+        assert resp.status_code == 400
+        assert "ibkr_flex_token" in resp.json()["detail"]
+
+    @pytest.mark.integration
+    async def test_test_connection_ibkr_success_without_real_broker_keys(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        token = await _register_and_get_token(
+            client,
+            username="acc_conn_ok",
+            email="conn-ok@example.com",
+        )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Connection OK Portfolio",
+        )
+
+        async def _fake_test_ibkr(
+            self: BrokerService,
+            provided: dict[str, str],
+            account: object,
+            user_id: uuid.UUID,
+            portfolio_id: uuid.UUID,
+        ) -> None:
+            del self, account, user_id, portfolio_id
+            assert provided["ibkr_flex_token"] == "dummy-token"
+            assert provided["ibkr_flex_query_id"] == "dummy-query"
+
+        monkeypatch.setattr(BrokerService, "_test_ibkr", _fake_test_ibkr)
+
+        resp = await client.post(
+            f"{_accounts_url(portfolio_id)}/test-connection",
+            json={
+                "type": "ibkr",
+                "properties": {
+                    "ibkr_flex_token": "dummy-token",
+                    "ibkr_flex_query_id": "dummy-query",
+                },
+            },
+            headers=_auth(token),
+        )
+
+        assert resp.status_code == 200
+        payload = resp.json()["data"]
+        assert payload["success"] is True
+
+    @pytest.mark.integration
+    async def test_test_connection_schwab_success_without_real_broker_keys(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        token = await _register_and_get_token(
+            client,
+            username="acc_conn_ok_schwab",
+            email="conn-ok-schwab@example.com",
+        )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Connection Schwab Portfolio",
+        )
+
+        async def _fake_test_schwab(
+            self: BrokerService,
+            provided: dict[str, str],
+            account: object,
+        ) -> None:
+            del self, account
+            assert provided["schwab_app_key"] == "dummy-key"
+            assert provided["schwab_app_secret"] == "dummy-secret"
+
+        monkeypatch.setattr(BrokerService, "_test_schwab", _fake_test_schwab)
+
+        resp = await client.post(
+            f"{_accounts_url(portfolio_id)}/test-connection",
+            json={
+                "type": "schwab",
+                "properties": {
+                    "schwab_app_key": "dummy-key",
+                    "schwab_app_secret": "dummy-secret",
+                },
+            },
+            headers=_auth(token),
+        )
+
+        assert resp.status_code == 200
+        payload = resp.json()["data"]
+        assert payload["success"] is True
 
 
 class TestDeleteAccount:
