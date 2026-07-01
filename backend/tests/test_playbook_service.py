@@ -18,8 +18,9 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
-from app.core.exceptions import PlaybookNotFoundError
+from app.core.exceptions import PlaybookAlreadyExistsError, PlaybookNotFoundError
 from app.models.playbook import Playbook
 from app.schemas.playbook import PlaybookCreate, PlaybookRead, PlaybookUpdate
 from app.services.playbook_service import PlaybookService
@@ -151,6 +152,21 @@ class TestCreatePlaybook:
 
         assert isinstance(result, PlaybookRead)
         assert result.name == "VWAP Fade"
+
+    @pytest.mark.unit
+    async def test_raises_already_exists_on_duplicate_name(self, service: PlaybookService) -> None:
+        """create_playbook should raise PlaybookAlreadyExistsError on duplicate name."""
+        with (
+            patch(
+                "app.services.playbook_service.PlaybookRepository.create",
+                new_callable=AsyncMock,
+                side_effect=IntegrityError("stmt", "params", Exception("duplicate")),
+            ),
+            pytest.raises(PlaybookAlreadyExistsError),
+        ):
+            await service.create_playbook(PlaybookCreate(name="VWAP Fade"), uuid.uuid4())
+
+        service._session.rollback.assert_awaited_once()  # type: ignore[attr-defined]
 
 
 class TestUpdatePlaybook:

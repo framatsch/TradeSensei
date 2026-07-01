@@ -77,3 +77,25 @@ class TestPlaybookOwnership:
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, resp.text
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_create_duplicate_name_returns_409(
+        self,
+        client: AsyncClient,
+        primary_user: dict[str, Any],
+    ) -> None:
+        """POST /playbooks with duplicate name for same user must return 409."""
+        first = await client.post(
+            "/api/v1/playbooks",
+            json={"name": "Untitled Playbook", "description": "first"},
+            headers=primary_user["headers"],
+        )
+        assert first.status_code == 201, first.text
+
+        duplicate = await client.post(
+            "/api/v1/playbooks",
+            json={"name": "Untitled Playbook", "description": "second"},
+            headers=primary_user["headers"],
+        )
+        assert duplicate.status_code == 409, duplicate.text
