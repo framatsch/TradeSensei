@@ -25,11 +25,13 @@ import { useRouter } from "next/navigation";
 import {
   getConfigApiV1AuthConfigGet,
   getMeApiV1UsersMeGet,
+  getSettingsApiV1UsersMeSettingsGet,
   loginApiV1AuthTokenPost,
   logoutApiV1AuthLogoutPost,
 } from "@/lib/api/index";
 import { useAuthStore } from "@/stores/authStore";
 import { resetInterceptors } from "@/lib/apiInterceptors";
+import { resolveHomeRoute } from "@/lib/homeRoute";
 import type {
   AuthConfigResponse,
   TokenResponse,
@@ -100,8 +102,11 @@ export function useLogin() {
       if (!meError && meData) {
         setUser((meData as unknown as { data: User }).data);
       }
+      const { data: settingsData } = await getSettingsApiV1UsersMeSettingsGet();
+      const homeRoute = resolveHomeRoute((settingsData as { data?: { home_route?: string } } | null)?.data?.home_route);
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      router.push("/dashboard");
+      await queryClient.invalidateQueries({ queryKey: ["users", "me", "settings"] });
+      router.push(homeRoute);
     },
   });
 }

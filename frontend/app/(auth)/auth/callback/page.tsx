@@ -30,7 +30,12 @@ import { useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { Spinner } from "@/components/ui/Spinner";
-import { googleExchangeApiV1AuthGoogleExchangePost, getMeApiV1UsersMeGet } from "@/lib/api/index";
+import {
+  getMeApiV1UsersMeGet,
+  getSettingsApiV1UsersMeSettingsGet,
+  googleExchangeApiV1AuthGoogleExchangePost,
+} from "@/lib/api/index";
+import { resolveHomeRoute } from "@/lib/homeRoute";
 import type { ResponseEnvelope, User } from "@/lib/types";
 
 function OAuthCallbackContent() {
@@ -74,7 +79,12 @@ function OAuthCallbackContent() {
         }
         setUser((meData as unknown as ResponseEnvelope<User>).data);
 
-        router.replace("/dashboard");
+        const { data: settingsData } = await getSettingsApiV1UsersMeSettingsGet();
+        const homeRoute = resolveHomeRoute(
+          (settingsData as { data?: { home_route?: string } } | null)?.data?.home_route,
+        );
+
+        router.replace(homeRoute);
       } catch {
         router.replace("/login?error=oauth_failed");
       }

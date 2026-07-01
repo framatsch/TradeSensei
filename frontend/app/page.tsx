@@ -25,14 +25,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettings } from "@/hooks/useSettings";
-
-const ALLOWED_HOME_ROUTES = [
-  "/dashboard",
-  "/dashboard/trades",
-  "/dashboard/library",
-  "/dashboard/checkins",
-] as const;
-type HomeRoute = (typeof ALLOWED_HOME_ROUTES)[number];
+import { resolveHomeRoute } from "@/lib/homeRoute";
 
 export default function RootPage() {
   const router = useRouter();
@@ -58,13 +51,7 @@ export default function RootPage() {
     // Wait for settings to resolve (success or error) before redirecting
     if (!isFetched && !isError) return;
 
-    const home: HomeRoute = ALLOWED_HOME_ROUTES.includes(
-      settings?.home_route as HomeRoute,
-    )
-      ? (settings!.home_route as HomeRoute)
-      : "/dashboard";
-
-    router.replace(home);
+    router.replace(resolveHomeRoute(settings?.home_route));
   }, [hydrated, token, isFetched, isError, settings, router]);
 
   // Render a minimal fallback while waiting so it's not completely blank
