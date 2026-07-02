@@ -40,7 +40,7 @@ async def test_migration_roundtrip(engine):
         
     await asyncio.to_thread(run_alembic, "downgrade", "314159265358")
     
-    public_url = settings.storage_public_url.rstrip("/")
+    public_url = settings.storage_presign_url.rstrip("/")
     
     # 2. Insert test data (simulating state before migration)
     async with engine.begin() as conn:

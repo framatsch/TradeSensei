@@ -396,10 +396,10 @@ async def test_checkin_screenshot_upload_url_endpoint(client: AsyncClient) -> No
 
     original_backend = settings.storage_backend
     original_bucket = settings.storage_bucket
-    original_public = settings.storage_public_url
+    original_proxy = settings.storage_proxy_url
     settings.storage_backend = "s3"
     settings.storage_bucket = "bucket"
-    settings.storage_public_url = "https://storage.example.com"
+    settings.storage_proxy_url = "https://storage.example.com"
     try:
         with patch("app.services.storage_service.boto3.client") as mock_client_factory:
             mock_client = mock_client_factory.return_value
@@ -417,7 +417,7 @@ async def test_checkin_screenshot_upload_url_endpoint(client: AsyncClient) -> No
     finally:
         settings.storage_backend = original_backend
         settings.storage_bucket = original_bucket
-        settings.storage_public_url = original_public
+        settings.storage_proxy_url = original_proxy
 
     unsupported = await client.post(
         "/api/v1/checkins/screenshot-upload-url",

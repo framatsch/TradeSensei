@@ -430,6 +430,49 @@ class TestAccountConnectionTest:
         payload = resp.json()["data"]
         assert payload["success"] is True
 
+
+class TestGetAccountCredentials:
+    """Integration tests for GET /accounts/{id}/credentials."""
+
+    @pytest.mark.integration
+    async def test_get_account_credentials_returns_plaintext_values(
+        self, client: AsyncClient
+    ) -> None:
+        token = await _register_and_get_token(
+            client,
+            username="acc_get_creds",
+            email="acc-get-creds@example.com",
+        )
+        portfolio_id = await _create_portfolio(
+            client,
+            token,
+            name="Credentials Portfolio",
+        )
+
+        create_resp = await client.post(
+            _accounts_url(portfolio_id),
+            json={
+                "name": "IBKR Cred Account",
+                "type": "ibkr",
+                "properties": {
+                    "ibkr_flex_token": "visible-token",
+                    "ibkr_flex_query_id": "visible-query-id",
+                },
+            },
+            headers=_auth(token),
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        account_id = create_resp.json()["data"]["id"]
+
+        credentials_resp = await client.get(
+            f"{_accounts_url(portfolio_id)}/{account_id}/credentials",
+            headers=_auth(token),
+        )
+        assert credentials_resp.status_code == 200, credentials_resp.text
+        properties = credentials_resp.json()["data"]["properties"]
+        assert properties["ibkr_flex_token"] == "visible-token"
+        assert properties["ibkr_flex_query_id"] == "visible-query-id"
+
     @pytest.mark.integration
     async def test_test_connection_schwab_success_without_real_broker_keys(
         self,

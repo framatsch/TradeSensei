@@ -277,6 +277,26 @@ class AccountRead(BaseModel):
     )
 
 
+class AccountCredentialsRead(BaseModel):
+    """Response schema for plaintext account credentials.
+
+    Attributes:
+        properties: Map of credential keys to plaintext values.
+    """
+
+    properties: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Plaintext account credential values keyed by property name. "
+            "Returned only to the owning authenticated user."
+        ),
+        examples=[
+            {"ibkr_flex_token": "abc123", "ibkr_flex_query_id": "98765"},
+            {"schwab_app_key": "key-123", "schwab_app_secret": "secret-456"},
+        ],
+    )
+
+
 class AccountMetrics(BaseModel):
     """Aggregate metrics for a single trading account.
 

@@ -25,6 +25,7 @@ from app.core.exceptions import AccountNotFoundError
 from app.repositories.account_repository import AccountRepository
 from app.schemas.account import (
     AccountCreate,
+    AccountCredentialsRead,
     AccountMetrics,
     AccountRead,
     AccountSettings,
@@ -32,6 +33,7 @@ from app.schemas.account import (
 )
 from app.schemas.common import CursorPage
 from app.utils.encryption import encrypt_token
+from app.utils.encryption import decrypt_token
 
 
 def _build_account_read(account: object, has_props: bool) -> AccountRead:
@@ -136,6 +138,34 @@ class AccountService:
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         return _build_account_read(account, len(account.properties) > 0)
+
+    async def get_account_credentials(
+        self,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+    ) -> AccountCredentialsRead:
+        """Return decrypted account credentials for the owning user.
+
+        Args:
+            account_id: UUID of the account.
+            user_id: UUID of the authenticated user.
+            portfolio_id: UUID of the portfolio containing the account.
+
+        Returns:
+            A DTO containing plaintext credential properties.
+
+        Raises:
+            AccountNotFoundError: If the account does not exist for this user.
+        """
+        account = await self._repo.get_by_id_with_properties(account_id, user_id, portfolio_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
+        properties: dict[str, str] = {}
+        for prop in account.properties:
+            properties[prop.key] = decrypt_token(prop.value)
+        return AccountCredentialsRead(properties=properties)
 
     async def create_account(
         self,

@@ -239,6 +239,78 @@ class TestConnectionValidation:
         )
 
 
+class TestFlexSendRequestFallback:
+    """Unit tests for Flex send-request fallback behavior."""
+
+    @pytest.mark.unit
+    async def test_send_request_keeps_period_and_raises_on_non_transient_error(self) -> None:
+        """Non-transient SendRequest errors should be raised without period fallback."""
+        from app.core.exceptions import FlexAPIError
+        from app.services.flex_import_service import FlexImportService
+
+        mock_session = AsyncMock()
+        svc = FlexImportService(mock_session, "token-1")
+
+        mock_client = AsyncMock()
+        error = FlexAPIError("invalid query id")
+
+        with patch.object(
+            svc,
+            "_send_request_once",
+            new=AsyncMock(side_effect=error),
+        ) as mock_send_once:
+            with pytest.raises(FlexAPIError, match="invalid query id"):
+                await svc._send_request(
+                    client=mock_client,
+                    query_id="query-1",
+                    from_date="20260601",
+                )
+
+        assert mock_send_once.await_count == 1
+        first_call = mock_send_once.await_args_list[0].kwargs
+        assert first_call["params"] == {
+            "t": "token-1",
+            "q": "query-1",
+            "v": "3",
+            "period": "20260601",
+        }
+
+    @pytest.mark.unit
+    async def test_send_request_retries_transient_generation_error(self) -> None:
+        """Transient IBKR generation errors should be retried with backoff."""
+        from app.core.exceptions import FlexAPIError
+        from app.services.flex_import_service import FlexImportService
+
+        mock_session = AsyncMock()
+        svc = FlexImportService(mock_session, "token-1")
+
+        mock_client = AsyncMock()
+        expected_reference = "ref-456"
+
+        with (
+            patch.object(
+                svc,
+                "_send_request_once",
+                new=AsyncMock(
+                    side_effect=[
+                        FlexAPIError("Flex SendRequest failed: Statement could not be generated at this time. Please try again shortly."),
+                        expected_reference,
+                    ]
+                ),
+            ) as mock_send_once,
+            patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        ):
+            reference = await svc._send_request_with_retries(
+                client=mock_client,
+                url="https://example.test/send-request",
+                params={"t": "token-1", "q": "query-1", "v": "3"},
+            )
+
+        assert reference == expected_reference
+        assert mock_send_once.await_count == 2
+        mock_sleep.assert_awaited_once_with(2)
+
+
 # ---------------------------------------------------------------------------
 # Tests: _get_property
 # ---------------------------------------------------------------------------

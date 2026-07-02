@@ -176,6 +176,7 @@ class Settings(BaseSettings):
     # Object Storage
     storage_backend: str | None = None
     storage_bucket: str | None = None
+    storage_proxy_url: str | None = None
     storage_public_url: str | None = None
     storage_access_key: str | None = None
     storage_secret_key: str | None = None
@@ -184,6 +185,17 @@ class Settings(BaseSettings):
     """Expiry for presigned GET URLs on trade images and check-in screenshots (seconds). Default: 1 hour."""
     storage_presigned_get_ttl_playbook_seconds: int = 14400
     """Expiry for presigned GET URLs on playbook attachments (seconds). Default: 4 hours."""
+
+    @property
+    def storage_presign_url(self) -> str | None:
+        """Return the base URL used when generating presigned URLs.
+
+        Preference order keeps backward compatibility:
+        1) ``STORAGE_PROXY_URL`` (new)
+        2) ``STORAGE_PUBLIC_URL`` (deprecated alias)
+        3) ``STORAGE_ENDPOINT_URL``
+        """
+        return self.storage_proxy_url or self.storage_public_url or self.storage_endpoint_url
 
     # Cache
     redis_url: str | None = None

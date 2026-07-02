@@ -27,7 +27,7 @@ def override_storage_settings(monkeypatch: pytest.MonkeyPatch):
     """Fixture to mock storage settings."""
     monkeypatch.setattr(settings, "storage_backend", "s3")
     monkeypatch.setattr(settings, "storage_bucket", "test-bucket")
-    monkeypatch.setattr(settings, "storage_public_url", "https://storage.test")
+    monkeypatch.setattr(settings, "storage_proxy_url", "https://storage.test")
     monkeypatch.setattr(settings, "storage_endpoint_url", "https://s3.test")
     monkeypatch.setattr(settings, "storage_access_key", "test-key")
     monkeypatch.setattr(settings, "storage_secret_key", "test-secret")

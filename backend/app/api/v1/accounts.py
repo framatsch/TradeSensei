@@ -29,6 +29,7 @@ from app.core.exceptions import AccountNotFoundError, ConfigurationError
 from app.models.user import User
 from app.schemas.account import (
     AccountCreate,
+    AccountCredentialsRead,
     AccountMetrics,
     AccountRead,
     AccountUpdate,
@@ -181,6 +182,39 @@ async def create_account(
     account_payload = payload.model_copy(update={"portfolio_id": portfolio_id})
     account = await service.create_account(account_payload, current_user.id)
     return ResponseEnvelope[AccountRead](data=account)
+
+
+@router.get(
+    "/{account_id}/credentials",
+    response_model=ResponseEnvelope[AccountCredentialsRead],
+    summary="Get Account Credentials",
+    description=(
+        "Return decrypted broker credentials for an account owned by the "
+        "authenticated user."
+    ),
+    response_description="Plaintext credentials wrapped in a response envelope.",
+    responses={
+        200: {"description": "Credentials returned successfully."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found (or owned by another user)."},
+    },
+)
+async def get_account_credentials(
+    portfolio_id: uuid.UUID,
+    account_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AccountService, Depends(_get_service)],
+) -> ResponseEnvelope[AccountCredentialsRead]:
+    """Return decrypted account credentials for the authenticated owner."""
+    try:
+        credentials = await service.get_account_credentials(
+            account_id=account_id,
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+        )
+    except AccountNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.") from exc
+    return ResponseEnvelope[AccountCredentialsRead](data=credentials)
 
 
 @router.get(

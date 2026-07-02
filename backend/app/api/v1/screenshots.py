@@ -110,53 +110,15 @@ async def delete_screenshot(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TradeService, Depends(_get_service)],
 ) -> ResponseEnvelope[TradeRead]:
-    """Delete a screenshot file and remove its URL from trade.image_urls.
-
-    Args:
-        trade_id: UUID path parameter identifying the parent trade.
-        filename: The filename of the screenshot to delete.
-        current_user: Injected authenticated user.
-        service: Injected trade service.
-
-    Returns:
-        Updated :class:`TradeRead` wrapped in a response envelope.
-
-    Raises:
-        HTTPException: 404 if trade not found.
-    """
-    # Sanitize: filename must not contain path traversal
+    """Delete a screenshot file and remove its URL from trade.image_urls."""
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename.")
 
     try:
-        trade = await service.get_trade(trade_id, current_user.id)
+        updated = await service.remove_screenshot(trade_id, filename, current_user.id)
     except TradeNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
-    # Find the URL that ends with the filename
-    target_url = next((s for s in (trade.image_urls or []) if s.endswith(f"/{filename}")), None)
-    if not target_url:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Screenshot not found on trade.",
-        )
-
-    remaining = [s for s in (trade.image_urls or []) if s != target_url]
-
-    from app.services.storage_service import StorageService
-
-    storage = StorageService()
-    import contextlib
-
-    with contextlib.suppress(Exception):
-        storage.delete_file_by_storage_ref(target_url)
-
-    from app.schemas.trade import TradeUpdate  # local import to avoid circular
-
-    updated = await service.update_trade(
-        trade_id,
-        TradeUpdate(image_urls=remaining),
-        current_user.id,
-        trade.portfolio_id,
-    )
     return ResponseEnvelope[TradeRead](data=updated)

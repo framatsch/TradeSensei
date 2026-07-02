@@ -48,6 +48,13 @@ from app.utils.parsers.ibkr_xml import IBKRXMLParser
 
 logger = logging.getLogger(__name__)
 
+_FLEX_SEND_REQUEST_RETRY_ATTEMPTS = 3
+_FLEX_SEND_REQUEST_RETRY_DELAY_SECONDS = 2
+_FLEX_TRANSIENT_SEND_REQUEST_MESSAGES = (
+    "statement could not be generated at this time",
+    "please try again shortly",
+)
+
 
 class FlexImportService:
     """Service for importing trades via the IBKR Flex Web Service API.
@@ -245,16 +252,55 @@ class FlexImportService:
             FlexAPIError: On HTTP or API-level errors.
             RateLimitError: When IBKR responds with error code ``1019``.
         """
-        params: dict[str, str] = {
+        base_params: dict[str, str] = {
             "t": self._token,
             "q": query_id,
             "v": FLEX_API_VERSION,
         }
-        if from_date:
-            params["period"] = from_date
-
         url = f"{FLEX_BASE_URL}/FlexStatementService.SendRequest"
         logger.info("Requesting Flex Query %s generation…", query_id)
+
+        params = dict(base_params)
+        if from_date:
+            params["period"] = from_date
+        return await self._send_request_with_retries(client=client, url=url, params=params)
+
+    async def _send_request_with_retries(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        params: dict[str, str],
+    ) -> str:
+        """Retry transient Flex SendRequest generation errors with backoff."""
+        for attempt in range(1, _FLEX_SEND_REQUEST_RETRY_ATTEMPTS + 1):
+            try:
+                return await self._send_request_once(client=client, url=url, params=params)
+            except RateLimitError:
+                raise
+            except FlexAPIError as exc:
+                transient = _is_transient_send_request_error(str(exc))
+                if not transient or attempt == _FLEX_SEND_REQUEST_RETRY_ATTEMPTS:
+                    raise
+
+                delay_seconds = attempt * _FLEX_SEND_REQUEST_RETRY_DELAY_SECONDS
+                logger.warning(
+                    "Transient Flex SendRequest failure (%s/%s): %s. Retrying in %ss.",
+                    attempt,
+                    _FLEX_SEND_REQUEST_RETRY_ATTEMPTS,
+                    exc,
+                    delay_seconds,
+                )
+                await asyncio.sleep(delay_seconds)
+
+        raise FlexAPIError("Flex SendRequest failed after retries.")
+
+    async def _send_request_once(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        params: dict[str, str],
+    ) -> str:
+        """Send one Flex SendRequest call and return the polling reference code."""
 
         try:
             response = await client.get(url, params=params)
@@ -380,3 +426,9 @@ def _parse_wait_time(error_message: str) -> int:
     if match:
         return int(match.group(1)) * 60
     return 900
+
+
+def _is_transient_send_request_error(error_message: str) -> bool:
+    """Detect Flex SendRequest error messages that are usually temporary."""
+    msg = error_message.lower()
+    return any(marker in msg for marker in _FLEX_TRANSIENT_SEND_REQUEST_MESSAGES)

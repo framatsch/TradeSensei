@@ -27,7 +27,7 @@ from app.services.storage_service import StorageService
 def configured_storage(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "storage_backend", "s3")
     monkeypatch.setattr(settings, "storage_bucket", "test-bucket")
-    monkeypatch.setattr(settings, "storage_public_url", "https://storage.test")
+    monkeypatch.setattr(settings, "storage_proxy_url", "https://storage.test")
 
 
 @pytest.mark.unit
@@ -76,7 +76,7 @@ def test_generate_upload_url_raises_when_storage_backend_missing(
 ) -> None:
     monkeypatch.setattr(settings, "storage_backend", None)
     monkeypatch.setattr(settings, "storage_bucket", "test-bucket")
-    monkeypatch.setattr(settings, "storage_public_url", "https://storage.test")
+    monkeypatch.setattr(settings, "storage_proxy_url", "https://storage.test")
     service = StorageService()
 
     with pytest.raises(ConfigurationError):

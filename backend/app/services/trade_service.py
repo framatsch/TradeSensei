@@ -136,6 +136,57 @@ class TradeService:
                 self._storage.delete_file_by_storage_ref(storage_ref)
             raise
 
+    async def remove_screenshot(
+        self,
+        trade_id: uuid.UUID,
+        filename: str,
+        user_id: uuid.UUID,
+    ) -> TradeRead:
+        """Remove a screenshot by filename from a trade.
+
+        Args:
+            trade_id: UUID of the trade to update.
+            filename: Basename of the screenshot object key.
+            user_id: Authenticated user UUID for ownership checks.
+
+        Returns:
+            Updated trade DTO without the removed screenshot reference.
+
+        Raises:
+            TradeNotFoundError: If the target trade does not exist.
+            ValueError: If the screenshot filename is not attached to the trade.
+        """
+        trade_model = await self._repo.get_by_id(trade_id, user_id)
+        if trade_model is None:
+            raise TradeNotFoundError(f"Trade {trade_id} not found.")
+
+        image_refs = list(trade_model.image_urls or [])
+        target_ref = next(
+            (
+                ref
+                for ref in image_refs
+                if ref.split("?", 1)[0].endswith(f"/{filename}")
+            ),
+            None,
+        )
+        if target_ref is None:
+            raise ValueError("Screenshot not found on trade.")
+
+        remaining = [ref for ref in image_refs if ref != target_ref]
+
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            self._storage.delete_file_by_storage_ref(target_ref)
+
+        portfolio_id = trade_model.account.portfolio_id if trade_model.account else None
+        return await self.update_trade(
+            trade_id,
+            TradeUpdate(image_urls=remaining),
+            user_id,
+            portfolio_id,
+        )
+
     async def _re_aggregate_trade(self, trade_id: uuid.UUID) -> None:
         """Re-aggregate a trade from its logical executions.
 
