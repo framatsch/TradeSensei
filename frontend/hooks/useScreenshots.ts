@@ -50,9 +50,12 @@ export function useDeleteScreenshot(tradeId: string) {
   const qc = useQueryClient();
   const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
   return useMutation<Trade, Error, string>({
-    mutationFn: async (url: string) => {
-      const pathPart = url.split("?")[0];
-      const filename = pathPart.split("/").pop()!;
+    mutationFn: async (storageRef: string) => {
+      const withoutQuery = storageRef.split("?", 1)[0];
+      const filename = withoutQuery.split("/").pop();
+      if (!filename) {
+        throw new Error("Invalid screenshot reference");
+      }
       const { data, error } = await deleteScreenshotApiV1TradesTradeIdScreenshotsFilenameDelete({
         path: { trade_id: tradeId, filename },
       });

@@ -13,65 +13,33 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
- * Returns true if the hostname is not directly reachable by a browser client
- * (localhost, Kubernetes cluster-internal DNS, RFC-1918 private IPs).
- *
- * External hostnames (e.g. *.amazonaws.com, custom CDN domains) return false
- * and will be used directly by the browser without going through the proxy —
- * preserving performance for production S3/CloudFront setups.
- */
-function needsProxy(hostname: string): boolean {
-  // Localhost variants
-  if (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    hostname === "0.0.0.0"
-  ) return true;
+type StorageAccessMode = "proxy" | "direct";
 
-  // Kubernetes cluster-internal DNS (*.svc.cluster.local, *.cluster.local)
-  if (hostname.endsWith(".cluster.local")) return true;
-
-  // RFC-1918 private IP ranges (10.x, 172.16-31.x, 192.168.x)
-  if (/^10\./.test(hostname)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
-  if (/^192\.168\./.test(hostname)) return true;
-
-  return false;
+function getStorageAccessMode(): StorageAccessMode {
+  const mode = process.env.NEXT_PUBLIC_STORAGE_ACCESS_MODE;
+  return mode === "direct" ? "direct" : "proxy";
 }
 
 /**
  * Resolves a storage URL for use in <img> tags.
  *
- * - Internal URLs (localhost, Kubernetes cluster DNS, private IPs) are
- *   tunnelled through /api/storage-proxy so the browser never needs direct
- *   access to the storage backend.
- * - External URLs (real S3, CloudFront, etc.) are returned as-is so the
- *   browser fetches them directly — no proxy overhead, full CDN performance.
- * - Relative paths are returned unchanged.
+ * - `proxy` mode (default): always tunnel through /api/storage-proxy
+ * - `direct` mode: return URL unchanged
+ * - Relative paths are returned unchanged
  */
 export function resolveStorageUrl(url: string): string {
   if (!url) return url;
   if (url.startsWith("/")) return url;
+  if (url.startsWith("blob:") || url.startsWith("data:")) return url;
 
-  try {
-    const { hostname } = new URL(url);
-    if (needsProxy(hostname)) {
-      return `/api/storage-proxy?url=${encodeURIComponent(url)}`;
-    }
-  } catch {
-    // not a valid URL — return as-is
-  }
-
-  return url;
+  if (getStorageAccessMode() === "direct") return url;
+  return `/api/storage-proxy?url=${encodeURIComponent(url)}`;
 }
 
 /**
  * Returns the URL to use for a presigned PUT upload.
  *
- * Same logic as resolveStorageUrl: internal storage goes through the proxy,
- * external S3 endpoints are used directly (browsers can PUT to public S3).
+ * Same mode as resolveStorageUrl: `proxy` tunnels, `direct` bypasses.
  */
 export function storageUploadUrl(presignedUrl: string): string {
   return resolveStorageUrl(presignedUrl);

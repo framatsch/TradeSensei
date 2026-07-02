@@ -34,30 +34,35 @@ export function PlaybookList() {
   const { data: playbooks, isLoading, isError, error, refetch } = usePlaybooks();
   const { mutate: create, isPending: creating } = useCreatePlaybook();
   const { mutate: remove } = useDeletePlaybook();
-  const DRAFT_PLAYBOOK_NAME = "Untitled Playbook";
+  const UNTITLED_PLAYBOOK_NAME = "Untitled Playbook";
+
+  const getNextUntitledName = () => {
+    const existingNames = new Set((playbooks ?? []).map((pb) => pb.name));
+    if (!existingNames.has(UNTITLED_PLAYBOOK_NAME)) {
+      return UNTITLED_PLAYBOOK_NAME;
+    }
+
+    let counter = 2;
+    while (existingNames.has(`${UNTITLED_PLAYBOOK_NAME} ${counter}`)) {
+      counter += 1;
+    }
+    return `${UNTITLED_PLAYBOOK_NAME} ${counter}`;
+  };
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCreate = () => {
-    const existingDraft = (playbooks ?? []).find((pb) => pb.name === DRAFT_PLAYBOOK_NAME);
-    if (existingDraft) {
-      router.push(`/dashboard/library/playbooks/${existingDraft.id}?edit=true`);
-      return;
-    }
+    const nextUntitledName = getNextUntitledName();
 
     create(
-      { name: DRAFT_PLAYBOOK_NAME },
+      { name: nextUntitledName },
       {
         onSuccess: (newPlaybook) => {
-          router.push(`/dashboard/library/playbooks/${newPlaybook.id}?edit=true`);
+          router.push(`/dashboard/library/playbooks/${newPlaybook.id}?edit=true&draft=true`);
         },
         onError: async () => {
-          const refreshed = await refetch();
-          const refreshedDraft = (refreshed.data ?? []).find((pb) => pb.name === DRAFT_PLAYBOOK_NAME);
-          if (refreshedDraft) {
-            router.push(`/dashboard/library/playbooks/${refreshedDraft.id}?edit=true`);
-          }
+          await refetch();
         },
       }
     );

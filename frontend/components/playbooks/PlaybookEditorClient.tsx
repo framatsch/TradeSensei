@@ -45,6 +45,14 @@ import {
 } from "@/hooks/usePlaybookMetadata";
 import { resolveStorageUrl, storageUploadUrl } from "@/lib/storageUrl";
 
+type PendingPlaybookAttachment = {
+  tempId: string;
+  filename: string;
+  contentType: string;
+  storageUrl: string;
+  previewUrl: string;
+};
+
 interface Props {
   id: string;
 }
@@ -101,6 +109,7 @@ export function PlaybookEditorClient({ id }: Props) {
 
   // ── Mode state ─────────────────────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(searchParams.get("edit") === "true");
+  const isDraftSession = searchParams.get("draft") === "true";
 
   // ── Toolbar state ──────────────────────────────────────────────────────────
   const [isEditingName, setIsEditingName] = useState(false);
@@ -133,40 +142,6 @@ export function PlaybookEditorClient({ id }: Props) {
   const { mutate: updatePlaybook, isPending: isSaving } = useUpdatePlaybook();
   const { mutateAsync: deletePlaybook, isPending: isDeleting } = useDeletePlaybook();
 
-  const handleSave = useCallback(() => {
-    const payload: { name?: string; content_markdown?: string | null; target_winrate?: number | null } = {
-      name: name.trim() || playbook?.name,
-      content_markdown: contentMarkdown,
-    };
-    if (targetWinrate.trim()) {
-      const parsed = parseFloat(targetWinrate);
-      if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-        payload.target_winrate = parsed / 100;
-      }
-    } else {
-      payload.target_winrate = null;
-    }
-    updatePlaybook(
-      { id, payload },
-      {
-        onSuccess: () => toast.success("Playbook saved"),
-        onError: (err) => toast.error(err.message || "Failed to save playbook"),
-      }
-    );
-  }, [name, playbook?.name, contentMarkdown, targetWinrate, updatePlaybook, id]);
-
-  // Keyboard shortcut (Cmd/Ctrl + S)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
-
   // ── Taxonomy section ───────────────────────────────────────────────────────
   const { data: assignedTaxonomies = [], isSuccess: taxonomiesLoaded } = usePlaybookTaxonomies(id);
   const { data: allTaxonomies = [] } = useGetTaxonomies("playbook");
@@ -184,7 +159,102 @@ export function PlaybookEditorClient({ id }: Props) {
   const { data: attachments = [], isSuccess: attachmentsLoaded } = usePlaybookAttachments(id);
   const { mutateAsync: getUploadUrl } = usePlaybookImageUploadUrl();
   const { mutateAsync: registerAttachment } = useRegisterPlaybookAttachment();
-  const { mutate: deleteAttachment } = useDeletePlaybookAttachment();
+  const { mutateAsync: deleteAttachment } = useDeletePlaybookAttachment();
+
+  const [isSyncingAttachments, setIsSyncingAttachments] = useState(false);
+  const [pendingAttachmentsToAdd, setPendingAttachmentsToAdd] = useState<PendingPlaybookAttachment[]>([]);
+  const [pendingAttachmentIdsToDelete, setPendingAttachmentIdsToDelete] = useState<string[]>([]);
+
+  const visibleAttachments = useMemo(() => {
+    const persisted = attachments
+      .filter((att) => !pendingAttachmentIdsToDelete.includes(att.id))
+      .map((att) => ({ ...att, isPending: false }));
+
+    const staged = pendingAttachmentsToAdd.map((att) => ({
+      id: att.tempId,
+      filename: att.filename,
+      storage_url: att.previewUrl,
+      isPending: true,
+    }));
+
+    return [...persisted, ...staged];
+  }, [attachments, pendingAttachmentIdsToDelete, pendingAttachmentsToAdd]);
+
+  const syncAttachmentChanges = useCallback(async () => {
+    if (pendingAttachmentsToAdd.length === 0 && pendingAttachmentIdsToDelete.length === 0) {
+      return;
+    }
+
+    setIsSyncingAttachments(true);
+    try {
+      for (const pending of pendingAttachmentsToAdd) {
+        await registerAttachment({
+          playbookId: id,
+          filename: pending.filename,
+          contentType: pending.contentType,
+          storageUrl: pending.storageUrl,
+        });
+      }
+
+      for (const attachmentId of pendingAttachmentIdsToDelete) {
+        await deleteAttachment({ playbookId: id, attachmentId });
+      }
+
+      setPendingAttachmentsToAdd((prev) => {
+        for (const pending of prev) {
+          URL.revokeObjectURL(pending.previewUrl);
+        }
+        return [];
+      });
+      setPendingAttachmentIdsToDelete([]);
+    } finally {
+      setIsSyncingAttachments(false);
+    }
+  }, [deleteAttachment, id, pendingAttachmentIdsToDelete, pendingAttachmentsToAdd, registerAttachment]);
+
+  const handleSave = useCallback(() => {
+    const payload: { name?: string; content_markdown?: string | null; target_winrate?: number | null } = {
+      name: name.trim() || playbook?.name,
+      content_markdown: contentMarkdown,
+    };
+    if (targetWinrate.trim()) {
+      const parsed = parseFloat(targetWinrate);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+        payload.target_winrate = parsed / 100;
+      }
+    } else {
+      payload.target_winrate = null;
+    }
+    updatePlaybook(
+      { id, payload },
+      {
+        onSuccess: async () => {
+          try {
+            await syncAttachmentChanges();
+          } catch {
+            toast.error("Playbook saved, but image changes failed. Please save again.");
+            return;
+          }
+          router.replace(`/dashboard/library/playbooks/${id}?edit=true`);
+          setIsEditMode(false);
+          toast.success("Playbook saved");
+        },
+        onError: (err) => toast.error(err.message || "Failed to save playbook"),
+      }
+    );
+  }, [name, playbook?.name, contentMarkdown, targetWinrate, updatePlaybook, id, router, syncAttachmentChanges]);
+
+  // Keyboard shortcut (Cmd/Ctrl + S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
 
   // ── Links section ──────────────────────────────────────────────────────────
   const { data: links = [], isSuccess: linksLoaded } = usePlaybookLinks(id);
@@ -208,13 +278,16 @@ export function PlaybookEditorClient({ id }: Props) {
       (taxonomiesLoaded || taxonomiesEverLoaded.current) &&
       (attachmentsLoaded || attachmentsEverLoaded.current) &&
       (linksLoaded || linksEverLoaded.current);
-    const isNameUnchanged = !name.trim() || name === "Untitled Playbook";
+    const UNTITLED_DRAFT_NAME_PATTERN = /^Untitled Playbook(?: \d+)?$/;
+    const effectiveName = name.trim() || playbook.name;
+    const isAutoDraftName = UNTITLED_DRAFT_NAME_PATTERN.test(effectiveName);
+    const isNameUnchanged = effectiveName === playbook.name;
     const isContentEmpty = !contentMarkdown.trim();
-    const hasNoAttachments = attachments.length === 0;
+    const hasNoAttachments = visibleAttachments.length === 0;
     const hasNoTags = assignedTaxonomies.length === 0;
     const hasNoLinks = links.length === 0;
 
-    if (initializedRef.current && allLoaded && isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
+    if (isDraftSession && initializedRef.current && allLoaded && isAutoDraftName && isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
       try {
         await deletePlaybook(id);
       } catch {
@@ -222,7 +295,20 @@ export function PlaybookEditorClient({ id }: Props) {
       }
     }
     router.push("/dashboard/library/playbooks");
-  }, [taxonomiesLoaded, attachmentsLoaded, linksLoaded, name, contentMarkdown, attachments, assignedTaxonomies, links, deletePlaybook, id, router]);
+  }, [
+    isDraftSession,
+    taxonomiesLoaded,
+    attachmentsLoaded,
+    linksLoaded,
+    name,
+    contentMarkdown,
+    visibleAttachments.length,
+    assignedTaxonomies,
+    links,
+    deletePlaybook,
+    id,
+    router,
+  ]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -261,12 +347,16 @@ export function PlaybookEditorClient({ id }: Props) {
             setUploadError("Upload failed — please try again");
             continue;
           }
-          await registerAttachment({
-            playbookId: id,
-            filename: file.name,
-            contentType: file.type,
-            storageUrl: key,
-          });
+          setPendingAttachmentsToAdd((prev) => [
+            ...prev,
+            {
+              tempId: crypto.randomUUID(),
+              filename: file.name,
+              contentType: file.type,
+              storageUrl: key,
+              previewUrl: URL.createObjectURL(file),
+            },
+          ]);
         }
       } catch {
         setUploadError("An unexpected error occurred");
@@ -275,7 +365,7 @@ export function PlaybookEditorClient({ id }: Props) {
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [id, getUploadUrl, registerAttachment]
+    [id, getUploadUrl]
   );
 
   // Clipboard paste
@@ -430,12 +520,11 @@ export function PlaybookEditorClient({ id }: Props) {
           <button
             onClick={() => {
               handleSave();
-              setIsEditMode(false);
             }}
-            disabled={isSaving}
+            disabled={isSaving || isSyncingAttachments}
             className="px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ml-2"
           >
-            {isSaving ? "Saving…" : "Save"}
+            {isSaving || isSyncingAttachments ? "Saving…" : "Save"}
           </button>
         ) : (
           <div className="flex items-center gap-2 ml-2">
@@ -590,9 +679,9 @@ export function PlaybookEditorClient({ id }: Props) {
             )}
 
             {/* Attachment list */}
-            {attachments.length > 0 ? (
+            {visibleAttachments.length > 0 ? (
               <ul className={isEditMode ? "mt-3 space-y-1.5" : "space-y-1.5"}>
-                {attachments.map((att) => (
+                {visibleAttachments.map((att) => (
                   <li
                     key={att.id}
                     className="flex items-center gap-2 p-1.5 rounded-lg bg-secondary border border-border"
@@ -616,9 +705,28 @@ export function PlaybookEditorClient({ id }: Props) {
                     <span className="flex-1 text-xs text-foreground truncate" title={att.filename}>
                       {att.filename}
                     </span>
+                    {att.isPending && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-primary/30 text-primary bg-primary/10">
+                        Unsaved
+                      </span>
+                    )}
                     {isEditMode && (
                       <button
-                        onClick={() => deleteAttachment({ playbookId: id, attachmentId: att.id })}
+                        onClick={() => {
+                          if (att.isPending) {
+                            setPendingAttachmentsToAdd((prev) => {
+                              const removed = prev.find((p) => p.tempId === att.id);
+                              if (removed) {
+                                URL.revokeObjectURL(removed.previewUrl);
+                              }
+                              return prev.filter((p) => p.tempId !== att.id);
+                            });
+                            return;
+                          }
+                          setPendingAttachmentIdsToDelete((prev) =>
+                            prev.includes(att.id) ? prev : [...prev, att.id]
+                          );
+                        }}
                         className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                         aria-label={`Delete ${att.filename}`}
                       >

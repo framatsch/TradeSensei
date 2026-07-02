@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useState, useId } from "react";
+import { useEffect, useState, useId } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { X, Loader2, AlertTriangle, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -76,6 +76,44 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
   const uid = useId();
 
   const portfolioId = account.portfolio_id;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!portfolioId || account.type === "manual") {
+      setCredentials({});
+      return;
+    }
+
+    const loadCredentials = async () => {
+      const { data, error: fetchErr } = await client.get<
+        { data: { properties: Record<string, string> } },
+        unknown,
+        false
+      >({
+        url: `/api/v1/portfolios/${portfolioId}/accounts/${account.id}/credentials`,
+      });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (fetchErr || !data?.data?.properties) {
+        setCredentials({});
+        return;
+      }
+
+      const normalized = Object.fromEntries(
+        Object.entries(data.data.properties).map(([key, value]) => [key.toLowerCase(), value])
+      );
+      setCredentials(normalized);
+    };
+
+    void loadCredentials();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [account.id, account.type, portfolioId]);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -287,7 +325,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
               <div>
                 <p className="text-xs font-semibold text-muted-foreground">API Credentials</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Leave blank to keep existing credentials
+                  Stored credentials are loaded for review and can be edited.
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -303,7 +341,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
                         autoComplete="off"
                         value={credentials[field.key] ?? ""}
                         onChange={(e) => handleCredentialChange(field.key, e.target.value)}
-                        placeholder="Leave blank to keep existing"
+                        placeholder=""
                         className={`${INPUT_CLASS} pr-10`}
                         data-testid={`credential-${field.key}`}
                       />
