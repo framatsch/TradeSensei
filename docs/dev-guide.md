@@ -118,6 +118,7 @@ openssl rand -base64 32
 ```dotenv
 # frontend/.env.local
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_STORAGE_ACCESS_MODE=proxy
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=<same value as GOOGLE_CLIENT_ID>
 NEXTAUTH_SECRET=<output of the openssl command above>
 NEXTAUTH_URL=http://localhost:3000
@@ -508,7 +509,8 @@ Read responses return short-lived presigned GET URLs generated server-side.
 |---|---|
 | `STORAGE_BACKEND` | `s3` to enable; empty to disable |
 | `STORAGE_BUCKET` | S3 bucket name |
-| `STORAGE_PUBLIC_URL` | Optional base URL override for generated presigned URLs (e.g. `https://cdn.example.com/bucket`) |
+| `STORAGE_PROXY_URL` | Preferred base URL for generated presigned URLs (must be reachable by the Next.js server) |
+| `STORAGE_PUBLIC_URL` | Deprecated alias for `STORAGE_PROXY_URL` (kept for backward compatibility) |
 | `STORAGE_ACCESS_KEY` | S3 access key ID |
 | `STORAGE_SECRET_KEY` | S3 secret access key |
 | `STORAGE_ENDPOINT_URL` | Override endpoint for S3-compatible services (MinIO, Cloudflare R2, etc.) |
@@ -523,14 +525,16 @@ The backend reads six environment variables:
 
 | Variable | Purpose |
 |---|---|
+| `NEXT_PUBLIC_STORAGE_ACCESS_MODE` | Frontend storage mode: `proxy` (default, routes all presigned URLs through `/api/storage-proxy`) or `direct` (browser calls storage URL directly) |
 | `STORAGE_BACKEND` | Set to `s3` to enable; leave empty to disable |
 | `STORAGE_BUCKET` | Bucket name |
-| `STORAGE_PUBLIC_URL` | Base URL override for presigned URLs — **must be browser-reachable** |
+| `STORAGE_PROXY_URL` | Presigned URL base host for backend-generated signatures — **must be reachable by the Next.js server** |
+| `STORAGE_PUBLIC_URL` | Deprecated alias for `STORAGE_PROXY_URL` |
 | `STORAGE_ACCESS_KEY` | Access key / key ID |
 | `STORAGE_SECRET_KEY` | Secret key |
 | `STORAGE_ENDPOINT_URL` | S3 endpoint URL (leave empty for AWS S3) |
 
-> **Important:** `STORAGE_PUBLIC_URL` must use a hostname reachable from the user's browser — not a Docker-internal hostname like `seaweedfs:8333`. Presigned PUT URLs are submitted directly by the browser, so the URL must resolve outside the Docker network.
+> **Important:** `STORAGE_PROXY_URL` must use a hostname reachable from the Next.js server runtime (container/pod), because uploads/downloads in `proxy` mode are tunnelled through `/api/storage-proxy`.
 
 ### Option 1: SeaweedFS (self-hosted, bundled)
 
@@ -540,23 +544,36 @@ SeaweedFS is included in the Docker Compose stack as a zero-config self-hosted o
 docker compose --profile storage up -d
 ```
 
+When using the default local `docker-compose.yml`, SeaweedFS is part of the
+main stack and must be running for screenshot/image uploads. Verify with:
+
+```bash
+docker compose ps seaweedfs
+```
+
+If the service is missing or exited, start/restart it:
+
+```bash
+docker compose up -d seaweedfs storage-init
+```
+
 Then set these variables in `backend/.env` or your shell:
 
 ```dotenv
 STORAGE_BACKEND=s3
 STORAGE_BUCKET=tradesensei
-STORAGE_PUBLIC_URL=http://localhost:8333/tradesensei
+STORAGE_PROXY_URL=http://seaweedfs:8333
 STORAGE_ACCESS_KEY=any
 STORAGE_SECRET_KEY=any
 STORAGE_ENDPOINT_URL=http://seaweedfs:8333
 ```
 
-`STORAGE_ENDPOINT_URL` uses the Docker-internal hostname (`seaweedfs:8333`) so the backend container can reach SeaweedFS. `STORAGE_PUBLIC_URL` uses `localhost` so presigned URLs are reachable from the browser.
+`STORAGE_ENDPOINT_URL` and `STORAGE_PROXY_URL` can both use the Docker-internal hostname (`seaweedfs:8333`) when backend and frontend run in the same Docker network.
 
 For production with SeaweedFS, proxy `/storage/` via Nginx to `http://seaweedfs:8333` and set:
 
 ```dotenv
-STORAGE_PUBLIC_URL=https://yourdomain.com/storage/tradesensei
+STORAGE_PROXY_URL=https://yourdomain.com/storage/tradesensei
 ```
 
 ### Option 2: AWS S3
@@ -568,7 +585,7 @@ STORAGE_PUBLIC_URL=https://yourdomain.com/storage/tradesensei
 ```dotenv
 STORAGE_BACKEND=s3
 STORAGE_BUCKET=your-bucket-name
-STORAGE_PUBLIC_URL=https://your-bucket-name.s3.<region>.amazonaws.com
+STORAGE_PROXY_URL=https://your-bucket-name.s3.<region>.amazonaws.com
 STORAGE_ACCESS_KEY=<IAM access key>
 STORAGE_SECRET_KEY=<IAM secret key>
 STORAGE_ENDPOINT_URL=   # leave empty for AWS
@@ -585,7 +602,7 @@ R2 has no egress fees. Setup:
 ```dotenv
 STORAGE_BACKEND=s3
 STORAGE_BUCKET=your-bucket-name
-STORAGE_PUBLIC_URL=https://pub-<hash>.r2.dev   # or your custom domain
+STORAGE_PROXY_URL=https://pub-<hash>.r2.dev   # or your custom domain
 STORAGE_ACCESS_KEY=<R2 Access Key ID>
 STORAGE_SECRET_KEY=<R2 Secret Access Key>
 STORAGE_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
@@ -598,7 +615,7 @@ Keep the bucket **private** (do not enable "Public access"). Use presigned GET U
 ```dotenv
 STORAGE_BACKEND=s3
 STORAGE_BUCKET=your-bucket-name
-STORAGE_PUBLIC_URL=https://your-bucket-name.<region>.your-objectstorage.com
+STORAGE_PROXY_URL=https://your-bucket-name.<region>.your-objectstorage.com
 STORAGE_ACCESS_KEY=<access key>
 STORAGE_SECRET_KEY=<secret key>
 STORAGE_ENDPOINT_URL=https://<region>.your-objectstorage.com
@@ -613,7 +630,7 @@ Create an App Key with "Read and Write" access to the bucket in the [B2 dashboar
 ```dotenv
 STORAGE_BACKEND=s3
 STORAGE_BUCKET=your-bucket-name
-STORAGE_PUBLIC_URL=https://f<number>.backblazeb2.com/file/your-bucket-name
+STORAGE_PROXY_URL=https://f<number>.backblazeb2.com/file/your-bucket-name
 STORAGE_ACCESS_KEY=<keyID>
 STORAGE_SECRET_KEY=<applicationKey>
 STORAGE_ENDPOINT_URL=https://s3.<region>.backblazeb2.com

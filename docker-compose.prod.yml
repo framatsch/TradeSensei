@@ -48,9 +48,12 @@ services:
       # Object storage for screenshots and trade images.
       # Supports any S3-compatible provider (AWS S3, Cloudflare R2, Hetzner, Backblaze B2,
       # or bundled SeaweedFS via --profile storage). See docs/dev-guide.md for setup.
-      # IMPORTANT: STORAGE_PUBLIC_URL must be browser-reachable (not a Docker-internal hostname).
+      # STORAGE_PROXY_URL controls the host used in generated presigned URLs.
+      # It must be reachable by the Next.js server (frontend pod/container).
+      # STORAGE_PUBLIC_URL remains supported as a deprecated alias.
       STORAGE_BACKEND: "${STORAGE_BACKEND:-}"
       STORAGE_BUCKET: "${STORAGE_BUCKET:-}"
+      STORAGE_PROXY_URL: "${STORAGE_PROXY_URL:-}"
       STORAGE_PUBLIC_URL: "${STORAGE_PUBLIC_URL:-}"
       STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-}"
       STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-}"
@@ -75,6 +78,7 @@ services:
     restart: always
     environment:
       NEXT_PUBLIC_API_URL: ${API_URL:-https://api.tradesensei.example.com}
+      NEXT_PUBLIC_STORAGE_ACCESS_MODE: ${NEXT_PUBLIC_STORAGE_ACCESS_MODE:-proxy}
     depends_on:
       backend:
         condition: service_healthy

@@ -97,5 +97,9 @@
         "playwright-test*planner_save_plan": true
       }
     }
+  },
+  "compaction": {
+    "auto": false,
+    "prune": false
   }
 }

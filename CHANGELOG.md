@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [backend] Introduce `STORAGE_PROXY_URL` as the primary presign host setting while keeping `STORAGE_PUBLIC_URL` as a backward-compatible alias
+- [infra] Update local/prod compose defaults to prefer `STORAGE_PROXY_URL`; frontend `NEXT_PUBLIC_STORAGE_ACCESS_MODE` now defaults to `proxy` everywhere
+
+### Fixed
+- [frontend] Remove storage proxy/upload fallback workarounds and restore deterministic proxy behavior for uploads and image reads
+- [docs] Update object storage docs with `STORAGE_PROXY_URL` semantics and `STORAGE_PUBLIC_URL` deprecation guidance
+
 ## [1.3.6] - 2026-06-24
 
 ### Fixed
