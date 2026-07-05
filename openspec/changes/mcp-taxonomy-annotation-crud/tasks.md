@@ -36,6 +36,6 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run `mypy --strict backend/app/api/mcp.py` — zero errors
+- [x] 7.1 Run `mypy --strict backend/app/api/mcp.py` — zero errors
 - [x] 7.2 Run `ruff check backend/app/api/mcp.py` — no violations
 - [x] 7.3 Verify that `TaxonomyService` and `AnnotationDefinitionService` have `update` and `delete` methods with the expected signatures (or note if adapter code is needed)
