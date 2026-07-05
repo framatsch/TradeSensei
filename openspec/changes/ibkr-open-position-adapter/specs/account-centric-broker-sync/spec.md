@@ -7,7 +7,7 @@ The system MUST support initiating trade synchronization targeting a specific `a
 - **WHEN** the user initiates an API sync for an account of type `IBKR`
 - **THEN** the system SHALL look up the account's decrypted Flex Token and Query ID
 - **THEN** the system SHALL execute the IBKR sync logic
-- **THEN** any `<OpenPosition>` elements in the Flex report SHALL be imported as open-lot execution legs in addition to `<Trade>` elements
+- **THEN** any `<OpenPosition>` elements in the Flex report SHALL be imported as open-lot execution legs (via the `open-position-seeding` contract) in addition to `<Trade>` elements
 
 #### Scenario: Syncing an IBKR Account — open positions are not duplicated on re-sync
 - **WHEN** the user initiates a second API sync for the same IBKR account

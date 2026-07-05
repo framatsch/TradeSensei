@@ -22,6 +22,8 @@ Response fields to rely on:
 - `origin`: `"split"` for split children
 - `parent_id`: UUID of the original imported execution
 - `deleted`: `false` on active children, `true` on original row
+- `price` / `quantity`: split-adjusted values used for chart/execution marker alignment
+- `raw_price` / `raw_quantity`: original broker values before split adjustment
 
 Example response (single split leg):
 
@@ -36,6 +38,8 @@ Example response (single split leg):
       "direction": "LONG",
       "quantity": "60.00000000",
       "price": "243.19000000",
+      "raw_quantity": "20.00000000",
+      "raw_price": "729.57000000",
       "commission": "0.60000000",
       "executed_at": "2024-07-01T10:00:00Z",
       "pnl": null,

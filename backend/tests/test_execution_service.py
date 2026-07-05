@@ -16,6 +16,7 @@
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -113,9 +114,28 @@ def service(mock_session: AsyncMock) -> ExecutionService:
     svc = ExecutionService(mock_session)
     svc.execution_repo = AsyncMock()
     svc.trade_repo = AsyncMock()
+    svc.corporate_action_service = AsyncMock()
+    svc.corporate_action_service.list_for_aggregator = AsyncMock(return_value=[])
     # Mock the internal re-aggregation method to isolate tests
     svc._re_aggregate_trade = AsyncMock()
     return svc
+
+
+def _make_corporate_action(
+    *,
+    symbol: str = "AAPL",
+    ratio: Decimal = Decimal("10"),
+    date_value: datetime | None = None,
+    old_conid: str | None = None,
+    new_conid: str | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        symbol=symbol,
+        ratio=ratio,
+        date=(date_value or datetime(2024, 1, 10, tzinfo=UTC)).date(),
+        old_conid=old_conid,
+        new_conid=new_conid,
+    )
 
 
 class TestExecutionService:
@@ -535,3 +555,140 @@ class TestExecutionService:
         )
         with pytest.raises(ExecutionValidationError, match="already deleted"):
             await service.merge_executions(user_id=user_id, data=data)
+
+    async def test_list_for_trade_applies_split_adjustment_and_keeps_raw_values(
+        self, service: ExecutionService
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(user_id=user_id, symbol="AAPL")
+        execution = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            quantity=Decimal("1"),
+            price=Decimal("500"),
+            executed_at=datetime(2024, 1, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [execution]
+        service.corporate_action_service.list_for_aggregator.return_value = [
+            _make_corporate_action(ratio=Decimal("10"), date_value=datetime(2024, 1, 10, tzinfo=UTC))
+        ]
+
+        result = await service.list_for_trade(trade.id, user_id)
+
+        assert len(result) == 1
+        item = result[0]
+        assert item.raw_price == Decimal("500")
+        assert item.raw_quantity == Decimal("1")
+        assert item.price == Decimal("50")
+        assert item.quantity == Decimal("10")
+
+    async def test_list_for_trade_compounds_splits_and_handles_no_corporate_actions(
+        self, service: ExecutionService
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(user_id=user_id, symbol="AAPL")
+        split_execution = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            quantity=Decimal("2"),
+            price=Decimal("500"),
+            executed_at=datetime(2024, 1, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        no_split_execution = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            quantity=Decimal("3"),
+            price=Decimal("150"),
+            executed_at=datetime(2025, 1, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [
+            split_execution,
+            no_split_execution,
+        ]
+        service.corporate_action_service.list_for_aggregator.return_value = [
+            _make_corporate_action(ratio=Decimal("2"), date_value=datetime(2024, 1, 10, tzinfo=UTC)),
+            _make_corporate_action(ratio=Decimal("5"), date_value=datetime(2024, 2, 10, tzinfo=UTC)),
+        ]
+
+        result = await service.list_for_trade(trade.id, user_id)
+
+        assert result[0].price == Decimal("50")
+        assert result[0].quantity == Decimal("20")
+        assert result[1].price == Decimal("150")
+        assert result[1].quantity == Decimal("3")
+        assert result[1].price == result[1].raw_price
+        assert result[1].quantity == result[1].raw_quantity
+
+    async def test_list_for_trade_manual_leg_fallback_and_adjustment(
+        self, service: ExecutionService
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(user_id=user_id, symbol="AAPL")
+        manual_no_ca = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            quantity=Decimal("4"),
+            price=Decimal("80"),
+            executed_at=datetime(2025, 1, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_MANUAL,
+        )
+        manual_with_ca = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            quantity=Decimal("1"),
+            price=Decimal("500"),
+            executed_at=datetime(2024, 1, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_MANUAL,
+        )
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [manual_no_ca, manual_with_ca]
+        service.corporate_action_service.list_for_aggregator.return_value = [
+            _make_corporate_action(ratio=Decimal("10"), date_value=datetime(2024, 1, 10, tzinfo=UTC))
+        ]
+
+        result = await service.list_for_trade(trade.id, user_id)
+
+        assert result[0].price == result[0].raw_price
+        assert result[0].quantity == result[0].raw_quantity
+        assert result[1].price != result[1].raw_price
+        assert result[1].quantity != result[1].raw_quantity
+        assert result[1].raw_price == Decimal("500")
+        assert result[1].raw_quantity == Decimal("1")
+
+    async def test_list_for_trade_notional_invariant_after_adjustment(
+        self, service: ExecutionService
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(user_id=user_id, symbol="AAPL")
+        execution = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            quantity=Decimal("3"),
+            price=Decimal("125"),
+            executed_at=datetime(2024, 1, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [execution]
+        service.corporate_action_service.list_for_aggregator.return_value = [
+            _make_corporate_action(ratio=Decimal("2.5"), date_value=datetime(2024, 1, 10, tzinfo=UTC))
+        ]
+
+        result = await service.list_for_trade(trade.id, user_id)
+
+        item = result[0]
+        tolerance = Decimal("0.0000001")
+        adjusted_notional = item.price * item.quantity
+        raw_notional = item.raw_price * item.raw_quantity
+        assert abs(adjusted_notional - raw_notional) <= tolerance

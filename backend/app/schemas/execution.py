@@ -16,9 +16,9 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.trade import AssetClass, Direction
 
@@ -210,6 +210,19 @@ class LogicalExecutionRead(LogicalExecutionBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+    price: Decimal = Field(ge=0, description="Split-adjusted execution price per unit for chart alignment")
+    quantity: Decimal = Field(gt=0, description="Split-adjusted execution quantity for chart alignment")
+    raw_price: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description="Original stored execution price per unit before split adjustment",
+    )
+    raw_quantity: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description="Original stored execution quantity before split adjustment",
+    )
+
     id: uuid.UUID
     user_id: uuid.UUID
     account_id: uuid.UUID | None = None
@@ -229,3 +242,12 @@ class LogicalExecutionRead(LogicalExecutionBase):
     trade_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="after")
+    def fill_raw_defaults(self) -> Self:
+        """Default raw fields to stored values when service did not enrich them."""
+        if self.raw_price is None:
+            self.raw_price = self.price
+        if self.raw_quantity is None:
+            self.raw_quantity = self.quantity
+        return self

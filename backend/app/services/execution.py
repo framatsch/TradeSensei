@@ -44,6 +44,8 @@ from app.schemas.execution import (
     SplitExecutionRequest,
     SplitExecutionResponse,
 )
+from app.services.corporate_action_service import CorporateActionService
+from app.utils.split_adjust import split_adjust_execution_values
 
 if TYPE_CHECKING:
     from app.models.trade import Trade
@@ -61,6 +63,7 @@ class ExecutionService:
         self.session = session
         self.execution_repo = ExecutionRepository(session)
         self.trade_repo = TradeRepository(session)
+        self.corporate_action_service = CorporateActionService(session)
 
     async def list_for_trade(
         self,
@@ -68,7 +71,7 @@ class ExecutionService:
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
         include_deleted: bool = False,
-    ) -> Sequence[LogicalExecution]:
+    ) -> Sequence[LogicalExecutionRead]:
         """List executions for a specific trade, ensuring user ownership.
 
         Args:
@@ -86,7 +89,38 @@ class ExecutionService:
         if not trade:
             raise TradeNotFoundError("Trade not found.")
 
-        return await self.execution_repo.list_by_trade_id(trade_id, include_deleted=include_deleted)
+        executions = await self.execution_repo.list_by_trade_id(
+            trade_id,
+            include_deleted=include_deleted,
+        )
+        corporate_actions = await self.corporate_action_service.list_for_aggregator(
+            user_id,
+        )
+
+        result: list[LogicalExecutionRead] = []
+        for execution in executions:
+            raw_price = execution.price
+            raw_quantity = execution.quantity
+            adjusted_price, adjusted_quantity = split_adjust_execution_values(
+                raw_price=raw_price,
+                raw_quantity=raw_quantity,
+                executed_at=execution.executed_at,
+                symbol=execution.symbol,
+                conid=execution.conid,
+                corporate_actions=corporate_actions,
+            )
+
+            payload = {
+                column.name: getattr(execution, column.name)
+                for column in execution.__table__.columns
+            }
+            payload["price"] = adjusted_price
+            payload["quantity"] = adjusted_quantity
+            payload["raw_price"] = raw_price
+            payload["raw_quantity"] = raw_quantity
+            result.append(LogicalExecutionRead.model_validate(payload))
+
+        return result
 
     async def create_manual_execution(
         self,

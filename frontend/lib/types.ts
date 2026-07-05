@@ -616,6 +616,8 @@ export interface LogicalExecution {
   direction: Direction;
   quantity: string;
   price: string;
+  raw_quantity: string;
+  raw_price: string;
   commission: string;
   pnl: string | null;
   pnl_eur: string | null;

@@ -43,6 +43,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { AssetClass, Trade, LogicalExecution } from "@/lib/types";
 import { parseOccSymbol } from "@/lib/parseOccSymbol";
+import { formatPriceLabel } from "@/lib/executionPriceLabel";
 import { useSettings } from "@/hooks/useSettings";
 import {
   createChart,
@@ -378,7 +379,13 @@ function buildExecutionMarkers(
   // Group by snapped candle time + role (entry vs exit)
   const groups = new Map<
     string,
-    { isEntry: boolean; qtys: string[]; prices: string[]; time: Time }
+    {
+      isEntry: boolean;
+      qtys: string[];
+      adjustedPrices: string[];
+      rawPrices: string[];
+      time: Time;
+    }
   >();
 
   for (const exec of executions) {
@@ -390,12 +397,14 @@ function buildExecutionMarkers(
     const existing = groups.get(key);
     if (existing) {
       existing.qtys.push(exec.quantity);
-      existing.prices.push(exec.price);
+      existing.adjustedPrices.push(exec.price);
+      existing.rawPrices.push(exec.raw_price);
     } else {
       groups.set(key, {
         isEntry,
         qtys: [exec.quantity],
-        prices: [exec.price],
+        adjustedPrices: [exec.price],
+        rawPrices: [exec.raw_price],
         time: snapped,
       });
     }
@@ -407,11 +416,11 @@ function buildExecutionMarkers(
     // Hover label with quantity and price details
     const detailedLabel =
       group.qtys.length === 1
-        ? `${Number(group.qtys[0]).toFixed(2)} @ $${Number(group.prices[0]).toFixed(2)}`
+        ? `${Number(group.qtys[0]).toFixed(2)} @ ${formatPriceLabel(group.adjustedPrices[0], group.rawPrices[0])}`
         : group.qtys
             .map(
               (q, i) =>
-                `${Number(q).toFixed(2)} @ $${Number(group.prices[i]).toFixed(2)}`,
+                `${Number(q).toFixed(2)} @ ${formatPriceLabel(group.adjustedPrices[i], group.rawPrices[i])}`,
             )
             .join(", ");
 

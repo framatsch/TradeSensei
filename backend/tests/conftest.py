@@ -36,6 +36,10 @@ os.environ.setdefault("UPLOAD_DIR", "./uploads")
 os.environ.setdefault("STORAGE_PUBLIC_URL", "/uploads")
 os.environ.setdefault("STORAGE_PROXY_URL", "/uploads")
 os.environ.setdefault("MCP_ENABLED", "true")
+os.environ.setdefault(
+    "BROKER_ENCRYPTION_KEY",
+    "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+)
 
 from collections.abc import AsyncGenerator  # noqa: E402
 from typing import Any  # noqa: E402

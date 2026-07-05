@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- [backend] Execution APIs now return split-adjusted `price`/`quantity` plus raw `raw_price`/`raw_quantity` fields for execution marker consumers
+- [frontend] Trade chart execution marker labels now prefer adjusted values and fall back to raw values when adjusted data is unavailable
 - [backend] Introduce `STORAGE_PROXY_URL` as the primary presign host setting while keeping `STORAGE_PUBLIC_URL` as a backward-compatible alias
 - [infra] Update local/prod compose defaults to prefer `STORAGE_PROXY_URL`; frontend `NEXT_PUBLIC_STORAGE_ACCESS_MODE` now defaults to `proxy` everywhere
 

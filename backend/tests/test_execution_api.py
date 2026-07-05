@@ -188,6 +188,11 @@ class TestExecutionAPI:
         data = res.json()["data"]
         # Should have the auto-created initial execution from the trade
         assert len(data) >= 1
+        first = data[0]
+        assert "raw_price" in first
+        assert "raw_quantity" in first
+        assert Decimal(first["raw_price"]) == Decimal(first["price"])
+        assert Decimal(first["raw_quantity"]) == Decimal(first["quantity"])
 
     async def test_update_execution(self, client: AsyncClient) -> None:
         """PATCH /executions/{execution_id} should update and return execution."""
