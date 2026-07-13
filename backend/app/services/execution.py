@@ -93,9 +93,16 @@ class ExecutionService:
             trade_id,
             include_deleted=include_deleted,
         )
-        corporate_actions = await self.corporate_action_service.list_for_aggregator(
-            user_id,
-        )
+        corporate_actions_by_key: dict[tuple[str, str | None], list] = {}
+        for execution in executions:
+            key = (execution.symbol, execution.conid)
+            if key in corporate_actions_by_key:
+                continue
+            corporate_actions_by_key[key] = await self.corporate_action_service.list_for_execution(
+                user_id,
+                symbol=execution.symbol,
+                conid=execution.conid,
+            )
 
         result: list[LogicalExecutionRead] = []
         for execution in executions:
@@ -107,7 +114,7 @@ class ExecutionService:
                 executed_at=execution.executed_at,
                 symbol=execution.symbol,
                 conid=execution.conid,
-                corporate_actions=corporate_actions,
+                corporate_actions=corporate_actions_by_key[(execution.symbol, execution.conid)],
             )
 
             payload = {

@@ -14,7 +14,7 @@
 """drop cash_transactions table
 
 Revision ID: b3c4d5e6f7a8
-Revises: 2cc64ca84bae
+Revises: daa581bf84d3
 Create Date: 2026-05-17 00:00:00.000000
 
 """
@@ -25,7 +25,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "b3c4d5e6f7a8"
-down_revision = "2cc64ca84bae"
+down_revision = "daa581bf84d3"
 branch_labels = None
 depends_on = None
 

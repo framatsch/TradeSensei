@@ -74,8 +74,8 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [editPrice, setEditPrice] = useState(execution.price);
-  const [editQty, setEditQty] = useState(execution.quantity);
+  const [editPrice, setEditPrice] = useState(execution.raw_price);
+  const [editQty, setEditQty] = useState(execution.raw_quantity);
   const [editCommission, setEditCommission] = useState(execution.commission);
   const [editDirection, setEditDirection] = useState(execution.direction);
   const [editExecutedAt, setEditExecutedAt] = useState(() => {
@@ -152,8 +152,8 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
     } else {
       setEditExecutedAt("");
     }
-    setEditPrice(execution.price);
-    setEditQty(execution.quantity);
+    setEditPrice(execution.raw_price);
+    setEditQty(execution.raw_quantity);
     setEditCommission(execution.commission);
     setEditPnl(execution.pnl ?? "");
     setErrorMsg(null);

@@ -21,7 +21,7 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.corporate_action import CorporateAction
@@ -108,6 +108,44 @@ class CorporateActionRepository:
                 CorporateAction.user_id == user_id,
                 CorporateAction.symbol == symbol,
             )
+            .order_by(CorporateAction.date.asc())
+        )
+        return list(result.scalars().all())
+
+    async def list_by_user_and_symbol_or_conid(
+        self,
+        user_id: uuid.UUID,
+        symbol: str,
+        conid: str | None,
+    ) -> list[CorporateAction]:
+        """Return corporate actions filtered to a symbol and optional conid lineage.
+
+        Args:
+            user_id: UUID of the requesting user.
+            symbol: Ticker symbol to filter by (case-sensitive exact match).
+            conid: Optional contract identifier to match against ``old_conid``/
+                ``new_conid`` lineage.
+
+        Returns:
+            A list of matching :class:`CorporateAction` instances ordered by date.
+        """
+        where_clause = [
+            CorporateAction.user_id == user_id,
+            CorporateAction.symbol == symbol,
+        ]
+        if conid is not None:
+            where_clause.append(
+                or_(
+                    CorporateAction.old_conid == conid,
+                    CorporateAction.new_conid == conid,
+                    CorporateAction.old_conid.is_(None),
+                    CorporateAction.new_conid.is_(None),
+                )
+            )
+
+        result = await self._session.execute(
+            select(CorporateAction)
+            .where(*where_clause)
             .order_by(CorporateAction.date.asc())
         )
         return list(result.scalars().all())

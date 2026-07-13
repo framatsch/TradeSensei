@@ -67,6 +67,7 @@ from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.imports import FreshStartResult, ImportResult
 from app.schemas.trade import TradeCreate
+from app.services.audit_service import AuditEventService, generate_request_id
 from app.services.logical_execution_service import LogicalExecutionService
 from app.utils.parsers.aggregator import (
     CorporateActionLike,
@@ -79,6 +80,7 @@ from app.utils.parsers.aggregator import (
 )
 from app.utils.parsers.base import BrokerParser
 from app.utils.parsers.factory import BrokerType, get_parser
+from app.utils.parsers.schwab_json import decode_schwab_wrapped_payload
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +127,7 @@ class ImportService:
         self._raw_repo = BrokerRawTransactionRepository(session)
         self._logical_svc = LogicalExecutionService(session)
         self._exec_repo = ExecutionRepository(session)
+        self._audit = AuditEventService()
 
     async def set_statement_timeout(self, timeout_seconds: int) -> None:
         """Set the PostgreSQL ``statement_timeout`` for the current transaction.
@@ -265,6 +268,11 @@ class ImportService:
                     account.account_number = selected_account_number
                     self._session.add(account)
                     await self._session.flush()
+                    self._emit_account_number_bound_audit(
+                        user_id=user_id,
+                        account_id=account.id,
+                        portfolio_id=portfolio_id,
+                    )
                 payload["accounts"] = [selected_account]
             content = json.dumps(payload).encode("utf-8")
 
@@ -1267,24 +1275,34 @@ class ImportService:
             offset += IMPORT_EXECUTIONS_BATCH_SIZE
 
     def _decode_schwab_payload(self, content: bytes) -> dict[str, object]:
-        try:
-            payload = json.loads(content.decode("utf-8-sig"))
-        except UnicodeDecodeError as exc:
-            raise ImportParseError("Schwab JSON file is not valid UTF-8 text.") from exc
-        except json.JSONDecodeError as exc:
-            raise ImportParseError(f"Invalid Schwab JSON: {exc}") from exc
-        if isinstance(payload, list):
-            raise ImportParseError(
-                "Schwab JSON payload must use wrapped format "
-                "{fetchedAt, dateRange, accounts:[...]} with a top-level object; "
-                "legacy top-level arrays are no longer supported."
-            )
-        if not isinstance(payload, dict):
-            raise ImportParseError("Schwab JSON payload must be a top-level object with an accounts array.")
-        accounts_obj = payload.get("accounts")
-        if not isinstance(accounts_obj, list):
-            raise ImportParseError("Schwab JSON payload must include an 'accounts' array.")
-        return payload
+        return decode_schwab_wrapped_payload(content)
+
+    def _emit_account_number_bound_audit(
+        self,
+        *,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+    ) -> None:
+        """Emit manual audit event when account_number is auto-bound during import."""
+        self._audit.create_audit_event(
+            action="account.account_number_bound",
+            user_id=user_id,
+            email=None,
+            resource_type="account",
+            resource_id=account_id,
+            parent_resource_type="portfolio",
+            parent_resource_id=portfolio_id,
+            ip_address=None,
+            user_agent=None,
+            request_id=generate_request_id(),
+            status_code=200,
+            method="SYSTEM",
+            path="import_service.import_file",
+            metadata={
+                "reason": "schwab_single_account_auto_bind",
+            },
+        )
 
     def _select_schwab_account_entry(
         self,

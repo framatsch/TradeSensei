@@ -35,6 +35,34 @@ _CLOSING_INSTRUCTIONS = frozenset({"SELL", "BUY_TO_COVER"})
 _FEE_TYPES = frozenset({"COMMISSION", "SEC_FEE", "TAF_FEE"})
 
 
+def decode_schwab_wrapped_payload(content: bytes) -> dict[str, object]:
+    """Decode and validate Schwab wrapped JSON payload.
+
+    Expected shape is a top-level object with an ``accounts`` array.
+    """
+    try:
+        payload = json.loads(content.decode("utf-8-sig"))
+    except UnicodeDecodeError as exc:
+        raise ImportParseError("Schwab JSON file is not valid UTF-8 text.") from exc
+    except json.JSONDecodeError as exc:
+        raise ImportParseError(f"Invalid Schwab JSON: {exc}") from exc
+
+    if isinstance(payload, list):
+        raise ImportParseError(
+            "Schwab JSON payload must use wrapped format "
+            "{fetchedAt, dateRange, accounts:[...]} with a top-level object; "
+            "legacy top-level arrays are no longer supported."
+        )
+    if not isinstance(payload, dict):
+        raise ImportParseError("Schwab JSON payload must be a top-level object with an accounts array.")
+
+    accounts = payload.get("accounts")
+    if not isinstance(accounts, list):
+        raise ImportParseError("Schwab JSON payload must include an 'accounts' array.")
+
+    return payload
+
+
 class SchwabJSONParser(BrokerParser):
     """Parse Schwab JSON transactions into broker raw transactions."""
 
@@ -63,25 +91,9 @@ class SchwabJSONParser(BrokerParser):
         del filename
         self.warnings = []
 
-        try:
-            payload = json.loads(content.decode("utf-8-sig"))
-        except UnicodeDecodeError as exc:
-            raise ImportParseError("Schwab JSON file is not valid UTF-8 text.") from exc
-        except json.JSONDecodeError as exc:
-            raise ImportParseError(f"Invalid Schwab JSON: {exc}") from exc
-
-        if isinstance(payload, list):
-            raise ImportParseError(
-                "Schwab JSON payload must use wrapped format "
-                "{fetchedAt, dateRange, accounts:[...]} with a top-level object; "
-                "legacy top-level arrays are no longer supported."
-            )
-        if not isinstance(payload, dict):
-            raise ImportParseError("Schwab JSON payload must be a top-level object with an accounts array.")
-
+        payload = decode_schwab_wrapped_payload(content)
         accounts = payload.get("accounts")
-        if not isinstance(accounts, list):
-            raise ImportParseError("Schwab JSON payload must include an 'accounts' array.")
+        assert isinstance(accounts, list)
 
         raw_records: list[BrokerRawTransactionCreate] = []
 

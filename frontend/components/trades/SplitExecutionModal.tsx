@@ -57,14 +57,14 @@ function fromDatetimeLocal(localStr: string): string {
 
 export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
   const { activePortfolioId } = useActivePortfolio();
-  const originalQty = parseFloat(execution.quantity);
+  const originalQty = parseFloat(execution.raw_quantity);
   const halfQty = (originalQty / 2).toFixed(4).replace(/\.?0+$/, "");
   const otherHalf = (originalQty - parseFloat(halfQty)).toFixed(4).replace(/\.?0+$/, "");
 
   const [qtyA, setQtyA] = useState(halfQty);
   const [qtyB, setQtyB] = useState(otherHalf);
-  const [priceA, setPriceA] = useState(execution.price);
-  const [priceB, setPriceB] = useState(execution.price);
+  const [priceA, setPriceA] = useState(execution.raw_price);
+  const [priceB, setPriceB] = useState(execution.raw_price);
   const [executedAtA, setExecutedAtA] = useState(toDatetimeLocal(execution.executed_at));
   const [executedAtB, setExecutedAtB] = useState(toDatetimeLocal(execution.executed_at));
 
@@ -132,7 +132,7 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
           {/* Original summary */}
           <p className="text-xs text-muted-foreground">
             Splitting: <span className="font-mono text-foreground">{execution.direction}</span>{" "}
-            <span className="font-mono text-foreground">{execution.quantity}</span> @ {fmt(execution.price)}
+            <span className="font-mono text-foreground">{execution.raw_quantity}</span> @ {fmt(execution.raw_price)}
           </p>
 
           {/* Form grid */}
@@ -219,7 +219,7 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
           {/* Validation warning */}
           {!qtyValid && (qtyA !== "" || qtyB !== "") && (
             <p className="text-xs text-destructive">
-              Quantities must be positive and sum to {execution.quantity} (currently {qtySum.toFixed(4)}).
+              Quantities must be positive and sum to {execution.raw_quantity} (currently {qtySum.toFixed(4)}).
             </p>
           )}
 

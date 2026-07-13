@@ -26,6 +26,6 @@
 
 ## 5. Verification & Review
 
-- [ ] 5.1 Run `/lint-check` (ruff + mypy --strict) and `/unit-test` (pytest with coverage); all green.
+- [x] 5.1 Run `/lint-check` (ruff + mypy --strict) and `/unit-test` (pytest with coverage); all green.
 - [x] 5.2 `code-reviewer` pass — architecture compliance, Decimal usage, additive/non-breaking schema, audit policy.
 - [x] 5.3 `docs-writer` — update `api-usage.md` for the new `raw_*` fields; `changelog-writer` — append to `[Unreleased]`.

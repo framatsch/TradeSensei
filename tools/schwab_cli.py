@@ -18,7 +18,7 @@ Trade Sensei importer.
 
 Subcommands:
   accounts      List all linked Schwab accounts.
-  positions     Fetch positions + transactions and write a wrapped JSON file.
+  positions     Fetch positions snapshot only (diagnostic output).
   transactions  Fetch TRADE transactions and write a wrapped JSON file.
   refresh       Force a full OAuth re-authentication and refresh all tokens.
 
@@ -30,6 +30,9 @@ matching later close is left as an open lot. Make sure the fetched window
 Requires env vars SCHWAB_APP_KEY, SCHWAB_APP_SECRET, and optionally
 SCHWAB_CALLBACK_URL (default https://127.0.0.1). These are read from the
 environment or a `.env` file next to this script (or in the project root).
+
+Token encryption is required. Set SCHWAB_TOKEN_ENCRYPTION_KEY (preferred)
+or BROKER_ENCRYPTION_KEY.
 """
 
 import argparse
@@ -124,10 +127,18 @@ def _make_client() -> schwabdev.Client:
     if not app_key or not app_secret:
         sys.exit("ERROR: SCHWAB_APP_KEY and SCHWAB_APP_SECRET must be set in .env or the environment.")
 
+    encryption_key = os.environ.get("SCHWAB_TOKEN_ENCRYPTION_KEY") or os.environ.get("BROKER_ENCRYPTION_KEY")
+    if not encryption_key:
+        sys.exit(
+            "ERROR: Missing token encryption key. Set SCHWAB_TOKEN_ENCRYPTION_KEY "
+            "(preferred) or BROKER_ENCRYPTION_KEY before using this tool."
+        )
+
     return schwabdev.Client(
         app_key=app_key,
         app_secret=app_secret,
         callback_url=callback_url,
+        encryption=encryption_key,
         call_on_auth=_auth,
         open_browser_for_auth=False,
     )
@@ -404,7 +415,7 @@ def main() -> None:
 
     pos = subparsers.add_parser(
         "positions",
-        help="Fetch current positions + transactions and save the wrapped import file.",
+        help="Fetch current positions snapshot only (diagnostics; not import-ready).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     pos.add_argument("--account", "-a", help="Account number to fetch (required when multiple accounts exist)")

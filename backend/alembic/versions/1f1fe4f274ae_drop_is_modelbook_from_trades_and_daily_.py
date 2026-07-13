@@ -32,8 +32,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_column("trades", "is_modelbook")
-    op.drop_column("daily_checkins", "is_modelbook")
+    op.execute(sa.text("ALTER TABLE trades DROP COLUMN IF EXISTS is_modelbook"))
+    op.execute(sa.text("ALTER TABLE daily_checkins DROP COLUMN IF EXISTS is_modelbook"))
 
 
 def downgrade() -> None:

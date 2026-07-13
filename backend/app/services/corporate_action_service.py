@@ -78,6 +78,23 @@ class CorporateActionService:
         """
         return await self._repo.list_by_user(user_id)
 
+    async def list_for_execution(
+        self,
+        user_id: uuid.UUID,
+        *,
+        symbol: str,
+        conid: str | None,
+    ) -> list[CorporateAction]:
+        """Return corporate actions scoped for one execution leg.
+
+        This narrows the candidate action set for trade-detail read paths.
+        """
+        return await self._repo.list_by_user_and_symbol_or_conid(
+            user_id,
+            symbol,
+            conid,
+        )
+
     async def get_corporate_action(
         self,
         action_id: uuid.UUID,

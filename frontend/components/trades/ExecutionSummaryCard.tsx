@@ -70,8 +70,8 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
 
     for (const execution of activeExecutions) {
       const key = `${execution.symbol}:${execution.asset_class}`;
-      const qty = parseFloat(execution.quantity);
-      const price = parseFloat(execution.price);
+      const qty = parseFloat(execution.raw_quantity);
+      const price = parseFloat(execution.raw_price);
       const multiplier = execution.multiplier;
       const commission = parseFloat(execution.commission);
       const pnl = execution.pnl === null ? null : parseFloat(execution.pnl);
@@ -130,6 +130,9 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
             <h3 className="text-sm font-semibold text-foreground">Execution Summary</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               COMBO breakdown from {activeExecutions.length} execution leg{activeExecutions.length !== 1 ? "s" : ""}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Uses raw execution values (chart markers may show split-adjusted prices).
             </p>
           </div>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border uppercase tracking-wider">
@@ -206,6 +209,9 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
           <h3 className="text-sm font-semibold text-foreground">Execution Summary</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Values are computed from {count} execution leg{count !== 1 ? "s" : ""}
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Uses raw execution values (chart markers may show split-adjusted prices).
           </p>
         </div>
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border uppercase tracking-wider">

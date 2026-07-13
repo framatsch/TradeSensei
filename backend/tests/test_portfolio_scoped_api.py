@@ -196,32 +196,48 @@ async def test_import_reports_currency_mismatch_warning(client: AsyncClient) -> 
         currency="USD",
     )
 
-    schwab_payload = [
-        {
-            "activityId": "T1",
-            "type": "TRADE",
-            "status": "COMPLETED",
-            "transactionDate": "2024-01-01T10:00:00.000Z",
-            "transactionItem": {
-                "instrument": {"symbol": "AAPL", "assetType": "EQUITY"},
-                "instruction": "BUY",
-                "price": 100,
-                "amount": 1,
-            },
+    schwab_payload = {
+        "fetchedAt": "2024-01-03T10:00:00.000Z",
+        "dateRange": {
+            "start": "2024-01-01T00:00:00.000Z",
+            "end": "2024-01-03T00:00:00.000Z",
         },
-        {
-            "activityId": "T2",
-            "type": "TRADE",
-            "status": "COMPLETED",
-            "transactionDate": "2024-01-02T10:00:00.000Z",
-            "transactionItem": {
-                "instrument": {"symbol": "AAPL", "assetType": "EQUITY"},
-                "instruction": "SELL",
-                "price": 110,
-                "amount": 1,
-            },
-        },
-    ]
+        "accounts": [
+            {
+                "accountNumber": "12345678",
+                "transactions": [
+                    {
+                        "activityId": "T1",
+                        "type": "TRADE",
+                        "status": "COMPLETED",
+                        "time": "2024-01-01T10:00:00+0000",
+                        "transferItems": [
+                            {
+                                "instrument": {"symbol": "AAPL", "assetType": "EQUITY"},
+                                "instruction": "BUY",
+                                "price": 100,
+                                "amount": 1,
+                            }
+                        ],
+                    },
+                    {
+                        "activityId": "T2",
+                        "type": "TRADE",
+                        "status": "COMPLETED",
+                        "time": "2024-01-02T10:00:00+0000",
+                        "transferItems": [
+                            {
+                                "instrument": {"symbol": "AAPL", "assetType": "EQUITY"},
+                                "instruction": "SELL",
+                                "price": 110,
+                                "amount": 1,
+                            }
+                        ],
+                    },
+                ],
+            }
+        ],
+    }
 
     resp = await client.post(
         f"/api/v1/portfolios/{portfolio_id}/imports/schwab-json",

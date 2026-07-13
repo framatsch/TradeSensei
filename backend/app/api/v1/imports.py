@@ -505,6 +505,21 @@ async def import_schwab_json(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).exception("Unhandled exception during import_file")
+        from pydantic import ValidationError
+
+        if isinstance(exc, ValidationError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Validation error during import parsing: {exc}",
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to process import file. An unexpected error occurred: {exc}",
+        ) from exc
 
     return ResponseEnvelope[ImportResult](data=result)
 
