@@ -19,31 +19,39 @@ from decimal import Decimal
 
 import pytest
 
+from app.core.exceptions import ImportParseError
 from app.models.trade import AssetClass, Direction
 from app.utils.parsers.schwab_json import SchwabJSONParser
 
 
-def _txn_item(instruction: str = "BUY") -> dict[str, object]:
+def _wrapped_payload(*transactions: dict[str, object]) -> dict[str, object]:
     return {
-        "activityId": "A-1",
-        "type": "TRADE",
-        "status": "COMPLETED",
-        "transactionDate": "2024-01-01T11:43:00.000-05:00",
-        "transactionItem": {
-            "instrument": {"symbol": "AAPL", "assetType": "EQUITY"},
-            "instruction": instruction,
-            "price": 184.5,
-            "amount": 100,
+        "fetchedAt": "2026-07-02T18:00:00Z",
+        "dateRange": {
+            "start": "2026-07-01T00:00:00.000Z",
+            "end": "2026-07-02T23:59:59.000Z",
         },
+        "accounts": [
+            {
+                "accountNumber": "45302130",
+                "accountHash": "hash-1",
+                "positions": [],
+                "transactions": list(transactions),
+            }
+        ],
     }
 
 
-def _txn_transfer(instruction: str = "SELL_SHORT") -> dict[str, object]:
+def _txn_transfer(
+    instruction: str = "SELL_SHORT",
+    status: str = "VALID",
+    txn_type: str = "TRADE",
+) -> dict[str, object]:
     return {
         "activityId": "A-2",
-        "type": "TRADE",
-        "status": "VALID",
-        "time": "2024-01-04T14:26:00.000Z",
+        "type": txn_type,
+        "status": status,
+        "time": "2026-07-02T17:35:33+0000",
         "transferItems": [
             {
                 "instrument": {"symbol": "AMZN", "assetType": "EQUITY"},
@@ -78,24 +86,13 @@ def test_map_direction(instruction: str, expected: Direction | None) -> None:
 
 
 @pytest.mark.unit
-def test_parse_datetime_handles_offset_and_utc_z() -> None:
+def test_parse_datetime_handles_compact_utc_offset() -> None:
     parser = SchwabJSONParser()
-    from_offset = parser._parse_datetime("2024-01-01T11:43:00.000-05:00")
-    from_utc = parser._parse_datetime("2024-01-01T16:43:00.000Z")
-    expected = datetime(2024, 1, 1, 16, 43, 0, tzinfo=UTC)
-    assert from_offset == expected
+    from_compact_offset = parser._parse_datetime("2026-07-02T17:35:33+0000")
+    from_utc = parser._parse_datetime("2026-07-02T17:35:33Z")
+    expected = datetime(2026, 7, 2, 17, 35, 33, tzinfo=UTC)
+    assert from_compact_offset == expected
     assert from_utc == expected
-
-
-@pytest.mark.unit
-def test_extract_instrument_transaction_item() -> None:
-    parser = SchwabJSONParser()
-    instrument = parser._extract_instrument(_txn_item())
-    assert instrument["symbol"] == "AAPL"
-    assert instrument["price"] == 184.5
-    assert instrument["amount"] == 100
-    assert instrument["instruction"] == "BUY"
-    assert instrument["assetType"] == "EQUITY"
 
 
 @pytest.mark.unit
@@ -110,26 +107,20 @@ def test_extract_instrument_transfer_items() -> None:
 
 
 @pytest.mark.unit
-def test_extract_commission_transfer_items_and_transaction_item() -> None:
+def test_extract_commission_transfer_items() -> None:
     parser = SchwabJSONParser()
     commission_transfer = parser._extract_commission(_txn_transfer())
-    commission_item = parser._extract_commission(_txn_item())
     assert commission_transfer == Decimal("0.75")
-    assert commission_item == Decimal("0")
 
 
 @pytest.mark.unit
-def test_parse_raw_filters_non_trade_records() -> None:
+def test_parse_raw_filters_non_trade_and_invalid_status() -> None:
     parser = SchwabJSONParser()
-    payload = [
-        _txn_item(),
-        {
-            "activityId": "A-NONTRADE",
-            "type": "DIVIDEND",
-            "status": "COMPLETED",
-            "transactionDate": "2024-01-01T00:00:00.000Z",
-        },
-    ]
+    payload = _wrapped_payload(
+        _txn_transfer(instruction="BUY"),
+        _txn_transfer(txn_type="DIVIDEND"),
+        _txn_transfer(status="PENDING"),
+    )
     raw, corporate_actions = parser.parse_raw(
         json.dumps(payload).encode("utf-8"),
         "schwab.json",
@@ -141,16 +132,17 @@ def test_parse_raw_filters_non_trade_records() -> None:
 @pytest.mark.unit
 def test_parse_raw_completed_record_maps_fields() -> None:
     parser = SchwabJSONParser()
+    payload = _wrapped_payload(_txn_transfer(instruction="BUY"))
     raw, _ = parser.parse_raw(
-        json.dumps([_txn_item()]).encode("utf-8"),
+        json.dumps(payload).encode("utf-8"),
         "schwab.json",
     )
     assert len(raw) == 1
     record = raw[0]
-    assert record.id == "schwab:A-1"
+    assert record.id == "schwab:A-2"
     assert record.direction == Direction.LONG
-    assert record.quantity == Decimal("100")
-    assert record.price == Decimal("184.5")
+    assert record.quantity == Decimal("20")
+    assert record.price == Decimal("145.76")
     assert record.asset_class == AssetClass.EQUITY
     assert record.currency == "USD"
 
@@ -158,8 +150,18 @@ def test_parse_raw_completed_record_maps_fields() -> None:
 @pytest.mark.unit
 def test_parse_raw_unknown_instruction_skips_record() -> None:
     parser = SchwabJSONParser()
+    payload = _wrapped_payload(_txn_transfer(instruction="UNKNOWN"))
     raw, _ = parser.parse_raw(
-        json.dumps([_txn_item(instruction="UNKNOWN")]).encode("utf-8"),
+        json.dumps(payload).encode("utf-8"),
         "schwab.json",
     )
     assert raw == []
+
+
+@pytest.mark.unit
+def test_parse_raw_rejects_legacy_top_level_array() -> None:
+    parser = SchwabJSONParser()
+    legacy_payload = [_txn_transfer(instruction="BUY")]
+
+    with pytest.raises(ImportParseError, match="legacy top-level arrays"):
+        parser.parse_raw(json.dumps(legacy_payload).encode("utf-8"), "schwab.json")

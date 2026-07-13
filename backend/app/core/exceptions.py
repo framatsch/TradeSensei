@@ -118,6 +118,10 @@ class ImportNotAllowedError(ValueError):
     """Raised when a file import is not permitted for the given account type."""
 
 
+class ImportAccountMismatchError(ValueError):
+    """Raised when Schwab file accounts do not match the target account."""
+
+
 class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
 

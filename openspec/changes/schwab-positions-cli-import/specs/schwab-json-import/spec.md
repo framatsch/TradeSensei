@@ -119,4 +119,4 @@ The Schwab import SHALL validate the file's account(s) against the target Trade 
 
 ### Requirement: Schwab JSON Parser — Dual Format Support
 **Reason**: The importer now accepts only the wrapped `{fetchedAt, dateRange, accounts:[...]}` schema. The flat top-level `transactionItem` array format and the standalone `transferItems`-vs-`transactionItem` dual handling are no longer supported, and the `transactionDate` (`-05:00` offset) fixture shape is replaced by the API's `time` field.
-**Migration**: Regenerate Schwab exports with `tools/schwab_get_positions.py`, which produces the wrapped format. Existing top-level-array files must be re-exported; they will be rejected with HTTP 422.
+**Migration**: Regenerate Schwab exports with `tools/schwab_cli.py positions`, which produces the wrapped format. Existing top-level-array files must be re-exported; they will be rejected with HTTP 422.

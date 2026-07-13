@@ -70,94 +70,102 @@ class SchwabJSONParser(BrokerParser):
         except json.JSONDecodeError as exc:
             raise ImportParseError(f"Invalid Schwab JSON: {exc}") from exc
 
-        if not isinstance(payload, list):
-            raise ImportParseError("Schwab JSON payload must be a top-level array.")
+        if isinstance(payload, list):
+            raise ImportParseError(
+                "Schwab JSON payload must use wrapped format "
+                "{fetchedAt, dateRange, accounts:[...]} with a top-level object; "
+                "legacy top-level arrays are no longer supported."
+            )
+        if not isinstance(payload, dict):
+            raise ImportParseError("Schwab JSON payload must be a top-level object with an accounts array.")
+
+        accounts = payload.get("accounts")
+        if not isinstance(accounts, list):
+            raise ImportParseError("Schwab JSON payload must include an 'accounts' array.")
 
         raw_records: list[BrokerRawTransactionCreate] = []
 
-        for idx, txn in enumerate(payload, start=1):
-            if not isinstance(txn, dict):
-                msg = f"Schwab JSON item {idx}: skipped - expected object entry."
-                logger.warning(msg)
-                self.warnings.append(msg)
-                continue
+        for account_idx, account_entry in enumerate(accounts, start=1):
+            if not isinstance(account_entry, dict):
+                raise ImportParseError(f"Schwab JSON accounts[{account_idx}]: expected object entry.")
 
-            txn_type = str(txn.get("type", "")).upper()
-            txn_status = str(txn.get("status", "")).upper()
-            if txn_type != "TRADE" or txn_status not in _VALID_TRADE_STATUSES:
-                continue
+            account_number = str(account_entry.get("accountNumber", "")).strip()
+            transactions = account_entry.get("transactions")
+            if not account_number:
+                raise ImportParseError(f"Schwab JSON accounts[{account_idx}]: missing required field 'accountNumber'.")
+            if not isinstance(transactions, list):
+                raise ImportParseError(f"Schwab JSON accounts[{account_idx}] ({account_number}): missing required 'transactions' array.")
 
-            activity_id = str(txn.get("activityId", "")).strip()
-            if not activity_id:
-                msg = f"Schwab JSON item {idx}: skipped - missing activityId."
-                logger.warning(msg)
-                self.warnings.append(msg)
-                continue
-
-            try:
-                instrument = self._extract_instrument(txn)
-                direction = self._map_direction(instrument["instruction"])
-                if direction is None:
-                    msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
+            for idx, txn in enumerate(transactions, start=1):
+                if not isinstance(txn, dict):
+                    msg = f"Schwab JSON account {account_number} transaction {idx}: skipped - expected object entry."
                     logger.warning(msg)
                     self.warnings.append(msg)
                     continue
 
-                execution_direction = self._map_execution_direction(instrument["instruction"])
-                if execution_direction is None:
-                    msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
+                txn_type = str(txn.get("type", "")).upper()
+                txn_status = str(txn.get("status", "")).upper()
+                if txn_type != "TRADE" or txn_status not in _VALID_TRADE_STATUSES:
+                    continue
+
+                activity_id = str(txn.get("activityId", "")).strip()
+                if not activity_id:
+                    msg = f"Schwab JSON account {account_number} transaction {idx}: skipped - missing activityId."
                     logger.warning(msg)
                     self.warnings.append(msg)
                     continue
 
-                executed_at = self._parse_datetime(str(txn.get("transactionDate") or txn.get("time") or ""))
-                quantity = abs(Decimal(str(instrument["amount"])))
-                price = abs(Decimal(str(instrument["price"])))
-                commission = self._extract_commission(txn)
-                asset_class = self._map_asset_class(instrument["assetType"])
-                pnl = Decimal("0") if str(instrument["instruction"]).upper() in _CLOSING_INSTRUCTIONS else None
+                try:
+                    instrument = self._extract_instrument(txn)
+                    direction = self._map_direction(instrument["instruction"])
+                    if direction is None:
+                        msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
+                        logger.warning(msg)
+                        self.warnings.append(msg)
+                        continue
 
-                raw_records.append(
-                    BrokerRawTransactionCreate(
-                        id=f"{_BROKER_TYPE}:{activity_id}",
-                        broker_type=_BROKER_TYPE,
-                        symbol=str(instrument["symbol"]).upper(),
-                        asset_class=asset_class,
-                        direction=execution_direction,
-                        quantity=quantity,
-                        price=price,
-                        commission=commission,
-                        executed_at=executed_at,
-                        pnl=pnl,
-                        currency="USD",
-                        multiplier=1,
-                        raw_data=txn,
+                    execution_direction = self._map_execution_direction(instrument["instruction"])
+                    if execution_direction is None:
+                        msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
+                        logger.warning(msg)
+                        self.warnings.append(msg)
+                        continue
+
+                    executed_at = self._parse_datetime(str(txn.get("time") or ""))
+                    quantity = abs(Decimal(str(instrument["amount"])))
+                    price = abs(Decimal(str(instrument["price"])))
+                    commission = self._extract_commission(txn)
+                    asset_class = self._map_asset_class(instrument["assetType"])
+                    pnl = Decimal("0") if str(instrument["instruction"]).upper() in _CLOSING_INSTRUCTIONS else None
+
+                    raw_records.append(
+                        BrokerRawTransactionCreate(
+                            id=f"{_BROKER_TYPE}:{activity_id}",
+                            broker_type=_BROKER_TYPE,
+                            symbol=str(instrument["symbol"]).upper(),
+                            asset_class=asset_class,
+                            direction=execution_direction,
+                            quantity=quantity,
+                            price=price,
+                            commission=commission,
+                            executed_at=executed_at,
+                            pnl=pnl,
+                            currency="USD",
+                            multiplier=1,
+                            raw_data=txn,
+                        )
                     )
-                )
-            except (KeyError, ValueError, InvalidOperation) as exc:
-                msg = f"Schwab transaction {activity_id or idx}: skipped - could not parse record ({exc})."
-                logger.warning(msg)
-                self.warnings.append(msg)
+                except (KeyError, ValueError, InvalidOperation) as exc:
+                    msg = f"Schwab transaction {activity_id or idx}: skipped - could not parse record ({exc})."
+                    logger.warning(msg)
+                    self.warnings.append(msg)
 
         return raw_records, []
 
     def _extract_instrument(self, txn: dict[str, object]) -> dict[str, object]:
-        transaction_item = txn.get("transactionItem")
-        if isinstance(transaction_item, dict):
-            instrument = transaction_item.get("instrument")
-            if not isinstance(instrument, dict):
-                raise ValueError("transactionItem.instrument missing")
-            return {
-                "symbol": instrument.get("symbol"),
-                "price": transaction_item.get("price"),
-                "amount": transaction_item.get("amount"),
-                "instruction": transaction_item.get("instruction"),
-                "assetType": instrument.get("assetType"),
-            }
-
         transfer_items = txn.get("transferItems")
         if not isinstance(transfer_items, list) or not transfer_items:
-            raise ValueError("missing transactionItem/transferItems")
+            raise ValueError("missing transferItems")
 
         instrument_leg: dict[str, object] | None = None
         for leg in transfer_items:
@@ -188,6 +196,8 @@ class SchwabJSONParser(BrokerParser):
         if not value:
             raise ValueError("missing datetime field")
         normalized = value.replace("Z", "+00:00")
+        if len(normalized) >= 5 and normalized[-5] in {"+", "-"} and normalized[-3] != ":":
+            normalized = f"{normalized[:-2]}:{normalized[-2:]}"
         parsed = datetime.fromisoformat(normalized)
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=UTC)
@@ -220,9 +230,6 @@ class SchwabJSONParser(BrokerParser):
         return AssetClass.EQUITY
 
     def _extract_commission(self, txn: dict[str, object]) -> Decimal:
-        if isinstance(txn.get("transactionItem"), dict):
-            return Decimal("0")
-
         transfer_items = txn.get("transferItems")
         if not isinstance(transfer_items, list):
             return Decimal("0")

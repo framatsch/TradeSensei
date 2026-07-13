@@ -5,7 +5,7 @@ Schwab import currently flows: user obtains a Schwab JSON file → uploads it vi
 Two facts drive this change:
 
 1. The real Schwab Trader API returns a **wrapped** payload — `{fetchedAt, dateRange, accounts:[{accountNumber, accountHash, positions, transactions}]}` — documented in `tmp/positions_schema.md`. Transactions live under `accounts[].transactions` and use `transferItems` legs with a `time` field (UTC offset like `+0000`).
-2. There is no supported way to *get* that file. `tools/` has CLI precedent (`reset_password.py`) but no Schwab tool; `SchwabClient` only fetches orders, not positions/transactions. The user's `tmp/schwab_get_positions.py` prototype already produces the wrapped format via `schwabdev`.
+2. There is no supported way to *get* that file. `tools/` has CLI precedent (`reset_password.py`) but no Schwab tool; `SchwabClient` only fetches orders, not positions/transactions. The user's `tmp/schwab_cli.py` prototype already produces the wrapped format via `schwabdev`.
 
 Constraints (AGENTS.md): `Decimal` for money, tz-aware UTC timestamps, layered backend (parsing in `utils/parsers`, orchestration in `services`, HTTP in `api`), `mypy --strict`, surgical changes.
 
@@ -15,16 +15,16 @@ Constraints (AGENTS.md): `Decimal` for money, tz-aware UTC timestamps, layered b
 - One-command download of the user's Schwab trades into a wrapped JSON file.
 - Importer accepts **only** the wrapped format and reads transactions from `accounts[].transactions`.
 - Account-number safety: abort import when the file's account(s) don't match the target account's configured `account_number`, or when the file is ambiguous (multiple accounts, no configured number).
-- CLI resolves a single account: auto-select when one, `--account-id` when many, abort+list otherwise.
+- CLI resolves the target account: auto-select when one, `--account` when many, abort+list otherwise.
 - Reformatted test fixture + updated unit/integration tests; user docs + tools reference.
 
 **Non-Goals:**
 - No new HTTP endpoints (reuse `upload` and `schwab-json`).
-- No import of `positions` (open holdings) into any model — `positions` is written to the file for completeness but only `transactions` drive the import. Open-positions seeding is owned by the broker-neutral `open-position-seeding` contract and implemented for Schwab by the `schwab-open-position-adapter` change (see `openspec/changes/open-position-seeding/` and `openspec/changes/schwab-open-position-adapter/`), which are the intended consumers of Schwab `positions[]`.
+- No parsing of the `positions[]` snapshot array into any model — `positions` is written to the file for completeness/diagnostics but **only `transactions` drive the import**. Open trades are surfaced from the transactions themselves (see D9): an opening transaction with no matching later close is left as an open lot by the existing FIFO aggregator, exactly as IBKR `<Trade>` opening legs already are. There is no separate open-position seeding path, no `open_position` origin, and no snapshot-replace reconciliation.
 - No backwards compatibility with the legacy top-level-array format (explicitly BREAKING).
 - No changes to the FIFO aggregation, raw-transaction, or IBKR paths.
 - The dead legacy CSV parser (`schwab.py`) is left untouched (flagged, not deleted, per surgical-changes rule).
-- The existing "Schwab JSON Parser — Asset Class Mapping" requirement (unknown `assetType` → default EQUITY) applies to the **transaction** path only and is unchanged here. Position snapshots use a stricter EQUITY/OPTION-only mapping (skip-on-unknown) defined by `schwab-open-position-adapter`; the two paths are intentionally distinct and do not conflict.
+- The existing "Schwab JSON Parser — Asset Class Mapping" requirement (unknown `assetType` → default EQUITY) applies to the **transaction** path and is unchanged here.
 
 ## Decisions
 
@@ -44,11 +44,11 @@ The parser stays broker-file-shape focused and returns raw records. Account sele
 - *Implementation note*: because `SchwabJSONParser.parse_raw(content, filename)` currently takes only bytes, the account-selection step will resolve the target account entry **before** parsing (or expose account metadata alongside raw records) so only the selected account's transactions are turned into raw records. The exact seam (pre-filter the payload to the chosen account vs. tag raw records by accountNumber) is settled in tasks; both keep matching in the service layer.
 
 ### D4: CLI is self-contained under `tools/`, based on the existing prototype
-`tools/schwab_get_positions.py` adapts `tmp/schwab_get_positions.py`: `schwabdev` client, `.env` loading, the `schwabdev` token-exchange bugfix shim, and the redirect-URI auth helper. It writes to a `tools/`-local `cache/positions.json` (or a `--output` path). New: an `--account-id` argument (Schwab account number) with resolution logic (D5). It does **not** import backend `app.*` modules (unlike `reset_password.py`) — it only talks to Schwab and writes a file, so it needs no DB/sys.path wiring.
+`tools/schwab_cli.py` adapts the working `tmp/schwab_cli.py` prototype: `schwabdev` client, `.env` loading, the `schwabdev` token-exchange bugfix shim, and the redirect-URI auth helper. It is a subcommand CLI (`accounts`, `positions`, `transactions`, `refresh`) built on `argparse` + `rich`. The `positions` subcommand writes the wrapped `{fetchedAt, accounts:[{accountNumber, accountHash, positions, transactions}]}` file (the import format). It does **not** import backend `app.*` modules (unlike `reset_password.py`) — it only talks to Schwab and writes a file, so it needs no DB/sys.path wiring.
 - *Alternative — add `get_positions` to `SchwabClient` and route through the backend*: heavier, couples the CLI to the running backend and its OAuth storage. Rejected for a download-only tool; keep it standalone and let the file be imported through the normal endpoints.
 
 ### D5: CLI account resolution
-Fetch `client.linked_accounts()`. If `--account-id` given: select the linked account whose `accountNumber` matches; no match → exit non-zero listing available numbers. If omitted: exactly one linked account → use it; more than one → exit non-zero listing available numbers. This mirrors the importer's abort-on-ambiguity policy so the file the CLI writes always contains exactly one account, satisfying the importer's single-account happy path.
+Each fetch subcommand takes `--account/-a` (Schwab account number). Fetch `client.linked_accounts()`. If `--account` given: select the linked account whose `accountNumber` matches; no match → exit non-zero listing available numbers. If omitted: exactly one linked account → use it; more than one → exit non-zero listing available numbers. This mirrors the importer's abort-on-ambiguity policy so the file the CLI writes contains only the intended account, satisfying the importer's single-account happy path.
 
 ### D6: Test fixture reformatted to wrapped `transferItems`
 `tests/test_data/schwab/schwab_aggregation.json` is rewritten as `{fetchedAt, dateRange, accounts:[{accountNumber, accountHash, positions:[], transactions:[...]}]}` with each transaction using `transferItems` (equity leg + optional fee leg) and a `time` field. The FIFO ground-truth (matched pairs, open lots) is preserved so `test_schwab_json_import_ground_truth` still asserts the same trade counts. Parser unit tests are updated to the wrapped shape; new tests cover account-number match/mismatch/ambiguity and CLI account resolution.
@@ -71,9 +71,14 @@ Fetch `client.linked_accounts()`. If `--account-id` given: select the linked acc
 ### D7: Persist `accountNumber` when unset and file has one account
 When `account.account_number` is unset and the file contains exactly one account, the importer SHALL write that account's `accountNumber` onto the `Account` row so subsequent imports match automatically. This makes the first successful import self-configuring while still aborting on ambiguity. The write is a normal `Account` update (audited via the standard middleware as an `account.updated`; the number itself is not placed in audit metadata).
 
-### D8: CLI output defaults to `./tmp`
-`tools/schwab_get_positions.py` writes to `./tmp/positions.json` by default, with a `--output` override. (`./tmp` is the project's scratch dir already holding the prototype and schema.)
+### D8: CLI output defaults to a `cache/` file next to the tool
+`tools/schwab_cli.py` writes `positions`/`transactions` output to a `cache/`-local JSON file next to the script by default (`cache/positions.json`, `cache/transactions.json`), with a `--output/-o` override. This matches the working prototype's layout.
+
+### D9: Open trades come from unmatched opening transactions, not `positions[]`
+A Schwab open holding already appears in `accounts[].transactions` as an opening `TRADE` (`positionEffect = "OPENING"`) with no later closing transaction for the same instrument. The existing FIFO aggregator already leaves such an unmatched opening leg as an **open lot** (`Trade` with no `closed_at`/`exit_price`) — identical to how IBKR `<Trade>` opening legs surface open positions. Therefore the importer needs **no** dedicated open-position path: parsing `accounts[].transactions` is sufficient to seed open trades, provided the download window (`--start`/`--end` on the CLI, default 90 days) is wide enough to include the original opening transaction.
+- *Alternative — seed open lots from the `positions[]` snapshot*: rejected. It required a synthetic `open_position` origin, a deterministic composite id, a `dateRange.start` fallback timestamp, and a snapshot-replace reconciliation guard to avoid double-counting against the broker's own later executions — substantial machinery for a case the transactions already cover. The only scenario it uniquely handles (an opening transaction that predates the download window) is avoided by choosing a sufficient `--start`; the user accepts this trade-off.
+- *Caveat*: if a position was opened before the fetched date range, its opening transaction is absent and the position will not appear. Widen `--start` to include it. This is the same limitation IBKR Flex has today.
 
 ## Open Questions
 
-- None outstanding — resolved: (1) auto-persist `accountNumber` on first import when unset and unambiguous (D7); (2) CLI output defaults to `./tmp/positions.json` (D8).
+- None outstanding — resolved: (1) auto-persist `accountNumber` on first import when unset and unambiguous (D7); (2) CLI output defaults to a `cache/` file (D8); (3) open trades derive from unmatched opening transactions rather than `positions[]` (D9).

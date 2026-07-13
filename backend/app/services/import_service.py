@@ -18,6 +18,7 @@ account.  No HTTP concepts appear in this layer.
 """
 
 import asyncio
+import json
 import logging
 import tracemalloc
 import uuid
@@ -44,6 +45,8 @@ from app.core.exceptions import (
     AccountNotFoundError,
     ExecutionNotFoundError,
     ExecutionValidationError,
+    ImportAccountMismatchError,
+    ImportParseError,
     TradeNotFoundError,
 )
 from app.models.logical_execution import (
@@ -61,6 +64,7 @@ from app.repositories.execution import ExecutionRepository
 from app.repositories.portfolio_repository import PortfolioRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
+from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.imports import FreshStartResult, ImportResult
 from app.schemas.trade import TradeCreate
 from app.services.logical_execution_service import LogicalExecutionService
@@ -191,6 +195,7 @@ class ImportService:
         """
         # Verify the account belongs to the requesting user (only if provided).
         portfolio_base_currency: str | None = None
+        account = None
         if account_id is not None:
             account = await self._account_repo.get_by_id(
                 account_id,
@@ -247,11 +252,31 @@ class ImportService:
 
         parser: BrokerParser = get_parser(broker)
 
+        if broker == BrokerType.SCHWAB and account is not None:
+            payload = self._decode_schwab_payload(content)
+            accounts = payload.get("accounts")
+            assert isinstance(accounts, list)
+            if accounts:
+                selected_account, selected_account_number = self._select_schwab_account_entry(
+                    payload,
+                    account_number=account.account_number,
+                )
+                if account.account_number is None and selected_account_number is not None:
+                    account.account_number = selected_account_number
+                    self._session.add(account)
+                    await self._session.flush()
+                payload["accounts"] = [selected_account]
+            content = json.dumps(payload).encode("utf-8")
+
         ca_for_parser: Sequence[CorporateActionLike] | None = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
         seed_for_parser: Sequence[SeedLotLike] | None = cast(Sequence[SeedLotLike], open_lots) if open_lots else None
 
         parser_warnings: list[str] = []
         suppressed_count: int = 0
+        raw_records: list[BrokerRawTransactionCreate] = []
+        parsed_corporate_actions: list[CorporateActionCreateRequest] = []
+        inserted_raw_ids: set[str] = set()
+        trades_with_sources: list[TradeCreateWithSources] = []
 
         # ── Raw-data pipeline (preferred) ────────────────────────────────────
         # Use parse_raw() when the parser supports it.  This persists each
@@ -1240,6 +1265,59 @@ class ImportService:
             if len(logical_batch) < IMPORT_EXECUTIONS_BATCH_SIZE:
                 return
             offset += IMPORT_EXECUTIONS_BATCH_SIZE
+
+    def _decode_schwab_payload(self, content: bytes) -> dict[str, object]:
+        try:
+            payload = json.loads(content.decode("utf-8-sig"))
+        except UnicodeDecodeError as exc:
+            raise ImportParseError("Schwab JSON file is not valid UTF-8 text.") from exc
+        except json.JSONDecodeError as exc:
+            raise ImportParseError(f"Invalid Schwab JSON: {exc}") from exc
+        if isinstance(payload, list):
+            raise ImportParseError(
+                "Schwab JSON payload must use wrapped format "
+                "{fetchedAt, dateRange, accounts:[...]} with a top-level object; "
+                "legacy top-level arrays are no longer supported."
+            )
+        if not isinstance(payload, dict):
+            raise ImportParseError("Schwab JSON payload must be a top-level object with an accounts array.")
+        accounts_obj = payload.get("accounts")
+        if not isinstance(accounts_obj, list):
+            raise ImportParseError("Schwab JSON payload must include an 'accounts' array.")
+        return payload
+
+    def _select_schwab_account_entry(
+        self,
+        payload: dict[str, object],
+        account_number: str | None,
+    ) -> tuple[dict[str, object], str | None]:
+        accounts_obj = payload.get("accounts")
+        assert isinstance(accounts_obj, list)
+        file_accounts: list[dict[str, object]] = [entry for entry in accounts_obj if isinstance(entry, dict)]
+        if len(file_accounts) != len(accounts_obj):
+            raise ImportParseError("Schwab JSON payload contains invalid account entries; each accounts item must be an object.")
+
+        file_numbers = [str(entry.get("accountNumber", "")).strip() for entry in file_accounts]
+        non_empty_numbers = [number for number in file_numbers if number]
+
+        configured_number = (account_number or "").strip()
+        if configured_number:
+            for entry in file_accounts:
+                if str(entry.get("accountNumber", "")).strip() == configured_number:
+                    return entry, configured_number
+            available = ", ".join(non_empty_numbers) if non_empty_numbers else "<none>"
+            raise ImportAccountMismatchError(
+                f"Schwab account mismatch: configured account number '{configured_number}' is not present in file accounts [{available}]."
+            )
+
+        if len(file_accounts) == 1:
+            selected_number = str(file_accounts[0].get("accountNumber", "")).strip() or None
+            if selected_number is None:
+                raise ImportParseError("Schwab JSON accounts[1]: missing required field 'accountNumber'.")
+            return file_accounts[0], selected_number
+
+        available = ", ".join(non_empty_numbers) if non_empty_numbers else "<none>"
+        raise ImportAccountMismatchError(f"Schwab account is not configured and file is ambiguous; available account numbers: [{available}].")
 
     @staticmethod
     @lru_cache(maxsize=16)

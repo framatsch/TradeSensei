@@ -4,8 +4,9 @@ Trade Sensei users cannot easily get their live Schwab trades into the platform:
 
 ## What Changes
 
-- Add a `tools/schwab_get_positions.py` CLI tool (repo root, mirroring `tools/reset_password.py`) that authenticates with Schwab, fetches positions + transactions, and writes a JSON file in the wrapped schema documented in `positions_schema.md`.
-  - Add an `--account-id` (Schwab account number) argument. If the linked login exposes exactly one account, use it automatically; if it exposes more than one and `--account-id` is omitted, **abort** and print the available account numbers.
+- Add a `tools/schwab_cli.py` CLI tool (repo root, mirroring `tools/reset_password.py`) with subcommands (`accounts`, `positions`, `transactions`, `refresh`) that authenticate with Schwab; the `positions` subcommand fetches positions + transactions and writes a JSON file in the wrapped schema documented in `positions_schema.md`.
+  - Each fetch subcommand takes an `--account`/`-a` (Schwab account number) argument. If the linked login exposes exactly one account, use it automatically; if it exposes more than one and `--account` is omitted, **abort** and print the available account numbers.
+  - Open positions are surfaced by the importer from the downloaded transactions (an unmatched opening trade becomes an open lot), so the fetched window should include each open position's opening trade. `positions[]` is written for diagnostics but not parsed by the importer.
 - **BREAKING**: Change the Schwab JSON importer (`SchwabJSONParser`) to accept **only** the wrapped format `{fetchedAt, dateRange, accounts:[{accountNumber, accountHash, positions, transactions}]}`. The legacy top-level-array input is no longer accepted.
   - Transactions are read from `accounts[].transactions` and continue to flow through the existing raw-data pipeline (`BrokerRawTransaction` → FIFO aggregation → `Trade`).
 - Add account-number matching to the Schwab import: when the target Trade Sensei Schwab `Account.account_number` is set and does not match any `accounts[].accountNumber` in the file, **abort the import with a descriptive error**. When it is unset, import the single account if the file contains exactly one, otherwise abort and list the available account numbers.
@@ -15,7 +16,7 @@ Trade Sensei users cannot easily get their live Schwab trades into the platform:
 ## Capabilities
 
 ### New Capabilities
-- `schwab-positions-cli`: A command-line tool that authenticates to Schwab, resolves a single target account (auto-select when one, explicit `--account-id` when many, abort with the available account numbers otherwise), fetches positions and transactions, and writes them to a JSON file in the wrapped import schema — plus its user-facing documentation.
+- `schwab-positions-cli`: A command-line tool (`accounts`/`positions`/`transactions`/`refresh` subcommands) that authenticates to Schwab, resolves a target account (auto-select when one, explicit `--account` when many, abort with the available account numbers otherwise), fetches positions and transactions, and writes them to a JSON file in the wrapped import schema — plus its user-facing documentation.
 
 ### Modified Capabilities
 - `schwab-json-import`: The importer's accepted input format changes from a top-level transaction array to the wrapped `{accounts:[...]}` schema, and gains account-number matching/validation that can abort the import.
@@ -23,7 +24,7 @@ Trade Sensei users cannot easily get their live Schwab trades into the platform:
 ## Impact
 
 - **Code**:
-  - New: `tools/schwab_get_positions.py`, `docs/schwab-positions-tool.md`, `tools/README.md`.
+  - New: `tools/schwab_cli.py`, `docs/schwab-positions-tool.md`, `tools/README.md`.
   - Modified: `backend/app/utils/parsers/schwab_json.py` (accept wrapped format, extract transactions from `accounts[]`), `backend/app/services/import_service.py` and/or the Schwab import routes in `backend/app/api/v1/imports.py` (account-number matching + abort behaviour).
   - Possibly modified: `backend/app/utils/schwab_client.py` (add a positions fetch method if not present) — the CLI may instead be self-contained via `schwabdev`, decided in design.
 - **APIs**: No new HTTP endpoints; the existing `POST /imports/upload` and `POST /imports/schwab-json` behaviour changes (input schema + new abort-on-mismatch error).

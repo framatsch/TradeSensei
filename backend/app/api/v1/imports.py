@@ -35,6 +35,7 @@ from app.core.exceptions import (
     AccountNotFoundError,
     BrokerRawTransactionNotFoundError,
     FlexAPIError,
+    ImportAccountMismatchError,
     ImportNotAllowedError,
     ImportParseError,
     RateLimitError,
@@ -172,7 +173,7 @@ async def _validate_account_import(
         401: {"description": "Authentication required."},
         404: {"description": "Account not found or not owned by the current user."},
         413: {"description": "File exceeds the maximum allowed size."},
-        422: {"description": "File type not allowed for this account type."},
+        422: {"description": "File type not allowed for this account type or Schwab account mismatch/ambiguity."},
     },
 )
 async def upload_import(
@@ -275,6 +276,11 @@ async def upload_import(
     except (ImportParseError, UnsupportedBrokerError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except ImportAccountMismatchError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     except Exception as exc:
@@ -438,13 +444,17 @@ async def fresh_start_import(
     response_model=ResponseEnvelope[ImportResult],
     status_code=status.HTTP_200_OK,
     summary="Import Schwab transactions from JSON body",
-    description=("Import Schwab transactions from a JSON array body using the raw-data pipeline. The target account must be a SCHWAB account."),
+    description=(
+        "Import Schwab transactions from a wrapped JSON object body "
+        "({fetchedAt, dateRange, accounts:[...]}). The target account must be "
+        "a SCHWAB account. Returns 422 for Schwab account mismatch/ambiguity."
+    ),
     responses={
         200: {"description": "Import completed."},
         400: {"description": "Import payload is invalid or cannot be parsed."},
         401: {"description": "Authentication required."},
         404: {"description": "Account not found or not owned by the current user."},
-        422: {"description": "Account type is not SCHWAB."},
+        422: {"description": "Account type is not SCHWAB or Schwab account mismatch/ambiguity."},
     },
 )
 async def import_schwab_json(
@@ -456,7 +466,7 @@ async def import_schwab_json(
         uuid.UUID,
         Query(description="UUID of the Schwab account to import into."),
     ],
-    body: Annotated[list[dict[str, object]], Body()],
+    body: Annotated[dict[str, object], Body()],
 ) -> ResponseEnvelope[ImportResult]:
     """Import Schwab transaction JSON directly from request body."""
     account = await AccountRepository(session).get_by_id(
@@ -488,6 +498,11 @@ async def import_schwab_json(
     except (ImportParseError, UnsupportedBrokerError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except ImportAccountMismatchError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
 
