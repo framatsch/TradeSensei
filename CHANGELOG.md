@@ -9,15 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.0] - 2026-07-15
 
+### Added
+- [tools] New `schwab_cli.py` CLI tool for downloading Schwab positions and transactions
+- [backend] Account-number matching for Schwab imports — auto-selects single account, aborts on mismatch
+- [backend] On-the-fly split-adjustment of execution prices and quantities via `CorporateAction` records
+- [frontend] Archive/unarchive actions and "Show Archived" toggle in Tags and Metrics library pages
+- [backend] Cascading hard-deletion (`?force=true`) for taxonomy and annotation definitions
+
 ### Changed
 - [backend] Execution APIs now return split-adjusted `price`/`quantity` plus raw `raw_price`/`raw_quantity` fields for execution marker consumers
 - [frontend] Trade chart execution marker labels now prefer adjusted values and fall back to raw values when adjusted data is unavailable
 - [backend] Introduce `STORAGE_PROXY_URL` as the primary presign host setting while keeping `STORAGE_PUBLIC_URL` as a backward-compatible alias
 - [infra] Update local/prod compose defaults to prefer `STORAGE_PROXY_URL`; frontend `NEXT_PUBLIC_STORAGE_ACCESS_MODE` now defaults to `proxy` everywhere
+- [backend] Schwab JSON importer now accepts only the wrapped `{accounts: [...]}` format; legacy top-level array format removed
+- [backend] Schwab online sync reimplemented via Transactions API + shared `SchwabJSONParser` pipeline; removed `SchwabOrderNormalizer`
 
 ### Fixed
 - [frontend] Remove storage proxy/upload fallback workarounds and restore deterministic proxy behavior for uploads and image reads
 - [docs] Update object storage docs with `STORAGE_PROXY_URL` semantics and `STORAGE_PUBLIC_URL` deprecation guidance
+- [backend] Schwab JSON parser now derives trade direction from `positionEffect` + `amount` sign for real Schwab equity exports
 
 ## [1.3.6] - 2026-06-24
 
