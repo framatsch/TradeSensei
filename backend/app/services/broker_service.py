@@ -19,24 +19,26 @@ credentials are read from :class:`~app.models.account_property.AccountProperty`
 records attached to the account and decrypted on demand.
 """
 
+import json
 import logging
 import uuid
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import AccountNotFoundError, ConfigurationError
+from app.core.exceptions import AccountNotFoundError, ConfigurationError, ImportAccountMismatchError
 from app.models.account import Account, AccountType
 from app.models.account_property import AccountProperty
 from app.repositories.account_repository import AccountRepository
-from app.repositories.trade_repository import TradeRepository
 from app.schemas.broker import BrokerConnectionTestRequest, BrokerConnectionTestResult, BrokerSyncResult
-from app.schemas.trade import TradeCreate
+from app.services.audit_service import AuditEventService, generate_request_id
+from app.services.import_service import ImportService
 from app.utils.encryption import decrypt_token
+from app.utils.parsers.factory import BrokerType
+from app.utils.schwab_account_resolution import (
+    resolve_schwab_account_entry,
+)
 from app.utils.schwab_client import SchwabClient
-from app.utils.schwab_normalizer import SchwabOrderNormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,7 @@ class BrokerService:
         """
         self._session = session
         self._account_repo = AccountRepository(session)
-        self._trade_repo = TradeRepository(session)
+        self._audit = AuditEventService()
 
     async def sync_account(
         self,
@@ -204,15 +206,8 @@ class BrokerService:
         self._resolve_property(provided, account, SCHWAB_APP_SECRET_KEYS)
 
         client = SchwabClient()
-        now = datetime.now(UTC)
-        to_date = now.strftime("%Y-%m-%d")
-        from_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
         try:
-            await client.get_orders(
-                access_token=app_key,
-                from_date=from_date,
-                to_date=to_date,
-            )
+            await client.get_account_numbers(access_token=app_key)
         except Exception as exc:
             raise ConfigurationError(f"Schwab connection test failed: {exc}") from exc
 
@@ -235,33 +230,98 @@ class BrokerService:
             raise ConfigurationError(f"IBKR connection test failed: {exc}") from exc
 
     async def _sync_schwab(self, account: Account, days: int) -> BrokerSyncResult:
-        """Fetch orders from Schwab and import new trades for the account.
-
-        Reads ``SCHWAB_APP_KEY`` and ``SCHWAB_APP_SECRET`` from the account's
-        properties, passes ``SCHWAB_APP_KEY`` as the access token to the
-        :class:`~app.utils.schwab_client.SchwabClient`, and delegates order
-        import to :meth:`_import_orders`.
-
-        Args:
-            account: The :class:`~app.models.account.Account` to sync.
-            days: Number of past days to fetch orders for.
-
-        Returns:
-            A :class:`~app.schemas.broker.BrokerSyncResult` with import counts.
-        """
+        """Fetch Schwab transactions and import via the shared raw pipeline."""
         app_key = self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
-        # Validate that the secret is present even if not used directly here
         self._resolve_property({}, account, SCHWAB_APP_SECRET_KEYS)
+
+        if account.portfolio_id is None:
+            raise ConfigurationError(f"Account {account.id} is not linked to a portfolio.")
+
         client = SchwabClient()
+
+        account_numbers = await client.get_account_numbers(access_token=app_key)
+        try:
+            selected, auto_bound_number = resolve_schwab_account_entry(
+                accounts=account_numbers,
+                configured_account_number=account.account_number,
+                context="sync",
+            )
+        except ImportAccountMismatchError as exc:
+            raise ConfigurationError(str(exc)) from exc
+
+        if account.account_number is None and auto_bound_number is not None:
+            account.account_number = auto_bound_number
+            self._session.add(account)
+            await self._session.flush()
+            self._emit_account_number_bound_audit(
+                user_id=account.user_id,
+                account_id=account.id,
+                portfolio_id=account.portfolio_id,
+            )
+
+        account_hash = str(selected.get("hashValue", "")).strip()
+        if not account_hash:
+            raise ConfigurationError("Schwab sync failed: resolved broker account is missing hashValue.")
+
         now = datetime.now(UTC)
-        to_date = now.strftime("%Y-%m-%d")
-        from_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
-        orders = await client.get_orders(
+        from_date = now - timedelta(days=days)
+        to_date = now
+        transactions = await client.get_transactions(
             access_token=app_key,
+            account_hash=account_hash,
             from_date=from_date,
             to_date=to_date,
         )
-        return await self._import_orders(orders, account.user_id)
+
+        wrapped_payload = {
+            "accounts": [
+                {
+                    "accountNumber": str(selected.get("accountNumber", "")).strip(),
+                    "transactions": transactions,
+                }
+            ]
+        }
+
+        import_service = ImportService(self._session)
+        result = await import_service.import_file(
+            content=json.dumps(wrapped_payload).encode("utf-8"),
+            filename="schwab_transactions_sync.json",
+            broker=BrokerType.SCHWAB,
+            portfolio_id=account.portfolio_id,
+            account_id=account.id,
+            user_id=account.user_id,
+        )
+        return BrokerSyncResult(
+            imported_count=result.trades_created,
+            skipped_count=result.trades_skipped,
+            errors=result.warnings,
+        )
+
+    def _emit_account_number_bound_audit(
+        self,
+        *,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+    ) -> None:
+        self._audit.create_audit_event(
+            action="account.account_number_bound",
+            user_id=user_id,
+            email=None,
+            resource_type="account",
+            resource_id=account_id,
+            parent_resource_type="portfolio",
+            parent_resource_id=portfolio_id,
+            ip_address=None,
+            user_agent=None,
+            request_id=generate_request_id(),
+            status_code=200,
+            method="SYSTEM",
+            path="broker_service._sync_schwab",
+            metadata={
+                "reason": "schwab_single_account_auto_bind",
+            },
+        )
 
     async def _sync_ibkr(
         self,
@@ -323,68 +383,3 @@ class BrokerService:
             raise ConfigurationError(f"IBKR API rate limit reached: {exc}") from exc
         except FlexAPIError as exc:
             raise ConfigurationError(f"IBKR Flex API error: {exc}") from exc
-
-    async def _import_orders(
-        self,
-        orders: Sequence[dict[str, Any]],
-        user_id: uuid.UUID,
-    ) -> BrokerSyncResult:
-        """Normalise raw broker orders and persist new trades.
-
-        1. Normalises each order via
-           :class:`~app.utils.schwab_normalizer.SchwabOrderNormalizer`.
-        2. Deduplicates by ``broker_order_id`` — skips orders already in DB.
-        3. Inserts new :class:`~app.models.trade.Trade` rows.
-        4. Flushes and commits the session.
-
-        Args:
-            orders: List of raw order dicts as returned by the broker API.
-            user_id: UUID of the owning user for the new trades.
-
-        Returns:
-            A :class:`~app.schemas.broker.BrokerSyncResult` with counts
-            of imported, skipped, and errored orders.
-        """
-        normalizer = SchwabOrderNormalizer()
-        normalised: list[TradeCreate] = []
-        error_messages: list[str] = []
-        skipped_count = 0
-
-        for order in orders:
-            try:
-                trade_create = normalizer.normalize(order)
-                if trade_create is None:
-                    skipped_count += 1
-                    continue
-                normalised.append(trade_create)
-            except Exception as exc:
-                order_id = order.get("orderId", "?")
-                error_messages.append(f"Order {order_id}: {exc}")
-                logger.warning("Failed to normalise order %s: %s", order_id, exc)
-
-        # Bulk-fetch existing broker_order_ids to deduplicate
-        candidate_ids = [tc.broker_order_id for tc in normalised if tc.broker_order_id]
-        existing_ids = await self._trade_repo.find_by_broker_order_ids(
-            user_id,
-            candidate_ids,
-        )
-
-        # Insert new trades
-        imported_count = 0
-        new_trades: list[TradeCreate] = []
-        for trade_create in normalised:
-            if trade_create.broker_order_id is not None and trade_create.broker_order_id in existing_ids:
-                skipped_count += 1
-                continue
-            trade_create.user_id = user_id
-            new_trades.append(trade_create)
-            imported_count += 1
-
-        await self._trade_repo.bulk_create(new_trades)
-        await self._session.commit()
-
-        return BrokerSyncResult(
-            imported_count=imported_count,
-            skipped_count=skipped_count,
-            errors=error_messages,
-        )

@@ -86,7 +86,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
 
     const loadCredentials = async () => {
       const { data, error: fetchErr } = await client.get<
-        { data: { properties: Record<string, string> } },
+        { properties: Record<string, string> },
         unknown,
         false
       >({
@@ -97,13 +97,13 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
         return;
       }
 
-      if (fetchErr || !data?.data?.properties) {
+      if (fetchErr || !data?.properties) {
         setCredentials({});
         return;
       }
 
       const normalized = Object.fromEntries(
-        Object.entries(data.data.properties).map(([key, value]) => [key.toLowerCase(), value])
+        Object.entries(data.properties).map(([key, value]) => [key.toLowerCase(), value as string])
       );
       setCredentials(normalized);
     };

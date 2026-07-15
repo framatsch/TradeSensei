@@ -14,13 +14,14 @@
 """HTTP client for the Schwab OAuth 2.0 + REST API.
 
 Provides :class:`SchwabClient` which handles PKCE authorization URL
-construction, authorization-code exchange, token refresh, and order
-retrieval.  All network calls use ``httpx``.
+construction, authorization-code exchange, token refresh, account lookup,
+and transaction retrieval. All network calls use ``httpx``.
 """
 
 from __future__ import annotations
 
 import urllib.parse
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -42,9 +43,9 @@ class SchwabClient:
         TOKEN_URL: Token endpoint for code exchange and refresh.
     """
 
-    BASE_URL: str = "https://api.schwab.com/v1"
-    AUTH_URL: str = "https://api.schwab.com/v1/oauth/authorize"
-    TOKEN_URL: str = "https://api.schwab.com/v1/oauth/token"  # noqa: S105
+    BASE_URL: str = "https://api.schwabapi.com/trader/v1"
+    AUTH_URL: str = "https://api.schwabapi.com/v1/oauth/authorize"
+    TOKEN_URL: str = "https://api.schwabapi.com/v1/oauth/token"  # noqa: S105
 
     def _require_client_id(self) -> str:
         """Return the Schwab client ID, raising if not configured.
@@ -167,39 +168,141 @@ class SchwabClient:
             result: dict[str, Any] = response.json()
             return result
 
-    async def get_orders(
-        self,
-        access_token: str,
-        from_date: str,
-        to_date: str,
-    ) -> list[dict[str, Any]]:
-        """Fetch orders from the Schwab API for a given date range.
-
-        Args:
-            access_token: A valid Schwab OAuth access token.
-            from_date: ISO-8601 date string for the start of the range
-                (e.g. ``"2024-01-01"``).
-            to_date: ISO-8601 date string for the end of the range
-                (e.g. ``"2024-01-31"``).
-
-        Returns:
-            A list of raw order dictionaries as returned by Schwab.
-
-        Raises:
-            :class:`~app.core.exceptions.ConfigurationError`: If
-                ``SCHWAB_CLIENT_ID`` is not configured.
-            :class:`httpx.HTTPStatusError`: If the orders endpoint returns a
-                non-2xx response.
-        """
+    async def get_account_numbers(self, access_token: str) -> list[dict[str, object]]:
+        """Fetch Schwab account-number/hash mappings for the current user."""
         self._require_client_id()
         headers = {"Authorization": f"Bearer {access_token}"}
-        params = {"fromEnteredTime": from_date, "toEnteredTime": to_date}
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.BASE_URL}/orders",
-                headers=headers,
-                params=params,
-            )
+            response = await client.get(f"{self.BASE_URL}/accounts/accountNumbers", headers=headers)
             response.raise_for_status()
-            result: list[dict[str, Any]] = response.json()
-            return result
+            payload = response.json()
+
+        if not isinstance(payload, list):
+            return []
+
+        result: list[dict[str, object]] = []
+        for entry in payload:
+            if not isinstance(entry, dict):
+                continue
+            account_number = str(entry.get("accountNumber", "")).strip()
+            hash_value = str(entry.get("hashValue", "")).strip()
+            if not account_number or not hash_value:
+                continue
+            result.append(
+                {
+                    "accountNumber": account_number,
+                    "hashValue": hash_value,
+                }
+            )
+        return result
+
+    async def get_transactions(
+        self,
+        access_token: str,
+        account_hash: str,
+        from_date: datetime,
+        to_date: datetime,
+    ) -> list[dict[str, Any]]:
+        """Fetch all paginated Schwab TRADE transactions for one account hash."""
+        self._require_client_id()
+
+        headers = {"Authorization": f"Bearer {access_token}"}
+        base_params: dict[str, str] = {
+            "types": "TRADE",
+            "startDate": self._format_transactions_datetime(from_date),
+            "endDate": self._format_transactions_datetime(to_date),
+        }
+
+        all_transactions: list[dict[str, Any]] = []
+        next_url: str | None = f"{self.BASE_URL}/accounts/{account_hash}/transactions"
+        next_params: dict[str, str] | None = dict(base_params)
+        seen_pages: set[str] = set()
+
+        async with httpx.AsyncClient() as client:
+            while next_url:
+                page_key = self._page_key(next_url, next_params)
+                if page_key in seen_pages:
+                    break
+                seen_pages.add(page_key)
+
+                response = await client.get(
+                    next_url,
+                    headers=headers,
+                    params=next_params,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                if isinstance(payload, list):
+                    all_transactions.extend(item for item in payload if isinstance(item, dict))
+
+                link_next = self._extract_next_link(response.headers.get("Link"))
+                if link_next:
+                    next_url = link_next
+                    next_params = None
+                    continue
+
+                token_next = self._extract_next_token(response)
+                if token_next:
+                    next_url = f"{self.BASE_URL}/accounts/{account_hash}/transactions"
+                    next_params = {**base_params, "nextPageToken": token_next}
+                    continue
+
+                next_url = None
+
+        return all_transactions
+
+    @staticmethod
+    def _format_transactions_datetime(value: datetime) -> str:
+        dt = value
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        dt = dt.astimezone(UTC)
+        return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    @staticmethod
+    def _extract_next_link(link_header: str | None) -> str | None:
+        if not link_header:
+            return None
+
+        for part in link_header.split(","):
+            token = part.strip()
+            if "rel=\"next\"" not in token and "rel=next" not in token:
+                continue
+            if "<" not in token or ">" not in token:
+                continue
+            start = token.find("<") + 1
+            end = token.find(">", start)
+            if end <= start:
+                continue
+            return token[start:end]
+        return None
+
+    @staticmethod
+    def _extract_next_token(response: httpx.Response) -> str | None:
+        body_token_keys = ("nextPageToken", "next_page_token", "nextToken", "next")
+        headers_token_keys = (
+            "next-page-token",
+            "x-next-page-token",
+            "schwab-next-page-token",
+            "schwab-next-page",
+        )
+
+        for key in headers_token_keys:
+            value = response.headers.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+        payload = response.json()
+        if isinstance(payload, dict):
+            for key in body_token_keys:
+                value = payload.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+        return None
+
+    @staticmethod
+    def _page_key(url: str, params: dict[str, str] | None) -> str:
+        if not params:
+            return url
+        ordered = "&".join(f"{key}={value}" for key, value in sorted(params.items()))
+        return f"{url}?{ordered}"

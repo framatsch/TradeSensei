@@ -52,8 +52,8 @@ export function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead):
     direction: execution.direction,
     quantity: execution.quantity,
     price: execution.price,
-    raw_quantity: execution.raw_quantity,
-    raw_price: execution.raw_price,
+    raw_quantity: execution.raw_quantity ?? execution.quantity,
+    raw_price: execution.raw_price ?? execution.price,
     // Backend always provides commission, defaulting to "0" defensively
     commission: execution.commission ?? "0",
     pnl: execution.pnl ?? null,

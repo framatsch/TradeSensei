@@ -95,6 +95,8 @@ const splitExecution: LogicalExecution = {
   direction: "LONG",
   quantity: "6",
   price: "100",
+  raw_quantity: "6",
+  raw_price: "100",
   commission: "0.6",
   pnl: null,
   pnl_eur: null,

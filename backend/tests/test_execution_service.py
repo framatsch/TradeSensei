@@ -115,7 +115,9 @@ def service(mock_session: AsyncMock) -> ExecutionService:
     svc.execution_repo = AsyncMock()
     svc.trade_repo = AsyncMock()
     svc.corporate_action_service = AsyncMock()
-    svc.corporate_action_service.list_for_aggregator = AsyncMock(return_value=[])
+    # list_for_trade now scopes corporate actions per execution leg via
+    # list_for_execution(symbol=, conid=) rather than list_for_aggregator.
+    svc.corporate_action_service.list_for_execution = AsyncMock(return_value=[])
     # Mock the internal re-aggregation method to isolate tests
     svc._re_aggregate_trade = AsyncMock()
     return svc
@@ -572,7 +574,7 @@ class TestExecutionService:
         )
         service.trade_repo.get_by_id.return_value = trade
         service.execution_repo.list_by_trade_id.return_value = [execution]
-        service.corporate_action_service.list_for_aggregator.return_value = [
+        service.corporate_action_service.list_for_execution.return_value = [
             _make_corporate_action(ratio=Decimal("10"), date_value=datetime(2024, 1, 10, tzinfo=UTC))
         ]
 
@@ -613,7 +615,7 @@ class TestExecutionService:
             split_execution,
             no_split_execution,
         ]
-        service.corporate_action_service.list_for_aggregator.return_value = [
+        service.corporate_action_service.list_for_execution.return_value = [
             _make_corporate_action(ratio=Decimal("2"), date_value=datetime(2024, 1, 10, tzinfo=UTC)),
             _make_corporate_action(ratio=Decimal("5"), date_value=datetime(2024, 2, 10, tzinfo=UTC)),
         ]
@@ -652,7 +654,7 @@ class TestExecutionService:
         )
         service.trade_repo.get_by_id.return_value = trade
         service.execution_repo.list_by_trade_id.return_value = [manual_no_ca, manual_with_ca]
-        service.corporate_action_service.list_for_aggregator.return_value = [
+        service.corporate_action_service.list_for_execution.return_value = [
             _make_corporate_action(ratio=Decimal("10"), date_value=datetime(2024, 1, 10, tzinfo=UTC))
         ]
 
@@ -681,7 +683,7 @@ class TestExecutionService:
         )
         service.trade_repo.get_by_id.return_value = trade
         service.execution_repo.list_by_trade_id.return_value = [execution]
-        service.corporate_action_service.list_for_aggregator.return_value = [
+        service.corporate_action_service.list_for_execution.return_value = [
             _make_corporate_action(ratio=Decimal("2.5"), date_value=datetime(2024, 1, 10, tzinfo=UTC))
         ]
 

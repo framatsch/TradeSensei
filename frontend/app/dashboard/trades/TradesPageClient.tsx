@@ -388,19 +388,25 @@ export function TradesPageClient() {
   const [showRenameView, setShowRenameView] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [openStatusBlockedHint, setOpenStatusBlockedHint] = useState(false);
 
   const requestedOpenStatus = (searchParams.get("status") ?? null) === "open";
   const enforcedStatus = enforceClosedStatus ? "closed" : filters.status;
 
   useEffect(() => {
-    setBannerDismissed(false);
+    if (showOpenTrades) {
+      setBannerDismissed(false);
+      setOpenStatusBlockedHint(false);
+    }
   }, [showOpenTrades]);
 
-  // Strip stale ?status=open from URL once we know the real setting disallows open trades.
-  // Uses enforceClosedStatus (not showOpenTrades) so the cleanup only fires after
-  // settings have loaded — avoids incorrectly wiping the param during the placeholder phase.
+  // Strip stale ?status=open once we know the real setting disallows open trades.
+  // Uses enforceClosedStatus (not showOpenTrades) so cleanup only fires after
+  // settings have loaded — avoids incorrectly wiping params during placeholder phase.
   useEffect(() => {
     if (enforceClosedStatus && requestedOpenStatus) {
+      setOpenStatusBlockedHint(true);
+      setBannerDismissed(false);
       const params = new URLSearchParams(searchParams.toString());
       params.delete("status");
       const qs = params.toString();
@@ -561,10 +567,10 @@ export function TradesPageClient() {
         showOpenTrades={showOpenTrades}
       />
 
-      {!showOpenTrades && requestedOpenStatus && !bannerDismissed && (
-        <div className="flex items-start justify-between gap-3 rounded-md border px-4 py-3 text-sm text-foreground [border-color:color-mix(in_srgb,var(--primary)_25%,transparent)] [background-color:color-mix(in_srgb,var(--primary)_10%,transparent)]">
+      {!showOpenTrades && openStatusBlockedHint && !bannerDismissed && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <span>
-            Open trades are hidden. Enable 'Show Open Trades' in Settings → Features to show them.
+            Open trades are currently hidden, and the status filter is forced to closed. Enable 'Show Open Trades' in Settings and then open Features to show them.
           </span>
           <button
             type="button"

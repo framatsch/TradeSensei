@@ -33,13 +33,15 @@ export default function FeaturesSettings() {
 
   // Local draft: only keys that differ from the current server state
   const [draft, setDraft] = useState<Record<string, boolean>>({});
+  const [showOpenTradesDraft, setShowOpenTradesDraft] = useState<boolean | null>(null);
 
   const serverFeatures = (settings?.features ?? {}) as Record<string, boolean>;
   const showOpenTradesEnabled = settings?.show_open_trades ?? false;
+  const effectiveShowOpenTrades = showOpenTradesDraft ?? showOpenTradesEnabled;
   // Effective values: server state with draft overrides applied on top
   const effective = { ...serverFeatures, ...draft };
 
-  const hasPending = Object.keys(draft).length > 0;
+  const hasPending = Object.keys(draft).length > 0 || showOpenTradesDraft !== null;
 
   const handleToggle = (key: string, currentValue: boolean) => {
     const newValue = !currentValue;
@@ -57,14 +59,26 @@ export default function FeaturesSettings() {
   const handleApply = () => {
     if (!hasPending) return;
     const allFeatures = { ...serverFeatures, ...draft };
+    const payload: { features: Record<string, boolean>; show_open_trades?: boolean } = {
+      features: allFeatures,
+    };
+    if (showOpenTradesDraft !== null) {
+      payload.show_open_trades = showOpenTradesDraft;
+    }
     update.mutate(
-      { features: allFeatures },
-      { onSuccess: () => setDraft({}) }
+      payload,
+      {
+        onSuccess: () => {
+          setDraft({});
+          setShowOpenTradesDraft(null);
+        },
+      }
     );
   };
 
   const handleShowOpenTradesToggle = () => {
-    update.mutate({ show_open_trades: !showOpenTradesEnabled });
+    const nextValue = !effectiveShowOpenTrades;
+    setShowOpenTradesDraft(nextValue === showOpenTradesEnabled ? null : nextValue);
   };
 
   return (
@@ -73,7 +87,7 @@ export default function FeaturesSettings() {
       <div>
         <h3 className="text-sm font-semibold text-foreground">Features</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Enable or disable optional modules. Show Open Trades applies immediately; other flags require Apply.
+          Enable or disable optional modules. Changes are staged locally and saved with Apply.
         </p>
       </div>
 
@@ -91,17 +105,17 @@ export default function FeaturesSettings() {
 
           <button
             role="switch"
-            aria-checked={showOpenTradesEnabled}
+            aria-checked={effectiveShowOpenTrades}
             aria-label="Show Open Trades"
             onClick={handleShowOpenTradesToggle}
             type="button"
             className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              showOpenTradesEnabled ? "bg-primary" : "bg-muted"
+              effectiveShowOpenTrades ? "bg-primary" : "bg-muted"
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-150 ${
-                showOpenTradesEnabled ? "translate-x-6" : "translate-x-1"
+                effectiveShowOpenTrades ? "translate-x-6" : "translate-x-1"
               }`}
             />
           </button>

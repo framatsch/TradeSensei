@@ -17,6 +17,7 @@ Tests verify correct URL construction, parameter passing, error handling,
 and ConfigurationError when credentials are missing.
 """
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,7 +26,11 @@ from app.core.exceptions import ConfigurationError
 from app.utils.schwab_client import SchwabClient
 
 
-def _mock_response(json_data: object) -> MagicMock:
+def _mock_response(
+    json_data: object,
+    *,
+    headers: dict[str, str] | None = None,
+) -> MagicMock:
     """Build a mock httpx response that returns *json_data* from .json().
 
     Args:
@@ -37,6 +42,7 @@ def _mock_response(json_data: object) -> MagicMock:
     resp = MagicMock()
     resp.raise_for_status = MagicMock()
     resp.json = MagicMock(return_value=json_data)
+    resp.headers = headers or {}
     return resp
 
 
@@ -178,31 +184,117 @@ class TestRefreshAccessToken:
 
 
 # ---------------------------------------------------------------------------
-# get_orders
+# get_account_numbers
 # ---------------------------------------------------------------------------
 
 
-class TestGetOrders:
-    """Tests for :meth:`SchwabClient.get_orders`."""
+class TestGetAccountNumbers:
+    """Tests for :meth:`SchwabClient.get_account_numbers`."""
 
     async def test_raises_when_no_client_id(self, client: SchwabClient) -> None:
         """Should raise :class:`ConfigurationError` if client_id is absent."""
         with patch("app.utils.schwab_client.settings") as mock_settings:
             mock_settings.schwab_client_id = None
             with pytest.raises(ConfigurationError):
-                await client.get_orders("tok", "2024-01-01", "2024-01-31")
+                await client.get_account_numbers("tok")
 
-    async def test_returns_orders_list(self, client: SchwabClient) -> None:
-        """Should return a list of order dicts from the API."""
-        orders = [{"orderId": "123", "status": "FILLED"}]
-        mock_resp = _mock_response(orders)
+    async def test_returns_account_number_hash_pairs(self, client: SchwabClient) -> None:
+        """Should return normalized accountNumber/hashValue dicts."""
+        payload = [
+            {"accountNumber": "45302130", "hashValue": "hash-1"},
+            {"accountNumber": "", "hashValue": "hash-2"},
+        ]
+        mock_resp = _mock_response(payload)
 
         with (
             patch("app.utils.schwab_client.settings") as mock_settings,
             patch("httpx.AsyncClient.get", new=AsyncMock(return_value=mock_resp)),
         ):
             mock_settings.schwab_client_id = "cid"
-            result = await client.get_orders("tok", "2024-01-01", "2024-01-31")
+            result = await client.get_account_numbers("tok")
 
-        assert len(result) == 1
-        assert result[0]["orderId"] == "123"
+        assert result == [{"accountNumber": "45302130", "hashValue": "hash-1"}]
+
+
+# ---------------------------------------------------------------------------
+# get_transactions
+# ---------------------------------------------------------------------------
+
+
+class TestGetTransactions:
+    """Tests for :meth:`SchwabClient.get_transactions`."""
+
+    async def test_raises_when_no_client_id(self, client: SchwabClient) -> None:
+        """Should raise :class:`ConfigurationError` if client_id is absent."""
+        with patch("app.utils.schwab_client.settings") as mock_settings:
+            mock_settings.schwab_client_id = None
+            with pytest.raises(ConfigurationError):
+                await client.get_transactions(
+                    "tok",
+                    "hash-1",
+                    datetime(2026, 1, 1, tzinfo=UTC),
+                    datetime(2026, 1, 2, tzinfo=UTC),
+                )
+
+    async def test_merges_single_page_transactions(self, client: SchwabClient) -> None:
+        """Should return one-page transaction payload unchanged."""
+        page = [{"activityId": "1"}, {"activityId": "2"}]
+        mock_resp = _mock_response(page)
+
+        with (
+            patch("app.utils.schwab_client.settings") as mock_settings,
+            patch("httpx.AsyncClient.get", new=AsyncMock(return_value=mock_resp)),
+        ):
+            mock_settings.schwab_client_id = "cid"
+            result = await client.get_transactions(
+                "tok",
+                "hash-1",
+                datetime(2026, 1, 1, tzinfo=UTC),
+                datetime(2026, 1, 2, tzinfo=UTC),
+            )
+
+        assert [item["activityId"] for item in result] == ["1", "2"]
+
+    async def test_merges_multipage_transactions_from_link_header(self, client: SchwabClient) -> None:
+        """Should follow rel=next links and concatenate all pages."""
+        page1 = _mock_response(
+            [{"activityId": "1"}],
+            headers={"Link": '<https://api.schwabapi.com/trader/v1/accounts/hash-1/transactions?page=2>; rel="next"'},
+        )
+        page2 = _mock_response([{"activityId": "2"}])
+
+        with (
+            patch("app.utils.schwab_client.settings") as mock_settings,
+            patch("httpx.AsyncClient.get", new=AsyncMock(side_effect=[page1, page2])),
+        ):
+            mock_settings.schwab_client_id = "cid"
+            result = await client.get_transactions(
+                "tok",
+                "hash-1",
+                datetime(2026, 1, 1, tzinfo=UTC),
+                datetime(2026, 1, 2, tzinfo=UTC),
+            )
+
+        assert [item["activityId"] for item in result] == ["1", "2"]
+
+    async def test_merges_multipage_transactions_from_next_page_token(self, client: SchwabClient) -> None:
+        """Should follow body nextPageToken and concatenate all pages."""
+        page1 = _mock_response({"nextPageToken": "abc", "items": "ignored"})
+        page1.json = MagicMock(return_value={"nextPageToken": "abc"})
+        page2 = _mock_response([{"activityId": "2"}])
+
+        with (
+            patch("app.utils.schwab_client.settings") as mock_settings,
+            patch("httpx.AsyncClient.get", new=AsyncMock(side_effect=[page1, page2])) as mock_get,
+        ):
+            mock_settings.schwab_client_id = "cid"
+            result = await client.get_transactions(
+                "tok",
+                "hash-1",
+                datetime(2026, 1, 1, tzinfo=UTC),
+                datetime(2026, 1, 2, tzinfo=UTC),
+            )
+
+        assert [item["activityId"] for item in result] == ["2"]
+        second_params = mock_get.await_args_list[1].kwargs["params"]
+        assert second_params["nextPageToken"] == "abc"

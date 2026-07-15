@@ -1,0 +1,140 @@
+{
+  "fetchedAt": "2026-07-13T17:49:12.787538Z",
+  "dateRange": {
+    "start": "2026-04-14T19:49:11.000Z",
+    "end": "2026-07-13T19:49:11.000Z"
+  },
+  "accounts": [
+    {
+      "accountNumber": "45302130",
+      "accountHash": "317001D97534D566A260F5DD24576BB3B114D887F3BF47AC11651AE45A17882E",
+      "transactions": [
+        {
+          "activityId": 124780687237,
+          "time": "2026-07-10T19:15:35+0000",
+          "accountNumber": "45302130",
+          "type": "TRADE",
+          "status": "VALID",
+          "subAccount": "MARGIN",
+          "tradeDate": "2026-07-10T19:15:35+0000",
+          "positionId": 3488213692,
+          "orderId": 1007121255050,
+          "netAmount": -2454.6,
+          "transferItems": [
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "COMMISSION"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "SEC_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "OPT_REG_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "TAF_FEE"},
+            {
+              "instrument": {"assetType": "EQUITY", "symbol": "AMZN", "uniformSymbol": "AMZN", "instrumentId": 1195188, "type": "COMMON_STOCK"},
+              "amount": 10.0,
+              "cost": -2454.6,
+              "price": 245.46,
+              "positionEffect": "OPENING"
+            }
+          ]
+        },
+        {
+          "activityId": 124694896745,
+          "time": "2026-07-10T14:32:58+0000",
+          "accountNumber": "45302130",
+          "type": "TRADE",
+          "status": "VALID",
+          "subAccount": "MARGIN",
+          "tradeDate": "2026-07-10T14:32:58+0000",
+          "positionId": 3488212323,
+          "orderId": 1007120211580,
+          "netAmount": -1018.0,
+          "transferItems": [
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "COMMISSION"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "SEC_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "OPT_REG_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "TAF_FEE"},
+            {
+              "instrument": {"assetType": "EQUITY", "symbol": "LOGI", "uniformSymbol": "LOGI", "instrumentId": 4342028, "type": "COMMON_STOCK"},
+              "amount": 10.0,
+              "cost": -1018.0,
+              "price": 101.8,
+              "positionEffect": "OPENING"
+            }
+          ]
+        },
+        {
+          "activityId": 123987433325,
+          "time": "2026-07-02T17:35:33+0000",
+          "accountNumber": "45302130",
+          "type": "TRADE",
+          "status": "VALID",
+          "subAccount": "MARGIN",
+          "tradeDate": "2026-07-02T17:35:33+0000",
+          "positionId": 3470716503,
+          "orderId": 1006997732392,
+          "netAmount": 2420.05,
+          "transferItems": [
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "COMMISSION"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.05, "cost": -0.05, "feeType": "SEC_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "OPT_REG_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "TAF_FEE"},
+            {
+              "instrument": {"assetType": "EQUITY", "symbol": "MRVL", "uniformSymbol": "MRVL", "instrumentId": 149855101, "type": "COMMON_STOCK"},
+              "amount": -10.0,
+              "cost": 2420.1,
+              "price": 242.01,
+              "positionEffect": "CLOSING"
+            }
+          ]
+        },
+        {
+          "activityId": 123835463029,
+          "time": "2026-07-01T17:55:58+0000",
+          "accountNumber": "45302130",
+          "type": "TRADE",
+          "status": "VALID",
+          "subAccount": "MARGIN",
+          "tradeDate": "2026-07-01T04:00:00+0000",
+          "positionId": 3472375146,
+          "orderId": 1007003875717,
+          "netAmount": -1063.9,
+          "transferItems": [
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "COMMISSION"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "SEC_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "OPT_REG_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "TAF_FEE"},
+            {
+              "instrument": {"assetType": "EQUITY", "symbol": "NOW", "uniformSymbol": "NOW", "instrumentId": 1802065, "type": "COMMON_STOCK"},
+              "amount": 10.0,
+              "cost": -1063.9,
+              "price": 106.3899,
+              "positionEffect": "OPENING"
+            }
+          ]
+        },
+        {
+          "activityId": 123689628930,
+          "time": "2026-06-30T18:42:11+0000",
+          "accountNumber": "45302130",
+          "type": "TRADE",
+          "status": "VALID",
+          "subAccount": "MARGIN",
+          "tradeDate": "2026-06-30T18:42:11+0000",
+          "positionId": 3470716503,
+          "orderId": 1006985224885,
+          "netAmount": -2972.6,
+          "transferItems": [
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "COMMISSION"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "SEC_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "OPT_REG_FEE"},
+            {"instrument": {"assetType": "CURRENCY", "symbol": "CURRENCY_USD"}, "amount": 0.0, "cost": 0.0, "feeType": "TAF_FEE"},
+            {
+              "instrument": {"assetType": "EQUITY", "symbol": "MRVL", "uniformSymbol": "MRVL", "instrumentId": 149855101, "type": "COMMON_STOCK"},
+              "amount": 10.0,
+              "cost": -2972.6,
+              "price": 297.26,
+              "positionEffect": "OPENING"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

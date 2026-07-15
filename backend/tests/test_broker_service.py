@@ -21,8 +21,6 @@ recording.  No real database or HTTP connections are made.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
-from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,38 +28,12 @@ import pytest
 from app.core.exceptions import AccountNotFoundError, ConfigurationError
 from app.models.account import Account, AccountType
 from app.models.account_property import AccountProperty
-from app.models.trade import AssetClass, Direction
-from app.schemas.broker import BrokerSyncResult
-from app.schemas.trade import TradeCreate
+from app.schemas.imports import ImportResult
 from app.services.broker_service import BrokerService
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _make_trade_create(broker_order_id: str | None = "ord-1") -> TradeCreate:
-    """Build a minimal :class:`TradeCreate` for test fixtures.
-
-    Args:
-        broker_order_id: The broker order identifier. Defaults to ``"ord-1"``.
-
-    Returns:
-        A :class:`TradeCreate` with sensible defaults.
-    """
-    now = datetime.now(tz=UTC)
-    return TradeCreate(
-        symbol="AAPL",
-        direction=Direction.LONG,
-        asset_class=AssetClass.EQUITY,
-        quantity=Decimal("10"),
-        entry_price=Decimal("150"),
-        exit_price=Decimal("150"),
-        opened_at=now,
-        closed_at=now,
-        currency="USD",
-        broker_order_id=broker_order_id,
-    )
 
 
 def _make_account_property(key: str, value: str = "encrypted-value") -> AccountProperty:
@@ -254,17 +226,19 @@ class TestFlexSendRequestFallback:
         mock_client = AsyncMock()
         error = FlexAPIError("invalid query id")
 
-        with patch.object(
-            svc,
-            "_send_request_once",
-            new=AsyncMock(side_effect=error),
-        ) as mock_send_once:
-            with pytest.raises(FlexAPIError, match="invalid query id"):
-                await svc._send_request(
-                    client=mock_client,
-                    query_id="query-1",
-                    from_date="20260601",
-                )
+        with (
+            patch.object(
+                svc,
+                "_send_request_once",
+                new=AsyncMock(side_effect=error),
+            ) as mock_send_once,
+            pytest.raises(FlexAPIError, match="invalid query id"),
+        ):
+            await svc._send_request(
+                client=mock_client,
+                query_id="query-1",
+                from_date="20260601",
+            )
 
         assert mock_send_once.await_count == 1
         first_call = mock_send_once.await_args_list[0].kwargs
@@ -374,136 +348,171 @@ class TestGetProperty:
         assert result == "plaintext-key"
 
 
-# ---------------------------------------------------------------------------
-# Tests: _import_orders (via sync_account for Schwab)
-# ---------------------------------------------------------------------------
-
-
-class TestImportOrders:
-    """Unit tests for :meth:`BrokerService._import_orders` via Schwab sync."""
+class TestSchwabSyncTransactions:
+    """Unit tests for Schwab sync transactions path (Part 2)."""
 
     @pytest.mark.unit
-    async def test_imports_new_trades(self) -> None:
-        """_import_orders() imports orders not already in the database.
-
-        Two orders are returned by the mocked client. Neither exists in the
-        database, so both should be imported.
-        """
+    async def test_sync_schwab_matches_configured_account_number(self) -> None:
         mock_session = AsyncMock()
-
-        # DB returns no existing broker_order_ids
-        mock_execute_result = MagicMock()
-        mock_execute_result.__iter__ = MagicMock(return_value=iter([]))
-        mock_session.execute = AsyncMock(return_value=mock_execute_result)
-        mock_session.flush = AsyncMock()
         mock_session.add = MagicMock()
+        prop_key = _make_account_property("SCHWAB_APP_KEY", "encrypted-app-key")
+        prop_secret = _make_account_property("SCHWAB_APP_SECRET", "encrypted-app-secret")
+        account = _make_account(AccountType.SCHWAB, properties=[prop_key, prop_secret])
+        account.account_number = "45302130"  # type: ignore[attr-defined]
 
         svc = BrokerService(mock_session)
+        import_result = ImportResult(
+            broker="schwab",
+            filename="schwab_transactions_sync.json",
+            trades_parsed=2,
+            trades_created=2,
+            trades_skipped=1,
+            warnings=["warn-1"],
+            raw_transactions_created=2,
+            raw_suppressed_skipped=0,
+            raw_deleted_skipped=0,
+        )
 
-        trade_1 = _make_trade_create("ord-1")
-        trade_2 = _make_trade_create("ord-2")
-
-        with patch(
-            "app.services.broker_service.SchwabOrderNormalizer.normalize",
-            side_effect=[trade_1, trade_2],
+        with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch(
+                "app.services.broker_service.SchwabClient.get_account_numbers",
+                new=AsyncMock(
+                    return_value=[{"accountNumber": "45302130", "hashValue": "hash-1"}]
+                ),
+            ),
+            patch("app.services.broker_service.SchwabClient.get_transactions", new=AsyncMock(return_value=[{"activityId": "1"}])),
+            patch("app.services.broker_service.ImportService.import_file", new=AsyncMock(return_value=import_result)) as mock_import,
         ):
-            result: BrokerSyncResult = await svc._import_orders(
-                [{"orderId": "ord-1"}, {"orderId": "ord-2"}],
-                uuid.uuid4(),
-            )
+            result = await svc._sync_schwab(account, days=30)
 
         assert result.imported_count == 2
-        assert result.skipped_count == 0
-        assert result.errors == []
-        mock_session.commit.assert_called_once()
+        assert result.skipped_count == 1
+        assert result.errors == ["warn-1"]
+        assert mock_import.await_count == 1
 
     @pytest.mark.unit
-    async def test_deduplicates_existing_trades(self) -> None:
-        """_import_orders() skips orders whose broker_order_id is already in the DB.
-
-        When the database already contains a trade with the same
-        broker_order_id, the sync increments skipped_count.
-        """
+    async def test_sync_schwab_imports_all_transactions_from_merged_pages(self) -> None:
         mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        prop_key = _make_account_property("SCHWAB_APP_KEY", "encrypted-app-key")
+        prop_secret = _make_account_property("SCHWAB_APP_SECRET", "encrypted-app-secret")
+        account = _make_account(AccountType.SCHWAB, properties=[prop_key, prop_secret])
+        account.account_number = "45302130"  # type: ignore[attr-defined]
 
-        mock_execute_result = MagicMock()
-        mock_execute_result.__iter__ = MagicMock(
-            return_value=iter([("ord-already-exists",)])
+        svc = BrokerService(mock_session)
+        import_result = ImportResult(
+            broker="schwab",
+            filename="schwab_transactions_sync.json",
+            trades_parsed=2,
+            trades_created=2,
+            trades_skipped=0,
+            warnings=[],
+            raw_transactions_created=2,
+            raw_suppressed_skipped=0,
+            raw_deleted_skipped=0,
         )
-        mock_session.execute = AsyncMock(return_value=mock_execute_result)
-        mock_session.flush = AsyncMock()
-        mock_session.add = MagicMock()
 
-        svc = BrokerService(mock_session)
-        trade_1 = _make_trade_create("ord-already-exists")
+        merged_transactions = [
+            {"activityId": 1, "type": "TRADE", "status": "VALID", "transferItems": []},
+            {"activityId": 2, "type": "TRADE", "status": "VALID", "transferItems": []},
+        ]
 
-        with patch(
-            "app.services.broker_service.SchwabOrderNormalizer.normalize",
-            return_value=trade_1,
+        with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch(
+                "app.services.broker_service.SchwabClient.get_account_numbers",
+                new=AsyncMock(return_value=[{"accountNumber": "45302130", "hashValue": "hash-1"}]),
+            ),
+            patch(
+                "app.services.broker_service.SchwabClient.get_transactions",
+                new=AsyncMock(return_value=merged_transactions),
+            ),
+            patch("app.services.broker_service.ImportService.import_file", new=AsyncMock(return_value=import_result)) as mock_import,
         ):
-            result: BrokerSyncResult = await svc._import_orders(
-                [{"orderId": "ord-already-exists"}],
-                uuid.uuid4(),
-            )
+            await svc._sync_schwab(account, days=30)
 
-        assert result.imported_count == 0
-        assert result.skipped_count == 1
+        call_kwargs = mock_import.await_args.kwargs
+        payload = call_kwargs["content"].decode("utf-8")
+        assert "\"activityId\": 1" in payload
+        assert "\"activityId\": 2" in payload
 
     @pytest.mark.unit
-    async def test_skips_unnormalisable_orders(self) -> None:
-        """_import_orders() counts skipped orders when normalize() returns None.
-
-        Orders that the normalizer cannot process are counted as skipped
-        without raising an exception.
-        """
+    async def test_sync_schwab_single_account_auto_binds_and_audits(self) -> None:
         mock_session = AsyncMock()
-
-        mock_execute_result = MagicMock()
-        mock_execute_result.__iter__ = MagicMock(return_value=iter([]))
-        mock_session.execute = AsyncMock(return_value=mock_execute_result)
-        mock_session.flush = AsyncMock()
         mock_session.add = MagicMock()
+        prop_key = _make_account_property("SCHWAB_APP_KEY", "encrypted-app-key")
+        prop_secret = _make_account_property("SCHWAB_APP_SECRET", "encrypted-app-secret")
+        account = _make_account(AccountType.SCHWAB, properties=[prop_key, prop_secret])
+        account.account_number = None  # type: ignore[attr-defined]
 
         svc = BrokerService(mock_session)
+        import_result = ImportResult(
+            broker="schwab",
+            filename="schwab_transactions_sync.json",
+            trades_parsed=0,
+            trades_created=0,
+            trades_skipped=0,
+            warnings=[],
+            raw_transactions_created=0,
+            raw_suppressed_skipped=0,
+            raw_deleted_skipped=0,
+        )
 
-        with patch(
-            "app.services.broker_service.SchwabOrderNormalizer.normalize",
-            return_value=None,
+        with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch(
+                "app.services.broker_service.SchwabClient.get_account_numbers",
+                new=AsyncMock(
+                    return_value=[{"accountNumber": "99887766", "hashValue": "hash-2"}]
+                ),
+            ),
+            patch("app.services.broker_service.SchwabClient.get_transactions", new=AsyncMock(return_value=[])),
+            patch("app.services.broker_service.ImportService.import_file", new=AsyncMock(return_value=import_result)),
+            patch.object(svc, "_emit_account_number_bound_audit") as mock_audit,
         ):
-            result: BrokerSyncResult = await svc._import_orders(
-                [{"orderId": "ord-skip"}],
-                uuid.uuid4(),
-            )
+            await svc._sync_schwab(account, days=1)
 
-        assert result.imported_count == 0
-        assert result.skipped_count == 1
+        assert account.account_number == "99887766"  # type: ignore[attr-defined]
+        mock_session.add.assert_called_once_with(account)
+        mock_session.flush.assert_awaited_once()
+        mock_audit.assert_called_once()
 
     @pytest.mark.unit
-    async def test_records_normalisation_errors(self) -> None:
-        """_import_orders() records errors for orders that raise during normalisation.
-
-        If normalize() raises, the error is captured in ``errors`` and the
-        sync continues with remaining orders.
-        """
+    async def test_sync_schwab_multiple_accounts_without_config_raises(self) -> None:
         mock_session = AsyncMock()
-
-        mock_execute_result = MagicMock()
-        mock_execute_result.__iter__ = MagicMock(return_value=iter([]))
-        mock_session.execute = AsyncMock(return_value=mock_execute_result)
-        mock_session.flush = AsyncMock()
         mock_session.add = MagicMock()
+        prop_key = _make_account_property("SCHWAB_APP_KEY", "encrypted-app-key")
+        prop_secret = _make_account_property("SCHWAB_APP_SECRET", "encrypted-app-secret")
+        account = _make_account(AccountType.SCHWAB, properties=[prop_key, prop_secret])
+        account.account_number = None  # type: ignore[attr-defined]
 
         svc = BrokerService(mock_session)
 
-        with patch(
-            "app.services.broker_service.SchwabOrderNormalizer.normalize",
-            side_effect=ValueError("unexpected field"),
+        with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch(
+                "app.services.broker_service.SchwabClient.get_account_numbers",
+                new=AsyncMock(
+                    return_value=[
+                        {"accountNumber": "45302130", "hashValue": "hash-1"},
+                        {"accountNumber": "99887766", "hashValue": "hash-2"},
+                    ]
+                ),
+            ),
+            pytest.raises(ConfigurationError, match="multiple Schwab accounts found"),
         ):
-            result: BrokerSyncResult = await svc._import_orders(
-                [{"orderId": "bad-order"}],
-                uuid.uuid4(),
-            )
+            await svc._sync_schwab(account, days=7)
 
-        assert result.imported_count == 0
-        assert len(result.errors) == 1
-        assert "bad-order" in result.errors[0]
+    @pytest.mark.unit
+    async def test_test_schwab_uses_account_numbers_probe(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+
+        with (
+            patch("app.services.broker_service.SchwabClient.get_account_numbers", new=AsyncMock(return_value=[])) as mock_probe,
+            patch("app.services.broker_service.BrokerService._resolve_property", side_effect=["app-key", "app-secret"]),
+        ):
+            await svc._test_schwab({}, None)
+
+        mock_probe.assert_awaited_once_with(access_token="app-key")

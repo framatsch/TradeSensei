@@ -27,6 +27,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useReportData } from "@/hooks/useReportData";
 import {
   getAnalyticsSummaryApiV1PortfoliosPortfolioIdAnalyticsSummaryPost,
@@ -40,6 +41,7 @@ import type {
   DashboardFilterConfig,
 } from "@/lib/api/types.gen";
 import type {
+  Trade,
   EquityCurvePoint,
   DrawdownPoint,
   ReturnDistribution,
@@ -209,7 +211,67 @@ function hashPortfolioId(portfolioId: string): number {
   return h;
 }
 
-function generateMaeMfeMock(seed: number): ScatterPoint[] {
+function parseTradePnl(trade: Trade): number {
+  const raw = trade.net_pnl ?? trade.pnl;
+  if (raw == null) return 0;
+  const parsed = typeof raw === "string" ? parseFloat(raw) : Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function generateMaeMfeMock(trades: Trade[], seed: number): ScatterPoint[] {
+  const points: { x: number; y: number }[] = [];
+
+  for (const trade of trades) {
+    const tradeSeed = hashPortfolioId(`${seed}:${trade.id}`);
+    const rng = mulberry32(tradeSeed);
+    const pnlMagnitude = Math.abs(parseTradePnl(trade));
+    const base = Math.max(25, pnlMagnitude);
+    const mae = base * (0.2 + rng() * 0.9);
+    const mfe = mae + base * (0.4 + rng() * 1.2);
+    points.push({ x: mae, y: mfe });
+  }
+
+  if (points.length === 0) return [];
+  const maxMae = Math.max(...points.map((p) => p.x), 1000);
+  const maxMfe = Math.max(...points.map((p) => p.y), 1000);
+
+  return hexbin(points, 0, 0, maxMae * 1.1, 30, 0, maxMfe * 1.1, 40);
+}
+
+function generateDurationVsPnlMock(trades: Trade[]): ScatterPoint[] {
+  const points: { x: number; y: number }[] = [];
+
+  for (const trade of trades) {
+    if (!trade.closed_at) continue;
+
+    const opened = new Date(trade.opened_at).getTime();
+    const closed = new Date(trade.closed_at).getTime();
+    if (!Number.isFinite(opened) || !Number.isFinite(closed) || closed < opened) {
+      continue;
+    }
+
+    const durationHours = (closed - opened) / (1000 * 60 * 60);
+    const pnl = parseTradePnl(trade);
+    points.push({ x: durationHours, y: pnl });
+  }
+
+  if (points.length === 0) return [];
+  const maxDuration = Math.max(...points.map((p) => p.x), 24);
+  const maxAbsPnl = Math.max(...points.map((p) => Math.abs(p.y)), 100);
+
+  return hexbin(
+    points,
+    0,
+    0,
+    maxDuration * 1.1,
+    24,
+    -maxAbsPnl * 1.1,
+    maxAbsPnl * 1.1,
+    40,
+  );
+}
+
+function generateFallbackMaeMfe(seed: number): ScatterPoint[] {
   const rng = mulberry32(seed);
   const points: { x: number; y: number }[] = [];
 
@@ -222,7 +284,7 @@ function generateMaeMfeMock(seed: number): ScatterPoint[] {
   return hexbin(points, 120, 0, 6000, 30, 0, 7000, 40);
 }
 
-function generateDurationVsPnlMock(seed: number): ScatterPoint[] {
+function generateFallbackDurationVsPnl(seed: number): ScatterPoint[] {
   const rng = mulberry32(seed);
   const points: { x: number; y: number }[] = [];
 
@@ -286,13 +348,17 @@ export function useScatterAnalytics(
   filterConfig: DashboardFilterConfig | null,
 ) {
   const { trades } = useReportData(portfolioId, filterConfig);
+  const tradeSignature = useMemo(
+    () => trades.map((trade) => trade.id).join("|"),
+    [trades],
+  );
 
   return useQuery<ScatterAnalyticsResult, Error>({
     queryKey: [
       "scatter-analytics",
       portfolioId,
       filterConfig ? JSON.stringify(filterConfig) : null,
-      trades.length,
+      tradeSignature,
     ],
     queryFn: async () => {
       if (!portfolioId) throw new Error("No portfolio selected");
@@ -308,10 +374,20 @@ export function useScatterAnalytics(
       if (filterConfig) {
         seedStr += JSON.stringify(filterConfig);
       }
+      seedStr += tradeSignature;
       const seed = hashPortfolioId(seedStr);
+
+      const maeMfeFromTrades = generateMaeMfeMock(trades, seed + 1);
+      const durationVsPnlFromTrades = generateDurationVsPnlMock(trades);
       return {
-        maeMfe: generateMaeMfeMock(seed + 1),
-        durationVsPnl: generateDurationVsPnlMock(seed + 2),
+        maeMfe:
+          maeMfeFromTrades.length > 0
+            ? maeMfeFromTrades
+            : generateFallbackMaeMfe(seed + 1),
+        durationVsPnl:
+          durationVsPnlFromTrades.length > 0
+            ? durationVsPnlFromTrades
+            : generateFallbackDurationVsPnl(seed + 2),
       };
     },
     staleTime: 5 * 60 * 1000,

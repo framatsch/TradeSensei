@@ -325,12 +325,15 @@ def test_pipeline_parity_schwab_vs_ibkr() -> None:
                         "type": "TRADE",
                         "status": "COMPLETED",
                         "time": "2026-07-02T10:00:00+0000",
+                        "netAmount": -1000,
                         "transferItems": [
                             {
                                 "instrument": {"symbol": "AAPL", "assetType": "EQUITY"},
                                 "instruction": "BUY",
                                 "price": 100,
                                 "amount": 10,
+                                "cost": -1000,
+                                "positionEffect": "OPENING",
                             }
                         ],
                     },
@@ -339,12 +342,15 @@ def test_pipeline_parity_schwab_vs_ibkr() -> None:
                         "type": "TRADE",
                         "status": "COMPLETED",
                         "time": "2026-07-02T11:00:00+0000",
+                        "netAmount": 1100,
                         "transferItems": [
                             {
                                 "instrument": {"symbol": "AAPL", "assetType": "EQUITY"},
                                 "instruction": "SELL",
                                 "price": 110,
                                 "amount": 10,
+                                "cost": 1100,
+                                "positionEffect": "CLOSING",
                             }
                         ],
                     },

@@ -26,6 +26,7 @@ from app.core.exceptions import (
     ExecutionValidationError,
     TradeNotFoundError,
 )
+from app.models.corporate_action import CorporateAction
 from app.models.logical_execution import (
     EXECUTION_ORIGIN_IMPORTED,
     EXECUTION_ORIGIN_MANUAL,
@@ -93,7 +94,7 @@ class ExecutionService:
             trade_id,
             include_deleted=include_deleted,
         )
-        corporate_actions_by_key: dict[tuple[str, str | None], list] = {}
+        corporate_actions_by_key: dict[tuple[str, str | None], list[CorporateAction]] = {}
         for execution in executions:
             key = (execution.symbol, execution.conid)
             if key in corporate_actions_by_key:

@@ -470,10 +470,14 @@ def aggregate_executions_fifo(
             matched_pnl_eur: Decimal | None = None
             matched_net_pnl: Decimal | None = None
             matched_net_pnl_eur: Decimal | None = None
+            # The closing execution's price is the exit price for every matched
+            # lot in this loop, regardless of whether the broker reported a PnL.
+            # It must be bound before the optional `is_closing_leg` block below
+            # because the `update` dict always references it.
+            exit_price = cast(Decimal, exec_trade.entry_price)
             if is_closing_leg:
                 # Exact Gross PnL calculation using entry/exit prices and multiplier.
                 # Direction is that of the open lot (the position being closed).
-                exit_price = cast(Decimal, exec_trade.entry_price)
                 lot_multiplier = Decimal(open_lot.multiplier)
                 open_lot_entry_price = cast(Decimal, open_lot.entry_price)
                 if open_lot.direction == Direction.LONG:

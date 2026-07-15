@@ -279,9 +279,9 @@ export function PlaybookEditorClient({ id }: Props) {
       (attachmentsLoaded || attachmentsEverLoaded.current) &&
       (linksLoaded || linksEverLoaded.current);
     const UNTITLED_DRAFT_NAME_PATTERN = /^Untitled Playbook(?: \d+)?$/;
-    const effectiveName = name.trim() || playbook.name;
+    const effectiveName = name.trim() || playbook?.name || "";
     const isAutoDraftName = UNTITLED_DRAFT_NAME_PATTERN.test(effectiveName);
-    const isNameUnchanged = effectiveName === playbook.name;
+    const isNameUnchanged = effectiveName === playbook?.name;
     const isContentEmpty = !contentMarkdown.trim();
     const hasNoAttachments = visibleAttachments.length === 0;
     const hasNoTags = assignedTaxonomies.length === 0;

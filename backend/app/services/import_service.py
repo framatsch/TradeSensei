@@ -45,7 +45,6 @@ from app.core.exceptions import (
     AccountNotFoundError,
     ExecutionNotFoundError,
     ExecutionValidationError,
-    ImportAccountMismatchError,
     ImportParseError,
     TradeNotFoundError,
 )
@@ -81,6 +80,7 @@ from app.utils.parsers.aggregator import (
 from app.utils.parsers.base import BrokerParser
 from app.utils.parsers.factory import BrokerType, get_parser
 from app.utils.parsers.schwab_json import decode_schwab_wrapped_payload
+from app.utils.schwab_account_resolution import resolve_schwab_account_entry
 
 logger = logging.getLogger(__name__)
 
@@ -1315,27 +1315,11 @@ class ImportService:
         if len(file_accounts) != len(accounts_obj):
             raise ImportParseError("Schwab JSON payload contains invalid account entries; each accounts item must be an object.")
 
-        file_numbers = [str(entry.get("accountNumber", "")).strip() for entry in file_accounts]
-        non_empty_numbers = [number for number in file_numbers if number]
-
-        configured_number = (account_number or "").strip()
-        if configured_number:
-            for entry in file_accounts:
-                if str(entry.get("accountNumber", "")).strip() == configured_number:
-                    return entry, configured_number
-            available = ", ".join(non_empty_numbers) if non_empty_numbers else "<none>"
-            raise ImportAccountMismatchError(
-                f"Schwab account mismatch: configured account number '{configured_number}' is not present in file accounts [{available}]."
-            )
-
-        if len(file_accounts) == 1:
-            selected_number = str(file_accounts[0].get("accountNumber", "")).strip() or None
-            if selected_number is None:
-                raise ImportParseError("Schwab JSON accounts[1]: missing required field 'accountNumber'.")
-            return file_accounts[0], selected_number
-
-        available = ", ".join(non_empty_numbers) if non_empty_numbers else "<none>"
-        raise ImportAccountMismatchError(f"Schwab account is not configured and file is ambiguous; available account numbers: [{available}].")
+        return resolve_schwab_account_entry(
+            accounts=file_accounts,
+            configured_account_number=account_number,
+            context="import",
+        )
 
     @staticmethod
     @lru_cache(maxsize=16)

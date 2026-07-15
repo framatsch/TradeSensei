@@ -31,8 +31,9 @@ logger = logging.getLogger(__name__)
 
 _BROKER_TYPE = "schwab"
 _VALID_TRADE_STATUSES = frozenset({"COMPLETED", "VALID"})
-_CLOSING_INSTRUCTIONS = frozenset({"SELL", "BUY_TO_COVER"})
-_FEE_TYPES = frozenset({"COMMISSION", "SEC_FEE", "TAF_FEE"})
+_FEE_TYPES = frozenset({"COMMISSION", "SEC_FEE", "TAF_FEE", "OPT_REG_FEE"})
+_TRADE_ASSET_TYPES = frozenset({"EQUITY", "OPTION"})
+_FUTURE_ASSET_TYPES = frozenset({"FUTURE", "FUTURE_OPTION"})
 
 
 def decode_schwab_wrapped_payload(content: bytes) -> dict[str, object]:
@@ -120,7 +121,7 @@ class SchwabJSONParser(BrokerParser):
                 if txn_type != "TRADE" or txn_status not in _VALID_TRADE_STATUSES:
                     continue
 
-                activity_id = str(txn.get("activityId", "")).strip()
+                activity_id = self._normalize_activity_id(txn.get("activityId"))
                 if not activity_id:
                     msg = f"Schwab JSON account {account_number} transaction {idx}: skipped - missing activityId."
                     logger.warning(msg)
@@ -129,26 +130,38 @@ class SchwabJSONParser(BrokerParser):
 
                 try:
                     instrument = self._extract_instrument(txn)
-                    direction = self._map_direction(instrument["instruction"])
-                    if direction is None:
-                        msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
+                    if instrument is None:
+                        # No EQUITY/OPTION execution leg: fee/interest/tax-only
+                        # transaction (CURRENCY legs only) — ignore silently.
+                        continue
+
+                    asset_type = str(instrument["assetType"] or "").upper()
+                    if asset_type in _FUTURE_ASSET_TYPES:
+                        msg = f"Schwab futures not yet supported; transaction skipped (activityId={activity_id})."
                         logger.warning(msg)
                         self.warnings.append(msg)
                         continue
 
-                    execution_direction = self._map_execution_direction(instrument["instruction"])
+                    position_effect = str(instrument["positionEffect"] or "").upper()
+                    net_amount = txn.get("netAmount")
+                    execution_direction = self._resolve_direction(
+                        instruction=instrument["instruction"],
+                        cost=instrument["cost"],
+                        position_effect=position_effect,
+                        net_amount=net_amount,
+                    )
                     if execution_direction is None:
-                        msg = f"Schwab transaction skipped due to unknown instruction (activityId={activity_id})."
+                        msg = f"Schwab transaction skipped - indeterminate direction (activityId={activity_id})."
                         logger.warning(msg)
                         self.warnings.append(msg)
                         continue
 
-                    executed_at = self._parse_datetime(str(txn.get("time") or ""))
+                    executed_at = self._parse_execution_datetime(txn)
                     quantity = abs(Decimal(str(instrument["amount"])))
                     price = abs(Decimal(str(instrument["price"])))
                     commission = self._extract_commission(txn)
                     asset_class = self._map_asset_class(instrument["assetType"])
-                    pnl = Decimal("0") if str(instrument["instruction"]).upper() in _CLOSING_INSTRUCTIONS else None
+                    pnl = Decimal("0") if position_effect == "CLOSING" else None
 
                     raw_records.append(
                         BrokerRawTransactionCreate(
@@ -174,7 +187,16 @@ class SchwabJSONParser(BrokerParser):
 
         return raw_records, []
 
-    def _extract_instrument(self, txn: dict[str, object]) -> dict[str, object]:
+    def _extract_instrument(self, txn: dict[str, object]) -> dict[str, object] | None:
+        """Return the primary EQUITY/OPTION/FUTURE execution leg fields.
+
+        Selects the first ``transferItems`` leg whose ``instrument.assetType``
+        is a trade type (``EQUITY``/``OPTION``) — or a futures type
+        (``FUTURE``/``FUTURE_OPTION``) so the caller can skip it with a
+        warning — and has a non-empty symbol.  ``CURRENCY`` legs are never
+        selected.  Returns ``None`` when the transaction has no such leg
+        (fee/interest/tax-only transactions).
+        """
         transfer_items = txn.get("transferItems")
         if not isinstance(transfer_items, list) or not transfer_items:
             raise ValueError("missing transferItems")
@@ -186,13 +208,16 @@ class SchwabJSONParser(BrokerParser):
             leg_instrument = leg.get("instrument")
             if not isinstance(leg_instrument, dict):
                 continue
+            asset_type = str(leg_instrument.get("assetType", "")).upper()
+            if asset_type not in _TRADE_ASSET_TYPES and asset_type not in _FUTURE_ASSET_TYPES:
+                continue
             symbol = str(leg_instrument.get("symbol", "")).strip()
             if symbol:
                 instrument_leg = leg
                 break
 
         if instrument_leg is None:
-            raise ValueError("transferItems has no instrument leg")
+            return None
 
         instrument = instrument_leg.get("instrument")
         assert isinstance(instrument, dict)
@@ -202,12 +227,36 @@ class SchwabJSONParser(BrokerParser):
             "amount": instrument_leg.get("amount") or instrument_leg.get("quantity"),
             "instruction": instrument_leg.get("instruction"),
             "assetType": instrument.get("assetType"),
+            "positionEffect": instrument_leg.get("positionEffect"),
+            "cost": instrument_leg.get("cost"),
         }
+
+    @staticmethod
+    def _normalize_activity_id(value: object) -> str:
+        """Normalize an activityId to a plain string id (no decimal suffix)."""
+        if value is None:
+            return ""
+        if isinstance(value, bool):
+            return ""
+        if isinstance(value, int):
+            return str(value)
+        if isinstance(value, float):
+            return str(int(value)) if value.is_integer() else str(value)
+        return str(value).strip()
+
+    def _parse_execution_datetime(self, txn: dict[str, object]) -> datetime:
+        """Resolve the execution timestamp with a ``time → tradeDate → transactionDate`` fallback."""
+        for key in ("time", "tradeDate", "transactionDate"):
+            value = txn.get(key)
+            if value:
+                return self._parse_datetime(str(value))
+        raise ValueError("missing execution datetime (time/tradeDate/transactionDate)")
 
     def _parse_datetime(self, value: str) -> datetime:
         if not value:
             raise ValueError("missing datetime field")
         normalized = value.replace("Z", "+00:00")
+        # Normalize a trailing numeric offset without a colon (e.g. "+0000" → "+00:00").
         if len(normalized) >= 5 and normalized[-5] in {"+", "-"} and normalized[-3] != ":":
             normalized = f"{normalized[:-2]}:{normalized[-2:]}"
         parsed = datetime.fromisoformat(normalized)
@@ -215,21 +264,53 @@ class SchwabJSONParser(BrokerParser):
             parsed = parsed.replace(tzinfo=UTC)
         return parsed.astimezone(UTC)
 
-    def _map_direction(self, instruction: object) -> Direction | None:
-        raw = str(instruction or "").upper()
-        if raw in {"BUY", "SELL", "BUY_TO_OPEN", "SELL_TO_CLOSE"}:
-            return Direction.LONG
-        if raw in {"SELL_SHORT", "BUY_TO_COVER", "SELL_TO_OPEN", "BUY_TO_CLOSE"}:
-            return Direction.SHORT
-        logger.warning("Unknown Schwab instruction: %s", raw)
-        return None
+    def _resolve_direction(
+        self,
+        *,
+        instruction: object,
+        cost: object,
+        position_effect: str,
+        net_amount: object,
+    ) -> Direction | None:
+        """Resolve the execution (buy/sell) direction for a trade leg.
 
-    def _map_execution_direction(self, instruction: object) -> Direction | None:
+        Prefers an explicit ``instruction`` (OPTION legs, legacy fixtures).
+        Otherwise derives the buy/sell action from the sign of ``cost``
+        (negative = buy, positive = sell), falling back to the sign of the
+        transaction ``netAmount`` when ``cost`` is absent or zero, then maps
+        the action to a :class:`~app.models.trade.Direction`.
+        """
         raw = str(instruction or "").upper()
-        if raw in {"BUY", "BUY_TO_COVER", "BUY_TO_OPEN", "BUY_TO_CLOSE"}:
-            return Direction.LONG
-        if raw in {"SELL", "SELL_SHORT", "SELL_TO_OPEN", "SELL_TO_CLOSE"}:
-            return Direction.SHORT
+        if raw:
+            if raw in {"BUY", "BUY_TO_COVER", "BUY_TO_OPEN", "BUY_TO_CLOSE"}:
+                return Direction.LONG
+            if raw in {"SELL", "SELL_SHORT", "SELL_TO_OPEN", "SELL_TO_CLOSE"}:
+                return Direction.SHORT
+            logger.warning("Unknown Schwab instruction: %s", raw)
+            return None
+
+        action = self._resolve_action(cost, net_amount)
+        if action is None:
+            return None
+        # Direction is the execution (buy/sell) side, disambiguated for
+        # FIFO by positionEffect elsewhere. cost<0 = buy, cost>0 = sell.
+        del position_effect
+        return Direction.LONG if action == "BUY" else Direction.SHORT
+
+    @staticmethod
+    def _resolve_action(cost: object, net_amount: object) -> str | None:
+        """Return ``"BUY"``/``"SELL"`` from the cost sign, falling back to netAmount."""
+        for candidate in (cost, net_amount):
+            if candidate is None:
+                continue
+            try:
+                value = Decimal(str(candidate))
+            except InvalidOperation:
+                continue
+            if value < 0:
+                return "BUY"
+            if value > 0:
+                return "SELL"
         return None
 
     def _map_asset_class(self, asset_type: object) -> AssetClass:
@@ -254,10 +335,11 @@ class SchwabJSONParser(BrokerParser):
             if fee_type not in _FEE_TYPES:
                 continue
             instrument = leg.get("instrument")
-            symbol = ""
+            asset_type = ""
             if isinstance(instrument, dict):
-                symbol = str(instrument.get("symbol", "")).strip()
-            if symbol:
+                asset_type = str(instrument.get("assetType", "")).upper()
+            # Fees are CURRENCY legs; never treat a trade leg as a fee.
+            if asset_type and asset_type != "CURRENCY":
                 continue
 
             try:
