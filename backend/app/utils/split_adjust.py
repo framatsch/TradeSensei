@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Helpers for split-adjusted execution values.
 
 This module intentionally mirrors the split math used by
@@ -25,7 +38,7 @@ def split_adjust_execution_values(
     executed_at: datetime,
     symbol: str,
     conid: str | None,
-    corporate_actions: Sequence["CorporateAction"],
+    corporate_actions: Sequence[CorporateAction],
 ) -> tuple[Decimal, Decimal]:
     """Return split-adjusted execution values for chart alignment.
 
@@ -54,7 +67,7 @@ def split_adjust_execution_values(
 
 
 def _matches_action(
-    action: "CorporateAction",
+    action: CorporateAction,
     symbol: str,
     conid: str | None,
 ) -> bool:

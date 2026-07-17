@@ -259,6 +259,21 @@ async def test_import_skips_suppressed_brt(mock_session: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_from_raw_copies_open_close(mock_session: AsyncMock) -> None:
+    """LogicalExecutionService.create_from_raw copies parser-derived open_close."""
+    svc = LogicalExecutionService(mock_session)
+    svc._execution_repo = AsyncMock()
+
+    raw = _make_raw(suppressed=False)
+    raw.open_close = "C"  # type: ignore[assignment]
+
+    logical = await svc.create_from_raw(raw)
+
+    assert logical is not None
+    assert logical.open_close == "C"
+
+
+@pytest.mark.asyncio
 async def test_import_bulk_create_counts_suppressed(mock_session: AsyncMock) -> None:
     """bulk_create_from_raw must report the number of suppressed BRTs skipped."""
     svc = LogicalExecutionService(mock_session)

@@ -187,6 +187,50 @@ def test_opt_reg_fee_is_included_in_commission() -> None:
 
 
 @pytest.mark.unit
+def test_schwab_open_close_mapping_opening_closing_and_absent() -> None:
+    """Schwab positionEffect maps to open_close: OPENING→O, CLOSING→C, absent→None."""
+    from app.utils.parsers.schwab_json import _derive_open_close
+
+    assert _derive_open_close("OPENING") == "O"
+    assert _derive_open_close("CLOSING") == "C"
+    assert _derive_open_close("") is None
+    assert _derive_open_close("SOMETHING") is None
+
+    parser = SchwabJSONParser()
+
+    opening_payload = _wrapped_payload(_equity_txn(activity_id=9001, position_effect="OPENING"))
+    opening_raw, _ = parser.parse_raw(json.dumps(opening_payload).encode("utf-8"), "opening.json")
+    assert len(opening_raw) == 1
+    assert opening_raw[0].open_close == "O"
+
+    closing_payload = _wrapped_payload(_equity_txn(activity_id=9002, position_effect="CLOSING"))
+    closing_raw, _ = parser.parse_raw(json.dumps(closing_payload).encode("utf-8"), "closing.json")
+    assert len(closing_raw) == 1
+    assert closing_raw[0].open_close == "C"
+
+    # positionEffect absent → open_close is None.
+    absent_txn = {
+        "activityId": 9003,
+        "type": "TRADE",
+        "status": "VALID",
+        "time": "2026-07-02T17:35:33+0000",
+        "netAmount": -1000.0,
+        "transferItems": [
+            {
+                "instrument": {"assetType": "EQUITY", "symbol": "AAPL"},
+                "amount": 10.0,
+                "cost": -1000.0,
+                "price": 100.0,
+            }
+        ],
+    }
+    absent_payload = _wrapped_payload(absent_txn)
+    absent_raw, _ = parser.parse_raw(json.dumps(absent_payload).encode("utf-8"), "absent.json")
+    assert len(absent_raw) == 1
+    assert absent_raw[0].open_close is None
+
+
+@pytest.mark.unit
 def test_real_export_regression_five_records_zero_warnings_and_cost_direction() -> None:
     parser = SchwabJSONParser()
     fixture = Path(__file__).resolve().parents[2] / "tests" / "test_data" / "schwab" / "schwab_transactions_real_trimmed.json"

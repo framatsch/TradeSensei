@@ -64,6 +64,23 @@ def decode_schwab_wrapped_payload(content: bytes) -> dict[str, object]:
     return payload
 
 
+def _derive_open_close(position_effect: str) -> str | None:
+    """Derive the per-leg open/close indicator from a Schwab ``positionEffect``.
+
+    Args:
+        position_effect: Upper-cased ``positionEffect`` value from the primary
+            trade leg (e.g. ``"OPENING"`` / ``"CLOSING"``).
+
+    Returns:
+        ``"O"`` for ``OPENING``, ``"C"`` for ``CLOSING``, otherwise ``None``.
+    """
+    if position_effect == "OPENING":
+        return "O"
+    if position_effect == "CLOSING":
+        return "C"
+    return None
+
+
 class SchwabJSONParser(BrokerParser):
     """Parse Schwab JSON transactions into broker raw transactions."""
 
@@ -162,6 +179,7 @@ class SchwabJSONParser(BrokerParser):
                     commission = self._extract_commission(txn)
                     asset_class = self._map_asset_class(instrument["assetType"])
                     pnl = Decimal("0") if position_effect == "CLOSING" else None
+                    open_close = _derive_open_close(position_effect)
 
                     raw_records.append(
                         BrokerRawTransactionCreate(
@@ -177,6 +195,7 @@ class SchwabJSONParser(BrokerParser):
                             pnl=pnl,
                             currency="USD",
                             multiplier=1,
+                            open_close=open_close,
                             raw_data=txn,
                         )
                     )

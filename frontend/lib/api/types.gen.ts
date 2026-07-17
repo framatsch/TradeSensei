@@ -1013,6 +1013,10 @@ export type BrokerRawTransactionRead = {
      */
     multiplier: number;
     /**
+     * Open Close
+     */
+    open_close?: string | null;
+    /**
      * Suppressed
      *
      * When True, permanently excluded from all future imports.
@@ -2150,6 +2154,12 @@ export type LogicalExecutionRead = {
      * Currency
      */
     currency?: string | null;
+    /**
+     * Open Close
+     *
+     * Opening/closing indicator: 'O' (opening), 'C' (closing), or null (mixed/unknown/manual)
+     */
+    open_close?: string | null;
     /**
      * Origin
      *

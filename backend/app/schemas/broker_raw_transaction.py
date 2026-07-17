@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.constants import (
     CURRENCY_LENGTH,
@@ -129,10 +129,22 @@ class BrokerRawTransactionCreate(BaseModel):
         ge=1,
         description="Contract multiplier (1 for equities, >1 for futures/options).",
     )
+    open_close: str | None = Field(
+        default=None,
+        description=("Opening/closing indicator derived by the broker parser: 'O' (opening), 'C' (closing), or None (mixed/unknown/manual)."),
+    )
     raw_data: dict[str, object] = Field(
         default_factory=dict,
         description="Full raw attribute dictionary from the broker source file.",
     )
+
+    @field_validator("open_close")
+    @classmethod
+    def _validate_open_close(cls, value: str | None) -> str | None:
+        """Restrict open_close to the allowed values 'O', 'C', or None."""
+        if value is not None and value not in ("O", "C"):
+            raise ValueError("open_close must be 'O', 'C', or None.")
+        return value
 
     @property
     def is_mixed_execution(self) -> bool:
@@ -181,5 +193,6 @@ class BrokerRawTransactionRead(BaseModel):
     pnl: Decimal | None = None
     currency: str | None = None
     multiplier: int
+    open_close: str | None = None
     suppressed: bool = Field(description="When True, permanently excluded from all future imports.")
     created_at: datetime

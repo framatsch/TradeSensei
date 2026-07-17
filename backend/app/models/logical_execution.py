@@ -237,6 +237,15 @@ class LogicalExecution(Base):
             " to leave a new open lot rather than treating the remainder as orphaned."
         ),
     )
+    open_close: Mapped[str | None] = mapped_column(
+        String(1),
+        nullable=True,
+        comment=(
+            "Opening/closing indicator derived by the broker parser: 'O' (opening),"
+            " 'C' (closing), or NULL (mixed/unknown/manual). Populated from IBKR"
+            " openCloseIndicator or Schwab positionEffect."
+        ),
+    )
     source_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,

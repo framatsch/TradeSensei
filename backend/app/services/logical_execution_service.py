@@ -116,6 +116,7 @@ class LogicalExecutionService:
             origin=EXECUTION_ORIGIN_IMPORTED,
             multiplier=raw.multiplier,
             is_mixed_execution=is_mixed,
+            open_close=raw.open_close,
             source_id=raw.id,
         )
         self._session.add(logical)

@@ -634,6 +634,7 @@ export interface LogicalExecution {
   parent_id: string | null;
   currency: string | null;
   multiplier: number;
+  open_close?: "O" | "C" | null;
   created_at: string;
   updated_at: string;
 }

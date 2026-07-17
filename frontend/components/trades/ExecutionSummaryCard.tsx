@@ -54,6 +54,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
       {
         symbol: string;
         assetClass: string;
+        conid: string | null;
         multiplier: number;
         direction: "LONG" | "SHORT";
         firstSeenAt: number;
@@ -69,7 +70,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
     let hasBrokerPnl = false;
 
     for (const execution of activeExecutions) {
-      const key = `${execution.symbol}:${execution.asset_class}`;
+      const key = `${execution.symbol}:${execution.asset_class}:${execution.conid ?? "none"}`;
       const qty = parseFloat(execution.raw_quantity);
       const price = parseFloat(execution.raw_price);
       const multiplier = execution.multiplier;
@@ -93,6 +94,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         grouped.set(key, {
           symbol: execution.symbol,
           assetClass: execution.asset_class,
+          conid: execution.conid,
           multiplier,
           direction: execution.direction,
           firstSeenAt,
@@ -153,7 +155,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={`${row.symbol}-${row.assetClass}`} className="border-b border-border/60 last:border-b-0">
+                <tr key={`${row.symbol}-${row.assetClass}-${row.conid ?? "none"}`} className="border-b border-border/60 last:border-b-0">
                   <td className="px-3 py-2">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-muted text-foreground border border-border">
                       {row.direction}
@@ -161,6 +163,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
                   </td>
                   <td className="px-3 py-2 text-foreground">
                     {row.symbol} {row.assetClass}
+                    {row.conid && <span className="ml-1 text-xs text-muted-foreground">({row.conid})</span>}
                   </td>
                   <td className="px-3 py-2 text-right text-foreground">
                     {fmtQty(row.quantity)} {row.multiplier > 1 ? "contracts" : "shares"}

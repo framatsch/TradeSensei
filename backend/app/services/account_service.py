@@ -32,8 +32,7 @@ from app.schemas.account import (
     AccountUpdate,
 )
 from app.schemas.common import CursorPage
-from app.utils.encryption import encrypt_token
-from app.utils.encryption import decrypt_token
+from app.utils.encryption import decrypt_token, encrypt_token
 
 
 def _build_account_read(account: object, has_props: bool) -> AccountRead:

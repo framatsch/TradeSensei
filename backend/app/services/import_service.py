@@ -75,6 +75,7 @@ from app.utils.parsers.aggregator import (
     SeedLotLike,
     TradeCreateWithSources,
     aggregate_executions_fifo_with_sources,
+    build_combo_positions,
     logical_executions_to_trade_creates,
 )
 from app.utils.parsers.base import BrokerParser
@@ -223,6 +224,7 @@ class ImportService:
             portfolio_id,
         )
         open_lot_ids = {lot.id for lot in open_lots}
+        has_open_combo_seed_positions = False
 
         # Load all existing orphaned lots (closed, but no entry leg).
         orphaned_lots = await self._trade_repo.list_orphaned_lots_by_user(
@@ -307,6 +309,14 @@ class ImportService:
                 use_raw_pipeline = False
 
         if use_raw_pipeline:
+            if account_id is not None:
+                open_combo_positions = await self._trade_repo.list_open_combo_positions_by_user(
+                    user_id=user_id,
+                    portfolio_id=portfolio_id,
+                    account_id=account_id,
+                )
+                has_open_combo_seed_positions = bool(open_combo_positions)
+
             for ca in parsed_corporate_actions:
                 existing = await self._ca_repo.find_by_user_symbol_date_ratio(
                     user_id=user_id,
@@ -382,22 +392,38 @@ class ImportService:
             parsed_trades = await self._collect_trade_creates_from_logical_batches(
                 user_id=user_id,
                 account_id=account_id,
+                include_existing_trade_ids=has_open_combo_seed_positions,
             )
 
             # Run FIFO aggregation from the logical layer only.
             # Do not seed with existing trades in DB; for raw-pipeline imports we
             # rebuild the trade projection from logical executions.
+            # Partition combo-eligible executions before FIFO so combo legs are not
+            # collapsed into single-instrument round-trips.
+            seed_combo_trades = await self._build_seed_combo_execution_trades(
+                user_id=user_id,
+                portfolio_id=portfolio_id,
+                account_id=account_id,
+                existing_source_ids={row.source_execution_id for row in parsed_trades if row.source_execution_id is not None},
+            )
+            combo_build_result = build_combo_positions([*seed_combo_trades, *parsed_trades])
             # Use the enhanced aggregation to track source executions
             # for split-aware linking.
-            trades_with_sources = aggregate_executions_fifo_with_sources(
-                parsed_trades,
+            fifo_trades_with_sources = aggregate_executions_fifo_with_sources(
+                combo_build_result.fifo_executions,
                 corporate_actions=ca_for_parser,
                 seed_open_lots=None,
                 seed_orphaned_lots=None,
             )
+            trades_with_sources = sorted(
+                [*combo_build_result.combo_trades, *fifo_trades_with_sources],
+                key=lambda tws: tws.trade_create.opened_at,
+            )
+            parser_warnings += combo_build_result.warnings
 
             # Extract plain TradeCreate objects for the existing trade processing logic
             parsed_trades = [tws.trade_create for tws in trades_with_sources]
+
         else:
             # ── Legacy pipeline (fallback) ────────────────────────────────────
             parsed_trades, _ = parser.parse(
@@ -421,11 +447,13 @@ class ImportService:
         raw_projection_rebuild = use_raw_pipeline and account_id is not None
 
         if raw_projection_rebuild and account_id is not None:
-            await self._trade_repo.delete_by_user_account(
-                user_id=user_id,
-                account_id=account_id,
-                include_manually_edited=overwrite_manually_edited,
-            )
+            should_preserve_existing_trades = use_raw_pipeline and has_open_combo_seed_positions
+            if not should_preserve_existing_trades:
+                await self._trade_repo.delete_by_user_account(
+                    user_id=user_id,
+                    account_id=account_id,
+                    include_manually_edited=overwrite_manually_edited,
+                )
         # Track db_trade_ids that have already been updated once.  If the same
         # seed lot appears more than once in parsed_trades (partial close split),
         # the first occurrence issues an UPDATE; subsequent occurrences become
@@ -438,6 +466,71 @@ class ImportService:
                 match_key = (trade_data.broker_conid, trade_data.opened_at)
                 if match_key in manually_edited_keys:
                     trades_skipped_manually_edited += 1
+                    continue
+
+                db_trade_id = trade_data.db_trade_id
+                if db_trade_id is not None:
+                    if db_trade_id in open_lot_ids or db_trade_id in orphaned_lot_ids:
+                        is_orphan = db_trade_id in orphaned_lot_ids
+                        is_ready_to_close = (
+                            trade_data.closed_at is not None
+                            and (
+                                trade_data.is_combo
+                                or (
+                                    trade_data.exit_price is not None
+                                    and trade_data.entry_price != Decimal("0.001")
+                                )
+                            )
+                        )
+                        if is_ready_to_close and db_trade_id not in already_updated_ids:
+                            try:
+                                if is_orphan:
+                                    await self._trade_repo.fill_orphaned_lot(
+                                        trade_id=db_trade_id,
+                                        user_id=user_id,
+                                        entry_price=cast(Decimal, trade_data.entry_price),
+                                        opened_at=trade_data.opened_at,
+                                        pnl=trade_data.pnl,
+                                        pnl_eur=trade_data.pnl_eur,
+                                        net_pnl=trade_data.net_pnl,
+                                        net_pnl_eur=trade_data.net_pnl_eur,
+                                        commission_add=trade_data.commission,
+                                        quantity=cast(Decimal, trade_data.quantity),
+                                    )
+                                elif trade_data.is_combo:
+                                    await self._trade_repo.close_open_combo_trade(
+                                        trade_id=db_trade_id,
+                                        user_id=user_id,
+                                        closed_at=cast(datetime, trade_data.closed_at),
+                                        pnl=trade_data.pnl,
+                                        pnl_eur=trade_data.pnl_eur,
+                                        net_pnl=trade_data.net_pnl,
+                                        net_pnl_eur=trade_data.net_pnl_eur,
+                                        commission_total=trade_data.commission,
+                                    )
+                                else:
+                                    await self._trade_repo.close_open_lot(
+                                        trade_id=db_trade_id,
+                                        user_id=user_id,
+                                        exit_price=cast(Decimal, trade_data.exit_price),
+                                        closed_at=cast(datetime, trade_data.closed_at),
+                                        pnl=trade_data.pnl,
+                                        pnl_eur=trade_data.pnl_eur,
+                                        net_pnl=trade_data.net_pnl,
+                                        net_pnl_eur=trade_data.net_pnl_eur,
+                                        commission_add=trade_data.commission,
+                                        quantity=cast(Decimal, trade_data.quantity),
+                                    )
+                                already_updated_ids.add(db_trade_id)
+                                trades_updated += 1
+                            except Exception as exc:  # noqa: BLE001
+                                msg = f"Failed to update combo/seed trade {db_trade_id} ({trade_data.symbol}): {exc}"
+                                logger.warning(msg)
+                                create_warnings.append(msg)
+
+                    existing_trade = await self._trade_repo.get_by_id(db_trade_id, user_id)
+                    if existing_trade is not None and i < len(trades_with_sources):
+                        trades_with_sources[i].created_trade = existing_trade
                     continue
 
                 trade_with_owner = trade_data.model_copy(
@@ -1226,6 +1319,7 @@ class ImportService:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None,
+        include_existing_trade_ids: bool = False,
     ) -> list[TradeCreate]:
         """Collect converted TradeCreate rows from paged logical executions.
 
@@ -1240,6 +1334,7 @@ class ImportService:
         async for trade_batch in self._iter_trade_creates_from_logical_batches(
             user_id=user_id,
             account_id=account_id,
+            include_existing_trade_ids=include_existing_trade_ids,
         ):
             collected.extend(trade_batch)
         return collected
@@ -1248,6 +1343,7 @@ class ImportService:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None,
+        include_existing_trade_ids: bool = False,
     ) -> AsyncIterator[list[TradeCreate]]:
         """Yield converted TradeCreate rows in bounded batches.
 
@@ -1269,10 +1365,67 @@ class ImportService:
             if not logical_batch:
                 return
             trade_batch = logical_executions_to_trade_creates(cast(list[ExecutionLike], logical_batch))
+
+            raw_ids = [row.source_id for row in logical_batch if row.source_id]
+            combo_meta_by_raw_id = await self._raw_repo.get_combo_order_meta_by_raw_ids(raw_ids)
+
+            for logical_row, trade_row in zip(logical_batch, trade_batch, strict=False):
+                source_id = logical_row.source_id
+                if source_id:
+                    combo_meta = combo_meta_by_raw_id.get(source_id)
+                    if combo_meta is not None:
+                        trade_row.broker_order_id = cast(str | None, combo_meta.get("brokerageOrderID"))
+                        trade_row.net_cash = cast(Decimal | None, combo_meta.get("netCash"))
+                trade_row.open_close = logical_row.open_close
+                if include_existing_trade_ids:
+                    trade_row.db_trade_id = logical_row.trade_id
+
             yield trade_batch
             if len(logical_batch) < IMPORT_EXECUTIONS_BATCH_SIZE:
                 return
             offset += IMPORT_EXECUTIONS_BATCH_SIZE
+
+    async def _build_seed_combo_execution_trades(
+        self,
+        *,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+        existing_source_ids: set[uuid.UUID | str],
+    ) -> list[TradeCreate]:
+        """Build TradeCreate seed legs for open COMBO trades.
+
+        These seed rows carry ``db_trade_id`` so a later close can update the
+        existing open COMBO trade instead of inserting a duplicate.
+        """
+        open_combo_trades = await self._trade_repo.list_open_combo_positions_by_user(
+            user_id=user_id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+        )
+
+        opening_legs: list[LogicalExecution] = []
+        leg_meta: dict[uuid.UUID, tuple[uuid.UUID, str | None]] = {}
+        for trade in open_combo_trades:
+            for leg in trade.logical_executions:
+                if leg.deleted or leg.open_close != "O":
+                    continue
+                if leg.id in existing_source_ids:
+                    continue
+                opening_legs.append(leg)
+                leg_meta[leg.id] = (trade.id, trade.broker_order_id)
+
+        if not opening_legs:
+            return []
+
+        seed_rows = logical_executions_to_trade_creates(cast(list[ExecutionLike], opening_legs))
+        for leg, row in zip(opening_legs, seed_rows, strict=False):
+            db_trade_id, broker_order_id = leg_meta[leg.id]
+            row.db_trade_id = db_trade_id
+            row.broker_order_id = broker_order_id
+            row.open_close = leg.open_close
+
+        return seed_rows
 
     def _decode_schwab_payload(self, content: bytes) -> dict[str, object]:
         return decode_schwab_wrapped_payload(content)

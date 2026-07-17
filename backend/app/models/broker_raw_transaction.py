@@ -168,6 +168,15 @@ class BrokerRawTransaction(Base):
         server_default="1",
         comment="Contract multiplier (1 for equities, >1 for futures/options).",
     )
+    open_close: Mapped[str | None] = mapped_column(
+        String(1),
+        nullable=True,
+        comment=(
+            "Opening/closing indicator derived by the broker parser: 'O' (opening),"
+            " 'C' (closing), or NULL (mixed/unknown/manual). Populated from IBKR"
+            " openCloseIndicator or Schwab positionEffect."
+        ),
+    )
     raw_data: Mapped[dict[str, object]] = mapped_column(
         JSONB,
         nullable=False,

@@ -172,6 +172,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                   <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Side</th>
                   {trade.is_combo && (
                     <>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Open/Close</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Symbol</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Asset Class</th>
                     </>

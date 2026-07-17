@@ -292,6 +292,16 @@ class TradeCreate(BaseModel):
         exclude=True,
         description=("Internal flag — set when IBKR openCloseIndicator='C;O'. Tells the aggregator this execution flips the position."),
     )
+    open_close: str | None = Field(
+        default=None,
+        exclude=True,
+        description=("Internal field — per-leg open/close marker ('O'/'C'/None) derived by broker parsers."),
+    )
+    net_cash: Decimal | None = Field(
+        default=None,
+        exclude=True,
+        description=("Internal field — raw-leg net cash value used for combo direction derivation."),
+    )
     source_execution_id: uuid.UUID | str | None = Field(
         default=None,
         exclude=True,

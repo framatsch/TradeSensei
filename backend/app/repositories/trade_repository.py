@@ -1131,6 +1131,44 @@ class TradeRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_open_combo_positions_by_user(
+        self,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+        account_id: uuid.UUID | None = None,
+    ) -> list[Trade]:
+        """Return open COMBO trades with non-deleted opening legs loaded.
+
+        Open COMBO positions are ``is_combo = true`` trades with ``closed_at IS NULL``.
+        Their logical executions are eager-loaded so callers can derive the
+        contract set from opening legs (`open_close='O'`, `deleted=false`).
+        """
+        stmt = (
+            _trade_query_with_eager_loads()
+            .where(
+                Trade.user_id == user_id,
+                Trade.is_combo.is_(True),
+                Trade.closed_at.is_(None),
+            )
+            .order_by(Trade.opened_at.asc())
+        )
+
+        if account_id is not None:
+            stmt = stmt.where(Trade.account_id == account_id)
+
+        if portfolio_id is not None:
+            stmt = (
+                stmt.join(Account, Trade.account_id == Account.id)
+                .join(Portfolio, Account.portfolio_id == Portfolio.id)
+                .where(
+                    Account.portfolio_id == portfolio_id,
+                    Portfolio.user_id == user_id,
+                )
+            )
+
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_orphaned_lots_by_user(
         self,
         user_id: uuid.UUID,
@@ -1248,6 +1286,41 @@ class TradeRepository:
                 net_pnl_eur=net_pnl_eur,
                 commission=Trade.commission + commission_add,
                 quantity=quantity,
+            )
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def close_open_combo_trade(
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        closed_at: datetime,
+        pnl: Decimal | None,
+        pnl_eur: Decimal | None,
+        net_pnl: Decimal | None,
+        net_pnl_eur: Decimal | None,
+        commission_total: Decimal,
+    ) -> None:
+        """Close an existing open COMBO trade in-place.
+
+        Updates close-related rollup fields while preserving nullable COMBO header
+        fields (entry/exit/quantity remain null).
+        """
+        stmt = (
+            sa_update(Trade)
+            .where(
+                Trade.id == trade_id,
+                Trade.user_id == user_id,
+                Trade.is_combo.is_(True),
+            )
+            .values(
+                closed_at=closed_at,
+                pnl=pnl,
+                pnl_eur=pnl_eur,
+                net_pnl=net_pnl,
+                net_pnl_eur=net_pnl_eur,
+                commission=commission_total,
             )
         )
         await self._session.execute(stmt)

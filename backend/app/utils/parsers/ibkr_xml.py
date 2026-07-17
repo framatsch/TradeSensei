@@ -180,6 +180,28 @@ def _safe_decimal(value: str | None, default: Decimal = Decimal("0")) -> Decimal
         return default
 
 
+def _derive_open_close(open_close_indicator: str) -> str | None:
+    """Derive the per-leg open/close indicator from IBKR ``openCloseIndicator``.
+
+    IBKR reports ``openCloseIndicator`` as ``"O"``, ``"C"``, or a mixed value
+    (``"C;O"`` / ``"O;C"``) for a position flip.
+
+    Args:
+        open_close_indicator: Upper-cased ``openCloseIndicator`` attribute value.
+
+    Returns:
+        ``"O"`` when the indicator contains ``O`` but not ``C``; ``"C"`` when it
+        contains ``C`` but not ``O``; otherwise ``None`` (mixed or empty).
+    """
+    has_open = "O" in open_close_indicator
+    has_close = "C" in open_close_indicator
+    if has_open and not has_close:
+        return "O"
+    if has_close and not has_open:
+        return "C"
+    return None
+
+
 class IBKRXMLParser(BrokerParser):
     """Parser for IBKR Flex Query XML responses.
 
@@ -519,6 +541,7 @@ class IBKRXMLParser(BrokerParser):
             is_pure_close = "C" in open_close_raw and "O" not in open_close_raw
             pnl: Decimal | None = pnl_raw if (pnl_raw != Decimal("0") or is_pure_close) else None
             currency = (elem.get("currency") or "").upper().strip() or "USD"
+            open_close = _derive_open_close(open_close_raw)
 
             raw_id = self._build_raw_id(elem, symbol, executed_at, quantity)
 
@@ -536,6 +559,7 @@ class IBKRXMLParser(BrokerParser):
                 pnl=pnl,
                 currency=currency,
                 multiplier=multiplier,
+                open_close=open_close,
                 raw_data=dict(elem.attrib),
             )
         except (ValueError, InvalidOperation, OverflowError) as exc:
@@ -602,6 +626,7 @@ class IBKRXMLParser(BrokerParser):
             gen_comm = abs(_safe_decimal(elem.get("commission")))
             commission = max(ib_comm, gen_comm)
             currency = (elem.get("currency") or "").upper().strip() or "USD"
+            open_close = _derive_open_close((elem.get("openCloseIndicator") or "").upper())
 
             raw_id = self._build_raw_id(elem, symbol, executed_at, quantity)
 
@@ -617,6 +642,7 @@ class IBKRXMLParser(BrokerParser):
                 commission=commission,
                 executed_at=executed_at,
                 currency=currency,
+                open_close=open_close,
                 raw_data=dict(elem.attrib),
             )
         except (ValueError, InvalidOperation, OverflowError) as exc:

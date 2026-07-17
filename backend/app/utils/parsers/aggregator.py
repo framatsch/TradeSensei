@@ -76,6 +76,229 @@ class TradeCreateWithSources:
     created_trade: "Trade | None" = None  # Set after DB insert
 
 
+@dataclass(slots=True)
+class ComboBuildResult:
+    """Result bundle returned by :func:`build_combo_positions`.
+
+    Attributes:
+        combo_trades: COMBO trades synthesized from combo-eligible executions.
+        fifo_executions: Non-combo executions that should continue through FIFO.
+        warnings: Non-fatal matching/anomaly warnings.
+    """
+
+    combo_trades: list[TradeCreateWithSources]
+    fifo_executions: list[TradeCreate]
+    warnings: list[str]
+
+
+@dataclass(slots=True)
+class _ComboOrderGroup:
+    order_id: str
+    legs: list[TradeCreate]
+
+
+@dataclass(slots=True)
+class _OpenComboPosition:
+    symbol: str
+    order_id: str
+    contract_set: tuple[str, ...]
+    quantities_by_conid: dict[str, Decimal]
+    open_legs: list[TradeCreate]
+    close_legs: list[TradeCreate]
+    opening_net_cash: Decimal
+    db_trade_id: uuid.UUID | None = None
+    anomalous_close_attached: bool = False
+
+
+def _combo_contract_key(legs: Sequence[TradeCreate]) -> tuple[tuple[str, Decimal], ...]:
+    quantities: dict[str, Decimal] = {}
+    for leg in legs:
+        conid = leg.broker_conid
+        if conid is None:
+            continue
+        quantities[conid] = quantities.get(conid, Decimal("0")) + abs(leg.quantity or Decimal("0"))
+    return tuple(sorted((conid, qty) for conid, qty in quantities.items()))
+
+
+def _derive_combo_direction(opening_net_cash: Decimal) -> Direction:
+    # Net cash out (debit) => LONG, net cash in (credit) => SHORT.
+    if opening_net_cash > Decimal("0"):
+        return Direction.SHORT
+    return Direction.LONG
+
+
+def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult:
+    """Build COMBO trades from enriched execution rows.
+
+    Expected internal fields on each input execution:
+    - ``broker_order_id`` (order-level grouping key)
+    - ``open_close`` ("O" | "C" | None)
+    - ``broker_conid``
+    - ``net_cash``
+    - ``source_execution_id``
+
+    Executions that are not combo-eligible are returned unchanged in
+    ``fifo_executions``.
+    """
+
+    by_order: dict[str, list[TradeCreate]] = {}
+    for execution in executions:
+        order_id = execution.broker_order_id
+        if not order_id:
+            continue
+        by_order.setdefault(order_id, []).append(execution)
+
+    combo_groups: list[_ComboOrderGroup] = []
+    combo_leg_ids: set[uuid.UUID | str] = set()
+    for order_id, legs in by_order.items():
+        distinct_conids = {leg.broker_conid for leg in legs if leg.broker_conid is not None}
+        if len(distinct_conids) < 2:
+            continue
+        combo_groups.append(_ComboOrderGroup(order_id=order_id, legs=sorted(legs, key=lambda l: l.opened_at)))
+        for leg in legs:
+            if leg.source_execution_id is not None:
+                combo_leg_ids.add(leg.source_execution_id)
+
+    fifo_executions = [
+        execution
+        for execution in executions
+        if execution.source_execution_id not in combo_leg_ids
+    ]
+
+    open_positions: list[_OpenComboPosition] = []
+    warnings: list[str] = []
+
+    sorted_groups = sorted(
+        combo_groups,
+        key=lambda group: min((leg.opened_at for leg in group.legs), default=datetime.min.replace(tzinfo=UTC)),
+    )
+
+    for group in sorted_groups:
+        markers = {getattr(leg, "open_close", None) for leg in group.legs}
+        non_null_markers = {marker for marker in markers if marker in {"O", "C"}}
+        if len(non_null_markers) != 1:
+            warnings.append(
+                f"Combo order {group.order_id} has mixed/unknown open_close markers; skipped combo matching for this order."
+            )
+            continue
+
+        marker = next(iter(non_null_markers))
+        contract_key = _combo_contract_key(group.legs)
+        contract_set = tuple(conid for conid, _ in contract_key)
+        quantities_by_conid = {conid: qty for conid, qty in contract_key}
+        symbol = group.legs[0].symbol
+
+        if marker == "O":
+            opening_net_cash = sum(
+                (
+                    cast(Decimal, getattr(leg, "net_cash", Decimal("0")) or Decimal("0"))
+                    for leg in group.legs
+                ),
+                Decimal("0"),
+            )
+            open_positions.append(
+                _OpenComboPosition(
+                    symbol=symbol,
+                    order_id=group.order_id,
+                    contract_set=contract_set,
+                    quantities_by_conid=quantities_by_conid,
+                    open_legs=list(group.legs),
+                    close_legs=[],
+                    opening_net_cash=opening_net_cash,
+                    db_trade_id=next((leg.db_trade_id for leg in group.legs if leg.db_trade_id is not None), None),
+                )
+            )
+            continue
+
+        # marker == "C" => attempt exact match against earliest open position.
+        matched_position: _OpenComboPosition | None = None
+        for position in open_positions:
+            if position.close_legs:
+                continue
+            if position.contract_set != contract_set:
+                continue
+            if position.quantities_by_conid != quantities_by_conid:
+                continue
+            matched_position = position
+            break
+
+        if matched_position is not None:
+            matched_position.close_legs.extend(group.legs)
+            continue
+
+        same_symbol_open = [position for position in open_positions if position.symbol == symbol and not position.close_legs]
+        expected_sets = [set(position.contract_set) for position in same_symbol_open]
+        received_set = set(contract_set)
+        warnings.append(
+            "Unmatched combo close order "
+            f"{group.order_id}: expected one of {expected_sets or '[]'}, received {received_set}."
+        )
+
+        # Keep behavior loud and debuggable: do not reroute into FIFO.
+        # If exactly one open combo exists for the same underlying, attach anomalous
+        # close legs to preserve leg visibility while keeping the position logically open.
+        if len(same_symbol_open) == 1:
+            same_symbol_open[0].close_legs.extend(group.legs)
+            same_symbol_open[0].anomalous_close_attached = True
+
+    combo_trades: list[TradeCreateWithSources] = []
+    for position in open_positions:
+        legs = [*position.open_legs, *position.close_legs]
+        opened_at = min(leg.opened_at for leg in position.open_legs)
+        closed_at: datetime | None = None
+        if position.close_legs and not position.anomalous_close_attached:
+            closed_at = max(leg.opened_at for leg in position.close_legs)
+
+        total_commission = sum(((leg.commission or Decimal("0")) for leg in legs), Decimal("0"))
+        closing_pnls = [leg.pnl for leg in position.close_legs if leg.pnl is not None]
+        pnl = sum(closing_pnls, Decimal("0")) if closing_pnls and not position.anomalous_close_attached else None
+        net_pnl = (pnl - total_commission) if pnl is not None else None
+
+        combo_trade = TradeCreate(
+            symbol=position.symbol,
+            direction=_derive_combo_direction(position.opening_net_cash),
+            is_combo=True,
+            asset_class=None,
+            quantity=None,
+            entry_price=None,
+            exit_price=None,
+            commission=total_commission,
+            opened_at=opened_at,
+            closed_at=closed_at,
+            pnl=pnl,
+            net_pnl=net_pnl,
+            currency=position.open_legs[0].currency,
+            broker_order_id=position.order_id,
+            db_trade_id=position.db_trade_id,
+        )
+
+        source_allocations: list[ExecutionAllocation] = []
+        for leg in legs:
+            if leg.source_execution_id is None:
+                continue
+            source_allocations.append(
+                ExecutionAllocation(
+                    execution_id=leg.source_execution_id,
+                    quantity_used=leg.quantity or Decimal("0"),
+                    commission_used=leg.commission or Decimal("0"),
+                    entry_price=leg.entry_price or Decimal("0"),
+                )
+            )
+
+        combo_trades.append(
+            TradeCreateWithSources(
+                trade_create=combo_trade,
+                source_executions=source_allocations,
+            )
+        )
+
+    return ComboBuildResult(
+        combo_trades=combo_trades,
+        fifo_executions=fifo_executions,
+        warnings=warnings,
+    )
+
+
 class CorporateActionLike(Protocol):
     """Structural protocol for corporate-action objects accepted by the aggregator.
 

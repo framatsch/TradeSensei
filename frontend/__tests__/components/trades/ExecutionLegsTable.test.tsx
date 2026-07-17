@@ -128,4 +128,52 @@ describe("ExecutionLegsTable", () => {
     expect(screen.getByText("Allocated")).toBeInTheDocument();
     expect(screen.getByText("Split Child")).toBeInTheDocument();
   });
+
+  it("renders Open/Close column and values for combo legs", () => {
+    const comboTrade: Trade = {
+      ...baseTrade,
+      is_combo: true,
+      symbol: "QQQ",
+      asset_class: null,
+      quantity: null,
+      entry_price: null,
+      position_id: null,
+    };
+
+    const legs: LogicalExecution[] = [
+      {
+        ...splitExecution,
+        id: "leg-1",
+        symbol: "QQQ 712C",
+        asset_class: "OPTION",
+        conid: "878467678",
+        direction: "LONG",
+        open_close: "O",
+      },
+      {
+        ...splitExecution,
+        id: "leg-2",
+        symbol: "QQQ 722C",
+        asset_class: "OPTION",
+        conid: "884162799",
+        direction: "SHORT",
+        open_close: "C",
+      },
+    ];
+
+    useTradeExecutions.mockReturnValue({
+      data: legs,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<ExecutionLegsTable tradeId="trade-1" trade={comboTrade} />);
+
+    expect(screen.getByText("Open/Close")).toBeInTheDocument();
+    expect(screen.getByText("Open")).toBeInTheDocument();
+    expect(screen.getByText("Close")).toBeInTheDocument();
+    expect(screen.getByText("QQQ 712C")).toBeInTheDocument();
+    expect(screen.getByText("QQQ 722C")).toBeInTheDocument();
+  });
 });

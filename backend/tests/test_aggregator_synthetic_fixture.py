@@ -145,6 +145,47 @@ def test_s5_co_mixed_execution_flag_is_set() -> None:
     assert nflx_co.quantity == Decimal("15"), f"Expected qty=15 for the C;O NFLX record, got {nflx_co.quantity}"
 
 
+@pytest.mark.unit
+def test_ibkr_open_close_mapping_o_c_and_mixed() -> None:
+    """IBKR openCloseIndicator maps to open_close: O, C, and mixed→None."""
+    from app.utils.parsers.ibkr_xml import IBKRXMLParser as _Parser
+    from app.utils.parsers.ibkr_xml import _derive_open_close
+
+    # Direct helper coverage for all branches.
+    assert _derive_open_close("O") == "O"
+    assert _derive_open_close("C") == "C"
+    assert _derive_open_close("C;O") is None
+    assert _derive_open_close("O;C") is None
+    assert _derive_open_close("") is None
+
+    parser = _Parser()
+    raw, _ = parser.parse_raw(_YEAR1_XML.read_bytes(), _YEAR1_XML.name)
+
+    # An opening leg (AAPL BUY, openCloseIndicator=O) must be "O".
+    aapl_open = next(
+        (r for r in raw if r.symbol == "AAPL" and str(r.direction).upper() == "LONG"),
+        None,
+    )
+    assert aapl_open is not None
+    assert aapl_open.open_close == "O"
+
+    # A pure closing leg (GOOG breakeven close, openCloseIndicator=C) must be "C".
+    goog_close = next(
+        (r for r in raw if r.symbol == "GOOG" and str(r.direction).upper() == "SHORT"),
+        None,
+    )
+    assert goog_close is not None
+    assert goog_close.open_close == "C"
+
+    # The C;O NFLX flip must map to None (mixed).
+    nflx_co = next(
+        (r for r in raw if r.symbol == "NFLX" and r.is_mixed_execution),
+        None,
+    )
+    assert nflx_co is not None
+    assert nflx_co.open_close is None
+
+
 def test_all_positions_closed_after_both_files() -> None:
     """After aggregating both fixture files there must be no open positions."""
     trades = _ground_truth_trades()

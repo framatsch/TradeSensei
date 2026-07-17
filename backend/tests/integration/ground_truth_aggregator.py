@@ -31,12 +31,15 @@ from collections import defaultdict
 from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
+from typing import cast
 
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import (
+    ExecutionLike,
     aggregate_executions_fifo,
+    build_combo_positions,
     logical_executions_to_trade_creates,
 )
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
@@ -80,7 +83,7 @@ def _stable_sort_executions(
     return sorted(records, key=lambda r: (r.executed_at, r.id))
 
 
-def aggregate_files_yearly(paths: Iterable[Path]) -> dict[str, dict]:
+def aggregate_files_yearly(paths: Iterable[Path]) -> dict[int, dict[str, Decimal | int]]:
     """Aggregate yearly net PnL across multiple Flex Query XML files.
 
     Only trade-level net P&L is included (entry/exit prices minus per-trade
@@ -93,7 +96,7 @@ def aggregate_files_yearly(paths: Iterable[Path]) -> dict[str, dict]:
 
     sorted_raw_records = _stable_sort_executions(raw_records)
     execution_trades: list[TradeCreate] = logical_executions_to_trade_creates(
-        sorted_raw_records
+        cast(list[ExecutionLike], sorted_raw_records)
     )
     aggregated_trades = aggregate_executions_fifo(
         execution_trades, corporate_actions=corporate_actions
@@ -103,6 +106,49 @@ def aggregate_files_yearly(paths: Iterable[Path]) -> dict[str, dict]:
     yearly_trades: dict[int, int] = defaultdict(int)
 
     for trade in aggregated_trades:
+        if trade.closed_at is None:
+            continue
+        value = trade.net_pnl if trade.net_pnl is not None else trade.pnl
+        if value is not None:
+            yearly_total[trade.closed_at.year] += _quantize_db(value)
+            yearly_trades[trade.closed_at.year] += 1
+
+    return {
+        year: {"pnl": _quantize_db(value), "trades": yearly_trades[year]}
+        for year, value in sorted(yearly_total.items(), key=lambda kv: kv[0])
+    }
+
+
+def aggregate_files_yearly_with_combos(paths: Iterable[Path]) -> dict[int, dict[str, Decimal | int]]:
+    """Aggregate yearly P&L with combo grouping enabled.
+
+    This runs the same parse + FIFO path as :func:`aggregate_files_yearly`, but
+    first partitions combo-eligible executions and groups them via
+    :func:`build_combo_positions`.
+    """
+    raw_records, corporate_actions = _parse_raw_files(paths)
+    sorted_raw_records = _stable_sort_executions(raw_records)
+
+    execution_trades: list[TradeCreate] = logical_executions_to_trade_creates(
+        cast(list[ExecutionLike], sorted_raw_records)
+    )
+    for raw, trade in zip(sorted_raw_records, execution_trades, strict=False):
+        trade.broker_order_id = str(raw.raw_data.get("brokerageOrderID") or "") or None
+        trade.open_close = raw.open_close
+        net_cash_raw = raw.raw_data.get("netCash")
+        trade.net_cash = Decimal(str(net_cash_raw)) if net_cash_raw is not None else None
+
+    combo_result = build_combo_positions(execution_trades)
+    fifo_trades = aggregate_executions_fifo(
+        combo_result.fifo_executions,
+        corporate_actions=corporate_actions,
+    )
+    combo_trades = [row.trade_create for row in combo_result.combo_trades]
+    all_trades = [*combo_trades, *fifo_trades]
+
+    yearly_total: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
+    yearly_trades: dict[int, int] = defaultdict(int)
+    for trade in all_trades:
         if trade.closed_at is None:
             continue
         value = trade.net_pnl if trade.net_pnl is not None else trade.pnl

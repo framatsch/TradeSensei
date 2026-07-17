@@ -98,4 +98,21 @@ test.describe('Combo Positions', () => {
     await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i, { timeout: 15000 });
     await expect(page.getByText('COMBO').first()).toBeVisible();
   });
+
+  test('TC-107 — imported closed vertical shows open/close legs and two summary rows', async ({ page }) => {
+    test.skip(!seedState.comboImportedClosedTradeId, 'Imported combo seed not available in this environment.');
+
+    await page.goto(`/dashboard/trades/${seedState.comboImportedClosedTradeId}`);
+    await expect(page.getByRole('heading', { name: 'QQQ' })).toBeVisible();
+
+    const header = page.locator('h1').first().locator('..');
+    await expect(header.getByText('COMBO').first()).toBeVisible();
+
+    await expect(page.getByRole('columnheader', { name: 'Open/Close' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Open' })).toHaveCount(2);
+    await expect(page.getByRole('cell', { name: 'Close' })).toHaveCount(2);
+
+    await expect(page.getByRole('row', { name: /QQQ OPTION \(878467678\)/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /QQQ OPTION \(884162799\)/ })).toBeVisible();
+  });
 });

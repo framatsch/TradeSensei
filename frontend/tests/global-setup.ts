@@ -72,6 +72,25 @@ async function apiPost(
   });
 }
 
+async function apiGet(path: string, token?: string): Promise<Response> {
+  return fetchWithRetry(`${API_URL}${path}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+async function apiPostFormData(
+  path: string,
+  formData: FormData,
+  token?: string,
+): Promise<Response> {
+  return fetchWithRetry(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+}
+
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= NETWORK_RETRIES; attempt++) {
@@ -172,9 +191,183 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   const sAccRes = await apiPost(`/api/v1/portfolios/${portfolioId}/accounts`, SEED_SCHWAB_ACCOUNT, token);
   const schwabAccountId = sAccRes.ok ? ((await sAccRes.json()) as { data: { id: string } }).data.id : '';
 
+  // Seed one imported fully-closed COMBO vertical for Open/Close-column E2E coverage.
+  let comboImportedClosedTradeId = '';
+  try {
+    const comboFixturePath = path.resolve(__dirname, '..', '..', 'tests', 'test_data', 'ibkr', 'combo_positions.xml');
+    const comboImportForm = new FormData();
+    comboImportForm.append('broker', 'ibkr');
+    comboImportForm.append('account_id', accountId);
+    comboImportForm.append(
+      'file',
+      new Blob([fs.readFileSync(comboFixturePath)], { type: 'application/xml' }),
+      'combo_positions.xml',
+    );
+    const comboImportRes = await apiPostFormData(
+      `/api/v1/portfolios/${portfolioId}/imports/upload`,
+      comboImportForm,
+      token,
+    );
+    if (!comboImportRes.ok) {
+      const body = await comboImportRes.text();
+      console.warn(`[global-setup] Combo import seed skipped: ${comboImportRes.status} ${comboImportRes.statusText} ${body}`);
+    } else {
+      const comboTradesRes = await apiGet(
+        `/api/v1/portfolios/${portfolioId}/trades?symbol=QQQ&limit=200&opened_at_from=2000-01-01`,
+        token,
+      );
+      if (comboTradesRes.ok) {
+        const comboTradesBody = (await comboTradesRes.json()) as {
+          data?: { items?: Array<{ id: string; symbol?: string; is_combo?: boolean; closed_at?: string | null }> };
+        };
+        comboImportedClosedTradeId =
+          comboTradesBody.data?.items?.find((trade) => trade.symbol === 'QQQ' && trade.is_combo && trade.closed_at !== null)?.id ?? '';
+      }
+    }
+  } catch (error) {
+    console.warn(`[global-setup] Combo import seed skipped due to error: ${String(error)}`);
+  }
+
   for (const trade of SEED_TRADES) await apiPost(`/api/v1/portfolios/${portfolioId}/trades`, { ...trade, account_id: accountId }, token);
 
+  // ── Seed special test trades (execution / combo / merge / detach / option) ──
+
+  async function seedTrade(
+    tradeData: Record<string, unknown>,
+  ): Promise<string> {
+    const res = await apiPost(
+      `/api/v1/portfolios/${portfolioId}/trades`,
+      { ...tradeData, account_id: accountId },
+      token,
+    );
+    const body = (await res.json()) as { data: { id: string } };
+    return body.data.id;
+  }
+
+  async function seedExecution(
+    tradeId: string,
+    execData: Record<string, unknown>,
+  ): Promise<void> {
+    await apiPost(
+      `/api/v1/portfolios/${portfolioId}/trades/${tradeId}/executions`,
+      execData,
+      token,
+    );
+  }
+
+  // 1. executionTradeId — AAPL with 2 legs (LONG + SHORT), VWAP $400, commission $3.00
+  // Trade-level commission ($1.50) is inherited by the auto-created execution;
+  // the second manual execution also gets $1.50 for a total of $3.00.
+  const executionTradeId = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', asset_class: 'EQUITY',
+    quantity: '1500', entry_price: '400.00', commission: '1.50',
+    opened_at: isoDate(8), closed_at: isoDateClose(7),
+  });
+  await seedExecution(executionTradeId, {
+    direction: 'SHORT', quantity: '500', price: '400.00', commission: '1.50',
+    executed_at: isoDate(7, 14, 0),
+  });
+
+  // 2. addExecutionTestTradeId — AAPL with exactly 3 rows (1 auto + 2 manual)
+  const addExecutionTestTradeId = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', asset_class: 'EQUITY',
+    quantity: '100', entry_price: '400.00',
+    opened_at: isoDate(6), closed_at: isoDateClose(5),
+  });
+  await seedExecution(addExecutionTestTradeId, {
+    direction: 'LONG', quantity: '50', price: '410.00',
+    executed_at: isoDate(5, 10, 0),
+  });
+  await seedExecution(addExecutionTestTradeId, {
+    direction: 'SHORT', quantity: '30', price: '405.00',
+    executed_at: isoDate(5, 14, 0),
+  });
+
+  // 3. detachTestTradeId — AAPL with exactly 4 rows (1 auto + 3 manual)
+  const detachTestTradeId = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', asset_class: 'EQUITY',
+    quantity: '100', entry_price: '400.00',
+    opened_at: isoDate(6), closed_at: isoDateClose(5),
+  });
+  await seedExecution(detachTestTradeId, {
+    direction: 'LONG', quantity: '50', price: '410.00',
+    executed_at: isoDate(5, 11, 0),
+  });
+  await seedExecution(detachTestTradeId, {
+    direction: 'SHORT', quantity: '30', price: '405.00',
+    executed_at: isoDate(5, 13, 0),
+  });
+  await seedExecution(detachTestTradeId, {
+    direction: 'LONG', quantity: '25', price: '408.00',
+    executed_at: isoDate(5, 15, 0),
+  });
+
+  // 4. mergeTradeIds — Two AAPL LONG trades (mergeable)
+  const mergeTrade1Id = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', asset_class: 'EQUITY',
+    quantity: '50', entry_price: '178.00',
+    opened_at: isoDate(40), closed_at: isoDateClose(30),
+  });
+  const mergeTrade2Id = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', asset_class: 'EQUITY',
+    quantity: '75', entry_price: '179.50',
+    opened_at: isoDate(35), closed_at: isoDateClose(25),
+  });
+
+  // 5. comboTestTradeId — COMBO AAPL with EQUITY + OPTION legs, Combined P&L $600.00
+  const comboTestTradeId = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', is_combo: true,
+    opened_at: isoDate(6),
+  });
+  await seedExecution(comboTestTradeId, {
+    direction: 'LONG', quantity: '100', price: '178.00', commission: '1.50',
+    asset_class: 'EQUITY',
+    executed_at: isoDate(6, 10, 0),
+    pnl: '400.00',
+  });
+  await seedExecution(comboTestTradeId, {
+    direction: 'SHORT', quantity: '5', price: '150.00', commission: '3.00',
+    asset_class: 'OPTION', multiplier: 100,
+    executed_at: isoDate(6, 10, 30),
+    pnl: '200.00',
+  });
+
+  // 6. optionTestTradeId — COMBO with option leg (multiplier 100)
+  const optionTestTradeId = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', is_combo: true,
+    opened_at: isoDate(6),
+  });
+  await seedExecution(optionTestTradeId, {
+    direction: 'LONG', quantity: '5', price: '150.00', commission: '3.00',
+    asset_class: 'OPTION', multiplier: 100,
+    executed_at: isoDate(6, 10, 0),
+  });
+
+  // 7. editExecutionTestTradeId — AAPL with execution legs for editing tests
+  const editExecutionTestTradeId = await seedTrade({
+    symbol: 'AAPL', direction: 'LONG', asset_class: 'EQUITY',
+    quantity: '200', entry_price: '400.00',
+    opened_at: isoDate(6), closed_at: isoDateClose(5),
+  });
+
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
+
+  // Write seed-state.json so spec files can import seed data IDs
+  fs.writeFileSync(SEED_STATE_FILE, JSON.stringify({
+    portfolioId,
+    accountId,
+    schwabAccountId,
+    executionTradeId,
+    addExecutionTestTradeId,
+    detachTestTradeId,
+    mergeTradeIds: [mergeTrade1Id, mergeTrade2Id],
+    editExecutionTestTradeId,
+    optionTestTradeId,
+    comboTestTradeId,
+    comboImportedClosedTradeId,
+  }, null, 2));
+  console.log('[global-setup] Seed state written to', SEED_STATE_FILE);
+
   fs.writeFileSync(AUTH_FILE, JSON.stringify({
     cookies: [],
     origins: [{ origin: BASE_URL, localStorage: [

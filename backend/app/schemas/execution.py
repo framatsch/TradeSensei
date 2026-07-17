@@ -232,6 +232,10 @@ class LogicalExecutionRead(LogicalExecutionBase):
     pnl_eur: Decimal | None = None
     multiplier: int
     currency: str | None = None
+    open_close: str | None = Field(
+        default=None,
+        description="Opening/closing indicator: 'O' (opening), 'C' (closing), or null (mixed/unknown/manual)",
+    )
     origin: ExecutionOrigin = Field(description="Immutable provenance: imported | manual | merged | split")
     deleted: bool = Field(description="True when this execution has been soft-deleted")
     user_modified: bool = Field(description="True when the user has patched an imported execution")

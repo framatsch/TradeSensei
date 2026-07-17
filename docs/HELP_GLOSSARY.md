@@ -617,7 +617,7 @@ The Equity Curve plots your cumulative P&L trade by trade (or day by day), givin
 
 **The broker or file format used to bring trades into Trade Sensei.**
 
-Trade Sensei supports importing trade history from Interactive Brokers (IBKR Flex Query XML) and Charles Schwab (CSV). Imported trades are parsed, normalised into the platform's data model, and linked to the Account you select during the import. Re-importing the same file is safe — duplicates are detected and skipped.
+Trade Sensei supports importing trade history from Interactive Brokers (IBKR Flex Query XML) and Charles Schwab (CSV). Imported trades are parsed, normalised into the platform's data model, and linked to the Account you select during the import. IBKR multi-leg option combo orders are grouped into single COMBO trades with per-leg Open/Close markers while preserving total P&L. Re-importing the same file is safe — duplicates are detected and skipped.
 
 ---
 

@@ -18,8 +18,10 @@ return SQLAlchemy ORM instances.  No business logic lives here.
 """
 
 import uuid
+from collections.abc import Sequence
+from decimal import Decimal
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import Numeric, cast, delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,6 +155,44 @@ class BrokerRawTransactionRepository:
             stmt = stmt.where(BrokerRawTransaction.account_id == account_id)
         result = await self._session.execute(stmt)
         return set(result.scalars().all())
+
+    async def get_combo_order_meta_by_raw_ids(
+        self,
+        raw_ids: Sequence[str],
+    ) -> dict[str, dict[str, str | Decimal | None]]:
+        """Return combo order metadata for raw transaction IDs.
+
+        The result is keyed by raw transaction ID and contains:
+        - ``brokerageOrderID`` extracted from JSONB ``raw_data``
+        - ``netCash`` extracted from JSONB and cast to ``Decimal``
+
+        Args:
+            raw_ids: Raw transaction IDs to look up.
+
+        Returns:
+            Mapping ``raw_id -> {"brokerageOrderID": str|None, "netCash": Decimal|None}``.
+            Returns ``{}`` when ``raw_ids`` is empty.
+        """
+        if not raw_ids:
+            return {}
+
+        stmt = select(
+            BrokerRawTransaction.id,
+            BrokerRawTransaction.raw_data["brokerageOrderID"].astext.label("brokerage_order_id"),
+            cast(
+                BrokerRawTransaction.raw_data["netCash"].astext,
+                Numeric,
+            ).label("net_cash"),
+        ).where(BrokerRawTransaction.id.in_(list(raw_ids)))
+
+        result = await self._session.execute(stmt)
+        meta: dict[str, dict[str, str | Decimal | None]] = {}
+        for row in result:
+            meta[row.id] = {
+                "brokerageOrderID": row.brokerage_order_id,
+                "netCash": row.net_cash,
+            }
+        return meta
 
     async def set_suppressed(self, raw_id: str, suppressed: bool) -> bool:
         """Toggle the suppressed flag on a raw transaction.

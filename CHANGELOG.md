@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Cross-import COMBO seed/update flow: later IBKR closing-only imports now close the existing open COMBO trade (`db_trade_id`-based update) instead of creating duplicates
+- [test] Integration coverage for split-file COMBO lifecycle (open-only import A + close-only import B) and DB-vs-ground-truth P&L anchor on `combo_positions.xml`
+
+### Changed
+- [frontend] Regenerated OpenAPI client (`frontend/lib/api/`) to include `LogicalExecutionRead.open_close` in generated types
+- [docs] Clarified import behavior glossary entry: IBKR multi-leg option orders are grouped as COMBO trades with leg-level Open/Close markers while preserving aggregate P&L
+
 ## [1.4.0] - 2026-07-15
 
 ### Added
