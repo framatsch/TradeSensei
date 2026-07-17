@@ -29,6 +29,8 @@ from app.schemas.execution import (
     LogicalExecutionCreate,
     LogicalExecutionRead,
     LogicalExecutionUpdate,
+    MergeExecutionsRequest,
+    SplitExecutionRequest,
 )
 from app.schemas.trade import MergeTradesRequest, TradeCreate, TradeRead, TradeUpdate
 
@@ -535,3 +537,95 @@ class TestLogicalExecutionReadFieldCompleteness:
         assert read.pnl_eur is None
         assert read.currency is None
         assert read.trade_id is None
+
+
+class TestLogicalExecutionUpdateTimezone:
+    @pytest.mark.unit
+    def test_naive_datetime_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="timezone-aware"):
+            LogicalExecutionUpdate(executed_at=datetime(2025, 1, 15, 10, 0))
+
+    @pytest.mark.unit
+    def test_timezone_aware_datetime_accepted(self) -> None:
+        update = LogicalExecutionUpdate(executed_at=datetime(2025, 1, 15, 10, 0, tzinfo=UTC))
+        assert update.executed_at == datetime(2025, 1, 15, 10, 0, tzinfo=UTC)
+
+
+class TestSplitExecutionRequest:
+    @pytest.mark.unit
+    def test_valid_payload_accepted(self) -> None:
+        payload = SplitExecutionRequest(
+            quantity_a=Decimal("50"),
+            quantity_b=Decimal("50"),
+        )
+        assert payload.quantity_a == Decimal("50")
+
+    @pytest.mark.unit
+    def test_naive_datetime_a_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="timezone-aware"):
+            SplitExecutionRequest(
+                quantity_a=Decimal("50"),
+                quantity_b=Decimal("50"),
+                executed_at_a=datetime(2025, 1, 15, 10, 0),
+            )
+
+    @pytest.mark.unit
+    def test_naive_datetime_b_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="timezone-aware"):
+            SplitExecutionRequest(
+                quantity_a=Decimal("50"),
+                quantity_b=Decimal("50"),
+                executed_at_b=datetime(2025, 1, 15, 10, 0),
+            )
+
+    @pytest.mark.unit
+    def test_timezone_aware_datetime_accepted(self) -> None:
+        payload = SplitExecutionRequest(
+            quantity_a=Decimal("50"),
+            quantity_b=Decimal("50"),
+            executed_at_a=datetime(2025, 1, 15, 10, 0, tzinfo=UTC),
+        )
+        assert payload.executed_at_a == datetime(2025, 1, 15, 10, 0, tzinfo=UTC)
+
+
+class TestMergeExecutionsRequest:
+    @pytest.mark.unit
+    def test_valid_payload_accepted(self) -> None:
+        eid1 = uuid.uuid4()
+        eid2 = uuid.uuid4()
+        payload = MergeExecutionsRequest(
+            execution_ids=[eid1, eid2],
+            primary_id=eid1,
+        )
+        assert len(payload.execution_ids) == 2
+
+    @pytest.mark.unit
+    def test_single_execution_rejected(self) -> None:
+        eid = uuid.uuid4()
+        with pytest.raises(ValidationError):
+            MergeExecutionsRequest(
+                execution_ids=[eid],
+                primary_id=eid,
+            )
+
+    @pytest.mark.unit
+    def test_naive_datetime_rejected(self) -> None:
+        eid1 = uuid.uuid4()
+        eid2 = uuid.uuid4()
+        with pytest.raises(ValidationError, match="timezone-aware"):
+            MergeExecutionsRequest(
+                execution_ids=[eid1, eid2],
+                primary_id=eid1,
+                executed_at=datetime(2025, 1, 15, 10, 0),
+            )
+
+    @pytest.mark.unit
+    def test_timezone_aware_datetime_accepted(self) -> None:
+        eid1 = uuid.uuid4()
+        eid2 = uuid.uuid4()
+        payload = MergeExecutionsRequest(
+            execution_ids=[eid1, eid2],
+            primary_id=eid1,
+            executed_at=datetime(2025, 1, 15, 10, 0, tzinfo=UTC),
+        )
+        assert payload.executed_at == datetime(2025, 1, 15, 10, 0, tzinfo=UTC)

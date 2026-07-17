@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.annotation_definition import AnnotationDefinition
 from app.models.playbook import Playbook
+from app.models.playbook_taxonomy import PlaybookTaxonomy
 from app.models.taxonomy import Taxonomy
 from app.models.trade import Trade
 from app.models.trade_annotation import TradeAnnotation
@@ -252,6 +253,7 @@ async def test_mcp_tools_list_returns_all_domain_tools(client: AsyncClient) -> N
         "sync_checkin_metadata",
         "search_trades_advanced",
         "sync_trade_metadata",
+        "sync_playbook_metadata",
         "create_strategy_playbook",
         "list_strategy_playbooks",
         "get_strategy_playbook",
@@ -664,8 +666,7 @@ async def test_create_strategy_playbook_creates_and_rejects_duplicate(
         tool_name="create_strategy_playbook",
         arguments={
             "name": "Breakout Momentum",
-            "description": "Momentum setup",
-            "rules": ["Wait for opening range breakout", "Risk 1R", "Move stop at +1R"],
+            "description": "Wait for opening range breakout\n\nRisk 1R\n\nMove stop at +1R",
             "target_winrate": 0.6,
         },
         message_id=41,
@@ -676,7 +677,7 @@ async def test_create_strategy_playbook_creates_and_rejects_duplicate(
     playbook = row.scalar_one()
     assert playbook.name == "Breakout Momentum"
     assert playbook.is_active is True
-    assert playbook.content_markdown == "- Wait for opening range breakout\n- Risk 1R\n- Move stop at +1R"
+    assert playbook.description == "Wait for opening range breakout\n\nRisk 1R\n\nMove stop at +1R"
     assert playbook.target_winrate == Decimal("0.6")
 
     duplicate = await _mcp_tools_call(
@@ -685,11 +686,495 @@ async def test_create_strategy_playbook_creates_and_rejects_duplicate(
         tool_name="create_strategy_playbook",
         arguments={
             "name": "Breakout Momentum",
-            "rules": ["Rule 1"],
+            "description": "Rule 1",
         },
         message_id=42,
     )
     assert duplicate["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_sync_playbook_metadata_and_playbook_reads_include_taxonomies(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+
+    create_playbook = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "VWAP Reclaim", "description": "Initial markdown"},
+        message_id=60,
+    )
+    playbook_id = create_playbook["result"]["playbook_id"]
+
+    valid_scope_taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "PB Scope", "scope": "playbook", "color_hex": "#112233"},
+        headers=headers,
+    )
+    assert valid_scope_taxonomy.status_code == 201, valid_scope_taxonomy.text
+    taxonomy_valid_id = valid_scope_taxonomy.json()["data"]["id"]
+
+    second_valid_taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "PB Scope 2", "scope": "checkins,playbook", "color_hex": "#223344"},
+        headers=headers,
+    )
+    assert second_valid_taxonomy.status_code == 201, second_valid_taxonomy.text
+    taxonomy_second_id = second_valid_taxonomy.json()["data"]["id"]
+
+    invalid_scope_taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "Trade-only", "scope": "trades", "color_hex": "#334455"},
+        headers=headers,
+    )
+    assert invalid_scope_taxonomy.status_code == 201, invalid_scope_taxonomy.text
+    taxonomy_invalid_scope_id = invalid_scope_taxonomy.json()["data"]["id"]
+
+    first_sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": playbook_id,
+            "taxonomy_ids": [taxonomy_valid_id],
+        },
+        message_id=61,
+    )
+    assert first_sync["result"]["updated_count"] == 1
+
+    idempotent_sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": playbook_id,
+            "taxonomy_ids": [taxonomy_valid_id],
+        },
+        message_id=62,
+    )
+    assert idempotent_sync["result"]["updated_count"] == 1
+
+    additive_sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": playbook_id,
+            "taxonomy_ids": [taxonomy_second_id],
+        },
+        message_id=63,
+    )
+    assert additive_sync["result"]["updated_count"] == 1
+
+    assignment_rows = await db_session.execute(
+        select(PlaybookTaxonomy).where(PlaybookTaxonomy.playbook_id == uuid.UUID(str(playbook_id))),
+    )
+    assigned_taxonomy_ids = {str(row.taxonomy_id) for row in assignment_rows.scalars().all()}
+    assert taxonomy_valid_id in assigned_taxonomy_ids
+    assert taxonomy_second_id in assigned_taxonomy_ids
+
+    get_playbook = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_strategy_playbook",
+        arguments={"playbook_id": playbook_id},
+        message_id=64,
+    )
+    assert "content_markdown" not in get_playbook["result"]
+    assert get_playbook["result"]["description"] == "Initial markdown"
+    get_assignment_ids = {entry["taxonomy_id"] for entry in get_playbook["result"]["taxonomy_assignments"]}
+    assert taxonomy_valid_id in get_assignment_ids
+    assert taxonomy_second_id in get_assignment_ids
+
+    list_playbooks = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="list_strategy_playbooks",
+        arguments={},
+        message_id=65,
+    )
+    listed_playbook = next((item for item in list_playbooks["result"]["playbooks"] if item["id"] == playbook_id), None)
+    assert listed_playbook is not None
+    listed_assignment_ids = {entry["taxonomy_id"] for entry in listed_playbook["taxonomy_assignments"]}
+    assert taxonomy_valid_id in listed_assignment_ids
+    assert taxonomy_second_id in listed_assignment_ids
+
+    update_with_taxonomies = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_strategy_playbook",
+        arguments={
+            "playbook_id": playbook_id,
+            "description": "Updated markdown",
+            "taxonomy_ids": [taxonomy_valid_id],
+        },
+        message_id=66,
+    )
+    assert update_with_taxonomies["result"]["playbook_id"] == playbook_id
+
+    row = await db_session.execute(select(Playbook).where(Playbook.id == uuid.UUID(str(playbook_id))))
+    updated_playbook = row.scalar_one()
+    assert updated_playbook.description == "Updated markdown"
+
+    invalid_scope_sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": playbook_id,
+            "taxonomy_ids": [taxonomy_invalid_scope_id],
+        },
+        message_id=67,
+    )
+    assert invalid_scope_sync["error"]["code"] == -32602
+
+    archived_taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "Archived PB", "scope": "playbook", "color_hex": "#445566"},
+        headers=headers,
+    )
+    assert archived_taxonomy.status_code == 201, archived_taxonomy.text
+    archived_id = archived_taxonomy.json()["data"]["id"]
+
+    assign_taxonomy = await client.post(
+        f"/api/v1/playbooks/{playbook_id}/taxonomies",
+        json={"taxonomy_id": archived_id},
+        headers=headers,
+    )
+    assert assign_taxonomy.status_code in (200, 201, 204), assign_taxonomy.text
+
+    archive_update = await client.delete(
+        f"/api/v1/taxonomies/{archived_id}",
+        headers=headers,
+    )
+    assert archive_update.status_code in (200, 204), archive_update.text
+
+    archived_sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": playbook_id,
+            "taxonomy_ids": [archived_id],
+        },
+        message_id=68,
+    )
+    assert archived_sync["error"]["code"] == -32602
+
+    invalid_id_sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": playbook_id,
+            "taxonomy_ids": [str(uuid.uuid4())],
+        },
+        message_id=69,
+    )
+    assert invalid_id_sync["error"]["code"] == -32602
+
+    not_found_sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": str(uuid.uuid4()),
+            "taxonomy_ids": [taxonomy_valid_id],
+        },
+        message_id=70,
+    )
+    assert not_found_sync["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_update_strategy_playbook_optional_fields_and_duplicate_name_paths(
+    client: AsyncClient,
+) -> None:
+    _headers, token = await _auth_and_pat(client)
+
+    first = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "PB One", "description": "first"},
+        message_id=71,
+    )
+    first_id = first["result"]["playbook_id"]
+
+    second = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "PB Two", "description": "second"},
+        message_id=72,
+    )
+    second_id = second["result"]["playbook_id"]
+
+    update_ok = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_strategy_playbook",
+        arguments={
+            "playbook_id": first_id,
+            "target_winrate": 0.55,
+            "is_active": False,
+        },
+        message_id=73,
+    )
+    assert update_ok["result"]["playbook_id"] == first_id
+
+    duplicate_name = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_strategy_playbook",
+        arguments={
+            "playbook_id": second_id,
+            "name": "PB One",
+        },
+        message_id=74,
+    )
+    assert duplicate_name["error"]["code"] == -32602
+
+    missing_playbook = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_strategy_playbook",
+        arguments={
+            "playbook_id": str(uuid.uuid4()),
+            "name": "Nope",
+        },
+        message_id=75,
+    )
+    assert missing_playbook["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_sync_playbook_metadata_empty_list_is_noop(
+    client: AsyncClient,
+) -> None:
+    _headers, token = await _auth_and_pat(client)
+
+    created = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "PB Empty Sync"},
+        message_id=76,
+    )
+    playbook_id = created["result"]["playbook_id"]
+
+    sync_empty = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={"playbook_id": playbook_id, "taxonomy_ids": []},
+        message_id=77,
+    )
+    assert sync_empty["result"]["updated_count"] == 0
+
+
+@pytest.mark.integration
+async def test_update_strategy_playbook_without_taxonomy_ids_keeps_assignments(
+    client: AsyncClient,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+
+    created = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "PB Preserve Tags", "description": "before"},
+        message_id=78,
+    )
+    playbook_id = created["result"]["playbook_id"]
+
+    taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "Keep Me", "scope": "playbook", "color_hex": "#665544"},
+        headers=headers,
+    )
+    assert taxonomy.status_code == 201, taxonomy.text
+    taxonomy_id = taxonomy.json()["data"]["id"]
+
+    synced = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_playbook_metadata",
+        arguments={"playbook_id": playbook_id, "taxonomy_ids": [taxonomy_id]},
+        message_id=79,
+    )
+    assert synced["result"]["updated_count"] == 1
+
+    updated = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_strategy_playbook",
+        arguments={"playbook_id": playbook_id, "description": "after"},
+        message_id=80,
+    )
+    assert updated["result"]["playbook_id"] == playbook_id
+
+    fetched = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_strategy_playbook",
+        arguments={"playbook_id": playbook_id},
+        message_id=81,
+    )
+    assignment_ids = {entry["taxonomy_id"] for entry in fetched["result"]["taxonomy_assignments"]}
+    assert taxonomy_id in assignment_ids
+
+
+@pytest.mark.integration
+async def test_sync_playbook_metadata_rejects_foreign_taxonomy_atomically(
+    client: AsyncClient,
+) -> None:
+    headers_1, token_1 = await _auth_and_pat(client)
+    headers_2, _token_2 = await _auth_and_pat(client)
+
+    created = await _mcp_tools_call(
+        client,
+        token_1,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "PB Atomic Reject"},
+        message_id=82,
+    )
+    playbook_id = created["result"]["playbook_id"]
+
+    own_taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "Own", "scope": "playbook", "color_hex": "#110022"},
+        headers=headers_1,
+    )
+    assert own_taxonomy.status_code == 201, own_taxonomy.text
+    own_taxonomy_id = own_taxonomy.json()["data"]["id"]
+
+    foreign_taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "Foreign", "scope": "playbook", "color_hex": "#220033"},
+        headers=headers_2,
+    )
+    assert foreign_taxonomy.status_code == 201, foreign_taxonomy.text
+    foreign_taxonomy_id = foreign_taxonomy.json()["data"]["id"]
+
+    mixed_sync = await _mcp_tools_call(
+        client,
+        token_1,
+        tool_name="sync_playbook_metadata",
+        arguments={
+            "playbook_id": playbook_id,
+            "taxonomy_ids": [own_taxonomy_id, foreign_taxonomy_id],
+        },
+        message_id=83,
+    )
+    assert mixed_sync["error"]["code"] == -32602
+
+    fetched = await _mcp_tools_call(
+        client,
+        token_1,
+        tool_name="get_strategy_playbook",
+        arguments={"playbook_id": playbook_id},
+        message_id=84,
+    )
+    assert fetched["result"]["taxonomy_assignments"] == []
+
+
+@pytest.mark.integration
+async def test_mcp_streamable_tools_call_validates_params_shape(client: AsyncClient) -> None:
+    _headers, token = await _auth_and_pat(client)
+    response = await client.post(
+        "/mcp",
+        json={"jsonrpc": "2.0", "id": 90, "method": "tools/call", "params": "bad"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["error"]["code"] == -32602
+    assert payload["error"]["message"] == "params must be an object"
+
+
+@pytest.mark.integration
+async def test_mcp_streamable_tools_call_requires_name_and_arguments_object(client: AsyncClient) -> None:
+    _headers, token = await _auth_and_pat(client)
+
+    missing_name = await client.post(
+        "/mcp",
+        json={"jsonrpc": "2.0", "id": 91, "method": "tools/call", "params": {}},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert missing_name.status_code == 200, missing_name.text
+    missing_name_payload = missing_name.json()
+    assert missing_name_payload["error"]["code"] == -32602
+    assert missing_name_payload["error"]["message"] == "Tool name is required"
+
+    bad_arguments = await client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 92,
+            "method": "tools/call",
+            "params": {"name": "list_portfolios", "arguments": "bad"},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert bad_arguments.status_code == 200, bad_arguments.text
+    bad_arguments_payload = bad_arguments.json()
+    assert bad_arguments_payload["error"]["code"] == -32602
+    assert bad_arguments_payload["error"]["message"] == "arguments must be an object"
+
+
+@pytest.mark.integration
+async def test_mcp_streamable_unknown_method_and_notification_flow(client: AsyncClient) -> None:
+    _headers, token = await _auth_and_pat(client)
+
+    unknown = await client.post(
+        "/mcp",
+        json={"jsonrpc": "2.0", "id": 93, "method": "not_a_method"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert unknown.status_code == 200, unknown.text
+    unknown_payload = unknown.json()
+    assert unknown_payload["error"]["code"] == -32601
+    assert "Unknown method" in unknown_payload["error"]["message"]
+
+    notification = await client.post(
+        "/mcp",
+        json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert notification.status_code == 202, notification.text
+
+
+@pytest.mark.integration
+async def test_mcp_streamable_parse_error_and_sse_response(client: AsyncClient) -> None:
+    _headers, token = await _auth_and_pat(client)
+
+    parse_error = await client.post(
+        "/mcp",
+        content="{not-json",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    assert parse_error.status_code == 400, parse_error.text
+    parse_payload = parse_error.json()
+    assert parse_payload["error"]["code"] == -32700
+
+    sse_response = await client.post(
+        "/mcp",
+        json={"jsonrpc": "2.0", "id": 94, "method": "ping"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "text/event-stream",
+        },
+    )
+    assert sse_response.status_code == 200, sse_response.text
+    assert sse_response.headers["content-type"].startswith("text/event-stream")
+    assert "event: message" in sse_response.text
 
 
 @pytest.mark.integration
