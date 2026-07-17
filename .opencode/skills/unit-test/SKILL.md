@@ -56,11 +56,14 @@ python tools/unit_test.py --unit
 python tools/unit_test.py --integration
 
 # HTML coverage report
-python tools/unit_test.py --coverage
+python tools/unit_test.py --output html
 # → open backend/htmlcov/index.html
 
-# CI mode (XML output, exits 1 on < 80% coverage)
-python tools/unit_test.py --ci
+# XML coverage report (e.g. for CI)
+python tools/unit_test.py --output xml
+
+# Both HTML and XML reports
+python tools/unit_test.py --output xml,html
 ```
 
 Or directly via uv from `backend/`:

@@ -91,3 +91,4 @@ backend/uploads/
 graphify-out
 .graphify_detect.json
 .graphify_python
+backend/coverage.xml

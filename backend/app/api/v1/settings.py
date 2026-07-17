@@ -57,7 +57,7 @@ async def create_token(
 ) -> ResponseEnvelope[PatGenerateResponse]:
     if payload.expires_at is not None and payload.expires_at <= datetime.now(UTC):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="expires_at must be in the future.",
         )
 

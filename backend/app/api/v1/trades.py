@@ -456,7 +456,7 @@ async def list_trades(
             filters.annotation_filters = [AnnotationFilterItem.model_validate(item) for item in raw]
         except (ValueError, KeyError, TypeError, ValidationError) as exc:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Invalid annotation_filters format — expected JSON array of filter objects.",
             ) from exc
 

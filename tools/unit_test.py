@@ -21,8 +21,8 @@ Usage:
     python tools/unit_test.py                # Run all tests
     python tools/unit_test.py --unit         # Unit tests only (no DB)
     python tools/unit_test.py --integration  # Integration tests only (requires DB)
-    python tools/unit_test.py --coverage     # Full run + HTML coverage report
-    python tools/unit_test.py --ci           # Exit 1 on failure + XML coverage (for CI)
+    python tools/unit_test.py --output html      # Full run + HTML coverage report
+    python tools/unit_test.py --output xml       # XML coverage output
 """
 
 import os
@@ -61,11 +61,13 @@ def run_pytest(args: List[str], env_overrides: dict | None = None) -> int:
     is_flag=True,
     help="Run integration tests only (tests/integration/)",
 )
-@click.option("--coverage", is_flag=True, help="Generate HTML coverage report")
 @click.option(
-    "--ci", is_flag=True, help="CI mode: XML coverage output, exit 1 on failure"
+    "--output",
+    type=str,
+    default="",
+    help="Comma-separated coverage report formats (e.g. xml,html). 'term-missing' is always included.",
 )
-def main(unit: bool, integration: bool, coverage: bool, ci: bool) -> None:
+def main(unit: bool, integration: bool, output: str) -> None:
     """Run the tradesensei backend test suite."""
     if not BACKEND_DIR.exists():
         console.print(f"[red]Backend directory not found: {BACKEND_DIR}[/red]")
@@ -95,17 +97,19 @@ def main(unit: bool, integration: bool, coverage: bool, ci: bool) -> None:
         console.print("[bold]Scope:[/bold] all tests")
 
     # Coverage
-    pytest_args += ["--cov=app", "--cov-fail-under=70"]
-    if ci:
-        pytest_args += ["--cov-report=xml:coverage.xml", "--cov-report=term-missing"]
-        console.print("[bold]Mode:[/bold] CI (XML coverage output)")
-    elif coverage:
-        pytest_args += ["--cov-report=html:htmlcov", "--cov-report=term-missing"]
+    pytest_args += ["--cov=app", "--cov-fail-under=70", "--cov-report=term-missing"]
+    
+    outputs = [o.strip() for o in output.split(",")] if output else []
+    
+    if "xml" in outputs:
+        pytest_args += ["--cov-report=xml:coverage.xml"]
+        console.print("[bold]Mode:[/bold] XML coverage output → coverage.xml")
+        
+    if "html" in outputs:
+        pytest_args += ["--cov-report=html:htmlcov"]
         console.print(
             "[bold]Mode:[/bold] HTML coverage report → backend/htmlcov/index.html"
         )
-    else:
-        pytest_args += ["--cov-report=term-missing"]
 
     exit_code = run_pytest(pytest_args)
 

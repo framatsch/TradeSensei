@@ -253,7 +253,7 @@ async def upload_import(
     content = await file.read(max_bytes + 1)
     if len(content) > max_bytes:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=(f"File exceeds the maximum allowed size of {IMPORT_MAX_FILE_SIZE_MB} MB."),
         )
 
@@ -393,7 +393,7 @@ async def fresh_start_import(
     content = await file.read(max_bytes + 1)
     if len(content) > max_bytes:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=(f"File exceeds the maximum allowed size of {IMPORT_MAX_FILE_SIZE_MB} MB."),
         )
 

@@ -180,9 +180,6 @@ PLAYBOOK_NAME_MIN_LENGTH: int = 1
 PLAYBOOK_NAME_MAX_LENGTH: int = 100
 """Maximum length for a playbook name."""
 
-PLAYBOOK_DESCRIPTION_MAX_LENGTH: int = 2000
-"""Maximum length for a playbook description."""
-
 # ─── Tag field sizes ──────────────────────────────────────────────────────────
 
 TAG_NAME_MIN_LENGTH: int = 1
