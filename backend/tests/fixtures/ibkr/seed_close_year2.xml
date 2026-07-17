@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexQueryResponse queryName="SeedCloseY2" type="AF">
+  <FlexStatements count="1">
+    <FlexStatement accountId="U99999999" fromDate="20250101" toDate="20251231" period="Annual">
+      <CorporateActions>
+        <CorporateAction accountId="U99999999" assetCategory="STK" symbol="SPLT"
+                         conid="600111" quantity="-100" type="RS"
+                         dateTime="20250301;000000" actionID="CASEED01" currency="USD" />
+        <CorporateAction accountId="U99999999" assetCategory="STK" symbol="SPLT"
+                         conid="600222" quantity="10" type="RS"
+                         dateTime="20250301;000000" actionID="CASEED01" currency="USD" />
+      </CorporateActions>
+
+      <Trades>
+        <Trade accountId="U99999999" assetCategory="STK" symbol="SEEDA" conid="500001"
+               tradeDate="20250201" dateTime="20250201;143000"
+               quantity="-100" tradePrice="11.00" ibCommission="-0.50"
+               fifoPnlRealized="99.00" openCloseIndicator="C"
+               buySell="SELL" transactionID="8200001" multiplier="1" currency="USD" />
+
+        <Trade accountId="U99999999" assetCategory="STK" symbol="SPLT" conid="600222"
+               tradeDate="20250401" dateTime="20250401;100000"
+               quantity="-10" tradePrice="80.00" ibCommission="-0.50"
+               fifoPnlRealized="-201.00" openCloseIndicator="C"
+               buySell="SELL" transactionID="8200002" multiplier="1" currency="USD" />
+      </Trades>
+    </FlexStatement>
+  </FlexStatements>
+</FlexQueryResponse>

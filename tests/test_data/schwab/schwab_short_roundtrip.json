@@ -1,0 +1,64 @@
+{
+  "fetchedAt": "2026-07-12T19:01:03Z",
+  "dateRange": {
+    "start": "2026-07-01T00:00:00+0000",
+    "end": "2026-07-15T23:59:59+0000"
+  },
+  "accounts": [
+    {
+      "accountNumber": "45302130",
+      "accountHash": "test-account-hash-45302130",
+      "positions": [],
+      "transactions": [
+        {
+          "activityId": 222001,
+          "time": "2026-07-11T14:00:00+0000",
+          "accountNumber": "45302130",
+          "type": "TRADE",
+          "status": "COMPLETED",
+          "subAccount": "MARGIN",
+          "tradeDate": "2026-07-11T14:00:00+0000",
+          "netAmount": 1000.0,
+          "transferItems": [
+            {
+              "instrument": {
+                "assetType": "EQUITY",
+                "symbol": "TSHORT",
+                "description": "SHORT TEST"
+              },
+              "instruction": "SELL_TO_OPEN",
+              "amount": -10.0,
+              "cost": 1000.0,
+              "price": 100.0,
+              "positionEffect": "OPENING"
+            }
+          ]
+        },
+        {
+          "activityId": 222002,
+          "time": "2026-07-12T14:00:00+0000",
+          "accountNumber": "45302130",
+          "type": "TRADE",
+          "status": "COMPLETED",
+          "subAccount": "MARGIN",
+          "tradeDate": "2026-07-12T14:00:00+0000",
+          "netAmount": -900.0,
+          "transferItems": [
+            {
+              "instrument": {
+                "assetType": "EQUITY",
+                "symbol": "TSHORT",
+                "description": "SHORT TEST"
+              },
+              "instruction": "BUY_TO_CLOSE",
+              "amount": 10.0,
+              "cost": -900.0,
+              "price": 90.0,
+              "positionEffect": "CLOSING"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

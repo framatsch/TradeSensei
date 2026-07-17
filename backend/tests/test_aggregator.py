@@ -113,129 +113,95 @@ def test_aggregate_simple_round_trip() -> None:
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="FIFO aggregator behavior pending verification")
-def test_vwap_entry_exit_calculation_multi_leg() -> None:
-    """Test VWAP calculation with 2 BUY + 1 SELL execution (multiplier=1).
-
-    Scenario:
-    - BUY 100 @ $373.62 on 2025-01-10 10:00 UTC (commission=$5.00)
-    - BUY 50 @ $375.00 on 2025-01-10 11:00 UTC (commission=$2.50)
-    - SELL 150 @ $377.96 on 2025-01-10 12:00 UTC (commission=$7.50)
-
-    Expected:
-    - entry_price (VWAP) = (100*373.62 + 50*375.00) / 150 = 56862 / 150 = $378.41
-    - exit_price (VWAP) = $377.96
-    - gross_pnl = (377.96 - 378.41) * 150 * 1 = -67.50
-    - commission_total = 5.00 + 2.50 + 7.50 = 15.00
-    - net_pnl = -67.50 - 15.00 = -82.50
-    - closed_at = 2025-01-10 12:00 UTC
-    """
+def test_multi_lot_partial_close_equity_fifo_per_lot() -> None:
+    """BUY 100 + BUY 50 + SELL 150 yields two FIFO-closed lots (not one VWAP lot)."""
     t1 = datetime(2025, 1, 10, 10, 0, tzinfo=UTC)
     t2 = datetime(2025, 1, 10, 11, 0, tzinfo=UTC)
     t3 = datetime(2025, 1, 10, 12, 0, tzinfo=UTC)
 
-    execs = [
+    executions = [
         _tc("AAPL", Direction.LONG, "100", "373.62", t1),
         _tc("AAPL", Direction.LONG, "50", "375.00", t2),
-        _tc("AAPL", Direction.SHORT, "150", "377.96", t3, pnl="-67.50"),
+        _tc("AAPL", Direction.SHORT, "150", "377.96", t3, pnl="1"),
     ]
-    execs[0].commission = Decimal("5.00")
-    execs[1].commission = Decimal("2.50")
-    execs[2].commission = Decimal("7.50")
+    executions[0].commission = Decimal("5.00")
+    executions[1].commission = Decimal("2.50")
+    executions[2].commission = Decimal("7.50")
 
-    res = aggregate_executions_fifo(execs)
-    assert len(res) == 1
-    t = res[0]
+    result = aggregate_executions_fifo(executions)
+    closed = [trade for trade in result if trade.closed_at is not None]
+    assert len(closed) == 2
 
-    # Verify entry price (VWAP)
-    expected_entry = (Decimal("100") * Decimal("373.62") + Decimal("50") * Decimal("375.00")) / Decimal("150")
-    assert round(t.entry_price, 2) == round(expected_entry, 2)
+    lot_100 = next(trade for trade in closed if trade.quantity == Decimal("100"))
+    lot_50 = next(trade for trade in closed if trade.quantity == Decimal("50"))
 
-    # Verify exit price
-    assert t.exit_price == Decimal("377.96")
+    exit_price = Decimal("377.96")
+    lot_100_expected_pnl = (exit_price - Decimal("373.62")) * Decimal("100") * Decimal("1")
+    lot_50_expected_pnl = (exit_price - Decimal("375.00")) * Decimal("50") * Decimal("1")
 
-    # Verify quantity
-    assert t.quantity == Decimal("150")
+    assert lot_100.entry_price == Decimal("373.62")
+    assert lot_100.exit_price == exit_price
+    assert lot_100.pnl == lot_100_expected_pnl
+    assert lot_100.commission == Decimal("10")
+    assert lot_100.net_pnl == lot_100_expected_pnl - Decimal("10")
+    assert lot_100.opened_at == t1
+    assert lot_100.closed_at == t3
 
-    # Verify commission total
-    assert t.commission == Decimal("15.00")
-
-    # Verify gross PnL
-    expected_gross_pnl = (Decimal("377.96") - expected_entry) * Decimal("150")
-    assert round(t.pnl, 2) == round(expected_gross_pnl, 2)
-
-    # Verify net PnL
-    expected_net_pnl = expected_gross_pnl - Decimal("15.00")
-    assert round(t.net_pnl, 2) == round(expected_net_pnl, 2)
-
-    # Verify timestamps
-    assert t.opened_at == t1
-    assert t.closed_at == t3
+    assert lot_50.entry_price == Decimal("375.00")
+    assert lot_50.exit_price == exit_price
+    assert lot_50.pnl == lot_50_expected_pnl
+    assert lot_50.commission == Decimal("5")
+    assert lot_50.net_pnl == lot_50_expected_pnl - Decimal("5")
+    assert lot_50.opened_at == t2
+    assert lot_50.closed_at == t3
 
 
-@pytest.mark.skip(reason="FIFO aggregator behavior pending verification")
-def test_vwap_with_multiplier_options_contract() -> None:
-    """Test VWAP calculation with multiplier=100 (options contract).
-
-    Scenario:
-    - BUY 10 contracts @ $5.50 on 2025-01-15 09:30 UTC, multiplier=100 (commission=$10.00)
-    - SELL 6 contracts @ $5.75 on 2025-01-15 11:00 UTC, multiplier=100 (commission=$6.00)
-    - SELL 4 contracts @ $5.80 on 2025-01-15 14:00 UTC, multiplier=100 (commission=$4.00)
-
-    Expected:
-    - entry_price (VWAP) = $5.50
-    - Partial exit: 6 @ 5.75 then 4 @ 5.80
-      - matched_pnl_1 = (5.75 - 5.50) * 6 * 100 = 150
-      - matched_pnl_2 = (5.80 - 5.50) * 4 * 100 = 120
-      - total_pnl = 150 + 120 = 270
-    - commission_total = 10.00 + 6.00 + 4.00 = 20.00
-    - net_pnl = 270 - 20.00 = 250
-    - closed_at = 2025-01-15 14:00 UTC
-    """
+def test_multi_lot_partial_close_options_respects_multiplier() -> None:
+    """Single options lot with partial exits yields per-lot FIFO trades with multiplier=100."""
     t1 = datetime(2025, 1, 15, 9, 30, tzinfo=UTC)
     t2 = datetime(2025, 1, 15, 11, 0, tzinfo=UTC)
     t3 = datetime(2025, 1, 15, 14, 0, tzinfo=UTC)
 
-    # Create a TradeCreate for the buy leg
     buy_exec = _tc("SPY_CALL", Direction.LONG, "10", "5.50", t1)
     buy_exec.commission = Decimal("10.00")
+    buy_exec.multiplier = 100
 
-    # Create TradeCreate instances for the sell legs
-    sell_exec_1 = _tc("SPY_CALL", Direction.SHORT, "6", "5.75", t2, pnl="150")
+    sell_exec_1 = _tc("SPY_CALL", Direction.SHORT, "6", "5.75", t2, pnl="1")
     sell_exec_1.commission = Decimal("6.00")
+    sell_exec_1.multiplier = 100
 
-    sell_exec_2 = _tc("SPY_CALL", Direction.SHORT, "4", "5.80", t3, pnl="120")
+    sell_exec_2 = _tc("SPY_CALL", Direction.SHORT, "4", "5.80", t3, pnl="1")
     sell_exec_2.commission = Decimal("4.00")
+    sell_exec_2.multiplier = 100
 
-    execs = [buy_exec, sell_exec_1, sell_exec_2]
+    result = aggregate_executions_fifo([buy_exec, sell_exec_1, sell_exec_2])
+    closed = [trade for trade in result if trade.closed_at is not None]
+    assert len(closed) == 2
 
-    res = aggregate_executions_fifo(execs)
-    assert len(res) == 1
-    t = res[0]
+    close_6 = next(trade for trade in closed if trade.quantity == Decimal("6"))
+    close_4 = next(trade for trade in closed if trade.quantity == Decimal("4"))
 
-    # Verify entry price
-    assert t.entry_price == Decimal("5.50")
+    expected_pnl_6 = (Decimal("5.75") - Decimal("5.50")) * Decimal("6") * Decimal("100")
+    expected_pnl_4 = (Decimal("5.80") - Decimal("5.50")) * Decimal("4") * Decimal("100")
 
-    # Verify quantity (total entry)
-    assert t.quantity == Decimal("10")
+    assert close_6.entry_price == Decimal("5.50")
+    assert close_6.exit_price == Decimal("5.75")
+    assert close_6.pnl == expected_pnl_6
+    assert close_6.commission == Decimal("12")
+    assert close_6.net_pnl == expected_pnl_6 - Decimal("12")
+    assert close_6.opened_at == t1
+    assert close_6.closed_at == t2
 
-    # Verify commission total
-    assert t.commission == Decimal("20.00")
+    assert close_4.entry_price == Decimal("5.50")
+    assert close_4.exit_price == Decimal("5.80")
+    assert close_4.pnl == expected_pnl_4
+    assert close_4.commission == Decimal("8")
+    assert close_4.net_pnl == expected_pnl_4 - Decimal("8")
+    assert close_4.opened_at == t1
+    assert close_4.closed_at == t3
 
-    # Verify gross PnL (sum of matched PnLs)
-    # matched_pnl_1 = (5.75 - 5.50) * 6 = 1.50
-    # matched_pnl_2 = (5.80 - 5.50) * 4 = 1.20
-    # total = 2.70 (per contract, no multiplier in aggregator)
-    expected_gross_pnl = (Decimal("5.75") - Decimal("5.50")) * Decimal("6") + (Decimal("5.80") - Decimal("5.50")) * Decimal("4")
-    assert round(t.pnl, 2) == round(expected_gross_pnl, 2)
-
-    # Verify net PnL
-    expected_net_pnl = expected_gross_pnl - Decimal("20.00")
-    assert round(t.net_pnl, 2) == round(expected_net_pnl, 2)
-
-    # Verify timestamps
-    assert t.opened_at == t1
-    assert t.closed_at == t3
+    total_pnl = sum((trade.pnl for trade in closed if trade.pnl is not None), Decimal("0"))
+    assert total_pnl == Decimal("270")
 
 
 def test_mixed_execution_co_fractional_flip_produces_correct_trades() -> None:
@@ -313,7 +279,9 @@ def test_mixed_execution_co_fractional_flip_produces_correct_trades() -> None:
     # The two SHORT-direction closed trades come from the LONG 0.68230 C execution.
     short_closes = [t for t in closed if t.direction == Direction.SHORT]
     assert len(short_closes) == 2, f"Expected 2 SHORT closes, got {len(short_closes)}"
-    short_entries = sorted(t.entry_price for t in short_closes)
+    short_entries = sorted(
+        t.entry_price for t in short_closes if t.entry_price is not None
+    )
     assert short_entries[0] == Decimal("126.24000"), f"Expected SHORT entry 126.24, got {short_entries[0]}"
     assert short_entries[1] == Decimal("126.35000"), f"Expected SHORT entry 126.35 (C;O flip), got {short_entries[1]}"
     # Both short closes must have negative net_pnl (bought back higher than sold).

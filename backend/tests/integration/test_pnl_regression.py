@@ -73,7 +73,7 @@ async def test_sequential_import_matches_in_memory_ground_truth(
         logical_executions_to_trade_creates,
     )
 
-    raw_records, cash_transactions, corporate_actions = _parse_raw_files(paths)
+    raw_records, corporate_actions = _parse_raw_files(paths)
     sorted_raw_records = _stable_sort_executions(raw_records)
     execution_trades = logical_executions_to_trade_creates(sorted_raw_records)
     gt_trades = aggregate_executions_fifo(

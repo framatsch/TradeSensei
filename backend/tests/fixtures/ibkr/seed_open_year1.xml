@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexQueryResponse queryName="SeedOpenY1" type="AF">
+  <FlexStatements count="1">
+    <FlexStatement accountId="U99999999" fromDate="20240101" toDate="20241231" period="Annual">
+      <Trades>
+        <Trade accountId="U99999999" assetCategory="STK" symbol="SEEDA" conid="500001"
+               tradeDate="20241101" dateTime="20241101;093000"
+               quantity="100" tradePrice="10.00" ibCommission="-0.50"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="8100001" multiplier="1" currency="USD" />
+
+        <Trade accountId="U99999999" assetCategory="STK" symbol="SPLT" conid="600111"
+               tradeDate="20241115" dateTime="20241115;100000"
+               quantity="100" tradePrice="10.00" ibCommission="-0.50"
+               fifoPnlRealized="0" openCloseIndicator="O"
+               buySell="BUY" transactionID="8100002" multiplier="1" currency="USD" />
+      </Trades>
+    </FlexStatement>
+  </FlexStatements>
+</FlexQueryResponse>

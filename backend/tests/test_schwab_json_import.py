@@ -16,6 +16,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
@@ -44,6 +45,10 @@ _PORTFOLIOS_URL = "/api/v1/portfolios"
 
 def _fixture_path() -> Path:
     return Path(__file__).resolve().parents[2] / "tests" / "test_data" / "schwab" / "schwab_aggregation.json"
+
+
+def _short_roundtrip_fixture_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "tests" / "test_data" / "schwab" / "schwab_short_roundtrip.json"
 
 
 def _load_fixture() -> dict[str, object]:
@@ -487,3 +492,59 @@ async def test_schwab_unset_account_number_multi_account_returns_422(client: Asy
     assert "file is ambiguous" in detail
     assert "45302130" in detail
     assert "99887766" in detail
+
+
+@pytest.mark.integration
+async def test_schwab_short_roundtrip_lifecycle_matches_ground_truth(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    token, user_id = await _register_and_login(client)
+    portfolio_id, account_id = await _create_account(
+        client,
+        token,
+        AccountType.SCHWAB,
+        account_number="45302130",
+    )
+
+    fixture_bytes = _short_roundtrip_fixture_path().read_bytes()
+
+    parser = SchwabJSONParser()
+    expected_raw, _ = parser.parse_raw(fixture_bytes, "schwab_short_roundtrip.json")
+    expected_trades = aggregate_executions_fifo(
+        logical_executions_to_trade_creates([cast(ExecutionLike, row) for row in expected_raw])
+    )
+    expected_closed = [trade for trade in expected_trades if trade.closed_at is not None]
+    assert len(expected_closed) == 1
+    expected = expected_closed[0]
+
+    service = ImportService(db_session)
+    imported = await service.import_file(
+        content=fixture_bytes,
+        filename="schwab_short_roundtrip.json",
+        broker=BrokerType.SCHWAB,
+        portfolio_id=portfolio_id,
+        account_id=account_id,
+        user_id=user_id,
+    )
+    assert imported.trades_created >= 1
+
+    trade_rows = await db_session.execute(
+        select(Trade).where(
+            Trade.user_id == user_id,
+            Trade.account_id == account_id,
+            Trade.symbol == "TSHORT",
+        )
+    )
+    trades = list(trade_rows.scalars().all())
+    closed = [trade for trade in trades if trade.closed_at is not None]
+    assert len(closed) == 1
+
+    trade = closed[0]
+    assert trade.direction.value == "SHORT"
+    assert trade.opened_at == _parse_ts("2026-07-11T14:00:00+0000")
+    assert trade.closed_at == _parse_ts("2026-07-12T14:00:00+0000")
+    assert trade.entry_price == expected.entry_price
+    assert trade.exit_price == expected.exit_price
+    assert trade.pnl is not None and trade.pnl > Decimal("0")
+    assert trade.pnl == expected.pnl
