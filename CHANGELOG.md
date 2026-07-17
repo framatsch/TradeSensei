@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - [backend] Cross-import COMBO seed/update flow: later IBKR closing-only imports now close the existing open COMBO trade (`db_trade_id`-based update) instead of creating duplicates
+- [backend] `open_close` field on `LogicalExecutionRead` and `BrokerRawTransactionRead` schemas — exposes the O/C indicator derived by the broker parser at the API level
 - [test] Integration coverage for split-file COMBO lifecycle (open-only import A + close-only import B) and DB-vs-ground-truth P&L anchor on `combo_positions.xml`
 
 ### Changed
@@ -17,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] **BREAKING** Consolidated playbook content to a single markdown `description` field, removed legacy `content_markdown` storage, and removed MCP `rules` input from strategy playbook create/update
 - [backend] Added MCP `sync_playbook_metadata` and extended `update_strategy_playbook` with optional additive `taxonomy_ids`; `get/list_strategy_playbooks` now include assigned taxonomies
 - [frontend] Playbook editor save/load now uses `description` only; removed `content_markdown` usage in playbook payload types
+
+### Fixed
+- [backend] Replaced deprecated FastAPI `HTTP_*` status constants with modern `*_CONTENT` / `*_TOO_LARGE` variants across validation and upload error responses
 
 ## [1.4.0] - 2026-07-15
 
