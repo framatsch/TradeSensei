@@ -39,16 +39,37 @@ Performs bulk metadata sync for many trades in one call (notes, taxonomy assignm
 | `taxonomy_ids` | uuid[] | no | Replaces all taxonomy assignments per matched trade. |
 | `annotations` | object[] | no | Upserts annotations: `{ annotation_definition_id, value }`. |
 
+### `sync_playbook_metadata`
+
+Performs additive, idempotent taxonomy assignment for a single playbook.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `playbook_id` | uuid | yes | Target playbook ID (must be owned by the caller). |
+| `taxonomy_ids` | uuid[] | yes | Taxonomy IDs to add. Existing assignments are preserved; duplicates are ignored. |
+
 ### `create_strategy_playbook`
 
-Creates a new active playbook from structured AI output and stores rules as Markdown bullets.
+Creates a new active playbook with optional markdown description.
 
 | Param | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Playbook name, max 100 chars, unique per user. |
-| `description` | string | no | Optional free-form description. |
-| `rules` | string[] | yes | At least one rule, rendered into `content_markdown`. |
+| `description` | string | no | Optional markdown description. |
 | `target_winrate` | number | no | Optional target win rate, `0.0` to `1.0`. |
+
+### `update_strategy_playbook`
+
+Updates playbook metadata and can optionally assign taxonomy tags in the same call.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `playbook_id` | uuid | yes | Target playbook ID. |
+| `name` | string | no | Optional renamed playbook name (unique per user). |
+| `description` | string | no | Optional markdown description update. |
+| `taxonomy_ids` | uuid[] | no | Optional additive taxonomy assignment list (same semantics as `sync_playbook_metadata`). |
+| `target_winrate` | number | no | Optional target win rate, `0.0` to `1.0`. |
+| `is_active` | boolean | no | Optional active status update. |
 
 ## Prompt Examples
 

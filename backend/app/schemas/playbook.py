@@ -20,11 +20,7 @@ from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from app.core.constants import (
-    PLAYBOOK_DESCRIPTION_MAX_LENGTH,
-    PLAYBOOK_NAME_MAX_LENGTH,
-    PLAYBOOK_NAME_MIN_LENGTH,
-)
+from app.core.constants import PLAYBOOK_NAME_MAX_LENGTH, PLAYBOOK_NAME_MIN_LENGTH
 from app.schemas.taxonomy import TaxonomyResponse
 
 
@@ -45,13 +41,8 @@ class PlaybookCreate(BaseModel):
     )
     description: str | None = Field(
         default=None,
-        max_length=PLAYBOOK_DESCRIPTION_MAX_LENGTH,
-        description=("Optional long-form description of the strategy or setup. Maximum 2 000 characters."),
+        description=("Optional long-form markdown description of the strategy or setup."),
         examples=["Enter on a confirmed breakout above the prior day high.", None],
-    )
-    content_markdown: str | None = Field(
-        default=None,
-        description="Optional detailed markdown content for the playbook.",
     )
     target_winrate: Decimal | None = Field(
         default=None,
@@ -82,13 +73,8 @@ class PlaybookUpdate(BaseModel):
     )
     description: str | None = Field(
         default=None,
-        max_length=PLAYBOOK_DESCRIPTION_MAX_LENGTH,
-        description=("Updated description. Omit to leave unchanged. Set to null to clear the existing description."),
+        description=("Updated markdown description. Omit to leave unchanged. Set to null to clear the existing description."),
         examples=["Revised criteria for entry.", None],
-    )
-    content_markdown: str | None = Field(
-        default=None,
-        description="Updated markdown content.",
     )
     target_winrate: Decimal | None = Field(
         default=None,
@@ -110,7 +96,7 @@ class PlaybookRead(BaseModel):
         id: UUID primary key.
         user_id: UUID of the owning user.
         name: Playbook label.
-        description: Optional description.
+        description: Optional markdown description.
         is_active: Whether the playbook is active.
         created_at: UTC timestamp of playbook creation.
         updated_at: UTC timestamp of the last update.
@@ -135,12 +121,8 @@ class PlaybookRead(BaseModel):
     )
     description: str | None = Field(
         ...,
-        description="Optional strategy description. Null if not set.",
+        description="Optional strategy markdown description. Null if not set.",
         examples=["Enter on a confirmed breakout above prior day high.", None],
-    )
-    content_markdown: str | None = Field(
-        ...,
-        description="Detailed markdown content.",
     )
     target_winrate: Decimal | None = Field(
         ...,

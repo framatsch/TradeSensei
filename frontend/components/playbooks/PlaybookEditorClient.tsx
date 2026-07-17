@@ -130,7 +130,7 @@ export function PlaybookEditorClient({ id }: Props) {
           ? (Number(playbook.target_winrate) * 100).toFixed(2).replace(/\.?0+$/, "")
           : ""
       );
-      setContentMarkdown(playbook.content_markdown ?? "");
+      setContentMarkdown(playbook.description ?? "");
     }
   }, [playbook]);
 
@@ -213,9 +213,9 @@ export function PlaybookEditorClient({ id }: Props) {
   }, [deleteAttachment, id, pendingAttachmentIdsToDelete, pendingAttachmentsToAdd, registerAttachment]);
 
   const handleSave = useCallback(() => {
-    const payload: { name?: string; content_markdown?: string | null; target_winrate?: number | null } = {
+    const payload: { name?: string; description?: string | null; target_winrate?: number | null } = {
       name: name.trim() || playbook?.name,
-      content_markdown: contentMarkdown,
+      description: contentMarkdown,
     };
     if (targetWinrate.trim()) {
       const parsed = parseFloat(targetWinrate);

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [frontend] Regenerated OpenAPI client (`frontend/lib/api/`) to include `LogicalExecutionRead.open_close` in generated types
 - [docs] Clarified import behavior glossary entry: IBKR multi-leg option orders are grouped as COMBO trades with leg-level Open/Close markers while preserving aggregate P&L
+- [backend] **BREAKING** Consolidated playbook content to a single markdown `description` field, removed legacy `content_markdown` storage, and removed MCP `rules` input from strategy playbook create/update
+- [backend] Added MCP `sync_playbook_metadata` and extended `update_strategy_playbook` with optional additive `taxonomy_ids`; `get/list_strategy_playbooks` now include assigned taxonomies
+- [frontend] Playbook editor save/load now uses `description` only; removed `content_markdown` usage in playbook payload types
 
 ## [1.4.0] - 2026-07-15
 

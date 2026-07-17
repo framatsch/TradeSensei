@@ -40,6 +40,7 @@ from app.models.checkin_annotation import CheckinAnnotation
 from app.models.checkin_taxonomy import CheckinTaxonomy
 from app.models.daily_checkin import DailyCheckin
 from app.models.playbook import Playbook
+from app.models.playbook_taxonomy import PlaybookTaxonomy
 from app.models.portfolio import Portfolio
 from app.models.taxonomy import Taxonomy
 from app.models.trade import AssetClass, Trade
@@ -52,7 +53,9 @@ from app.schemas.annotation_filter import AnnotationFilterItem
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
 from app.services.annotation_definition_service import AnnotationDefinitionService
 from app.services.audit_service import AuditEventService, generate_request_id
+from app.services.playbook_taxonomy_service import PlaybookTaxonomyService
 from app.services.taxonomy_service import TaxonomyService
+from app.utils.scope_utils import scope_contains
 from app.utils.annotation_mapping import map_value_to_column
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
@@ -125,7 +128,6 @@ class SyncTradeMetadataParams(BaseModel):
 class CreateStrategyPlaybookParams(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str | None = None
-    rules: list[str] = Field(min_length=1)
     target_winrate: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
@@ -133,7 +135,7 @@ class UpdateStrategyPlaybookParams(BaseModel):
     playbook_id: uuid.UUID
     name: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = None
-    rules: list[str] | None = None
+    taxonomy_ids: list[uuid.UUID] | None = None
     target_winrate: float | None = Field(default=None, ge=0.0, le=1.0)
     is_active: bool | None = None
 
@@ -161,6 +163,11 @@ class SyncCheckinMetadataParams(BaseModel):
         if len(self.checkin_ids) > 50:
             raise ValueError("Maximum 50 checkin IDs per call")
         return self
+
+
+class SyncPlaybookMetadataParams(BaseModel):
+    playbook_id: uuid.UUID
+    taxonomy_ids: list[uuid.UUID]
 
 
 class ListAccountsParams(BaseModel):
@@ -464,6 +471,47 @@ async def _handle_sync_trade_metadata(
     return {"updated_count": len(owned_trade_ids)}
 
 
+async def _apply_playbook_taxonomies(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    playbook_id: uuid.UUID,
+    taxonomy_ids: list[uuid.UUID],
+) -> int:
+    owned_playbook = await db.execute(
+        select(Playbook.id).where(Playbook.user_id == user_id, Playbook.id == playbook_id),
+    )
+    if owned_playbook.scalar_one_or_none() is None:
+        raise ValueError(f"Playbook {playbook_id} not found")
+
+    if not taxonomy_ids:
+        return 0
+
+    taxonomy_result = await db.execute(
+        select(Taxonomy).where(
+            Taxonomy.user_id == user_id,
+            Taxonomy.is_archived.is_(False),
+            Taxonomy.id.in_(taxonomy_ids),
+        ),
+    )
+    valid_taxonomies = {item.id: item for item in taxonomy_result.scalars().all()}
+    if len(valid_taxonomies) != len(set(taxonomy_ids)):
+        raise ValueError("One or more taxonomy_ids are invalid for this user")
+
+    for taxonomy in valid_taxonomies.values():
+        if not scope_contains(taxonomy.scope, "playbook"):
+            raise ValueError("One or more taxonomy_ids have scope incompatible with playbooks")
+
+    for taxonomy_id in taxonomy_ids:
+        insert_stmt = (
+            pg_insert(PlaybookTaxonomy)
+            .values(playbook_id=playbook_id, taxonomy_id=taxonomy_id)
+            .on_conflict_do_nothing(constraint="uq_playbook_taxonomy_pair")
+        )
+        await db.execute(insert_stmt)
+
+    return len(set(taxonomy_ids))
+
+
 async def _handle_create_strategy_playbook(
     user_id: uuid.UUID,
     db: AsyncSession,
@@ -477,12 +525,10 @@ async def _handle_create_strategy_playbook(
     if duplicate_check.scalar_one_or_none() is not None:
         raise ValueError("A playbook with that name already exists")
 
-    rules_markdown = "\n".join(f"- {rule}" for rule in params.rules)
     playbook = Playbook(
         user_id=user_id,
         name=params.name,
         description=params.description,
-        content_markdown=rules_markdown,
         target_winrate=(Decimal(str(params.target_winrate)) if params.target_winrate is not None else None),
         is_active=True,
     )
@@ -527,13 +573,20 @@ async def _handle_update_strategy_playbook(
         )
         if duplicate_check.scalar_one_or_none() is not None:
             raise ValueError("A playbook with that name already exists")
+
+    if params.taxonomy_ids is not None:
+        await _apply_playbook_taxonomies(
+            db=db,
+            user_id=user_id,
+            playbook_id=params.playbook_id,
+            taxonomy_ids=params.taxonomy_ids,
+        )
+
+    if params.name is not None and params.name != playbook.name:
         playbook.name = params.name
 
     if params.description is not None:
         playbook.description = params.description
-
-    if params.rules is not None:
-        playbook.content_markdown = "\n".join(f"- {rule}" for rule in params.rules)
 
     if params.target_winrate is not None:
         playbook.target_winrate = Decimal(str(params.target_winrate))
@@ -571,18 +624,31 @@ async def _handle_list_strategy_playbooks(
         select(Playbook).where(Playbook.user_id == user_id).order_by(Playbook.name.asc()),
     )
     playbooks = result.scalars().all()
-    return {
-        "playbooks": [
+    playbook_taxonomy_service = PlaybookTaxonomyService(db)
+
+    enriched_playbooks: list[dict[str, Any]] = []
+    for playbook in playbooks:
+        taxonomy_assignments = await playbook_taxonomy_service.list(
+            playbook_id=playbook.id,
+            user_id=user_id,
+        )
+        enriched_playbooks.append(
             {
-                "id": str(p.id),
-                "name": p.name,
-                "description": p.description,
-                "target_winrate": _serialize_decimal(p.target_winrate),
-                "is_active": p.is_active,
-                "created_at": _serialize_datetime(p.created_at),
+                "id": str(playbook.id),
+                "name": playbook.name,
+                "description": playbook.description,
+                "target_winrate": _serialize_decimal(playbook.target_winrate),
+                "is_active": playbook.is_active,
+                "created_at": _serialize_datetime(playbook.created_at),
+                "taxonomy_assignments": [
+                    {"taxonomy_id": str(item.id), "name": item.name}
+                    for item in taxonomy_assignments
+                ],
             }
-            for p in playbooks
-        ],
+        )
+
+    return {
+        "playbooks": enriched_playbooks,
     }
 
 
@@ -599,16 +665,63 @@ async def _handle_get_strategy_playbook(
     if not p:
         raise ValueError(f"Playbook {params.playbook_id} not found")
 
+    playbook_taxonomy_service = PlaybookTaxonomyService(db)
+    taxonomy_assignments = await playbook_taxonomy_service.list(
+        playbook_id=p.id,
+        user_id=user_id,
+    )
+
     return {
         "id": str(p.id),
         "name": p.name,
         "description": p.description,
-        "content_markdown": p.content_markdown,
         "target_winrate": _serialize_decimal(p.target_winrate),
         "is_active": p.is_active,
         "created_at": _serialize_datetime(p.created_at),
         "updated_at": _serialize_datetime(p.updated_at),
+        "taxonomy_assignments": [
+            {"taxonomy_id": str(item.id), "name": item.name}
+            for item in taxonomy_assignments
+        ],
     }
+
+
+async def _handle_sync_playbook_metadata(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = SyncPlaybookMetadataParams.model_validate(arguments)
+
+    updated_count = await _apply_playbook_taxonomies(
+        db=db,
+        user_id=user_id,
+        playbook_id=params.playbook_id,
+        taxonomy_ids=params.taxonomy_ids,
+    )
+
+    await db.flush()
+
+    AuditEventService().create_audit_event(
+        action="playbook.bulk_metadata_synced",
+        user_id=user_id,
+        email=None,
+        resource_type="playbook",
+        resource_id=params.playbook_id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={
+            "user_id": str(user_id),
+            "playbook_id": str(params.playbook_id),
+            "taxonomy_count": len(set(params.taxonomy_ids)),
+        },
+    )
+
+    return {"updated_count": updated_count}
 
 
 async def _handle_list_portfolios(
@@ -1449,14 +1562,30 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "handler": _handle_sync_trade_metadata,
         "mutating": True,
     },
+    "sync_playbook_metadata": {
+        "description": "Bulk assign taxonomy tags to a playbook (additive, idempotent; does not remove existing assignments).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "playbook_id": {"type": "string", "format": "uuid"},
+                "taxonomy_ids": {
+                    "type": "array",
+                    "items": {"type": "string", "format": "uuid"},
+                },
+            },
+            "required": ["playbook_id", "taxonomy_ids"],
+        },
+        "handler": _handle_sync_playbook_metadata,
+        "mutating": True,
+    },
     "list_strategy_playbooks": {
-        "description": "List all strategy playbooks (including basic metadata).",
+        "description": "List all strategy playbooks including assigned taxonomy tags.",
         "inputSchema": {"type": "object", "properties": {}},
         "handler": _handle_list_strategy_playbooks,
         "mutating": False,
     },
     "get_strategy_playbook": {
-        "description": "Get detailed information about a specific strategy playbook including its rules in markdown format.",
+        "description": "Get detailed information about a specific strategy playbook including markdown description and assigned taxonomy tags.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1468,29 +1597,31 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "mutating": False,
     },
     "create_strategy_playbook": {
-        "description": "Create an active playbook from AI-supplied structured rules.",
+        "description": "Create an active playbook with optional markdown description.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "name": {"type": "string", "maxLength": 100},
                 "description": {"type": "string"},
-                "rules": {"type": "array", "minItems": 1, "items": {"type": "string"}},
                 "target_winrate": {"type": "number", "minimum": 0, "maximum": 1},
             },
-            "required": ["name", "rules"],
+            "required": ["name"],
         },
         "handler": _handle_create_strategy_playbook,
         "mutating": True,
     },
     "update_strategy_playbook": {
-        "description": "Update an existing playbook's metadata or rules.",
+        "description": "Update an existing playbook's metadata and optionally assign taxonomy tags additively.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "playbook_id": {"type": "string", "format": "uuid"},
                 "name": {"type": "string"},
                 "description": {"type": "string"},
-                "rules": {"type": "array", "items": {"type": "string"}},
+                "taxonomy_ids": {
+                    "type": "array",
+                    "items": {"type": "string", "format": "uuid"},
+                },
                 "target_winrate": {"type": "number"},
                 "is_active": {"type": "boolean"},
             },

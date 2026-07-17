@@ -3097,15 +3097,9 @@ export type PlaybookCreate = {
     /**
      * Description
      *
-     * Optional long-form description of the strategy or setup. Maximum 2 000 characters.
+     * Optional long-form markdown description of the strategy or setup.
      */
     description?: string | null;
-    /**
-     * Content Markdown
-     *
-     * Optional detailed markdown content for the playbook.
-     */
-    content_markdown?: string | null;
     /**
      * Target Winrate
      *
@@ -3291,7 +3285,7 @@ export type PlaybookLinkResponse = {
  * id: UUID primary key.
  * user_id: UUID of the owning user.
  * name: Playbook label.
- * description: Optional description.
+ * description: Optional markdown description.
  * is_active: Whether the playbook is active.
  * created_at: UTC timestamp of playbook creation.
  * updated_at: UTC timestamp of the last update.
@@ -3318,15 +3312,9 @@ export type PlaybookRead = {
     /**
      * Description
      *
-     * Optional strategy description. Null if not set.
+     * Optional strategy markdown description. Null if not set.
      */
     description: string | null;
-    /**
-     * Content Markdown
-     *
-     * Detailed markdown content.
-     */
-    content_markdown: string | null;
     /**
      * Target Winrate
      *
@@ -3395,15 +3383,9 @@ export type PlaybookUpdate = {
     /**
      * Description
      *
-     * Updated description. Omit to leave unchanged. Set to null to clear the existing description.
+     * Updated markdown description. Omit to leave unchanged. Set to null to clear the existing description.
      */
     description?: string | null;
-    /**
-     * Content Markdown
-     *
-     * Updated markdown content.
-     */
-    content_markdown?: string | null;
     /**
      * Target Winrate
      *
