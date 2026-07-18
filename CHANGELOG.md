@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Added robust OAuth connect flows for Charles Schwab (paste mode and callback mode) with refresh token rotation and 7-day expiry handling.
+- [frontend] Replaced static Schwab credentials input with an OAuth flow in settings, supporting both seamless redirect callbacks and fallback paste methods.
 ## [1.5.0] - 2026-07-17
 
 ### Added

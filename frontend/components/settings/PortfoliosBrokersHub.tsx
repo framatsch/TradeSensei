@@ -16,11 +16,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePortfolios } from "@/hooks/usePortfolios";
 import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAccounts } from "@/hooks/useAccounts";
 import { THEME_COLORS } from "@/lib/constants/colors";
 import { Star, Edit2, Plus, ChevronDown, ChevronRight, AlertCircle, RefreshCw } from "lucide-react";
+import { toast } from "react-hot-toast";
 import type { PortfolioRead as Portfolio } from "@/lib/api/types.gen";
 import type { Account } from "@/lib/types";
 import { PortfolioCreateModal } from "./modals/PortfolioCreateModal";
@@ -140,6 +142,10 @@ export function PortfoliosBrokersHub() {
   const [expandedPortfolioIds, setExpandedPortfolioIds] = useState<Set<string>>(new Set());
   const [initialized, setInitialized] = useState(false);
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalPortfolio, setEditModalPortfolio] = useState<Portfolio | null>(null);
   const [addAccountPortfolio, setAddAccountPortfolio] = useState<Portfolio | null>(null);
@@ -155,6 +161,22 @@ export function PortfoliosBrokersHub() {
       setInitialized(true);
     }
   }, [portfolios, initialized]);
+
+  useEffect(() => {
+    const cb = searchParams.get("schwab_callback");
+    if (cb) {
+      if (cb === "success") {
+        toast.success("Schwab account connected!");
+      } else {
+        toast.error("Failed to connect Schwab account. Please try again.");
+      }
+      
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("schwab_callback");
+      newParams.delete("account_id");
+      router.replace(`${pathname}?${newParams.toString()}`);
+    }
+  }, [searchParams, router, pathname]);
 
   const toggleExpand = (id: string) => {
     setExpandedPortfolioIds((prev) => {

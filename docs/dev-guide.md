@@ -736,3 +736,39 @@ presigned **GET** URLs in authenticated read/list responses for:
 - Playbook attachments (`storage_url`, 4h expiry)
 
 Buckets must still remain private; presigned URLs are the intended read path.
+
+## Schwab OAuth Setup
+
+Trade Sensei supports linking individual Charles Schwab accounts using OAuth. 
+There are two connection modes: **paste** (default) and **callback**.
+
+### 1. Obtaining Per-Account App Credentials
+To connect a Schwab account, the user must first register an App on the Schwab Developer Portal.
+1. Create a new App in the Schwab Developer Portal.
+2. If using `paste` mode, set the Callback URL exactly to `https://127.0.0.1`.
+3. If using `callback` mode, set the Callback URL exactly to your backend domain (e.g., `https://api.tradesensei.com/api/v1/broker/schwab/callback`). Note: This requires TLS (https) ingress.
+4. Copy the "App Key" and "App Secret". These will be saved in Trade Sensei per-account.
+
+### 2. Paste Mode (`SCHWAB_OAUTH_MODE=paste`)
+This is the default mode for local development. 
+- The user clicks "Connect Schwab".
+- They are redirected to the Schwab login page.
+- After logging in, the browser redirects to a broken `https://127.0.0.1/?code=...` page.
+- The user copies the entire URL from the address bar.
+- The user returns to Trade Sensei and pastes the URL into the input field to complete the connection.
+
+### 3. Callback Mode (`SCHWAB_OAUTH_MODE=callback`)
+This mode requires a public HTTPS domain.
+- The `SCHWAB_REDIRECT_URI` environment variable must be set (e.g. `https://api.tradesensei.com/api/v1/broker/schwab/callback`).
+- The user clicks "Connect Schwab".
+- They are redirected to the Schwab login page.
+- After logging in, Schwab redirects the user to the backend `/api/v1/broker/schwab/callback` endpoint.
+- The backend completes the OAuth exchange and automatically redirects the user back to the Trade Sensei frontend with a success/error status.
+
+### 4. Reconnect on Refresh Expiry
+Schwab refresh tokens expire after 7 days.
+- During routine syncs, the backend will attempt to use the stored access token.
+- If expired, the backend automatically exchanges the refresh token for a new access token (and stores it).
+- If the refresh token is expired (meaning the user hasn't synced in >7 days), the backend raises a `ConfigurationError`.
+- The frontend surfaces this as a neutral prompt to "Reconnect" the account rather than a hard error.
+

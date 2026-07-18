@@ -172,6 +172,26 @@ FLEX_POLL_MAX_ATTEMPTS: int = 10
 SCREENSHOT_MAX_FILE_SIZE_MB: int = 20
 """Maximum file size in megabytes allowed for screenshot uploads."""
 
+# ─── Broker OAuth Property Keys ───────────────────────────────────────────────
+
+SCHWAB_ACCESS_TOKEN: str = "SCHWAB_ACCESS_TOKEN"
+"""AccountProperty key storing the encrypted Schwab OAuth access token."""
+
+SCHWAB_REFRESH_TOKEN: str = "SCHWAB_REFRESH_TOKEN"
+"""AccountProperty key storing the encrypted Schwab OAuth refresh token."""
+
+SCHWAB_TOKEN_EXPIRES_AT: str = "SCHWAB_TOKEN_EXPIRES_AT"
+"""AccountProperty key storing access-token expiry as an ISO-8601 UTC string."""
+
+SCHWAB_OAUTH_CODE_VERIFIER: str = "SCHWAB_OAUTH_CODE_VERIFIER"
+"""AccountProperty key storing the PKCE verifier for in-progress OAuth flows."""
+
+SCHWAB_OAUTH_STATE: str = "SCHWAB_OAUTH_STATE"
+"""AccountProperty key storing the CSRF state for in-progress OAuth flows."""
+
+SCHWAB_OAUTH_STATE_ACCOUNT: str = "SCHWAB_OAUTH_STATE_ACCOUNT"
+"""AccountProperty key storing encrypted state-to-account correlation payload."""
+
 # ─── Playbook field sizes ─────────────────────────────────────────────────────
 
 PLAYBOOK_NAME_MIN_LENGTH: int = 1

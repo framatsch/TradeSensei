@@ -26,6 +26,20 @@ import "@testing-library/jest-dom";
 jest.mock("@/hooks/usePortfolios");
 jest.mock("@/hooks/useSettings");
 jest.mock("@/hooks/useAccounts");
+jest.mock("next/navigation", () => ({
+  useSearchParams: jest.fn(),
+  useRouter: jest.fn(),
+  usePathname: jest.fn(),
+}));
+jest.mock("react-hot-toast", () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { toast } from "react-hot-toast";
 jest.mock("@/lib/api/client.gen", () => ({
   client: {
     post: jest.fn().mockResolvedValue({}),
@@ -113,6 +127,10 @@ describe("PortfoliosBrokersHub", () => {
       mutate: mockMutateAsync,
       mutateAsync: mockMutateAsync,
     });
+
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams());
+    (useRouter as jest.Mock).mockReturnValue({ replace: jest.fn() });
+    (usePathname as jest.Mock).mockReturnValue("/dashboard/settings");
 
     mockUseAccounts.mockReturnValue({
       data: [],
@@ -265,6 +283,36 @@ describe("PortfoliosBrokersHub", () => {
 
     expect(mockMutateAsync).toHaveBeenCalledWith({
       default_portfolio_id: "port-2",
+    });
+  });
+
+  describe("Schwab Callback handling", () => {
+    it("handles success callback from URL", async () => {
+      const mockSearchParams = new URLSearchParams("schwab_callback=success&account_id=acc-1");
+      (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
+      const mockReplace = jest.fn();
+      (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith("Schwab account connected!");
+      });
+      expect(mockReplace).toHaveBeenCalledWith("/dashboard/settings?");
+    });
+
+    it("handles error callback from URL", async () => {
+      const mockSearchParams = new URLSearchParams("schwab_callback=error");
+      (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
+      const mockReplace = jest.fn();
+      (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith("Failed to connect Schwab account. Please try again.");
+      });
+      expect(mockReplace).toHaveBeenCalledWith("/dashboard/settings?");
     });
   });
 });

@@ -22,18 +22,40 @@ records attached to the account and decrypted on demand.
 import json
 import logging
 import uuid
+from urllib.parse import parse_qs, urlparse
 from datetime import UTC, datetime, timedelta
 
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.constants import (
+    SCHWAB_ACCESS_TOKEN,
+    SCHWAB_OAUTH_CODE_VERIFIER,
+    SCHWAB_OAUTH_STATE,
+    SCHWAB_OAUTH_STATE_ACCOUNT,
+    SCHWAB_REFRESH_TOKEN,
+    SCHWAB_TOKEN_EXPIRES_AT,
+)
 from app.core.exceptions import AccountNotFoundError, ConfigurationError, ImportAccountMismatchError
 from app.models.account import Account, AccountType
 from app.models.account_property import AccountProperty
 from app.repositories.account_repository import AccountRepository
-from app.schemas.broker import BrokerConnectionTestRequest, BrokerConnectionTestResult, BrokerSyncResult
+from app.schemas.broker import (
+    BrokerConnectionTestRequest,
+    BrokerConnectionTestResult,
+    BrokerStatusResponse,
+    BrokerSyncResult,
+)
 from app.services.audit_service import AuditEventService, generate_request_id
 from app.services.import_service import ImportService
-from app.utils.encryption import decrypt_token
+from app.utils.encryption import decrypt_token, encrypt_token
+from app.utils.oauth import (
+    generate_oauth_state,
+    generate_pkce_challenge,
+    generate_pkce_verifier,
+    validate_schwab_oauth_mode_redirect,
+)
 from app.utils.parsers.factory import BrokerType
 from app.utils.schwab_account_resolution import (
     resolve_schwab_account_entry,
@@ -46,6 +68,10 @@ SCHWAB_APP_KEY_KEYS = ("schwab_app_key", "SCHWAB_APP_KEY")
 SCHWAB_APP_SECRET_KEYS = ("schwab_app_secret", "SCHWAB_APP_SECRET")
 IBKR_FLEX_TOKEN_KEYS = ("ibkr_flex_token", "IBKR_FLEX_TOKEN")
 IBKR_FLEX_QUERY_ID_KEYS = ("ibkr_flex_query_id", "IBKR_FLEX_QUERY_ID")
+SCHWAB_ACCESS_TOKEN_KEYS = ("schwab_access_token", SCHWAB_ACCESS_TOKEN)
+SCHWAB_REFRESH_TOKEN_KEYS = ("schwab_refresh_token", SCHWAB_REFRESH_TOKEN)
+SCHWAB_TOKEN_EXPIRES_AT_KEYS = ("schwab_token_expires_at", SCHWAB_TOKEN_EXPIRES_AT)
+SCHWAB_REFRESH_SKEW_SECONDS = 60
 
 
 class BrokerService:
@@ -201,13 +227,64 @@ class BrokerService:
 
         raise ConfigurationError(f"Missing account property: {keys[0]}")
 
-    async def _test_schwab(self, provided: dict[str, str], account: Account | None) -> None:
-        app_key = self._resolve_property(provided, account, SCHWAB_APP_KEY_KEYS)
-        self._resolve_property(provided, account, SCHWAB_APP_SECRET_KEYS)
+    def _resolve_optional_property(
+        self,
+        account: Account,
+        keys: tuple[str, ...],
+    ) -> str | None:
+        for key in keys:
+            prop: AccountProperty | None = next((p for p in account.properties if p.key == key), None)
+            if prop is None:
+                continue
+            try:
+                return decrypt_token(prop.value)
+            except Exception as exc:
+                raise ConfigurationError(f"Failed to decrypt property {key}.") from exc
+        return None
 
+    async def _upsert_account_property_encrypted(
+        self,
+        *,
+        account_id: uuid.UUID,
+        key: str,
+        value: str,
+    ) -> None:
+        await self._account_repo.upsert_property_unscoped(
+            account_id=account_id,
+            key=key,
+            encrypted_value=encrypt_token(value),
+        )
+
+    async def _delete_account_property(
+        self,
+        *,
+        account_id: uuid.UUID,
+        key: str,
+    ) -> None:
+        await self._account_repo.delete_property_unscoped(account_id=account_id, key=key)
+
+    async def _resolve_account_by_oauth_state(self, state: str) -> Account | None:
+        candidates = await self._account_repo.list_accounts_with_property_key_unscoped(SCHWAB_OAUTH_STATE_ACCOUNT)
+        for candidate in candidates:
+            value = self._resolve_optional_property(candidate, (SCHWAB_OAUTH_STATE_ACCOUNT,))
+            if value == state:
+                return candidate
+        return None
+
+    async def _test_schwab(self, provided: dict[str, str], account: Account | None) -> None:
+        del provided
+        if account is None:
+            raise ConfigurationError("Schwab account must be created before testing OAuth connectivity.")
+
+        access_token = self._resolve_optional_property(account, SCHWAB_ACCESS_TOKEN_KEYS)
+        refresh_token = self._resolve_optional_property(account, SCHWAB_REFRESH_TOKEN_KEYS)
+        if not access_token or not refresh_token:
+            raise ConfigurationError("Schwab account is not connected via OAuth. Please connect via OAuth first.")
+
+        valid_token = await self._get_valid_schwab_access_token(account)
         client = SchwabClient()
         try:
-            await client.get_account_numbers(access_token=app_key)
+            await client.get_account_numbers(access_token=valid_token)
         except Exception as exc:
             raise ConfigurationError(f"Schwab connection test failed: {exc}") from exc
 
@@ -229,9 +306,236 @@ class BrokerService:
         except Exception as exc:
             raise ConfigurationError(f"IBKR connection test failed: {exc}") from exc
 
+    async def _get_valid_schwab_access_token(self, account: Account) -> str:
+        access_token = self._resolve_optional_property(account, SCHWAB_ACCESS_TOKEN_KEYS)
+        refresh_token = self._resolve_optional_property(account, SCHWAB_REFRESH_TOKEN_KEYS)
+        expires_raw = self._resolve_optional_property(account, SCHWAB_TOKEN_EXPIRES_AT_KEYS)
+
+        if not access_token or not refresh_token:
+            raise ConfigurationError("Schwab account is not connected via OAuth. Please connect via OAuth first.")
+
+        expires_at: datetime | None = None
+        if expires_raw:
+            raw = expires_raw.strip()
+            if raw.endswith("Z"):
+                raw = f"{raw[:-1]}+00:00"
+            try:
+                expires_at = datetime.fromisoformat(raw)
+            except ValueError:
+                expires_at = None
+
+        now = datetime.now(UTC)
+        if expires_at is not None and expires_at.tzinfo is not None and expires_at > now + timedelta(seconds=SCHWAB_REFRESH_SKEW_SECONDS):
+            return access_token
+
+        client_id = self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
+        client_secret = self._resolve_property({}, account, SCHWAB_APP_SECRET_KEYS)
+        client = SchwabClient()
+        try:
+            refreshed = await client.refresh_access_token(
+                refresh_token=refresh_token,
+                client_id=client_id,
+                client_secret=client_secret,
+                redirect_uri=settings.schwab_redirect_uri,
+            )
+        except httpx.HTTPStatusError as exc:
+            response_text = (exc.response.text if exc.response is not None else "").lower()
+            if "invalid_client" in response_text or "invalid_grant" in response_text:
+                raise ConfigurationError(
+                    "Schwab refresh token is invalid or expired. Reconnect required via Schwab OAuth."
+                ) from exc
+            raise ConfigurationError(f"Schwab access-token refresh failed: {exc}") from exc
+        except Exception as exc:
+            raise ConfigurationError(f"Schwab access-token refresh failed: {exc}") from exc
+
+        next_access_token = str(refreshed.get("access_token", "")).strip()
+        if not next_access_token:
+            raise ConfigurationError("Schwab refresh response did not include an access_token.")
+        expires_in = int(refreshed.get("expires_in", 0) or 0)
+        if expires_in <= 0:
+            raise ConfigurationError("Schwab refresh response did not include a valid expires_in value.")
+
+        next_refresh_token = str(refreshed.get("refresh_token") or refresh_token).strip()
+        next_expires_at = (datetime.now(UTC) + timedelta(seconds=expires_in)).isoformat()
+
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=next_access_token)
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=next_refresh_token)
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=next_expires_at)
+        await self._session.flush()
+        return next_access_token
+
+    async def start_schwab_authorization(self, account_id: uuid.UUID, user_id: uuid.UUID) -> str:
+        account = await self._account_repo.get_by_id_with_properties(account_id, user_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
+        validate_schwab_oauth_mode_redirect(settings.schwab_oauth_mode, settings.schwab_redirect_uri)
+
+        client_id = self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
+        self._resolve_property({}, account, SCHWAB_APP_SECRET_KEYS)
+
+        verifier = generate_pkce_verifier()
+        challenge = generate_pkce_challenge(verifier)
+        state = generate_oauth_state()
+
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER, value=verifier)
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_OAUTH_STATE, value=state)
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT, value=state)
+        await self._session.flush()
+
+        client = SchwabClient()
+        return client.get_authorization_url(
+            state=state,
+            code_challenge=challenge,
+            client_id=client_id,
+            redirect_uri=settings.schwab_redirect_uri,
+        )
+
+    async def _exchange_and_store(
+        self,
+        account: Account,
+        *,
+        code: str,
+        state: str,
+        verifier: str,
+    ) -> None:
+        client_id = self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
+        client_secret = self._resolve_property({}, account, SCHWAB_APP_SECRET_KEYS)
+
+        client = SchwabClient()
+        try:
+            exchanged = await client.exchange_code(
+                code=code,
+                code_verifier=verifier,
+                client_id=client_id,
+                client_secret=client_secret,
+                redirect_uri=settings.schwab_redirect_uri,
+            )
+        except Exception as exc:
+            raise ConfigurationError(f"Schwab OAuth code exchange failed: {exc}") from exc
+
+        access_token = str(exchanged.get("access_token", "")).strip()
+        refresh_token = str(exchanged.get("refresh_token", "")).strip()
+        expires_in = int(exchanged.get("expires_in", 0) or 0)
+        if not access_token or not refresh_token or expires_in <= 0:
+            raise ConfigurationError("Schwab OAuth exchange response was missing required token fields.")
+
+        expires_at = (datetime.now(UTC) + timedelta(seconds=expires_in)).isoformat()
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=access_token)
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=refresh_token)
+        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=expires_at)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT)
+        await self._session.flush()
+
+        self._audit.create_audit_event(
+            action="broker.schwab_connected",
+            user_id=account.user_id,
+            email=None,
+            resource_type="account",
+            resource_id=account.id,
+            parent_resource_type="portfolio",
+            parent_resource_id=account.portfolio_id,
+            ip_address=None,
+            user_agent=None,
+            request_id=generate_request_id(),
+            status_code=200,
+            method="SYSTEM",
+            path="broker_service._exchange_and_store",
+            metadata={"provider": "schwab", "state_present": bool(state)},
+        )
+
+    async def complete_schwab_connection(
+        self,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+        redirect_url: str,
+    ) -> None:
+        if settings.schwab_oauth_mode != "paste":
+            raise ConfigurationError("Schwab OAuth completion via pasted URL is only available in paste mode.")
+
+        account = await self._account_repo.get_by_id_with_properties(account_id, user_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
+        parsed = urlparse(redirect_url)
+        query = parse_qs(parsed.query)
+        code = (query.get("code") or [""])[0].strip()
+        state = (query.get("state") or [""])[0].strip()
+        if not code:
+            raise ConfigurationError("Redirect URL is missing the authorization code.")
+        if not state:
+            raise ConfigurationError("Redirect URL is missing the OAuth state.")
+
+        expected_state = self._get_property(account, SCHWAB_OAUTH_STATE)
+        if state != expected_state:
+            raise ConfigurationError("OAuth state mismatch. Please start Schwab authorization again.")
+        verifier = self._get_property(account, SCHWAB_OAUTH_CODE_VERIFIER)
+        await self._exchange_and_store(account, code=code, state=state, verifier=verifier)
+
+    async def complete_schwab_callback(self, code: str, state: str) -> Account:
+        if settings.schwab_oauth_mode != "callback":
+            raise ConfigurationError("Schwab callback completion is only available in callback mode.")
+        if not code.strip():
+            raise ConfigurationError("Callback request is missing the authorization code.")
+        if not state.strip():
+            raise ConfigurationError("Callback request is missing the OAuth state.")
+
+        account = await self._resolve_account_by_oauth_state(state)
+        if account is None:
+            raise ConfigurationError("OAuth state could not be matched or has expired.")
+
+        expected_state = self._get_property(account, SCHWAB_OAUTH_STATE)
+        if state != expected_state:
+            raise ConfigurationError("OAuth state mismatch. Please start Schwab authorization again.")
+        verifier = self._get_property(account, SCHWAB_OAUTH_CODE_VERIFIER)
+        await self._exchange_and_store(account, code=code, state=state, verifier=verifier)
+        return account
+
+    async def get_schwab_status(self, account_id: uuid.UUID, user_id: uuid.UUID) -> BrokerStatusResponse:
+        account = await self._account_repo.get_by_id_with_properties(account_id, user_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
+        has_access = self._resolve_optional_property(account, SCHWAB_ACCESS_TOKEN_KEYS) is not None
+        has_refresh = self._resolve_optional_property(account, SCHWAB_REFRESH_TOKEN_KEYS) is not None
+        return BrokerStatusResponse(connected=(has_access and has_refresh), last_sync_at=None)
+
+    async def disconnect_schwab(self, account_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        account = await self._account_repo.get_by_id_with_properties(account_id, user_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_ACCESS_TOKEN)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_REFRESH_TOKEN)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE)
+        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT)
+        await self._session.flush()
+
+        self._audit.create_audit_event(
+            action="broker.schwab_disconnected",
+            user_id=account.user_id,
+            email=None,
+            resource_type="account",
+            resource_id=account.id,
+            parent_resource_type="portfolio",
+            parent_resource_id=account.portfolio_id,
+            ip_address=None,
+            user_agent=None,
+            request_id=generate_request_id(),
+            status_code=200,
+            method="SYSTEM",
+            path="broker_service.disconnect_schwab",
+            metadata={"provider": "schwab"},
+        )
+
     async def _sync_schwab(self, account: Account, days: int) -> BrokerSyncResult:
         """Fetch Schwab transactions and import via the shared raw pipeline."""
-        app_key = self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
+        access_token = await self._get_valid_schwab_access_token(account)
+        self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
         self._resolve_property({}, account, SCHWAB_APP_SECRET_KEYS)
 
         if account.portfolio_id is None:
@@ -239,7 +543,7 @@ class BrokerService:
 
         client = SchwabClient()
 
-        account_numbers = await client.get_account_numbers(access_token=app_key)
+        account_numbers = await client.get_account_numbers(access_token=access_token)
         try:
             selected, auto_bound_number = resolve_schwab_account_entry(
                 accounts=account_numbers,
@@ -267,7 +571,7 @@ class BrokerService:
         from_date = now - timedelta(days=days)
         to_date = now
         transactions = await client.get_transactions(
-            access_token=app_key,
+            access_token=access_token,
             account_hash=account_hash,
             from_date=from_date,
             to_date=to_date,

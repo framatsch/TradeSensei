@@ -42,6 +42,27 @@ class BrokerStatusResponse(BaseModel):
     )
 
 
+class SchwabAuthorizeResponse(BaseModel):
+    """Response payload containing Schwab OAuth authorization URL."""
+
+    authorization_url: str = Field(
+        ...,
+        description="Absolute Schwab OAuth authorization URL.",
+        examples=["https://api.schwabapi.com/v1/oauth/authorize?response_type=code&..."],
+    )
+
+
+class SchwabCompleteRequest(BaseModel):
+    """Request payload for pasted Schwab OAuth redirect URL completion."""
+
+    redirect_url: str = Field(
+        ...,
+        min_length=1,
+        description="Full redirect URL copied from the browser address bar after Schwab consent.",
+        examples=["https://127.0.0.1/?code=abc&state=xyz"],
+    )
+
+
 class BrokerSyncResult(BaseModel):
     """Response schema summarising the result of a broker account sync.
 

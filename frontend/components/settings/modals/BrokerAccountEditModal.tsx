@@ -20,9 +20,14 @@ import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { X, Loader2, AlertTriangle, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { client } from "@/lib/api/client.gen";
-import { updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch, deleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDelete } from "@/lib/api/index";
+import { 
+  updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch, 
+  deleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDelete,
+  getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet
+} from "@/lib/api/index";
 import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType } from "@/lib/types";
+import { SchwabConnectSection } from "./SchwabConnectSection";
 
 const BROKER_TYPE_LABELS: Record<string, string> = {
   ibkr: "IBKR",
@@ -85,25 +90,21 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
     }
 
     const loadCredentials = async () => {
-      const { data, error: fetchErr } = await client.get<
-        { properties: Record<string, string> },
-        unknown,
-        false
-      >({
-        url: `/api/v1/portfolios/${portfolioId}/accounts/${account.id}/credentials`,
+      const { data, error: fetchErr } = await getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet({
+        path: { portfolio_id: portfolioId, account_id: account.id }
       });
 
       if (cancelled) {
         return;
       }
 
-      if (fetchErr || !data?.properties) {
+      if (fetchErr || !data?.data?.properties) {
         setCredentials({});
         return;
       }
 
       const normalized = Object.fromEntries(
-        Object.entries(data.properties).map(([key, value]) => [key.toLowerCase(), value as string])
+        Object.entries(data.data.properties).map(([key, value]) => [key.toLowerCase(), value as string])
       );
       setCredentials(normalized);
     };
@@ -388,6 +389,8 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
               </div>
             </div>
           )}
+
+          {account.type === "schwab" && <SchwabConnectSection account={account} />}
 
           <div className="border-t border-border pt-4 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground">Status</p>

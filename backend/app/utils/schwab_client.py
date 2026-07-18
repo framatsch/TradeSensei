@@ -26,10 +26,6 @@ from typing import Any
 
 import httpx
 
-from app.core.config import settings
-from app.core.exceptions import ConfigurationError
-
-
 class SchwabClient:
     """Thin HTTP client for Schwab's OAuth 2.0 and broker REST API.
 
@@ -47,22 +43,14 @@ class SchwabClient:
     AUTH_URL: str = "https://api.schwabapi.com/v1/oauth/authorize"
     TOKEN_URL: str = "https://api.schwabapi.com/v1/oauth/token"  # noqa: S105
 
-    def _require_client_id(self) -> str:
-        """Return the Schwab client ID, raising if not configured.
-
-        Returns:
-            The ``SCHWAB_CLIENT_ID`` string.
-
-        Raises:
-            :class:`~app.core.exceptions.ConfigurationError`: If
-                ``settings.schwab_client_id`` is ``None``.
-        """
-        client_id = settings.schwab_client_id
-        if not client_id:
-            raise ConfigurationError("SCHWAB_CLIENT_ID is not configured. Set the SCHWAB_CLIENT_ID environment variable to enable Schwab integration.")
-        return client_id
-
-    def get_authorization_url(self, state: str, code_challenge: str) -> str:
+    def get_authorization_url(
+        self,
+        *,
+        state: str,
+        code_challenge: str,
+        client_id: str,
+        redirect_uri: str,
+    ) -> str:
         """Build and return the OAuth 2.0 PKCE authorization URL.
 
         Constructs the Schwab authorization URL with the required PKCE
@@ -77,15 +65,11 @@ class SchwabClient:
         Returns:
             A fully-qualified authorization URL string.
 
-        Raises:
-            :class:`~app.core.exceptions.ConfigurationError`: If
-                ``SCHWAB_CLIENT_ID`` is not configured.
         """
-        client_id = self._require_client_id()
         params: dict[str, str] = {
             "response_type": "code",
             "client_id": client_id,
-            "redirect_uri": settings.schwab_redirect_uri,
+            "redirect_uri": redirect_uri,
             "scope": "readonly",
             "state": state,
             "code_challenge": code_challenge,
@@ -95,8 +79,12 @@ class SchwabClient:
 
     async def exchange_code(
         self,
+        *,
         code: str,
         code_verifier: str,
+        client_id: str,
+        client_secret: str,
+        redirect_uri: str,
     ) -> dict[str, Any]:
         """Exchange an authorization code for access and refresh tokens.
 
@@ -113,30 +101,37 @@ class SchwabClient:
             ``refresh_token``, and ``expires_in`` keys.
 
         Raises:
-            :class:`~app.core.exceptions.ConfigurationError`: If
-                ``SCHWAB_CLIENT_ID`` or ``SCHWAB_CLIENT_SECRET`` are not set.
-            :class:`httpx.HTTPStatusError`: If the token endpoint returns a
-                non-2xx response.
+            :class:`httpx.HTTPStatusError`: If the token endpoint returns a non-2xx response.
         """
-        client_id = self._require_client_id()
-        client_secret = settings.schwab_client_secret
-        if not client_secret:
-            raise ConfigurationError("SCHWAB_CLIENT_SECRET is not configured. Set the SCHWAB_CLIENT_SECRET environment variable.")
+        import base64
+        
+        auth_string = f"{client_id}:{client_secret}"
+        b64_auth = base64.b64encode(auth_string.encode("ascii")).decode("ascii")
+        headers = {
+            "Authorization": f"Basic {b64_auth}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
         payload: dict[str, str] = {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": settings.schwab_redirect_uri,
-            "client_id": client_id,
-            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
             "code_verifier": code_verifier,
         }
         async with httpx.AsyncClient() as client:
-            response = await client.post(self.TOKEN_URL, data=payload)
+            response = await client.post(self.TOKEN_URL, data=payload, headers=headers)
             response.raise_for_status()
             result: dict[str, Any] = response.json()
             return result
 
-    async def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
+    async def refresh_access_token(
+        self,
+        *,
+        refresh_token: str,
+        client_id: str,
+        client_secret: str,
+        redirect_uri: str,
+    ) -> dict[str, Any]:
         """Use a refresh token to obtain a new access token.
 
         Args:
@@ -147,30 +142,30 @@ class SchwabClient:
             ``expires_in`` keys.
 
         Raises:
-            :class:`~app.core.exceptions.ConfigurationError`: If
-                ``SCHWAB_CLIENT_ID`` or ``SCHWAB_CLIENT_SECRET`` are not set.
-            :class:`httpx.HTTPStatusError`: If the token endpoint returns a
-                non-2xx response.
+            :class:`httpx.HTTPStatusError`: If the token endpoint returns a non-2xx response.
         """
-        client_id = self._require_client_id()
-        client_secret = settings.schwab_client_secret
-        if not client_secret:
-            raise ConfigurationError("SCHWAB_CLIENT_SECRET is not configured. Set the SCHWAB_CLIENT_SECRET environment variable.")
+        import base64
+        
+        auth_string = f"{client_id}:{client_secret}"
+        b64_auth = base64.b64encode(auth_string.encode("ascii")).decode("ascii")
+        headers = {
+            "Authorization": f"Basic {b64_auth}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
         payload: dict[str, str] = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
-            "client_id": client_id,
-            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
         }
         async with httpx.AsyncClient() as client:
-            response = await client.post(self.TOKEN_URL, data=payload)
+            response = await client.post(self.TOKEN_URL, data=payload, headers=headers)
             response.raise_for_status()
             result: dict[str, Any] = response.json()
             return result
 
     async def get_account_numbers(self, access_token: str) -> list[dict[str, object]]:
         """Fetch Schwab account-number/hash mappings for the current user."""
-        self._require_client_id()
         headers = {"Authorization": f"Bearer {access_token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{self.BASE_URL}/accounts/accountNumbers", headers=headers)
@@ -204,8 +199,6 @@ class SchwabClient:
         to_date: datetime,
     ) -> list[dict[str, Any]]:
         """Fetch all paginated Schwab TRADE transactions for one account hash."""
-        self._require_client_id()
-
         headers = {"Authorization": f"Bearer {access_token}"}
         base_params: dict[str, str] = {
             "types": "TRADE",

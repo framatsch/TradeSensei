@@ -271,6 +271,88 @@ class AccountRepository:
         )
         await self._session.execute(stmt)
 
+    async def upsert_property_unscoped(
+        self,
+        account_id: uuid.UUID,
+        key: str,
+        encrypted_value: str,
+    ) -> None:
+        """Insert or update an AccountProperty row without user ownership checks."""
+        stmt = pg_insert(AccountProperty).values(
+            account_id=account_id,
+            key=key,
+            value=encrypted_value,
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_account_properties_account_key",
+            set_={"value": encrypted_value},
+        )
+        await self._session.execute(stmt)
+
+    async def delete_property(
+        self,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+        key: str,
+    ) -> None:
+        """Delete an AccountProperty for an owned account and key."""
+        row = await self._session.execute(
+            select(AccountProperty)
+            .join(Account, Account.id == AccountProperty.account_id)
+            .where(
+                AccountProperty.account_id == account_id,
+                AccountProperty.key == key,
+                Account.user_id == user_id,
+            )
+        )
+        prop = row.scalar_one_or_none()
+        if prop is not None:
+            await self._session.delete(prop)
+
+    async def delete_property_unscoped(
+        self,
+        account_id: uuid.UUID,
+        key: str,
+    ) -> None:
+        """Delete an AccountProperty by account and key without ownership checks."""
+        row = await self._session.execute(
+            select(AccountProperty).where(
+                AccountProperty.account_id == account_id,
+                AccountProperty.key == key,
+            )
+        )
+        prop = row.scalar_one_or_none()
+        if prop is not None:
+            await self._session.delete(prop)
+
+    async def get_property_unscoped(
+        self,
+        account_id: uuid.UUID,
+        key: str,
+    ) -> AccountProperty | None:
+        """Return one AccountProperty by account and key without ownership checks."""
+        row = await self._session.execute(
+            select(AccountProperty).where(
+                AccountProperty.account_id == account_id,
+                AccountProperty.key == key,
+            )
+        )
+        return row.scalar_one_or_none()
+
+    async def list_accounts_with_property_key_unscoped(
+        self,
+        key: str,
+    ) -> list[Account]:
+        """Return accounts that currently have a given AccountProperty key."""
+        stmt = (
+            select(Account)
+            .options(selectinload(Account.properties))
+            .join(AccountProperty, AccountProperty.account_id == Account.id)
+            .where(AccountProperty.key == key)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def delete(self, account: Account) -> None:
         """Delete an account from the database.
 

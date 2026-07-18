@@ -21,6 +21,7 @@ recording.  No real database or HTTP connections are made.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -375,6 +376,7 @@ class TestSchwabSyncTransactions:
 
         with (
             patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch.object(svc, "_get_valid_schwab_access_token", new=AsyncMock(return_value="access-token")),
             patch(
                 "app.services.broker_service.SchwabClient.get_account_numbers",
                 new=AsyncMock(
@@ -420,6 +422,7 @@ class TestSchwabSyncTransactions:
 
         with (
             patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch.object(svc, "_get_valid_schwab_access_token", new=AsyncMock(return_value="access-token")),
             patch(
                 "app.services.broker_service.SchwabClient.get_account_numbers",
                 new=AsyncMock(return_value=[{"accountNumber": "45302130", "hashValue": "hash-1"}]),
@@ -461,6 +464,7 @@ class TestSchwabSyncTransactions:
 
         with (
             patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch.object(svc, "_get_valid_schwab_access_token", new=AsyncMock(return_value="access-token")),
             patch(
                 "app.services.broker_service.SchwabClient.get_account_numbers",
                 new=AsyncMock(
@@ -491,6 +495,7 @@ class TestSchwabSyncTransactions:
 
         with (
             patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch.object(svc, "_get_valid_schwab_access_token", new=AsyncMock(return_value="access-token")),
             patch(
                 "app.services.broker_service.SchwabClient.get_account_numbers",
                 new=AsyncMock(
@@ -508,11 +513,292 @@ class TestSchwabSyncTransactions:
     async def test_test_schwab_uses_account_numbers_probe(self) -> None:
         mock_session = AsyncMock()
         svc = BrokerService(mock_session)
+        token_prop = _make_account_property("SCHWAB_ACCESS_TOKEN", "encrypted-access")
+        refresh_prop = _make_account_property("SCHWAB_REFRESH_TOKEN", "encrypted-refresh")
+        account = _make_account(AccountType.SCHWAB, properties=[token_prop, refresh_prop])
 
         with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
             patch("app.services.broker_service.SchwabClient.get_account_numbers", new=AsyncMock(return_value=[])) as mock_probe,
-            patch("app.services.broker_service.BrokerService._resolve_property", side_effect=["app-key", "app-secret"]),
+            patch.object(svc, "_get_valid_schwab_access_token", new=AsyncMock(return_value="oauth-token")),
         ):
-            await svc._test_schwab({}, None)
+            await svc._test_schwab({}, account)
 
-        mock_probe.assert_awaited_once_with(access_token="app-key")
+        mock_probe.assert_awaited_once_with(access_token="oauth-token")
+
+    @pytest.mark.unit
+    async def test_test_schwab_not_connected_raises(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB, properties=[])
+
+        with patch("app.services.broker_service.SchwabClient.get_account_numbers", new=AsyncMock()) as mock_probe:
+            with pytest.raises(ConfigurationError, match="not connected via OAuth"):
+                await svc._test_schwab({}, account)
+
+        mock_probe.assert_not_awaited()
+
+    @pytest.mark.unit
+    async def test_sync_schwab_not_connected_raises(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB, properties=[])
+
+        with patch("app.services.broker_service.SchwabClient.get_transactions", new=AsyncMock()) as mock_transactions:
+            with pytest.raises(ConfigurationError, match="not connected via OAuth"):
+                await svc._sync_schwab(account, days=30)
+
+        mock_transactions.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Tests: Schwab OAuth Connect (Tasks 6.1 - 6.4)
+# ---------------------------------------------------------------------------
+
+class TestSchwabAccessToken:
+    """Unit tests for _get_valid_schwab_access_token (6.1)."""
+
+    @pytest.mark.unit
+    async def test_get_valid_token_passthrough(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        now = datetime.now(UTC)
+        future = (now + timedelta(minutes=10)).isoformat()
+        
+        prop_access = _make_account_property("SCHWAB_ACCESS_TOKEN", "encrypted-valid-token")
+        prop_refresh = _make_account_property("SCHWAB_REFRESH_TOKEN", "encrypted-refresh")
+        prop_expires = _make_account_property("SCHWAB_TOKEN_EXPIRES_AT", f"encrypted-{future}")
+        account = _make_account(AccountType.SCHWAB, properties=[prop_access, prop_refresh, prop_expires])
+
+        with patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")):
+            token = await svc._get_valid_schwab_access_token(account)
+        
+        assert token == "valid-token"
+
+    @pytest.mark.unit
+    async def test_get_valid_token_refresh_on_expiry(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        now = datetime.now(UTC)
+        past = (now - timedelta(minutes=10)).isoformat()
+        
+        prop_access = _make_account_property("SCHWAB_ACCESS_TOKEN", "encrypted-old-token")
+        prop_refresh = _make_account_property("SCHWAB_REFRESH_TOKEN", "encrypted-old-refresh")
+        prop_expires = _make_account_property("SCHWAB_TOKEN_EXPIRES_AT", f"encrypted-{past}")
+        prop_app_key = _make_account_property("SCHWAB_APP_KEY", "encrypted-key")
+        prop_app_secret = _make_account_property("SCHWAB_APP_SECRET", "encrypted-secret")
+        account = _make_account(AccountType.SCHWAB, properties=[prop_access, prop_refresh, prop_expires, prop_app_key, prop_app_secret])
+        account.id = uuid.uuid4()
+        
+        mock_session.flush = AsyncMock()
+        svc._account_repo = AsyncMock()
+        svc._account_repo.get_by_id_with_properties.return_value = account
+
+        with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch("app.services.broker_service.SchwabClient.refresh_access_token", new=AsyncMock(return_value={
+                "access_token": "new-token",
+                "refresh_token": "new-refresh",
+                "expires_in": 1800
+            })) as mock_refresh,
+            patch.object(svc, "_upsert_account_property_encrypted") as mock_upsert
+        ):
+            token = await svc._get_valid_schwab_access_token(account)
+        
+        assert token == "new-token"
+        mock_refresh.assert_awaited_once()
+        assert mock_upsert.await_count == 3  # access, refresh, expires_at
+
+    @pytest.mark.unit
+    async def test_get_valid_token_refresh_failure(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        now = datetime.now(UTC)
+        past = (now - timedelta(minutes=10)).isoformat()
+        
+        prop_access = _make_account_property("SCHWAB_ACCESS_TOKEN", "encrypted-old-token")
+        prop_access = _make_account_property("SCHWAB_ACCESS_TOKEN", "encrypted-old-token")
+        prop_refresh = _make_account_property("SCHWAB_REFRESH_TOKEN", "encrypted-old-refresh")
+        prop_expires = _make_account_property("SCHWAB_TOKEN_EXPIRES_AT", f"encrypted-{past}")
+        prop_app_key = _make_account_property("SCHWAB_APP_KEY", "encrypted-key")
+        prop_app_secret = _make_account_property("SCHWAB_APP_SECRET", "encrypted-secret")
+        account = _make_account(AccountType.SCHWAB, properties=[prop_access, prop_refresh, prop_expires, prop_app_key, prop_app_secret])
+
+        import httpx
+        err = httpx.HTTPStatusError("error", request=MagicMock(), response=MagicMock(text="invalid_grant"))
+
+        with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch("app.services.broker_service.SchwabClient.refresh_access_token", new=AsyncMock(side_effect=err)),
+            pytest.raises(ConfigurationError, match="Reconnect required via Schwab OAuth")
+        ):
+            await svc._get_valid_schwab_access_token(account)
+
+class TestSchwabAuthorizeAndComplete:
+    """Unit/service tests for authorize and paste-complete (6.2)."""
+
+    @pytest.mark.unit
+    async def test_start_schwab_authorization(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB, properties=[
+            _make_account_property("SCHWAB_APP_KEY", "encrypted-key"),
+            _make_account_property("SCHWAB_APP_SECRET", "encrypted-secret")
+        ])
+        svc._account_repo = AsyncMock()
+        svc._account_repo.get_by_id_with_properties.return_value = account
+        
+        with (
+            patch("app.services.broker_service.settings") as mock_settings,
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch("app.services.broker_service.generate_pkce_verifier", return_value="verifier"),
+            patch("app.services.broker_service.generate_pkce_challenge", return_value="challenge"),
+            patch("app.services.broker_service.generate_oauth_state", return_value="state"),
+            patch("app.services.broker_service.SchwabClient.get_authorization_url", return_value="https://auth-url"),
+            patch.object(svc, "_upsert_account_property_encrypted") as mock_upsert
+        ):
+            mock_settings.schwab_oauth_mode = "paste"
+            mock_settings.schwab_redirect_uri = "https://127.0.0.1"
+            url = await svc.start_schwab_authorization(account.id, account.user_id)
+        
+        assert url == "https://auth-url"
+        assert mock_upsert.await_count == 3  # verifier, state, state_account
+
+    @pytest.mark.unit
+    async def test_complete_schwab_connection_paste_mode(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB, properties=[
+            _make_account_property("SCHWAB_APP_KEY", "encrypted-key"),
+            _make_account_property("SCHWAB_APP_SECRET", "encrypted-secret"),
+            _make_account_property("SCHWAB_OAUTH_STATE", "encrypted-expected-state"),
+            _make_account_property("SCHWAB_OAUTH_CODE_VERIFIER", "encrypted-verifier")
+        ])
+        svc._account_repo = AsyncMock()
+        svc._account_repo.get_by_id_with_properties.return_value = account
+        
+        with (
+            patch("app.services.broker_service.settings") as mock_settings,
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch.object(svc, "_exchange_and_store", new=AsyncMock()) as mock_exchange
+        ):
+            mock_settings.schwab_oauth_mode = "paste"
+            await svc.complete_schwab_connection(account.id, account.user_id, "https://127.0.0.1?code=abc&state=expected-state")
+        
+        mock_exchange.assert_awaited_once_with(account, code="abc", state="expected-state", verifier="verifier")
+
+    @pytest.mark.unit
+    async def test_complete_schwab_connection_missing_code_or_state_mismatch(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB, properties=[
+            _make_account_property("SCHWAB_OAUTH_STATE", "encrypted-expected-state"),
+        ])
+        svc._account_repo = AsyncMock()
+        svc._account_repo.get_by_id_with_properties.return_value = account
+        
+        with patch("app.services.broker_service.settings") as mock_settings:
+            mock_settings.schwab_oauth_mode = "paste"
+            with pytest.raises(ConfigurationError, match="missing the authorization code"):
+                await svc.complete_schwab_connection(account.id, account.user_id, "https://127.0.0.1?state=expected-state")
+                
+            with (
+                patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+                pytest.raises(ConfigurationError, match="OAuth state mismatch")
+            ):
+                await svc.complete_schwab_connection(account.id, account.user_id, "https://127.0.0.1?code=abc&state=wrong-state")
+
+    @pytest.mark.unit
+    async def test_exchange_and_store_failure(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB, properties=[
+            _make_account_property("SCHWAB_APP_KEY", "encrypted-key"),
+            _make_account_property("SCHWAB_APP_SECRET", "encrypted-secret")
+        ])
+        
+        with (
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch("app.services.broker_service.SchwabClient.exchange_code", new=AsyncMock(side_effect=Exception("API down"))),
+            pytest.raises(ConfigurationError, match="Schwab OAuth code exchange failed")
+        ):
+            await svc._exchange_and_store(account, code="abc", state="state", verifier="verifier")
+
+
+class TestSchwabCallbackComplete:
+    """Tests for the callback path (6.3)."""
+
+    @pytest.mark.unit
+    async def test_complete_schwab_callback_success(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB, properties=[
+            _make_account_property("SCHWAB_OAUTH_STATE_ACCOUNT", "encrypted-state123"),
+            _make_account_property("SCHWAB_OAUTH_STATE", "encrypted-state123"),
+            _make_account_property("SCHWAB_OAUTH_CODE_VERIFIER", "encrypted-verifier")
+        ])
+        
+        with (
+            patch("app.services.broker_service.settings") as mock_settings,
+            patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x.replace("encrypted-", "")),
+            patch.object(svc, "_resolve_account_by_oauth_state", new=AsyncMock(return_value=account)),
+            patch.object(svc, "_exchange_and_store", new=AsyncMock()) as mock_exchange
+        ):
+            mock_settings.schwab_oauth_mode = "callback"
+            res = await svc.complete_schwab_callback(code="code123", state="state123")
+        
+        assert res == account
+        mock_exchange.assert_awaited_once_with(account, code="code123", state="state123", verifier="verifier")
+
+    @pytest.mark.unit
+    async def test_complete_schwab_callback_unknown_state(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        with (
+            patch("app.services.broker_service.settings") as mock_settings,
+            patch.object(svc, "_resolve_account_by_oauth_state", new=AsyncMock(return_value=None)),
+            pytest.raises(ConfigurationError, match="could not be matched")
+        ):
+            mock_settings.schwab_oauth_mode = "callback"
+            await svc.complete_schwab_callback(code="code123", state="unknown")
+
+
+class TestSchwabStatusAndDisconnect:
+    """Service tests for status and disconnect (6.4)."""
+
+    @pytest.mark.unit
+    async def test_get_schwab_status(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account_connected = _make_account(AccountType.SCHWAB, properties=[
+            _make_account_property("SCHWAB_ACCESS_TOKEN", "encrypted-acc"),
+            _make_account_property("SCHWAB_REFRESH_TOKEN", "encrypted-ref"),
+        ])
+        svc._account_repo = AsyncMock()
+        svc._account_repo.get_by_id_with_properties.return_value = account_connected
+        
+        with patch("app.services.broker_service.decrypt_token", side_effect=lambda x: x):
+            status = await svc.get_schwab_status(account_connected.id, account_connected.user_id)
+            assert status.connected is True
+            
+        account_disconnected = _make_account(AccountType.SCHWAB, properties=[])
+        svc._account_repo.get_by_id_with_properties.return_value = account_disconnected
+        status2 = await svc.get_schwab_status(account_disconnected.id, account_disconnected.user_id)
+        assert status2.connected is False
+
+    @pytest.mark.unit
+    async def test_disconnect_schwab(self) -> None:
+        mock_session = AsyncMock()
+        svc = BrokerService(mock_session)
+        account = _make_account(AccountType.SCHWAB)
+        svc._account_repo = AsyncMock()
+        svc._account_repo.get_by_id_with_properties.return_value = account
+        
+        with (
+            patch.object(svc, "_delete_account_property", new=AsyncMock()) as mock_delete,
+            patch.object(svc._audit, "create_audit_event") as mock_audit
+        ):
+            await svc.disconnect_schwab(account.id, account.user_id)
+        
+        assert mock_delete.await_count == 6  # access, refresh, expires, verifier, state, state_account
+        mock_audit.assert_called_once()

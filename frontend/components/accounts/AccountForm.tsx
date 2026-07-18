@@ -19,9 +19,13 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { client } from "@/lib/api/client.gen";
+import { 
+  getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet
+} from "@/lib/api/index";
 import { Spinner } from "@/components/ui/Spinner";
 import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType, FlexFromDatePreset } from "@/lib/types";
@@ -62,6 +66,36 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
   const [type, setType] = useState<AccountType>(account?.type ?? "manual");
   const [portfolioId, setPortfolioId] = useState<string | null>(account?.portfolio_id ?? activePortfolioId ?? null);
   const [credentials, setCredentials] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!account || account.type === "manual") return;
+    const portfolioId = account.portfolio_id;
+    if (!portfolioId) return;
+
+    let cancelled = false;
+
+    const loadCredentials = async () => {
+      const { data: res, error } = await getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet({
+        path: {
+          portfolio_id: portfolioId,
+          account_id: account.id
+        }
+      });
+
+      if (cancelled) return;
+      if (error || !res?.data?.properties) return;
+
+      const normalized: Record<string, string> = {};
+      for (const [key, value] of Object.entries(res.data.properties)) {
+        const upperKey = key.toUpperCase();
+        normalized[upperKey] = value as string;
+      }
+      setCredentials(normalized);
+    };
+
+    void loadCredentials();
+    return () => { cancelled = true; };
+  }, [account?.id, account?.type, account?.portfolio_id]);
 
   // Sync settings
   const [syncDays, setSyncDays] = useState<number>(account?.settings?.sync_days ?? 30);

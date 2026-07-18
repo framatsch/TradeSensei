@@ -25,12 +25,19 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
+from app.core.database import get_session
 from app.core.exceptions import AccountNotFoundError, ConfigurationError
 from app.models.user import User
-from app.schemas.broker import BrokerSyncResult
+from app.schemas.broker import (
+    BrokerStatusResponse,
+    BrokerSyncResult,
+    SchwabAuthorizeResponse,
+    SchwabCompleteRequest,
+)
 from app.schemas.common import ResponseEnvelope
 from app.services.broker_service import BrokerService
 
@@ -48,6 +55,13 @@ def _get_service(
     Returns:
         A :class:`BrokerService` bound to the current session.
     """
+    return BrokerService(session)
+
+
+def _get_service_public(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BrokerService:
+    """Service dependency for unauthenticated endpoints."""
     return BrokerService(session)
 
 
@@ -133,3 +147,155 @@ async def sync_account(
             detail=str(exc),
         ) from exc
     return ResponseEnvelope(data=result)
+
+
+@router.post(
+    "/schwab/authorize/{account_id}",
+    summary="Start Schwab OAuth authorization",
+    description=(
+        "Generates PKCE/state correlation records for a Schwab account and returns "
+        "the Schwab authorization URL. Requires Bearer auth and account ownership."
+    ),
+    response_model=ResponseEnvelope[SchwabAuthorizeResponse],
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Authorization URL generated."},
+        400: {"description": "Invalid Schwab OAuth configuration or missing account app credentials."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found (or owned by another user)."},
+    },
+)
+async def start_schwab_authorization(
+    account_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[BrokerService, Depends(_get_service)],
+) -> ResponseEnvelope[SchwabAuthorizeResponse]:
+    try:
+        authorization_url = await service.start_schwab_authorization(account_id=account_id, user_id=current_user.id)
+    except AccountNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return ResponseEnvelope(data=SchwabAuthorizeResponse(authorization_url=authorization_url))
+
+
+@router.post(
+    "/schwab/complete/{account_id}",
+    summary="Complete Schwab OAuth with pasted redirect URL",
+    description=(
+        "Completes Schwab OAuth for paste mode by parsing code/state from a pasted "
+        "redirect URL, exchanging the code, and storing encrypted tokens."
+    ),
+    response_model=ResponseEnvelope[BrokerStatusResponse],
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Schwab account connected."},
+        400: {"description": "Invalid redirect URL, state mismatch, or exchange failure."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found (or owned by another user)."},
+    },
+)
+async def complete_schwab_connection(
+    account_id: uuid.UUID,
+    payload: SchwabCompleteRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[BrokerService, Depends(_get_service)],
+) -> ResponseEnvelope[BrokerStatusResponse]:
+    try:
+        await service.complete_schwab_connection(
+            account_id=account_id,
+            user_id=current_user.id,
+            redirect_url=payload.redirect_url,
+        )
+        status_payload = await service.get_schwab_status(account_id=account_id, user_id=current_user.id)
+    except AccountNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return ResponseEnvelope(data=status_payload)
+
+
+@router.get(
+    "/schwab/callback",
+    summary="Schwab OAuth callback (unauthenticated)",
+    description=(
+        "Receives Schwab callback query parameters (code/state) without Bearer auth, "
+        "resolves the account via stored state correlation, exchanges/stores tokens, "
+        "and redirects to frontend settings with a success or error flag."
+    ),
+    include_in_schema=True,
+    responses={
+        307: {"description": "Redirect to frontend settings with callback result flag."},
+    },
+)
+async def schwab_callback(
+    service: Annotated[BrokerService, Depends(_get_service_public)],
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+) -> RedirectResponse:
+    from app.core.config import settings
+
+    base = settings.frontend_url.rstrip("/")
+    if not code or not state:
+        return RedirectResponse(url=f"{base}/dashboard/settings?tab=portfolios-brokers&schwab_callback=error", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    try:
+        account = await service.complete_schwab_callback(code=code, state=state)
+        return RedirectResponse(
+            url=f"{base}/dashboard/settings?tab=portfolios-brokers&schwab_callback=success&account_id={account.id}",
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        )
+    except Exception:
+        return RedirectResponse(url=f"{base}/dashboard/settings?tab=portfolios-brokers&schwab_callback=error", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+
+@router.get(
+    "/schwab/status/{account_id}",
+    summary="Get Schwab OAuth connection status",
+    description="Returns whether the Schwab account currently has stored OAuth access/refresh tokens.",
+    response_model=ResponseEnvelope[BrokerStatusResponse],
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Current Schwab connection status."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found (or owned by another user)."},
+    },
+)
+async def get_schwab_status(
+    account_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[BrokerService, Depends(_get_service)],
+) -> ResponseEnvelope[BrokerStatusResponse]:
+    try:
+        status_payload = await service.get_schwab_status(account_id=account_id, user_id=current_user.id)
+    except AccountNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope(data=status_payload)
+
+
+@router.delete(
+    "/schwab/connect/{account_id}",
+    summary="Disconnect Schwab OAuth connection",
+    description=(
+        "Deletes stored Schwab OAuth token properties for the account and emits "
+        "a broker.schwab_disconnected audit event."
+    ),
+    response_model=ResponseEnvelope[BrokerStatusResponse],
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Schwab disconnected."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found (or owned by another user)."},
+    },
+)
+async def disconnect_schwab(
+    account_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[BrokerService, Depends(_get_service)],
+) -> ResponseEnvelope[BrokerStatusResponse]:
+    try:
+        await service.disconnect_schwab(account_id=account_id, user_id=current_user.id)
+        status_payload = await service.get_schwab_status(account_id=account_id, user_id=current_user.id)
+    except AccountNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return ResponseEnvelope(data=status_payload)

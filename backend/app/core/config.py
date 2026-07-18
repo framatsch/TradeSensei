@@ -162,12 +162,19 @@ class Settings(BaseSettings):
     """URL-safe base64 Fernet key used to encrypt stored OAuth tokens."""
 
     # Schwab OAuth
-    schwab_client_id: str | None = None
-    """Schwab API application client ID."""
-    schwab_client_secret: str | None = None
-    """Schwab API application client secret."""
-    schwab_redirect_uri: str = "http://localhost:8000/api/v1/broker/schwab/callback"
-    """Absolute URL registered with Schwab for the OAuth redirect."""
+    schwab_oauth_mode: str = "paste"
+    """OAuth completion mode: 'paste' (loopback copy/paste) or 'callback'."""
+    schwab_redirect_uri: str = "https://127.0.0.1"
+    """Absolute URL registered with Schwab for OAuth redirect and exchange."""
+
+    @field_validator("schwab_oauth_mode")
+    @classmethod
+    def validate_schwab_oauth_mode(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        allowed = {"paste", "callback"}
+        if normalized not in allowed:
+            raise ValueError(f"schwab_oauth_mode must be one of {allowed}, got {value!r}")
+        return normalized
 
     # Market Data Hub
     market_data_hub_url: str | None = None
