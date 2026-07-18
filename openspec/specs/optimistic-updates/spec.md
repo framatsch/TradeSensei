@@ -1,4 +1,9 @@
-## ADDED Requirements
+# optimistic-updates Specification
+
+## Purpose
+Define expected behavior for optimistic UI updates on playbook/tag creation and for trade filtering by tags, account, and playbook.
+
+## Requirements
 
 ### Requirement: Optimistic playbook creation display
 The system SHALL immediately display newly created playbooks in the playbook list without waiting for server confirmation.
@@ -25,8 +30,6 @@ The system SHALL immediately display newly created tags in the tag list without 
 - **WHEN** server rejects the tag creation
 - **THEN** the optimistically added tag is removed from the list
 - **AND** user sees an error message
-
-## MODIFIED Requirements
 
 ### Requirement: Filter trades by tags
 The system SHALL allow users to filter trades by one or more tags.

@@ -1,4 +1,9 @@
-## ADDED Requirements
+# metadata-archiving Specification
+
+## Purpose
+Define expected behavior for archiving and unarchiving taxonomies and annotation definitions, including the archived-filter toggle.
+
+## Requirements
 
 ### Requirement: Expose Archive and Unarchive actions
 The system SHALL support explicit Archive and Unarchive actions for both tags (taxonomies) and metrics (annotation definitions) inside their respective Details Panels.

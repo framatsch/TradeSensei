@@ -1,4 +1,9 @@
-## ADDED Requirements
+# portfolio-management Specification
+
+## Purpose
+Define expected behavior for creating, listing, and retrieving portfolios.
+
+## Requirements
 
 ### Requirement: Portfolio creation
 The system SHALL allow an authenticated user to create a portfolio by providing

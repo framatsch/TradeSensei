@@ -1,4 +1,9 @@
-## ADDED Requirements
+# taxonomy-management Specification
+
+## Purpose
+Define expected behavior for creating, listing, and updating taxonomy definitions.
+
+## Requirements
 
 ### Requirement: Create taxonomy
 The system SHALL allow authenticated users to create a taxonomy definition with a name, scope, hex color, optional description, and optional `icon_identifier`. The `icon_identifier` field stores standardized vector-icon library references (e.g. `lucide:trending-down`, `fa-chart-line`). Native emoji strings MUST NOT be accepted.

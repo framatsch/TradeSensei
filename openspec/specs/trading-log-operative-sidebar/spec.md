@@ -1,4 +1,10 @@
-## UI Mockup
+# trading-log-operative-sidebar Specification
+
+## Purpose
+Define expected behavior for the Trading Log pillar's dedicated operative sidebar (Actions
+and Saved Filters), the collapsible filter configurator, and trade table pagination.
+
+## UI Mockup (non-normative reference)
 
 ```
 +---------------------------------------------------------------------------------+
@@ -25,7 +31,7 @@
 - No page title or description in the main area — maximize vertical space for the table
 - `[ Save Filter ]` button lives inside the Filter Configuration panel (top right)
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Trading Log has a dedicated left sidebar with Actions and Saved Filters sections
 When the Trading Log pillar is active (any `/dashboard/trades` route), a dedicated left sidebar SHALL replace the global navigation sidebar. The sidebar SHALL contain two sections: "ACTIONS" and a trades filter section ("Trades"). The global navigation sidebar SHALL be hidden on all `/dashboard/trades` routes.

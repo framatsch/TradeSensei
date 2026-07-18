@@ -1,4 +1,9 @@
-## ADDED Requirements
+# metadata-validation Specification
+
+## Purpose
+Define validation rules for taxonomy and annotation definitions, including color format, type-to-column mapping, and scope enforcement.
+
+## Requirements
 
 ### Requirement: Hex color validation for taxonomies
 The system SHALL validate that `color_hex` on taxonomy create/update requests matches the pattern `^#[0-9A-Fa-f]{6}$`.

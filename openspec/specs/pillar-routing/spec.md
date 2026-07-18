@@ -1,4 +1,9 @@
-## MODIFIED Requirements
+# pillar-routing Specification
+
+## Purpose
+Define expected behavior for the three-pillar layout routing (Portfolio Workspace, Trading Log, Market Check-in) and legacy route redirects.
+
+## Requirements
 
 ### Requirement: Three distinct pillar layouts route to isolated workspace contexts
 The application SHALL present three distinct "Pillars" — Portfolio Workspace, Trading Log, and Market Check-in — each with a layout optimized for its function. The active pillar SHALL be reflected in the breadcrumb or top bar context label. The Portfolio Workspace pillar SHALL be canonical at `/dashboard/workspace/` and the legacy routes `/dashboard/analytics` and `/dashboard/reporting` SHALL redirect to their workspace equivalents.

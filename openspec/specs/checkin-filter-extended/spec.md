@@ -1,4 +1,9 @@
-## ADDED Requirements
+# checkin-filter-extended Specification
+
+## Purpose
+Define expected behavior for filtering check-ins by taxonomy tags and annotation values, including persistence in saved views.
+
+## Requirements
 
 ### Requirement: Filter Check-ins by Taxonomy Tags
 

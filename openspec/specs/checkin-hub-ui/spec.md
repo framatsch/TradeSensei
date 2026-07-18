@@ -1,5 +1,5 @@
 ## Purpose
-Market check-in pillar for tradesensei.
+Market check-in pillar for tradesensei: the dedicated `/dashboard/checkins` view for logging daily market context, sentiment, and behavioral notes, decoupled from trade execution data.
 
 ## UI Mockup — Market Check-in Pillar (`/dashboard/checkins`)
 

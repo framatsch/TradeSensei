@@ -1,4 +1,9 @@
-## MODIFIED Requirements
+# schwab-json-import Specification
+
+## Purpose
+Define expected behavior for the Schwab JSON parser: instruction/direction mapping, transaction extraction, fee-only and futures handling, status filtering, and real-export regression coverage.
+
+## Requirements
 
 ### Requirement: Schwab JSON Parser — Instruction Mapping
 The `SchwabJSONParser` SHALL determine the execution `direction` and quantity for each trade leg, reading from transactions in `accounts[].transactions`. At the raw-record level, `direction` SHALL strictly denote the **execution side** (buy → `LONG`, sell → `SHORT`); it does NOT encode the position role. The FIFO closing detection SHALL be driven by the `pnl` field (set from `positionEffect == "CLOSING"`), not by `direction`. When a leg carries an `instruction` field, the parser SHALL map it to the execution side (`BUY`/`BUY_TO_COVER`/`BUY_TO_OPEN`/`BUY_TO_CLOSE` → `LONG`; `SELL`/`SELL_SHORT`/`SELL_TO_OPEN`/`SELL_TO_CLOSE` → `SHORT`). When `instruction` is absent (real Schwab equity legs), the parser SHALL derive the execution side from the sign of `cost` (the monetary field: negative = buy → `LONG`, positive = sell → `SHORT`), falling back to the sign of `netAmount` when `cost` is absent or zero. `positionEffect` is retained only to set the `pnl` placeholder (`CLOSING` → `0`), not to alter `direction`. Quantity SHALL always be `abs(amount)` (the `amount` field is the positive share quantity, not a signed indicator).
@@ -69,8 +74,6 @@ The `SchwabJSONParser` SHALL extract each execution from the `transferItems` arr
 #### Scenario: Execution date fallback chain
 - **WHEN** a transaction has no `time` field
 - **THEN** the parser SHALL use `tradeDate`, and if that is also absent, `transactionDate`, parsing the chosen value as a timezone-aware datetime converted to UTC
-
-## ADDED Requirements
 
 ### Requirement: Schwab JSON Parser — Fee-Only Transaction Handling
 The `SchwabJSONParser` SHALL silently ignore transactions that contain no `EQUITY` or `OPTION` execution leg — i.e. transactions consisting exclusively of `CURRENCY` legs (fees, interest, taxes, ADR charges) — without emitting a warning for the `activityId`.

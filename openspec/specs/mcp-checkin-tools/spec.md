@@ -1,4 +1,9 @@
-## ADDED Requirements
+# mcp-checkin-tools Specification
+
+## Purpose
+Define expected behavior for MCP tools that list check-ins, sync metadata, and search trades with annotation filters.
+
+## Requirements
 
 ### Requirement: MCP tool — list_checkins
 

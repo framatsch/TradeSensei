@@ -1,4 +1,9 @@
-## MODIFIED Requirements
+# market-regime-migration Specification
+
+## Purpose
+Define expected behavior for the migration from the legacy `market_phase` field to the "Market Regime" annotation definition.
+
+## Requirements
 
 ### Requirement: Market Regime as Default Annotation
 

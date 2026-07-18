@@ -1,4 +1,9 @@
-## ADDED Requirements
+# checkin-metadata-assignment Specification
+
+## Purpose
+Define expected behavior for assigning and removing taxonomy and annotation metadata on check-ins.
+
+## Requirements
 
 ### Requirement: Assign taxonomy to check-in
 The system SHALL allow assigning an existing taxonomy to a check-in, subject to scope and archive validation.

@@ -1,4 +1,9 @@
-## ADDED Requirements
+# checkin-form-tags-annotations Specification
+
+## Purpose
+Define expected behavior for assigning tags and annotation values to check-ins via the check-in form.
+
+## Requirements
 
 ### Requirement: Assign Tags to a Check-in
 

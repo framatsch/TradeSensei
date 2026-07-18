@@ -53,10 +53,7 @@ fields. The change MUST be additive and non-breaking for existing consumers.
 
 ### Requirement: Manual Execution Fallback
 
-Execution legs with `origin='manual'` that lack a backing `BrokerRawTransaction` and any
-applicable `CorporateAction` SHALL fall back to their stored `LogicalExecution` values,
-returning `raw_price == price` and `raw_quantity == quantity`. Manual legs MUST still be
-adjusted if a relevant `CorporateAction` applies to their symbol and date.
+Execution legs with `origin='manual'` that lack a backing `BrokerRawTransaction` and any applicable `CorporateAction` SHALL fall back to their stored `LogicalExecution` values, returning `raw_price == price` and `raw_quantity == quantity`. Manual legs MUST still be adjusted if a relevant `CorporateAction` applies to their symbol and date.
 
 #### Scenario: Manual leg without corporate action
 - **WHEN** a leg has `origin='manual'` and no applicable `CorporateAction`

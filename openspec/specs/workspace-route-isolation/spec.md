@@ -1,4 +1,9 @@
-## ADDED Requirements
+# workspace-route-isolation Specification
+
+## Purpose
+Define expected behavior for isolated workspace routes, persistent sidebar navigation, and shared filter context.
+
+## Requirements
 
 ### Requirement: Workspace routes are isolated under /dashboard/workspace/
 The application SHALL provide five isolated routes under `/dashboard/workspace/`: `overview`, `calendar`, `reporting`, `performance/strategy`, and `performance/behavior`. Each route SHALL mount only the components required for that specific view.

@@ -1,4 +1,9 @@
-## ADDED Requirements
+# annotation-definition-management Specification
+
+## Purpose
+Define expected behavior for creating, listing, updating, and archiving annotation definitions.
+
+## Requirements
 
 ### Requirement: Create annotation definition
 The system SHALL allow authenticated users to create an annotation definition with a name, type (int, float, bool, string_enum), scope, optional description, optional `scale_labels` JSON, and optional `icon_identifier`. The `icon_identifier` stores standardized vector-icon library references (e.g. `lucide:brain`, `fa-heartbeat`). Native emoji strings MUST NOT be accepted.

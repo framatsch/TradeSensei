@@ -1,4 +1,9 @@
-## ADDED Requirements
+# local-auth-toggle Specification
+
+## Purpose
+Define expected behavior for disabling local username/password authentication in favor of external providers.
+
+## Requirements
 
 ### Requirement: Config flag disables local auth
 The backend SHALL expose a `LOCAL_AUTH_DISABLED` environment variable (boolean, default `false`). When `true` and at least one external provider is configured, the `/api/v1/auth/config` response SHALL include `local_auth_enabled: false`. When no external provider is configured, the flag SHALL be ignored and `local_auth_enabled: true` SHALL be returned, with a warning logged at startup.

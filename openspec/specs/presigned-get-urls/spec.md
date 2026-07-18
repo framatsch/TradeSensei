@@ -1,4 +1,9 @@
-## ADDED Requirements
+# presigned-get-urls Specification
+
+## Purpose
+Define expected behavior for presigned GET URL generation and storage reference handling for uploaded media.
+
+## Requirements
 
 ### Requirement: Storage service generates presigned GET URLs
 The storage service SHALL provide a method to generate presigned GET URLs for S3 objects with configurable expiry times.

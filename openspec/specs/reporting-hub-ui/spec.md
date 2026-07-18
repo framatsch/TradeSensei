@@ -1,4 +1,9 @@
-## MODIFIED Requirements
+# reporting-hub-ui Specification
+
+## Purpose
+Define expected behavior for the Reporting Hub sidebar's dynamic saved-view sub-links.
+
+## Requirements
 
 ### Requirement: Reporting Hub sidebar shows saved views as dynamic sub-links
 The Portfolio Workspace sidebar SHALL dynamically append `SavedDashboardView` entries as sub-links under the "Reporting Hub" navigation item. Each sub-link SHALL navigate to `/dashboard/workspace/reporting?view_id=<id>` (updated from the legacy `/dashboard/reporting` path). Sub-links SHALL only appear after the user has created at least one saved view.

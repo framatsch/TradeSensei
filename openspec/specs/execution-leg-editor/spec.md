@@ -1,4 +1,9 @@
-## ADDED Requirements
+# execution-leg-editor Specification
+
+## Purpose
+Define expected behavior for the inline execution leg editor, including direction, timestamp, and P&L edits.
+
+## Requirements
 
 ### Requirement: Direction is editable in the execution leg inline editor
 The system SHALL allow users to change the `direction` (LONG / SHORT) of an execution leg via a two-state toggle in the inline edit form. Submitting the change SHALL send a `PATCH /api/v1/executions/{id}` request with `{"direction": "<new_value>"}` and re-aggregate the parent trade.

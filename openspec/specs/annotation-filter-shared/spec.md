@@ -1,4 +1,9 @@
-## ADDED Requirements
+# annotation-filter-shared Specification
+
+## Purpose
+Define expected behavior for filtering trades, check-ins, and workspace data by annotation values, shared across UI surfaces.
+
+## Requirements
 
 ### Requirement: Shared Annotation Filter Logic (Backend)
 

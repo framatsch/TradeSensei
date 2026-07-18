@@ -1,4 +1,9 @@
-## ADDED Requirements
+# portfolio-api-isolation Specification
+
+## Purpose
+Define expected behavior for scoping trade, metrics, timeseries, and import endpoints to a portfolio.
+
+## Requirements
 
 ### Requirement: All trade endpoints scoped to portfolio
 The system SHALL require a `portfolio_id` path segment on all endpoints that

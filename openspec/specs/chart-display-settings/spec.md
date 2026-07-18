@@ -1,4 +1,9 @@
-## ADDED Requirements
+# chart-display-settings Specification
+
+## Purpose
+Define expected behavior for user-configurable chart display defaults and the Look & Feel settings tab.
+
+## Requirements
 
 ### Requirement: Chart display defaults stored in user settings
 The backend `UserSettingsRead` schema SHALL expose three new fields:

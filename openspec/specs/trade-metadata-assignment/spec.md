@@ -1,4 +1,9 @@
-## ADDED Requirements
+# trade-metadata-assignment Specification
+
+## Purpose
+Define expected behavior for assigning and removing taxonomy and annotation metadata on trades.
+
+## Requirements
 
 ### Requirement: Assign taxonomy to trade
 The system SHALL allow assigning an existing taxonomy to a trade, subject to scope and archive validation.

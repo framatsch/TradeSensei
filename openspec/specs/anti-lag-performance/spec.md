@@ -1,4 +1,9 @@
-## ADDED Requirements
+# anti-lag-performance Specification
+
+## Purpose
+Define performance requirements for workspace charts and data-fetching hooks to avoid UI lag with large datasets.
+
+## Requirements
 
 ### Requirement: All Recharts widgets in the workspace are lazy-loaded with next/dynamic
 Every component that renders a Recharts chart (`AreaChart`, `ScatterChart`, `BarChart`) SHALL be imported using `next/dynamic` with `{ ssr: false }`. Static imports of Recharts components SHALL NOT exist in any workspace route page file.

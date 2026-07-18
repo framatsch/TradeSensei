@@ -1,4 +1,9 @@
-## ADDED Requirements
+# portfolio-settings Specification
+
+## Purpose
+Define expected behavior for managing portfolios, default portfolio selection, and portfolio data wipe from the Settings Hub.
+
+## Requirements
 
 ### Requirement: User can manage portfolios from Settings
 The Settings Hub SHALL provide a **Portfolios** tab that allows an authenticated user to create,

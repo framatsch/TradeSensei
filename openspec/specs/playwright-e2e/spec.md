@@ -1,6 +1,12 @@
-## ADDED Requirements — Playwright E2E Tests
+# playwright-e2e Specification
+
+## Purpose
+Define end-to-end test coverage for tag/annotation assignment and filtering flows in check-ins and trades.
+
+## Requirements
 
 ### Requirement: E2E — Assign Tags and Annotations in Check-in Form
+The system SHALL have automated end-to-end test coverage verifying that a user can assign, remove, set, and clear taxonomy tags and annotation values (string_enum and bool) on a check-in via the check-in form.
 
 #### Scenario: User assigns a taxonomy tag to a check-in
 - **GIVEN** the user navigates to a check-in date page
@@ -30,6 +36,7 @@
 ---
 
 ### Requirement: E2E — Filter Check-ins by Tag and Annotation
+The system SHALL have automated end-to-end test coverage verifying that a user can filter check-ins by taxonomy tag and by annotation value, including combining multiple annotation filters with AND logic.
 
 #### Scenario: User filters check-ins by taxonomy tag
 - **GIVEN** some check-ins have tag "Bullish" assigned and some do not
@@ -48,6 +55,7 @@
 ---
 
 ### Requirement: E2E — Filter Trades by Annotation Value
+The system SHALL have automated end-to-end test coverage verifying that a user can filter trades by an annotation value using the TradeFilterBar.
 
 #### Scenario: User adds an annotation filter row in TradeFilterBar
 - **GIVEN** trades with annotation "Setup Quality" = "A+" and others = "B"

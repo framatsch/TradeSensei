@@ -1,4 +1,9 @@
-## ADDED Requirements
+# schwab-oauth-connect Specification
+
+## Purpose
+Define expected behavior for the Schwab OAuth authorization, callback, and connection flow.
+
+## Requirements
 
 ### Requirement: Start Schwab OAuth Authorization
 The system SHALL let an authenticated user begin a Schwab OAuth authorization for a specific account by generating a PKCE code verifier and a CSRF `state`, persisting the verifier, the `state`, and a `state → account_id` correlation server-side for short-lived lookup, and returning the Schwab authorization URL built from the account's app credentials and the configured `schwab_redirect_uri`.
