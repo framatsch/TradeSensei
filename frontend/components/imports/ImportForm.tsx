@@ -30,9 +30,10 @@ import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
 import { usePortfolioStore } from "@/stores/portfolioStore";
 import { Spinner } from "@/components/ui/Spinner";
 import { FileQueue, FileQueueSummary } from "@/components/imports/FileQueue";
-import { DateRangeVisualizer } from "@/components/imports/DateRangeVisualizer";
+import { ImportDateRange } from "@/components/imports/ImportDateRange";
+import { capabilityFor } from "@/components/imports/ImportCapability";
 import type { QueuedFile } from "@/components/imports/FileQueue";
-import type { ImportResult, FreshStartResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
+import type { ImportResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
 import { client } from "@/lib/api/client.gen";
 import { extractApiError } from "@/lib/apiErrors";
 
@@ -88,12 +89,24 @@ function getYTDFromDate(): string {
   return `${year}0101`;
 }
 
+/** Compute the number of days between a YYYYMMDD start date and today. */
+function computeDaysFromFromDate(fromDateStr: string): number {
+  if (!/^\d{8}$/.test(fromDateStr)) return 30;
+  const y = parseInt(fromDateStr.slice(0, 4), 10);
+  const m = parseInt(fromDateStr.slice(4, 6), 10) - 1;
+  const d = parseInt(fromDateStr.slice(6, 8), 10);
+  const start = new Date(y, m, d);
+  if (isNaN(start.getTime())) return 30;
+  const msInDay = 86_400_000;
+  return Math.max(1, Math.ceil((Date.now() - start.getTime()) / msInDay));
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ImportForm() {
   const qc = useQueryClient();
   const [accountId, setAccountId] = useState<string>("");
-  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [activeTab, setActiveTab] = useState<"sync" | "upload">("sync");
 
   // ── File-queue state ──
   const [queuedFiles, setQueuedFiles] = useState<QueuedFile[]>([]);
@@ -105,19 +118,9 @@ export function ImportForm() {
 
   // ── API Sync state ──
   const [syncResult, setSyncResult] = useState<BrokerSyncResult | null>(null);
-  const [syncDays, setSyncDays] = useState<number>(30);
 
   // ── Overwrite manually-edited trades flag ──
   const [overwriteManuallyEdited, setOverwriteManuallyEdited] = useState(false);
-
-  // ── Fresh Start state (task 8.6) ──
-  const [showFreshStart, setShowFreshStart] = useState(false);
-  const [freshStartAcknowledged, setFreshStartAcknowledged] = useState(false);
-  const [freshStartFiles, setFreshStartFiles] = useState<File[]>([]);
-  const [freshStartResult, setFreshStartResult] = useState<FreshStartResult | null>(null);
-  const [freshStartError, setFreshStartError] = useState<string | null>(null);
-  const [isFreshStartRunning, setIsFreshStartRunning] = useState(false);
-  const freshStartFileRef = useRef<HTMLInputElement>(null);
 
   // ── Flex date-range state ──
   const [flexPreset, setFlexPreset] = useState<FlexFromDatePreset>("ytd");
@@ -137,22 +140,16 @@ export function ImportForm() {
     setQueuedFiles([]);
     setQueueDone(false);
     setSyncResult(null);
-    setShowFileUpload(false);
     setOverwriteManuallyEdited(false);
-    setShowFreshStart(false);
-    setFreshStartAcknowledged(false);
-    setFreshStartFiles([]);
-    setFreshStartResult(null);
-    setFreshStartError(null);
     abortRef.current = false;
 
     const acc = accounts?.find((a) => a.id === id);
+    // Default to sync tab when API keys exist, otherwise upload
+    setActiveTab(acc?.has_api_keys ? "sync" : "upload");
     if (acc?.settings) {
-      setSyncDays(acc.settings.sync_days ?? 30);
       setFlexPreset(acc.settings.flex_from_date_preset ?? "ytd");
       setFlexCustomDate(acc.settings.flex_custom_from_date ?? getYTDFromDate());
     } else {
-      setSyncDays(30);
       setFlexPreset("ytd");
       setFlexCustomDate(getYTDFromDate());
     }
@@ -169,7 +166,7 @@ export function ImportForm() {
     setSaveSettingsLabel("saving");
     await updateAccount.mutateAsync({
       settings: {
-        sync_days: syncDays,
+        sync_days: computeDaysFromFromDate(getFlexFromDate()),
         flex_from_date_preset: flexPreset,
         flex_custom_from_date: flexPreset === "custom" ? flexCustomDate : null,
       },
@@ -256,78 +253,6 @@ export function ImportForm() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ── Fresh Start handler (task 8.6) ───────────────────────────────────────
-  const handleFreshStart = async () => {
-    if (!freshStartFiles.length || !accountType || !accountId || !freshStartAcknowledged) return;
-    setIsFreshStartRunning(true);
-    setFreshStartError(null);
-    setFreshStartResult(null);
-
-    try {
-      let totalExecutionsDeleted = 0;
-      let totalTradesDeleted = 0;
-      let totalTradesCreated = 0;
-      let totalTradesSkipped = 0;
-      let allWarnings: string[] = [];
-      let totalSuppressed = 0;
-
-      for (let i = 0; i < freshStartFiles.length; i++) {
-        const file = freshStartFiles[i];
-        const formData = new FormData();
-
-        if (i === 0) {
-          // First file triggers fresh start
-          formData.append("acknowledged", "true");
-          formData.append("file", file);
-          const freshEnvelope = await multipartPost(`/api/v1/portfolios/${portfolioId}/imports/${accountId}/fresh-start`, formData);
-          const data: FreshStartResult = freshEnvelope.data;
-          totalExecutionsDeleted += data.executions_deleted;
-          totalTradesDeleted += data.trades_deleted;
-          totalTradesCreated += data.import_result.trades_created;
-          totalTradesSkipped += data.import_result.trades_skipped;
-          if (data.import_result.warnings) allWarnings.push(...data.import_result.warnings);
-          // @ts-ignore
-          totalSuppressed += data.import_result.raw_transactions_suppressed ?? 0;
-        } else {
-          // Subsequent files are normal uploads
-          formData.append("account_id", accountId);
-          formData.append("file", file);
-          // Overwrite manually edited shouldn't be strictly necessary since it's a fresh start, 
-          // but we can leave it false as default
-          const envelope = await multipartPost(`/api/v1/portfolios/${portfolioId}/imports/upload`, formData);
-          const data: ImportResult = envelope.data;
-          totalTradesCreated += data.trades_created;
-          totalTradesSkipped += data.trades_skipped;
-          if (data.warnings) allWarnings.push(...data.warnings);
-          // @ts-ignore
-          totalSuppressed += data.raw_transactions_suppressed ?? 0;
-        }
-      }
-
-      // @ts-ignore
-      setFreshStartResult({
-        executions_deleted: totalExecutionsDeleted,
-        trades_deleted: totalTradesDeleted,
-        import_result: {
-          trades_created: totalTradesCreated,
-          trades_skipped: totalTradesSkipped,
-          warnings: allWarnings,
-          // @ts-ignore
-          raw_transactions_suppressed: totalSuppressed,
-        } as unknown as any
-      });
-      void qc.invalidateQueries({ queryKey: ["trades"] });
-      void qc.invalidateQueries({ queryKey: ["metrics"] });
-      void qc.invalidateQueries({ queryKey: ["tax"] });
-      void qc.invalidateQueries({ queryKey: ["stats"] });
-      void qc.invalidateQueries({ queryKey: ["accounts"] });
-    } catch (err) {
-      setFreshStartError(extractApiError(err, err instanceof Error ? err.message : "Fresh start failed."));
-    } finally {
-      setIsFreshStartRunning(false);
-    }
-  };
-
   // ── API Sync mutation ─────────────────────────────────────────────────────
   const {
     mutate: syncAccount,
@@ -335,9 +260,12 @@ export function ImportForm() {
     error: syncError,
   } = useMutation<BrokerSyncResult, Error, void>({
     mutationFn: async () => {
-      const fromDate = accountType === "ibkr" ? `&from_date=${getFlexFromDate()}` : "";
+      const cap = selectedAccount ? capabilityFor(selectedAccount.type) : null;
+      const fromDateStr = getFlexFromDate();
+      const days = computeDaysFromFromDate(fromDateStr);
+      const fromDateParam = cap?.syncParam.kind === "fromDate" ? `&from_date=${fromDateStr}` : "";
       const overwrite = overwriteManuallyEdited ? "&overwrite_manually_edited=true" : "";
-      const { data: syncData, error: syncErr } = await client.post({ url: `/api/v1/broker/sync/${accountId}?days=${syncDays}${fromDate}${overwrite}` as any });
+      const { data: syncData, error: syncErr } = await client.post({ url: `/api/v1/broker/sync/${accountId}?days=${days}${fromDateParam}${overwrite}` as any });
       if (syncErr || !syncData) throw syncErr ?? new Error("Sync failed");
       return (syncData as any).data;
     },
@@ -396,331 +324,171 @@ export function ImportForm() {
         )}
       </div>
 
-      {/* Step 2: Import options */}
+      {/* Step 2: Import options — tabs for sync / file upload */}
       {selectedAccount && (
         <div className="space-y-4">
           <h2 className="text-sm font-semibold text-foreground">
             Step 2 — Import Trades
           </h2>
 
-          {/* API Sync — only for ibkr/schwab */}
-          {(accountType === "schwab" || accountType === "ibkr") && (
-            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
+          {/* Tabs (only when both methods are available: broker + API keys) */}
+          {(accountType === "schwab" || accountType === "ibkr") && selectedAccount.has_api_keys ? (
+            <div className="space-y-4">
+              <div className="flex gap-1 border-b border-border" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "sync"}
+                  onClick={() => setActiveTab("sync")}
+                  className={[
+                    "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+                    activeTab === "sync"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                >
                   Sync via API
-                </h3>
-                <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
-                  Fetch recent trades directly from {TYPE_LABEL[accountType]}.
-                  {!selectedAccount.has_api_keys && (
-                    <span className="text-amber-400 ml-1">
-                      ⚠ No API credentials stored. Add them in Settings → Accounts.
-                    </span>
-                  )}
-                </p>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "upload"}
+                  onClick={() => setActiveTab("upload")}
+                  className={[
+                    "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+                    activeTab === "upload"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                >
+                  Upload Files
+                </button>
               </div>
 
-              {selectedAccount.has_api_keys && !syncResult && (
-                <div className="space-y-4">
-                  {/* IBKR Flex: DateRangeVisualizer */}
-                  {accountType === "ibkr" ? (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        Import date range
-                      </p>
-                      <DateRangeVisualizer
+              {activeTab === "sync" ? (
+                <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Sync via API
+                    </h3>
+                    <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+                      Fetch recent trades directly from {TYPE_LABEL[accountType]}.
+                    </p>
+                  </div>
+
+                  {!syncResult && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Import date range
+                        </p>
+                      <ImportDateRange
+                        capability={capabilityFor(selectedAccount.type)}
                         preset={flexPreset}
                         customFromDate={flexCustomDate}
                         onPresetChange={setFlexPreset}
                         onCustomFromDateChange={setFlexCustomDate}
                         disabled={isSyncing}
                       />
-                    </div>
-                  ) : (
-                    // Schwab: simple days picker
-                    <div className="flex items-center gap-3">
-                      <label className="text-xs font-medium text-muted-foreground">
-                        Look back
-                      </label>
-                      <select
-                        value={syncDays}
-                        onChange={(e) => setSyncDays(Number(e.target.value))}
-                        disabled={isSyncing}
-                        className="px-2 py-1.5 bg-zinc-50 dark:bg-zinc-700 border border-border dark:border-border rounded text-sm text-zinc-700 dark:text-zinc-200 focus:outline-none focus:border-primary"
-                      >
-                        <option value={7}>Last 7 days</option>
-                        <option value={30}>Last 30 days</option>
-                        <option value={90}>Last 90 days</option>
-                        <option value={180}>Last 180 days</option>
-                        <option value={365}>Last 1 year</option>
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Save settings button */}
-                  <button
-                    type="button"
-                    onClick={handleSaveSettings}
-                    disabled={isSyncing || saveSettingsLabel === "saving"}
-                    className="text-xs text-primary hover:text-primary disabled:opacity-50 underline underline-offset-2"
-                  >
-                    {saveSettingsLabel === "saving"
-                      ? "Saving…"
-                      : saveSettingsLabel === "saved"
-                      ? "✓ Saved as default"
-                      : "Save as default for this account"}
-                  </button>
-
-                  {/* Overwrite manually-edited trades */}
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={overwriteManuallyEdited}
-                      onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
-                      disabled={isSyncing}
-                      className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
-                    />
-                    <span className="text-xs text-muted-foreground dark:text-zinc-400">
-                      Overwrite manually-edited trades
-                    </span>
-                  </label>
-                </div>
-              )}
-
-              {syncErrorMsg && (
-                <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
-                  {syncErrorMsg}
-                </p>
-              )}
-
-              {syncResult ? (
-                <SyncResultPanel result={syncResult} onReset={() => setSyncResult(null)} />
-              ) : (
-                <button
-                  type="button"
-                  disabled={isSyncing || !selectedAccount.has_api_keys}
-                  onClick={() => syncAccount()}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
-                >
-                  {isSyncing && <Spinner size="sm" />}
-                  {isSyncing ? "Syncing…" : `Sync ${TYPE_LABEL[accountType]} Trades`}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Fresh Start (task 8.6) — only for ibkr/schwab accounts */}
-          {(accountType === "schwab" || accountType === "ibkr") && (
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setShowFreshStart((v) => !v)}
-                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/30 transition-colors"
-              >
-                <span className="text-sm font-medium text-red-600">
-                  Fresh Start (destructive)
-                </span>
-                <span className="text-muted-foreground text-xs">
-                  {showFreshStart ? "▲ Hide" : "▼ Show"}
-                </span>
-              </button>
-
-              {showFreshStart && (
-                <div className="px-6 py-4 space-y-4 border-t border-border">
-                  <p className="text-xs text-muted-foreground">
-                    Deletes <strong>all</strong> trades and executions for this account, then re-imports
-                    from the selected file. BrokerRawTransactions and suppressed records are preserved.
-                    <br />
-                    <strong className="text-red-600">This action cannot be undone.</strong>
-                  </p>
-
-                  {/* File input */}
-                  {!freshStartResult && (
-                    <>
-                      <div className="space-y-2">
-                        <input
-                          ref={freshStartFileRef}
-                          type="file"
-                          multiple
-                          accept={accountType ? ACCOUNT_ACCEPT[accountType] : ""}
-                          onChange={(e) => setFreshStartFiles(Array.from(e.target.files ?? []))}
-                          className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-muted file:text-foreground file:cursor-pointer file:font-medium"
-                        />
-                        {freshStartFiles.length > 0 && (
-                          <p className="text-xs text-muted-foreground dark:text-zinc-400">
-                            {freshStartFiles.length} file{freshStartFiles.length !== 1 ? "s" : ""} selected
-                          </p>
-                        )}
                       </div>
 
-                      {/* Acknowledgement checkbox */}
-                      <label className="flex items-start gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={freshStartAcknowledged}
-                          onChange={(e) => setFreshStartAcknowledged(e.target.checked)}
-                          disabled={isFreshStartRunning}
-                          className="mt-0.5 w-4 h-4 rounded border-border accent-red-600 flex-shrink-0"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          I understand that all trades and executions for this account will be
-                          permanently deleted before the re-import.
-                        </span>
-                      </label>
-
-                      {freshStartError && (
-                        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
-                          {freshStartError}
-                        </p>
-                      )}
-
+                      {/* Save settings button */}
                       <button
                         type="button"
-                        onClick={handleFreshStart}
-                        disabled={!freshStartFiles.length || !freshStartAcknowledged || isFreshStartRunning}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                        onClick={handleSaveSettings}
+                        disabled={isSyncing || saveSettingsLabel === "saving"}
+                        className="text-xs text-primary hover:text-primary disabled:opacity-50 underline underline-offset-2"
                       >
-                        {isFreshStartRunning ? (
-                          <>
-                            <Spinner size="sm" />
-                            Running Fresh Start…
-                          </>
-                        ) : (
-                          `Run Fresh Start (${freshStartFiles.length} file${freshStartFiles.length !== 1 ? 's' : ''})`
-                        )}
+                        {saveSettingsLabel === "saving"
+                          ? "Saving…"
+                          : saveSettingsLabel === "saved"
+                          ? "✓ Saved as default"
+                          : "Save as default for this account"}
                       </button>
-                    </>
-                  )}
 
-                  {freshStartResult && (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-3 gap-4">
-                        <StatBox label="Deleted exec." value={freshStartResult.executions_deleted} color="text-red-500" />
-                        <StatBox label="Deleted trades" value={freshStartResult.trades_deleted} color="text-red-500" />
-                        <StatBox label="Imported" value={freshStartResult.import_result.trades_created} color="text-emerald-500" />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Fresh start complete. {freshStartResult.import_result.trades_skipped} rows skipped.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFreshStartResult(null);
-                          setFreshStartAcknowledged(false);
-                          setFreshStartFiles([]);
-                          if (freshStartFileRef.current) freshStartFileRef.current.value = "";
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground underline"
-                      >
-                        Run again
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* File Upload — only for broker accounts (ibkr/schwab) */}
-          {(accountType === "ibkr" || accountType === "schwab") && (
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setShowFileUpload((v) => !v)}
-                disabled={isQueueRunning}
-                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-50"
-              >
-                <span className="text-sm font-medium text-muted-foreground">
-                  Or upload files manually
-                  <span className="ml-2 text-xs text-muted-foreground font-normal">
-                    ({accountType ? ACCOUNT_FORMAT_HINT[accountType] : ""})
-                  </span>
-                </span>
-                <span className="text-muted-foreground text-xs">
-                  {showFileUpload ? "▲ Hide" : "▼ Show"}
-                </span>
-              </button>
-
-              {showFileUpload && (
-                <div className="px-6 py-4 space-y-4 border-t border-border">
-                  {/* File input — multi */}
-                  {!isQueueRunning && !queueDone && (
-                    <div className="space-y-2">
-                      <input
-                        ref={fileInputRef}
-                        id="file"
-                        type="file"
-                        multiple
-                        accept={ACCOUNT_ACCEPT[accountType]}
-                        onChange={handleFileChange}
-                        className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-secondary file:text-foreground file:cursor-pointer hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700 file:font-medium"
-                      />
-                      {hasFiles && (
-                        <p className="text-xs text-muted-foreground dark:text-zinc-400">
-                          {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""} selected
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Queue progress (while running) */}
-                  {(isQueueRunning || (hasFiles && !queueDone)) && !allFilesDone && (
-                    <FileQueue files={queuedFiles} currentIndex={currentIndex} />
-                  )}
-
-                  {/* Running: abort button */}
-                  {isQueueRunning && (
-                    <button
-                      type="button"
-                      onClick={handleAbort}
-                      className="text-xs text-red-400 hover:text-red-300 underline"
-                    >
-                      Cancel remaining files
-                    </button>
-                  )}
-
-                  {/* Done: summary + reset */}
-                  {queueDone && (
-                    <div className="space-y-3">
-                      <FileQueue files={queuedFiles} currentIndex={currentIndex} />
-                      <FileQueueSummary files={queuedFiles} />
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
-                      >
-                        Import more files
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Start button */}
-                  {canStartUpload && (
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                      {/* Overwrite manually-edited trades */}
+                      <label className="flex gap-2 cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={overwriteManuallyEdited}
                           onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
+                          disabled={isSyncing}
                           className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
                         />
                         <span className="text-xs text-muted-foreground dark:text-zinc-400">
                           Overwrite manually-edited trades
                         </span>
                       </label>
-                      <button
-                        type="button"
-                        onClick={handleStartUpload}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
-                      >
-                        Import {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""}
-                      </button>
                     </div>
                   )}
+
+                  {syncErrorMsg && (
+                    <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+                      {syncErrorMsg}
+                    </p>
+                  )}
+
+                  {syncResult ? (
+                    <SyncResultPanel result={syncResult} onReset={() => setSyncResult(null)} />
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isSyncing}
+                      onClick={() => syncAccount()}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                    >
+                      {isSyncing && <Spinner size="sm" />}
+                      {isSyncing ? "Syncing…" : `Sync ${TYPE_LABEL[accountType]} Trades`}
+                    </button>
+                  )}
                 </div>
+              ) : (
+                <FileUploadCard
+                  accountType={accountType}
+                  queuedFiles={queuedFiles}
+                  currentIndex={currentIndex}
+                  isQueueRunning={isQueueRunning}
+                  queueDone={queueDone}
+                  allFilesDone={allFilesDone}
+                  canStartUpload={canStartUpload}
+                  hasFiles={hasFiles}
+                  overwriteManuallyEdited={overwriteManuallyEdited}
+                  setOverwriteManuallyEdited={setOverwriteManuallyEdited}
+                  fileInputRef={fileInputRef}
+                  handleFileChange={handleFileChange}
+                  handleStartUpload={handleStartUpload}
+                  handleAbort={handleAbort}
+                  handleReset={handleReset}
+                />
               )}
             </div>
-          )}
+          ) : (accountType === "ibkr" || accountType === "schwab") ? (
+            /* Broker account without API keys — only show upload */
+            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+              <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md px-4 py-3">
+                <span className="text-amber-600 dark:text-amber-400 text-sm leading-relaxed">
+                  ⚠ No API credentials stored for this {TYPE_LABEL[accountType]} account. Add them in Settings → Accounts to enable API sync, or upload files below.
+                </span>
+              </div>
+              <FileUploadCard
+                accountType={accountType}
+                queuedFiles={queuedFiles}
+                currentIndex={currentIndex}
+                isQueueRunning={isQueueRunning}
+                queueDone={queueDone}
+                allFilesDone={allFilesDone}
+                canStartUpload={canStartUpload}
+                hasFiles={hasFiles}
+                overwriteManuallyEdited={overwriteManuallyEdited}
+                setOverwriteManuallyEdited={setOverwriteManuallyEdited}
+                fileInputRef={fileInputRef}
+                handleFileChange={handleFileChange}
+                handleStartUpload={handleStartUpload}
+                handleAbort={handleAbort}
+                handleReset={handleReset}
+              />
+            </div>
+          ) : null}
         </div>
       )}
     </div>
@@ -728,6 +496,130 @@ export function ImportForm() {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────────
+
+interface FileUploadCardProps {
+  accountType: AccountType;
+  queuedFiles: QueuedFile[];
+  currentIndex: number;
+  isQueueRunning: boolean;
+  queueDone: boolean;
+  allFilesDone: boolean;
+  canStartUpload: boolean;
+  hasFiles: boolean;
+  overwriteManuallyEdited: boolean;
+  setOverwriteManuallyEdited: (v: boolean) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleStartUpload: () => void;
+  handleAbort: () => void;
+  handleReset: () => void;
+}
+
+function FileUploadCard({
+  accountType,
+  queuedFiles,
+  currentIndex,
+  isQueueRunning,
+  queueDone,
+  allFilesDone,
+  canStartUpload,
+  hasFiles,
+  overwriteManuallyEdited,
+  setOverwriteManuallyEdited,
+  fileInputRef,
+  handleFileChange,
+  handleStartUpload,
+  handleAbort,
+  handleReset,
+}: FileUploadCardProps) {
+  return (
+    <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">
+          Upload Files
+        </h3>
+        <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+          Import from broker export files ({ACCOUNT_FORMAT_HINT[accountType]}).
+        </p>
+      </div>
+
+      {/* File input — multi */}
+      {!isQueueRunning && !queueDone && (
+        <div className="space-y-2">
+          <input
+            ref={fileInputRef}
+            id="file"
+            type="file"
+            multiple
+            accept={ACCOUNT_ACCEPT[accountType]}
+            onChange={handleFileChange}
+            className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-secondary file:text-foreground file:cursor-pointer hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700 file:font-medium"
+          />
+          {hasFiles && (
+            <p className="text-xs text-muted-foreground dark:text-zinc-400">
+              {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""} selected
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Queue progress (while running) */}
+      {(isQueueRunning || (hasFiles && !queueDone)) && !allFilesDone && (
+        <FileQueue files={queuedFiles} currentIndex={currentIndex} />
+      )}
+
+      {/* Running: abort button */}
+      {isQueueRunning && (
+        <button
+          type="button"
+          onClick={handleAbort}
+          className="text-xs text-red-400 hover:text-red-300 underline"
+        >
+          Cancel remaining files
+        </button>
+      )}
+
+      {/* Done: summary + reset */}
+      {queueDone && (
+        <div className="space-y-3">
+          <FileQueue files={queuedFiles} currentIndex={currentIndex} />
+          <FileQueueSummary files={queuedFiles} />
+          <button
+            type="button"
+            onClick={handleReset}
+            className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
+          >
+            Import more files
+          </button>
+        </div>
+      )}
+
+      {/* Start button */}
+      {canStartUpload && (
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={overwriteManuallyEdited}
+              onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
+              className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
+            />
+            <span className="text-xs text-muted-foreground dark:text-zinc-400">
+              Overwrite manually-edited trades
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={handleStartUpload}
+            className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+          >
+            Import {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SyncResultPanel({
   result,

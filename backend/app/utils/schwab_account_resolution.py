@@ -41,7 +41,8 @@ def resolve_schwab_account_entry(
         available = ", ".join(non_empty_numbers) if non_empty_numbers else "<none>"
         raise ImportAccountMismatchError(
             f"Schwab account mismatch: configured account number '{configured_number}' "
-            f"is not present in broker accounts [{available}]."
+            f"does not match any broker account in the file. "
+            f"Available broker accounts: {available}."
         )
 
     if len(accounts) == 1:
@@ -53,11 +54,11 @@ def resolve_schwab_account_entry(
     available = ", ".join(non_empty_numbers) if non_empty_numbers else "<none>"
     if context == "sync":
         raise ImportAccountMismatchError(
-            "multiple Schwab accounts found - enter account number; "
-            f"available account numbers: [{available}]"
+            "multiple Schwab accounts found - please configure an account number. "
+            f"Available broker accounts: {available}."
         )
 
     raise ImportAccountMismatchError(
-        "Schwab account is not configured and file is ambiguous; "
-        f"available account numbers: [{available}]."
+        "Schwab account is not configured and the file is ambiguous. "
+        f"Available broker accounts: {available}."
     )

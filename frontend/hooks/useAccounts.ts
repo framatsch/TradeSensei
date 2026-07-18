@@ -22,6 +22,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/api/client.gen";
 import { usePortfolioStore } from "@/stores/portfolioStore";
+import { clearAccountTradesApiV1PortfoliosPortfolioIdAccountsAccountIdTradesDelete } from "@/lib/api/sdk.gen";
+import type { ClearTradesResult } from "@/lib/api/types.gen";
 import type {
   Account,
   AccountCreate,
@@ -94,6 +96,29 @@ export function useUpdateAccount(id: string) {
       void qc.invalidateQueries({ queryKey: ["stats"] });
       void qc.invalidateQueries({ queryKey: ["metrics"] });
       void qc.invalidateQueries({ queryKey: ["tax"] });
+    },
+  });
+}
+
+export function useClearAccountTrades() {
+  const qc = useQueryClient();
+  const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
+  return useMutation<ClearTradesResult, Error, string>({
+    mutationFn: async (accountId) => {
+      const { data, error } =
+        await clearAccountTradesApiV1PortfoliosPortfolioIdAccountsAccountIdTradesDelete({
+          path: { portfolio_id: portfolioId!, account_id: accountId },
+          query: { acknowledged: true },
+        });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return (data as ResponseEnvelope<ClearTradesResult>).data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["metrics"] });
+      void qc.invalidateQueries({ queryKey: ["tax"] });
+      void qc.invalidateQueries({ queryKey: ["stats"] });
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
     },
   });
 }

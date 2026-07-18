@@ -23,6 +23,7 @@ import { client } from "@/lib/api/client.gen";
 import { 
   updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch, 
   deleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDelete,
+  clearAccountTradesApiV1PortfoliosPortfolioIdAccountsAccountIdTradesDelete,
   getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet
 } from "@/lib/api/index";
 import { extractApiError } from "@/lib/apiErrors";
@@ -77,6 +78,11 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
   
   const [confirmName, setConfirmName] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Clear trades state
+  const [clearConfirmName, setClearConfirmName] = useState("");
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
 
   const uid = useId();
 
@@ -258,6 +264,39 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
     if (confirmName.trim() !== account.name) return;
     setDeleteError(null);
     deleteMutation.mutate();
+  };
+
+  const handleClearTrades = async () => {
+    if (clearConfirmName.trim() !== account.name) return;
+    if (!portfolioId) {
+      setClearError("Account must belong to a portfolio");
+      return;
+    }
+    setClearError(null);
+    setIsClearing(true);
+    try {
+      const { data, error: clearErr } =
+        await clearAccountTradesApiV1PortfoliosPortfolioIdAccountsAccountIdTradesDelete({
+          path: { portfolio_id: portfolioId, account_id: account.id },
+          query: { acknowledged: true },
+        });
+      if (clearErr || !data) throw clearErr ?? new Error("Failed to clear trades");
+      const result = (data as any).data;
+      qc.invalidateQueries({ queryKey: ["trades"] });
+      qc.invalidateQueries({ queryKey: ["metrics"] });
+      qc.invalidateQueries({ queryKey: ["tax"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success(
+        `Cleared ${result.trades_deleted} trades and ${result.executions_deleted} executions.`,
+      );
+      setClearConfirmName("");
+      onClose();
+    } catch (err: any) {
+      setClearError(extractApiError(err, "Failed to clear trades"));
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   const credentialFields = account.type !== "manual" ? CREDENTIAL_FIELDS[account.type] : null;
@@ -464,41 +503,86 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
           </button>
 
           {showDangerZone && (
-            <div className="mt-4 bg-danger/5 border border-danger/20 rounded-md p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200" data-testid="account-danger-zone">
-              <p className="text-sm text-danger">
-                This will permanently delete this account, all associated trades, and cash transactions. This action cannot be undone.
-              </p>
+            <div className="mt-4 bg-danger/5 border border-danger/20 rounded-md p-4 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200" data-testid="account-danger-zone">
 
-              <div className="space-y-1.5">
-                <label className="text-sm text-foreground font-medium">
-                  Type <span className="font-bold text-danger select-none">{account.name}</span> to confirm:
-                </label>
-                <input
-                  type="text"
-                  value={confirmName}
-                  onChange={(e) => setConfirmName(e.target.value)}
-                  disabled={deleteMutation.isPending}
-                  placeholder={account.name}
-                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-danger text-foreground"
-                  data-testid="delete-confirm-input"
-                />
+              {/* Clear all trades */}
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-danger">Clear All Trades</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Permanently deletes all trades, executions, and broker raw transactions for this account. The account itself remains. This cannot be undone.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-foreground font-medium">
+                    Type <span className="font-bold text-danger select-none">{account.name}</span> to confirm:
+                  </label>
+                  <input
+                    type="text"
+                    value={clearConfirmName}
+                    onChange={(e) => setClearConfirmName(e.target.value)}
+                    disabled={isClearing}
+                    placeholder={account.name}
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-danger text-foreground"
+                    data-testid="clear-trades-confirm-input"
+                  />
+                </div>
+                {clearError && (
+                  <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="clear-trades-error">
+                    {clearError}
+                  </p>
+                )}
+                <button
+                  onClick={handleClearTrades}
+                  disabled={clearConfirmName.trim() !== account.name || isClearing}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                  data-testid="clear-trades-button"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {isClearing ? "Clearing..." : "Clear All Trades"}
+                </button>
               </div>
 
-              {deleteError && (
-                <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="delete-error">
-                  {deleteError}
-                </p>
-              )}
+              {/* Divider */}
+              <div className="border-t border-danger/20" />
 
-              <button
-                onClick={handleDelete}
-                disabled={!canDelete}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
-                data-testid="delete-account-button"
-              >
-                <Trash2 className="h-4 w-4" />
-                {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
-              </button>
+              {/* Delete account */}
+              <div className="space-y-3">
+                <p className="text-sm text-danger">
+                  This will permanently delete this account, all associated trades, and cash transactions. This action cannot be undone.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm text-foreground font-medium">
+                    Type <span className="font-bold text-danger select-none">{account.name}</span> to confirm:
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmName}
+                    onChange={(e) => setConfirmName(e.target.value)}
+                    disabled={deleteMutation.isPending}
+                    placeholder={account.name}
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-danger text-foreground"
+                    data-testid="delete-confirm-input"
+                  />
+                </div>
+
+                {deleteError && (
+                  <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="delete-error">
+                    {deleteError}
+                  </p>
+                )}
+
+                <button
+                  onClick={handleDelete}
+                  disabled={!canDelete}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                  data-testid="delete-account-button"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
+                </button>
+              </div>
             </div>
           )}
         </div>

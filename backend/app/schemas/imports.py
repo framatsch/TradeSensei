@@ -48,6 +48,26 @@ class FreshStartResult(BaseModel):
     )
 
 
+class ClearTradesResult(BaseModel):
+    """Result of clearing all trade data for an account.
+
+    Attributes:
+        trades_deleted: Number of Trade rows deleted.
+        executions_deleted: Number of LogicalExecution rows deleted.
+    """
+
+    trades_deleted: int = Field(
+        ...,
+        ge=0,
+        description="Number of Trade rows deleted during account reset.",
+    )
+    executions_deleted: int = Field(
+        ...,
+        ge=0,
+        description="Number of LogicalExecution rows deleted during account reset.",
+    )
+
+
 class ImportResult(BaseModel):
     """Result of a broker file import operation.
 

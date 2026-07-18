@@ -20,9 +20,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { useDeleteAccount } from "@/hooks/useAccounts";
+import toast from "react-hot-toast";
+import { useDeleteAccount, useClearAccountTrades } from "@/hooks/useAccounts";
 import { AccountForm } from "./AccountForm";
 import { AccountDeleteModal } from "./AccountDeleteModal";
+import { AccountClearTradesModal } from "./AccountClearTradesModal";
 import type { Account, AccountType } from "@/lib/types";
 
 // ── Type badge ─────────────────────────────────────────────────────────────────
@@ -75,6 +77,8 @@ export function AccountList({ accounts }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
   const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccount();
+  const [clearingAccount, setClearingAccount] = useState<Account | null>(null);
+  const { mutate: clearTrades, isPending: isClearing } = useClearAccountTrades();
 
   const handleDelete = (accountId: string) => {
     deleteAccount(accountId, {
@@ -83,6 +87,21 @@ export function AccountList({ accounts }: Props) {
         console.error("Failed to delete account:", err);
         alert(`Failed to delete account: ${err.message}`);
       }
+    });
+  };
+
+  const handleClearTrades = (accountId: string) => {
+    clearTrades(accountId, {
+      onSuccess: (result) => {
+        setClearingAccount(null);
+        toast.success(
+          `Cleared ${result.trades_deleted} trades and ${result.executions_deleted} executions from ${clearingAccount?.name ?? "account"}.`,
+        );
+      },
+      onError: (err) => {
+        console.error("Failed to clear trades:", err);
+        toast.error(`Failed to clear trades: ${err.message}`);
+      },
     });
   };
 
@@ -184,6 +203,13 @@ export function AccountList({ accounts }: Props) {
                         </button>
                         <button
                           type="button"
+                          onClick={() => setClearingAccount(account)}
+                          className="px-3 py-1 bg-red-900/40 hover:bg-red-800/60 text-red-400 rounded-md text-xs transition-colors"
+                        >
+                          Clear Trades
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setDeletingAccount(account)}
                           className="px-3 py-1 bg-red-900/40 hover:bg-red-800/60 text-red-400 rounded-md text-xs transition-colors"
                         >
@@ -218,6 +244,15 @@ export function AccountList({ accounts }: Props) {
           onClose={() => setDeletingAccount(null)}
           onDelete={handleDelete}
           isDeleting={isDeleting}
+        />
+      )}
+
+      {clearingAccount && (
+        <AccountClearTradesModal
+          account={clearingAccount}
+          onClose={() => setClearingAccount(null)}
+          onClearTrades={handleClearTrades}
+          isClearing={isClearing}
         />
       )}
     </div>

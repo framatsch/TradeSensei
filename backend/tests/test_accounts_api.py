@@ -22,11 +22,23 @@ the database after every test, keeping them fully isolated from each other.
 """
 
 import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.broker_raw_transaction import BrokerRawTransaction
+from app.models.logical_execution import LogicalExecution
+from app.models.trade import AssetClass, Direction, Trade
+from app.repositories.broker_raw_transaction_repository import (
+    BrokerRawTransactionRepository,
+)
 from app.services.broker_service import BrokerService
+from app.services.audit_service import AuditEventService
 
 # ---------------------------------------------------------------------------
 # URL constants
@@ -39,6 +51,10 @@ _PORTFOLIOS_URL = "/api/v1/portfolios"
 
 def _accounts_url(portfolio_id: str) -> str:
     return f"/api/v1/portfolios/{portfolio_id}/accounts"
+
+
+def _clear_trades_url(portfolio_id: str, account_id: str) -> str:
+    return f"{_accounts_url(portfolio_id)}/{account_id}/trades"
 
 
 # ---------------------------------------------------------------------------
@@ -572,6 +588,351 @@ class TestDeleteAccount:
             f"{_accounts_url(portfolio_id)}/{unknown_id}", headers=_auth(token)
         )
         assert resp.status_code == 404
+
+
+class TestClearAccountTrades:
+    """Integration tests for scoped account clear-trades endpoint."""
+
+    @staticmethod
+    async def _count_rows(
+        db_session: AsyncSession,
+        model: type[Trade] | type[LogicalExecution] | type[BrokerRawTransaction],
+        *conditions: object,
+    ) -> int:
+        stmt = select(func.count()).select_from(model)
+        for condition in conditions:
+            stmt = stmt.where(condition)
+        result = await db_session.execute(stmt)
+        return int(result.scalar_one())
+
+    @pytest.mark.integration
+    async def test_clear_account_trades_success_deletes_all_related_data(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+    ) -> None:
+        token = await _register_and_get_token(
+            client,
+            username="acc_clear_owner",
+            email="clear-owner@example.com",
+        )
+        headers = _auth(token)
+        portfolio_id = await _create_portfolio(client, token, name="Clear Portfolio")
+
+        create_resp = await client.post(
+            _accounts_url(portfolio_id),
+            json={"name": "Clearable Account", "type": "ibkr", "currency": "USD"},
+            headers=headers,
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        account = create_resp.json()["data"]
+        account_id = account["id"]
+        user_id = uuid.UUID(account["user_id"])
+        account_uuid = uuid.UUID(account_id)
+
+        trade_regular = Trade(
+            user_id=user_id,
+            account_id=account_uuid,
+            symbol="AAPL",
+            direction=Direction.LONG,
+            asset_class=AssetClass.EQUITY,
+            quantity=Decimal("1"),
+            entry_price=Decimal("10"),
+            opened_at=datetime.now(UTC),
+            currency="USD",
+            is_manually_edited=False,
+        )
+        trade_manual = Trade(
+            user_id=user_id,
+            account_id=account_uuid,
+            symbol="MSFT",
+            direction=Direction.LONG,
+            asset_class=AssetClass.EQUITY,
+            quantity=Decimal("1"),
+            entry_price=Decimal("20"),
+            opened_at=datetime.now(UTC),
+            currency="USD",
+            is_manually_edited=True,
+        )
+        execution = LogicalExecution(
+            user_id=user_id,
+            account_id=account_uuid,
+            symbol="AAPL",
+            asset_class=AssetClass.EQUITY,
+            direction=Direction.LONG,
+            quantity=Decimal("1"),
+            price=Decimal("10"),
+            commission=Decimal("0"),
+            executed_at=datetime.now(UTC),
+            currency="USD",
+        )
+        raw_txn = BrokerRawTransaction(
+            id=f"{user_id}:ibkr:clear-raw-1",
+            user_id=user_id,
+            account_id=account_uuid,
+            broker_type="ibkr",
+            symbol="AAPL",
+            asset_class=AssetClass.EQUITY,
+            direction=Direction.LONG,
+            quantity=Decimal("1"),
+            price=Decimal("10"),
+            commission=Decimal("0"),
+            executed_at=datetime.now(UTC),
+            currency="USD",
+            raw_data={},
+        )
+        db_session.add_all([trade_regular, trade_manual, execution, raw_txn])
+        await db_session.flush()
+
+        clear_resp = await client.delete(
+            f"{_clear_trades_url(portfolio_id, account_id)}?acknowledged=true",
+            headers=headers,
+        )
+        assert clear_resp.status_code == 200, clear_resp.text
+        payload = clear_resp.json()["data"]
+        assert payload["trades_deleted"] == 2
+        assert payload["executions_deleted"] == 1
+
+        assert (
+            await self._count_rows(
+                db_session,
+                Trade,
+                Trade.user_id == user_id,
+                Trade.account_id == account_uuid,
+            )
+            == 0
+        )
+        assert (
+            await self._count_rows(
+                db_session,
+                LogicalExecution,
+                LogicalExecution.user_id == user_id,
+                LogicalExecution.account_id == account_uuid,
+            )
+            == 0
+        )
+        assert (
+            await self._count_rows(
+                db_session,
+                BrokerRawTransaction,
+                BrokerRawTransaction.user_id == user_id,
+                BrokerRawTransaction.account_id == account_uuid,
+            )
+            == 0
+        )
+
+        account_still_exists = await client.get(
+            f"{_accounts_url(portfolio_id)}/{account_id}",
+            headers=headers,
+        )
+        assert account_still_exists.status_code == 200
+
+    @pytest.mark.integration
+    async def test_clear_account_trades_requires_acknowledgement(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        token = await _register_and_get_token(
+            client,
+            username="acc_clear_ack",
+            email="clear-ack@example.com",
+        )
+        portfolio_id = await _create_portfolio(client, token, name="Ack Portfolio")
+        create_resp = await client.post(
+            _accounts_url(portfolio_id),
+            json={"name": "Ack Account", "type": "manual", "currency": "USD"},
+            headers=_auth(token),
+        )
+        account_id = create_resp.json()["data"]["id"]
+
+        resp = await client.delete(
+            _clear_trades_url(portfolio_id, account_id),
+            headers=_auth(token),
+        )
+        assert resp.status_code == 400
+        assert "acknowledged=true" in resp.json()["detail"]
+
+    @pytest.mark.integration
+    async def test_clear_account_trades_foreign_account_returns_404(
+        self,
+        client: AsyncClient,
+        primary_user: dict[str, Any],
+        other_users_account: dict[str, Any],
+    ) -> None:
+        resp = await client.delete(
+            f"{_clear_trades_url(other_users_account['portfolio_id'], other_users_account['id'])}?acknowledged=true",
+            headers=primary_user["headers"],
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.integration
+    async def test_clear_account_trades_rolls_back_on_failure(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        token = await _register_and_get_token(
+            client,
+            username="acc_clear_rollback",
+            email="clear-rollback@example.com",
+        )
+        headers = _auth(token)
+        portfolio_id = await _create_portfolio(client, token, name="Rollback Portfolio")
+
+        create_resp = await client.post(
+            _accounts_url(portfolio_id),
+            json={"name": "Rollback Account", "type": "ibkr", "currency": "USD"},
+            headers=headers,
+        )
+        account = create_resp.json()["data"]
+        account_id = account["id"]
+        user_id = uuid.UUID(account["user_id"])
+        account_uuid = uuid.UUID(account_id)
+
+        db_session.add(
+            Trade(
+                user_id=user_id,
+                account_id=account_uuid,
+                symbol="NVDA",
+                direction=Direction.LONG,
+                asset_class=AssetClass.EQUITY,
+                quantity=Decimal("1"),
+                entry_price=Decimal("15"),
+                opened_at=datetime.now(UTC),
+                currency="USD",
+            )
+        )
+        db_session.add(
+            LogicalExecution(
+                user_id=user_id,
+                account_id=account_uuid,
+                symbol="NVDA",
+                asset_class=AssetClass.EQUITY,
+                direction=Direction.LONG,
+                quantity=Decimal("1"),
+                price=Decimal("15"),
+                commission=Decimal("0"),
+                executed_at=datetime.now(UTC),
+                currency="USD",
+            )
+        )
+        db_session.add(
+            BrokerRawTransaction(
+                id=f"{user_id}:ibkr:clear-raw-rollback",
+                user_id=user_id,
+                account_id=account_uuid,
+                broker_type="ibkr",
+                symbol="NVDA",
+                asset_class=AssetClass.EQUITY,
+                direction=Direction.LONG,
+                quantity=Decimal("1"),
+                price=Decimal("15"),
+                commission=Decimal("0"),
+                executed_at=datetime.now(UTC),
+                currency="USD",
+                raw_data={},
+            )
+        )
+        await db_session.flush()
+
+        async def _raise_delete(*args: object, **kwargs: object) -> int:
+            del args, kwargs
+            raise RuntimeError("simulated clear failure")
+
+        monkeypatch.setattr(
+            BrokerRawTransactionRepository,
+            "delete_by_user_account",
+            _raise_delete,
+        )
+
+        clear_resp = await client.delete(
+            f"{_clear_trades_url(portfolio_id, account_id)}?acknowledged=true",
+            headers=headers,
+        )
+        assert clear_resp.status_code == 500
+
+        assert (
+            await self._count_rows(
+                db_session,
+                Trade,
+                Trade.user_id == user_id,
+                Trade.account_id == account_uuid,
+            )
+            == 1
+        )
+        assert (
+            await self._count_rows(
+                db_session,
+                LogicalExecution,
+                LogicalExecution.user_id == user_id,
+                LogicalExecution.account_id == account_uuid,
+            )
+            == 1
+        )
+        assert (
+            await self._count_rows(
+                db_session,
+                BrokerRawTransaction,
+                BrokerRawTransaction.user_id == user_id,
+                BrokerRawTransaction.account_id == account_uuid,
+            )
+            == 1
+        )
+
+    @pytest.mark.integration
+    async def test_clear_account_trades_emits_safe_audit_metadata(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        token = await _register_and_get_token(
+            client,
+            username="acc_clear_audit",
+            email="clear-audit@example.com",
+        )
+        portfolio_id = await _create_portfolio(client, token, name="Audit Portfolio")
+        create_resp = await client.post(
+            _accounts_url(portfolio_id),
+            json={"name": "Audit Account", "type": "manual", "currency": "USD"},
+            headers=_auth(token),
+        )
+        account_id = create_resp.json()["data"]["id"]
+
+        captured: dict[str, object] = {}
+
+        def _capture_audit(
+            self: AuditEventService,
+            *,
+            action: str,
+            metadata: dict[str, object] | None = None,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            del self, kwargs
+            captured["action"] = action
+            captured["metadata"] = metadata or {}
+            return {"action": action}
+
+        monkeypatch.setattr(AuditEventService, "create_audit_event", _capture_audit)
+
+        resp = await client.delete(
+            f"{_clear_trades_url(portfolio_id, account_id)}?acknowledged=true",
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+
+        assert captured["action"] == "account.trades_cleared"
+        metadata = captured["metadata"]
+        assert isinstance(metadata, dict)
+        assert set(metadata.keys()) == {
+            "account_id",
+            "trades_deleted",
+            "executions_deleted",
+        }
+        assert not (
+            {"pnl", "price", "quantity", "notes", "token", "api_secret"}
+            & set(metadata.keys())
+        )
 
 
 # ---------------------------------------------------------------------------

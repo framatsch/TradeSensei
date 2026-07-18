@@ -163,6 +163,7 @@ Agent instructions
 
 | Topic | Location |
 |-------|---------|
+| API usage notes | `docs/api-usage.md` |
 | Environment variables | `docs/dev-guide.md` |
 | CI/CD pipelines | `.github/workflows/` |
 | DB migration workflow | `.opencode/skills/db-migration/SKILL.md` |

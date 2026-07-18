@@ -23,6 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AccountNotFoundError
 from app.repositories.account_repository import AccountRepository
+from app.repositories.broker_raw_transaction_repository import (
+    BrokerRawTransactionRepository,
+)
+from app.repositories.execution import ExecutionRepository
+from app.repositories.trade_repository import TradeRepository
 from app.schemas.account import (
     AccountCreate,
     AccountCredentialsRead,
@@ -32,6 +37,8 @@ from app.schemas.account import (
     AccountUpdate,
 )
 from app.schemas.common import CursorPage
+from app.schemas.imports import ClearTradesResult
+from app.services.audit_service import AuditEventService, generate_request_id
 from app.utils.encryption import decrypt_token, encrypt_token
 
 
@@ -80,6 +87,10 @@ class AccountService:
         """
         self._repo = AccountRepository(session)
         self._session = session
+        self._trade_repo = TradeRepository(session)
+        self._exec_repo = ExecutionRepository(session)
+        self._raw_repo = BrokerRawTransactionRepository(session)
+        self._audit = AuditEventService()
 
     async def list_accounts(
         self,
@@ -276,6 +287,71 @@ class AccountService:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         await self._repo.delete(account)
         await self._session.commit()
+
+    async def clear_account_trades(
+        self,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> ClearTradesResult:
+        """Delete all trades, executions, and raw transactions for an account.
+
+        The account row itself remains unchanged.
+
+        Args:
+            account_id: UUID of the account to clear.
+            user_id: UUID of the authenticated user.
+            portfolio_id: Optional portfolio scope used for ownership checks.
+
+        Returns:
+            Deletion counts for trades and executions.
+
+        Raises:
+            AccountNotFoundError: If no account with that ID exists for user.
+        """
+        account = await self._repo.get_by_id(account_id, user_id, portfolio_id)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_id} not found.")
+
+        executions_deleted = await self._exec_repo.delete_all_for_account(
+            user_id=user_id,
+            account_id=account_id,
+        )
+        await self._raw_repo.delete_by_user_account(
+            user_id=user_id,
+            account_id=account_id,
+        )
+        trades_deleted = await self._trade_repo.delete_by_user_account(
+            user_id=user_id,
+            account_id=account_id,
+            include_manually_edited=True,
+        )
+
+        self._audit.create_audit_event(
+            action="account.trades_cleared",
+            user_id=user_id,
+            email=None,
+            resource_type="account",
+            resource_id=account_id,
+            parent_resource_type="portfolio",
+            parent_resource_id=portfolio_id,
+            ip_address=None,
+            user_agent=None,
+            request_id=generate_request_id(),
+            status_code=200,
+            method="SYSTEM",
+            path="account_service.clear_account_trades",
+            metadata={
+                "account_id": str(account_id),
+                "trades_deleted": trades_deleted,
+                "executions_deleted": executions_deleted,
+            },
+        )
+
+        return ClearTradesResult(
+            trades_deleted=trades_deleted,
+            executions_deleted=executions_deleted,
+        )
 
     async def get_metrics(
         self,

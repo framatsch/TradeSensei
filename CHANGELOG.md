@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [backend] Added robust OAuth connect flows for Charles Schwab (paste mode and callback mode) with refresh token rotation and 7-day expiry handling.
 - [frontend] Replaced static Schwab credentials input with an OAuth flow in settings, supporting both seamless redirect callbacks and fallback paste methods.
+- [backend] Added `DELETE /api/v1/portfolios/{portfolio_id}/accounts/{account_id}/trades` clear-trades endpoint with destructive acknowledgement, ownership-safe 404 behavior, and deletion counts.
+- [frontend] Added account Danger Zone clear-trades modal/action with typed confirmation and success toast.
+- [frontend] Added broker-capability-driven import date-range control used across IBKR and Schwab.
+
+### Changed
+- [frontend] Unified import sync date-range UX while preserving broker-specific request shape (`from_date` for IBKR, `days` for Schwab).
+- [docs] Added `docs/api-usage.md` and documented the new clear-trades endpoint and unified import date-range behavior.
+
+### Removed
+- [frontend] Removed the file-coupled Fresh Start affordance from `ImportForm` in favor of account-level clear-trades.
 ## [1.5.0] - 2026-07-17
 
 ### Added

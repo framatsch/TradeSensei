@@ -20,7 +20,7 @@ All endpoints require a valid Bearer token.
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import require_portfolio_owner
@@ -36,6 +36,7 @@ from app.schemas.account import (
 )
 from app.schemas.broker import BrokerConnectionTestRequest, BrokerConnectionTestResult
 from app.schemas.common import CursorPage, ResponseEnvelope
+from app.schemas.imports import ClearTradesResult
 from app.services.account_service import AccountService
 from app.services.broker_service import BrokerService
 
@@ -365,6 +366,52 @@ async def delete_account(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Account not found.",
         ) from exc
+
+
+@router.delete(
+    "/{account_id}/trades",
+    response_model=ResponseEnvelope[ClearTradesResult],
+    summary="Clear all trades for an account",
+    description=(
+        "Destructive operation — permanently deletes all trades, executions, "
+        "and broker raw transactions for the specified account, while keeping "
+        "the account itself. Set `acknowledged=true` to confirm."
+    ),
+    response_description="Deletion counts wrapped in a response envelope.",
+    responses={
+        200: {"description": "Account trade data cleared successfully."},
+        400: {"description": "Acknowledgement flag is missing or false."},
+        401: {"description": "Missing or invalid Bearer token."},
+        404: {"description": "Account not found (or owned by another user)."},
+    },
+)
+async def clear_account_trades(
+    portfolio_id: uuid.UUID,
+    account_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AccountService, Depends(_get_service)],
+    acknowledged: Annotated[
+        bool,
+        Query(description="Must be true to confirm permanent deletion of all account trade data."),
+    ] = False,
+) -> ResponseEnvelope[ClearTradesResult]:
+    """Delete all account trade data while preserving the account row."""
+    if not acknowledged:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please set acknowledged=true to confirm this destructive action.",
+        )
+
+    try:
+        result = await service.clear_account_trades(
+            account_id=account_id,
+            user_id=current_user.id,
+            portfolio_id=portfolio_id,
+        )
+    except AccountNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.") from exc
+
+    return ResponseEnvelope[ClearTradesResult](data=result)
 
 
 @router.get(
