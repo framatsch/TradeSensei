@@ -1,6 +1,6 @@
 [project]
 name = "tradesensei-backend"
-version = "1.5.1.dev0"
+version = "1.6.0"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",
