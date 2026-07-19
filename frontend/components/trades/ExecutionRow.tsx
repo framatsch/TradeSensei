@@ -40,6 +40,7 @@ interface Props {
   onMoveToTrade?: (executionId: string) => void;
   onDetach?: (executionId: string) => void;
   onSplit?: (execution: LogicalExecution) => void;
+  hasOptionLeg?: boolean;
 }
 
 function fmt(value: string | null): string {
@@ -68,13 +69,21 @@ function fmtDate(value: string): string {
   });
 }
 
+function fmtDateOnly(value: string): string {
+  // Assume "YYYY-MM-DD" string; add time to avoid timezone shift on parsing
+  return new Date(value + "T12:00:00Z").toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function fmtOpenClose(value: "O" | "C" | null | undefined): string {
   if (value === "O") return "Open";
   if (value === "C") return "Close";
   return "—";
 }
 
-export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit }: Props) {
+export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, hasOptionLeg }: Props) {
   const { activePortfolioId } = useActivePortfolio();
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -220,6 +229,13 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
             <td className="px-3 py-2 text-sm text-muted-foreground">{execution.asset_class}</td>
           </>
         )}
+        {hasOptionLeg && (
+          <>
+            <td className="px-3 py-2 text-sm text-right font-mono">{execution.strike ? fmt(execution.strike) : "—"}</td>
+            <td className="px-3 py-2 text-sm text-muted-foreground">{execution.option_type === "C" ? "Call" : execution.option_type === "P" ? "Put" : "—"}</td>
+            <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">{execution.expiry ? fmtDateOnly(execution.expiry) : "—"}</td>
+          </>
+        )}
 
         <td className="px-3 py-2 text-sm text-right font-mono">{fmtQty(execution.quantity)}</td>
         <td className="px-3 py-2 text-sm text-right text-muted-foreground font-mono">
@@ -337,6 +353,13 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
             <td className="px-3 py-2 text-sm text-muted-foreground">{fmtOpenClose(execution.open_close)}</td>
             <td className="px-3 py-2 text-sm text-foreground">{execution.symbol}</td>
             <td className="px-3 py-2 text-sm text-muted-foreground">{execution.asset_class}</td>
+          </>
+        )}
+        {hasOptionLeg && (
+          <>
+            <td className="px-3 py-2 text-sm text-right font-mono">{execution.strike ? fmt(execution.strike) : "—"}</td>
+            <td className="px-3 py-2 text-sm text-muted-foreground">{execution.option_type === "C" ? "Call" : execution.option_type === "P" ? "Put" : "—"}</td>
+            <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">{execution.expiry ? fmtDateOnly(execution.expiry) : "—"}</td>
           </>
         )}
 

@@ -20,11 +20,11 @@ original data, even after the logical layer has been manipulated.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Numeric, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -176,6 +176,21 @@ class BrokerRawTransaction(Base):
             " 'C' (closing), or NULL (mixed/unknown/manual). Populated from IBKR"
             " openCloseIndicator or Schwab positionEffect."
         ),
+    )
+    strike: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 8),
+        nullable=True,
+        comment="Option strike price derived from OCC symbol.",
+    )
+    expiry: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+        comment="Option expiry date derived from OCC symbol.",
+    )
+    option_type: Mapped[str | None] = mapped_column(
+        String(1),
+        nullable=True,
+        comment="Option type derived from OCC symbol: 'C' or 'P'.",
     )
     raw_data: Mapped[dict[str, object]] = mapped_column(
         JSONB,

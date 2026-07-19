@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [backend] Added strongly-typed option fields (`strike`, `expiry`, `option_type`) to `LogicalExecution` and `BrokerRawTransaction`, derived from the OCC symbol at import and backfilled for existing legs.
+- [frontend] Option Leg Contract Details — Strike/Type/Expiry columns in the execution legs table and human-readable contract labels in the summary card, for both single-option and COMBO trades.
 - [backend] Added robust OAuth connect flows for Charles Schwab (paste mode and callback mode) with refresh token rotation and 7-day expiry handling.
 - [frontend] Replaced static Schwab credentials input with an OAuth flow in settings, supporting both seamless redirect callbacks and fallback paste methods.
 - [backend] Added `DELETE /api/v1/portfolios/{portfolio_id}/accounts/{account_id}/trades` clear-trades endpoint with destructive acknowledgement, ownership-safe 404 behavior, and deletion counts.
@@ -18,8 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [frontend] Unified import sync date-range UX while preserving broker-specific request shape (`from_date` for IBKR, `days` for Schwab).
 - [docs] Added `docs/api-usage.md` and documented the new clear-trades endpoint and unified import date-range behavior.
 
+### Fixed
+- [backend] Combo position matching now handles the case where the user scales into the same spread via two or more separate broker orders and closes them together in one order: each opening order is matched FIFO and produces its own closed trade (with the closing legs split proportionally), instead of being incorrectly merged into a single combined position.
+- [backend] Fixed unbounded trade duplication on repeated (non-cleared) re-imports whenever the account had any open combo position: the "delete all trades and rebuild" safety net was being skipped for the whole account instead of just the open combo's trades, causing fragmented/split single-instrument trades to be re-inserted as duplicates on every import.
+
 ### Removed
 - [frontend] Removed the file-coupled Fresh Start affordance from `ImportForm` in favor of account-level clear-trades.
+- [frontend] Removed the chart-local option overlay (strike lines, option chips, per-leg entry/exit markers, expiry line, and the "Chart layers" toggle popover) that was added alongside Option Leg Contract Details. Contract details are shown on the trade detail page only (execution legs table / summary card), not on the chart.
 ## [1.5.0] - 2026-07-17
 
 ### Added

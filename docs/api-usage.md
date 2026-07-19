@@ -36,3 +36,13 @@ Schwab.
 
 The control enforces broker-specific max window limits from a capability
 descriptor and removes broker-specific component branching.
+
+## Execution Leg Shape (Options)
+
+For option trades (where `asset_class` is `"OPTION"` or when part of a COMBO trade), `LogicalExecution` objects in API responses (e.g. `GET /api/v1/trades/{id}`) will include strongly-typed option instrument fields:
+
+- `strike` (string/decimal): Option strike price (e.g., `"712.00000000"`).
+- `expiry` (string): Option expiration date in `YYYY-MM-DD` format.
+- `option_type` (string): `"C"` for Call, `"P"` for Put.
+
+For non-option legs, these fields will be `null`. The raw OCC string or broker-specific symbol remains accessible in the `symbol` field.

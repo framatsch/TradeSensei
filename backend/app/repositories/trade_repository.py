@@ -761,6 +761,7 @@ class TradeRepository:
         user_id: uuid.UUID,
         account_id: uuid.UUID,
         include_manually_edited: bool = False,
+        exclude_trade_ids: Sequence[uuid.UUID] | None = None,
     ) -> int:
         """Delete all trades for a user/account pair.
 
@@ -769,6 +770,9 @@ class TradeRepository:
             account_id: UUID of the account to clear.
             include_manually_edited: When ``False``, preserves manually edited
                 rows. When ``True``, deletes them too.
+            exclude_trade_ids: Optional trade IDs to keep (e.g. still-open
+                combo positions being carried forward across imports). All
+                other trades for the account are deleted as usual.
 
         Returns:
             Number of deleted rows.
@@ -779,6 +783,8 @@ class TradeRepository:
         )
         if not include_manually_edited:
             stmt = stmt.where(Trade.is_manually_edited.is_(False))
+        if exclude_trade_ids:
+            stmt = stmt.where(Trade.id.notin_(exclude_trade_ids))
 
         stmt = stmt.returning(Trade.id)  # type: ignore[assignment]
         result = await self._session.execute(stmt)

@@ -24,6 +24,7 @@ from app.models.trade import AssetClass, Direction
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
+from app.utils.occ import parse_occ_option
 from app.utils.parsers.aggregator import CorporateActionLike, SeedLotLike
 from app.utils.parsers.base import BrokerParser
 
@@ -180,12 +181,14 @@ class SchwabJSONParser(BrokerParser):
                     asset_class = self._map_asset_class(instrument["assetType"])
                     pnl = Decimal("0") if position_effect == "CLOSING" else None
                     open_close = _derive_open_close(position_effect)
+                    raw_symbol = str(instrument["symbol"]).upper()
+                    strike, expiry, option_type = parse_occ_option(raw_symbol)
 
                     raw_records.append(
                         BrokerRawTransactionCreate(
                             id=f"{_BROKER_TYPE}:{activity_id}",
                             broker_type=_BROKER_TYPE,
-                            symbol=str(instrument["symbol"]).upper(),
+                            symbol=raw_symbol,
                             asset_class=asset_class,
                             direction=execution_direction,
                             quantity=quantity,
@@ -196,6 +199,9 @@ class SchwabJSONParser(BrokerParser):
                             currency="USD",
                             multiplier=1,
                             open_close=open_close,
+                            strike=strike,
+                            expiry=expiry,
+                            option_type=option_type,
                             raw_data=txn,
                         )
                     )

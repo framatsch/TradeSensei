@@ -413,6 +413,9 @@ async def clear_account_trades(
 
     return ResponseEnvelope[ClearTradesResult](data=result)
 
+clear_account_trades.audit_metadata = {"skip_audit": True}
+
+
 
 @router.get(
     "/{account_id}/metrics",

@@ -117,6 +117,9 @@ class LogicalExecutionService:
             multiplier=raw.multiplier,
             is_mixed_execution=is_mixed,
             open_close=raw.open_close,
+            strike=raw.strike,
+            expiry=raw.expiry,
+            option_type=raw.option_type,
             source_id=raw.id,
         )
         self._session.add(logical)

@@ -632,6 +632,9 @@ export interface LogicalExecution {
   currency: string | null;
   multiplier: number;
   open_close?: "O" | "C" | null;
+  strike?: string | null;
+  expiry?: string | null;
+  option_type?: "C" | "P" | null;
   created_at: string;
   updated_at: string;
 }

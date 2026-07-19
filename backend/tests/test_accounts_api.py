@@ -665,6 +665,7 @@ class TestClearAccountTrades:
             commission=Decimal("0"),
             executed_at=datetime.now(UTC),
             currency="USD",
+            origin="manual",
         )
         raw_txn = BrokerRawTransaction(
             id=f"{user_id}:ibkr:clear-raw-1",
@@ -815,6 +816,7 @@ class TestClearAccountTrades:
                 commission=Decimal("0"),
                 executed_at=datetime.now(UTC),
                 currency="USD",
+                origin="manual",
             )
         )
         db_session.add(
@@ -846,11 +848,12 @@ class TestClearAccountTrades:
             _raise_delete,
         )
 
-        clear_resp = await client.delete(
-            f"{_clear_trades_url(portfolio_id, account_id)}?acknowledged=true",
-            headers=headers,
-        )
-        assert clear_resp.status_code == 500
+        with pytest.raises(RuntimeError, match="simulated clear failure"):
+            async with db_session.begin_nested():
+                await client.delete(
+                    f"{_clear_trades_url(portfolio_id, account_id)}?acknowledged=true",
+                    headers=headers,
+                )
 
         assert (
             await self._count_rows(

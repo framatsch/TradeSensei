@@ -54,10 +54,11 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const detachExecution = useDetachExecution();
 
   // Count only non-deleted for the header badge
-  const activeCount = executions?.filter((e: LogicalExecution) => !e.deleted).length ?? 0;
+  const activeCount = executions?.filter((ex: LogicalExecution) => !ex.deleted).length ?? 0;
   const deletedCount = executions?.filter((e: LogicalExecution) => e.deleted).length ?? 0;
   const totalCount = executions?.length ?? 0;
   const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
+  const hasOptionLeg = executions?.some((ex: LogicalExecution) => ex.option_type !== null) ?? false;
 
   const handleMoveToTrade = (executionId: string) => {
     setMoveExecutionId(executionId);
@@ -177,6 +178,13 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                       <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Asset Class</th>
                     </>
                   )}
+                  {hasOptionLeg && (
+                    <>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Strike</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Type</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Expiry</th>
+                    </>
+                  )}
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Mult.</th>
                   <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Price</th>
@@ -198,6 +206,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                     onMoveToTrade={handleMoveToTrade}
                     onDetach={handleDetach}
                     onSplit={setSplitExecution}
+                    hasOptionLeg={hasOptionLeg}
                   />
                 ))}
               </tbody>

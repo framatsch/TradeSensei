@@ -14,7 +14,7 @@
 """Pydantic DTOs for BrokerRawTransaction request and response shapes."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -133,6 +133,19 @@ class BrokerRawTransactionCreate(BaseModel):
         default=None,
         description=("Opening/closing indicator derived by the broker parser: 'O' (opening), 'C' (closing), or None (mixed/unknown/manual)."),
     )
+    strike: Decimal | None = Field(
+        default=None,
+        decimal_places=8,
+        description="Option strike price derived from OCC symbol.",
+    )
+    expiry: date | None = Field(
+        default=None,
+        description="Option expiry date derived from OCC symbol.",
+    )
+    option_type: str | None = Field(
+        default=None,
+        description="Option type derived from OCC symbol: 'C', 'P', or None.",
+    )
     raw_data: dict[str, object] = Field(
         default_factory=dict,
         description="Full raw attribute dictionary from the broker source file.",
@@ -144,6 +157,14 @@ class BrokerRawTransactionCreate(BaseModel):
         """Restrict open_close to the allowed values 'O', 'C', or None."""
         if value is not None and value not in ("O", "C"):
             raise ValueError("open_close must be 'O', 'C', or None.")
+        return value
+
+    @field_validator("option_type")
+    @classmethod
+    def _validate_option_type(cls, value: str | None) -> str | None:
+        """Restrict option_type to the allowed values 'C', 'P', or None."""
+        if value is not None and value not in ("C", "P"):
+            raise ValueError("option_type must be 'C', 'P', or None.")
         return value
 
     @property
@@ -194,5 +215,16 @@ class BrokerRawTransactionRead(BaseModel):
     currency: str | None = None
     multiplier: int
     open_close: str | None = None
+    strike: Decimal | None = None
+    expiry: date | None = None
+    option_type: str | None = None
     suppressed: bool = Field(description="When True, permanently excluded from all future imports.")
     created_at: datetime
+
+    @field_validator("option_type")
+    @classmethod
+    def _validate_option_type(cls, value: str | None) -> str | None:
+        """Restrict option_type to the allowed values 'C', 'P', or None."""
+        if value is not None and value not in ("C", "P"):
+            raise ValueError("option_type must be 'C', 'P', or None.")
+        return value

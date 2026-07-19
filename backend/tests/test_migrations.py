@@ -15,6 +15,7 @@
 
 import subprocess
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -192,6 +193,308 @@ async def test_backfill_migration_seeds_defaults_for_existing_user() -> None:
         assert phase_count == 4
     finally:
         async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+        await engine.dispose()
+
+        restore_head = _run_alembic("upgrade", "head")
+        _skip_if_db_unavailable(restore_head)
+        assert restore_head.returncode == 0, restore_head.stderr
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_option_contract_fields_backfill_migration_populates_option_rows() -> None:
+    """Backfill migration should populate option contract fields and keep equities null."""
+    backend_dir = Path(__file__).resolve().parents[1]
+
+    def _run_alembic(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["uv", "run", "alembic", *args],
+            capture_output=True,
+            text=True,
+            cwd=backend_dir,
+            check=False,
+        )
+
+    def _skip_if_db_unavailable(result: subprocess.CompletedProcess[str]) -> None:
+        if result.returncode != 0 and "Connect call failed" in result.stderr:
+            pytest.skip("Database is unavailable for migration integration test.")
+
+    to_before = _run_alembic("downgrade", "e8a7d3c91b42")
+    _skip_if_db_unavailable(to_before)
+    if to_before.returncode != 0:
+        pytest.skip(
+            "Downgrade failed, likely due to intentionally non-downgradable head "
+            f"or data constraint violations: {to_before.stderr}"
+        )
+
+    user_id = uuid.uuid4()
+    option_raw_id = f"ibkr:test-option-{user_id.hex[:12]}"
+    equity_raw_id = f"ibkr:test-equity-{user_id.hex[:12]}"
+
+    option_exec_id = uuid.uuid4()
+    equity_exec_id = uuid.uuid4()
+
+    engine = create_async_engine(settings.async_database_url, echo=False)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        id,
+                        username,
+                        email,
+                        hashed_password,
+                        provider,
+                        is_active,
+                        refresh_token_version
+                    )
+                    VALUES (
+                        :id,
+                        :username,
+                        :email,
+                        :hashed_password,
+                        'local',
+                        true,
+                        0
+                    )
+                    """
+                ),
+                {
+                    "id": user_id,
+                    "username": f"optbf_{user_id.hex[:8]}",
+                    "email": f"optbf_{user_id.hex[:8]}@example.com",
+                    "hashed_password": "test-hash",
+                },
+            )
+
+            executed_at = datetime(2026, 7, 7, 14, 17, 18, tzinfo=UTC)
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO broker_raw_transactions (
+                        id, user_id, account_id, broker_type, symbol, conid, asset_class,
+                        direction, quantity, price, commission, executed_at, pnl, currency,
+                        multiplier, open_close, raw_data, suppressed, created_at
+                    )
+                    VALUES (
+                        :id, :user_id, NULL, 'ibkr', :symbol, :conid, :asset_class,
+                        :direction, :quantity, :price, :commission, :executed_at, :pnl,
+                        'USD', 100, 'O', cast(:raw_data as jsonb), false, NOW()
+                    )
+                    """
+                ),
+                {
+                    "id": option_raw_id,
+                    "user_id": user_id,
+                    "symbol": "QQQ",
+                    "conid": "878467678",
+                    "asset_class": "OPTION",
+                    "direction": "LONG",
+                    "quantity": "1",
+                    "price": "19.63",
+                    "commission": "1.5473",
+                    "executed_at": executed_at,
+                    "pnl": None,
+                    "raw_data": '{"symbol":"QQQ   251003C00712000"}',
+                },
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO broker_raw_transactions (
+                        id, user_id, account_id, broker_type, symbol, conid, asset_class,
+                        direction, quantity, price, commission, executed_at, pnl, currency,
+                        multiplier, open_close, raw_data, suppressed, created_at
+                    )
+                    VALUES (
+                        :id, :user_id, NULL, 'ibkr', :symbol, :conid, :asset_class,
+                        :direction, :quantity, :price, :commission, :executed_at, :pnl,
+                        'USD', 1, 'O', cast(:raw_data as jsonb), false, NOW()
+                    )
+                    """
+                ),
+                {
+                    "id": equity_raw_id,
+                    "user_id": user_id,
+                    "symbol": "AAPL",
+                    "conid": "265598",
+                    "asset_class": "EQUITY",
+                    "direction": "LONG",
+                    "quantity": "10",
+                    "price": "150.00",
+                    "commission": "1.00",
+                    "executed_at": executed_at,
+                    "pnl": None,
+                    "raw_data": '{"symbol":"AAPL"}',
+                },
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO logical_executions (
+                        id, user_id, account_id, symbol, conid, asset_class, direction,
+                        quantity, price, commission, executed_at, pnl, pnl_eur, multiplier,
+                        currency, origin, deleted, user_modified, is_mixed_execution,
+                        open_close, source_id, parent_id, trade_id, created_at, updated_at
+                    )
+                    VALUES (
+                        :id, :user_id, NULL, :symbol, :conid, :asset_class, :direction,
+                        :quantity, :price, :commission, :executed_at, :pnl, NULL, :multiplier,
+                        'USD', 'imported', false, false, false, 'O', :source_id, NULL, NULL,
+                        NOW(), NOW()
+                    )
+                    """
+                ),
+                {
+                    "id": option_exec_id,
+                    "user_id": user_id,
+                    "symbol": "QQQ",
+                    "conid": "878467678",
+                    "asset_class": "OPTION",
+                    "direction": "LONG",
+                    "quantity": "1",
+                    "price": "19.63",
+                    "commission": "1.5473",
+                    "executed_at": executed_at,
+                    "pnl": None,
+                    "multiplier": 100,
+                    "source_id": option_raw_id,
+                },
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO logical_executions (
+                        id, user_id, account_id, symbol, conid, asset_class, direction,
+                        quantity, price, commission, executed_at, pnl, pnl_eur, multiplier,
+                        currency, origin, deleted, user_modified, is_mixed_execution,
+                        open_close, source_id, parent_id, trade_id, created_at, updated_at
+                    )
+                    VALUES (
+                        :id, :user_id, NULL, :symbol, :conid, :asset_class, :direction,
+                        :quantity, :price, :commission, :executed_at, :pnl, NULL, :multiplier,
+                        'USD', 'imported', false, false, false, 'O', :source_id, NULL, NULL,
+                        NOW(), NOW()
+                    )
+                    """
+                ),
+                {
+                    "id": equity_exec_id,
+                    "user_id": user_id,
+                    "symbol": "AAPL",
+                    "conid": "265598",
+                    "asset_class": "EQUITY",
+                    "direction": "LONG",
+                    "quantity": "10",
+                    "price": "150.00",
+                    "commission": "1.00",
+                    "executed_at": executed_at,
+                    "pnl": None,
+                    "multiplier": 1,
+                    "source_id": equity_raw_id,
+                },
+            )
+
+        apply_migration = _run_alembic("upgrade", "head")
+        _skip_if_db_unavailable(apply_migration)
+        assert apply_migration.returncode == 0, apply_migration.stderr
+
+        async with engine.connect() as conn:
+            option_row = await conn.execute(
+                text(
+                    """
+                    SELECT strike, expiry, option_type
+                    FROM broker_raw_transactions
+                    WHERE id = :id
+                    """
+                ),
+                {"id": option_raw_id},
+            )
+            option_vals = option_row.first()
+            assert option_vals is not None
+            assert str(option_vals[0]) == "712.00000000"
+            assert option_vals[1].isoformat() == "2025-10-03"
+            assert option_vals[2] == "C"
+
+            equity_row = await conn.execute(
+                text(
+                    """
+                    SELECT strike, expiry, option_type
+                    FROM broker_raw_transactions
+                    WHERE id = :id
+                    """
+                ),
+                {"id": equity_raw_id},
+            )
+            equity_vals = equity_row.first()
+            assert equity_vals is not None
+            assert equity_vals[0] is None
+            assert equity_vals[1] is None
+            assert equity_vals[2] is None
+
+            logical_option_row = await conn.execute(
+                text(
+                    """
+                    SELECT strike, expiry, option_type
+                    FROM logical_executions
+                    WHERE id = :id
+                    """
+                ),
+                {"id": option_exec_id},
+            )
+            logical_option_vals = logical_option_row.first()
+            assert logical_option_vals is not None
+            assert str(logical_option_vals[0]) == "712.00000000"
+            assert logical_option_vals[1].isoformat() == "2025-10-03"
+            assert logical_option_vals[2] == "C"
+
+            logical_equity_row = await conn.execute(
+                text(
+                    """
+                    SELECT strike, expiry, option_type
+                    FROM logical_executions
+                    WHERE id = :id
+                    """
+                ),
+                {"id": equity_exec_id},
+            )
+            logical_equity_vals = logical_equity_row.first()
+            assert logical_equity_vals is not None
+            assert logical_equity_vals[0] is None
+            assert logical_equity_vals[1] is None
+            assert logical_equity_vals[2] is None
+    finally:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    """
+                    DELETE FROM logical_executions
+                    WHERE id IN (:option_exec_id, :equity_exec_id)
+                    """
+                ),
+                {
+                    "option_exec_id": option_exec_id,
+                    "equity_exec_id": equity_exec_id,
+                },
+            )
+            await conn.execute(
+                text(
+                    """
+                    DELETE FROM broker_raw_transactions
+                    WHERE id IN (:option_raw_id, :equity_raw_id)
+                    """
+                ),
+                {
+                    "option_raw_id": option_raw_id,
+                    "equity_raw_id": equity_raw_id,
+                },
+            )
             await conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
         await engine.dispose()
 

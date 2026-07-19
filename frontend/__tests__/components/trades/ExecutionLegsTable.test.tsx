@@ -176,4 +176,39 @@ describe("ExecutionLegsTable", () => {
     expect(screen.getByText("QQQ 712C")).toBeInTheDocument();
     expect(screen.getByText("QQQ 722C")).toBeInTheDocument();
   });
+
+  it("renders Strike, Type, Expiry columns when option legs are present", () => {
+    const optionTrade: Trade = {
+      ...baseTrade,
+      is_combo: false,
+    };
+
+    const legs: LogicalExecution[] = [
+      {
+        ...splitExecution,
+        id: "leg-1",
+        symbol: "QQQ",
+        asset_class: "OPTION",
+        option_type: "C",
+        strike: "712.00000000",
+        expiry: "2025-10-03",
+      }
+    ];
+
+    useTradeExecutions.mockReturnValue({
+      data: legs,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<ExecutionLegsTable tradeId="trade-1" trade={optionTrade} />);
+
+    expect(screen.getByText("Strike")).toBeInTheDocument();
+    expect(screen.getByText("Type")).toBeInTheDocument();
+    expect(screen.getByText("Expiry")).toBeInTheDocument();
+    expect(screen.getByText("$712.00")).toBeInTheDocument();
+    expect(screen.getByText("Call")).toBeInTheDocument();
+    expect(screen.getByText(/Oct 3, 2025/)).toBeInTheDocument();
+  });
 });

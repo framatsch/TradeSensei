@@ -168,3 +168,135 @@ def test_build_combo_positions_unmatched_close_warns_and_keeps_open() -> None:
     assert combo.pnl is None
     # anomalous close legs stay attached for visibility
     assert len(result.combo_trades[0].source_executions) == 4
+
+
+@pytest.mark.unit
+def test_build_combo_positions_two_opens_split_close_produces_two_trades() -> None:
+    """Real-world META scenario: two separate opening orders build the same
+    spread (620C/640C) at different prices, then a single closing order
+    closes the combined quantity in one broker order.
+
+    This must resolve to TWO separate closed combo trades (FIFO-matched, each
+    getting a proportional slice of the closing legs) — NOT one merged trade.
+    Each opening order represents its own distinct round trip (e.g. the user
+    scaled in twice, by accident or otherwise); a shared closing order does not
+    retroactively make them a single trade. Total P&L across both resulting
+    trades must equal the sum of the broker-reported closing leg P&L exactly
+    (see memory: "Combo grouping preserves total P&L").
+    """
+    open_1_a = TradeCreate(
+        symbol="META",
+        direction=Direction.SHORT,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("63.42"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 7, 13, 9, 30, tzinfo=UTC),
+        broker_conid="620C",
+        source_execution_id="open1-620",
+        broker_order_id="order-open-1",
+        open_close="O",
+        net_cash=Decimal("6340"),
+    )
+    open_1_b = TradeCreate(
+        symbol="META",
+        direction=Direction.LONG,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("50.97"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 7, 13, 9, 30, tzinfo=UTC),
+        broker_conid="640C",
+        source_execution_id="open1-640",
+        broker_order_id="order-open-1",
+        open_close="O",
+        net_cash=Decimal("-5098"),
+    )
+    open_2_a = TradeCreate(
+        symbol="META",
+        direction=Direction.SHORT,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("63.03"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 7, 13, 9, 50, tzinfo=UTC),
+        broker_conid="620C",
+        source_execution_id="open2-620",
+        broker_order_id="order-open-2",
+        open_close="O",
+        net_cash=Decimal("6300"),
+    )
+    open_2_b = TradeCreate(
+        symbol="META",
+        direction=Direction.LONG,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("50.48"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 7, 13, 9, 50, tzinfo=UTC),
+        broker_conid="640C",
+        source_execution_id="open2-640",
+        broker_order_id="order-open-2",
+        open_close="O",
+        net_cash=Decimal("-5048"),
+    )
+    close_a = TradeCreate(
+        symbol="META",
+        direction=Direction.LONG,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("2"),
+        entry_price=Decimal("63.03"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 7, 13, 9, 57, tzinfo=UTC),
+        broker_conid="620C",
+        source_execution_id="close-620",
+        broker_order_id="order-close",
+        open_close="C",
+        net_cash=Decimal("-12607"),
+        pnl=Decimal("87.27"),
+    )
+    close_b = TradeCreate(
+        symbol="META",
+        direction=Direction.SHORT,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("2"),
+        entry_price=Decimal("50.48"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 7, 13, 9, 57, tzinfo=UTC),
+        broker_conid="640C",
+        source_execution_id="close-640",
+        broker_order_id="order-close",
+        open_close="C",
+        net_cash=Decimal("10094"),
+        pnl=Decimal("-159.67"),
+    )
+
+    result = build_combo_positions([open_1_a, open_1_b, open_2_a, open_2_b, close_a, close_b])
+
+    assert result.warnings == []
+    assert len(result.combo_trades) == 2
+
+    trades = sorted(result.combo_trades, key=lambda row: row.trade_create.opened_at)
+    first, second = trades[0].trade_create, trades[1].trade_create
+
+    # Both round trips are individually closed (FIFO-matched, oldest first).
+    assert first.opened_at == datetime(2026, 7, 13, 9, 30, tzinfo=UTC)
+    assert second.opened_at == datetime(2026, 7, 13, 9, 50, tzinfo=UTC)
+    assert first.closed_at is not None
+    assert second.closed_at is not None
+
+    # Total P&L is conserved exactly (each closing leg's P&L is split
+    # proportionally by matched quantity across the two open positions).
+    assert first.pnl is not None
+    assert second.pnl is not None
+    assert first.pnl + second.pnl == Decimal("87.27") + Decimal("-159.67")
+
+    # Total commission is conserved exactly (4 opening legs @ 1 + 2 closing
+    # legs @ 1, split proportionally across the two trades).
+    assert first.commission + second.commission == Decimal("6")
+
+    # Each trade carries its own 2 opening legs + proportional slices of the
+    # 2 closing legs (4 source executions each; the two closing execution IDs
+    # are shared across both trades since they were split).
+    assert len(trades[0].source_executions) == 4
+    assert len(trades[1].source_executions) == 4

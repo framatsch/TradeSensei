@@ -104,4 +104,65 @@ describe("ExecutionSummaryCard", () => {
     expect(screen.getByText("(878467678)")).toBeInTheDocument();
     expect(screen.getByText("(884162799)")).toBeInTheDocument();
   });
+
+
+  it("renders a compact per-leg contract label for combo trades (no symbol/expiry repeated per row)", () => {
+    // Strike/expiry are already sortable columns in the execution legs table
+    // below, and the underlying symbol is already shown in the trade detail
+    // page header — repeating "QQQ ... · Oct 3, 2025" on every combo row is
+    // redundant, especially for multi-leg strategies (e.g. iron condors).
+    const tradeWithOptions: Trade = {
+      ...comboTrade,
+      is_combo: true,
+      symbol: "QQQ",
+    };
+    
+    const optionLegs: LogicalExecution[] = [
+      makeLeg({
+        id: "leg-1",
+        symbol: "QQQ",
+        asset_class: "OPTION",
+        option_type: "C",
+        strike: "712",
+        expiry: "2025-10-03",
+        direction: "LONG",
+        quantity: "1",
+        price: "1.0",
+        raw_quantity: "1",
+        raw_price: "1.0",
+      })
+    ];
+
+    render(<ExecutionSummaryCard trade={tradeWithOptions} executions={optionLegs} />);
+    expect(screen.getByText("712 Call")).toBeInTheDocument();
+    expect(screen.queryByText(/QQQ 712 Call/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Oct 3, 2025/)).not.toBeInTheDocument();
+  });
+
+  it("renders contract label subtitle for standard option trades", () => {
+    const standardTrade: Trade = {
+      ...comboTrade,
+      is_combo: false,
+      symbol: "QQQ",
+    };
+    
+    const optionLegs: LogicalExecution[] = [
+      makeLeg({
+        id: "leg-1",
+        symbol: "QQQ",
+        asset_class: "OPTION",
+        option_type: "C",
+        strike: "712",
+        expiry: "2025-10-03",
+        direction: "LONG",
+        quantity: "1",
+        price: "1.0",
+        raw_quantity: "1",
+        raw_price: "1.0",
+      })
+    ];
+
+    render(<ExecutionSummaryCard trade={standardTrade} executions={optionLegs} />);
+    expect(screen.getByText(/QQQ 712 Call · Oct 3, 2025/)).toBeInTheDocument();
+  });
 });

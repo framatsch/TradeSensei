@@ -71,6 +71,10 @@ describe('mapGeneratedExecution', () => {
       parent_id: null,
       multiplier: 1,
       currency: 'USD',
+      open_close: null,
+      strike: null,
+      expiry: null,
+      option_type: null,
       created_at: '2023-01-01T10:00:00Z',
       updated_at: '2023-01-01T10:00:00Z',
     };
@@ -123,6 +127,10 @@ describe('mapGeneratedExecution', () => {
       parent_id: null,
       multiplier: 1,
       currency: null,
+      open_close: null,
+      strike: null,
+      expiry: null,
+      option_type: null,
       created_at: '2023-01-01T10:00:00Z',
       updated_at: '2023-01-01T10:00:00Z',
     };

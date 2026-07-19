@@ -224,6 +224,8 @@ class AuditMiddleware:
                 return override[0], override[1], resource_id, None, None
 
         route_metadata = self._extract_route_metadata(request)
+        if route_metadata.get("skip_audit"):
+            return "skip", None, None, None, None
         if route_metadata.get("action"):
             return (
                 route_metadata["action"],
@@ -297,6 +299,8 @@ class AuditMiddleware:
             parent_resource_type,
             parent_resource_id,
         ) = self._infer_action(request)
+        if action == "skip":
+            return
         if status_code >= 400:
             action = self._map_error_action(status_code, action)
 

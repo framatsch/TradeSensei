@@ -46,6 +46,7 @@ from app.models.trade import AssetClass, Direction
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
+from app.utils.occ import extract_occ_underlying, parse_occ_option
 from app.utils.parsers.aggregator import (
     CorporateActionLike,
     SeedLotLike,
@@ -58,10 +59,6 @@ logger = logging.getLogger(__name__)
 # ─── Constants ─────────────────────────────────────────────────────────────────
 
 _BROKER_TYPE: str = "ibkr"
-
-# OCC suffix: YYMMDD(6) + C/P(1) + strike×1000(8) = 15 chars fixed at the end.
-_OCC_SUFFIX_LEN = 15
-
 
 def _extract_occ_underlying(symbol: str) -> str:
     """Return the underlying ticker for an OCC-format option symbol.
@@ -77,15 +74,7 @@ def _extract_occ_underlying(symbol: str) -> str:
 
     Non-option symbols (too short, or suffix fails validation) are returned as-is.
     """
-    if len(symbol) <= _OCC_SUFFIX_LEN:
-        return symbol
-    suffix_start = len(symbol) - _OCC_SUFFIX_LEN
-    expiry = symbol[suffix_start : suffix_start + 6]
-    type_char = symbol[suffix_start + 6]
-    strike = symbol[suffix_start + 7 :]
-    if expiry.isdigit() and type_char in ("C", "P") and strike.isdigit():
-        return symbol[:suffix_start].strip()
-    return symbol
+    return extract_occ_underlying(symbol)
 
 
 # ─── Asset class mapping ──────────────────────────────────────────────────────
@@ -497,9 +486,13 @@ class IBKRXMLParser(BrokerParser):
                 return None
 
             asset_class = _map_asset_class(asset_category)
+            strike: Decimal | None = None
+            expiry = None
+            option_type: str | None = None
             # For options, use the underlying ticker as the trade symbol.
             # The full OCC contract string stays in raw_data for reference.
             if asset_class == AssetClass.OPTION:
+                strike, expiry, option_type = parse_occ_option(symbol)
                 symbol = _extract_occ_underlying(symbol)
 
             quantity_raw = _safe_decimal(elem.get("quantity"))
@@ -560,6 +553,9 @@ class IBKRXMLParser(BrokerParser):
                 currency=currency,
                 multiplier=multiplier,
                 open_close=open_close,
+                strike=strike,
+                expiry=expiry,
+                option_type=option_type,
                 raw_data=dict(elem.attrib),
             )
         except (ValueError, InvalidOperation, OverflowError) as exc:
@@ -595,9 +591,13 @@ class IBKRXMLParser(BrokerParser):
                 return None
 
             asset_class = _map_asset_class(asset_category)
+            strike: Decimal | None = None
+            expiry = None
+            option_type: str | None = None
             # For options, use the underlying ticker as the trade symbol.
             # The full OCC contract string stays in raw_data for reference.
             if asset_class == AssetClass.OPTION:
+                strike, expiry, option_type = parse_occ_option(symbol)
                 symbol = _extract_occ_underlying(symbol)
 
             exec_date = elem.get("execDate", "")
@@ -643,6 +643,9 @@ class IBKRXMLParser(BrokerParser):
                 executed_at=executed_at,
                 currency=currency,
                 open_close=open_close,
+                strike=strike,
+                expiry=expiry,
+                option_type=option_type,
                 raw_data=dict(elem.attrib),
             )
         except (ValueError, InvalidOperation, OverflowError) as exc:

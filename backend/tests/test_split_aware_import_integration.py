@@ -249,6 +249,244 @@ async def test_reimport_idempotency_via_fresh_start(client: AsyncClient) -> None
     assert int(second["trades_parsed"]) >= int(second["trades_created"])
 
 
+def _make_split_and_open_combo_xml(trade_count: int) -> bytes:
+    """Split-producing trades plus one never-closed 2-leg combo position.
+
+    Used to reproduce a regression where any open combo position in an
+    account caused repeated (non-cleared) re-imports to silently duplicate
+    every fragmented/split single-instrument trade on each run.
+    """
+    rows: list[str] = []
+    base = datetime(2026, 3, 1, 9, 30, tzinfo=UTC)
+    for idx in range(trade_count):
+        opened_at = base.replace(day=min(28, 1 + (idx % 20)))
+        close_1 = opened_at.replace(hour=10, minute=0)
+        close_2 = opened_at.replace(hour=10, minute=30)
+        trade_num = idx + 1
+        symbol = f"SPL{trade_num:04d}"
+        conid = f"{900000 + trade_num}"
+        rows.append(
+            (
+                '<Trade transactionID="E{n:05d}" assetCategory="STK" symbol="{symbol}" '
+                'conid="{conid}" tradeDate="{date}" dateTime="{datetime}" '
+                'quantity="100" tradePrice="100" ibCommission="-1" currency="USD" />'
+            ).format(
+                n=trade_num,
+                symbol=symbol,
+                conid=conid,
+                date=opened_at.strftime("%Y%m%d"),
+                datetime=opened_at.strftime("%Y%m%d;%H%M%S"),
+            )
+        )
+        rows.append(
+            (
+                '<Trade transactionID="C{n:05d}A" assetCategory="STK" symbol="{symbol}" '
+                'conid="{conid}" tradeDate="{date}" dateTime="{datetime}" '
+                'quantity="-60" tradePrice="110" ibCommission="0" '
+                'fifoPnlRealized="600" currency="USD" />'
+            ).format(
+                n=trade_num,
+                symbol=symbol,
+                conid=conid,
+                date=close_1.strftime("%Y%m%d"),
+                datetime=close_1.strftime("%Y%m%d;%H%M%S"),
+            )
+        )
+        rows.append(
+            (
+                '<Trade transactionID="C{n:05d}B" assetCategory="STK" symbol="{symbol}" '
+                'conid="{conid}" tradeDate="{date}" dateTime="{datetime}" '
+                'quantity="-40" tradePrice="105" ibCommission="0" '
+                'fifoPnlRealized="200" currency="USD" />'
+            ).format(
+                n=trade_num,
+                symbol=symbol,
+                conid=conid,
+                date=close_2.strftime("%Y%m%d"),
+                datetime=close_2.strftime("%Y%m%d;%H%M%S"),
+            )
+        )
+
+    # One 2-leg combo order that opens and is never closed (mirrors a
+    # real-world still-open vertical spread).
+    combo_opened_at = base.replace(day=1, hour=14)
+    rows.append(
+        '<Trade transactionID="COMBO001" assetCategory="OPT" symbol="QQQ   260807C00735000" '
+        'conid="800001" multiplier="100" tradeDate="{date}" dateTime="{datetime}" '
+        'quantity="1" tradePrice="10" ibCommission="-1" netCash="-1001" '
+        'openCloseIndicator="O" fifoPnlRealized="0" brokerageOrderID="combo-open-1" '
+        'currency="USD" />'.format(
+            date=combo_opened_at.strftime("%Y%m%d"),
+            datetime=combo_opened_at.strftime("%Y%m%d;%H%M%S"),
+        )
+    )
+    rows.append(
+        '<Trade transactionID="COMBO002" assetCategory="OPT" symbol="QQQ   260807C00743000" '
+        'conid="800002" multiplier="100" tradeDate="{date}" dateTime="{datetime}" '
+        'quantity="-1" tradePrice="7" ibCommission="-1" netCash="699" '
+        'openCloseIndicator="O" fifoPnlRealized="0" brokerageOrderID="combo-open-1" '
+        'currency="USD" />'.format(
+            date=combo_opened_at.strftime("%Y%m%d"),
+            datetime=combo_opened_at.strftime("%Y%m%d;%H%M%S"),
+        )
+    )
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<FlexQueryResponse><FlexStatements><FlexStatement><Trades>"
+        + "".join(rows)
+        + "</Trades></FlexStatement>"
+        + "</FlexStatements></FlexQueryResponse>"
+    )
+    return xml.encode("utf-8")
+
+
+@pytest.mark.integration
+async def test_reimport_with_open_combo_does_not_duplicate_split_trades(
+    client: AsyncClient,
+) -> None:
+    """Regression: re-importing the same file must not duplicate trades when
+    the account has an open combo position.
+
+    Root cause (fixed): the raw-pipeline import skipped its normal
+    "delete all trades and rebuild" safety net for the WHOLE account whenever
+    ANY combo position was still open, so fragmented/split single-instrument
+    trades (whose split-parent execution loses its `trade_id` link on
+    restore) were re-inserted as duplicates on every subsequent import,
+    unbounded. The fix scopes the delete-and-rebuild to exclude only the
+    trades backing the open combo position(s), and runs it before execution
+    `trade_id` values are read into memory.
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    xml_content = _make_split_and_open_combo_xml(3)
+
+    first = await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+    first_total = int(first["trades_created"])
+    assert first_total > 0
+
+    async def _trade_count() -> int:
+        resp = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades?limit=100", headers=headers
+        )
+        assert resp.status_code == 200, resp.text
+        return len(resp.json()["data"]["items"])
+
+    assert await _trade_count() == first_total
+
+    # Re-import the SAME file three more times without clearing in between —
+    # this must not grow the total trade count beyond the first import.
+    for _ in range(3):
+        await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+        assert await _trade_count() == first_total
+
+
+def _make_two_opens_one_shared_close_combo_xml() -> bytes:
+    """Real-world META scenario: two separate opening combo orders on the
+    same 2-leg contract set, closed together in one combined order.
+
+    Reproduces the exact shape that exposed a regression where the closing
+    leg's typed option fields (strike/expiry/option_type) and open_close
+    were lost when it got split across the two resulting trades.
+    """
+    day1 = datetime(2026, 3, 1, 9, 30, tzinfo=UTC)
+    day1_b = datetime(2026, 3, 1, 9, 50, tzinfo=UTC)
+    close_at = datetime(2026, 3, 1, 9, 57, tzinfo=UTC)
+
+    def leg(
+        tx: str,
+        symbol: str,
+        conid: str,
+        dt: datetime,
+        quantity: str,
+        price: str,
+        open_close: str,
+        order_id: str,
+        pnl: str | None = None,
+    ) -> str:
+        pnl_attr = f'fifoPnlRealized="{pnl}"' if pnl is not None else 'fifoPnlRealized="0"'
+        return (
+            f'<Trade transactionID="{tx}" assetCategory="OPT" symbol="{symbol}" '
+            f'conid="{conid}" multiplier="100" tradeDate="{dt.strftime("%Y%m%d")}" '
+            f'dateTime="{dt.strftime("%Y%m%d;%H%M%S")}" quantity="{quantity}" tradePrice="{price}" '
+            f'ibCommission="-1" netCash="0" openCloseIndicator="{open_close}" {pnl_attr} '
+            f'brokerageOrderID="{order_id}" currency="USD" />'
+        )
+
+    rows = [
+        # Order A opens 620C short / 640C long.
+        leg("A1", "META  260731C00620000", "700001", day1, "-1", "63.55", "O", "order-open-a"),
+        leg("A2", "META  260731C00640000", "700002", day1, "1", "51.55", "O", "order-open-a"),
+        # Order B opens the SAME spread again, 20 minutes later.
+        leg("B1", "META  260731C00620000", "700001", day1_b, "-1", "63.42", "O", "order-open-b"),
+        leg("B2", "META  260731C00640000", "700002", day1_b, "1", "50.97", "O", "order-open-b"),
+        # One combined closing order for BOTH open positions (qty=2 per leg).
+        leg("C1", "META  260731C00620000", "700001", close_at, "2", "63.03", "C", "order-close", pnl="87.27"),
+        leg("C2", "META  260731C00640000", "700002", close_at, "-2", "50.48", "C", "order-close", pnl="-159.67"),
+    ]
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<FlexQueryResponse><FlexStatements><FlexStatement><Trades>"
+        + "".join(rows)
+        + "</Trades></FlexStatement>"
+        + "</FlexStatements></FlexQueryResponse>"
+    )
+    return xml.encode("utf-8")
+
+
+@pytest.mark.integration
+async def test_combo_split_close_preserves_option_fields_on_split_children(
+    client: AsyncClient,
+) -> None:
+    """Regression: split-child executions must keep strike/expiry/option_type
+    and open_close from their parent execution.
+
+    Root cause (fixed): when a single closing execution is shared across two
+    trades (e.g. two separate opening orders on the same spread closed
+    together — see test_build_combo_positions_two_opens_split_close_produces_two_trades),
+    the resulting split-origin `LogicalExecution` rows were created via
+    `_process_execution_split` / `_split_execution_for_trade` without copying
+    `strike`, `expiry`, `option_type`, or `open_close` from the parent, even
+    though these fields are always populated for the parent (it's a real
+    option leg). This broke both display (ExecutionLegsTable / SummaryCard
+    fell back to raw conid) and grouping (ExecutionSummaryCard's grouping key
+    includes these fields, so a split child with nulled-out fields no longer
+    matched its own opening leg's group and appeared as a spurious extra row).
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    xml_content = _make_two_opens_one_shared_close_combo_xml()
+
+    result = await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+    assert result["warnings"] == []
+    assert int(result["trades_created"]) == 2
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    trades = trades_resp.json()["data"]["items"]
+    assert len(trades) == 2
+
+    for trade in trades:
+        ex_resp = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade['id']}/executions",
+            headers=headers,
+        )
+        assert ex_resp.status_code == 200, ex_resp.text
+        executions = ex_resp.json()["data"]
+        assert len(executions) == 4  # 2 opening legs + 2 closing (split) legs
+
+        split_legs = [e for e in executions if e["origin"] == "split"]
+        assert len(split_legs) == 2, "Expected both closing legs to be split across the two trades"
+
+        for execution in executions:
+            assert execution["option_type"] == "C", execution
+            assert execution["strike"] in ("620.00000000", "640.00000000"), execution
+            assert execution["expiry"] == "2026-07-31", execution
+            assert execution["open_close"] in ("O", "C"), execution
+
+
 @pytest.mark.integration
 @pytest.mark.slow
 async def test_large_file_import_performance_smoke(client: AsyncClient) -> None:

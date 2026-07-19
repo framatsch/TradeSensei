@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from decimal import Decimal
 
 import pytest
 
@@ -110,6 +111,10 @@ def test_instruction_branch_kept_for_options() -> None:
     raw, _ = parser.parse_raw(json.dumps(payload).encode("utf-8"), "schwab_option.json")
     assert len(raw) == 1
     assert raw[0].direction == Direction.SHORT
+    assert raw[0].strike == Decimal("200")
+    assert raw[0].expiry is not None
+    assert raw[0].expiry.isoformat() == "2026-07-17"
+    assert raw[0].option_type == "C"
 
 
 @pytest.mark.unit

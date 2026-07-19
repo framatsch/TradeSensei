@@ -54,6 +54,7 @@ from app.models.logical_execution import (
     LogicalExecution,
 )
 from app.models.trade import Direction as TradeDirection
+from app.models.trade import Trade
 from app.repositories.account_repository import AccountRepository
 from app.repositories.broker_raw_transaction_repository import (
     BrokerRawTransactionRepository,
@@ -225,6 +226,7 @@ class ImportService:
         )
         open_lot_ids = {lot.id for lot in open_lots}
         has_open_combo_seed_positions = False
+        open_combo_positions: list[Trade] = []
 
         # Load all existing orphaned lots (closed, but no entry leg).
         orphaned_lots = await self._trade_repo.list_orphaned_lots_by_user(
@@ -388,6 +390,33 @@ class ImportService:
                     )
                 await self._session.flush()
 
+            # Rebuild the trade projection from scratch on every raw-pipeline
+            # import, EXCEPT for trades backing still-open combo positions
+            # (these are carried forward as seeds — see
+            # _build_seed_combo_execution_trades — and must not be deleted out
+            # from under themselves). Scoping the exclusion to just those
+            # specific trades (rather than skipping the rebuild for the whole
+            # account whenever ANY combo is open) prevents fragmented/split
+            # single-instrument trades elsewhere in the account from being
+            # duplicated on every subsequent import.
+            #
+            # This MUST run before `_collect_trade_creates_from_logical_batches`
+            # below, which reads each execution's *current* `trade_id` into
+            # `db_trade_id` — deleting trades afterwards would leave those
+            # in-memory `db_trade_id` values pointing at rows that no longer
+            # exist, causing the trade-creation loop to skip re-creating them
+            # entirely (it treats "db_trade_id is not None" as "already
+            # exists", regardless of whether that trade was just deleted).
+            if account_id is not None:
+                preserved_trade_ids = [trade.id for trade in open_combo_positions]
+                await self._trade_repo.delete_by_user_account(
+                    user_id=user_id,
+                    account_id=account_id,
+                    include_manually_edited=overwrite_manually_edited,
+                    exclude_trade_ids=preserved_trade_ids,
+                )
+                await self._session.flush()
+
             # Load logical executions in batches to cap peak memory during import.
             parsed_trades = await self._collect_trade_creates_from_logical_batches(
                 user_id=user_id,
@@ -446,14 +475,6 @@ class ImportService:
         create_warnings: list[str] = []
         raw_projection_rebuild = use_raw_pipeline and account_id is not None
 
-        if raw_projection_rebuild and account_id is not None:
-            should_preserve_existing_trades = use_raw_pipeline and has_open_combo_seed_positions
-            if not should_preserve_existing_trades:
-                await self._trade_repo.delete_by_user_account(
-                    user_id=user_id,
-                    account_id=account_id,
-                    include_manually_edited=overwrite_manually_edited,
-                )
         # Track db_trade_ids that have already been updated once.  If the same
         # seed lot appears more than once in parsed_trades (partial close split),
         # the first occurrence issues an UPDATE; subsequent occurrences become
@@ -1608,6 +1629,10 @@ class ImportService:
                 origin=EXECUTION_ORIGIN_SPLIT,
                 parent_id=execution.id,
                 trade_id=trade_id,
+                strike=execution.strike,
+                expiry=execution.expiry,
+                option_type=execution.option_type,
+                open_close=execution.open_close,
             )
             created_children += 1
 
@@ -1704,6 +1729,10 @@ class ImportService:
             origin=EXECUTION_ORIGIN_SPLIT,
             parent_id=original.id,
             trade_id=trade_id,
+            strike=original.strike,
+            expiry=original.expiry,
+            option_type=original.option_type,
+            open_close=original.open_close,
         )
 
         # 5. Create remainder child (for other trades or future allocation)
@@ -1728,6 +1757,10 @@ class ImportService:
                 origin=EXECUTION_ORIGIN_SPLIT,
                 parent_id=original.id,
                 trade_id=None,  # Will be assigned by subsequent trades
+                strike=original.strike,
+                expiry=original.expiry,
+                option_type=original.option_type,
+                open_close=original.open_close,
             )
 
         logger.debug(

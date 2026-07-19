@@ -65,6 +65,10 @@ export function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead):
     parent_id: execution.parent_id ?? null,
     currency: execution.currency ?? null,
     multiplier: execution.multiplier,
+    open_close: (execution.open_close as "O" | "C" | null | undefined) ?? null,
+    strike: execution.strike ?? null,
+    expiry: execution.expiry ?? null,
+    option_type: (execution.option_type as "C" | "P" | null | undefined) ?? null,
     created_at: execution.created_at,
     updated_at: execution.updated_at,
   };

@@ -14,7 +14,7 @@
 """Pydantic schemas for logical execution request and response payloads."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Self
 
@@ -235,6 +235,18 @@ class LogicalExecutionRead(LogicalExecutionBase):
     open_close: str | None = Field(
         default=None,
         description="Opening/closing indicator: 'O' (opening), 'C' (closing), or null (mixed/unknown/manual)",
+    )
+    strike: Decimal | None = Field(
+        default=None,
+        description="Option strike price derived from OCC symbol.",
+    )
+    expiry: date | None = Field(
+        default=None,
+        description="Option expiry date derived from OCC symbol.",
+    )
+    option_type: str | None = Field(
+        default=None,
+        description="Option type derived from OCC symbol: 'C' or 'P'.",
     )
     origin: ExecutionOrigin = Field(description="Immutable provenance: imported | manual | merged | split")
     deleted: bool = Field(description="True when this execution has been soft-deleted")

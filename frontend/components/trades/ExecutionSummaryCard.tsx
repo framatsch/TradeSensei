@@ -43,6 +43,33 @@ function fmtQty(value: string | number | null): string {
   return num.toLocaleString("en-US", { maximumFractionDigits: 4 });
 }
 
+function formatContractLabel(symbol: string, type: string | null, strike: string | null, expiry: string | null): string | null {
+  if (type && strike && expiry) {
+    const typeLabel = type === "C" ? "Call" : type === "P" ? "Put" : "";
+    const formattedStrike = parseFloat(strike).toString();
+    const d = new Date(expiry + "T12:00:00Z");
+    const formattedExpiry = d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+    return `${symbol} ${formattedStrike} ${typeLabel} · ${formattedExpiry}`;
+  }
+  return null;
+}
+
+/**
+ * Compact per-leg contract label for the COMBO instrument column
+ * (e.g. "620 Call"). Deliberately omits the underlying symbol (already shown
+ * in the trade detail page header) and the expiry date (already a sortable
+ * column in the execution legs table below) to avoid repeating the same
+ * text on every row of a multi-leg strategy.
+ */
+function formatCompactContractLabel(type: string | null, strike: string | null): string | null {
+  if (type && strike) {
+    const typeLabel = type === "C" ? "Call" : type === "P" ? "Put" : "";
+    const formattedStrike = parseFloat(strike).toString();
+    return `${formattedStrike} ${typeLabel}`;
+  }
+  return null;
+}
+
 export function ExecutionSummaryCard({ trade, executions }: Props) {
   const count = executions.length;
   const activeExecutions = executions.filter((execution) => !execution.deleted);
@@ -55,6 +82,9 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         symbol: string;
         assetClass: string;
         conid: string | null;
+        optionType: string | null;
+        strike: string | null;
+        expiry: string | null;
         multiplier: number;
         direction: "LONG" | "SHORT";
         firstSeenAt: number;
@@ -70,7 +100,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
     let hasBrokerPnl = false;
 
     for (const execution of activeExecutions) {
-      const key = `${execution.symbol}:${execution.asset_class}:${execution.conid ?? "none"}`;
+      const key = `${execution.symbol}:${execution.asset_class}:${execution.option_type ?? "none"}:${execution.strike ?? "none"}:${execution.expiry ?? "none"}:${execution.conid ?? "none"}`;
       const qty = parseFloat(execution.raw_quantity);
       const price = parseFloat(execution.raw_price);
       const multiplier = execution.multiplier;
@@ -95,6 +125,9 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
           symbol: execution.symbol,
           assetClass: execution.asset_class,
           conid: execution.conid,
+          optionType: execution.option_type ?? null,
+          strike: execution.strike ?? null,
+          expiry: execution.expiry ?? null,
           multiplier,
           direction: execution.direction,
           firstSeenAt,
@@ -145,7 +178,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/40">
+              <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">
                 <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Direction</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Instrument</th>
                 <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Quantity</th>
@@ -154,32 +187,39 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.symbol}-${row.assetClass}-${row.conid ?? "none"}`} className="border-b border-border/60 last:border-b-0">
-                  <td className="px-3 py-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-muted text-foreground border border-border">
-                      {row.direction}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-foreground">
-                    {row.symbol} {row.assetClass}
-                    {row.conid && <span className="ml-1 text-xs text-muted-foreground">({row.conid})</span>}
-                  </td>
-                  <td className="px-3 py-2 text-right text-foreground">
-                    {fmtQty(row.quantity)} {row.multiplier > 1 ? "contracts" : "shares"}
-                    {row.multiplier > 1 && (
-                      <span className="ml-2 text-xs text-muted-foreground">&times;{row.multiplier}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-right text-foreground">
-                    {row.vwap === null ? "—" : fmt(row.vwap)}
-                  </td>
-                  <td className="px-3 py-2 text-right text-foreground">
-                    {row.notional === null ? "—" : fmt(row.notional)}
-                  </td>
-                </tr>
-              ))}
-              <tr className="bg-muted/30">
+              {rows.map((row) => {
+                const label = formatCompactContractLabel(row.optionType, row.strike);
+                return (
+                  <tr key={`${row.symbol}-${row.assetClass}-${row.optionType ?? "none"}-${row.strike ?? "none"}-${row.expiry ?? "none"}-${row.conid ?? "none"}`} className="border-b border-[color-mix(in_srgb,var(--border)_60%,transparent)] last:border-b-0">
+                    <td className="px-3 py-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-muted text-foreground border border-border">
+                        {row.direction}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-foreground">
+                      {label ? label : (
+                        <>
+                          {row.symbol} {row.assetClass}
+                          {row.conid && <span className="ml-1 text-xs text-muted-foreground">({row.conid})</span>}
+                        </>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right text-foreground">
+                      {fmtQty(row.quantity)} {row.multiplier > 1 ? "contracts" : "shares"}
+                      {row.multiplier > 1 && (
+                        <span className="ml-2 text-xs text-muted-foreground">&times;{row.multiplier}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right text-foreground">
+                      {row.vwap === null ? "—" : fmt(row.vwap)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-foreground">
+                      {row.notional === null ? "—" : fmt(row.notional)}
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr className="bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]">
                 <td className="px-3 py-2 text-xs font-medium text-muted-foreground" colSpan={3}>
                   Total Commission: <span className="text-foreground">{fmt(totalCommission)}</span>
                 </td>
@@ -205,11 +245,17 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
       ? parseFloat(trade.exit_price) * parseFloat(trade.quantity) * trade.multiplier
       : null;
 
+  const optionLeg = executions.find((ex) => ex.option_type !== null);
+  const contractLabel = optionLeg ? formatContractLabel(optionLeg.symbol, optionLeg.option_type ?? null, optionLeg.strike ?? null, optionLeg.expiry ?? null) : null;
+
   return (
     <div className="bg-card rounded-xl border border-border p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Execution Summary</h3>
+          {contractLabel && (
+            <p className="text-sm font-medium text-foreground mt-1">{contractLabel}</p>
+          )}
           <p className="text-xs text-muted-foreground mt-0.5">
             Values are computed from {count} execution leg{count !== 1 ? "s" : ""}
           </p>

@@ -32,7 +32,8 @@
  * Special cases:
  *   - Options (asset_class === "OPTION"): OCC symbol is parsed to get the
  *     underlying ticker; chart always shows the underlying price. Contract
- *     details (strike, expiry, type) are displayed as an overlay badge.
+ *     details (strike, expiry, type) are shown on the trade detail page
+ *     (execution legs table / summary card), not on the chart.
  *   - Index symbols (asset_class === "INDEX" or common index tickers like SPX,
  *     RUT, NDX, DJI): sec_type=index is appended to the API call.
  *   - TradingView link: "^" prefix is stripped from index symbols.
@@ -284,31 +285,6 @@ function TradingViewFallback({ symbol }: { symbol: string }) {
   );
 }
 
-// ── Options overlay badge ─────────────────────────────────────────────────────
-
-function OptionOverlay({ occ }: { occ: ReturnType<typeof parseOccSymbol> }) {
-  if (!occ.isOption) return null;
-  const typeColor =
-    occ.optionType === "Call"
-      ? "text-emerald-400 bg-emerald-900/40 border-emerald-700/50"
-      : "text-red-400 bg-red-900/40 border-red-700/50";
-
-  return (
-    <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-900/80 backdrop-blur-sm border border-border/50 text-xs">
-      <span
-        className={`px-1.5 py-0.5 rounded text-xs font-bold border ${typeColor}`}
-      >
-        {occ.optionType}
-      </span>
-      <span className="text-zinc-300 font-mono">{occ.strikeFormatted}</span>
-      <span className="text-zinc-500">·</span>
-      <span className="text-zinc-400">{occ.expiryFormatted}</span>
-      <span className="text-zinc-500">·</span>
-      <span className="text-zinc-500 text-[10px]">Underlying chart</span>
-    </div>
-  );
-}
-
 // ── Loading skeleton ──────────────────────────────────────────────────────────
 
 function ChartSkeleton() {
@@ -483,6 +459,7 @@ export interface TradeChartProps {
 
 export function TradeChart({ trade, executions }: TradeChartProps) {
   const { data: settings } = useSettings();
+
   const allowedIntervals = useMemo(() => {
     return settings?.chart_intervals && settings.chart_intervals.length > 0 
       ? settings.chart_intervals as Interval[] 
@@ -606,7 +583,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             if (!candleSet.has(ts)) {
               // Use the price from the nearest real candle as the synthetic close
               let nearest = candles[0];
-              let bestDiff = Math.abs((candles[0].time as number) - ts);
+              let bestDiff = candles.length > 0 ? Math.abs((candles[0].time as number) - ts) : 0;
               for (const c of candles) {
                 const d = Math.abs((c.time as number) - ts);
                 if (d < bestDiff) {
@@ -661,7 +638,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           };
 
           // Use per-execution markers when available; fall back to trade-level timestamps
-          const markers: SeriesMarker<Time>[] =
+          const finalMarkers: SeriesMarker<Time>[] =
             activeExecutions && activeExecutions.length > 0
               ? buildExecutionMarkers(
                   activeExecutions,
@@ -678,13 +655,12 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             },
           } as any);
 
-          // createSeriesMarkers is the v5 API (replaces series.setMarkers)
           if (markersRef.current) {
-            markersRef.current.setMarkers(markers);
+            markersRef.current.setMarkers(finalMarkers);
           } else if (seriesRef.current) {
             markersRef.current = createSeriesMarkers(
               seriesRef.current,
-              markers,
+              finalMarkers,
             );
           }
 
@@ -704,7 +680,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         }
 
         setUseFallback(false);
-      } catch {
+      } catch (e) { console.error("fetchAndRender error:", e);
         setUseFallback(true);
       } finally {
         setLoading(false);
@@ -812,7 +788,6 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   if (useFallback) {
     return (
       <div className="w-full h-full relative">
-        {occ.isOption && <OptionOverlay occ={occ} />}
         <TradingViewFallback symbol={chartSymbol} />
       </div>
     );
@@ -823,9 +798,6 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
   return (
     <div className="w-full h-full flex flex-col relative">
-      {/* Option overlay */}
-      {occ.isOption && <OptionOverlay occ={occ} />}
-
       {/* Interval toolbar */}
       <div className="shrink-0 flex items-center gap-1.5 px-3 pt-3 pb-2">
         <div className="flex p-0.5 rounded-full bg-secondary border border-border backdrop-blur-md shadow-inner">

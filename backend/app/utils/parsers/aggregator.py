@@ -103,6 +103,8 @@ class _OpenComboPosition:
     order_id: str
     contract_set: tuple[str, ...]
     quantities_by_conid: dict[str, Decimal]
+    unit_count: Decimal | None
+    remaining_units: Decimal | None
     open_legs: list[TradeCreate]
     close_legs: list[TradeCreate]
     opening_net_cash: Decimal
@@ -118,6 +120,42 @@ def _combo_contract_key(legs: Sequence[TradeCreate]) -> tuple[tuple[str, Decimal
             continue
         quantities[conid] = quantities.get(conid, Decimal("0")) + abs(leg.quantity or Decimal("0"))
     return tuple(sorted((conid, qty) for conid, qty in quantities.items()))
+
+
+def _combo_unit_count(quantities_by_conid: dict[str, Decimal]) -> Decimal | None:
+    """Return the common per-leg quantity for a combo order, or ``None`` if legs differ.
+
+    Standard combo orders (verticals, straddles, etc.) execute every leg with the
+    same absolute quantity (e.g. BUY 1 / SELL 1). Ratio spreads (e.g. 2:1) have
+    differing per-leg quantities and cannot be split unit-by-unit with this simple
+    scheme; ``None`` signals the caller to fall back to exact whole-order matching.
+    """
+    values = set(quantities_by_conid.values())
+    if len(values) != 1:
+        return None
+    return next(iter(values))
+
+
+def _split_leg_by_fraction(leg: TradeCreate, fraction: Decimal) -> TradeCreate:
+    """Return a proportional slice of a combo leg's quantity/commission/pnl/net_cash.
+
+    Used to split a single broker closing execution across multiple FIFO-matched
+    open combo positions (e.g. the user scaled into the same spread via two
+    separate orders that were later closed together in one order).
+    """
+    updates: dict[str, object] = {}
+    if leg.quantity is not None:
+        updates["quantity"] = leg.quantity * fraction
+    if leg.commission is not None:
+        updates["commission"] = leg.commission * fraction
+    if leg.pnl is not None:
+        updates["pnl"] = leg.pnl * fraction
+    if leg.net_pnl is not None:
+        updates["net_pnl"] = leg.net_pnl * fraction
+    net_cash = getattr(leg, "net_cash", None)
+    if net_cash is not None:
+        updates["net_cash"] = cast(Decimal, net_cash) * fraction
+    return leg.model_copy(update=updates)
 
 
 def _derive_combo_direction(opening_net_cash: Decimal) -> Direction:
@@ -196,37 +234,82 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
                 ),
                 Decimal("0"),
             )
+            group_db_trade_id = next((leg.db_trade_id for leg in group.legs if leg.db_trade_id is not None), None)
+            unit_count = _combo_unit_count(quantities_by_conid)
+
+            # Each opening order becomes its own distinct combo position — even
+            # when an identical contract set is already open for this underlying
+            # (e.g. the user scaled into the same spread via two separate orders).
+            # A later closing order that spans multiple such positions is matched
+            # FIFO and split proportionally below, rather than merging the opens
+            # into a single position (which would misrepresent two separate round
+            # trips as one).
             open_positions.append(
                 _OpenComboPosition(
                     symbol=symbol,
                     order_id=group.order_id,
                     contract_set=contract_set,
                     quantities_by_conid=quantities_by_conid,
+                    unit_count=unit_count,
+                    remaining_units=unit_count,
                     open_legs=list(group.legs),
                     close_legs=[],
                     opening_net_cash=opening_net_cash,
-                    db_trade_id=next((leg.db_trade_id for leg in group.legs if leg.db_trade_id is not None), None),
+                    db_trade_id=group_db_trade_id,
                 )
             )
             continue
 
-        # marker == "C" => attempt exact match against earliest open position.
-        matched_position: _OpenComboPosition | None = None
-        for position in open_positions:
-            if position.close_legs:
-                continue
-            if position.contract_set != contract_set:
-                continue
-            if position.quantities_by_conid != quantities_by_conid:
-                continue
-            matched_position = position
-            break
+        # marker == "C" => match FIFO against open positions with the same
+        # contract set, splitting the closing legs proportionally across
+        # multiple open positions when the closing quantity exceeds any single
+        # one of them (e.g. two 1-lot opens closed together in one 2-lot order).
+        close_unit_count = _combo_unit_count(quantities_by_conid)
 
-        if matched_position is not None:
-            matched_position.close_legs.extend(group.legs)
-            continue
+        candidates = [
+            position
+            for position in open_positions
+            if position.symbol == symbol
+            and position.contract_set == contract_set
+            and not position.close_legs
+            and (position.remaining_units is None or position.remaining_units > Decimal("0"))
+        ]
 
-        same_symbol_open = [position for position in open_positions if position.symbol == symbol and not position.close_legs]
+        if close_unit_count is None or any(position.unit_count is None for position in candidates):
+            # Ratio spread (mismatched per-leg quantities) — cannot split
+            # unit-by-unit; fall back to exact whole-order matching only.
+            matched_position = next(
+                (position for position in candidates if position.quantities_by_conid == quantities_by_conid),
+                None,
+            )
+            if matched_position is not None:
+                matched_position.close_legs.extend(group.legs)
+                matched_position.remaining_units = Decimal("0")
+                continue
+        else:
+            remaining_close_units = close_unit_count
+            for position in candidates:
+                if remaining_close_units <= Decimal("0"):
+                    break
+                position_remaining = cast(Decimal, position.remaining_units)
+                match_units = min(position_remaining, remaining_close_units)
+                if match_units <= Decimal("0"):
+                    continue
+                fraction = match_units / close_unit_count
+                position.close_legs.extend(_split_leg_by_fraction(leg, fraction) for leg in group.legs)
+                position.remaining_units = position_remaining - match_units
+                remaining_close_units -= match_units
+
+            if remaining_close_units <= Decimal("0"):
+                continue
+
+        same_symbol_open = [
+            position
+            for position in open_positions
+            if position.symbol == symbol
+            and not position.close_legs
+            and (position.remaining_units is None or position.remaining_units > Decimal("0"))
+        ]
         expected_sets = [set(position.contract_set) for position in same_symbol_open]
         received_set = set(contract_set)
         warnings.append(

@@ -57,6 +57,20 @@ def _parse_trade_rows() -> tuple[list[TradeCreate], list[CorporateActionCreateRe
     return trades, corporate_actions
 
 
+@pytest.mark.unit
+def test_ibkr_raw_option_contract_fields_are_populated_from_occ_symbol() -> None:
+    parser = IBKRXMLParser()
+    raw_rows, _ = parser.parse_raw(_FIXTURE.read_bytes(), _FIXTURE.name)
+    assert parser.warnings == []
+    assert raw_rows
+
+    first = raw_rows[0]
+    assert first.symbol == "QQQ"
+    assert first.strike == Decimal("712")
+    assert first.expiry == date(2026, 7, 31)
+    assert first.option_type == "C"
+
+
 def _yearly_pnl(trades: list[TradeCreate]) -> dict[int, Decimal]:
     yearly: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
     for trade in trades:
