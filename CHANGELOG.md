@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [tools] Fixed `schwab_cli.py` to support running from any directory by checking the current working directory for `.env` and outputting files to `Path.cwd()` by default.
+
 ## [1.6.0] - 2026-07-19
 
 ### Added
