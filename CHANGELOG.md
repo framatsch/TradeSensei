@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [docs] Added `docs/api-usage.md` and documented the new clear-trades endpoint and unified import date-range behavior.
 
 ### Fixed
+- [security] Fixed IDOR vulnerabilities by replacing implicit ownership propagation with explicit authorization guards across Checkin, Taxonomy, Playbook, Portfolio, and Account services.
+- [frontend] Restored UI consistency with strict Tailwind design tokens, resolving dark mode regressions, alignment issues, and text-overflow edge cases.
+- [test] Fixed Playwright E2E test flakiness caused by `global-teardown` state-leaks, strict mode selector violations, and stale locators.
+- [test] Fixed Python unit test failures in `test_broker_service.py` related to `AsyncMock` and asynchronous context managers.
 - [backend] Combo position matching now handles the case where the user scales into the same spread via two or more separate broker orders and closes them together in one order: each opening order is matched FIFO and produces its own closed trade (with the closing legs split proportionally), instead of being incorrectly merged into a single combined position.
 - [backend] Fixed unbounded trade duplication on repeated (non-cleared) re-imports whenever the account had any open combo position: the "delete all trades and rebuild" safety net was being skipped for the whole account instead of just the open combo's trades, causing fragmented/split single-instrument trades to be re-inserted as duplicates on every import.
 
