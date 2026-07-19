@@ -153,37 +153,39 @@ export function SchwabConnectSection({ account }: Props) {
             Connect Schwab
           </button>
           
-          <div className="space-y-2 pt-2 border-t border-border/50">
-            <label className="block text-xs font-medium text-muted-foreground">
-              If the page does not load after you log in, copy the URL and paste it here:
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={pasteUrl}
-                onChange={(e) => setPasteUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+          {statusRes?.schwab_oauth_mode !== "callback" && (
+            <div className="space-y-2 pt-2 border-t border-border/50">
+              <label className="block text-xs font-medium text-muted-foreground">
+                If the page does not load after you log in, copy the URL and paste it here:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={pasteUrl}
+                  onChange={(e) => setPasteUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (pasteUrl.trim()) completeMutation.mutate(pasteUrl.trim());
+                    }
+                  }}
+                  placeholder="https://127.0.0.1/?code=...&state=..."
+                  className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
                     e.preventDefault();
                     if (pasteUrl.trim()) completeMutation.mutate(pasteUrl.trim());
-                  }
-                }}
-                placeholder="https://127.0.0.1/?code=...&state=..."
-                className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (pasteUrl.trim()) completeMutation.mutate(pasteUrl.trim());
-                }}
-                disabled={!pasteUrl.trim() || completeMutation.isPending}
-                className="px-3 py-2 text-sm font-medium bg-secondary text-foreground border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors whitespace-nowrap"
-              >
-                {completeMutation.isPending ? "Submitting..." : "Submit"}
-              </button>
+                  }}
+                  disabled={!pasteUrl.trim() || completeMutation.isPending}
+                  className="px-3 py-2 text-sm font-medium bg-secondary text-foreground border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {completeMutation.isPending ? "Submitting..." : "Submit"}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

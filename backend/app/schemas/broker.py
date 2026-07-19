@@ -40,6 +40,11 @@ class BrokerStatusResponse(BaseModel):
         description=("UTC timestamp of the most recent successful trade sync. Null if no sync has been performed since connecting."),
         examples=["2024-03-15T09:30:00Z", None],
     )
+    schwab_oauth_mode: str | None = Field(
+        default=None,
+        description="The configured Schwab OAuth mode ('paste' or 'callback').",
+        examples=["paste", "callback", None],
+    )
 
 
 class SchwabAuthorizeResponse(BaseModel):

@@ -1049,6 +1049,12 @@ export type BrokerStatusResponse = {
      * UTC timestamp of the most recent successful trade sync. Null if no sync has been performed since connecting.
      */
     last_sync_at: string | null;
+    /**
+     * Schwab Oauth Mode
+     *
+     * The configured Schwab OAuth mode ('paste' or 'callback').
+     */
+    schwab_oauth_mode?: string | null;
 };
 
 /**

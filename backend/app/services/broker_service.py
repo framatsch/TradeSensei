@@ -503,7 +503,11 @@ class BrokerService:
 
         has_access = self._resolve_optional_property(account, SCHWAB_ACCESS_TOKEN_KEYS) is not None
         has_refresh = self._resolve_optional_property(account, SCHWAB_REFRESH_TOKEN_KEYS) is not None
-        return BrokerStatusResponse(connected=(has_access and has_refresh), last_sync_at=None)
+        return BrokerStatusResponse(
+            connected=(has_access and has_refresh),
+            last_sync_at=None,
+            schwab_oauth_mode=settings.schwab_oauth_mode,
+        )
 
     async def disconnect_schwab(self, account_id: uuid.UUID, user_id: uuid.UUID) -> None:
         account = await self._account_repo.get_by_id_with_properties(account_id, user_id)
