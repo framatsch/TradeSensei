@@ -52,9 +52,9 @@ except ImportError:
     load_dotenv = None  # type: ignore[assignment]
 
 if load_dotenv is not None:
-    # Look for a .env next to the tool first, then in the project root.
+    # Look for a .env in the current working directory, then next to the tool, then in the project root.
     _here = Path(__file__).resolve().parent
-    for _candidate in (_here / ".env", _here.parent / ".env"):
+    for _candidate in (Path.cwd() / ".env", _here / ".env", _here.parent / ".env"):
         if _candidate.exists():
             load_dotenv(_candidate)
             break
@@ -89,8 +89,8 @@ def _safe_set_tokens(self, at_issued, rt_issued, token_dictionary):  # type: ign
 Tokens._set_tokens = _safe_set_tokens  # type: ignore[method-assign]
 
 
-DEFAULT_OUTPUT_FILE = Path(__file__).resolve().parent / "cache" / "transactions.json"
-DEFAULT_POSITIONS_FILE = Path(__file__).resolve().parent / "cache" / "positions.json"
+DEFAULT_OUTPUT_FILE = Path.cwd() / "transactions.json"
+DEFAULT_POSITIONS_FILE = Path.cwd() / "positions.json"
 DEFAULT_DAYS_BACK = 90
 
 
