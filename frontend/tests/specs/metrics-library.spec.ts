@@ -38,7 +38,7 @@ test.describe('Metrics (Annotations) Library', () => {
     // 2. Fill form
     await page.locator('input').first().fill('E2E Conviction');
     await page.locator('select').nth(0).selectOption('int');
-    await page.locator('select').nth(1).selectOption('trades');
+
     await page.getByPlaceholder('Optional description...').fill('E2E Test Metric');
     
     // Scale labels
@@ -49,12 +49,12 @@ test.describe('Metrics (Annotations) Library', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     
     // 4. Verify in list
-    await expect(page.getByRole('heading', { name: 'E2E Conviction' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Conviction', exact: true })).toBeVisible();
   });
 
   test('TC-112 edit an existing metric', async ({ page }) => {
     // Click the Edit icon
-    await page.getByRole('button', { name: 'Edit E2E Conviction' }).click();
+    await page.getByRole('button', { name: 'Edit E2E Conviction', exact: true }).click();
     
     // Modify
     await page.locator('input').first().fill('E2E Conviction Edited');
@@ -86,13 +86,15 @@ test.describe('Metrics (Annotations) Library', () => {
 
   test('TC-114 delete metrics', async ({ page }) => {
     // Delete first metric
-    await page.getByRole('button', { name: 'Delete E2E Conviction Edited' }).click();
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'E2E Conviction Edited' })).not.toBeVisible();
+    await page.getByRole('button', { name: 'Delete E2E Conviction Edited', exact: true }).click();
+    await expect(page.getByText('Are you sure you want to delete metric')).toBeVisible();
+    await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
+    await expect(page.getByRole('heading', { name: 'E2E Conviction Edited', exact: true })).not.toBeVisible();
 
     // Delete second metric
-    await page.getByRole('button', { name: 'Delete E2E Setup Quality' }).click();
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'E2E Setup Quality' })).not.toBeVisible();
+    await page.getByRole('button', { name: 'Delete E2E Setup Quality', exact: true }).click();
+    await expect(page.getByText('Are you sure you want to delete metric')).toBeVisible();
+    await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
+    await expect(page.getByRole('heading', { name: 'E2E Setup Quality', exact: true })).not.toBeVisible();
   });
 });

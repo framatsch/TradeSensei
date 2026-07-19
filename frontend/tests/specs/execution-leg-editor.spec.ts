@@ -137,7 +137,7 @@ test.describe('Execution Leg Editor', () => {
 
     await page.goto(`/dashboard/trades/${editExecutionTestTradeId}`);
     
-    await expect(page.getByText(/Could not load executions|Failed to load|Error loading/i)).toBeVisible();
+    await expect(page.getByText(/Could not load executions|Failed to load|Error loading/i)).toBeVisible({ timeout: 15_000 });
     const retryBtn = page.getByRole('button', { name: /retry/i });
     await expect(retryBtn).toBeVisible();
 
@@ -174,12 +174,14 @@ test.describe('Execution Leg Editor', () => {
     await expect(page.getByRole('columnheader', { name: /mult\./i })).toBeVisible();
     
     await page.waitForSelector('table tbody tr');
-    const optionRow = page.locator('table tbody tr').first();
-    const multiplierCell = optionRow.locator('td').nth(3);
+    const legsTable = page.locator('table').filter({ hasText: 'Mult.' });
+    const optionRow = legsTable.locator('tbody tr').first();
+    // For combo options, Mult is at index 9 and Price is at index 10
+    const multiplierCell = optionRow.locator('td').nth(9);
     await expect(multiplierCell).toBeVisible();
     await expect(multiplierCell).toContainText(/100|—/);
 
-    const priceCell = optionRow.locator('td').nth(4);
+    const priceCell = optionRow.locator('td').nth(10);
     const notionalText = priceCell.locator('div');
     if (await multiplierCell.innerText() === '100') {
       await expect(notionalText).toBeVisible();

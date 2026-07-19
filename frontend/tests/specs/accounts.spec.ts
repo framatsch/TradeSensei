@@ -67,7 +67,7 @@ async function openNewAccountForm(page: Page) {
   }
   
   await addBtn.click();
-  await expect(page.getByRole('heading', { name: 'Connect Broker Account' })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('heading', { name: 'New Account' })).toBeVisible({ timeout: 5_000 });
 }
 
 test.describe('Accounts', () => {
@@ -103,7 +103,7 @@ test.describe('Accounts', () => {
     await page.getByLabel('Name').fill('My Manual Account TC081');
     await page.getByLabel('Broker Type').selectOption('manual');
 
-    await page.getByRole('button', { name: 'Connect Account' }).click();
+    await page.getByRole('button', { name: 'Create Account' }).click();
 
     await expect(page.getByText('My Manual Account TC081')).toBeVisible({
       timeout: 8_000,
@@ -140,7 +140,7 @@ test.describe('Accounts', () => {
     await page.getByLabel('Flex Token').fill('test-flex-token-abc123');
     await page.getByLabel('Flex Query ID').fill('123456');
 
-    await page.getByRole('button', { name: 'Connect Account' }).click();
+    await page.getByRole('button', { name: 'Create Account' }).click();
 
     // Account row should appear
     await expect(page.getByText('IBKR Main TC082')).toBeVisible({
@@ -189,7 +189,7 @@ test.describe('Accounts', () => {
     await page.getByLabel('App Key').fill('test-app-key');
     await page.getByLabel('App Secret').fill('test-app-secret');
 
-    await page.getByRole('button', { name: 'Connect Account' }).click();
+    await page.getByRole('button', { name: 'Create Account' }).click();
 
     await expect(page.getByText('Schwab TC084')).toBeVisible({
       timeout: 8_000,
@@ -245,7 +245,7 @@ test.describe('Accounts', () => {
     await openNewAccountForm(page);
     await page.getByLabel('Name').fill('DeleteMe TC086');
     await page.getByLabel('Broker Type').selectOption('manual');
-    await page.getByRole('button', { name: 'Connect Account' }).click();
+    await page.getByRole('button', { name: 'Create Account' }).click();
 
     await expect(page.getByText('DeleteMe TC086')).toBeVisible({ timeout: 8_000 });
 

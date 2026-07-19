@@ -43,26 +43,22 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
       body: formData,
     });
 
-    if (!tokenRes.ok) {
-      // User may have already been deleted or never created — not an error
-      console.log('[global-teardown] Could not authenticate for teardown. Skipping.');
-      return;
-    }
+    if (tokenRes.ok) {
+      const { access_token: token } = (await tokenRes.json()) as { access_token: string };
 
-    const { access_token: token } = (await tokenRes.json()) as { access_token: string };
+      // DELETE /api/v1/users/me — cascades to all owned data
+      const deleteRes = await fetchWithRetry(`${API_URL}/api/v1/users/me`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    // DELETE /api/v1/users/me — cascades to all owned data
-    const deleteRes = await fetchWithRetry(`${API_URL}/api/v1/users/me`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (deleteRes.status === 204) {
-      console.log('[global-teardown] Test user and all data deleted successfully.');
+      if (deleteRes.status === 204) {
+        console.log('[global-teardown] Test user and all data deleted successfully.');
+      } else {
+        console.warn(`[global-teardown] Delete returned unexpected status: ${deleteRes.status}`);
+      }
     } else {
-      console.warn(
-        `[global-teardown] Delete returned unexpected status: ${deleteRes.status}`
-      );
+      console.log('[global-teardown] Could not authenticate for teardown. Skipping main user.');
     }
   } catch (err) {
     // Teardown failures should not block CI reports

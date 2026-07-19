@@ -119,7 +119,7 @@ test.describe('Import Page', () => {
 
     // The "Upload Files" option should be present (either a button or a section heading)
     // API Sync section may be present but no API credentials — file upload section is visible
-    await expect(page.getByText(/Upload Files|Upload a file|File Upload/i)).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Upload Files|Upload a file|File Upload/i })).toBeVisible({
       timeout: 5_000,
     });
   });
@@ -131,11 +131,8 @@ test.describe('Import Page', () => {
     await page.getByRole('combobox').selectOption({ value: accountId });
     await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
 
-    // For API accounts (ibkr/schwab) the file section is collapsed by default.
-    // Expand it so we can verify the upload button is absent before file selection.
-    const toggleBtn = page.getByRole('button', { name: /Or upload files manually/i });
-    await expect(toggleBtn).toBeVisible({ timeout: 5_000 });
-    await toggleBtn.click();
+    // For API accounts without credentials (like our seeded E2E account), the file upload section is shown immediately.
+    // The start-upload button should NOT be present (it only appears after file selection)
 
     // After expanding, the file input is visible but no "Import N files" button yet
     await expect(page.locator('input[type="file"]')).toBeVisible({ timeout: 5_000 });
@@ -150,11 +147,7 @@ test.describe('Import Page', () => {
     await page.getByRole('combobox').selectOption({ value: accountId });
     await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
 
-    // For API accounts the file section is collapsed by default — expand it first.
-    // Wait for the toggle button to be visible, then click it.
-    const toggleBtn = page.getByRole('button', { name: /Or upload files manually/i });
-    await expect(toggleBtn).toBeVisible({ timeout: 5_000 });
-    await toggleBtn.click();
+    // For API accounts without credentials, the file upload section is shown immediately.
 
     // File input should now be visible
     const fileInput = page.locator('input[type="file"]');
@@ -178,9 +171,7 @@ test.describe('Import Page', () => {
     await page.getByRole('combobox').selectOption({ value: schwabAccountId });
     await expect(page.getByText('Step 2 — Import Trades')).toBeVisible({ timeout: 5_000 });
 
-    const toggleBtn = page.getByRole('button', { name: /Or upload files manually/i });
-    await expect(toggleBtn).toBeVisible({ timeout: 5_000 });
-    await toggleBtn.click();
+
 
     const fileInput = page.locator('input[type="file"]');
     await expect(fileInput).toBeVisible({ timeout: 5_000 });

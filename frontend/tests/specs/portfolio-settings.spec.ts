@@ -200,6 +200,7 @@ test.describe.serial('Portfolio CRUD in Settings', () => {
     await portfolioCard.locator('button').nth(2).click();
 
     // Confirm in Danger Zone
+    await page.getByText('Show Danger Zone').click();
     await page.getByTestId('delete-confirm-input').fill(portfolios[0].name);
     await page.getByTestId('delete-portfolio-button').click();
 
@@ -424,7 +425,7 @@ test.describe('Danger Zone — portfolio data wipe', () => {
     // Open edit modal
     const firstPortfolioCard = page.locator('h3', { hasText: portfolioName }).locator('../../..');
     await firstPortfolioCard.locator('button').nth(2).click();
-
+    await page.getByText('Show Danger Zone').click();
     const confirmInput = page.getByTestId('delete-confirm-input');
     await expect(confirmInput).toBeVisible({ timeout: 5_000 });
 
@@ -461,7 +462,7 @@ test.describe('Danger Zone — portfolio data wipe', () => {
     // Open edit modal
     const firstPortfolioCard = page.locator('h3', { hasText: portfolioName }).locator('../../..');
     await firstPortfolioCard.locator('button').nth(2).click();
-
+    await page.getByText('Show Danger Zone').click();
     const confirmInput = page.getByTestId('delete-confirm-input');
     await expect(confirmInput).toBeVisible({ timeout: 5_000 });
 

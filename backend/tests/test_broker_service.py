@@ -578,6 +578,9 @@ class TestSchwabAccessToken:
     @pytest.mark.unit
     async def test_get_valid_token_refresh_on_expiry(self) -> None:
         mock_session = AsyncMock()
+        mock_session.begin_nested = MagicMock()
+        mock_session.begin_nested.return_value.__aenter__ = AsyncMock()
+        mock_session.begin_nested.return_value.__aexit__ = AsyncMock()
         svc = BrokerService(mock_session)
         now = datetime.now(UTC)
         past = (now - timedelta(minutes=10)).isoformat()

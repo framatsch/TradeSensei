@@ -349,6 +349,10 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     quantity: '200', entry_price: '400.00',
     opened_at: isoDate(6), closed_at: isoDateClose(5),
   });
+  await seedExecution(editExecutionTestTradeId, {
+    direction: 'SHORT', quantity: '200', price: '410.00',
+    executed_at: isoDateClose(5),
+  });
 
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
 
@@ -387,11 +391,20 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   const dTokenRes = await apiPost('/api/v1/auth/token', dFormData);
   if (dTokenRes.ok) {
     const dToken = (await dTokenRes.json()).access_token;
-    const dPortRes = await apiPost('/api/v1/portfolios', { name: 'E2E Destructive Portfolio', base_currency: 'USD' }, dToken);
-    if (!dPortRes.ok) {
-      throw new Error(`[global-setup] Destructive portfolio creation failed: ${dPortRes.status} ${dPortRes.statusText}`);
+    let dPortId = '';
+    const dListRes = await fetch(`${API_URL}/api/v1/portfolios`, { headers: { Authorization: `Bearer ${dToken}` } });
+    if (dListRes.ok) {
+      const dListBody = (await dListRes.json()) as { data: Array<{ id: string }> };
+      if (dListBody.data?.length > 0) dPortId = dListBody.data[0].id;
     }
-    const dPortId = ((await dPortRes.json()) as { data: { id: string } }).data.id;
+    
+    if (!dPortId) {
+      const dPortRes = await apiPost('/api/v1/portfolios', { name: 'E2E Destructive Portfolio', base_currency: 'USD' }, dToken);
+      if (!dPortRes.ok) {
+        throw new Error(`[global-setup] Destructive portfolio creation failed: ${dPortRes.status} ${dPortRes.statusText}`);
+      }
+      dPortId = ((await dPortRes.json()) as { data: { id: string } }).data.id;
+    }
     fs.mkdirSync(path.dirname(DESTRUCTIVE_AUTH_FILE), { recursive: true });
     fs.writeFileSync(DESTRUCTIVE_AUTH_FILE, JSON.stringify({
       cookies: [],
