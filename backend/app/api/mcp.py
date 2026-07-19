@@ -55,8 +55,8 @@ from app.services.annotation_definition_service import AnnotationDefinitionServi
 from app.services.audit_service import AuditEventService, generate_request_id
 from app.services.playbook_taxonomy_service import PlaybookTaxonomyService
 from app.services.taxonomy_service import TaxonomyService
-from app.utils.scope_utils import scope_contains
 from app.utils.annotation_mapping import map_value_to_column
+from app.utils.scope_utils import scope_contains
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 logger = logging.getLogger(__name__)

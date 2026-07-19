@@ -26,6 +26,7 @@ from typing import Any
 
 import httpx
 
+
 class SchwabClient:
     """Thin HTTP client for Schwab's OAuth 2.0 and broker REST API.
 

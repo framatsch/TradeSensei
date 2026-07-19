@@ -200,7 +200,7 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
         distinct_conids = {leg.broker_conid for leg in legs if leg.broker_conid is not None}
         if len(distinct_conids) < 2:
             continue
-        combo_groups.append(_ComboOrderGroup(order_id=order_id, legs=sorted(legs, key=lambda l: l.opened_at)))
+        combo_groups.append(_ComboOrderGroup(order_id=order_id, legs=sorted(legs, key=lambda leg: leg.opened_at)))
         for leg in legs:
             if leg.source_execution_id is not None:
                 combo_leg_ids.add(leg.source_execution_id)
