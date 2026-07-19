@@ -50,7 +50,10 @@ function parseYYYYMMDD(s: string): Date | null {
 }
 
 function formatDisplay(d: Date): string {
-  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" });
+  if (typeof navigator !== "undefined" && navigator.language) {
+    return d.toLocaleDateString(navigator.language, { day: "2-digit", month: "short", year: "numeric" });
+  }
+  return d.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function toYYYYMMDD(d: Date): string {
@@ -119,7 +122,7 @@ export function ImportDateRange({
         <span className="text-xs font-medium text-muted-foreground shrink-0">
           From:
         </span>
-        <div className="flex rounded-md overflow-hidden border border-border dark:border-border text-xs">
+        <div className="flex rounded-md overflow-hidden border border-border text-xs">
           <button
             type="button"
             disabled={disabled}
@@ -128,7 +131,7 @@ export function ImportDateRange({
               "px-3 py-1.5 font-medium transition-colors",
               preset === "ytd"
                 ? "bg-primary text-white"
-                : "bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600",
+                : "bg-secondary text-muted-foreground hover:bg-muted",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >
@@ -144,10 +147,10 @@ export function ImportDateRange({
               }
             }}
             className={[
-              "px-3 py-1.5 font-medium transition-colors border-l border-border dark:border-border",
+              "px-3 py-1.5 font-medium transition-colors border-l border-border",
               preset === "custom"
                 ? "bg-primary text-white"
-                : "bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600",
+                : "bg-secondary text-muted-foreground hover:bg-muted",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >
@@ -164,7 +167,7 @@ export function ImportDateRange({
             max={maxInputDate}
             disabled={disabled}
             onChange={(e) => onCustomFromDateChange(fromInputDate(e.target.value))}
-            className="px-2 py-1 text-xs bg-secondary border border-border dark:border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            className="px-2 py-1 text-xs bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           />
         )}
       </div>
@@ -177,13 +180,13 @@ export function ImportDateRange({
             style={{ width: `${fillPct}%` }}
           />
           {/* Today marker */}
-          <div className="absolute right-0 top-0 h-full w-0.5 bg-zinc-400 dark:bg-zinc-500" />
+          <div className="absolute right-0 top-0 h-full w-0.5 bg-muted-foreground" />
         </div>
 
         {/* Labels */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-zinc-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{formatDisplay(effectiveStart)}</span>
-          <span className="text-zinc-400 dark:text-muted-foreground text-center">
+          <span className="text-muted-foreground text-center">
             {daysCovered} day{daysCovered !== 1 ? "s" : ""}
           </span>
           <span>Today ({formatDisplay(today)})</span>
@@ -191,13 +194,13 @@ export function ImportDateRange({
       </div>
 
       {/* Limit badge */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground dark:text-zinc-400">
-        <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-warning px-2 py-0.5 rounded-full font-medium">
           <span>⚠</span>
           Max. {maxWindowDays} days
         </span>
         {fillPct >= 95 && (
-          <span className="text-amber-500 dark:text-amber-400">
+          <span className="text-warning">
             — You are near the {maxWindowDays}-day limit.
           </span>
         )}

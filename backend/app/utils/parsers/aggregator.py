@@ -113,6 +113,10 @@ class _OpenComboPosition:
 
 
 def _combo_contract_key(legs: Sequence[TradeCreate]) -> tuple[tuple[str, Decimal], ...]:
+    """Generate a deterministic grouping key for a COMBO order.
+
+    The key consists of a sorted tuple of (broker_conid, absolute_quantity) pairs.
+    """
     quantities: dict[str, Decimal] = {}
     for leg in legs:
         conid = leg.broker_conid
@@ -159,6 +163,10 @@ def _split_leg_by_fraction(leg: TradeCreate, fraction: Decimal) -> TradeCreate:
 
 
 def _derive_combo_direction(opening_net_cash: Decimal) -> Direction:
+    """Determine the direction of a COMBO trade based on the net cash of the opening order.
+
+    Net cash out (debit) implies LONG, net cash in (credit) implies SHORT.
+    """
     # Net cash out (debit) => LONG, net cash in (credit) => SHORT.
     if opening_net_cash > Decimal("0"):
         return Direction.SHORT
@@ -435,6 +443,7 @@ class ExecutionLike(Protocol):
     executed_at: datetime
     pnl: Decimal | None
     multiplier: int
+    currency: str | None
 
 
 def _date_to_datetime(d: date) -> datetime:
@@ -514,6 +523,144 @@ def iter_logical_executions_to_trade_creates(
         )
 
 
+def _preload_seed_lots(
+    seed_lots: Sequence[SeedLotLike],
+    target_queue: dict[tuple[str, str | None, str], deque[TradeCreate]],
+    symbol_map: dict[str, str] | None,
+    conid_map: dict[str, str] | None,
+    is_orphaned: bool = False,
+) -> None:
+    """Pre-load existing seed lots into a FIFO queue."""
+    for seed in sorted(seed_lots, key=lambda s: s.opened_at):
+        seed_symbol = seed.symbol
+        if symbol_map and seed_symbol in symbol_map:
+            seed_symbol = symbol_map[seed_symbol]
+        seed_conid = seed.broker_conid
+        if conid_map and seed_conid in conid_map:
+            seed_conid = conid_map[seed_conid]
+
+        asset_class_val: str = str(seed.asset_class)
+        key: tuple[str, str | None, str] = (
+            seed_symbol,
+            seed_conid,
+            asset_class_val,
+        )
+        if key not in target_queue:
+            target_queue[key] = deque()
+
+        opened_at = seed.opened_at
+        if opened_at.tzinfo is None:
+            opened_at = opened_at.replace(tzinfo=UTC)
+
+        closed_at = getattr(seed, "closed_at", None) if is_orphaned else None
+        if closed_at and closed_at.tzinfo is None:
+            closed_at = closed_at.replace(tzinfo=UTC)
+
+        seed_tc = TradeCreate(
+            user_id=None,
+            symbol=seed_symbol,
+            direction=Direction(seed.direction),
+            asset_class=AssetClass(seed.asset_class),
+            quantity=seed.quantity,
+            entry_price=seed.entry_price,
+            exit_price=getattr(seed, "exit_price", None) if is_orphaned else None,
+            commission=seed.commission,
+            opened_at=opened_at,
+            closed_at=closed_at,
+            pnl=getattr(seed, "pnl", None) if is_orphaned else None,
+            broker_conid=seed_conid,
+            db_trade_id=seed.id,
+            multiplier=seed.multiplier,
+        )
+        target_queue[key].append(seed_tc)
+
+
+def _reconcile_orphaned_lots(
+    open_lots: dict[tuple[str, str | None, str], deque[TradeCreate]],
+    orphaned_lots: dict[tuple[str, str | None, str], deque[TradeCreate]],
+    completed_trades: list[TradeCreate],
+) -> None:
+    """Match any remaining open lots against orphaned lots from future imports."""
+    for key, queue in open_lots.items():
+        o_queue = orphaned_lots.get(key)
+        while queue and o_queue:
+            o_lot = o_queue[0]
+            open_lot = queue[0]
+
+            o_lot_qty = cast(Decimal, o_lot.quantity)
+            open_lot_qty = cast(Decimal, open_lot.quantity)
+
+            if o_lot.direction != open_lot.direction:
+                break
+
+            match_qty = min(o_lot_qty, open_lot_qty)
+
+            open_lot_commission = open_lot.commission if open_lot.commission is not None else Decimal("0")
+            o_lot_commission = o_lot.commission if o_lot.commission is not None else Decimal("0")
+            lot_comm = (open_lot_commission * match_qty) / open_lot_qty if open_lot_qty > 0 else Decimal("0")
+            o_lot_comm = (o_lot_commission * match_qty) / o_lot_qty if o_lot_qty > 0 else Decimal("0")
+
+            matched_pnl = None
+            matched_pnl_eur = None
+            matched_net_pnl = None
+            matched_net_pnl_eur = None
+            o_exit_price = o_lot.exit_price
+            if o_exit_price is not None and o_exit_price > Decimal("0.001"):
+                lot_multiplier = Decimal(open_lot.multiplier)
+                open_lot_entry_price = cast(Decimal, open_lot.entry_price)
+                if open_lot.direction == Direction.LONG:
+                    matched_pnl = (o_exit_price - open_lot_entry_price) * match_qty * lot_multiplier
+                else:
+                    matched_pnl = (open_lot_entry_price - o_exit_price) * match_qty * lot_multiplier
+                if matched_pnl is not None:
+                    matched_net_pnl = matched_pnl - (lot_comm + o_lot_comm)
+            o_lot_pnl_eur = o_lot.pnl_eur
+            if o_lot_pnl_eur is not None and o_lot_qty > 0:
+                matched_pnl_eur = (o_lot_pnl_eur * match_qty) / o_lot_qty
+                if matched_net_pnl is not None:
+                    matched_net_pnl_eur = matched_net_pnl * (matched_pnl_eur / matched_pnl) if matched_pnl and matched_pnl != Decimal("0") else matched_net_pnl
+
+            filled_orphaned_trade = o_lot.model_copy(
+                update={
+                    "quantity": match_qty,
+                    "entry_price": open_lot.entry_price,
+                    "opened_at": open_lot.opened_at,
+                    "commission": lot_comm + o_lot_comm,
+                    "pnl": matched_pnl,
+                    "pnl_eur": matched_pnl_eur,
+                    "net_pnl": matched_net_pnl,
+                    "net_pnl_eur": matched_net_pnl_eur,
+                }
+            )
+            completed_trades.append(filled_orphaned_trade)
+
+            open_lot.quantity = open_lot_qty - match_qty
+            open_lot.commission -= lot_comm
+            o_lot.quantity = o_lot_qty - match_qty
+            o_lot.commission -= o_lot_comm
+
+            if open_lot.quantity is not None and open_lot.quantity <= Decimal("0"):
+                queue.popleft()
+            if o_lot.quantity is not None and o_lot.quantity <= Decimal("0"):
+                o_queue.popleft()
+
+
+def _finalize_open_lots(
+    open_lots: dict[tuple[str, str | None, str], deque[TradeCreate]],
+    completed_trades: list[TradeCreate],
+) -> None:
+    """Add any remaining open lots to the completed trades list."""
+    for queue in open_lots.values():
+        for lot in queue:
+            lot.exit_price = None
+            lot.closed_at = None
+            lot.pnl = None
+            lot.net_pnl = None
+            lot.pnl_eur = None
+            lot.net_pnl_eur = None
+            completed_trades.append(lot)
+
+
 def aggregate_executions_fifo(
     executions: list[TradeCreate],
     symbol_map: dict[str, str] | None = None,
@@ -576,42 +723,7 @@ def aggregate_executions_fifo(
 
     # Pre-populate the queue with seed lots from the DB (existing open positions).
     if seed_open_lots:
-        for seed in sorted(seed_open_lots, key=lambda s: s.opened_at):
-            seed_symbol = seed.symbol
-            if symbol_map and seed_symbol in symbol_map:
-                seed_symbol = symbol_map[seed_symbol]
-            seed_conid = seed.broker_conid
-            if conid_map and seed_conid in conid_map:
-                seed_conid = conid_map[seed_conid]
-
-            # asset_class and direction are StrEnums — str() gives the canonical value
-            asset_class_val: str = str(seed.asset_class)
-            key: tuple[str, str | None, str] = (
-                seed_symbol,
-                seed_conid,
-                asset_class_val,
-            )
-            if key not in open_lots:
-                open_lots[key] = deque()
-
-            opened_at = seed.opened_at
-            if opened_at.tzinfo is None:
-                opened_at = opened_at.replace(tzinfo=UTC)
-
-            seed_tc = TradeCreate(
-                user_id=None,
-                symbol=seed_symbol,
-                direction=Direction(seed.direction),
-                asset_class=AssetClass(seed.asset_class),
-                quantity=seed.quantity,
-                entry_price=seed.entry_price,
-                commission=seed.commission,
-                opened_at=opened_at,
-                broker_conid=seed_conid,
-                db_trade_id=seed.id,
-                multiplier=seed.multiplier,
-            )
-            open_lots[key].append(seed_tc)
+        _preload_seed_lots(seed_open_lots, open_lots, symbol_map, conid_map, is_orphaned=False)
 
     # Two-pointer merge: advance through executions; apply any split events whose
     # date falls at or before the current execution's date first.
@@ -620,51 +732,7 @@ def aggregate_executions_fifo(
     orphaned_lots: dict[tuple[str, str | None, str], deque[TradeCreate]] = {}
 
     if seed_orphaned_lots:
-        for seed in sorted(seed_orphaned_lots, key=lambda s: s.opened_at):
-            seed_symbol = seed.symbol
-            if symbol_map and seed_symbol in symbol_map:
-                seed_symbol = symbol_map[seed_symbol]
-            seed_conid = seed.broker_conid
-            if conid_map and seed_conid in conid_map:
-                seed_conid = conid_map[seed_conid]
-
-            orphaned_asset_class_val: str = str(seed.asset_class)
-            orphaned_key: tuple[str, str | None, str] = (
-                seed_symbol,
-                seed_conid,
-                orphaned_asset_class_val,
-            )
-            if orphaned_key not in orphaned_lots:
-                orphaned_lots[orphaned_key] = deque()
-
-            opened_at = seed.opened_at
-            if opened_at.tzinfo is None:
-                opened_at = opened_at.replace(tzinfo=UTC)
-
-            # seed.closed_at is not part of SeedLotLike protocol,
-            # but the DB object has it.
-            # We can use getattr just in case.
-            closed_at = getattr(seed, "closed_at", None)
-            if closed_at and closed_at.tzinfo is None:
-                closed_at = closed_at.replace(tzinfo=UTC)
-
-            seed_tc = TradeCreate(
-                user_id=None,
-                symbol=seed_symbol,
-                direction=Direction(seed.direction),
-                asset_class=AssetClass(seed.asset_class),
-                quantity=seed.quantity,
-                entry_price=seed.entry_price,
-                exit_price=getattr(seed, "exit_price", None),
-                commission=seed.commission,
-                opened_at=opened_at,
-                closed_at=closed_at,
-                pnl=getattr(seed, "pnl", None),
-                broker_conid=seed_conid,
-                db_trade_id=seed.id,
-                multiplier=seed.multiplier,
-            )
-            orphaned_lots[orphaned_key].append(seed_tc)
+        _preload_seed_lots(seed_orphaned_lots, orphaned_lots, symbol_map, conid_map, is_orphaned=True)
 
     ca_idx = 0
 
@@ -895,90 +963,10 @@ def aggregate_executions_fifo(
         ca_idx += 1
 
     # Match any remaining open lots against orphaned lots from future imports
-    for key, queue in open_lots.items():
-        o_queue = orphaned_lots.get(key)
-        while queue and o_queue:
-            o_lot = o_queue[0]
-            open_lot = queue[0]
-
-            o_lot_qty = cast(Decimal, o_lot.quantity)
-            open_lot_qty = cast(Decimal, open_lot.quantity)
-
-            if o_lot.direction != open_lot.direction:
-                # Can't match, directions don't align
-                break
-
-            match_qty = min(o_lot_qty, open_lot_qty)
-
-            open_lot_commission = open_lot.commission
-            if open_lot_commission is None:
-                open_lot_commission = Decimal("0")
-            o_lot_commission = o_lot.commission
-            if o_lot_commission is None:
-                o_lot_commission = Decimal("0")
-            lot_comm = (open_lot_commission * match_qty) / open_lot_qty if open_lot_qty > 0 else Decimal("0")
-            o_lot_comm = (o_lot_commission * match_qty) / o_lot_qty if o_lot_qty > 0 else Decimal("0")
-
-            matched_pnl = None
-            matched_pnl_eur = None
-            matched_net_pnl = None
-            matched_net_pnl_eur = None
-            o_exit_price = o_lot.exit_price
-            if o_exit_price is not None and o_exit_price > Decimal("0.001"):
-                # Exact Gross PnL: use the open lot's true entry price.
-                lot_multiplier = Decimal(open_lot.multiplier)
-                open_lot_entry_price = cast(Decimal, open_lot.entry_price)
-                if open_lot.direction == Direction.LONG:
-                    matched_pnl = (o_exit_price - open_lot_entry_price) * match_qty * lot_multiplier
-                else:
-                    matched_pnl = (open_lot_entry_price - o_exit_price) * match_qty * lot_multiplier
-                if matched_pnl is not None:
-                    matched_net_pnl = matched_pnl - (lot_comm + o_lot_comm)
-            o_lot_pnl_eur = o_lot.pnl_eur
-            if o_lot_pnl_eur is not None and o_lot_qty > 0:
-                matched_pnl_eur = (o_lot_pnl_eur * match_qty) / o_lot_qty
-                if matched_net_pnl is not None:
-                    matched_net_pnl_eur = matched_net_pnl * (matched_pnl_eur / matched_pnl) if matched_pnl and matched_pnl != Decimal("0") else matched_net_pnl
-
-            # Create the filled orphaned lot by taking the
-            # exit details from the orphaned lot
-            # and the entry details from the open lot
-            filled_orphaned_trade = o_lot.model_copy(
-                update={
-                    "quantity": match_qty,
-                    "entry_price": open_lot.entry_price,
-                    "opened_at": open_lot.opened_at,
-                    "commission": lot_comm + o_lot_comm,
-                    "pnl": matched_pnl,
-                    "pnl_eur": matched_pnl_eur,
-                    "net_pnl": matched_net_pnl,
-                    "net_pnl_eur": matched_net_pnl_eur,
-                }
-            )
-            completed_trades.append(filled_orphaned_trade)
-
-            # Deduct
-            open_lot.quantity = open_lot_qty - match_qty
-            open_lot.commission -= lot_comm
-            o_lot.quantity = o_lot_qty - match_qty
-            o_lot.commission -= o_lot_comm
-
-            if open_lot.quantity is not None and open_lot.quantity <= Decimal("0"):
-                queue.popleft()
-            if o_lot.quantity is not None and o_lot.quantity <= Decimal("0"):
-                o_queue.popleft()
+    _reconcile_orphaned_lots(open_lots, orphaned_lots, completed_trades)
 
     # Add any remaining open lots to the output
-    for queue in open_lots.values():
-        for lot in queue:
-            # Ensure it looks like an open trade
-            lot.exit_price = None
-            lot.closed_at = None
-            lot.pnl = None
-            lot.net_pnl = None
-            lot.pnl_eur = None
-            lot.net_pnl_eur = None
-            completed_trades.append(lot)
+    _finalize_open_lots(open_lots, completed_trades)
 
     # Sort final output by opened_at
     return sorted(completed_trades, key=lambda x: x.opened_at)
@@ -1055,14 +1043,6 @@ def _apply_split_event(
             if lot.commission is not None:
                 lot.commission = lot.commission * ca.ratio
 
-        logger.debug(
-            "Applied split ratio=%s for symbol '%s' to %d open lot(s) (key=%s).",
-            ca.ratio,
-            ca.symbol,
-            len(queue),
-            key,
-        )
-
         # Schedule queue re-keying if conid changed
         if ca.old_conid is not None and ca.new_conid is not None:
             new_key: tuple[str, str | None, str] = (
@@ -1086,8 +1066,6 @@ def _apply_split_event(
             )
         else:
             open_lots[new_key] = existing_queue
-        logger.debug("Re-keyed open lots queue from %s → %s.", old_key, new_key)
-
 
 def aggregate_executions_fifo_with_sources(
     executions: list[TradeCreate],
@@ -1201,12 +1179,6 @@ def aggregate_executions_fifo_with_sources(
             trade_create=trade,
             source_executions=source_allocations,
         )
-        logger.debug(
-            "Trade with sources: symbol=%s, qty=%s, sources=%s",
-            trade.symbol,
-            quantity_for_this_trade,
-            [f"{a.execution_id}:{a.quantity_used}" for a in source_allocations],
-        )
         trades_with_sources.append(trade_with_sources)
 
     # Build usage counts per execution for split detection in O(n).
@@ -1227,11 +1199,5 @@ def aggregate_executions_fifo_with_sources(
             "Split detection: %d executions will be split across multiple trades",
             len(executions_needing_split),
         )
-        for exec_id in executions_needing_split:
-            logger.debug(
-                "Execution %s used by %d trades",
-                exec_id,
-                execution_usage_count[exec_id],
-            )
 
     return trades_with_sources

@@ -19,6 +19,7 @@
 
 "use client";
 
+import { useMemo } from "react";
 import type { LogicalExecution, Trade } from "@/lib/types";
 
 interface Props {
@@ -72,91 +73,95 @@ function formatCompactContractLabel(type: string | null, strike: string | null):
 
 export function ExecutionSummaryCard({ trade, executions }: Props) {
   const count = executions.length;
-  const activeExecutions = executions.filter((execution) => !execution.deleted);
+  const activeExecutions = useMemo(() => executions.filter((execution) => !execution.deleted), [executions]);
   const isMult = trade.multiplier > 1;
 
   if (trade.is_combo) {
-    const grouped = new Map<
-      string,
-      {
-        symbol: string;
-        assetClass: string;
-        conid: string | null;
-        optionType: string | null;
-        strike: string | null;
-        expiry: string | null;
-        multiplier: number;
-        direction: "LONG" | "SHORT";
-        firstSeenAt: number;
-        quantity: number;
-        vwap: number | null;
-        notional: number | null;
+    const { rows, totalCommission, totalPnl, hasBrokerPnl } = useMemo(() => {
+      const grouped = new Map<
+        string,
+        {
+          symbol: string;
+          assetClass: string;
+          conid: string | null;
+          optionType: string | null;
+          strike: string | null;
+          expiry: string | null;
+          multiplier: number;
+          direction: "LONG" | "SHORT";
+          firstSeenAt: number;
+          quantity: number;
+          vwap: number | null;
+          notional: number | null;
+        }
+      >();
+      const groupCost = new Map<string, number>();
+
+      let totalCommission = 0;
+      let totalPnl = 0;
+      let hasBrokerPnl = false;
+
+      for (const execution of activeExecutions) {
+        const key = `${execution.symbol}:${execution.asset_class}:${execution.option_type ?? "none"}:${execution.strike ?? "none"}:${execution.expiry ?? "none"}:${execution.conid ?? "none"}`;
+        const qty = parseFloat(execution.raw_quantity);
+        const price = parseFloat(execution.raw_price);
+        const multiplier = execution.multiplier;
+        const commission = parseFloat(execution.commission);
+        const pnl = execution.pnl === null ? null : parseFloat(execution.pnl);
+
+        if (!isNaN(commission)) {
+          totalCommission += commission;
+        }
+        if (pnl !== null && !isNaN(pnl)) {
+          hasBrokerPnl = true;
+          totalPnl += pnl;
+        }
+
+        const existing = grouped.get(key);
+
+        if (!existing) {
+          const initialQty = !isNaN(qty) ? qty : 0;
+          const initialCost = !isNaN(qty) && !isNaN(price) ? qty * price : 0;
+          const firstSeenAt = new Date(execution.executed_at).getTime();
+          grouped.set(key, {
+            symbol: execution.symbol,
+            assetClass: execution.asset_class,
+            conid: execution.conid,
+            optionType: execution.option_type ?? null,
+            strike: execution.strike ?? null,
+            expiry: execution.expiry ?? null,
+            multiplier,
+            direction: execution.direction,
+            firstSeenAt,
+            quantity: initialQty,
+            vwap: initialQty > 0 ? initialCost / initialQty : null,
+            notional:
+              initialQty > 0 && initialCost >= 0
+                ? (initialCost / initialQty) * initialQty * multiplier
+                : null,
+          });
+          groupCost.set(key, initialCost);
+          continue;
+        }
+
+        if (execution.direction === existing.direction && !isNaN(qty) && !isNaN(price)) {
+          const prevQty = existing.quantity;
+          const prevCost = groupCost.get(key) ?? (existing.vwap ?? 0) * prevQty;
+          const nextQty = prevQty + qty;
+          const nextCost = prevCost + qty * price;
+          existing.quantity = nextQty;
+          existing.vwap = nextQty > 0 ? nextCost / nextQty : null;
+          existing.notional = existing.vwap !== null ? existing.vwap * nextQty * existing.multiplier : null;
+          groupCost.set(key, nextCost);
+        }
       }
-    >();
-    const groupCost = new Map<string, number>();
 
-    let totalCommission = 0;
-    let totalPnl = 0;
-    let hasBrokerPnl = false;
+      const rows = Array.from(grouped.values()).sort(
+        (a, b) => a.firstSeenAt - b.firstSeenAt,
+      );
 
-    for (const execution of activeExecutions) {
-      const key = `${execution.symbol}:${execution.asset_class}:${execution.option_type ?? "none"}:${execution.strike ?? "none"}:${execution.expiry ?? "none"}:${execution.conid ?? "none"}`;
-      const qty = parseFloat(execution.raw_quantity);
-      const price = parseFloat(execution.raw_price);
-      const multiplier = execution.multiplier;
-      const commission = parseFloat(execution.commission);
-      const pnl = execution.pnl === null ? null : parseFloat(execution.pnl);
-
-      if (!isNaN(commission)) {
-        totalCommission += commission;
-      }
-      if (pnl !== null && !isNaN(pnl)) {
-        hasBrokerPnl = true;
-        totalPnl += pnl;
-      }
-
-      const existing = grouped.get(key);
-
-      if (!existing) {
-        const initialQty = !isNaN(qty) ? qty : 0;
-        const initialCost = !isNaN(qty) && !isNaN(price) ? qty * price : 0;
-        const firstSeenAt = new Date(execution.executed_at).getTime();
-        grouped.set(key, {
-          symbol: execution.symbol,
-          assetClass: execution.asset_class,
-          conid: execution.conid,
-          optionType: execution.option_type ?? null,
-          strike: execution.strike ?? null,
-          expiry: execution.expiry ?? null,
-          multiplier,
-          direction: execution.direction,
-          firstSeenAt,
-          quantity: initialQty,
-          vwap: initialQty > 0 ? initialCost / initialQty : null,
-          notional:
-            initialQty > 0 && initialCost >= 0
-              ? (initialCost / initialQty) * initialQty * multiplier
-              : null,
-        });
-        groupCost.set(key, initialCost);
-        continue;
-      }
-
-      if (execution.direction === existing.direction && !isNaN(qty) && !isNaN(price)) {
-        const prevQty = existing.quantity;
-        const prevCost = groupCost.get(key) ?? (existing.vwap ?? 0) * prevQty;
-        const nextQty = prevQty + qty;
-        const nextCost = prevCost + qty * price;
-        existing.quantity = nextQty;
-        existing.vwap = nextQty > 0 ? nextCost / nextQty : null;
-        existing.notional = existing.vwap !== null ? existing.vwap * nextQty * existing.multiplier : null;
-        groupCost.set(key, nextCost);
-      }
-    }
-
-    const rows = Array.from(grouped.values()).sort(
-      (a, b) => a.firstSeenAt - b.firstSeenAt,
-    );
+      return { rows, totalCommission, totalPnl, hasBrokerPnl };
+    }, [activeExecutions]);
 
     return (
       <div className="bg-card rounded-xl border border-border p-4">
@@ -204,16 +209,16 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
                         </>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right text-foreground">
-                      {fmtQty(row.quantity)} {row.multiplier > 1 ? "contracts" : "shares"}
+                    <td className="px-3 py-2 text-right text-foreground font-mono">
+                      {fmtQty(row.quantity)} <span className="font-sans">{row.multiplier > 1 ? "contracts" : "shares"}</span>
                       {row.multiplier > 1 && (
-                        <span className="ml-2 text-xs text-muted-foreground">&times;{row.multiplier}</span>
+                        <span className="ml-2 text-xs text-muted-foreground font-sans">&times;{row.multiplier}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right text-foreground">
+                    <td className="px-3 py-2 text-right text-foreground font-mono">
                       {row.vwap === null ? "—" : fmt(row.vwap)}
                     </td>
-                    <td className="px-3 py-2 text-right text-foreground">
+                    <td className="px-3 py-2 text-right text-foreground font-mono">
                       {row.notional === null ? "—" : fmt(row.notional)}
                     </td>
                   </tr>
@@ -221,11 +226,11 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
               })}
               <tr className="bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]">
                 <td className="px-3 py-2 text-xs font-medium text-muted-foreground" colSpan={3}>
-                  Total Commission: <span className="text-foreground">{fmt(totalCommission)}</span>
+                  Total Commission: <span className="text-foreground font-mono">{fmt(totalCommission)}</span>
                 </td>
                 <td className="px-3 py-2 text-xs font-medium text-muted-foreground" colSpan={2}>
                   Combined P&amp;L:{" "}
-                  <span className="text-foreground">{hasBrokerPnl ? fmt(totalPnl) : "—"}</span>
+                  <span className="text-foreground font-mono">{hasBrokerPnl ? fmt(totalPnl) : "—"}</span>
                 </td>
               </tr>
             </tbody>
@@ -272,46 +277,46 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         {isMult && (
           <div>
             <dt className="text-xs text-muted-foreground mb-0.5">Multiplier</dt>
-            <dd className="font-medium text-foreground text-sm">{trade.multiplier}&times;</dd>
+            <dd className="font-medium text-foreground text-sm font-mono">{trade.multiplier}&times;</dd>
           </div>
         )}
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">
             {isMult ? "Entry Price (per unit)" : "VWAP Entry"}
           </dt>
-          <dd className="font-medium text-foreground text-sm">{fmt(trade.entry_price)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmt(trade.entry_price)}</dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">
             {isMult ? "Exit Price (per unit)" : "VWAP Exit"}
           </dt>
-          <dd className="font-medium text-foreground text-sm">{fmt(trade.exit_price)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmt(trade.exit_price)}</dd>
         </div>
         {isMult && notionalEntry !== null && (
           <div>
             <dt className="text-xs text-muted-foreground mb-0.5">Notional Entry</dt>
-            <dd className="font-medium text-foreground text-sm">{fmt(notionalEntry)}</dd>
+            <dd className="font-medium text-foreground text-sm font-mono">{fmt(notionalEntry)}</dd>
           </div>
         )}
         {isMult && notionalExit !== null && (
           <div>
             <dt className="text-xs text-muted-foreground mb-0.5">Notional Exit</dt>
-            <dd className="font-medium text-foreground text-sm">{fmt(notionalExit)}</dd>
+            <dd className="font-medium text-foreground text-sm font-mono">{fmt(notionalExit)}</dd>
           </div>
         )}
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Total Quantity</dt>
-          <dd className="font-medium text-foreground text-sm">{fmtQty(trade.quantity)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmtQty(trade.quantity)}</dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Total Commission</dt>
-          <dd className="font-medium text-foreground text-sm">{fmt(trade.commission)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmt(trade.commission)}</dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">P&amp;L</dt>
-          <dd className="font-medium text-foreground text-sm">
+          <dd className="font-medium text-foreground text-sm font-mono">
             {trade.pnl ? (
-              <span className={parseFloat(trade.pnl) >= 0 ? "text-emerald-500" : "text-red-500"}>
+              <span className={parseFloat(trade.pnl) >= 0 ? "text-success" : "text-danger"}>
                 {parseFloat(trade.pnl) >= 0 ? "+" : ""}
                 {fmt(trade.pnl)}
               </span>
@@ -322,11 +327,11 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Stop Loss</dt>
-          <dd className="font-medium text-foreground text-sm">{fmt(trade.stop_loss)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmt(trade.stop_loss)}</dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Take Profit</dt>
-          <dd className="font-medium text-foreground text-sm">{fmt(trade.take_profit)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmt(trade.take_profit)}</dd>
         </div>
       </div>
     </div>

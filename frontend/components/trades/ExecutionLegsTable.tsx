@@ -202,7 +202,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                     execution={ex}
                     trade={trade}
                     tradeId={tradeId}
-
+                    colSpan={10 + (trade.is_combo ? 3 : 0) + (hasOptionLeg ? 3 : 0)}
                     onMoveToTrade={handleMoveToTrade}
                     onDetach={handleDetach}
                     onSplit={setSplitExecution}

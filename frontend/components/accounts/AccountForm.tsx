@@ -37,7 +37,7 @@ interface Props {
 }
 
 const INPUT_CLASS =
-  "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
+  "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
 
 const ACCOUNT_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
@@ -160,7 +160,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
         {/* Name */}
         <div>
           <label htmlFor="acct-name" className={LABEL_CLASS}>
-            Name <span className="text-red-400">*</span>
+            Name <span className="text-danger">*</span>
           </label>
           <input
             id="acct-name"
@@ -192,7 +192,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
         {/* Account Type */}
         <div>
           <label htmlFor="acct-type" className={LABEL_CLASS}>
-            Account Type <span className="text-red-400">*</span>
+            Account Type <span className="text-danger">*</span>
           </label>
           <select
             id="acct-type"
@@ -219,7 +219,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
             <p className="text-xs font-semibold text-muted-foreground">
               API Credentials
             </p>
-            <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {isEditing && account?.has_api_keys
                 ? "Credentials are already stored. Enter new values to replace them."
                 : "Credentials are encrypted before storage and never returned in plain text."}
@@ -253,7 +253,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
             <p className="text-xs font-semibold text-muted-foreground">
               Default Sync Settings
             </p>
-            <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               These defaults are pre-filled on the Import page for this account.
             </p>
           </div>
@@ -292,7 +292,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
                   <option value="ytd">Year to date (Jan 1 – Today)</option>
                   <option value="custom">Custom start date</option>
                 </select>
-                <p className="text-xs text-zinc-400 dark:text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   IBKR Flex maximum: 1 year. Custom start date can be set per-import.
                 </p>
               </div>
@@ -302,7 +302,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
       )}
 
       {errorMessage && (
-        <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+        <p className="text-sm text-danger bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-md px-3 py-2">
           {errorMessage}
         </p>
       )}
@@ -319,7 +319,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 bg-secondary hover:bg-zinc-200 dark:hover:bg-zinc-600 text-muted-foreground rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-secondary hover:bg-muted text-muted-foreground rounded-md text-sm transition-colors"
         >
           Cancel
         </button>

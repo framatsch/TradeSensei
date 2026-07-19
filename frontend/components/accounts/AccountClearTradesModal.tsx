@@ -39,9 +39,14 @@ export function AccountClearTradesModal({ account, onClose, onClearTrades, isCle
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
+      <div 
+        className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${uid}-title`}
+      >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">Clear All Trades</h3>
+          <h3 id={`${uid}-title`} className="text-lg font-semibold text-foreground">Clear All Trades</h3>
           <button
             onClick={onClose}
             className="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors"

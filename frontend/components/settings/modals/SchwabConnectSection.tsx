@@ -46,7 +46,10 @@ export function SchwabConnectSection({ account }: Props) {
       if (error || !data) throw error;
       return data.data;
     },
-    refetchInterval: 5000, // Poll every 5s for callback mode
+    refetchInterval: (query) => {
+      const isConnected = (query.state.data as any)?.connected;
+      return isConnected ? false : 5000;
+    },
   });
 
   const connected = statusRes?.connected ?? false;
@@ -127,7 +130,7 @@ export function SchwabConnectSection({ account }: Props) {
         </div>
         
         {connected ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-900/30 text-emerald-400 border border-emerald-800">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium surface-success text-success border">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Connected
           </span>

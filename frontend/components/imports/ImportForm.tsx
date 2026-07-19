@@ -35,6 +35,7 @@ import { capabilityFor } from "@/components/imports/ImportCapability";
 import type { QueuedFile } from "@/components/imports/FileQueue";
 import type { ImportResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
 import { client } from "@/lib/api/client.gen";
+import { syncAccountApiV1BrokerSyncAccountIdPost } from "@/lib/api";
 import { extractApiError } from "@/lib/apiErrors";
 
 /** Multipart upload via raw fetch — bypasses the JSON body serializer of the SDK client. */
@@ -263,11 +264,20 @@ export function ImportForm() {
       const cap = selectedAccount ? capabilityFor(selectedAccount.type) : null;
       const fromDateStr = getFlexFromDate();
       const days = computeDaysFromFromDate(fromDateStr);
-      const fromDateParam = cap?.syncParam.kind === "fromDate" ? `&from_date=${fromDateStr}` : "";
-      const overwrite = overwriteManuallyEdited ? "&overwrite_manually_edited=true" : "";
-      const { data: syncData, error: syncErr } = await client.post({ url: `/api/v1/broker/sync/${accountId}?days=${days}${fromDateParam}${overwrite}` as any });
+      const { data: syncData, error: syncErr } = await syncAccountApiV1BrokerSyncAccountIdPost({
+        client,
+        path: { account_id: accountId },
+        query: {
+          days,
+          ...(cap?.syncParam.kind === "fromDate" ? { from_date: getFlexFromDate() } : {}),
+          ...(overwriteManuallyEdited ? { overwrite_manually_edited: true } : {})
+        }
+      });
       if (syncErr || !syncData) throw syncErr ?? new Error("Sync failed");
-      return (syncData as any).data;
+      return {
+        ...syncData.data,
+        errors: syncData.data.errors ?? [],
+      } as BrokerSyncResult;
     },
     onSuccess: (data) => {
       setSyncResult(data);
@@ -297,7 +307,7 @@ export function ImportForm() {
           <h2 className="text-sm font-semibold text-foreground">
             Step 1 — Select Account
           </h2>
-          <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Choose the trading account you want to import trades into.
           </p>
         </div>
@@ -310,7 +320,7 @@ export function ImportForm() {
           <select
             value={accountId}
             onChange={(e) => handleAccountChange(e.target.value)}
-            className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">— Select an account —</option>
             {(accounts ?? [])
@@ -371,7 +381,7 @@ export function ImportForm() {
                     <h3 className="text-sm font-semibold text-foreground">
                       Sync via API
                     </h3>
-                    <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       Fetch recent trades directly from {TYPE_LABEL[accountType]}.
                     </p>
                   </div>
@@ -415,7 +425,7 @@ export function ImportForm() {
                           disabled={isSyncing}
                           className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
                         />
-                        <span className="text-xs text-muted-foreground dark:text-zinc-400">
+                        <span className="text-xs text-muted-foreground">
                           Overwrite manually-edited trades
                         </span>
                       </label>
@@ -466,7 +476,7 @@ export function ImportForm() {
             /* Broker account without API keys — only show upload */
             <div className="bg-card rounded-xl border border-border p-6 space-y-4">
               <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md px-4 py-3">
-                <span className="text-amber-600 dark:text-amber-400 text-sm leading-relaxed">
+                <span className="text-amber-600 text-sm leading-relaxed">
                   ⚠ No API credentials stored for this {TYPE_LABEL[accountType]} account. Add them in Settings → Accounts to enable API sync, or upload files below.
                 </span>
               </div>
@@ -538,7 +548,7 @@ function FileUploadCard({
         <h3 className="text-sm font-semibold text-foreground">
           Upload Files
         </h3>
-        <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">
+        <p className="text-xs text-muted-foreground mt-0.5">
           Import from broker export files ({ACCOUNT_FORMAT_HINT[accountType]}).
         </p>
       </div>
@@ -553,10 +563,10 @@ function FileUploadCard({
             multiple
             accept={ACCOUNT_ACCEPT[accountType]}
             onChange={handleFileChange}
-            className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-secondary file:text-foreground file:cursor-pointer hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700 file:font-medium"
+            className="w-full text-muted-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-secondary file:text-foreground file:cursor-pointer hover:file:bg-muted file:font-medium"
           />
           {hasFiles && (
-            <p className="text-xs text-muted-foreground dark:text-zinc-400">
+            <p className="text-xs text-muted-foreground">
               {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""} selected
             </p>
           )}
@@ -587,7 +597,7 @@ function FileUploadCard({
           <button
             type="button"
             onClick={handleReset}
-            className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
+            className="text-xs text-muted-foreground hover:text-foreground underline"
           >
             Import more files
           </button>
@@ -604,7 +614,7 @@ function FileUploadCard({
               onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
               className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
             />
-            <span className="text-xs text-muted-foreground dark:text-zinc-400">
+            <span className="text-xs text-muted-foreground">
               Overwrite manually-edited trades
             </span>
           </label>
@@ -647,7 +657,7 @@ function SyncResultPanel({
       <button
         type="button"
         onClick={onReset}
-        className="text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 underline"
+        className="text-xs text-muted-foreground hover:text-foreground underline"
       >
         Sync again
       </button>
@@ -658,7 +668,7 @@ function SyncResultPanel({
 function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="text-center">
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+      <p className={`text-2xl font-bold font-mono ${color}`}>{value}</p>
       <p className="text-xs text-muted-foreground mt-1">{label}</p>
     </div>
   );

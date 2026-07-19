@@ -300,16 +300,17 @@ def compute_consecutive_runs(pnl_series: list[Decimal]) -> tuple[int, int]:
     cur_losses = 0
 
     for pnl in pnl_series:
-        if pnl > _ZERO:
-            cur_wins += 1
-            cur_losses = 0
-        elif pnl < _ZERO:
-            cur_losses += 1
-            cur_wins = 0
-        else:
-            # Break-even trade resets both streaks.
-            cur_wins = 0
-            cur_losses = 0
+        match pnl:
+            case p if p > _ZERO:
+                cur_wins += 1
+                cur_losses = 0
+            case p if p < _ZERO:
+                cur_losses += 1
+                cur_wins = 0
+            case _:
+                # Break-even trade resets both streaks.
+                cur_wins = 0
+                cur_losses = 0
 
         if cur_wins > max_wins:
             max_wins = cur_wins

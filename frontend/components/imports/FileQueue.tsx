@@ -41,7 +41,7 @@ interface FileQueueProps {
 
 const STATUS_ICON: Record<FileStatus, React.ReactNode> = {
   pending: (
-    <span className="w-5 h-5 rounded-full border-2 border-zinc-400 dark:border-border flex-shrink-0" />
+    <span className="w-5 h-5 rounded-full border-2 border-border flex-shrink-0" />
   ),
   uploading: (
     <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -49,12 +49,12 @@ const STATUS_ICON: Record<FileStatus, React.ReactNode> = {
     </span>
   ),
   done: (
-    <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
+    <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-success text-xs font-bold">
       ✓
     </span>
   ),
   error: (
-    <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded-full bg-red-500/20 text-red-400 text-xs font-bold">
+    <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-danger text-xs font-bold">
       ✗
     </span>
   ),
@@ -75,7 +75,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
     <div className="space-y-3">
       {/* Overall progress bar */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-zinc-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
             {done < total
               ? `Processing file ${Math.min(currentIndex + 1, total)} of ${total}…`
@@ -83,7 +83,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
           </span>
           <span>{progressPct}%</span>
         </div>
-        <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
           <div
             className="h-full bg-blue-500 rounded-full transition-all duration-300"
             style={{ width: `${progressPct}%` }}
@@ -99,12 +99,12 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
             className={[
               "flex items-start gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
               qf.status === "uploading"
-                ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+                ? "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] border-[color-mix(in_srgb,var(--primary)_20%,transparent)]"
                 : qf.status === "done"
-                ? "bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900"
+                ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]"
                 : qf.status === "error"
-                ? "bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900"
-                : "bg-zinc-50 dark:bg-zinc-800/50 border border-border",
+                ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+                : "bg-secondary border-border",
             ].join(" ")}
           >
             <div className="mt-0.5">{STATUS_ICON[qf.status]}</div>
@@ -113,23 +113,23 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
               <p className="font-medium text-foreground truncate">
                 {qf.file.name}
               </p>
-              <p className="text-xs text-muted-foreground dark:text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 {formatBytes(qf.file.size)}
               </p>
 
               {/* Result summary */}
               {qf.status === "done" && qf.result && (
                 <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <span className="text-emerald-600 dark:text-emerald-400">
+                  <span className="text-success">
                     +{qf.result.trades_created} created
                   </span>
                   {qf.result.trades_skipped > 0 && (
-                    <span className="text-amber-600 dark:text-amber-400">
+                    <span className="text-warning">
                       {qf.result.trades_skipped} skipped
                     </span>
                   )}
                   {qf.result.warnings.length > 0 && (
-                    <span className="text-orange-500 dark:text-orange-400">
+                    <span className="text-warning">
                       {qf.result.warnings.length} warning{qf.result.warnings.length !== 1 ? "s" : ""}
                     </span>
                   )}
@@ -138,7 +138,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
 
               {/* Error message */}
               {qf.status === "error" && qf.error && (
-                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{qf.error}</p>
+                <p className="mt-1 text-xs text-danger">{qf.error}</p>
               )}
             </div>
           </li>
@@ -162,16 +162,16 @@ export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
         Import complete — {files.length} file{files.length !== 1 ? "s" : ""} processed
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <SummaryBox label="Trades Created" value={totalCreated} color="text-emerald-500" />
-        <SummaryBox label="Trades Skipped" value={totalSkipped} color="text-amber-500" />
+        <SummaryBox label="Trades Created" value={totalCreated} color="text-success" />
+        <SummaryBox label="Trades Skipped" value={totalSkipped} color="text-warning" />
         <SummaryBox
           label="Files with Errors"
           value={errorCount}
-          color={errorCount > 0 ? "text-red-500" : "text-zinc-400"}
+          color={errorCount > 0 ? "text-danger" : "text-muted-foreground"}
         />
       </div>
       {warnCount > 0 && (
-        <p className="text-xs text-orange-500 dark:text-orange-400">
+        <p className="text-xs text-warning">
           {warnCount} warning{warnCount !== 1 ? "s" : ""} across all files — expand individual files for details.
         </p>
       )}
@@ -189,9 +189,9 @@ function SummaryBox({
   color: string;
 }) {
   return (
-    <div className="text-center bg-zinc-50 dark:bg-zinc-700/50 rounded-lg py-2 px-1">
+    <div className="text-center bg-[color-mix(in_srgb,var(--muted)_40%,transparent)] rounded-lg py-2 px-1">
       <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-muted-foreground dark:text-zinc-400 mt-0.5">{label}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
     </div>
   );
 }

@@ -41,6 +41,7 @@ interface Props {
   onDetach?: (executionId: string) => void;
   onSplit?: (execution: LogicalExecution) => void;
   hasOptionLeg?: boolean;
+  colSpan?: number;
 }
 
 function fmt(value: string | null): string {
@@ -83,7 +84,7 @@ function fmtOpenClose(value: "O" | "C" | null | undefined): string {
   return "—";
 }
 
-export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, hasOptionLeg }: Props) {
+export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, hasOptionLeg, colSpan }: Props) {
   const { activePortfolioId } = useActivePortfolio();
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -554,7 +555,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
       {errorMsg && (
         <tr>
-          <td colSpan={trade.is_combo ? 13 : 10} className="px-3 py-2 border-b border-border">
+          <td colSpan={colSpan ?? (trade.is_combo ? 13 : 10)} className="px-3 py-2 border-b border-border">
             <p className="text-xs text-destructive">{errorMsg}</p>
           </td>
         </tr>
@@ -562,7 +563,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
       {showDeleteConfirm && (
         <tr>
-          <td colSpan={trade.is_combo ? 13 : 10} className="px-3 py-3 bg-[color-mix(in_srgb,var(--muted)_50%,transparent)] border-b border-border">
+          <td colSpan={colSpan ?? (trade.is_combo ? 13 : 10)} className="px-3 py-3 bg-[color-mix(in_srgb,var(--muted)_50%,transparent)] border-b border-border">
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-foreground">
                 Delete this execution? This will re-aggregate the trade.

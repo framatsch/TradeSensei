@@ -413,7 +413,7 @@ async def clear_account_trades(
 
     return ResponseEnvelope[ClearTradesResult](data=result)
 
-clear_account_trades.audit_metadata = {"skip_audit": True}
+clear_account_trades.audit_metadata = {"skip_audit": True}  # type: ignore[attr-defined]
 
 
 

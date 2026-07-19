@@ -138,15 +138,16 @@ class AnalyticsService:
         current_losses = 0
         for row in rows:
             pnl = row["pnl"]
-            if pnl > 0:
-                current_wins += 1
-                current_losses = 0
-            elif pnl < 0:
-                current_losses += 1
-                current_wins = 0
-            else:
-                current_losses = 0
-                current_wins = 0
+            match pnl:
+                case p if p > 0:
+                    current_wins += 1
+                    current_losses = 0
+                case p if p < 0:
+                    current_losses += 1
+                    current_wins = 0
+                case _:
+                    current_losses = 0
+                    current_wins = 0
             max_wins = max(max_wins, current_wins)
             max_losses = max(max_losses, current_losses)
         return max_wins, max_losses

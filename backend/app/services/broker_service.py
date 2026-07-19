@@ -21,6 +21,7 @@ records attached to the account and decrypted on demand.
 
 import json
 import logging
+import secrets
 import uuid
 from urllib.parse import parse_qs, urlparse
 from datetime import UTC, datetime, timedelta
@@ -358,10 +359,11 @@ class BrokerService:
         next_refresh_token = str(refreshed.get("refresh_token") or refresh_token).strip()
         next_expires_at = (datetime.now(UTC) + timedelta(seconds=expires_in)).isoformat()
 
-        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=next_access_token)
-        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=next_refresh_token)
-        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=next_expires_at)
-        await self._session.flush()
+        async with self._session.begin_nested():
+            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=next_access_token)
+            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=next_refresh_token)
+            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=next_expires_at)
+            await self._session.flush()
         return next_access_token
 
     async def start_schwab_authorization(self, account_id: uuid.UUID, user_id: uuid.UUID) -> str:
@@ -421,13 +423,14 @@ class BrokerService:
             raise ConfigurationError("Schwab OAuth exchange response was missing required token fields.")
 
         expires_at = (datetime.now(UTC) + timedelta(seconds=expires_in)).isoformat()
-        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=access_token)
-        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=refresh_token)
-        await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=expires_at)
-        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER)
-        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE)
-        await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT)
-        await self._session.flush()
+        async with self._session.begin_nested():
+            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=access_token)
+            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=refresh_token)
+            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=expires_at)
+            await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER)
+            await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE)
+            await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT)
+            await self._session.flush()
 
         self._audit.create_audit_event(
             action="broker.schwab_connected",
@@ -469,7 +472,7 @@ class BrokerService:
             raise ConfigurationError("Redirect URL is missing the OAuth state.")
 
         expected_state = self._get_property(account, SCHWAB_OAUTH_STATE)
-        if state != expected_state:
+        if not secrets.compare_digest(state, expected_state):
             raise ConfigurationError("OAuth state mismatch. Please start Schwab authorization again.")
         verifier = self._get_property(account, SCHWAB_OAUTH_CODE_VERIFIER)
         await self._exchange_and_store(account, code=code, state=state, verifier=verifier)
@@ -487,7 +490,7 @@ class BrokerService:
             raise ConfigurationError("OAuth state could not be matched or has expired.")
 
         expected_state = self._get_property(account, SCHWAB_OAUTH_STATE)
-        if state != expected_state:
+        if not secrets.compare_digest(state, expected_state):
             raise ConfigurationError("OAuth state mismatch. Please start Schwab authorization again.")
         verifier = self._get_property(account, SCHWAB_OAUTH_CODE_VERIFIER)
         await self._exchange_and_store(account, code=code, state=state, verifier=verifier)

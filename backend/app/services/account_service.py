@@ -313,19 +313,20 @@ class AccountService:
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
 
-        executions_deleted = await self._exec_repo.delete_all_for_account(
-            user_id=user_id,
-            account_id=account_id,
-        )
-        await self._raw_repo.delete_by_user_account(
-            user_id=user_id,
-            account_id=account_id,
-        )
-        trades_deleted = await self._trade_repo.delete_by_user_account(
-            user_id=user_id,
-            account_id=account_id,
-            include_manually_edited=True,
-        )
+        async with self._session.begin_nested():
+            executions_deleted = await self._exec_repo.delete_all_for_account(
+                user_id=user_id,
+                account_id=account_id,
+            )
+            trades_deleted = await self._trade_repo.delete_by_user_account(
+                user_id=user_id,
+                account_id=account_id,
+                include_manually_edited=True,
+            )
+            await self._raw_repo.delete_by_user_account(
+                user_id=user_id,
+                account_id=account_id,
+            )
 
         self._audit.create_audit_event(
             action="account.trades_cleared",

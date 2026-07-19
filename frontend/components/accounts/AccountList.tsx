@@ -33,17 +33,17 @@ const TYPE_BADGE: Record<AccountType, { label: string; className: string }> = {
   manual: {
     label: "Manual",
     className:
-      "bg-secondary text-muted-foreground border border-border dark:border-border",
+      "bg-secondary text-muted-foreground border border-border",
   },
   schwab: {
     label: "Schwab",
     className:
-      "bg-blue-900/30 text-primary border border-blue-800",
+      "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]",
   },
   ibkr: {
     label: "IBKR",
     className:
-      "bg-indigo-900/30 text-indigo-400 border border-indigo-800",
+      "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]",
   },
 };
 
@@ -148,7 +148,7 @@ export function AccountList({ accounts }: Props) {
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-border bg-zinc-100/50 dark:bg-zinc-900/50">
+              <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">
                 {["Name", "Account No.", "Type", "Currency", "Active", "Actions"].map((col) => (
                   <th
                     key={col}
@@ -168,8 +168,8 @@ export function AccountList({ accounts }: Props) {
                     <td className="px-4 py-3 text-sm font-medium text-foreground">
                       {account.name}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground dark:text-zinc-400 font-mono">
-                      {account.account_number ?? <span className="text-zinc-400 dark:text-zinc-600">—</span>}
+                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
+                      {account.account_number ?? <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       <TypeBadge type={account.type} hasApiKeys={account.has_api_keys} />
@@ -181,8 +181,8 @@ export function AccountList({ accounts }: Props) {
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           account.is_active
-                            ? "bg-emerald-900/50 text-emerald-400 border border-emerald-800"
-                            : "bg-secondary text-muted-foreground border border-border dark:border-border"
+                            ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-success border border-[color-mix(in_srgb,var(--success)_20%,transparent)]"
+                            : "bg-secondary text-muted-foreground border border-border"
                         }`}
                       >
                         {account.is_active ? "Active" : "Inactive"}
@@ -197,21 +197,21 @@ export function AccountList({ accounts }: Props) {
                               prev === account.id ? null : account.id
                             )
                           }
-                          className="px-3 py-1 bg-secondary hover:bg-zinc-200 dark:bg-zinc-600 text-muted-foreground rounded-md text-xs transition-colors"
+                          className="px-3 py-1 bg-secondary hover:bg-muted text-muted-foreground rounded-md text-xs transition-colors"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => setClearingAccount(account)}
-                          className="px-3 py-1 bg-red-900/40 hover:bg-red-800/60 text-red-400 rounded-md text-xs transition-colors"
+                          className="px-3 py-1 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-danger rounded-md text-xs transition-colors"
                         >
                           Clear Trades
                         </button>
                         <button
                           type="button"
                           onClick={() => setDeletingAccount(account)}
-                          className="px-3 py-1 bg-red-900/40 hover:bg-red-800/60 text-red-400 rounded-md text-xs transition-colors"
+                          className="px-3 py-1 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-danger rounded-md text-xs transition-colors"
                         >
                           Delete
                         </button>
@@ -222,7 +222,7 @@ export function AccountList({ accounts }: Props) {
                   {/* Inline edit form */}
                   {editingId === account.id && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-3 bg-zinc-100/30 dark:bg-zinc-900/30">
+                      <td colSpan={6} className="px-4 py-3 bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]">
                         <AccountForm
                           account={account}
                           onSave={() => setEditingId(null)}

@@ -22,6 +22,7 @@ Bearer token.
 from __future__ import annotations
 
 import uuid
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -40,6 +41,8 @@ from app.schemas.broker import (
 )
 from app.schemas.common import ResponseEnvelope
 from app.services.broker_service import BrokerService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/broker", tags=["broker"])
 
@@ -246,6 +249,7 @@ async def schwab_callback(
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
     except Exception:
+        logger.exception("Schwab callback failed")
         return RedirectResponse(url=f"{base}/dashboard/settings?tab=portfolios-brokers&schwab_callback=error", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 

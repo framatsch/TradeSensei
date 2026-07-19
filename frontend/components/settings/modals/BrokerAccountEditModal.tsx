@@ -23,12 +23,13 @@ import { client } from "@/lib/api/client.gen";
 import { 
   updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch, 
   deleteAccountApiV1PortfoliosPortfolioIdAccountsAccountIdDelete,
-  clearAccountTradesApiV1PortfoliosPortfolioIdAccountsAccountIdTradesDelete,
   getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet
 } from "@/lib/api/index";
 import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType } from "@/lib/types";
 import { SchwabConnectSection } from "./SchwabConnectSection";
+import { useClearAccountTrades } from "@/hooks/useAccounts";
+import { AccountClearTradesModal } from "../../accounts/AccountClearTradesModal";
 
 const BROKER_TYPE_LABELS: Record<string, string> = {
   ibkr: "IBKR",
@@ -37,8 +38,8 @@ const BROKER_TYPE_LABELS: Record<string, string> = {
 };
 
 const BROKER_TYPE_BADGES: Record<string, string> = {
-  ibkr: "bg-indigo-900/30 text-indigo-400 border border-indigo-800",
-  schwab: "bg-blue-900/30 text-blue-400 border border-blue-800",
+  ibkr: "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]",
+  schwab: "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]",
   manual: "bg-secondary text-muted-foreground border border-border",
 };
 
@@ -79,10 +80,8 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
   const [confirmName, setConfirmName] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Clear trades state
-  const [clearConfirmName, setClearConfirmName] = useState("");
-  const [clearError, setClearError] = useState<string | null>(null);
-  const [isClearing, setIsClearing] = useState(false);
+  const [showClearTradesModal, setShowClearTradesModal] = useState(false);
+  const { mutate: clearTrades, isPending: isClearing } = useClearAccountTrades();
 
   const uid = useId();
 
@@ -266,38 +265,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
     deleteMutation.mutate();
   };
 
-  const handleClearTrades = async () => {
-    if (clearConfirmName.trim() !== account.name) return;
-    if (!portfolioId) {
-      setClearError("Account must belong to a portfolio");
-      return;
-    }
-    setClearError(null);
-    setIsClearing(true);
-    try {
-      const { data, error: clearErr } =
-        await clearAccountTradesApiV1PortfoliosPortfolioIdAccountsAccountIdTradesDelete({
-          path: { portfolio_id: portfolioId, account_id: account.id },
-          query: { acknowledged: true },
-        });
-      if (clearErr || !data) throw clearErr ?? new Error("Failed to clear trades");
-      const result = (data as any).data;
-      qc.invalidateQueries({ queryKey: ["trades"] });
-      qc.invalidateQueries({ queryKey: ["metrics"] });
-      qc.invalidateQueries({ queryKey: ["tax"] });
-      qc.invalidateQueries({ queryKey: ["stats"] });
-      qc.invalidateQueries({ queryKey: ["accounts"] });
-      toast.success(
-        `Cleared ${result.trades_deleted} trades and ${result.executions_deleted} executions.`,
-      );
-      setClearConfirmName("");
-      onClose();
-    } catch (err: any) {
-      setClearError(extractApiError(err, "Failed to clear trades"));
-    } finally {
-      setIsClearing(false);
-    }
-  };
+
 
   const credentialFields = account.type !== "manual" ? CREDENTIAL_FIELDS[account.type] : null;
   const brokerBadge = BROKER_TYPE_BADGES[account.type] || BROKER_TYPE_BADGES.manual;
@@ -513,33 +481,14 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
                     Permanently deletes all trades, executions, and broker raw transactions for this account. The account itself remains. This cannot be undone.
                   </p>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm text-foreground font-medium">
-                    Type <span className="font-bold text-danger select-none">{account.name}</span> to confirm:
-                  </label>
-                  <input
-                    type="text"
-                    value={clearConfirmName}
-                    onChange={(e) => setClearConfirmName(e.target.value)}
-                    disabled={isClearing}
-                    placeholder={account.name}
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-danger text-foreground"
-                    data-testid="clear-trades-confirm-input"
-                  />
-                </div>
-                {clearError && (
-                  <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="clear-trades-error">
-                    {clearError}
-                  </p>
-                )}
                 <button
-                  onClick={handleClearTrades}
-                  disabled={clearConfirmName.trim() !== account.name || isClearing}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
-                  data-testid="clear-trades-button"
+                  type="button"
+                  onClick={() => setShowClearTradesModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 transition-colors"
+                  data-testid="open-clear-trades-modal"
                 >
                   <Trash2 className="h-4 w-4" />
-                  {isClearing ? "Clearing..." : "Clear All Trades"}
+                  Clear All Trades
                 </button>
               </div>
 
@@ -587,6 +536,28 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
           )}
         </div>
       </div>
+
+      {showClearTradesModal && (
+        <AccountClearTradesModal
+          account={account}
+          onClose={() => setShowClearTradesModal(false)}
+          onClearTrades={(accountId) => {
+            clearTrades(accountId, {
+              onSuccess: (result) => {
+                setShowClearTradesModal(false);
+                toast.success(
+                  `Cleared ${result.trades_deleted} trades and ${result.executions_deleted} executions.`,
+                );
+                onClose();
+              },
+              onError: (err: any) => {
+                toast.error(extractApiError(err, "Failed to clear trades"));
+              }
+            });
+          }}
+          isClearing={isClearing}
+        />
+      )}
     </div>
   );
 }

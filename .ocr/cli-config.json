@@ -1,9 +1,7 @@
 {
   "configuredTools": [
-    "claude",
-    "gemini",
-    "opencode"
+    "gemini"
   ],
-  "lastUpdated": "2026-07-13T18:37:39.154Z",
+  "lastUpdated": "2026-07-19T12:26:14.318Z",
   "cliVersion": "2.4.0"
 }

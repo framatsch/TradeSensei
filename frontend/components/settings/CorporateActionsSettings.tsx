@@ -145,7 +145,7 @@ function CorporateActionModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -264,7 +264,7 @@ function CorporateActionModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </button>
@@ -306,7 +306,7 @@ function DeleteConfirmDialog({ ca, onConfirm, onCancel, isDeleting }: DeleteDial
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </button>
@@ -425,7 +425,7 @@ export function CorporateActionsSettings() {
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-base font-semibold text-foreground">Corporate Actions</h2>
-          <p className="text-sm text-muted-foreground dark:text-zinc-400 mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Define stock splits and reverse splits. These are applied during import to adjust
             trade quantities and prices for positions that spanned a split event.
           </p>
@@ -449,12 +449,12 @@ export function CorporateActionsSettings() {
       ) : isError ? (
         <div className="py-10 text-center text-sm text-red-500">Failed to load corporate actions.</div>
       ) : !corporateActions || corporateActions.length === 0 ? (
-        <div className="py-10 text-center rounded-xl border border-dashed border-border dark:border-border text-muted-foreground text-sm">
+        <div className="py-10 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
           No corporate actions defined yet.{" "}
           <button
             type="button"
             onClick={openAddModal}
-            className="text-primary dark:text-primary hover:underline"
+            className="text-primary hover:underline"
           >
             Add your first split.
           </button>
@@ -472,36 +472,36 @@ export function CorporateActionsSettings() {
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+            <tbody className="divide-y divide-[color-mix(in_srgb,var(--border)_50%,transparent)]">
               {corporateActions.map((ca) => (
                 <tr key={ca.id} className="bg-card hover:bg-muted/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{ca.symbol}</td>
                   <td className="px-4 py-3 text-muted-foreground">{ca.date}</td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-warning border border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
                       {ratioToDisplay(ca.ratio)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground dark:text-zinc-400 font-mono text-xs">
-                    {ca.old_conid ?? <span className="text-zinc-300 dark:text-zinc-600">—</span>}
+                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
+                    {ca.old_conid ?? <span className="text-muted-foreground">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground dark:text-zinc-400 font-mono text-xs">
-                    {ca.new_conid ?? <span className="text-zinc-300 dark:text-zinc-600">—</span>}
+                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
+                    {ca.new_conid ?? <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => openEditModal(ca)}
-                        className="text-xs font-medium text-primary dark:text-primary hover:underline"
+                        className="text-xs font-medium text-primary hover:underline"
                       >
                         Edit
                       </button>
-                      <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                      <span className="text-muted-foreground">·</span>
                       <button
                         type="button"
                         onClick={() => setDeletingCa(ca)}
-                        className="text-xs font-medium text-red-500 dark:text-red-400 hover:underline"
+                        className="text-xs font-medium text-danger hover:underline"
                       >
                         Delete
                       </button>
