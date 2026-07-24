@@ -43,7 +43,7 @@ interface QualitativeMetadataPanelProps {
 }
 
 export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMetadataPanelProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const quickNotesEnabled = useFeatureFlag("enable_quick_notes");
 
   const { data: taxonomies = [] } = useGetTaxonomies("trades");
@@ -67,9 +67,9 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     setDraftPlaybookId(trade.playbook_id);
     setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
     setDraftAnnotations({});
+    setDraftAnnotations({});
     setImportedNoteIds([]);
-    setIsEditing(false);
-  }, [trade.id]);
+  }, [trade.id, trade.journal, trade.playbook_id, trade.taxonomies]);
 
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
     trade.taxonomies?.map((t) => t.id) ?? []
@@ -98,6 +98,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       // 1. Playbook and Journal
       if (draftJournal !== (trade.journal ?? "") || draftPlaybookId !== trade.playbook_id) {
@@ -142,15 +143,37 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
         }
       }
 
-      setIsEditing(false);
     } catch (e) {
       console.error("Failed to save qualitative metadata", e);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
+    setDraftJournal(trade.journal ?? "");
+    setDraftPlaybookId(trade.playbook_id);
+    setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
+    setDraftAnnotations({});
+    setImportedNoteIds([]);
   };
+
+  const originalTaxIds = trade.taxonomies?.map((t) => t.id) ?? [];
+  const taxChanged = JSON.stringify([...draftTaxonomyIds].sort()) !== JSON.stringify([...originalTaxIds].sort());
+  const journalChanged = draftJournal !== (trade.journal ?? "");
+  const playbookChanged = draftPlaybookId !== trade.playbook_id;
+  const notesImported = importedNoteIds.length > 0;
+  let annotationsChanged = false;
+  for (const def of annotationDefs) {
+    const draftVal = draftAnnotations[def.id];
+    const originalVal = trade.annotations?.find((a) => a.annotation_definition_id === def.id)?.value;
+    if (draftVal !== undefined && draftVal !== originalVal) {
+      annotationsChanged = true;
+      break;
+    }
+  }
+
+  const isDirty = taxChanged || journalChanged || playbookChanged || notesImported || annotationsChanged;
 
   const activeTaxonomies = taxonomies.filter(t => !t.is_archived || draftTaxonomyIds.includes(t.id));
 
@@ -158,32 +181,25 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     <div className="bg-card rounded-xl border border-border shadow-sm w-full">
       <div className="flex items-center justify-between p-5 border-b border-border">
         <h2 className="text-base font-semibold text-foreground">Qualitative Analysis &amp; Metadata</h2>
-        {!isEditing ? (
-          <button
-            type="button"
-            onClick={() => {
-              setIsEditing(true);
-              setJournalTab("write");
-            }}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Edit2 size={14} />
-            Edit
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1.5 text-sm rounded hover:bg-secondary text-muted-foreground transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Save
-            </button>
+        {isDirty && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="px-3 py-1.5 text-sm rounded hover:bg-secondary text-muted-foreground transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -195,7 +211,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
           <select
             value={draftPlaybookId || ""}
             onChange={(e) => setDraftPlaybookId(e.target.value === "" ? null : e.target.value)}
-            disabled={!isEditing}
+            disabled={isSaving}
             className="w-full rounded border border-border bg-secondary px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors appearance-none"
           >
             <option value="">{playbooks.length ? "Select a playbook..." : "No playbooks"}</option>
@@ -214,7 +230,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
             taxonomies={activeTaxonomies}
             selectedIds={draftTaxonomyIds}
             onChange={setDraftTaxonomyIds}
-            disabled={!isEditing}
+            disabled={isSaving}
           />
         </div>
 
@@ -227,7 +243,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
             definitions={annotationDefs}
             values={draftAnnotations}
             onChange={setDraftAnnotations}
-            disabled={!isEditing}
+            disabled={isSaving}
           />
         </div>
 
@@ -235,47 +251,45 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-sm font-medium text-foreground">Journal</label>
-            {isEditing && (
-              <div className="flex items-center gap-2">
-                {quickNotesEnabled && quickNotes.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleImportQuickNotes}
-                    disabled={importedNoteIds.length > 0}
-                    title={importedNoteIds.length > 0 ? "Quick Notes imported — save to delete them" : "Append Quick Notes to the journal"}
-                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Import Quick Notes
-                  </button>
-                )}
-                <div className="flex bg-muted/50 p-0.5 rounded-lg border border-border">
+            <div className="flex items-center gap-2">
+              {quickNotesEnabled && quickNotes.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setJournalTab("write")}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    journalTab === "write"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  onClick={handleImportQuickNotes}
+                  disabled={importedNoteIds.length > 0 || isSaving}
+                  title={importedNoteIds.length > 0 ? "Quick Notes imported — save to delete them" : "Append Quick Notes to the journal"}
+                  className="px-2.5 py-1 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Write
+                  Import Quick Notes
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setJournalTab("preview")}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    journalTab === "preview"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Preview
-                </button>
-                </div>
+              )}
+              <div className="flex bg-muted/50 p-0.5 rounded-lg border border-border">
+              <button
+                type="button"
+                onClick={() => setJournalTab("write")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  journalTab === "write"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Write
+              </button>
+              <button
+                type="button"
+                onClick={() => setJournalTab("preview")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  journalTab === "preview"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Preview
+              </button>
               </div>
-            )}
+            </div>
           </div>
-          {(!isEditing || journalTab === "preview") ? (
+          {journalTab === "preview" ? (
             <div className="w-full min-h-[100px] rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground prose prose-sm dark:prose-invert max-w-none">
               {draftJournal.trim() ? (
                 <ReactMarkdown>{draftJournal}</ReactMarkdown>
@@ -286,6 +300,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
           ) : (
             <textarea
               value={draftJournal}
+              disabled={isSaving}
               onChange={(e) => setDraftJournal(e.target.value)}
               placeholder="Write your thoughts here... (Markdown supported)"
               className="w-full min-h-[100px] rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-y"

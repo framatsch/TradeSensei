@@ -31,23 +31,31 @@ interface Props {
 
 export function QuickNoteInput({ tradeId, onClose }: Props) {
   const [content, setContent] = useState("");
+  const [emotion, setEmotion] = useState("");
   const { mutate: addNote, isPending } = useAddNote();
 
   const handleSave = () => {
     const trimmed = content.trim();
     if (!trimmed) return;
+    
+    const payload: { content: string; emotion?: string } = { content: trimmed };
+    if (emotion.trim()) {
+      payload.emotion = emotion.trim();
+    }
+    
     addNote(
-      { tradeId, payload: { content: trimmed } },
+      { tradeId, payload },
       {
         onSuccess: () => {
           setContent("");
+          setEmotion("");
           onClose();
         },
       }
     );
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     // Ctrl/Cmd + Enter to save
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
@@ -70,22 +78,32 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
         rows={2}
         className="w-full px-2 py-1.5 rounded bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary text-xs resize-none"
       />
-      <div className="mt-2 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={!content.trim() || isPending}
-          className="px-3 py-1 text-xs font-medium bg-primary hover:bg-primary/90 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isPending ? "Saving…" : "Save"}
-        </button>
+      <div className="mt-2 flex justify-between items-center gap-2">
+        <input
+          type="text"
+          value={emotion}
+          onChange={(e) => setEmotion(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Emotion (optional)"
+          className="w-40 px-2 py-1 text-xs rounded bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!content.trim() || isPending}
+            className="px-3 py-1 text-xs font-medium bg-primary hover:bg-primary/90 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
     </div>
   );
