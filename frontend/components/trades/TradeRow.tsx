@@ -153,35 +153,35 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
           ))}
         </div>
       </td>
-      <td className="px-4 py-3">
-        {quickNotesEnabled && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowQuickNote((v) => !v);
-          }}
-          title={hasNotes ? `${notesCount} note${notesCount !== 1 ? "s" : ""} — click to add` : "Add note"}
-          aria-label={hasNotes ? `${notesCount} notes` : "Add note"}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border hover:border-primary hover:text-primary hover:bg-blue-900/20"
-          style={hasNotes
-            ? { background: "rgba(30,41,59,0.5)", color: "#94a3b8", borderColor: "#475569" }
-            : { background: "transparent", color: "#475569", borderColor: "#334155" }
-          }
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill={hasNotes ? "none" : "none"}
-            stroke="currentColor"
-            strokeWidth="2"
-            className="w-3 h-3"
+      {quickNotesEnabled && (
+        <td className="px-4 py-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowQuickNote((v) => !v);
+            }}
+            title={hasNotes ? `${notesCount} note${notesCount !== 1 ? "s" : ""} — click to add` : "Add note"}
+            aria-label={hasNotes ? `${notesCount} notes` : "Add note"}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border hover:border-primary hover:text-primary hover:bg-blue-900/20"
+            style={hasNotes
+              ? { background: "rgba(30,41,59,0.5)", color: "#94a3b8", borderColor: "#475569" }
+              : { background: "transparent", color: "#475569", borderColor: "#334155" }
+            }
           >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          {hasNotes ? notesCount : "+"}
-        </button>
-        )}
-      </td>
+            <svg
+              viewBox="0 0 24 24"
+              fill={hasNotes ? "none" : "none"}
+              stroke="currentColor"
+              strokeWidth="2"
+              className="w-3 h-3"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            {hasNotes ? notesCount : "+"}
+          </button>
+        </td>
+      )}
     </tr>
     {quickNotesEnabled && showQuickNote && (
       <tr className="border-b border-border bg-zinc-50/30 dark:bg-zinc-900/30">

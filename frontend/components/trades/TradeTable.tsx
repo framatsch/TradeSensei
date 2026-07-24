@@ -24,6 +24,7 @@ import { useTrades } from "@/hooks/useTrades";
 import type { TradeFilters, TradeSortConfig } from "@/hooks/useTrades";
 import { TradeRow } from "./TradeRow";
 import { Spinner } from "@/components/ui/Spinner";
+import useFeatureFlag from "@/hooks/useFeatureFlag";
 
 interface Props {
   portfolioId?: string;
@@ -57,7 +58,7 @@ const COLUMN_LABELS: Record<string, string> = {
   notes: "Notes",
 };
 
-const ALL_COLUMNS = [
+const BASE_COLUMNS = [
   "symbol",
   "direction",
   "asset_class",
@@ -69,7 +70,6 @@ const ALL_COLUMNS = [
   "opened_at",
   "closed_at",
   "tags",
-  "notes",
 ] as const;
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -106,6 +106,9 @@ export function TradeTable({
   limit = 25,
   onLimitChange,
 }: Props) {
+  const quickNotesEnabled = useFeatureFlag("enable_quick_notes");
+  const allColumns = quickNotesEnabled ? [...BASE_COLUMNS, "notes"] : [...BASE_COLUMNS];
+
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const currentCursor = cursorStack[cursorStack.length - 1];
 
@@ -209,8 +212,8 @@ export function TradeTable({
     );
   }
 
-  // Total displayed columns = 1 (checkbox) + ALL_COLUMNS.length
-  const totalCols = ALL_COLUMNS.length + 1;
+  // Total displayed columns = 1 (checkbox) + allColumns.length
+  const totalCols = allColumns.length + 1;
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -231,7 +234,7 @@ export function TradeTable({
                   aria-label="Select all trades on this page"
                 />
               </th>
-              {ALL_COLUMNS.map((col) => {
+              {allColumns.map((col) => {
                 const isSortable = (SORTABLE as readonly string[]).includes(col);
                 return (
                   <th

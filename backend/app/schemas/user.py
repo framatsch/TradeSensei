@@ -30,6 +30,7 @@ _ALLOWED_FEATURE_FLAG_KEYS = {
     "risk_analytics",
     "cash_and_dividends",
     "tax_report",
+    "enable_quick_notes",
 }
 
 

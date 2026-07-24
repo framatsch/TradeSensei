@@ -18,6 +18,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Edit2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import useFeatureFlag from "@/hooks/useFeatureFlag";
 import { useSettings } from "@/hooks/useSettings";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
@@ -43,6 +44,7 @@ interface QualitativeMetadataPanelProps {
 
 export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMetadataPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const quickNotesEnabled = useFeatureFlag("enable_quick_notes");
 
   const { data: taxonomies = [] } = useGetTaxonomies("trades");
   const { data: annotationDefs = [] } = useGetAnnotationDefinitions("trades");
@@ -235,7 +237,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
             <label className="block text-sm font-medium text-foreground">Journal</label>
             {isEditing && (
               <div className="flex items-center gap-2">
-                {quickNotes.length > 0 && (
+                {quickNotesEnabled && quickNotes.length > 0 && (
                   <button
                     type="button"
                     onClick={handleImportQuickNotes}
