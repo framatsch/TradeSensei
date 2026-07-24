@@ -56,17 +56,13 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   // Draft state
   const [draftNotes, setDraftNotes] = useState(trade.notes ?? "");
   const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
-  const lastTradeIdRef = useRef<string | null>(null);
-
   useEffect(() => {
-    if (
-      draftNotes.trim().length > 0 &&
-      trade.id === lastTradeIdRef.current
-    ) {
-      setNotesTab("preview");
-    }
-    lastTradeIdRef.current = trade.id;
-  }, [trade.id, draftNotes]);
+    setDraftNotes(trade.notes ?? "");
+    setDraftPlaybookId(trade.playbook_id);
+    setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
+    setDraftAnnotations({});
+    setIsEditing(false);
+  }, [trade.id]);
 
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
     trade.taxonomies?.map((t) => t.id) ?? []
