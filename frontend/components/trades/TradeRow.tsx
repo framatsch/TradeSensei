@@ -26,6 +26,7 @@ import { ArrowUp, ArrowDown } from "lucide-react";
 import type { Trade } from "@/lib/types";
 import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import { QuickNoteInput } from "@/components/notes/QuickNoteInput";
+import useFeatureFlag from "@/hooks/useFeatureFlag";
 
 interface Props {
   trade: Trade;
@@ -87,6 +88,7 @@ function DirectionBadge({ direction }: { direction: string }) {
 }
 
 export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
+  const quickNotesEnabled = useFeatureFlag("enable_quick_notes");
   const notesCount = trade.trade_notes?.length ?? 0;
   const hasNotes = notesCount > 0;
   const [showQuickNote, setShowQuickNote] = useState(false);
@@ -152,6 +154,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
         </div>
       </td>
       <td className="px-4 py-3">
+        {quickNotesEnabled && (
         <button
           type="button"
           onClick={(e) => {
@@ -177,9 +180,10 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
           </svg>
           {hasNotes ? notesCount : "+"}
         </button>
+        )}
       </td>
     </tr>
-    {showQuickNote && (
+    {quickNotesEnabled && showQuickNote && (
       <tr className="border-b border-border bg-zinc-50/30 dark:bg-zinc-900/30">
         <td colSpan={12} className="px-4 py-2">
           <QuickNoteInput

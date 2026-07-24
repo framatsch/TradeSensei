@@ -36,7 +36,7 @@ def get_mock_trade(portfolio_id, user_id, trade_id):
         pnl=None,
         net_pnl=None,
         commission=Decimal("0.0"),
-        notes=None,
+        journal=None,
         user_rating=None,
         tradingview_link=None,
         image_urls=[],

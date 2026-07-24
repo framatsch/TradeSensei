@@ -155,9 +155,9 @@ class TestTradeUpdate:
     @pytest.mark.unit
     def test_is_combo_not_patchable(self) -> None:
         """TradeUpdate must ignore unexpected is_combo input."""
-        update = TradeUpdate.model_validate({"notes": "x", "is_combo": True})
+        update = TradeUpdate.model_validate({"journal": "x", "is_combo": True})
         dumped = update.model_dump(exclude_unset=True)
-        assert "notes" in dumped
+        assert "journal" in dumped
         assert "is_combo" not in dumped
 
     @pytest.mark.unit
@@ -198,7 +198,7 @@ class TestTradeRead:
         trade.pnl = Decimal("1000")
         trade.commission = Decimal("4.20")
         trade.multiplier = 100
-        trade.notes = "Good trade"
+        trade.journal = "Good trade"
         trade.user_rating = 4
         trade.created_at = datetime(2025, 6, 1, tzinfo=UTC)
         trade.updated_at = datetime(2025, 6, 2, tzinfo=UTC)

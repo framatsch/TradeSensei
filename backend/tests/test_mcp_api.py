@@ -584,7 +584,7 @@ async def test_sync_trade_metadata_updates_and_enforces_constraints(
         tool_name="sync_trade_metadata",
         arguments={
             "trade_ids": [trade_1, trade_2, other_trade],
-            "notes": "bulk note",
+            "journal": "bulk note",
             "taxonomy_ids": [taxonomy_new_id],
             "annotations": [
                 {
@@ -616,15 +616,15 @@ async def test_sync_trade_metadata_updates_and_enforces_constraints(
 
     trade_one_row = await db_session.execute(select(Trade).where(Trade.id == uuid.UUID(trade_1)))
     trade_one = trade_one_row.scalar_one()
-    assert trade_one.notes == "bulk note"
+    assert trade_one.journal == "bulk note"
 
     trade_two_row = await db_session.execute(select(Trade).where(Trade.id == uuid.UUID(trade_2)))
     trade_two = trade_two_row.scalar_one()
-    assert trade_two.notes == "bulk note"
+    assert trade_two.journal == "bulk note"
 
     other_trade_row = await db_session.execute(select(Trade).where(Trade.id == uuid.UUID(other_trade)))
     other_trade_model = other_trade_row.scalar_one()
-    assert other_trade_model.notes is None
+    assert other_trade_model.journal is None
 
     taxonomy_rows = await db_session.execute(
         select(TradeTaxonomy).where(TradeTaxonomy.trade_id == uuid.UUID(trade_1)),

@@ -974,8 +974,8 @@ class TradeRepository:
         scalar_values: dict[str, Any] = {}
         if "playbook_id" in data.model_fields_set:
             scalar_values["playbook_id"] = data.playbook_id
-        if "notes" in data.model_fields_set:
-            scalar_values["notes"] = data.notes
+        if "journal" in data.model_fields_set:
+            scalar_values["journal"] = data.journal
         if "user_rating" in data.model_fields_set:
             scalar_values["user_rating"] = data.user_rating
 

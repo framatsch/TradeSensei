@@ -40,8 +40,8 @@ and other long instrument identifiers with headroom to spare.
 SYMBOL_MIN_LENGTH: int = 1
 """Minimum length for a trading symbol string."""
 
-NOTES_MAX_LENGTH: int = 10_000
-"""Maximum character length for free-text trade notes."""
+JOURNAL_MAX_LENGTH: int = 10_000
+"""Maximum character length for free-text trade journal."""
 
 NUMERIC_PRECISION: int = 18
 """Total digits for monetary / quantity NUMERIC columns."""

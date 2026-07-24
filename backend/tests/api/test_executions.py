@@ -60,7 +60,7 @@ def get_mock_execution(portfolio_id, user_id, execution_id, trade_id):
         origin="manual",
         user_modified=False,
         commission=Decimal("0"),
-        notes=None,
+        journal=None,
         is_manual=True,
         currency="USD",
         execution_time_original=datetime.now(timezone.utc),
@@ -111,7 +111,7 @@ async def test_update_execution(client: AsyncClient, primary_user: dict[str, Any
     
     response = await client.patch(
         f"/api/v1/portfolios/{portfolio_id}/executions/{execution_id}",
-        json={"notes": "updated notes"},
+        json={"journal": "updated notes"},
         headers=primary_user["headers"]
     )
     assert response.status_code == 200
@@ -119,7 +119,7 @@ async def test_update_execution(client: AsyncClient, primary_user: dict[str, Any
     override_dependency.update_execution.side_effect = ExecutionNotFoundError()
     response = await client.patch(
         f"/api/v1/portfolios/{portfolio_id}/executions/{execution_id}",
-        json={"notes": "updated notes"},
+        json={"journal": "updated notes"},
         headers=primary_user["headers"]
     )
     assert response.status_code == 404
@@ -270,7 +270,7 @@ async def test_detach_execution(client: AsyncClient, primary_user: dict[str, Any
             pnl=None,
             net_pnl=None,
             commission=Decimal("0.0"),
-            notes=None,
+            journal=None,
             user_rating=None,
             tradingview_link=None,
             image_urls=[],

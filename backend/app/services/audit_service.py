@@ -38,6 +38,7 @@ _SENSITIVE_KEYS = {
     "qty",
     "strategy",
     "notes",
+    "journal",
     "playbook",
     "playbook_name",
     "tag",

@@ -72,7 +72,7 @@ def _make_trade_read(
         closed_at=closed_at,
         pnl=pnl,
         commission=Decimal("0"),
-        notes=None,
+        journal=None,
         created_at=opened_at,
         updated_at=opened_at,
     )
@@ -286,7 +286,7 @@ class TestComputeTradeMetrics:
             closed_at=None,  # no closed_at
             pnl=Decimal("10"),
             commission=Decimal("0"),
-            notes=None,
+            journal=None,
             created_at=_NOW,
             updated_at=_NOW,
         )
@@ -475,7 +475,7 @@ class TestComputeSharpeRatio:
             closed_at=None,
             pnl=None,
             commission=Decimal("0"),
-            notes=None,
+            journal=None,
             created_at=_NOW,
             updated_at=_NOW,
         )

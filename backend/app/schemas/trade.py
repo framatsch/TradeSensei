@@ -23,7 +23,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from app.core.config import settings
-from app.core.constants import NOTES_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
+from app.core.constants import JOURNAL_MAX_LENGTH, SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
 from app.schemas.annotation_definition import TradeAnnotationResponse
 from app.schemas.annotation_filter import AnnotationFilterItem
@@ -109,7 +109,7 @@ class TradeCreate(BaseModel):
         pnl: Realised PnL (may be supplied manually; computed in later
             iterations).
         commission: Total commission paid; defaults to zero.
-        notes: Free-text notes.
+        journal: Free-text journal.
     """
 
     user_id: uuid.UUID | None = None
@@ -204,10 +204,10 @@ class TradeCreate(BaseModel):
         description="Total commission paid for this trade. Defaults to zero.",
         examples=["1.50", "3.20", "0"],
     )
-    notes: str | None = Field(
+    journal: str | None = Field(
         default=None,
-        max_length=NOTES_MAX_LENGTH,
-        description=("Free-text notes attached to this trade, e.g. trade rationale, emotional state, or post-trade review."),
+        max_length=JOURNAL_MAX_LENGTH,
+        description=("Free-text journal attached to this trade, e.g. trade rationale, emotional state, or post-trade review."),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
     )
     user_rating: int | None = Field(
@@ -406,14 +406,14 @@ class TradeCreateRequest(BaseModel):
         closed_at: Timezone-aware UTC timestamp of position close.
         pnl: Realised PnL.
         commission: Total commission paid; defaults to zero.
-        notes: Free-text notes.
+        journal: Free-text journal.
         currency: ISO-4217 currency code (e.g. ``"USD"``).
         pnl_eur: Realised P&L in EUR (optional, set by broker importers or manually).
         account_id: Optional broker account UUID.
         playbook_id: Optional playbook UUID.
         taxonomy_ids: List of taxonomy UUIDs to attach.
         commission: Total commission paid; defaults to zero.
-        notes: Free-text notes.
+        journal: Free-text journal.
         account_id: Optional broker account UUID.
         playbook_id: Optional playbook UUID.
         taxonomy_ids: List of taxonomy UUIDs to attach.
@@ -503,10 +503,10 @@ class TradeCreateRequest(BaseModel):
         description="Total commission paid for this trade. Defaults to zero.",
         examples=["1.50", "3.20", "0"],
     )
-    notes: str | None = Field(
+    journal: str | None = Field(
         default=None,
-        max_length=NOTES_MAX_LENGTH,
-        description=("Free-text notes attached to this trade, e.g. trade rationale, emotional state, or post-trade review."),
+        max_length=JOURNAL_MAX_LENGTH,
+        description=("Free-text journal attached to this trade, e.g. trade rationale, emotional state, or post-trade review."),
         examples=["Breakout above 50-day MA. Tight stop below consolidation.", None],
     )
     user_rating: int | None = Field(
@@ -654,7 +654,7 @@ class TradeUpdate(BaseModel):
         asset_class: Updated asset class.
         stop_loss: Updated stop-loss level; ``null`` clears it.
         take_profit: Updated take-profit level; ``null`` clears it.
-        notes: Updated notes.
+        journal: Updated journal text.
     """
 
     symbol: str | None = Field(
@@ -702,10 +702,10 @@ class TradeUpdate(BaseModel):
         ),
         examples=["160.00", None],
     )
-    notes: str | None = Field(
+    journal: str | None = Field(
         default=None,
-        max_length=NOTES_MAX_LENGTH,
-        description=("Updated free-text notes. Set to null to clear existing notes. Omit to leave unchanged."),
+        max_length=JOURNAL_MAX_LENGTH,
+        description=("Updated free-text journal. Set to null to clear existing journal. Omit to leave unchanged."),
         examples=["Revised entry — slippage on open.", None],
     )
     user_rating: int | None = Field(
@@ -777,7 +777,7 @@ class TradeRead(BaseModel):
         closed_at: Timestamp of position close (``None`` if still open).
         pnl: Realised PnL (``None`` if not yet closed / calculated).
         commission: Commission paid.
-        notes: Free-text notes.
+        journal: Free-text journal.
         playbook_id: Optional UUID of the associated playbook.
         trade_notes: List of psychological / review notes on this trade.
         created_at: Row-creation timestamp.
@@ -866,9 +866,9 @@ class TradeRead(BaseModel):
         description="Total commission paid for this trade.",
         examples=["1.50", "3.20", "0"],
     )
-    notes: str | None = Field(
+    journal: str | None = Field(
         ...,
-        description=("Free-text notes attached to this trade. Null if no notes were added."),
+        description=("Free-text journal attached to this trade. Null if no journal entry was added."),
         examples=["Breakout above 50-day MA.", None],
     )
     user_rating: int | None = Field(

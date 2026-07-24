@@ -64,7 +64,7 @@ def get_mock_trade(portfolio_id, user_id, trade_id):
         pnl=None,
         net_pnl=None,
         commission=Decimal("0.0"),
-        notes=None,
+        journal=None,
         user_rating=None,
         tradingview_link=None,
         image_urls=[],
@@ -238,7 +238,7 @@ async def test_update_trade(client: AsyncClient, primary_user: dict[str, Any], o
     
     response = await client.patch(
         f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
-        json={"notes": "updated notes"},
+        json={"journal": "updated notes"},
         headers=primary_user["headers"]
     )
     assert response.status_code == 200
@@ -246,7 +246,7 @@ async def test_update_trade(client: AsyncClient, primary_user: dict[str, Any], o
     override_dependency.update_trade.side_effect = TradeNotFoundError()
     response = await client.patch(
         f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
-        json={"notes": "updated notes"},
+        json={"journal": "updated notes"},
         headers=primary_user["headers"]
     )
     assert response.status_code == 404

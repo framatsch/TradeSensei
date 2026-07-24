@@ -51,7 +51,7 @@ const baseTrade: Trade = {
   pnl: null,
   net_pnl: null,
   commission: "0",
-  notes: null,
+  journal: null,
   currency: "USD",
   pnl_eur: null,
   net_pnl_eur: null,

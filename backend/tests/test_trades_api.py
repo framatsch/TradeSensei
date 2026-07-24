@@ -311,11 +311,11 @@ class TestUpdateTrade:
 
         response = await client.patch(
             f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
-            json={"notes": "Updated note"},
+            json={"journal": "Updated note"},
             headers=headers,
         )
         assert response.status_code == 200
-        assert response.json()["data"]["notes"] == "Updated note"
+        assert response.json()["data"]["journal"] == "Updated note"
 
     async def test_patch_nonexistent_returns_404(self, client: AsyncClient) -> None:
         """PATCH on a non-existent trade should return 404."""
@@ -323,7 +323,7 @@ class TestUpdateTrade:
         portfolio_id, _ = await _create_portfolio_and_account(client, headers, "patch404")
         response = await client.patch(
             f"/api/v1/portfolios/{portfolio_id}/trades/{uuid.uuid4()}",
-            json={"notes": "x"},
+            json={"journal": "x"},
             headers=headers,
         )
         assert response.status_code == 404
@@ -350,7 +350,7 @@ class TestUpdateTrade:
 
         patch_resp = await client.patch(
             f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
-            json={"is_combo": False, "notes": "still combo"},
+            json={"is_combo": False, "journal": "still combo"},
             headers=headers,
         )
         assert patch_resp.status_code == 200, patch_resp.text

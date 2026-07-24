@@ -114,7 +114,7 @@ class SyncAnnotationInput(BaseModel):
 
 class SyncTradeMetadataParams(BaseModel):
     trade_ids: list[uuid.UUID]
-    notes: str | None = None
+    journal: str | None = None
     taxonomy_ids: list[uuid.UUID] | None = None
     annotations: list[SyncAnnotationInput] | None = None
 
@@ -388,9 +388,9 @@ async def _handle_sync_trade_metadata(
     if not owned_trade_ids:
         return {"updated_count": 0}
 
-    if params.notes is not None:
+    if params.journal is not None:
         await db.execute(
-            update(Trade).where(Trade.id.in_(owned_trade_ids)).values(notes=params.notes),
+            update(Trade).where(Trade.id.in_(owned_trade_ids)).values(journal=params.journal),
         )
 
     if params.taxonomy_ids is not None:
@@ -1521,7 +1521,7 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "mutating": False,
     },
     "sync_trade_metadata": {
-        "description": "Bulk add notes, taxonomy tags, and annotation values to trades (merges with existing assignments).",
+        "description": "Bulk set journal text, taxonomy tags, and annotation values on trades (merges with existing assignments).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1530,7 +1530,7 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
                     "maxItems": 50,
                     "items": {"type": "string", "format": "uuid"},
                 },
-                "notes": {"type": "string"},
+                "journal": {"type": "string"},
                 "taxonomy_ids": {
                     "type": "array",
                     "items": {"type": "string", "format": "uuid"},

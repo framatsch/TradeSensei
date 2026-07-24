@@ -95,7 +95,7 @@ class Trade(Base):
         pnl: Realised profit or loss (``None`` while still open).
         net_pnl: Realised net profit or loss (``None`` while still open).
         commission: Total commission paid; defaults to zero.
-        notes: Free-text notes attached to the trade.
+        journal: Free-text journal attached to the trade.
         currency: ISO-4217 currency code of the trade (e.g. ``"USD"``).
             ``None`` for legacy trades that pre-date the EUR-reporting feature.
         multiplier: Contract multiplier (1 for equities, >1 for futures/options).
@@ -201,7 +201,7 @@ class Trade(Base):
         nullable=False,
         server_default="0",
     )
-    notes: Mapped[str | None] = mapped_column(
+    journal: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )

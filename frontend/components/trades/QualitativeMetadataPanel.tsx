@@ -29,6 +29,7 @@ import {
   // useRemoveTradeAnnotation
 } from "@/hooks/useTradeMetadata";
 import { useUpdateTrade } from "@/hooks/useTrade";
+import { useDeleteNote } from "@/hooks/useNotes";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
 import type { Trade } from "@/lib/types";
 import { TaxonomySelector } from "./TaxonomySelector";
@@ -48,19 +49,23 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   const { data: playbooks = [] } = usePlaybooks();
 
   const updateTrade = useUpdateTrade(trade.id);
+  const deleteNote = useDeleteNote();
   const assignTaxonomy = useAssignTradeTaxonomy();
   const removeTaxonomy = useRemoveTradeTaxonomy();
   const assignAnnotation = useAssignTradeAnnotation();
   const updateAnnotation = useUpdateTradeAnnotation();
 
   // Draft state
-  const [draftNotes, setDraftNotes] = useState(trade.notes ?? "");
-  const [notesTab, setNotesTab] = useState<"write" | "preview">("write");
+  const [draftJournal, setDraftJournal] = useState(trade.journal ?? "");
+  const [journalTab, setJournalTab] = useState<"write" | "preview">("write");
+  // IDs of Quick Notes captured at import time — deleted on Save.
+  const [importedNoteIds, setImportedNoteIds] = useState<string[]>([]);
   useEffect(() => {
-    setDraftNotes(trade.notes ?? "");
+    setDraftJournal(trade.journal ?? "");
     setDraftPlaybookId(trade.playbook_id);
     setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
     setDraftAnnotations({});
+    setImportedNoteIds([]);
     setIsEditing(false);
   }, [trade.id]);
 
@@ -72,11 +77,39 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   
 
 
+  const quickNotes = trade.trade_notes ?? [];
+
+  const handleImportQuickNotes = () => {
+    if (quickNotes.length === 0 || importedNoteIds.length > 0) return;
+    setImportedNoteIds(quickNotes.map((n) => n.id));
+    const bullets = quickNotes.map((n) => {
+      const d = new Date(n.created_at);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const label = n.emotion ? `${hh}:${mm}, ${n.emotion}` : `${hh}:${mm}`;
+      return `* **[${label}]** ${n.content}`;
+    });
+    setDraftJournal((prev) => {
+      const existing = prev.trimEnd();
+      return existing ? `${existing}\n\n${bullets.join("\n")}` : bullets.join("\n");
+    });
+  };
+
   const handleSave = async () => {
     try {
-      // 1. Playbook and Notes
-      if (draftNotes !== (trade.notes ?? "") || draftPlaybookId !== trade.playbook_id) {
-        await updateTrade.mutateAsync({ notes: draftNotes, playbook_id: draftPlaybookId });
+      // 1. Playbook and Journal
+      if (draftJournal !== (trade.journal ?? "") || draftPlaybookId !== trade.playbook_id) {
+        await updateTrade.mutateAsync({ journal: draftJournal, playbook_id: draftPlaybookId });
+      }
+
+      // 1b. Delete the Quick Notes captured at import time (journal is persisted first).
+      // Notes created after the import are preserved. On failure, importedNoteIds is
+      // kept so the user can retry via Save.
+      if (importedNoteIds.length > 0) {
+        for (const noteId of importedNoteIds) {
+          await deleteNote.mutateAsync({ tradeId: trade.id, noteId });
+        }
+        setImportedNoteIds([]);
       }
 
       // 2. Taxonomies
@@ -128,7 +161,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
             type="button"
             onClick={() => {
               setIsEditing(true);
-              setNotesTab("write");
+              setJournalTab("write");
             }}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -201,12 +234,24 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-sm font-medium text-foreground">Journal</label>
             {isEditing && (
-              <div className="flex bg-muted/50 p-0.5 rounded-lg border border-border">
+              <div className="flex items-center gap-2">
+                {quickNotes.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleImportQuickNotes}
+                    disabled={importedNoteIds.length > 0}
+                    title={importedNoteIds.length > 0 ? "Quick Notes imported — save to delete them" : "Append Quick Notes to the journal"}
+                    className="px-2.5 py-1 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Import Quick Notes
+                  </button>
+                )}
+                <div className="flex bg-muted/50 p-0.5 rounded-lg border border-border">
                 <button
                   type="button"
-                  onClick={() => setNotesTab("write")}
+                  onClick={() => setJournalTab("write")}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    notesTab === "write"
+                    journalTab === "write"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -215,30 +260,31 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
                 </button>
                 <button
                   type="button"
-                  onClick={() => setNotesTab("preview")}
+                  onClick={() => setJournalTab("preview")}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    notesTab === "preview"
+                    journalTab === "preview"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Preview
                 </button>
+                </div>
               </div>
             )}
           </div>
-          {(!isEditing || notesTab === "preview") ? (
+          {(!isEditing || journalTab === "preview") ? (
             <div className="w-full min-h-[100px] rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground prose prose-sm dark:prose-invert max-w-none">
-              {draftNotes.trim() ? (
-                <ReactMarkdown>{draftNotes}</ReactMarkdown>
+              {draftJournal.trim() ? (
+                <ReactMarkdown>{draftJournal}</ReactMarkdown>
               ) : (
                 <span className="text-muted-foreground/50 italic">No journal entry.</span>
               )}
             </div>
           ) : (
             <textarea
-              value={draftNotes}
-              onChange={(e) => setDraftNotes(e.target.value)}
+              value={draftJournal}
+              onChange={(e) => setDraftJournal(e.target.value)}
               placeholder="Write your thoughts here... (Markdown supported)"
               className="w-full min-h-[100px] rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-y"
             />

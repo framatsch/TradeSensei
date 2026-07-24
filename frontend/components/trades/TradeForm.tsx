@@ -72,7 +72,7 @@ const formSchema = z.object({
   closed_at: z.string().optional(),
   
   playbook_id: z.string().optional(),
-  notes: z.string().optional(),
+  journal: z.string().optional(),
   user_rating: z.string().optional(),
   
   isAdvancedMode: z.boolean().optional(),
@@ -148,7 +148,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       stop_loss: trade.stop_loss ?? "",
       take_profit: trade.take_profit ?? "",
       playbook_id: trade.playbook_id ?? "",
-      notes: trade.notes ?? "",
+      journal: trade.journal ?? "",
       user_rating: trade.user_rating != null ? String(trade.user_rating) : "",
       isAdvancedMode: false,
       executions: [],
@@ -168,7 +168,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       opened_at: toLocalDatetimeValue(new Date().toISOString()),
       closed_at: "",
       playbook_id: "",
-      notes: "",
+      journal: "",
       user_rating: "",
       isAdvancedMode: false,
       executions: [],
@@ -349,7 +349,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       closed_at: data.closed_at ? toISOWithOffset(data.closed_at) : null,
       pnl: data.pnl || null,
       commission: data.commission || "0",
-      notes: data.notes || null,
+      journal: data.journal || null,
       user_rating: data.user_rating ? Number(data.user_rating) : null,
       playbook_id: null,
       taxonomy_ids: [],
@@ -375,7 +375,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         asset_class: data.asset_class,
         stop_loss: data.stop_loss === "" ? null : data.stop_loss,
         take_profit: data.take_profit === "" ? null : data.take_profit,
-        notes: data.notes || null,
+        journal: data.journal || null,
         user_rating: data.user_rating ? Number(data.user_rating) : null,
         playbook_id: null,
         taxonomy_ids: [],
@@ -823,7 +823,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
           />
         </div>
         <textarea
-          {...register("notes")}
+          {...register("journal")}
           rows={4}
           placeholder="Trade rationale, emotional state, post-trade review…"
           className={`${inputCls} resize-y`}

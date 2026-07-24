@@ -36,7 +36,7 @@ const comboTrade: Trade = {
   pnl: "77",
   net_pnl: "72",
   commission: "5",
-  notes: null,
+  journal: null,
   user_rating: null,
   currency: "USD",
   pnl_eur: null,

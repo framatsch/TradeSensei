@@ -446,7 +446,7 @@ class TradeService:
         pre_update_updated_at = trade.updated_at
         updated = await self._repo.update(trade, data)
 
-        propagation_fields = {"playbook_id", "taxonomy_ids", "notes", "user_rating"}
+        propagation_fields = {"playbook_id", "taxonomy_ids", "journal", "user_rating"}
         should_propagate = bool(propagation_fields & data.model_fields_set)
         propagated_count = 0
         if should_propagate:
@@ -678,12 +678,12 @@ class TradeService:
             execution_ids = [ex.id for ex in executions]
             await exec_repo.reassign_to_trade(execution_ids, survivor.id)
 
-            # Append notes
-            if t.notes:
-                if survivor.notes:
-                    survivor.notes += f"\n\n[Merged from {t.id}]:\n{t.notes}"
+            # Append journal text
+            if t.journal:
+                if survivor.journal:
+                    survivor.journal += f"\n\n[Merged from {t.id}]:\n{t.journal}"
                 else:
-                    survivor.notes = t.notes
+                    survivor.journal = t.journal
 
             # Move taxonomy assignments
             survivor_taxonomy_ids = {assignment.taxonomy_id for assignment in survivor.taxonomy_assignments}
@@ -837,7 +837,7 @@ class TradeService:
             account_id=trade.account_id,
             playbook_id=trade.playbook_id,
             taxonomy_ids=taxonomy_ids,
-            notes=trade.notes,
+            journal=trade.journal,
             user_rating=trade.user_rating,
             currency=trade.currency,
             broker_conid=trade.broker_conid,
@@ -852,7 +852,7 @@ class TradeService:
             raise ValueError("Failed to retrieve created trade.")
 
         # Deep copy TradeNotes (psychological/review notes).
-        # These are separate from the 'notes' column on the trade table.
+        # These are separate from the 'journal' column on the trade table.
         for note in trade.trade_notes:
             from app.models.trade_note import TradeNote
 

@@ -17,6 +17,11 @@
 export default {
   input: "http://localhost:8000/openapi.json",
   output: "./lib/api",
-  client: "@hey-api/client-fetch",
-  base: "/api/proxy",
+  plugins: [
+    {
+      name: "@hey-api/client-fetch",
+      // The runtime base URL is set via client.setConfig() in lib/apiInterceptors.ts.
+      baseUrl: false,
+    },
+  ],
 };

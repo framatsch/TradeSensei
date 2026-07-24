@@ -616,7 +616,7 @@ async def delete_trade(
         "the original trade with reduced quantity "
         "and a new closed trade with the specified "
         "exit details. All metadata (tags, "
-        "notes, playbook) is duplicated to the "
+        "journal, playbook) is duplicated to the "
         "new trade. Entry commissions are split "
         "proportionally."
     ),

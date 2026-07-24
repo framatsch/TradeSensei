@@ -203,7 +203,7 @@ export interface Trade {
   pnl: string | null;
   net_pnl: string | null;
   commission: string;
-  notes: string | null;
+  journal: string | null;
   user_rating: number | null;
   currency: string | null;
   pnl_eur: string | null;
@@ -240,7 +240,7 @@ export interface TradeCreate {
   pnl?: string | null;
   commission?: string;
   currency?: string | null;
-  notes?: string | null;
+  journal?: string | null;
   image_urls?: string[];
   account_id?: string | null;
   playbook_id?: string | null;
@@ -256,7 +256,7 @@ export interface TradeUpdate {
   take_profit?: string | null;
   pnl?: string | null;
   commission?: string | null;
-  notes?: string | null;
+  journal?: string | null;
   user_rating?: number | null;
   tradingview_link?: string | null;
   image_urls?: string[] | null;

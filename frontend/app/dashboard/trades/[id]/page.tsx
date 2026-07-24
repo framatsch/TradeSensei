@@ -22,6 +22,7 @@ import { Check, X, MoreHorizontal } from "lucide-react";
 import { useTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useTradeExecutions } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import useFeatureFlag from "@/hooks/useFeatureFlag";
 import { NoteList } from "@/components/notes/NoteList";
 import { Spinner } from "@/components/ui/Spinner";
 import { MediaChartsCard } from "@/components/trades/MediaChartsCard";
@@ -162,6 +163,7 @@ export default function TradeDetailPage() {
   const { data: trade, isLoading, isError, error } = useTrade(tradeId);
   const { data: executions = [] } = useTradeExecutions(tradeId, activePortfolioId);
   const updateTrade = useUpdateTrade(tradeId);
+  const quickNotesEnabled = useFeatureFlag("enable_quick_notes");
   const [correctModalOpen, setCorrectModalOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [tradePickerOpen, setTradePickerOpen] = useState(false);
@@ -520,6 +522,13 @@ export default function TradeDetailPage() {
       <section className="w-full">
         <QualitativeMetadataPanel trade={trade} portfolioId={activePortfolioId ?? ""} />
       </section>
+
+      {/* Quick Notes */}
+      {quickNotesEnabled && (
+        <section className="w-full">
+          <NoteList tradeId={trade.id} />
+        </section>
+      )}
 
       {/* Execution Legs Table */}
       <section className="w-full">

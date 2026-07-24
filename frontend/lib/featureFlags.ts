@@ -14,13 +14,19 @@
  */
 
 export type FeatureFlagKey =
-  | "risk_analytics";
+  | "risk_analytics"
+  | "enable_quick_notes";
 
 export const FEATURE_FLAGS: { key: FeatureFlagKey; label: string; description: string; comingSoon?: boolean }[] = [
   {
     key: "risk_analytics",
     label: "Risk Analytics",
     description: "Unlocks the Risk Metrics tab in Analytics.",
+  },
+  {
+    key: "enable_quick_notes",
+    label: "Quick Notes",
+    description: "Show Quick Notes on trades — the inline add button in the trades table and the notes list in Trade Details.",
   },
 ];
 

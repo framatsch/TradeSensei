@@ -52,7 +52,7 @@ def test_trade_read_schema_generates_presigned_urls(mock_storage_service):
         "closed_at": None,
         "pnl": None,
         "commission": Decimal("0"),
-        "notes": "",
+        "journal": "",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
         "image_urls": ["test-bucket/trades/user1/image1.png", "other-bucket/trades/image2.png"],

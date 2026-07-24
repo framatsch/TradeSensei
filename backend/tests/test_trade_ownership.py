@@ -59,7 +59,7 @@ class TestTradeOwnership:
         portfolio_id = other_users_trade["portfolio_id"]
         resp = await client.patch(
             f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
-            json={"notes": "hacked"},
+            json={"journal": "hacked"},
             headers=primary_user["headers"],
         )
         assert resp.status_code == 404, resp.text

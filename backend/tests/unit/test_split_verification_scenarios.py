@@ -48,7 +48,7 @@ def _make_trade_orm(
     position_id: uuid.UUID | None = None,
     symbol: str = "AAPL",
     playbook_id: uuid.UUID | None = None,
-    notes: str | None = None,
+    journal: str | None = None,
     user_rating: int | None = None,
     image_urls: list[str] | None = None,
     closed_at: datetime | None = None,
@@ -73,7 +73,7 @@ def _make_trade_orm(
     trade.commission = Decimal("1")  # type: ignore[assignment]
     trade.multiplier = 1  # type: ignore[assignment]
     trade.currency = "USD"  # type: ignore[assignment]
-    trade.notes = notes  # type: ignore[assignment]
+    trade.journal = journal  # type: ignore[assignment]
     trade.playbook_id = playbook_id  # type: ignore[assignment]
     trade.user_rating = user_rating  # type: ignore[assignment]
     trade.image_urls = []  # type: ignore[assignment]

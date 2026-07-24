@@ -46,7 +46,7 @@ def _make_trade(
     commission: Decimal = Decimal("0"),
     multiplier: int = 1,
     currency: str | None = None,
-    notes: str | None = None,
+    journal: str | None = None,
     user_rating: int | None = None,
     image_urls: list[str] | None = None,
     created_at: datetime | None = None,
@@ -73,7 +73,7 @@ def _make_trade(
         closed_at: Close timestamp. Defaults to ``None``.
         pnl: Realised PnL. Defaults to ``None``.
         commission: Commission paid. Defaults to ``Decimal("0")``.
-        notes: Free-text notes. Defaults to ``None``.
+        journal: Free-text journal. Defaults to ``None``.
         created_at: Row-creation timestamp. Defaults to now (UTC).
         updated_at: Row-update timestamp. Defaults to now (UTC).
 
@@ -107,7 +107,7 @@ def _make_trade(
     trade.commission = commission  # type: ignore[assignment]
     trade.multiplier = multiplier  # type: ignore[assignment]
     trade.currency = currency  # type: ignore[assignment]
-    trade.notes = notes  # type: ignore[assignment]
+    trade.journal = journal  # type: ignore[assignment]
     trade.user_rating = user_rating  # type: ignore[assignment]
     trade.created_at = created_at if created_at is not None else now  # type: ignore[assignment]
     trade.updated_at = updated_at if updated_at is not None else now  # type: ignore[assignment]
@@ -577,14 +577,14 @@ class TestUpdateTrade:
         ):
             result = await service.update_trade(
                 trade.id,  # type: ignore[arg-type]
-                TradeUpdate(notes="updated", user_rating=4),
+                TradeUpdate(journal="updated", user_rating=4),
                 user_id,
             )
 
         assert isinstance(result, TradeRead)
         mock_propagate.assert_awaited_once_with(
             source_trade=updated,
-            data=TradeUpdate(notes="updated", user_rating=4),
+            data=TradeUpdate(journal="updated", user_rating=4),
             user_id=user_id,
             compare_updated_at=trade.updated_at,
         )
