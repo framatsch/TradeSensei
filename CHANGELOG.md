@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-07-24
+
 ### Added
 - [frontend] Added "Quick Notes" workflow with inline table inputs and timeline view. Quick notes capture point-in-time observations (e.g. emotions, order updates) during the trade.
 - [frontend] Added "Import Quick Notes" button to the Qualitative Metadata panel to append timeline notes directly to the final trade journal.
@@ -601,6 +603,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.7.0]: https://github.com/scheffold/TradeSensei/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/scheffold/TradeSensei/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/scheffold/TradeSensei/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/scheffold/TradeSensei/compare/v1.4.0...v1.5.0
@@ -629,7 +632,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.6.1...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.7.0...HEAD
 [1.3.5]: https://github.com/scheffold/TradeSensei/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/scheffold/TradeSensei/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/scheffold/TradeSensei/compare/v1.3.2...v1.3.3
