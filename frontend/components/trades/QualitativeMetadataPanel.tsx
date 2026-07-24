@@ -302,7 +302,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
               value={draftJournal}
               disabled={isSaving}
               onChange={(e) => setDraftJournal(e.target.value)}
-              placeholder="Write your thoughts here... (Markdown supported)"
+              placeholder="Write your post-trade summary and final reflection here. What went well? What went wrong? (Markdown supported)"
               className="w-full min-h-[100px] rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-y"
             />
           )}

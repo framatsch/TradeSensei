@@ -132,7 +132,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
                 setContent(e.target.value);
                 if (contentError) setContentError("");
               }}
-              placeholder="What happened in this trade? Execution, mistakes, observations… (Markdown supported)"
+              placeholder="Record a point-in-time observation during the trade (e.g., 'Moved stop to breakeven', 'Price hesitating at VWAP')..."
               rows={4}
               className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none"
             />

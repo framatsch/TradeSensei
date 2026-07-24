@@ -74,7 +74,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Quick note… (Ctrl+Enter to save, Esc to cancel)"
+        placeholder="Live observation (e.g. 'Entering scaling out 50%')… (Ctrl+Enter to save)"
         rows={2}
         className="w-full px-2 py-1.5 rounded bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary text-xs resize-none"
       />
