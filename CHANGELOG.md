@@ -8,12 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [frontend] Added "Quick Notes" workflow with inline table inputs and timeline view. Quick notes capture point-in-time observations (e.g. emotions, order updates) during the trade.
+- [frontend] Added "Import Quick Notes" button to the Qualitative Metadata panel to append timeline notes directly to the final trade journal.
+- [backend] Added `emotion` field to `TradeNote` model and schemas.
 - [backend] Added MCP get-by-ID read tools: `get_trade` (with embedded quick notes), `get_checkin`, `get_taxonomy`, and `get_annotation_definition`.
 - [backend] Added MCP quick-note write tools `add_trade_note`, `update_trade_note`, `delete_trade_note`, and a journal edit tool `update_trade_journal` (replace/append) for single-trade granularity.
 - [backend] Added MCP binary attachment tools `get_trade_attachments` and `get_playbook_attachments`, returning image bytes as base64 MCP image content blocks (default) or presigned URLs, bounded by a per-call attachment limit and a per-image inline size cap.
 - [backend] Added MCP tool `link_trade_playbook` to set or clear a trade's linked playbook.
 - [backend] Added `StorageService.download_file_by_storage_ref()` and extended the MCP JSON-RPC dispatcher to support non-text (image) content blocks in `tools/call` results.
 - [docs] Documented the new MCP tools and example prompts in `docs/mcp-client-integration.md`.
+
+### Changed
+- [frontend] Refactored `QualitativeMetadataPanel` to be always editable, removing the explicit "Edit" button for a more seamless journaling experience.
+- [frontend] Updated text placeholders across the trade detail view to clearly distinguish between point-in-time Quick Notes and the final post-trade Journal.
 
 ## [1.6.1] - 2026-07-19
 
