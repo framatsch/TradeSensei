@@ -14,6 +14,7 @@
 """MCP transport endpoints secured by personal access tokens."""
 
 import asyncio
+import base64
 import json
 import logging
 import re
@@ -31,9 +32,24 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
+from app.core.config import settings
+from app.core.constants import (
+    EMOTION_MAX_LENGTH,
+    JOURNAL_MAX_LENGTH,
+    MCP_ATTACHMENT_MAX_INLINE_BYTES,
+    MCP_ATTACHMENT_MAX_ITEMS,
+    NOTE_MAX_LENGTH,
+)
 from app.core.database import get_session
 from app.core.deps import get_current_user_from_pat
-from app.core.exceptions import AnnotationDefinitionNotFoundError, AnnotationDefinitionValidationError, TaxonomyNotFoundError, TaxonomyValidationError
+from app.core.exceptions import (
+    AnnotationDefinitionNotFoundError,
+    AnnotationDefinitionValidationError,
+    NoteNotFoundError,
+    TaxonomyNotFoundError,
+    TaxonomyValidationError,
+    TradeNotFoundError,
+)
 from app.models.account import Account, AccountType
 from app.models.annotation_definition import AnnotationDefinition
 from app.models.checkin_annotation import CheckinAnnotation
@@ -50,11 +66,16 @@ from app.models.user import User
 from app.repositories._annotation_filter import apply_annotation_filters as _apply_annotation_filters
 from app.schemas.annotation_definition import AnnotationDefinitionCreate, AnnotationDefinitionUpdate
 from app.schemas.annotation_filter import AnnotationFilterItem
+from app.schemas.note import TradeNoteCreate, TradeNoteUpdate
 from app.schemas.taxonomy import TaxonomyCreate, TaxonomyUpdate
+from app.schemas.trade import TradeUpdate
 from app.services.annotation_definition_service import AnnotationDefinitionService
 from app.services.audit_service import AuditEventService, generate_request_id
+from app.services.note_service import NoteService
 from app.services.playbook_taxonomy_service import PlaybookTaxonomyService
+from app.services.storage_service import StorageService
 from app.services.taxonomy_service import TaxonomyService
+from app.services.trade_service import TradeService
 from app.utils.annotation_mapping import map_value_to_column
 from app.utils.scope_utils import scope_contains
 
@@ -221,6 +242,70 @@ class DeleteAnnotationDefinitionParams(BaseModel):
     annotation_definition_id: uuid.UUID
 
 
+class GetTradeParams(BaseModel):
+    trade_id: uuid.UUID
+
+
+class GetCheckinParams(BaseModel):
+    checkin_id: uuid.UUID
+
+
+class GetTaxonomyParams(BaseModel):
+    taxonomy_id: uuid.UUID
+
+
+class GetAnnotationDefinitionParams(BaseModel):
+    annotation_definition_id: uuid.UUID
+
+
+class AddTradeNoteParams(BaseModel):
+    trade_id: uuid.UUID
+    content: str = Field(min_length=1, max_length=NOTE_MAX_LENGTH)
+    emotion: str | None = Field(default=None, max_length=EMOTION_MAX_LENGTH)
+
+
+class UpdateTradeNoteParams(BaseModel):
+    trade_id: uuid.UUID
+    note_id: uuid.UUID
+    content: str | None = Field(default=None, min_length=1, max_length=NOTE_MAX_LENGTH)
+    emotion: str | None = Field(default=None, max_length=EMOTION_MAX_LENGTH)
+
+
+class DeleteTradeNoteParams(BaseModel):
+    trade_id: uuid.UUID
+    note_id: uuid.UUID
+
+
+class UpdateTradeJournalParams(BaseModel):
+    trade_id: uuid.UUID
+    text: str = Field(max_length=JOURNAL_MAX_LENGTH)
+    mode: Literal["replace", "append"] = "replace"
+
+
+class GetTradeAttachmentsParams(BaseModel):
+    trade_id: uuid.UUID
+    format: Literal["image", "url"] = "image"
+    max_items: int = Field(default=MCP_ATTACHMENT_MAX_ITEMS, ge=1, le=MCP_ATTACHMENT_MAX_ITEMS)
+
+
+class GetPlaybookAttachmentsParams(BaseModel):
+    playbook_id: uuid.UUID
+    format: Literal["image", "url"] = "image"
+    max_items: int = Field(default=MCP_ATTACHMENT_MAX_ITEMS, ge=1, le=MCP_ATTACHMENT_MAX_ITEMS)
+
+
+class LinkTradePlaybookParams(BaseModel):
+    trade_id: uuid.UUID
+    playbook_id: uuid.UUID | None = None
+    clear: bool = False
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "LinkTradePlaybookParams":
+        if not self.clear and self.playbook_id is None:
+            raise ValueError("playbook_id is required unless clear is true")
+        return self
+
+
 def _tool_error(code: int, message: str) -> dict[str, Any]:
     return {"code": code, "message": message}
 
@@ -235,6 +320,50 @@ def _serialize_decimal(value: Decimal | None) -> str | None:
     if value is None:
         return None
     return str(value)
+
+
+def _annotation_typed_value(
+    value_int: int | None,
+    value_float: Decimal | None,
+    value_bool: bool | None,
+    value_string: str | None,
+) -> int | float | bool | str | None:
+    """Resolve the single populated typed value column on an annotation assignment."""
+    if value_bool is not None:
+        return value_bool
+    if value_int is not None:
+        return value_int
+    if value_float is not None:
+        return float(value_float)
+    if value_string is not None:
+        return value_string
+    return None
+
+
+_STORAGE_REF_FILENAME_RE = re.compile(r"^\d{8}T\d{6}-[0-9a-f-]{36}-(?P<name>.+)$")
+
+
+def _filename_from_storage_ref(storage_ref: str) -> str:
+    """Extract the human-readable filename from a storage ref.
+
+    Storage keys are written as ``{prefix}{user_id}/{timestamp}-{uuid}-{name}``.
+    Falls back to the raw path segment if the expected pattern isn't found.
+    """
+    segment = storage_ref.rsplit("/", 1)[-1]
+    match = _STORAGE_REF_FILENAME_RE.match(segment)
+    return match.group("name") if match else segment
+
+
+def _build_image_content_block(data: bytes, mime_type: str) -> dict[str, Any]:
+    return {
+        "type": "image",
+        "data": base64.b64encode(data).decode("ascii"),
+        "mimeType": mime_type,
+    }
+
+
+def _build_text_content_block(text: str) -> dict[str, Any]:
+    return {"type": "text", "text": text}
 
 
 async def _handle_get_metadata_schema(
@@ -1266,6 +1395,523 @@ async def _handle_delete_annotation_definition(
     return {"archived": True}
 
 
+async def _handle_get_trade(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = GetTradeParams.model_validate(arguments)
+
+    result = await db.execute(
+        select(Trade)
+        .where(Trade.user_id == user_id, Trade.id == params.trade_id)
+        .options(
+            selectinload(Trade.taxonomy_assignments).selectinload(TradeTaxonomy.taxonomy),
+            selectinload(Trade.annotation_assignments).selectinload(TradeAnnotation.annotation_definition),
+        ),
+    )
+    trade = result.scalar_one_or_none()
+    if trade is None:
+        raise ValueError(f"Trade {params.trade_id} not found")
+
+    note_service = NoteService(db)
+    notes = await note_service.list_notes(trade_id=trade.id, user_id=user_id)
+
+    return {
+        "id": str(trade.id),
+        "symbol": trade.symbol,
+        "direction": trade.direction.value,
+        "asset_class": trade.asset_class.value if trade.asset_class else None,
+        "quantity": _serialize_decimal(trade.quantity),
+        "entry_price": _serialize_decimal(trade.entry_price),
+        "exit_price": _serialize_decimal(trade.exit_price),
+        "stop_loss": _serialize_decimal(trade.stop_loss),
+        "take_profit": _serialize_decimal(trade.take_profit),
+        "opened_at": _serialize_datetime(trade.opened_at),
+        "closed_at": _serialize_datetime(trade.closed_at),
+        "pnl": _serialize_decimal(trade.pnl),
+        "net_pnl": _serialize_decimal(trade.net_pnl),
+        "commission": _serialize_decimal(trade.commission),
+        "currency": trade.currency,
+        "journal": trade.journal,
+        "user_rating": trade.user_rating,
+        "tradingview_link": trade.tradingview_link,
+        "playbook_id": str(trade.playbook_id) if trade.playbook_id else None,
+        "taxonomy_assignments": [
+            {"taxonomy_id": str(item.taxonomy_id), "name": item.taxonomy.name if item.taxonomy else None}
+            for item in trade.taxonomy_assignments
+        ],
+        "annotation_assignments": [
+            {
+                "annotation_definition_id": str(item.annotation_definition_id),
+                "name": (item.annotation_definition.name if item.annotation_definition else None),
+                "value": _annotation_typed_value(item.value_int, item.value_float, item.value_bool, item.value_string),
+            }
+            for item in trade.annotation_assignments
+        ],
+        "image_count": len(trade.image_urls),
+        "image_filenames": [_filename_from_storage_ref(ref) for ref in trade.image_urls],
+        "quick_notes": [
+            {
+                "id": str(note.id),
+                "content": note.content,
+                "emotion": note.emotion,
+                "created_at": _serialize_datetime(note.created_at),
+            }
+            for note in notes
+        ],
+    }
+
+
+async def _handle_get_checkin(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = GetCheckinParams.model_validate(arguments)
+
+    result = await db.execute(
+        select(DailyCheckin)
+        .where(DailyCheckin.user_id == user_id, DailyCheckin.id == params.checkin_id)
+        .options(
+            selectinload(DailyCheckin.taxonomy_assignments).selectinload(CheckinTaxonomy.taxonomy),
+            selectinload(DailyCheckin.annotation_assignments).selectinload(CheckinAnnotation.annotation_definition),
+        ),
+    )
+    checkin = result.scalar_one_or_none()
+    if checkin is None:
+        raise ValueError(f"Checkin {params.checkin_id} not found")
+
+    return {
+        "id": str(checkin.id),
+        "date": checkin.date.isoformat(),
+        "market_phase": checkin.market_phase,
+        "notes": checkin.notes,
+        "news_links": list(checkin.news_links or []),
+        "custom_metrics": checkin.custom_metrics,
+        "screenshot_count": len(checkin.screenshot_urls or []),
+        "taxonomy_assignments": [
+            {"taxonomy_id": str(item.taxonomy_id), "name": item.taxonomy.name if item.taxonomy else None}
+            for item in checkin.taxonomy_assignments
+        ],
+        "annotation_assignments": [
+            {
+                "annotation_definition_id": str(item.annotation_definition_id),
+                "name": (item.annotation_definition.name if item.annotation_definition else None),
+                "value": _annotation_typed_value(item.value_int, item.value_float, item.value_bool, item.value_string),
+            }
+            for item in checkin.annotation_assignments
+        ],
+    }
+
+
+async def _handle_get_taxonomy(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = GetTaxonomyParams.model_validate(arguments)
+    service = TaxonomyService(db)
+
+    try:
+        taxonomy = await service.get(user_id=user_id, taxonomy_id=params.taxonomy_id)
+    except TaxonomyNotFoundError as exc:
+        raise ValueError(str(exc)) from exc
+
+    return {
+        "id": str(taxonomy.id),
+        "name": taxonomy.name,
+        "scope": taxonomy.scope,
+        "color_hex": taxonomy.color_hex,
+        "description": taxonomy.description,
+        "icon_identifier": taxonomy.icon_identifier,
+        "is_archived": taxonomy.is_archived,
+    }
+
+
+async def _handle_get_annotation_definition(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = GetAnnotationDefinitionParams.model_validate(arguments)
+    service = AnnotationDefinitionService(db)
+
+    try:
+        definition = await service.get(user_id=user_id, definition_id=params.annotation_definition_id)
+    except AnnotationDefinitionNotFoundError as exc:
+        raise ValueError(str(exc)) from exc
+
+    return {
+        "id": str(definition.id),
+        "name": definition.name,
+        "type": definition.type,
+        "scope": definition.scope,
+        "scale_labels": definition.scale_labels,
+        "description": definition.description,
+        "icon_identifier": definition.icon_identifier,
+        "is_archived": definition.is_archived,
+    }
+
+
+async def _handle_add_trade_note(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = AddTradeNoteParams.model_validate(arguments)
+
+    owned = await db.execute(
+        select(Trade.id).where(Trade.user_id == user_id, Trade.id == params.trade_id),
+    )
+    if owned.scalar_one_or_none() is None:
+        raise ValueError(f"Trade {params.trade_id} not found")
+
+    note_service = NoteService(db)
+    note = await note_service.add_note(
+        trade_id=params.trade_id,
+        data=TradeNoteCreate(content=params.content, emotion=params.emotion),
+        user_id=user_id,
+    )
+    await db.flush()
+
+    AuditEventService().create_audit_event(
+        action="trade.note_added",
+        user_id=user_id,
+        email=None,
+        resource_type="trade_note",
+        resource_id=note.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "trade_id": str(params.trade_id), "note_id": str(note.id)},
+    )
+
+    return {"note_id": str(note.id), "created_at": _serialize_datetime(note.created_at)}
+
+
+async def _handle_update_trade_note(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = UpdateTradeNoteParams.model_validate(arguments)
+
+    update_data: dict[str, Any] = {}
+    if params.content is not None:
+        update_data["content"] = params.content
+    if params.emotion is not None:
+        update_data["emotion"] = params.emotion
+
+    note_service = NoteService(db)
+    try:
+        note = await note_service.update_note(
+            note_id=params.note_id,
+            trade_id=params.trade_id,
+            data=TradeNoteUpdate(**update_data),
+            user_id=user_id,
+        )
+    except NoteNotFoundError as exc:
+        raise ValueError(str(exc)) from exc
+    await db.flush()
+
+    AuditEventService().create_audit_event(
+        action="trade.note_updated",
+        user_id=user_id,
+        email=None,
+        resource_type="trade_note",
+        resource_id=note.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "trade_id": str(params.trade_id), "note_id": str(note.id)},
+    )
+
+    return {"note_id": str(note.id), "updated_at": _serialize_datetime(note.updated_at)}
+
+
+async def _handle_delete_trade_note(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = DeleteTradeNoteParams.model_validate(arguments)
+
+    note_service = NoteService(db)
+    try:
+        await note_service.delete_note(note_id=params.note_id, trade_id=params.trade_id, user_id=user_id)
+    except NoteNotFoundError as exc:
+        raise ValueError(str(exc)) from exc
+    await db.flush()
+
+    AuditEventService().create_audit_event(
+        action="trade.note_deleted",
+        user_id=user_id,
+        email=None,
+        resource_type="trade_note",
+        resource_id=params.note_id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "trade_id": str(params.trade_id), "note_id": str(params.note_id)},
+    )
+
+    return {"deleted": True}
+
+
+async def _handle_update_trade_journal(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = UpdateTradeJournalParams.model_validate(arguments)
+
+    result = await db.execute(
+        select(Trade).where(Trade.user_id == user_id, Trade.id == params.trade_id),
+    )
+    trade = result.scalar_one_or_none()
+    if trade is None:
+        raise ValueError(f"Trade {params.trade_id} not found")
+
+    new_journal = f"{trade.journal}\n{params.text}" if params.mode == "append" and trade.journal else params.text
+
+    trade_service = TradeService(db)
+    try:
+        await trade_service.update_trade(
+            trade_id=params.trade_id,
+            data=TradeUpdate(journal=new_journal),
+            user_id=user_id,
+        )
+    except TradeNotFoundError as exc:
+        raise ValueError(str(exc)) from exc
+
+    AuditEventService().create_audit_event(
+        action="trade.journal_updated",
+        user_id=user_id,
+        email=None,
+        resource_type="trade",
+        resource_id=params.trade_id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={"user_id": str(user_id), "trade_id": str(params.trade_id)},
+    )
+
+    return {"trade_id": str(params.trade_id)}
+
+
+async def _handle_get_trade_attachments(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = GetTradeAttachmentsParams.model_validate(arguments)
+
+    result = await db.execute(
+        select(Trade.image_urls).where(Trade.user_id == user_id, Trade.id == params.trade_id),
+    )
+    row = result.first()
+    if row is None:
+        raise ValueError(f"Trade {params.trade_id} not found")
+    image_refs: list[str] = list(row[0] or [])
+
+    max_items = params.max_items
+    truncated = len(image_refs) > max_items
+    selected_refs = image_refs[:max_items]
+
+    storage_service = StorageService()
+    content_blocks: list[dict[str, Any]] = []
+
+    for ref in selected_refs:
+        filename = _filename_from_storage_ref(ref)
+
+        if params.format == "url":
+            url = storage_service.generate_presigned_get_url(ref, settings.storage_presigned_get_ttl_seconds)
+            content_blocks.append(_build_text_content_block(json.dumps({"filename": filename, "url": url})))
+            continue
+
+        try:
+            data, content_type = storage_service.download_file_by_storage_ref(ref)
+        except Exception:
+            logger.exception("Failed to download trade attachment", extra={"storage_ref": ref})
+            url = storage_service.generate_presigned_get_url(ref, settings.storage_presigned_get_ttl_seconds)
+            content_blocks.append(
+                _build_text_content_block(json.dumps({"filename": filename, "url": url, "error": "download_failed"})),
+            )
+            continue
+
+        if len(data) > MCP_ATTACHMENT_MAX_INLINE_BYTES:
+            url = storage_service.generate_presigned_get_url(ref, settings.storage_presigned_get_ttl_seconds)
+            content_blocks.append(
+                _build_text_content_block(
+                    json.dumps({"filename": filename, "url": url, "note": "oversized_fallback_to_url"}),
+                ),
+            )
+            continue
+
+        content_blocks.append(_build_image_content_block(data, content_type))
+
+    summary = _build_text_content_block(
+        json.dumps(
+            {
+                "trade_id": str(params.trade_id),
+                "format": params.format,
+                "total_available": len(image_refs),
+                "returned": len(selected_refs),
+                "truncated": truncated,
+            },
+        ),
+    )
+
+    return {"_mcp_content": [summary, *content_blocks]}
+
+
+async def _handle_get_playbook_attachments(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = GetPlaybookAttachmentsParams.model_validate(arguments)
+
+    result = await db.execute(
+        select(Playbook)
+        .where(Playbook.user_id == user_id, Playbook.id == params.playbook_id)
+        .options(selectinload(Playbook.attachments), selectinload(Playbook.links)),
+    )
+    playbook = result.scalar_one_or_none()
+    if playbook is None:
+        raise ValueError(f"Playbook {params.playbook_id} not found")
+
+    attachments = list(playbook.attachments)
+    max_items = params.max_items
+    truncated = len(attachments) > max_items
+    selected = attachments[:max_items]
+
+    storage_service = StorageService()
+    content_blocks: list[dict[str, Any]] = []
+
+    for attachment in selected:
+        if params.format == "url":
+            url = storage_service.generate_presigned_get_url(
+                attachment.storage_url,
+                settings.storage_presigned_get_ttl_playbook_seconds,
+            )
+            content_blocks.append(_build_text_content_block(json.dumps({"filename": attachment.filename, "url": url})))
+            continue
+
+        try:
+            data, _content_type = storage_service.download_file_by_storage_ref(attachment.storage_url)
+        except Exception:
+            logger.exception("Failed to download playbook attachment", extra={"storage_ref": attachment.storage_url})
+            url = storage_service.generate_presigned_get_url(
+                attachment.storage_url,
+                settings.storage_presigned_get_ttl_playbook_seconds,
+            )
+            content_blocks.append(
+                _build_text_content_block(
+                    json.dumps({"filename": attachment.filename, "url": url, "error": "download_failed"}),
+                ),
+            )
+            continue
+
+        if len(data) > MCP_ATTACHMENT_MAX_INLINE_BYTES:
+            url = storage_service.generate_presigned_get_url(
+                attachment.storage_url,
+                settings.storage_presigned_get_ttl_playbook_seconds,
+            )
+            content_blocks.append(
+                _build_text_content_block(
+                    json.dumps({"filename": attachment.filename, "url": url, "note": "oversized_fallback_to_url"}),
+                ),
+            )
+            continue
+
+        content_blocks.append(_build_image_content_block(data, attachment.content_type))
+
+    links_block = _build_text_content_block(
+        json.dumps([{"label": link.label, "url": link.url} for link in playbook.links]),
+    )
+
+    summary = _build_text_content_block(
+        json.dumps(
+            {
+                "playbook_id": str(params.playbook_id),
+                "format": params.format,
+                "total_available": len(attachments),
+                "returned": len(selected),
+                "truncated": truncated,
+            },
+        ),
+    )
+
+    return {"_mcp_content": [summary, *content_blocks, links_block]}
+
+
+async def _handle_link_trade_playbook(
+    user_id: uuid.UUID,
+    db: AsyncSession,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    params = LinkTradePlaybookParams.model_validate(arguments)
+
+    result = await db.execute(
+        select(Trade).where(Trade.user_id == user_id, Trade.id == params.trade_id),
+    )
+    trade = result.scalar_one_or_none()
+    if trade is None:
+        raise ValueError(f"Trade {params.trade_id} not found")
+
+    new_playbook_id: uuid.UUID | None
+    if params.clear:
+        new_playbook_id = None
+    else:
+        owned_playbook = await db.execute(
+            select(Playbook.id).where(Playbook.user_id == user_id, Playbook.id == params.playbook_id),
+        )
+        if owned_playbook.scalar_one_or_none() is None:
+            raise ValueError(f"Playbook {params.playbook_id} not found")
+        new_playbook_id = params.playbook_id
+
+    trade.playbook_id = new_playbook_id
+    await db.flush()
+
+    AuditEventService().create_audit_event(
+        action="trade.playbook_linked",
+        user_id=user_id,
+        email=None,
+        resource_type="trade",
+        resource_id=trade.id,
+        ip_address=None,
+        user_agent="mcp",
+        request_id=generate_request_id(),
+        status_code=200,
+        method="POST",
+        path="/mcp/messages",
+        metadata={
+            "user_id": str(user_id),
+            "trade_id": str(trade.id),
+            "playbook_id": str(new_playbook_id) if new_playbook_id else None,
+        },
+    )
+
+    return {
+        "trade_id": str(trade.id),
+        "playbook_id": str(new_playbook_id) if new_playbook_id else None,
+    }
+
+
 _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     "get_metadata_schema": {
         "description": "Return active taxonomies and annotation definitions for the authenticated user.",
@@ -1630,6 +2276,164 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "handler": _handle_update_strategy_playbook,
         "mutating": True,
     },
+    "get_trade": {
+        "description": (
+            "Load a single trade by ID, including core fields, journal, taxonomy/annotation "
+            "assignments, image reference count and filenames, and embedded quick notes."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["trade_id"],
+        },
+        "handler": _handle_get_trade,
+        "mutating": False,
+    },
+    "get_checkin": {
+        "description": (
+            "Load a single daily check-in by ID, including notes, market phase, custom metrics, "
+            "news links, screenshot count, and full taxonomy/annotation assignment detail."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "checkin_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["checkin_id"],
+        },
+        "handler": _handle_get_checkin,
+        "mutating": False,
+    },
+    "get_taxonomy": {
+        "description": "Load a single taxonomy definition by ID.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "taxonomy_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["taxonomy_id"],
+        },
+        "handler": _handle_get_taxonomy,
+        "mutating": False,
+    },
+    "get_annotation_definition": {
+        "description": "Load a single annotation definition by ID.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "annotation_definition_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["annotation_definition_id"],
+        },
+        "handler": _handle_get_annotation_definition,
+        "mutating": False,
+    },
+    "add_trade_note": {
+        "description": "Append a new timestamped quick note (with optional emotion label) to an owned trade.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "format": "uuid"},
+                "content": {"type": "string", "minLength": 1, "maxLength": NOTE_MAX_LENGTH},
+                "emotion": {"type": "string", "maxLength": EMOTION_MAX_LENGTH},
+            },
+            "required": ["trade_id", "content"],
+        },
+        "handler": _handle_add_trade_note,
+        "mutating": True,
+    },
+    "update_trade_note": {
+        "description": "Edit an existing quick note's content and/or emotion label.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "format": "uuid"},
+                "note_id": {"type": "string", "format": "uuid"},
+                "content": {"type": "string", "minLength": 1, "maxLength": NOTE_MAX_LENGTH},
+                "emotion": {"type": "string", "maxLength": EMOTION_MAX_LENGTH},
+            },
+            "required": ["trade_id", "note_id"],
+        },
+        "handler": _handle_update_trade_note,
+        "mutating": True,
+    },
+    "delete_trade_note": {
+        "description": "Delete an existing quick note from an owned trade.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "format": "uuid"},
+                "note_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["trade_id", "note_id"],
+        },
+        "handler": _handle_delete_trade_note,
+        "mutating": True,
+    },
+    "update_trade_journal": {
+        "description": "Set (replace) or append to the main journal notes field of a single owned trade.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "format": "uuid"},
+                "text": {"type": "string", "maxLength": JOURNAL_MAX_LENGTH},
+                "mode": {"type": "string", "enum": ["replace", "append"], "default": "replace"},
+            },
+            "required": ["trade_id", "text"],
+        },
+        "handler": _handle_update_trade_journal,
+        "mutating": True,
+    },
+    "get_trade_attachments": {
+        "description": (
+            "Return a trade's image attachments as base64 MCP image content blocks (default) or "
+            "presigned URLs, bounded by max_items and a per-image byte cap."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "format": "uuid"},
+                "format": {"type": "string", "enum": ["image", "url"], "default": "image"},
+                "max_items": {"type": "integer", "minimum": 1, "maximum": MCP_ATTACHMENT_MAX_ITEMS, "default": MCP_ATTACHMENT_MAX_ITEMS},
+            },
+            "required": ["trade_id"],
+        },
+        "handler": _handle_get_trade_attachments,
+        "mutating": False,
+    },
+    "get_playbook_attachments": {
+        "description": (
+            "Return a playbook's image attachments (base64 blocks or presigned URLs) and labeled "
+            "links, bounded by max_items and a per-image byte cap."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "playbook_id": {"type": "string", "format": "uuid"},
+                "format": {"type": "string", "enum": ["image", "url"], "default": "image"},
+                "max_items": {"type": "integer", "minimum": 1, "maximum": MCP_ATTACHMENT_MAX_ITEMS, "default": MCP_ATTACHMENT_MAX_ITEMS},
+            },
+            "required": ["playbook_id"],
+        },
+        "handler": _handle_get_playbook_attachments,
+        "mutating": False,
+    },
+    "link_trade_playbook": {
+        "description": "Set or clear the linked playbook of an owned trade. Pass playbook_id to set (must also be owned), or clear:true to remove the link.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "format": "uuid"},
+                "playbook_id": {"type": "string", "format": "uuid"},
+                "clear": {"type": "boolean", "default": False},
+            },
+            "required": ["trade_id"],
+        },
+        "handler": _handle_link_trade_playbook,
+        "mutating": True,
+    },
 }
 
 
@@ -1787,15 +2591,21 @@ async def _dispatch_jsonrpc(
                 db=db,
                 arguments=arguments,
             )
-            # MCP spec requires tools/call result to have a "content" array
-            mcp_result = {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": json.dumps(raw_result),
-                    }
-                ]
-            }
+            # MCP spec requires tools/call result to have a "content" array.
+            # Handlers may opt into returning non-text blocks (e.g. images) by
+            # returning {"_mcp_content": [...]}; those blocks are used verbatim.
+            # All other handlers keep the existing single-text-block wrapping.
+            if "_mcp_content" in raw_result:
+                mcp_result = {"content": raw_result["_mcp_content"]}
+            else:
+                mcp_result = {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(raw_result),
+                        }
+                    ]
+                }
             return {
                 "jsonrpc": "2.0",
                 "id": message_id,

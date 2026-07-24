@@ -13,6 +13,7 @@
 
 """Integration tests for MCP transport endpoints."""
 
+import base64
 import json
 import uuid
 from datetime import UTC, datetime
@@ -26,10 +27,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.annotation_definition import AnnotationDefinition
 from app.models.playbook import Playbook
+from app.models.playbook_attachment import PlaybookAttachment
+from app.models.playbook_link import PlaybookLink
 from app.models.playbook_taxonomy import PlaybookTaxonomy
 from app.models.taxonomy import Taxonomy
 from app.models.trade import Trade
 from app.models.trade_annotation import TradeAnnotation
+from app.models.trade_note import TradeNote
 from app.models.trade_taxonomy import TradeTaxonomy
 from tests.test_pat_api import _register_and_login
 
@@ -264,6 +268,17 @@ async def test_mcp_tools_list_returns_all_domain_tools(client: AsyncClient) -> N
         "create_annotation_definition",
         "update_annotation_definition",
         "delete_annotation_definition",
+        "get_trade",
+        "get_checkin",
+        "get_taxonomy",
+        "get_annotation_definition",
+        "add_trade_note",
+        "update_trade_note",
+        "delete_trade_note",
+        "update_trade_journal",
+        "get_trade_attachments",
+        "get_playbook_attachments",
+        "link_trade_playbook",
     }
     for tool in tools:
         assert "description" in tool
@@ -333,8 +348,6 @@ async def test_get_metadata_schema_excludes_archived_and_supports_empty(
 @pytest.mark.integration
 async def test_list_portfolios_returns_user_portfolios(client: AsyncClient) -> None:
     headers, token = await _auth_and_pat(client)
-    me = await client.get("/api/v1/users/me", headers=headers)
-    user_id = uuid.UUID(str(me.json()["data"]["id"]))
 
     payload = await _mcp_tools_call(client, token, tool_name="list_portfolios", arguments={}, message_id=40)
     assert payload["result"]["portfolios"] == []
@@ -1188,3 +1201,732 @@ async def test_tools_call_unknown_tool_returns_32601(client: AsyncClient) -> Non
         message_id=51,
     )
     assert payload["error"]["code"] == -32601
+
+
+@pytest.mark.integration
+async def test_get_trade_returns_detail_with_quick_notes_and_enforces_isolation(
+    client: AsyncClient,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+    other_headers, other_token = await _auth_and_pat(client)
+    portfolio_id, account_id = await _create_portfolio_and_account(client, headers, "GetTrade")
+    trade_id = await _create_trade(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        symbol="AAPL",
+        opened_at=datetime(2026, 1, 5, tzinfo=UTC),
+        pnl="150.00",
+    )
+
+    taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "GetTrade Tag", "scope": "trades", "color_hex": "#123456"},
+        headers=headers,
+    )
+    assert taxonomy.status_code == 201, taxonomy.text
+    taxonomy_id = taxonomy.json()["data"]["id"]
+
+    definition = await client.post(
+        "/api/v1/annotation-definitions",
+        json={"name": "GetTrade Mood", "type": "int", "scope": "trades"},
+        headers=headers,
+    )
+    assert definition.status_code == 201, definition.text
+    definition_id = definition.json()["data"]["id"]
+
+    sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_trade_metadata",
+        arguments={
+            "trade_ids": [trade_id],
+            "journal": "Initial journal text.",
+            "taxonomy_ids": [taxonomy_id],
+            "annotations": [{"annotation_definition_id": definition_id, "value": 7}],
+        },
+        message_id=200,
+    )
+    assert sync["result"]["updated_count"] == 1
+
+    added_note = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="add_trade_note",
+        arguments={"trade_id": trade_id, "content": "Entered too early.", "emotion": "fearful"},
+        message_id=201,
+    )
+    assert added_note["result"]["note_id"]
+
+    fetched = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_trade",
+        arguments={"trade_id": trade_id},
+        message_id=202,
+    )
+    result = fetched["result"]
+    assert result["id"] == trade_id
+    assert result["symbol"] == "AAPL"
+    assert result["journal"] == "Initial journal text."
+    assert result["playbook_id"] is None
+    assert {item["taxonomy_id"] for item in result["taxonomy_assignments"]} == {taxonomy_id}
+    assert result["annotation_assignments"][0]["annotation_definition_id"] == definition_id
+    assert result["annotation_assignments"][0]["value"] == 7
+    assert result["image_count"] == 0
+    assert result["image_filenames"] == []
+    assert len(result["quick_notes"]) == 1
+    assert result["quick_notes"][0]["content"] == "Entered too early."
+    assert result["quick_notes"][0]["emotion"] == "fearful"
+
+    cross_user = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="get_trade",
+        arguments={"trade_id": trade_id},
+        message_id=203,
+    )
+    assert cross_user["error"]["code"] == -32602
+
+    unknown = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_trade",
+        arguments={"trade_id": str(uuid.uuid4())},
+        message_id=204,
+    )
+    assert unknown["error"]["code"] == -32602
+    del other_headers
+
+
+@pytest.mark.integration
+async def test_get_checkin_returns_detail_and_enforces_isolation(client: AsyncClient) -> None:
+    headers, token = await _auth_and_pat(client)
+    _other_headers, other_token = await _auth_and_pat(client)
+
+    create_checkin = await client.post(
+        "/api/v1/checkins",
+        json={"date": "2026-02-01", "notes": "Quiet pre-market.", "market_phase": "bullish"},
+        headers=headers,
+    )
+    assert create_checkin.status_code == 201, create_checkin.text
+    checkin_id = create_checkin.json()["data"]["id"]
+
+    taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "GetCheckin Tag", "scope": "checkins", "color_hex": "#654321"},
+        headers=headers,
+    )
+    assert taxonomy.status_code == 201, taxonomy.text
+    taxonomy_id = taxonomy.json()["data"]["id"]
+
+    definition = await client.post(
+        "/api/v1/annotation-definitions",
+        json={"name": "GetCheckin Bias", "type": "bool", "scope": "checkins"},
+        headers=headers,
+    )
+    assert definition.status_code == 201, definition.text
+    definition_id = definition.json()["data"]["id"]
+
+    sync = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="sync_checkin_metadata",
+        arguments={
+            "checkin_ids": [checkin_id],
+            "taxonomy_ids": [taxonomy_id],
+            "annotations": [{"annotation_definition_id": definition_id, "value": True}],
+        },
+        message_id=210,
+    )
+    assert sync["result"]["updated_count"] == 1
+
+    fetched = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_checkin",
+        arguments={"checkin_id": checkin_id},
+        message_id=211,
+    )
+    result = fetched["result"]
+    assert result["id"] == checkin_id
+    assert result["notes"] == "Quiet pre-market."
+    assert result["market_phase"] == "bullish"
+    assert result["screenshot_count"] == 0
+    assert {item["taxonomy_id"] for item in result["taxonomy_assignments"]} == {taxonomy_id}
+    assert result["annotation_assignments"][0]["value"] is True
+
+    cross_user = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="get_checkin",
+        arguments={"checkin_id": checkin_id},
+        message_id=212,
+    )
+    assert cross_user["error"]["code"] == -32602
+
+    unknown = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_checkin",
+        arguments={"checkin_id": str(uuid.uuid4())},
+        message_id=213,
+    )
+    assert unknown["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_get_taxonomy_and_get_annotation_definition_return_detail_and_isolation(
+    client: AsyncClient,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+    _other_headers, other_token = await _auth_and_pat(client)
+
+    taxonomy = await client.post(
+        "/api/v1/taxonomies",
+        json={"name": "GetTaxonomy Tag", "scope": "trades", "color_hex": "#abcdef", "description": "desc"},
+        headers=headers,
+    )
+    assert taxonomy.status_code == 201, taxonomy.text
+    taxonomy_id = taxonomy.json()["data"]["id"]
+
+    definition = await client.post(
+        "/api/v1/annotation-definitions",
+        json={"name": "GetAnnDef", "type": "string_enum", "scope": "trades", "scale_labels": {"options": ["a", "b"]}},
+        headers=headers,
+    )
+    assert definition.status_code == 201, definition.text
+    definition_id = definition.json()["data"]["id"]
+
+    fetched_taxonomy = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_taxonomy",
+        arguments={"taxonomy_id": taxonomy_id},
+        message_id=220,
+    )
+    assert fetched_taxonomy["result"]["id"] == taxonomy_id
+    assert fetched_taxonomy["result"]["name"] == "GetTaxonomy Tag"
+    assert fetched_taxonomy["result"]["color_hex"] == "#abcdef"
+    assert fetched_taxonomy["result"]["is_archived"] is False
+
+    fetched_definition = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_annotation_definition",
+        arguments={"annotation_definition_id": definition_id},
+        message_id=221,
+    )
+    assert fetched_definition["result"]["id"] == definition_id
+    assert fetched_definition["result"]["name"] == "GetAnnDef"
+    assert fetched_definition["result"]["type"] == "string_enum"
+
+    cross_user_taxonomy = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="get_taxonomy",
+        arguments={"taxonomy_id": taxonomy_id},
+        message_id=222,
+    )
+    assert cross_user_taxonomy["error"]["code"] == -32602
+
+    cross_user_definition = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="get_annotation_definition",
+        arguments={"annotation_definition_id": definition_id},
+        message_id=223,
+    )
+    assert cross_user_definition["error"]["code"] == -32602
+
+    unknown_taxonomy = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_taxonomy",
+        arguments={"taxonomy_id": str(uuid.uuid4())},
+        message_id=224,
+    )
+    assert unknown_taxonomy["error"]["code"] == -32602
+
+    unknown_definition = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_annotation_definition",
+        arguments={"annotation_definition_id": str(uuid.uuid4())},
+        message_id=225,
+    )
+    assert unknown_definition["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_add_update_delete_trade_note_lifecycle_and_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+    _other_headers, other_token = await _auth_and_pat(client)
+    portfolio_id, account_id = await _create_portfolio_and_account(client, headers, "NoteLifecycle")
+    trade_id = await _create_trade(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        symbol="MSFT",
+        opened_at=datetime(2026, 2, 2, tzinfo=UTC),
+    )
+
+    cross_user_add = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="add_trade_note",
+        arguments={"trade_id": trade_id, "content": "Should not be created."},
+        message_id=230,
+    )
+    assert cross_user_add["error"]["code"] == -32602
+    no_notes = await db_session.execute(select(TradeNote).where(TradeNote.trade_id == uuid.UUID(trade_id)))
+    assert no_notes.scalars().all() == []
+
+    added = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="add_trade_note",
+        arguments={"trade_id": trade_id, "content": "First note.", "emotion": "confident"},
+        message_id=231,
+    )
+    note_id = added["result"]["note_id"]
+    assert added["result"]["created_at"]
+
+    updated = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_trade_note",
+        arguments={"trade_id": trade_id, "note_id": note_id, "content": "Revised note."},
+        message_id=232,
+    )
+    assert updated["result"]["note_id"] == note_id
+
+    row = await db_session.execute(select(TradeNote).where(TradeNote.id == uuid.UUID(note_id)))
+    note = row.scalar_one()
+    assert note.content == "Revised note."
+    assert note.emotion == "confident"
+
+    cross_user_update = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="update_trade_note",
+        arguments={"trade_id": trade_id, "note_id": note_id, "content": "Hijacked."},
+        message_id=233,
+    )
+    assert cross_user_update["error"]["code"] == -32602
+
+    unknown_note_update = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_trade_note",
+        arguments={"trade_id": trade_id, "note_id": str(uuid.uuid4()), "content": "N/A"},
+        message_id=234,
+    )
+    assert unknown_note_update["error"]["code"] == -32602
+
+    cross_user_delete = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="delete_trade_note",
+        arguments={"trade_id": trade_id, "note_id": note_id},
+        message_id=235,
+    )
+    assert cross_user_delete["error"]["code"] == -32602
+
+    deleted = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="delete_trade_note",
+        arguments={"trade_id": trade_id, "note_id": note_id},
+        message_id=236,
+    )
+    assert deleted["result"]["deleted"] is True
+
+    row_after_delete = await db_session.execute(select(TradeNote).where(TradeNote.id == uuid.UUID(note_id)))
+    assert row_after_delete.scalar_one_or_none() is None
+
+    unknown_note_delete = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="delete_trade_note",
+        arguments={"trade_id": trade_id, "note_id": str(uuid.uuid4())},
+        message_id=237,
+    )
+    assert unknown_note_delete["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_update_trade_journal_replace_and_append_and_enforces_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+    _other_headers, other_token = await _auth_and_pat(client)
+    portfolio_id, account_id = await _create_portfolio_and_account(client, headers, "JournalEdit")
+    trade_id = await _create_trade(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        symbol="TSLA",
+        opened_at=datetime(2026, 2, 3, tzinfo=UTC),
+    )
+
+    replaced = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_trade_journal",
+        arguments={"trade_id": trade_id, "text": "First entry."},
+        message_id=240,
+    )
+    assert replaced["result"]["trade_id"] == trade_id
+
+    row = await db_session.execute(select(Trade).where(Trade.id == uuid.UUID(trade_id)))
+    trade = row.scalar_one()
+    assert trade.journal == "First entry."
+
+    appended = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_trade_journal",
+        arguments={"trade_id": trade_id, "text": "Second entry.", "mode": "append"},
+        message_id=241,
+    )
+    assert appended["result"]["trade_id"] == trade_id
+
+    await db_session.refresh(trade)
+    assert trade.journal == "First entry.\nSecond entry."
+
+    cross_user = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="update_trade_journal",
+        arguments={"trade_id": trade_id, "text": "Hijacked."},
+        message_id=242,
+    )
+    assert cross_user["error"]["code"] == -32602
+
+    unknown = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="update_trade_journal",
+        arguments={"trade_id": str(uuid.uuid4()), "text": "N/A"},
+        message_id=243,
+    )
+    assert unknown["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_get_trade_attachments_image_and_url_modes_with_guardrails(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+    _other_headers, other_token = await _auth_and_pat(client)
+    portfolio_id, account_id = await _create_portfolio_and_account(client, headers, "Attachments")
+    trade_id = await _create_trade(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        symbol="NVDA",
+        opened_at=datetime(2026, 2, 4, tzinfo=UTC),
+    )
+
+    empty_result = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_trade_attachments",
+        arguments={"trade_id": trade_id},
+        message_id=250,
+    )
+    assert empty_result["result"]["total_available"] == 0
+    assert empty_result["result"]["returned"] == 0
+    assert empty_result["result"]["truncated"] is False
+
+    row = await db_session.execute(select(Trade).where(Trade.id == uuid.UUID(trade_id)))
+    trade = row.scalar_one()
+    trade.image_urls = [f"test-bucket/trades/u1/chart{i}.png" for i in range(6)]
+    await db_session.commit()
+
+    with patch("app.api.mcp.StorageService") as mock_storage_cls:
+        mock_storage = mock_storage_cls.return_value
+        mock_storage.download_file_by_storage_ref.return_value = (b"fake-png-bytes", "image/png")
+        mock_storage.generate_presigned_get_url.return_value = "https://signed.example.com/chart.png"
+
+        image_response = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 251,
+                "method": "tools/call",
+                "params": {"name": "get_trade_attachments", "arguments": {"trade_id": trade_id}},
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert image_response.status_code == 200, image_response.text
+        content = image_response.json()["result"]["content"]
+        summary = json.loads(content[0]["text"])
+        assert summary["total_available"] == 6
+        assert summary["returned"] == 4
+        assert summary["truncated"] is True
+        image_blocks = [block for block in content[1:] if block["type"] == "image"]
+        assert len(image_blocks) == 4
+        assert image_blocks[0]["mimeType"] == "image/png"
+        assert base64.b64decode(image_blocks[0]["data"]) == b"fake-png-bytes"
+
+        url_response = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 252,
+                "method": "tools/call",
+                "params": {
+                    "name": "get_trade_attachments",
+                    "arguments": {"trade_id": trade_id, "format": "url", "max_items": 2},
+                },
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert url_response.status_code == 200, url_response.text
+        url_content = url_response.json()["result"]["content"]
+        url_summary = json.loads(url_content[0]["text"])
+        assert url_summary["returned"] == 2
+        assert url_summary["format"] == "url"
+        assert all(block["type"] == "text" for block in url_content[1:])
+        first_url_entry = json.loads(url_content[1]["text"])
+        assert first_url_entry["url"] == "https://signed.example.com/chart.png"
+
+        mock_storage.download_file_by_storage_ref.return_value = (
+            b"x" * (5 * 1024 * 1024 + 1),
+            "image/png",
+        )
+        oversized_response = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 253,
+                "method": "tools/call",
+                "params": {
+                    "name": "get_trade_attachments",
+                    "arguments": {"trade_id": trade_id, "max_items": 1},
+                },
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert oversized_response.status_code == 200, oversized_response.text
+        oversized_content = oversized_response.json()["result"]["content"]
+        assert oversized_content[1]["type"] == "text"
+        oversized_entry = json.loads(oversized_content[1]["text"])
+        assert oversized_entry["note"] == "oversized_fallback_to_url"
+
+        mock_storage.download_file_by_storage_ref.side_effect = RuntimeError("storage unavailable")
+        failure_response = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 254,
+                "method": "tools/call",
+                "params": {
+                    "name": "get_trade_attachments",
+                    "arguments": {"trade_id": trade_id, "max_items": 1},
+                },
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert failure_response.status_code == 200, failure_response.text
+        failure_content = failure_response.json()["result"]["content"]
+        failure_entry = json.loads(failure_content[1]["text"])
+        assert failure_entry["error"] == "download_failed"
+
+    cross_user = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="get_trade_attachments",
+        arguments={"trade_id": trade_id},
+        message_id=255,
+    )
+    assert cross_user["error"]["code"] == -32602
+
+    unknown = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_trade_attachments",
+        arguments={"trade_id": str(uuid.uuid4())},
+        message_id=256,
+    )
+    assert unknown["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_get_playbook_attachments_returns_image_blocks_and_links(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+    _other_headers, other_token = await _auth_and_pat(client)
+
+    me = await client.get("/api/v1/users/me", headers=headers)
+    user_id = uuid.UUID(str(me.json()["data"]["id"]))
+
+    created_playbook = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "Attachment Playbook"},
+        message_id=260,
+    )
+    playbook_id = created_playbook["result"]["playbook_id"]
+
+    db_session.add(
+        PlaybookAttachment(
+            playbook_id=uuid.UUID(playbook_id),
+            user_id=user_id,
+            filename="setup.png",
+            storage_url="test-bucket/playbooks/u1/setup.png",
+            content_type="image/png",
+        ),
+    )
+    db_session.add(
+        PlaybookLink(
+            playbook_id=uuid.UUID(playbook_id),
+            user_id=user_id,
+            label="Reference article",
+            url="https://example.com/strategy",
+        ),
+    )
+    await db_session.commit()
+
+    with patch("app.api.mcp.StorageService") as mock_storage_cls:
+        mock_storage = mock_storage_cls.return_value
+        mock_storage.download_file_by_storage_ref.return_value = (b"fake-playbook-image", "image/png")
+
+        response = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 261,
+                "method": "tools/call",
+                "params": {"name": "get_playbook_attachments", "arguments": {"playbook_id": playbook_id}},
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200, response.text
+        content = response.json()["result"]["content"]
+
+        summary = json.loads(content[0]["text"])
+        assert summary["total_available"] == 1
+        assert summary["returned"] == 1
+
+        image_blocks = [block for block in content if block["type"] == "image"]
+        assert len(image_blocks) == 1
+        assert base64.b64decode(image_blocks[0]["data"]) == b"fake-playbook-image"
+
+        links_block = content[-1]
+        assert links_block["type"] == "text"
+        links = json.loads(links_block["text"])
+        assert links == [{"label": "Reference article", "url": "https://example.com/strategy"}]
+
+    cross_user = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="get_playbook_attachments",
+        arguments={"playbook_id": playbook_id},
+        message_id=262,
+    )
+    assert cross_user["error"]["code"] == -32602
+
+    unknown = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="get_playbook_attachments",
+        arguments={"playbook_id": str(uuid.uuid4())},
+        message_id=263,
+    )
+    assert unknown["error"]["code"] == -32602
+
+
+@pytest.mark.integration
+async def test_link_trade_playbook_set_clear_and_enforces_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    headers, token = await _auth_and_pat(client)
+    other_headers, other_token = await _auth_and_pat(client)
+    portfolio_id, account_id = await _create_portfolio_and_account(client, headers, "LinkPlaybook")
+    trade_id = await _create_trade(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        symbol="AMD",
+        opened_at=datetime(2026, 2, 5, tzinfo=UTC),
+    )
+
+    created_playbook = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "Breakout Playbook"},
+        message_id=270,
+    )
+    playbook_id = created_playbook["result"]["playbook_id"]
+
+    linked = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="link_trade_playbook",
+        arguments={"trade_id": trade_id, "playbook_id": playbook_id},
+        message_id=271,
+    )
+    assert linked["result"]["trade_id"] == trade_id
+    assert linked["result"]["playbook_id"] == playbook_id
+
+    row = await db_session.execute(select(Trade).where(Trade.id == uuid.UUID(trade_id)))
+    trade = row.scalar_one()
+    assert str(trade.playbook_id) == playbook_id
+
+    cleared = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="link_trade_playbook",
+        arguments={"trade_id": trade_id, "clear": True},
+        message_id=272,
+    )
+    assert cleared["result"]["playbook_id"] is None
+
+    await db_session.refresh(trade)
+    assert trade.playbook_id is None
+
+    foreign_playbook = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="create_strategy_playbook",
+        arguments={"name": "Foreign Playbook"},
+        message_id=273,
+    )
+    foreign_playbook_id = foreign_playbook["result"]["playbook_id"]
+
+    link_to_foreign_playbook = await _mcp_tools_call(
+        client,
+        token,
+        tool_name="link_trade_playbook",
+        arguments={"trade_id": trade_id, "playbook_id": foreign_playbook_id},
+        message_id=274,
+    )
+    assert link_to_foreign_playbook["error"]["code"] == -32602
+
+    cross_user_link = await _mcp_tools_call(
+        client,
+        other_token,
+        tool_name="link_trade_playbook",
+        arguments={"trade_id": trade_id, "playbook_id": playbook_id},
+        message_id=275,
+    )
+    assert cross_user_link["error"]["code"] == -32602
+    del other_headers

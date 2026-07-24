@@ -150,3 +150,54 @@ def test_generate_upload_url_returns_storage_ref_bucket_prefix(configured_storag
         )
 
     assert storage_ref.startswith("test-bucket/")
+
+
+@pytest.mark.unit
+def test_download_file_by_storage_ref_returns_bytes_and_content_type(
+    configured_storage: None,
+) -> None:
+    service = StorageService()
+    with patch("app.services.storage_service.boto3.client") as client_factory:
+        client = Mock()
+        client.get_object.return_value = {
+            "Body": Mock(read=Mock(return_value=b"binary-image-data")),
+            "ContentType": "image/png",
+        }
+        client_factory.return_value = client
+
+        data, content_type = service.download_file_by_storage_ref("test-bucket/trades/u1/chart.png")
+
+    assert data == b"binary-image-data"
+    assert content_type == "image/png"
+    kwargs = client.get_object.call_args.kwargs
+    assert kwargs["Bucket"] == "test-bucket"
+    assert kwargs["Key"] == "trades/u1/chart.png"
+
+
+@pytest.mark.unit
+def test_download_file_by_storage_ref_defaults_content_type_when_missing(
+    configured_storage: None,
+) -> None:
+    service = StorageService()
+    with patch("app.services.storage_service.boto3.client") as client_factory:
+        client = Mock()
+        client.get_object.return_value = {"Body": Mock(read=Mock(return_value=b"data"))}
+        client_factory.return_value = client
+
+        _, content_type = service.download_file_by_storage_ref("test-bucket/trades/u1/chart.png")
+
+    assert content_type == "application/octet-stream"
+
+
+@pytest.mark.unit
+def test_download_file_by_storage_ref_propagates_missing_object_error(
+    configured_storage: None,
+) -> None:
+    service = StorageService()
+    with patch("app.services.storage_service.boto3.client") as client_factory:
+        client = Mock()
+        client.get_object.side_effect = RuntimeError("NoSuchKey")
+        client_factory.return_value = client
+
+        with pytest.raises(RuntimeError, match="NoSuchKey"):
+            service.download_file_by_storage_ref("test-bucket/trades/u1/missing.png")

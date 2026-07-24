@@ -203,3 +203,31 @@ class StorageService:
             Bucket=bucket,
             Key=key,
         )
+
+    def download_file_by_storage_ref(
+        self,
+        storage_ref: str,
+    ) -> tuple[bytes, str]:
+        """Download object bytes and content type for a storage ref.
+
+        Args:
+            storage_ref: Storage reference in ``{bucket}/{key}`` format.
+
+        Returns:
+            A tuple of ``(bytes, content_type)``. Falls back to
+            ``application/octet-stream`` if the backend does not report a
+            content type.
+
+        Raises:
+            Exception: Propagates any error from the underlying S3 client
+                (e.g. missing object, connection failure). Callers that need
+                to degrade gracefully per-object should catch broadly.
+        """
+        bucket, key = self.parse_storage_ref(storage_ref)
+        response = self._s3_client_internal.get_object(
+            Bucket=bucket,
+            Key=key,
+        )
+        body: bytes = response["Body"].read()
+        content_type: str = response.get("ContentType") or "application/octet-stream"
+        return body, content_type

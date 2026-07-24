@@ -71,6 +71,108 @@ Updates playbook metadata and can optionally assign taxonomy tags in the same ca
 | `target_winrate` | number | no | Optional target win rate, `0.0` to `1.0`. |
 | `is_active` | boolean | no | Optional active status update. |
 
+### `get_trade`
+
+Loads a single trade by ID, including core fields, the journal, taxonomy/annotation assignments, image reference count and filenames (no binary content), and embedded quick notes.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `trade_id` | uuid | yes | Trade ID (must be owned by the caller). |
+
+### `get_checkin`
+
+Loads a single daily check-in by ID, including notes, market phase, custom metrics, news links, screenshot count, and full taxonomy/annotation assignment detail.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `checkin_id` | uuid | yes | Check-in ID (must be owned by the caller). |
+
+### `get_taxonomy`
+
+Loads a single taxonomy definition by ID.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `taxonomy_id` | uuid | yes | Taxonomy ID (must be owned by the caller). |
+
+### `get_annotation_definition`
+
+Loads a single annotation definition by ID.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `annotation_definition_id` | uuid | yes | Annotation definition ID (must be owned by the caller). |
+
+### `add_trade_note`
+
+Appends a new timestamped quick note (distinct from the main journal) to a trade.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `trade_id` | uuid | yes | Target trade ID (must be owned by the caller). |
+| `content` | string | yes | Note body, max 5000 characters. |
+| `emotion` | string | no | Optional emotion label, max 50 characters. |
+
+### `update_trade_note`
+
+Edits an existing quick note's content and/or emotion label.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `trade_id` | uuid | yes | Parent trade ID. |
+| `note_id` | uuid | yes | Note ID to update. |
+| `content` | string | no | Updated note body. |
+| `emotion` | string | no | Updated emotion label. |
+
+### `delete_trade_note`
+
+Deletes an existing quick note from a trade.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `trade_id` | uuid | yes | Parent trade ID. |
+| `note_id` | uuid | yes | Note ID to delete. |
+
+### `update_trade_journal`
+
+Sets (`replace`) or appends (`append`) to a single trade's main journal text — finer-grained than the bulk `sync_trade_metadata`.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `trade_id` | uuid | yes | Target trade ID (must be owned by the caller). |
+| `text` | string | yes | Journal text to set or append. |
+| `mode` | enum | no | `replace` (default) or `append`. |
+
+### `get_trade_attachments`
+
+Returns a trade's image attachments as base64 MCP image content blocks (default) so a vision model can see the chart directly, or as presigned URLs. Bounded by `max_items` (max 4) and a 5 MB per-image inline size cap — oversized or unreadable images degrade to a URL/error entry instead of failing the call.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `trade_id` | uuid | yes | Target trade ID (must be owned by the caller). |
+| `format` | enum | no | `image` (default) or `url`. |
+| `max_items` | integer | no | 1-4, default 4. |
+
+### `get_playbook_attachments`
+
+Returns a playbook's image attachments (same `format` semantics as `get_trade_attachments`) plus its labeled reference links as text.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `playbook_id` | uuid | yes | Target playbook ID (must be owned by the caller). |
+| `format` | enum | no | `image` (default) or `url`. |
+| `max_items` | integer | no | 1-4, default 4. |
+
+### `link_trade_playbook`
+
+Sets or clears the linked playbook of a trade.
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `trade_id` | uuid | yes | Target trade ID (must be owned by the caller). |
+| `playbook_id` | uuid | no | Playbook ID to link (must be owned by the caller). Omit when clearing. |
+| `clear` | boolean | no | Set `true` to remove the existing link instead of setting one. |
+
 ## Prompt Examples
 
 Here are some example prompts you can use directly with your connected AI client:
@@ -110,6 +212,18 @@ Retrieve all trades tagged with 'Earnings Gap Fill' from last month, identify co
 Analyze my Max Drawdown periods over the last 90 days. Were there any correlation with specific Market Phases or specific assets?
 ```
 *(Uses: `search_trades_advanced`)*
+
+**Load trade and link a playbook:**
+```text
+Load trade 5e4ab6b2-e0be-4a08-8878-8a449026f8e2 and link it to my Breakout Momentum playbook.
+```
+*(Uses: `get_trade` + `list_strategy_playbooks` + `link_trade_playbook`)*
+
+**Analyse chart and write a note:**
+```text
+Look at the chart on trade 5e4ab6b2-e0be-4a08-8878-8a449026f8e2, check it against the linked playbook's rules, and write your findings as a note on the trade.
+```
+*(Uses: `get_trade` + `get_trade_attachments` + `get_strategy_playbook` + `add_trade_note`)*
 
 ## Workflow Example
 

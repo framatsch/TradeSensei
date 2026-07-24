@@ -216,6 +216,15 @@ NOTE_MAX_LENGTH: int = 5_000
 EMOTION_MAX_LENGTH: int = 50
 """Maximum length for an emotion label attached to a trade note."""
 
+# ─── MCP Attachment Guardrails ────────────────────────────────────────────────
+
+MCP_ATTACHMENT_MAX_ITEMS: int = 4
+"""Default maximum number of attachments returned per MCP attachment call."""
+
+MCP_ATTACHMENT_MAX_INLINE_BYTES: int = 5 * 1024 * 1024
+"""Maximum byte size for an image embedded inline as base64. Larger images
+fall back to a presigned URL instead of base64 data."""
+
 # ─── FX Rates ─────────────────────────────────────────────────────────────────
 
 FX_RATE_SOURCE_ECB: str = "ecb"
