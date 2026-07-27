@@ -17,7 +17,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Edit2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { MarkdownRenderer } from "../notes/MarkdownRenderer";
 import useFeatureFlag from "@/hooks/useFeatureFlag";
 import { useSettings } from "@/hooks/useSettings";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
@@ -59,14 +59,14 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
 
   // Draft state
   const [draftJournal, setDraftJournal] = useState(trade.journal ?? "");
-  const [journalTab, setJournalTab] = useState<"write" | "preview">("write");
+  const [journalTab, setJournalTab] = useState<"write" | "preview">("preview");
   // IDs of Quick Notes captured at import time — deleted on Save.
   const [importedNoteIds, setImportedNoteIds] = useState<string[]>([]);
   useEffect(() => {
     setDraftJournal(trade.journal ?? "");
+    setJournalTab("preview");
     setDraftPlaybookId(trade.playbook_id);
     setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
-    setDraftAnnotations({});
     setDraftAnnotations({});
     setImportedNoteIds([]);
   }, [trade.id, trade.journal, trade.playbook_id, trade.taxonomies]);
@@ -252,7 +252,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-sm font-medium text-foreground">Journal</label>
             <div className="flex items-center gap-2">
-              {quickNotesEnabled && quickNotes.length > 0 && (
+              {quickNotesEnabled && quickNotes.length > 0 && journalTab === "write" && (
                 <button
                   type="button"
                   onClick={handleImportQuickNotes}
@@ -263,48 +263,48 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
                   Import Quick Notes
                 </button>
               )}
-              <div className="flex bg-muted/50 p-0.5 rounded-lg border border-border">
-              <button
-                type="button"
-                onClick={() => setJournalTab("write")}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                  journalTab === "write"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Write
-              </button>
-              <button
-                type="button"
-                onClick={() => setJournalTab("preview")}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                  journalTab === "preview"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Preview
-              </button>
-              </div>
             </div>
           </div>
           {journalTab === "preview" ? (
-            <div className="w-full min-h-[100px] rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground prose prose-sm dark:prose-invert max-w-none">
-              {draftJournal.trim() ? (
-                <ReactMarkdown>{draftJournal}</ReactMarkdown>
-              ) : (
-                <span className="text-muted-foreground/50 italic">No journal entry.</span>
-              )}
+            <div className="group relative bg-zinc-50 dark:bg-zinc-900/60 border border-border rounded-xl p-4 min-h-[100px]">
+              <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  onClick={() => setJournalTab("write")}
+                  className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-blue-900/20 transition-colors"
+                  title="Edit journal"
+                  aria-label="Edit journal"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="pr-8">
+                {draftJournal.trim() ? (
+                  <MarkdownRenderer content={draftJournal} />
+                ) : (
+                  <span className="text-muted-foreground/50 italic text-sm">No journal entry. Click the edit icon to add one.</span>
+                )}
+              </div>
             </div>
           ) : (
-            <textarea
-              value={draftJournal}
-              disabled={isSaving}
-              onChange={(e) => setDraftJournal(e.target.value)}
-              placeholder="Write your post-trade summary and final reflection here. What went well? What went wrong? (Markdown supported)"
-              className="w-full min-h-[100px] rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-y"
-            />
+            <div className="space-y-3 bg-zinc-50 dark:bg-zinc-900/60 border border-blue-400 dark:border-blue-600 rounded-xl p-4">
+              <textarea
+                value={draftJournal}
+                disabled={isSaving}
+                onChange={(e) => setDraftJournal(e.target.value)}
+                placeholder="Write your post-trade summary and final reflection here. What went well? What went wrong? (Markdown supported)"
+                className="w-full min-h-[150px] rounded-lg border border-border dark:border-border bg-white dark:bg-background text-sm text-zinc-800 dark:text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setJournalTab("preview")}
+                  className="px-3 py-1.5 text-xs font-medium bg-primary hover:bg-primary/90 text-white rounded-md transition-colors"
+                >
+                  Done Editing
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
