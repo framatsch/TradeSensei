@@ -182,6 +182,7 @@ class TestTradeRead:
         from app.models.trade import Trade
 
         trade = Trade()
+        trade.has_conflict = False
         trade.id = uuid.uuid4()
         trade.position_id = uuid.uuid4()
         trade.symbol = "ES"

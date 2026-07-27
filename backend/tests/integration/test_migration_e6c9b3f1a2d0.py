@@ -33,6 +33,9 @@ async def test_migration_roundtrip(engine):
     # but here we can just call them directly as they use their own sync engine,
     # or we might need to run them synchronously.
     
+    # Dispose the async engine's connection pool so no idle connections hold locks.
+    await engine.dispose()
+    
     # Alembic uses sync engine by default in migrations, let's see if we can run it.
     import asyncio
     def run_alembic(cmd, *args):
@@ -75,6 +78,7 @@ async def test_migration_roundtrip(engine):
             })
     
     # 3. Upgrade to e6c9b3f1a2d0
+    await engine.dispose()
     await asyncio.to_thread(run_alembic, "upgrade", "e6c9b3f1a2d0")
     
     # 4. Assert URLs were shortened to keys
@@ -92,6 +96,7 @@ async def test_migration_roundtrip(engine):
         assert storage_url == "bucket/playbooks/img3.png"
         
     # 5. Downgrade back to 314159265358 and assert URLs are reconstructed
+    await engine.dispose()
     await asyncio.to_thread(run_alembic, "downgrade", "314159265358")
     
     async with engine.connect() as conn:
@@ -108,6 +113,7 @@ async def test_migration_roundtrip(engine):
         assert storage_url == f"{public_url}/bucket/playbooks/img3.png"
         
     # 6. Cleanup: bring DB back to head so other tests can run if needed.
+    await engine.dispose()
     await asyncio.to_thread(run_alembic, "upgrade", "head")
     async with engine.begin() as conn:
         await conn.execute(sa.text("DELETE FROM users WHERE id = :id"), {"id": user_id})

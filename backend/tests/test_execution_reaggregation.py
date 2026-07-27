@@ -34,6 +34,7 @@ async def test_re_aggregate_trade_vwap_logic():
     
     # Mock trade
     trade = Trade()
+    trade.has_conflict = False
     trade.id = trade_id
     trade.user_id = user_id
     trade.direction = Direction.LONG
@@ -116,6 +117,7 @@ async def test_re_aggregate_trade_full_close():
     user_id = uuid.uuid4()
     
     trade = Trade()
+    trade.has_conflict = False
     trade.id = trade_id
     trade.user_id = user_id
     trade.direction = Direction.SHORT
@@ -164,6 +166,7 @@ async def test_re_aggregate_trade_combo_uses_broker_leg_pnl_only():
     user_id = uuid.uuid4()
 
     trade = Trade()
+    trade.has_conflict = False
     trade.id = trade_id
     trade.user_id = user_id
     trade.direction = Direction.LONG
@@ -217,6 +220,7 @@ async def test_re_aggregate_trade_combo_without_broker_pnl_sets_none():
     user_id = uuid.uuid4()
 
     trade = Trade()
+    trade.has_conflict = False
     trade.id = trade_id
     trade.user_id = user_id
     trade.direction = Direction.LONG

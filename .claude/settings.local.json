@@ -1,6 +1,47 @@
 {
-    "permissions": {
-    "allow": ["Bash", "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep"],
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
+    "ENABLE_TOOL_SEARCH": "true"
+  },
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "Glob",
+      "Grep"
+    ],
     "defaultMode": "acceptEdits"
-    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/scheffold/.pyenv/versions/3.14.6/bin/headroom init hook ensure --profile init-tradesensei-3872efb0 --marker headroom-init-claude",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/scheffold/.pyenv/versions/3.14.6/bin/headroom init hook ensure --profile init-tradesensei-3872efb0 --marker headroom-init-claude",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "headroom@headroom-marketplace": true
+  }
 }

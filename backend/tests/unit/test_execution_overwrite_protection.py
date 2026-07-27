@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import pytest
 from uuid import uuid4
 from decimal import Decimal
@@ -5,8 +18,7 @@ from unittest.mock import AsyncMock
 
 from app.services.execution import ExecutionService
 from app.models.logical_execution import LogicalExecution, EXECUTION_ORIGIN_IMPORTED, EXECUTION_ORIGIN_SPLIT, EXECUTION_ORIGIN_MERGED, EXECUTION_ORIGIN_MANUAL
-from app.schemas.execution import LogicalExecutionUpdate, LinkBrokerTransactionRequest
-from app.models.broker_raw_transaction import BrokerRawTransaction
+from app.schemas.execution import LogicalExecutionUpdate
 
 @pytest.fixture
 def mock_execution_repo():
@@ -29,8 +41,8 @@ def execution_service(mock_session, mock_execution_repo, mock_trade_repo, mock_b
     service = ExecutionService(mock_session)
     service.execution_repo = mock_execution_repo
     service.trade_repo = mock_trade_repo
-    service.brt_repo = mock_brt_repo
-    service.audit_service = mock_audit_service
+    service.raw_transaction_repo = mock_brt_repo
+    service._audit = mock_audit_service
     service._re_aggregate_trade = AsyncMock()
     return service
 
@@ -63,5 +75,3 @@ async def test_update_execution_marks_all_editable_origins(execution_service, mo
     )
     
     mock_execution_repo.update.assert_called_with(execution, price=Decimal("10.0"))
-
-

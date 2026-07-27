@@ -54,6 +54,7 @@ def _make_trade(
 ) -> Trade:
     """Create a minimal Trade ORM stub."""
     trade = Trade()
+    trade.has_conflict = False
     trade.id = uuid.uuid4()
     trade.user_id = uuid.uuid4()
     trade.direction = direction

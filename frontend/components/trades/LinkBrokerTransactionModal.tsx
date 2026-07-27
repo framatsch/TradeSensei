@@ -112,6 +112,7 @@ export function LinkBrokerTransactionModal({ execution, tradeId, onClose }: Prop
               value={idSearch}
               onChange={(e) => setIdSearch(e.target.value)}
               placeholder="Search by transaction ID…"
+              aria-label="Search by transaction ID"
               className="w-full rounded-md border border-border bg-secondary pl-8 pr-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -143,6 +144,7 @@ export function LinkBrokerTransactionModal({ execution, tradeId, onClose }: Prop
                   <button
                     type="button"
                     onClick={() => setSelectedId(b.id)}
+                    aria-label={`Select broker transaction ${b.id}`}
                     className={`w-full text-left px-3 py-2 text-xs transition-colors ${
                       selectedId === b.id ? "bg-primary/10 border-l-2 border-primary" : "hover:bg-muted"
                     }`}
@@ -152,7 +154,7 @@ export function LinkBrokerTransactionModal({ execution, tradeId, onClose }: Prop
                       <span className="text-muted-foreground">{fmtDate(b.executed_at)}</span>
                     </div>
                     <div className="mt-0.5 flex items-center justify-between gap-2 text-muted-foreground">
-                      <span>
+                      <span className="font-mono">
                         {b.direction} {parseFloat(b.quantity).toLocaleString("en-US", { maximumFractionDigits: 4 })} @{" "}
                         {parseFloat(b.price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                       </span>
@@ -178,7 +180,8 @@ export function LinkBrokerTransactionModal({ execution, tradeId, onClose }: Prop
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
+            disabled={linkMutation.isPending}
+            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary disabled:opacity-50"
           >
             Cancel
           </button>

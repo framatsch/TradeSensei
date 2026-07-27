@@ -86,7 +86,7 @@ function fmtOpenClose(value: "O" | "C" | null | undefined): string {
   return "—";
 }
 
-export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, onLinkBroker, hasOptionLeg, colSpan }: Props) {
+export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, onLinkBroker, hasOptionLeg, colSpan, isConflict }: Props) {
   const { activePortfolioId } = useActivePortfolio();
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -300,7 +300,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
   return (
     <>
       <tr className={`border-b border-border transition-colors ${
-        isConflict ? "bg-amber-500/10 border-l-[3px] border-l-amber-500 hover:bg-amber-500/20" : "hover:bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]"
+        isConflict ? "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-l-[3px] border-l-warning hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]" : "hover:bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]"
       }`}>
         {/* Date */}
         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
@@ -477,7 +477,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
               parent_id={execution.parent_id}
             />
             {isConflict && (
-              <span className="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400" title="This execution is part of a conflict pair">
+              <span className="inline-flex items-center rounded border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] surface-warning px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-warning" title="This execution is part of a conflict pair">
                 Conflict
               </span>
             )}
@@ -510,6 +510,7 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
                  ref={buttonRef}
                  onClick={() => setMenuOpen(!menuOpen)}
                  className="p-1 rounded hover:bg-muted text-muted-foreground"
+                 aria-label="Row actions"
                >
                  <MoreHorizontal size={14} />
                </button>

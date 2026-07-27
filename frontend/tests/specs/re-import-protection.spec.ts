@@ -49,7 +49,7 @@ test.describe('Re-import Protection', () => {
     // Edit an execution leg (make it user_modified)
     const legsTable = page.locator('table').filter({ hasText: 'Executions' });
     const firstRow = legsTable.locator('tbody tr').first();
-    await firstRow.locator('button').last().click(); // Open actions menu
+    await firstRow.getByRole('button', { name: 'Row actions' }).click(); // Open actions menu
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     
     // Modify quantity slightly

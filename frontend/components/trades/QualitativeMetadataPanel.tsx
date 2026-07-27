@@ -69,7 +69,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
     setDraftAnnotations({});
     setImportedNoteIds([]);
-  }, [trade.id, trade.journal, trade.playbook_id, trade.taxonomies]);
+  }, [trade.id]);
 
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
     trade.taxonomies?.map((t) => t.id) ?? []
@@ -266,12 +266,12 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
             </div>
           </div>
           {journalTab === "preview" ? (
-            <div className="group relative bg-zinc-50 dark:bg-zinc-900/60 border border-border rounded-xl p-4 min-h-[100px]">
+            <div className="group relative bg-secondary border border-border rounded-xl p-4 min-h-[100px]">
               <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   type="button"
                   onClick={() => setJournalTab("write")}
-                  className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-blue-900/20 transition-colors"
+                  className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
                   title="Edit journal"
                   aria-label="Edit journal"
                 >
@@ -287,13 +287,13 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
               </div>
             </div>
           ) : (
-            <div className="space-y-3 bg-zinc-50 dark:bg-zinc-900/60 border border-blue-400 dark:border-blue-600 rounded-xl p-4">
+            <div className="space-y-3 bg-secondary border border-primary rounded-xl p-4">
               <textarea
                 value={draftJournal}
                 disabled={isSaving}
                 onChange={(e) => setDraftJournal(e.target.value)}
                 placeholder="Write your post-trade summary and final reflection here. What went well? What went wrong? (Markdown supported)"
-                className="w-full min-h-[150px] rounded-lg border border-border dark:border-border bg-white dark:bg-background text-sm text-zinc-800 dark:text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                className="w-full min-h-[150px] rounded-lg border border-border bg-background text-sm text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-y"
               />
               <div className="flex gap-2">
                 <button

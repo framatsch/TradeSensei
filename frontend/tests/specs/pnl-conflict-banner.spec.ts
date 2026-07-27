@@ -61,7 +61,7 @@ test.describe('PnL Conflict Banner & Manual Link', () => {
     // Find the row with manual origin (can be identified if there is an indicator or just delete the second one)
     // We will just delete the first row, which will clear the conflict as long as one of the pair is deleted
     const firstRow = legsTable.locator('tbody tr').first();
-    await firstRow.locator('button').last().click(); // Open actions menu
+    await firstRow.getByRole('button', { name: 'Row actions' }).click(); // Open actions menu
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await page.getByRole('button', { name: 'Confirm' }).click();
 
@@ -88,7 +88,7 @@ test.describe('PnL Conflict Banner & Manual Link', () => {
     // Delete the only leg (which is imported)
     const legsTable = page.locator('table').filter({ hasText: 'Executions' });
     const firstRow = legsTable.locator('tbody tr').first();
-    await firstRow.locator('button').last().click();
+    await firstRow.getByRole('button', { name: 'Row actions' }).click();
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await page.getByRole('button', { name: 'Confirm' }).click();
 
@@ -104,7 +104,7 @@ test.describe('PnL Conflict Banner & Manual Link', () => {
     
     // 3. Link broker transaction
     const manualRow = legsTable.locator('tbody tr').first();
-    await manualRow.locator('button').last().click();
+    await manualRow.getByRole('button', { name: 'Row actions' }).click();
     
     // Click "Link broker transaction" menu item
     await page.getByRole('button', { name: /Link broker transaction/i }).click();
@@ -118,17 +118,16 @@ test.describe('PnL Conflict Banner & Manual Link', () => {
     );
 
     // Pick the NVDA transaction
-    // Assuming there's a list or select, let's just click the first transaction in the list
-    await page.getByRole('button', { name: /Select/i }).first().click();
+    await page.getByRole('button', { name: new RegExp('Select broker transaction') }).first().click();
     
     // Confirm link
-    await page.getByRole('button', { name: /Link/i, exact: true }).click();
+    await page.getByRole('button', { name: /Link transaction/i }).click();
 
     const linkRequest = await requestPromise;
     const postData = linkRequest.postDataJSON();
     expect(postData).toHaveProperty('raw_transaction_id');
 
-    // Verify success toast
-    await expect(page.getByText(/Successfully linked/i)).toBeVisible();
+    // Verify success by checking modal closes
+    await expect(page.getByRole('heading', { name: /Link Broker Transaction/i })).not.toBeVisible();
   });
 });

@@ -56,6 +56,7 @@ def _make_trade(
     )
     trade.image_urls = []
     trade.is_manually_edited = False
+    trade.has_conflict = False
     trade.tags = []
     trade.journal = None
     return trade

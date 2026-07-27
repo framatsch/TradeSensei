@@ -192,6 +192,7 @@ export function useDeleteExecution() {
       void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["broker-transactions"] });
     },
   });
 }

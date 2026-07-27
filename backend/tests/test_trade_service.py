@@ -82,6 +82,7 @@ def _make_trade(
     """
     now = datetime.now(tz=UTC)
     trade = Trade()
+    trade.has_conflict = False
     # Assigning to Mapped[] descriptor attributes directly is required for
     # constructing detached ORM instances in tests; mypy treats these as
     # SQLCoreOperations at the class level but they behave as plain values

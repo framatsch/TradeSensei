@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [backend] Hard-deleting a linked manual execution automatically releases its underlying `BrokerRawTransaction` (`suppressed=false`) in the same database transaction.
 - [frontend] Updated import overwrite setting label to "Overwrite user modifications" with updated help text covering edited trades and execution legs.
 
+### Fixed
+- [backend] Fixed unintended loss of trade metadata (journals, tags, playbooks, quick notes) during broker syncs. Modifying trade metadata now explicitly marks the parent trade as `is_manually_edited=True`, preserving user inputs from being wiped during re-imports while allowing metrics updates.
+
+
 ## [1.7.0] - 2026-07-24
 
 ### Added

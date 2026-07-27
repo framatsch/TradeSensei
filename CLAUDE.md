@@ -79,4 +79,5 @@ Use `.ocr/skills/SKILL.md` to learn:
 - Session management and output format
 
 Keep this managed block so `ocr init` can refresh the instructions.
+
 <!-- OCR:END -->

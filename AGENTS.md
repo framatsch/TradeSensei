@@ -168,7 +168,7 @@ Agent instructions
 | CI/CD pipelines | `.github/workflows/` |
 | DB migration workflow | `.opencode/skills/db-migration/SKILL.md` |
 | Local dev setup | `docs/dev-guide.md` |
-| Execution overwrite protection spec | `openspec/changes/execution-overwrite-protection-and-mapping-update/specs/execution-overwrite-protection/` |
+| Execution overwrite protection spec | `openspec/specs/execution-overwrite-protection/spec.md` |
 
 ---
 
@@ -207,6 +207,7 @@ Skills are invokable workflows stored in `.opencode/skills/<name>/SKILL.md`.
 | `docker-build` | `.opencode/skills/docker-build/` | Local and multi-arch Docker image build workflow |
 | `ci-green-loop` | `.opencode/skills/ci-green-loop/` | Iterative GitHub Actions triage and fix loop until CI is fully green |
 | `ui-visual-check` | `.opencode/skills/ui-visual-check/` | Screenshot-based visual review using the `ui-reviewer` subagent |
+| `ocr` | `.opencode/skills/ocr/` | AI-powered multi-agent code review and PR analysis |
 
 ### Standard Task Flow
 
@@ -294,4 +295,5 @@ Use `.ocr/skills/SKILL.md` to learn:
 - Session management and output format
 
 Keep this managed block so `ocr init` can refresh the instructions.
+
 <!-- OCR:END -->

@@ -56,6 +56,7 @@ def _make_trade_orm(
     """Construct a minimal detached Trade ORM instance."""
     now = datetime.now(UTC)
     trade = Trade()
+    trade.has_conflict = False
     trade.id = id or uuid.uuid4()  # type: ignore[assignment]
     trade.user_id = user_id or uuid.uuid4()  # type: ignore[assignment]
     trade.position_id = position_id or uuid.uuid4()  # type: ignore[assignment]

@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -443,7 +444,13 @@ class ExecutionService:
         # Atomic: point the manual execution at the BRT and suppress the BRT
         # so future imports do not re-materialise the original imported leg.
         execution.source_id = raw_transaction_id
-        await self.session.flush()
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            await self.session.rollback()
+            raise ExecutionValidationError(
+                "Broker transaction is already linked to another execution. Delete that link first."
+            )
         await self.raw_transaction_repo.set_suppressed(raw_transaction_id, True)
 
         # Linking resolves a potential unlinked-duplicate conflict — re-aggregate.

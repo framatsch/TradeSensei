@@ -50,6 +50,7 @@ def _make_trade_orm(
     if closed_at is None and pnl is not None:
         closed_at = _NOW
     trade = Trade()
+    trade.has_conflict = False
     trade.id = uuid.uuid4()  # type: ignore[assignment]
     trade.symbol = "AAPL"  # type: ignore[assignment]
     trade.direction = Direction.LONG  # type: ignore[assignment]

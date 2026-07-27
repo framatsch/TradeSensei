@@ -413,9 +413,15 @@ class BrokerService:
                 client_secret=client_secret,
                 redirect_uri=settings.schwab_redirect_uri,
             )
+        except httpx.HTTPStatusError as exc:
+            err_body = exc.response.text
+            msg = f"Schwab OAuth code exchange failed: {exc} - Response: {err_body}"
+            logger.error(msg)
+            raise ConfigurationError(msg) from exc
         except Exception as exc:
-            raise ConfigurationError(f"Schwab OAuth code exchange failed: {exc}") from exc
-
+            msg = f"Schwab OAuth code exchange failed: {exc}"
+            logger.error(msg, exc_info=True)
+            raise ConfigurationError(msg) from exc
         access_token = str(exchanged.get("access_token", "")).strip()
         refresh_token = str(exchanged.get("refresh_token", "")).strip()
         expires_in = int(exchanged.get("expires_in", 0) or 0)
@@ -514,9 +520,13 @@ class BrokerService:
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
 
-        await self._delete_account_property(account_id=account.id, key=SCHWAB_ACCESS_TOKEN)
-        await self._delete_account_property(account_id=account.id, key=SCHWAB_REFRESH_TOKEN)
-        await self._delete_account_property(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT)
+        for key in SCHWAB_ACCESS_TOKEN_KEYS:
+            await self._delete_account_property(account_id=account.id, key=key)
+        for key in SCHWAB_REFRESH_TOKEN_KEYS:
+            await self._delete_account_property(account_id=account.id, key=key)
+        for key in SCHWAB_TOKEN_EXPIRES_AT_KEYS:
+            await self._delete_account_property(account_id=account.id, key=key)
+        
         await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER)
         await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE)
         await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT)

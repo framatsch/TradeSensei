@@ -803,5 +803,5 @@ class TestSchwabStatusAndDisconnect:
         ):
             await svc.disconnect_schwab(account.id, account.user_id)
         
-        assert mock_delete.await_count == 6  # access, refresh, expires, verifier, state, state_account
+        assert mock_delete.await_count == 9  # 3 tuples (2 keys each) + verifier, state, state_account
         mock_audit.assert_called_once()

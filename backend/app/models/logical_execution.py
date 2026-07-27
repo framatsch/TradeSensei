@@ -49,6 +49,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -309,6 +310,12 @@ class LogicalExecution(Base):
         Index("ix_le_trade_id", "trade_id"),
         Index("ix_le_trade_id_deleted", "trade_id", "deleted"),
         Index("ix_le_parent_id", "parent_id"),
+        Index(
+            "uix_le_source_id",
+            "source_id",
+            unique=True,
+            postgresql_where=text("source_id IS NOT NULL"),
+        ),
     )
 
     # Relationships

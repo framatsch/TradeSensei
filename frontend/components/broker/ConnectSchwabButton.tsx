@@ -33,11 +33,14 @@ interface Props {
    * Defaults to `window.location.assign`.
    */
   navigate?: (url: string) => void;
+  /** Custom button text */
+  text?: string;
 }
 
 export function ConnectSchwabButton({
   className = "",
   navigate = (url) => window.location.assign(url),
+  text = "Connect Schwab",
 }: Props) {
   const handleConnect = () => {
     navigate(CONNECT_URL);
@@ -53,7 +56,7 @@ export function ConnectSchwabButton({
       <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/20 text-xs font-bold">
         S
       </span>
-      Connect Schwab
+      {text}
     </button>
   );
 }

@@ -118,20 +118,7 @@ Error responses:
 - `409 Conflict`: Execution `origin` is not `"manual"`, or the raw broker transaction is already linked to another execution.
 - `422 Unprocessable Content`: Invalid request body (e.g. missing `raw_transaction_id`).
 
-Python OpenAPI client snippet:
 
-```python
-from openapi_client import ApiClient, ExecutionsService
-
-client = ApiClient(base_url="http://localhost:8000")
-executions_service = ExecutionsService(client)
-
-response = executions_service.link_broker_transaction(
-    portfolio_id="3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    execution_id="3fa85f64-5717-4562-b3fc-2c963f66afa7",
-    body={"raw_transaction_id": "user:ibkr:3820422546"}
-)
-```
 
 ## Trade Conflict Detection (has_conflict)
 
