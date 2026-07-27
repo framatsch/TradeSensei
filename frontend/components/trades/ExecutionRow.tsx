@@ -40,8 +40,10 @@ interface Props {
   onMoveToTrade?: (executionId: string) => void;
   onDetach?: (executionId: string) => void;
   onSplit?: (execution: LogicalExecution) => void;
+  onLinkBroker?: (execution: LogicalExecution) => void;
   hasOptionLeg?: boolean;
   colSpan?: number;
+  isConflict?: boolean;
 }
 
 function fmt(value: string | null): string {
@@ -84,7 +86,7 @@ function fmtOpenClose(value: "O" | "C" | null | undefined): string {
   return "—";
 }
 
-export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, hasOptionLeg, colSpan }: Props) {
+export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, onLinkBroker, hasOptionLeg, colSpan }: Props) {
   const { activePortfolioId } = useActivePortfolio();
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -114,6 +116,8 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
   // Determine if this execution can be split (non-deleted, imported or manual origin)
   const canSplit = !isDeleted && (execution.origin === "imported" || execution.origin === "manual");
+  // Only unlinked manual legs can be linked to a broker transaction
+  const canLinkBroker = !isDeleted && execution.origin === "manual" && !execution.source_id;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -295,7 +299,9 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
   return (
     <>
-      <tr className="border-b border-border hover:bg-[color-mix(in_srgb,var(--muted)_30%,transparent)] transition-colors">
+      <tr className={`border-b border-border transition-colors ${
+        isConflict ? "bg-amber-500/10 border-l-[3px] border-l-amber-500 hover:bg-amber-500/20" : "hover:bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]"
+      }`}>
         {/* Date */}
         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
           {isEditing ? (
@@ -463,12 +469,19 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
         {/* Status badge */}
         <td className="px-3 py-2">
-          <ExecutionStatusBadge
-            origin={execution.origin}
-            deleted={execution.deleted}
-            user_modified={execution.user_modified}
-            parent_id={execution.parent_id}
-          />
+          <div className="flex flex-col gap-1 items-start">
+            <ExecutionStatusBadge
+              origin={execution.origin}
+              deleted={execution.deleted}
+              user_modified={execution.user_modified}
+              parent_id={execution.parent_id}
+            />
+            {isConflict && (
+              <span className="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400" title="This execution is part of a conflict pair">
+                Conflict
+              </span>
+            )}
+          </div>
         </td>
 
          {/* Actions */}
@@ -515,14 +528,22 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
                    >
                      Edit
                    </button>
-                   {canSplit && onSplit && (
-                     <button
-                       onClick={() => { setMenuOpen(false); onSplit(execution); }}
-                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                     >
-                       Split
-                     </button>
-                   )}
+                    {canSplit && onSplit && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onSplit(execution); }}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
+                      >
+                        Split
+                      </button>
+                    )}
+                    {canLinkBroker && onLinkBroker && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onLinkBroker(execution); }}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
+                      >
+                        Link broker transaction…
+                      </button>
+                    )}
                    {onMoveToTrade && (
                      <button
                        onClick={() => { setMenuOpen(false); onMoveToTrade(execution.id); }}

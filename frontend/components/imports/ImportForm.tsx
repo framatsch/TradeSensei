@@ -416,7 +416,7 @@ export function ImportForm() {
                           : "Save as default for this account"}
                       </button>
 
-                      {/* Overwrite manually-edited trades */}
+                      {/* Overwrite user modifications */}
                       <label className="flex gap-2 cursor-pointer select-none">
                         <input
                           type="checkbox"
@@ -426,7 +426,10 @@ export function ImportForm() {
                           className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
                         />
                         <span className="text-xs text-muted-foreground">
-                          Overwrite manually-edited trades
+                          Overwrite user modifications
+                          <span className="block text-[11px] text-muted-foreground/70 mt-0.5">
+                            Manually edited trades and edited execution legs will be replaced by broker data.
+                          </span>
                         </span>
                       </label>
                     </div>
@@ -615,7 +618,10 @@ function FileUploadCard({
               className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
             />
             <span className="text-xs text-muted-foreground">
-              Overwrite manually-edited trades
+              Overwrite user modifications
+              <span className="block text-[11px] text-muted-foreground/70 mt-0.5">
+                Manually edited trades and edited execution legs will be replaced by broker data.
+              </span>
             </span>
           </label>
           <button

@@ -33,6 +33,7 @@ import { CorrectTradeModal } from "@/components/trades/CorrectTradeModal";
 import { TradePickerModal } from "@/components/trades/TradePickerModal";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 import { QualitativeMetadataPanel } from "@/components/trades/QualitativeMetadataPanel";
+import { ConflictBanner } from "@/components/trades/ConflictBanner";
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -376,6 +377,15 @@ export default function TradeDetailPage() {
         </div>
       </div>
 
+      {/* Conflict Banner */}
+      {trade.has_conflict && (
+        <ConflictBanner
+          onReview={() => {
+            document.getElementById("executions-table")?.scrollIntoView({ behavior: "smooth" });
+          }}
+        />
+      )}
+
       {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Media & Charts */}
@@ -531,7 +541,7 @@ export default function TradeDetailPage() {
       )}
 
       {/* Execution Legs Table */}
-      <section className="w-full">
+      <section className="w-full" id="executions-table">
         <ExecutionLegsTable tradeId={trade.id} trade={trade} />
       </section>
 

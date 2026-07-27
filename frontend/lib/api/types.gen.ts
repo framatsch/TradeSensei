@@ -2074,6 +2074,37 @@ export type ImportResult = {
 };
 
 /**
+ * LinkBrokerTransactionRequest
+ *
+ * Request payload for linking a manual execution to a broker raw transaction.
+ *
+ * The execution must have ``origin='manual'``. On success the service sets
+ * ``LogicalExecution.source_id`` to the given raw transaction ID and marks the
+ * raw transaction ``suppressed=True`` so future imports skip it.
+ */
+export type LinkBrokerTransactionRequest = {
+    /**
+     * Raw Transaction Id
+     *
+     * Primary key of the BrokerRawTransaction to link (e.g. 'user:ibkr:3820422546').
+     */
+    raw_transaction_id: string;
+};
+
+/**
+ * LinkBrokerTransactionResponse
+ *
+ * Response payload returned after linking a manual execution to a BRT.
+ */
+export type LinkBrokerTransactionResponse = {
+    execution: LogicalExecutionRead;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
  * LogicalExecutionCreate
  *
  * Schema for creating a manual LogicalExecution.
@@ -2246,9 +2277,15 @@ export type LogicalExecutionRead = {
     /**
      * User Modified
      *
-     * True when the user has patched an imported execution
+     * True when the user has patched an imported, split, or merged execution
      */
     user_modified: boolean;
+    /**
+     * Source Id
+     *
+     * Broker raw transaction ID this execution was materialised from, or NULL. Set for imported executions and for manual executions linked via the link-broker-transaction endpoint. Clients use this to distinguish unlinked manual legs (potential duplicates) from linked replacements.
+     */
+    source_id?: string | null;
     /**
      * Parent Id
      *
@@ -4040,6 +4077,24 @@ export type ResponseEnvelopeImportResult = {
 };
 
 /**
+ * ResponseEnvelope[LinkBrokerTransactionResponse]
+ */
+export type ResponseEnvelopeLinkBrokerTransactionResponse = {
+    /**
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: LinkBrokerTransactionResponse;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * ResponseEnvelope[LogicalExecutionRead]
  */
 export type ResponseEnvelopeLogicalExecutionRead = {
@@ -4469,6 +4524,26 @@ export type ResponseEnvelopeListAnnotationDefinitionResponse = {
      * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
      */
     data: Array<AnnotationDefinitionResponse>;
+    /**
+     * Meta
+     *
+     * Optional metadata accompanying the response, such as request identifiers or server-side timing information. Empty by default.
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ResponseEnvelope[list[BrokerRawTransactionRead]]
+ */
+export type ResponseEnvelopeListBrokerRawTransactionRead = {
+    /**
+     * Data
+     *
+     * The primary response payload. The type depends on the endpoint — e.g. a single TradeRead object or a CursorPage of TradeRead objects.
+     */
+    data: Array<BrokerRawTransactionRead>;
     /**
      * Meta
      *
@@ -6313,6 +6388,12 @@ export type TradeRead = {
      */
     is_manually_edited?: boolean;
     /**
+     * Has Conflict
+     *
+     * Aggregated/derived flag — True when the FIFO aggregator detected an unlinked duplicate pair (an imported leg and an unlinked manual leg sharing symbol, executed_at, direction, quantity, and price). Surfacing signal only; recomputed on every trade rebuild.
+     */
+    has_conflict?: boolean;
+    /**
      * Created At
      *
      * UTC timestamp of when this record was inserted into the database.
@@ -7910,6 +7991,91 @@ export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdResto
 };
 
 export type RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponse = RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponses[keyof RestoreExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdRestorePostResponses];
+
+export type LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostData = {
+    body: LinkBrokerTransactionRequest;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+        /**
+         * Execution Id
+         */
+        execution_id: string;
+    };
+    query?: never;
+    url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}/link-broker-transaction';
+};
+
+export type LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostErrors = {
+    /**
+     * Execution or broker transaction not found
+     */
+    404: unknown;
+    /**
+     * Execution is not manual, or the broker transaction is already linked
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostError = LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostErrors[keyof LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostErrors];
+
+export type LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostResponses = {
+    /**
+     * Execution linked successfully
+     */
+    200: ResponseEnvelopeLinkBrokerTransactionResponse;
+};
+
+export type LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostResponse = LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostResponses[keyof LinkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPostResponses];
+
+export type ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Portfolio Id
+         */
+        portfolio_id: string;
+    };
+    query?: {
+        /**
+         * Account Id
+         *
+         * Filter by account UUID.
+         */
+        account_id?: string | null;
+        /**
+         * Symbol
+         *
+         * Filter by ticker symbol (exact match).
+         */
+        symbol?: string | null;
+    };
+    url: '/api/v1/portfolios/{portfolio_id}/broker-transactions';
+};
+
+export type ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetError = ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetErrors[keyof ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetErrors];
+
+export type ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResponseEnvelopeListBrokerRawTransactionRead;
+};
+
+export type ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetResponse = ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetResponses[keyof ListBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGetResponses];
 
 export type SplitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPostData = {
     body: SplitExecutionRequest;

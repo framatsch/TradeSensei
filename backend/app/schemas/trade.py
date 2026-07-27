@@ -956,6 +956,15 @@ class TradeRead(BaseModel):
         description=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
         examples=[False, True],
     )
+    has_conflict: bool = Field(
+        default=False,
+        description=(
+            "Aggregated/derived flag — True when the FIFO aggregator detected an unlinked duplicate pair "
+            "(an imported leg and an unlinked manual leg sharing symbol, executed_at, direction, quantity, "
+            "and price). Surfacing signal only; recomputed on every trade rebuild."
+        ),
+        examples=[False, True],
+    )
     created_at: datetime = Field(
         ...,
         description="UTC timestamp of when this record was inserted into the database.",

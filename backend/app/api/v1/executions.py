@@ -22,13 +22,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_current_user, get_session_with_rls
 from app.core.exceptions import (
+    BrokerRawTransactionNotFoundError,
     ExecutionNotFoundError,
     ExecutionValidationError,
     TradeNotFoundError,
 )
 from app.models.user import User
+from app.schemas.broker_raw_transaction import BrokerRawTransactionRead
 from app.schemas.common import ResponseEnvelope
 from app.schemas.execution import (
+    LinkBrokerTransactionRequest,
+    LinkBrokerTransactionResponse,
     LogicalExecutionCreate,
     LogicalExecutionRead,
     LogicalExecutionUpdate,
@@ -271,6 +275,86 @@ async def restore_execution(
             detail=str(exc),
         ) from exc
     return ResponseEnvelope(data=LogicalExecutionRead.model_validate(execution))
+
+
+@router.post(
+    "/executions/{execution_id}/link-broker-transaction",
+    response_model=ResponseEnvelope[LinkBrokerTransactionResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Link a manual execution to a broker transaction",
+    description=(
+        "Link an execution with ``origin='manual'`` to an existing broker raw "
+        "transaction owned by the same user. The execution's ``source_id`` is "
+        "set to the raw transaction ID and the raw transaction is marked "
+        "``suppressed=true`` so future imports skip it — the manual execution "
+        "acts as the stand-in for the broker fill. "
+        "Deleting the manual execution later releases the raw transaction."
+    ),
+    responses={
+        200: {"description": "Execution linked successfully"},
+        404: {"description": "Execution or broker transaction not found"},
+        409: {"description": "Execution is not manual, or the broker transaction is already linked"},
+    },
+)
+async def link_broker_transaction(
+    portfolio_id: uuid.UUID,
+    execution_id: uuid.UUID,
+    data: LinkBrokerTransactionRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ExecutionService, Depends(_get_service)],
+) -> ResponseEnvelope[LinkBrokerTransactionResponse]:
+    """Link a manual execution to a broker raw transaction."""
+    try:
+        result = await service.link_broker_transaction(
+            execution_id=execution_id,
+            raw_transaction_id=data.raw_transaction_id,
+            user_id=user.id,
+            portfolio_id=portfolio_id,
+        )
+    except ExecutionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Execution not found.",
+        ) from exc
+    except BrokerRawTransactionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Broker transaction not found.",
+        ) from exc
+    except ExecutionValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    return ResponseEnvelope(data=result)
+
+
+@router.get(
+    "/broker-transactions",
+    response_model=ResponseEnvelope[list[BrokerRawTransactionRead]],
+    status_code=status.HTTP_200_OK,
+    summary="List broker raw transactions",
+    description=(
+        "List the current user's broker raw transactions, optionally filtered "
+        "by account and symbol. Powers the manual-link picker: each entry can "
+        "be linked to a manual execution via "
+        "``POST /executions/{id}/link-broker-transaction``."
+    ),
+)
+async def list_broker_transactions(
+    portfolio_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ExecutionService, Depends(_get_service)],
+    account_id: Annotated[uuid.UUID | None, Query(description="Filter by account UUID.")] = None,
+    symbol: Annotated[str | None, Query(description="Filter by ticker symbol (exact match).")] = None,
+) -> ResponseEnvelope[list[BrokerRawTransactionRead]]:
+    """List broker raw transactions for the manual-link picker."""
+    raws = await service.list_broker_transactions(
+        user_id=user.id,
+        account_id=account_id,
+        symbol=symbol,
+    )
+    return ResponseEnvelope(data=[BrokerRawTransactionRead.model_validate(r) for r in raws])
 
 
 @router.post(

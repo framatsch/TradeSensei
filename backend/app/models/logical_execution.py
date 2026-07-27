@@ -119,8 +119,10 @@ class LogicalExecution(Base):
         deleted: Soft-delete flag.  When ``True``, excluded from aggregation.
             ``imported``, ``merged``, and ``split`` executions are soft-deleted;
             ``manual`` executions are hard-deleted.
-        user_modified: ``True`` when the user has patched an ``imported``
-            execution.  Set automatically by the service layer.  Never reset.
+        user_modified: ``True`` when the user has patched an ``imported``,
+            ``split``, or ``merged`` execution.  Set automatically by the
+            service layer.  Never reset.  ``manual`` executions are never
+            marked — they are user-owned by construction.
         parent_id: Optional FK to the original execution for split/merge lineage.
         trade_id: Optional foreign key to the
             :class:`~app.models.trade.Trade` produced after aggregation.
@@ -226,7 +228,7 @@ class LogicalExecution(Base):
         Boolean(),
         nullable=False,
         server_default="false",
-        comment="True when user patched an imported execution. Never reset.",
+        comment=("True when user patched an imported, split, or merged execution. Never reset."),
     )
     is_mixed_execution: Mapped[bool] = mapped_column(
         Boolean(),

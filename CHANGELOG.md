@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Added `POST /api/v1/portfolios/{portfolio_id}/executions/{execution_id}/link-broker-transaction` endpoint to link manual execution legs (`origin='manual'`) to raw broker transactions (`BrokerRawTransaction`), setting `source_id` and suppressing re-imports.
+- [backend] Added derived `has_conflict` boolean field to `TradeRead` schema, automatically computed during trade aggregation when an unlinked manual leg duplicates an imported leg.
+- [frontend] Added manual execution linking UI with broker raw transaction picker dialog, trade detail conflict warning banner, and visual conflict leg highlighting in execution tables.
+
+### Changed
+- [backend] Extended execution overwrite protection so that patching split or merged executions sets `user_modified=true`, ensuring user edits are preserved during broker re-imports unless explicitly overwritten.
+- [backend] Hard-deleting a linked manual execution automatically releases its underlying `BrokerRawTransaction` (`suppressed=false`) in the same database transaction.
+- [frontend] Updated import overwrite setting label to "Overwrite user modifications" with updated help text covering edited trades and execution legs.
+
 ## [1.7.0] - 2026-07-24
 
 ### Added

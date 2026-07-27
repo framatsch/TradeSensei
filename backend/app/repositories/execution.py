@@ -16,8 +16,9 @@
 import uuid
 from collections.abc import Iterator, Sequence
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.constants import IMPORT_EXECUTIONS_BATCH_SIZE
 from app.models.logical_execution import (
@@ -264,6 +265,31 @@ class ExecutionRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_source_id(
+        self,
+        source_id: str,
+        exclude_execution_id: uuid.UUID | None = None,
+    ) -> LogicalExecution | None:
+        """Find a logical execution referencing a broker raw transaction.
+
+        Used by the manual-link flow to enforce the 1:1 raw-to-logical link:
+        a BRT already referenced by another execution's ``source_id`` cannot
+        be linked again (the endpoint surfaces this as 409 Conflict).
+
+        Args:
+            source_id: The ``BrokerRawTransaction`` primary key to look up.
+            exclude_execution_id: Optional execution ID to ignore (the row
+                currently being linked).
+
+        Returns:
+            The referencing execution, or ``None`` when unlinked.
+        """
+        stmt = select(LogicalExecution).where(LogicalExecution.source_id == source_id)
+        if exclude_execution_id is not None:
+            stmt = stmt.where(LogicalExecution.id != exclude_execution_id)
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def find_orphaned_children(self, user_id: uuid.UUID, account_id: uuid.UUID) -> list[LogicalExecution]:
         """Find execution children with trade_id=NULL after import (cleanup helper).
 
@@ -330,6 +356,7 @@ class ExecutionRepository:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID,
+        override: bool = False,
     ) -> int:
         """Hard-delete all split-child executions for a user+account.
 
@@ -338,9 +365,14 @@ class ExecutionRepository:
         re-import and must be purged before re-aggregation to prevent
         double-counting.
 
+        Execution-overwrite-protection: rows with ``user_modified=True``
+        are preserved unless ``override`` is True (driven by the import
+        ``overwrite_manually_edited`` flag).
+
         Args:
             user_id: Owning user UUID.
             account_id: Account UUID whose split children are deleted.
+            override: When True, also delete ``user_modified=True`` rows.
 
         Returns:
             Number of rows deleted.
@@ -350,6 +382,8 @@ class ExecutionRepository:
             LogicalExecution.account_id == account_id,
             LogicalExecution.origin == EXECUTION_ORIGIN_SPLIT,
         )
+        if not override:
+            stmt = stmt.where(LogicalExecution.user_modified.is_(False))
         result = await self.session.execute(stmt)
         await self.session.flush()
         return int(getattr(result, "rowcount", 0))
@@ -358,6 +392,7 @@ class ExecutionRepository:
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID,
+        override: bool = False,
     ) -> int:
         """Restore soft-deleted imported parent executions for a user+account.
 
@@ -367,13 +402,28 @@ class ExecutionRepository:
         the soft-deleted parents must be restored so the base execution layer
         is complete for the FIFO pass.
 
+        Execution-overwrite-protection: a parent whose surviving split children
+        include any ``user_modified=True`` row is NOT restored (the user's edit
+        keeps its place in the projection) unless ``override`` is True.
+
         Args:
             user_id: Owning user UUID.
             account_id: Account UUID whose soft-deleted parents are restored.
+            override: When True, restore parents even when a surviving split
+                child is ``user_modified=True``.
 
         Returns:
             Number of rows restored.
         """
+        child = aliased(LogicalExecution)
+        protected_child_exists = exists(
+            select(child.id).where(
+                child.parent_id == LogicalExecution.id,
+                child.origin == EXECUTION_ORIGIN_SPLIT,
+                child.user_modified.is_(True),
+                child.deleted.is_(False),
+            )
+        )
         stmt = (
             update(LogicalExecution)
             .where(
@@ -384,6 +434,8 @@ class ExecutionRepository:
             )
             .values(deleted=False, trade_id=None)
         )
+        if not override:
+            stmt = stmt.where(~protected_child_exists)
         result = await self.session.execute(stmt)
         await self.session.flush()
         return int(getattr(result, "rowcount", 0))

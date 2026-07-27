@@ -29,7 +29,10 @@ import {
   reassignExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdReassignPost as reassignExecution,
   detachExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDetachPost as detachExecution,
   splitExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdSplitPost as splitExecution,
+  linkBrokerTransactionApiV1PortfoliosPortfolioIdExecutionsExecutionIdLinkBrokerTransactionPost as linkBrokerTransaction,
+  listBrokerTransactionsApiV1PortfoliosPortfolioIdBrokerTransactionsGet as listBrokerTransactions,
   type LogicalExecutionRead as GeneratedLogicalExecutionRead,
+  type BrokerRawTransactionRead as GeneratedBrokerRawTransactionRead,
 } from "@/lib/api/index";
 import type {
   LogicalExecution,
@@ -63,6 +66,7 @@ export function mapGeneratedExecution(execution: GeneratedLogicalExecutionRead):
     deleted: execution.deleted,
     user_modified: execution.user_modified,
     parent_id: execution.parent_id ?? null,
+    source_id: execution.source_id ?? null,
     currency: execution.currency ?? null,
     multiplier: execution.multiplier,
     open_close: (execution.open_close as "O" | "C" | null | undefined) ?? null,
@@ -265,6 +269,69 @@ export function useSplitExecution() {
       void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
       void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
       void qc.invalidateQueries({ queryKey: ["trades"] });
+    },
+  });
+}
+
+/**
+ * List broker raw transactions for the manual-link picker.
+ *
+ * Query key: ["broker-transactions", portfolioId, { accountId, symbol }].
+ * Results are the candidate link targets for a manual execution; the
+ * endpoint scopes to the authenticated user, so no cross-user leakage.
+ */
+export function useBrokerTransactions(
+  portfolioId: string | null | undefined,
+  accountId?: string | null,
+  symbol?: string | null,
+  enabled = true,
+) {
+  return useQuery<GeneratedBrokerRawTransactionRead[], Error>({
+    queryKey: ["broker-transactions", portfolioId, { accountId, symbol }],
+    queryFn: async () => {
+      const { data, error } = await listBrokerTransactions({
+        path: { portfolio_id: portfolioId! },
+        query: {
+          ...(accountId ? { account_id: accountId } : {}),
+          ...(symbol ? { symbol } : {}),
+        },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return data.data as GeneratedBrokerRawTransactionRead[];
+    },
+    enabled: Boolean(portfolioId) && enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Link a manual execution to a broker raw transaction.
+ *
+ * On success the backend sets source_id on the execution and suppresses the
+ * BRT, then re-aggregates — which may clear trade.has_conflict. We refetch
+ * the execution list, the trade detail, and the trade list so the banner
+ * and the pair highlight reflect the recomputed state.
+ */
+export function useLinkBrokerTransaction() {
+  const qc = useQueryClient();
+  return useMutation<
+    LogicalExecution,
+    Error,
+    { executionId: string; tradeId: string; portfolioId: string; rawTransactionId: string }
+  >({
+    mutationFn: async ({ executionId, portfolioId, rawTransactionId }) => {
+      const { data, error } = await linkBrokerTransaction({
+        path: { portfolio_id: portfolioId, execution_id: executionId },
+        body: { raw_transaction_id: rawTransactionId },
+      });
+      if (error || !data) throw error ?? new Error("Request failed: no data returned");
+      return mapGeneratedExecution(data.data.execution);
+    },
+    onSuccess: (_, { tradeId, portfolioId }) => {
+      void qc.refetchQueries({ queryKey: ["executions", portfolioId, tradeId], type: "all" });
+      void qc.refetchQueries({ queryKey: ["trade", tradeId], type: "all" });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["broker-transactions"] });
     },
   });
 }

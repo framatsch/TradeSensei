@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import delete, func, nullslast, or_, select
+from sqlalchemy import delete, exists, func, nullslast, or_, select
 from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +35,7 @@ from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
 from app.core.security import decode_cursor as _decode_signed_cursor
 from app.core.security import encode_cursor as _encode_signed_cursor
 from app.models.account import Account
+from app.models.logical_execution import LogicalExecution
 from app.models.portfolio import Portfolio
 from app.models.trade import Trade
 from app.models.trade_annotation import TradeAnnotation
@@ -765,11 +766,17 @@ class TradeRepository:
     ) -> int:
         """Delete all trades for a user/account pair.
 
+        Execution-overwrite-protection: when ``include_manually_edited`` is
+        False, trades whose only remaining (non-deleted) execution legs are
+        all ``user_modified=True`` are also preserved — independent of
+        ``Trade.is_manually_edited``.
+
         Args:
             user_id: UUID of the owning user.
             account_id: UUID of the account to clear.
             include_manually_edited: When ``False``, preserves manually edited
-                rows. When ``True``, deletes them too.
+                rows and trades backed solely by ``user_modified=True`` legs.
+                When ``True``, deletes them too.
             exclude_trade_ids: Optional trade IDs to keep (e.g. still-open
                 combo positions being carried forward across imports). All
                 other trades for the account are deleted as usual.
@@ -783,6 +790,24 @@ class TradeRepository:
         )
         if not include_manually_edited:
             stmt = stmt.where(Trade.is_manually_edited.is_(False))
+
+            # Protect trades whose every surviving leg is user-modified:
+            # skip when at least one non-deleted leg exists AND no non-deleted
+            # leg with user_modified=false exists.
+            has_any_leg = exists(
+                select(LogicalExecution.id).where(
+                    LogicalExecution.trade_id == Trade.id,
+                    LogicalExecution.deleted.is_(False),
+                )
+            )
+            has_unprotected_leg = exists(
+                select(LogicalExecution.id).where(
+                    LogicalExecution.trade_id == Trade.id,
+                    LogicalExecution.deleted.is_(False),
+                    LogicalExecution.user_modified.is_(False),
+                )
+            )
+            stmt = stmt.where(~(has_any_leg & ~has_unprotected_leg))
         if exclude_trade_ids:
             stmt = stmt.where(Trade.id.notin_(exclude_trade_ids))
 

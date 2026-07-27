@@ -168,6 +168,7 @@ Agent instructions
 | CI/CD pipelines | `.github/workflows/` |
 | DB migration workflow | `.opencode/skills/db-migration/SKILL.md` |
 | Local dev setup | `docs/dev-guide.md` |
+| Execution overwrite protection spec | `openspec/changes/execution-overwrite-protection-and-mapping-update/specs/execution-overwrite-protection/` |
 
 ---
 

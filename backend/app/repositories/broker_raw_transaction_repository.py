@@ -112,16 +112,44 @@ class BrokerRawTransactionRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_id_for_user(
+        self,
+        raw_id: str,
+        user_id: uuid.UUID,
+    ) -> BrokerRawTransaction | None:
+        """Retrieve a single raw transaction by ID, scoped to a user.
+
+        Enforces ownership — returns ``None`` when the raw transaction
+        belongs to a different user (callers should surface this as 404).
+
+        Args:
+            raw_id: Composite broker execution ID.
+            user_id: UUID of the owning user.
+
+        Returns:
+            The matching
+            :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`,
+            or ``None`` if not found or not owned by ``user_id``.
+        """
+        stmt = select(BrokerRawTransaction).where(
+            BrokerRawTransaction.id == raw_id,
+            BrokerRawTransaction.user_id == user_id,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def list_by_user(
         self,
         user_id: uuid.UUID,
         account_id: uuid.UUID | None = None,
+        symbol: str | None = None,
     ) -> list[BrokerRawTransaction]:
-        """Return all raw transactions for a user, optionally filtered by account.
+        """Return all raw transactions for a user, optionally filtered.
 
         Args:
             user_id: UUID of the owning user.
             account_id: Optional account filter.
+            symbol: Optional exact ticker-symbol filter.
 
         Returns:
             List of :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`
@@ -130,6 +158,8 @@ class BrokerRawTransactionRepository:
         stmt = select(BrokerRawTransaction).where(BrokerRawTransaction.user_id == user_id).order_by(BrokerRawTransaction.executed_at)
         if account_id is not None:
             stmt = stmt.where(BrokerRawTransaction.account_id == account_id)
+        if symbol is not None:
+            stmt = stmt.where(BrokerRawTransaction.symbol == symbol)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 

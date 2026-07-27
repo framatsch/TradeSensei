@@ -96,6 +96,29 @@ class ReassignExecutionRequest(BaseModel):
     target_trade_id: uuid.UUID
 
 
+class LinkBrokerTransactionRequest(BaseModel):
+    """Request payload for linking a manual execution to a broker raw transaction.
+
+    The execution must have ``origin='manual'``. On success the service sets
+    ``LogicalExecution.source_id`` to the given raw transaction ID and marks the
+    raw transaction ``suppressed=True`` so future imports skip it.
+    """
+
+    raw_transaction_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description=("Primary key of the BrokerRawTransaction to link (e.g. 'user:ibkr:3820422546')."),
+    )
+
+
+class LinkBrokerTransactionResponse(BaseModel):
+    """Response payload returned after linking a manual execution to a BRT."""
+
+    execution: "LogicalExecutionRead"
+    message: str
+
+
 class ReassignExecutionResponse(BaseModel):
     """Response payload returned after reassigning an execution."""
 
@@ -250,7 +273,16 @@ class LogicalExecutionRead(LogicalExecutionBase):
     )
     origin: ExecutionOrigin = Field(description="Immutable provenance: imported | manual | merged | split")
     deleted: bool = Field(description="True when this execution has been soft-deleted")
-    user_modified: bool = Field(description="True when the user has patched an imported execution")
+    user_modified: bool = Field(description="True when the user has patched an imported, split, or merged execution")
+    source_id: str | None = Field(
+        default=None,
+        description=(
+            "Broker raw transaction ID this execution was materialised from, or NULL. "
+            "Set for imported executions and for manual executions linked via "
+            "the link-broker-transaction endpoint. Clients use this to distinguish "
+            "unlinked manual legs (potential duplicates) from linked replacements."
+        ),
+    )
     parent_id: uuid.UUID | None = Field(
         default=None,
         description="FK to original execution for split/merge lineage",

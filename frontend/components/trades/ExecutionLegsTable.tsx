@@ -31,6 +31,7 @@ import { ExecutionRow } from "./ExecutionRow";
 import { AddExecutionModal } from "./AddExecutionModal";
 import { TradePickerModal } from "./TradePickerModal";
 import { SplitExecutionModal } from "./SplitExecutionModal";
+import { LinkBrokerTransactionModal } from "./LinkBrokerTransactionModal";
 import type { LogicalExecution, Trade } from "@/lib/types";
 
 interface Props {
@@ -45,6 +46,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const [moveExecutionId, setMoveExecutionId] = useState<string | null>(null);
   const [detachExecutionId, setDetachExecutionId] = useState<string | null>(null);
   const [splitExecution, setSplitExecution] = useState<LogicalExecution | null>(null);
+  const [linkExecution, setLinkExecution] = useState<LogicalExecution | null>(null);
 
   const { activePortfolio } = useActivePortfolio();
 
@@ -59,6 +61,27 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const totalCount = executions?.length ?? 0;
   const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
   const hasOptionLeg = executions?.some((ex: LogicalExecution) => ex.option_type !== null) ?? false;
+
+  // Compute duplicate pairs for task 11.2
+  const conflictLegIds = new Set<string>();
+  if (trade.has_conflict && executions) {
+    const imported = executions.filter((e: LogicalExecution) => e.origin === "imported" && !e.deleted);
+    const manual = executions.filter((e: LogicalExecution) => e.origin === "manual" && !e.deleted && !e.source_id);
+    for (const imp of imported) {
+      for (const man of manual) {
+        if (
+          imp.symbol === man.symbol &&
+          imp.direction === man.direction &&
+          imp.quantity === man.quantity &&
+          imp.price === man.price &&
+          Math.floor(new Date(imp.executed_at).getTime() / 1000) === Math.floor(new Date(man.executed_at).getTime() / 1000)
+        ) {
+          conflictLegIds.add(imp.id);
+          conflictLegIds.add(man.id);
+        }
+      }
+    }
+  }
 
   const handleMoveToTrade = (executionId: string) => {
     setMoveExecutionId(executionId);
@@ -206,7 +229,9 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                     onMoveToTrade={handleMoveToTrade}
                     onDetach={handleDetach}
                     onSplit={setSplitExecution}
+                    onLinkBroker={setLinkExecution}
                     hasOptionLeg={hasOptionLeg}
+                    isConflict={conflictLegIds.has(ex.id)}
                   />
                 ))}
               </tbody>
@@ -275,6 +300,14 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
           execution={splitExecution}
           tradeId={tradeId}
           onClose={() => setSplitExecution(null)}
+        />
+      )}
+
+      {linkExecution && (
+        <LinkBrokerTransactionModal
+          execution={linkExecution}
+          tradeId={tradeId}
+          onClose={() => setLinkExecution(null)}
         />
       )}
     </div>

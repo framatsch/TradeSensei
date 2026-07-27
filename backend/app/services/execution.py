@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
+    BrokerRawTransactionNotFoundError,
     ExecutionNotFoundError,
     ExecutionValidationError,
     TradeNotFoundError,
@@ -34,9 +35,11 @@ from app.models.logical_execution import (
     EXECUTION_ORIGIN_SPLIT,
     LogicalExecution,
 )
+from app.repositories.broker_raw_transaction_repository import BrokerRawTransactionRepository
 from app.repositories.execution import ExecutionRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.execution import (
+    LinkBrokerTransactionResponse,
     LogicalExecutionCreate,
     LogicalExecutionRead,
     LogicalExecutionUpdate,
@@ -45,10 +48,13 @@ from app.schemas.execution import (
     SplitExecutionRequest,
     SplitExecutionResponse,
 )
+from app.services.audit_service import AuditEventService
 from app.services.corporate_action_service import CorporateActionService
+from app.utils.conflict_detection import detect_duplicate_pairs
 from app.utils.split_adjust import split_adjust_execution_values
 
 if TYPE_CHECKING:
+    from app.models.broker_raw_transaction import BrokerRawTransaction
     from app.models.trade import Trade
 
 
@@ -64,7 +70,9 @@ class ExecutionService:
         self.session = session
         self.execution_repo = ExecutionRepository(session)
         self.trade_repo = TradeRepository(session)
+        self.raw_transaction_repo = BrokerRawTransactionRepository(session)
         self.corporate_action_service = CorporateActionService(session)
+        self._audit = AuditEventService()
 
     async def list_for_trade(
         self,
@@ -194,8 +202,11 @@ class ExecutionService:
     ) -> LogicalExecution:
         """Update an execution by ID and re-aggregate its parent trade.
 
-        When the execution has ``origin='imported'``, automatically sets
-        ``user_modified=True`` per Decision 7.
+        When the execution has ``origin='imported'``, ``'split'``, or
+        ``'merged'`` and the patch contains at least one mutating field,
+        automatically sets ``user_modified=True`` (see the
+        ``execution-overwrite-protection`` spec).  ``origin='manual'``
+        executions are never marked.
 
         Args:
             execution_id: Target execution ID.
@@ -223,8 +234,15 @@ class ExecutionService:
 
         update_data = data.model_dump(exclude_unset=True)
 
-        # Decision 7: set user_modified=true when patching an imported execution
-        if execution.origin == EXECUTION_ORIGIN_IMPORTED:
+        # Execution-overwrite-protection: mark PATCHes on all editable origins
+        # (imported | split | merged) so the import pipeline preserves them.
+        # Manual executions are user-owned by construction and never marked.
+        # A no-op patch (no mutating fields) leaves the marker untouched.
+        if update_data and execution.origin in (
+            EXECUTION_ORIGIN_IMPORTED,
+            EXECUTION_ORIGIN_SPLIT,
+            EXECUTION_ORIGIN_MERGED,
+        ):
             update_data["user_modified"] = True
 
         execution = await self.execution_repo.update(execution, **update_data)
@@ -279,8 +297,17 @@ class ExecutionService:
         trade_id = execution.trade_id
 
         if execution.origin == EXECUTION_ORIGIN_MANUAL:
-            # Hard-delete: row removed, return None (→ 204 No Content)
+            # Hard-delete: row removed, return None (→ 204 No Content).
+            #
+            # Execution-overwrite-protection: when the manual execution is
+            # linked to a broker raw transaction (source_id set), atomically
+            # release it (suppressed=False) in the same transaction so the
+            # original imported leg can re-materialise on the next import.
+            # Unlinked manuals (source_id NULL) leave BRTs untouched.
+            released_source_id = execution.source_id
             await self.execution_repo.delete(execution_id)
+            if released_source_id is not None:
+                await self.raw_transaction_repo.set_suppressed(released_source_id, False)
             if trade_id:
                 remaining = await self.execution_repo.list_by_trade_id(trade_id, include_deleted=False)
                 if not remaining:
@@ -294,6 +321,24 @@ class ExecutionService:
                         await self.trade_repo.delete(trade_to_delete)
                 else:
                     await self._re_aggregate_trade(trade_id, user_id)
+            self._audit.create_audit_event(
+                action="execution.deleted",
+                user_id=user_id,
+                email=None,
+                resource_type="execution",
+                resource_id=execution_id,
+                ip_address=None,
+                user_agent=None,
+                request_id=str(uuid.uuid4()),
+                status_code=204,
+                method="DELETE",
+                path="/executions",
+                metadata=(
+                    {"released_source_id": released_source_id}
+                    if released_source_id is not None
+                    else {}
+                ),
+            )
             await self.session.commit()
             return None
         else:
@@ -305,6 +350,129 @@ class ExecutionService:
                 await self._re_aggregate_trade(trade_id, user_id)
             await self.session.commit()
             return updated
+
+    async def list_broker_transactions(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID | None = None,
+        symbol: str | None = None,
+    ) -> Sequence["BrokerRawTransaction"]:
+        """List broker raw transactions for the manual-link picker.
+
+        Args:
+            user_id: The requesting user's ID (ownership scope).
+            account_id: Optional account filter.
+            symbol: Optional exact ticker-symbol filter.
+
+        Returns:
+            Broker raw transactions owned by the user, newest-aware ordering
+            (executed_at ascending, matching the repository default).
+        """
+        return await self.raw_transaction_repo.list_by_user(
+            user_id=user_id,
+            account_id=account_id,
+            symbol=symbol,
+        )
+
+    async def link_broker_transaction(
+        self,
+        execution_id: uuid.UUID,
+        raw_transaction_id: str,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> LinkBrokerTransactionResponse:
+        """Link a manual execution to a broker raw transaction.
+
+        Sets ``LogicalExecution.source_id`` to the raw transaction ID and marks
+        the raw transaction ``suppressed=True`` so future imports skip it —
+        the manual execution is the stand-in for the broker fill. Both writes
+        commit in the same database transaction.
+
+        Business rules (see the ``execution-overwrite-protection`` spec):
+        - ``origin != 'manual'`` → 409 Conflict.
+        - Raw transaction not owned by ``user_id`` → 404 Not Found.
+        - Raw transaction already referenced by another execution's
+          ``source_id`` → 409 Conflict (no implicit relink).
+
+        Args:
+            execution_id: The manual execution to link.
+            raw_transaction_id: Primary key of the target BrokerRawTransaction.
+            user_id: The requesting user's ID.
+            portfolio_id: Optional portfolio scope for ownership isolation.
+
+        Returns:
+            The updated execution wrapped in a response payload.
+
+        Raises:
+            ExecutionNotFoundError: If execution is not found or not owned by user.
+            ExecutionValidationError: If origin is not ``manual`` or the raw
+                transaction is already linked (409 semantics).
+            BrokerRawTransactionNotFoundError: If the raw transaction is not
+                found for this user (404 semantics).
+        """
+        execution = await self.execution_repo.get_by_id(execution_id, user_id)
+        if not execution:
+            raise ExecutionNotFoundError("Execution not found.")
+        if execution.trade_id is not None:
+            trade = await self.trade_repo.get_by_id(
+                execution.trade_id,
+                user_id,
+                portfolio_id,
+            )
+            if trade is None:
+                raise ExecutionNotFoundError("Execution not found.")
+
+        if execution.origin != EXECUTION_ORIGIN_MANUAL:
+            raise ExecutionValidationError(
+                f"Only manual executions can be linked to a broker transaction (origin='{execution.origin}')."
+            )
+
+        raw = await self.raw_transaction_repo.get_by_id_for_user(raw_transaction_id, user_id)
+        if raw is None:
+            raise BrokerRawTransactionNotFoundError("Broker transaction not found.")
+
+        existing_link = await self.execution_repo.get_by_source_id(
+            raw_transaction_id,
+            exclude_execution_id=execution.id,
+        )
+        if existing_link is not None:
+            raise ExecutionValidationError(
+                f"Broker transaction is already linked to execution {existing_link.id}. Delete that link first."
+            )
+
+        # Atomic: point the manual execution at the BRT and suppress the BRT
+        # so future imports do not re-materialise the original imported leg.
+        execution.source_id = raw_transaction_id
+        await self.session.flush()
+        await self.raw_transaction_repo.set_suppressed(raw_transaction_id, True)
+
+        # Linking resolves a potential unlinked-duplicate conflict — re-aggregate.
+        if execution.trade_id:
+            await self._re_aggregate_trade(execution.trade_id, user_id)
+
+        self._audit.create_audit_event(
+            action="execution.linked_to_broker_transaction",
+            user_id=user_id,
+            email=None,
+            resource_type="execution",
+            resource_id=execution_id,
+            ip_address=None,
+            user_agent=None,
+            request_id=str(uuid.uuid4()),
+            status_code=200,
+            method="POST",
+            path="/executions/link-broker-transaction",
+            metadata={
+                "execution_id": str(execution_id),
+                "raw_transaction_id": raw_transaction_id,
+            },
+        )
+
+        await self.session.commit()
+        return LinkBrokerTransactionResponse(
+            execution=LogicalExecutionRead.model_validate(execution),
+            message="Execution linked to broker transaction.",
+        )
 
     async def restore_execution(
         self,
@@ -748,7 +916,17 @@ class ExecutionService:
         # Decision 5: filter to only non-deleted executions
         executions = await self.execution_repo.list_by_trade_id(trade_id, include_deleted=False)
         if not executions:
+            # Empty trade cannot have a duplicate conflict (defensive reset).
+            if trade.has_conflict:
+                trade.has_conflict = False
+                await self.session.flush()
             return
+
+        # Execution-overwrite-protection: authoritative recompute of the
+        # unlinked-duplicate conflict flag on every rebuild — always set,
+        # never merged. Editing, deleting, or manually-linking a leg flows
+        # through here, so the flag auto-clears when the duplicate disappears.
+        trade.has_conflict = detect_duplicate_pairs(executions)
 
         from app.models.trade import (
             Direction,

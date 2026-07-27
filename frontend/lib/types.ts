@@ -220,6 +220,13 @@ export interface Trade {
   created_at: string;
   updated_at: string;
   is_manually_edited: boolean;
+  /**
+   * True when the FIFO aggregator detected an unlinked duplicate pair
+   * (an imported leg and an unlinked manual leg sharing symbol, executed_at,
+   * direction, quantity, and price). Surfacing signal only; recomputed on
+   * every trade rebuild. Drives the conflict banner on the trade detail page.
+   */
+  has_conflict?: boolean;
   tags: Array<{ id: string; name: string; color: string | null }>;
   trade_notes: TradeNote[];
   legs?: LogicalExecution[];
@@ -629,6 +636,13 @@ export interface LogicalExecution {
   user_modified: boolean;
   /** ID of the parent execution when origin is 'split' or 'merged' (lineage). */
   parent_id: string | null;
+  /**
+   * Broker raw transaction ID this execution was materialised from, or null.
+   * Set for imported executions and manual executions linked via the
+   * link-broker-transaction endpoint. Unlinked manual legs (null) are
+   * potential duplicates flagged by trade.has_conflict.
+   */
+  source_id?: string | null;
   currency: string | null;
   multiplier: number;
   open_close?: "O" | "C" | null;

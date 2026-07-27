@@ -117,6 +117,11 @@ class Trade(Base):
             :class:`~app.models.trade_note.TradeNote` objects.
         is_manually_edited: When ``True``, this trade was manually corrected
             and will not be overwritten on subsequent broker re-imports.
+        has_conflict: When ``True``, the FIFO aggregator detected an unlinked
+            duplicate pair on this trade (an imported leg and an unlinked
+            manual leg sharing symbol, ``executed_at``, direction, quantity,
+            and price). Surfacing signal only — see the
+            ``execution-overwrite-protection`` capability spec.
         created_at: Row-creation timestamp set by the database.
         updated_at: Row-update timestamp maintained by the database.
     """
@@ -235,6 +240,17 @@ class Trade(Base):
         nullable=False,
         server_default="false",
         comment=("When True, this trade was manually corrected and will be skipped on subsequent broker re-imports."),
+    )
+    has_conflict: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+        comment=(
+            "True when the FIFO aggregator detected an unlinked duplicate pair "
+            "(an imported leg and an unlinked manual leg sharing symbol, "
+            "executed_at, direction, quantity, and price). Surfacing signal only. "
+            "See the execution-overwrite-protection spec."
+        ),
     )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),

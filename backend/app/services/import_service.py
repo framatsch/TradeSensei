@@ -82,6 +82,7 @@ from app.utils.parsers.aggregator import (
 from app.utils.parsers.base import BrokerParser
 from app.utils.parsers.factory import BrokerType, get_parser
 from app.utils.parsers.schwab_json import decode_schwab_wrapped_payload
+from app.utils.conflict_detection import detect_duplicate_pairs
 from app.utils.schwab_account_resolution import resolve_schwab_account_entry
 
 logger = logging.getLogger(__name__)
@@ -376,11 +377,13 @@ class ImportService:
                 deleted_split = await self._exec_repo.delete_split_children_for_account(
                     user_id=user_id,
                     account_id=account_id,
+                    override=overwrite_manually_edited,
                 )
                 if deleted_split:
                     restored_parents = await self._exec_repo.restore_split_parents_for_account(
                         user_id=user_id,
                         account_id=account_id,
+                        override=overwrite_manually_edited,
                     )
                     logger.debug(
                         "import_split_cleanup account=%s deleted_split=%d restored_parents=%d",
@@ -579,6 +582,17 @@ class ImportService:
                     trades_with_sources=trades_with_sources,
                     user_id=user_id,
                 )
+                # Execution-overwrite-protection: authoritative recompute of the
+                # unlinked-duplicate conflict flag for every rebuilt trade.
+                # Always set (never merged) so a cleared duplicate flips the
+                # flag back to false on the same import.
+                for tws in trades_with_sources:
+                    trade = tws.created_trade
+                    if trade is None:
+                        continue
+                    legs = await self._exec_repo.list_by_trade_id(trade.id, include_deleted=False)
+                    trade.has_conflict = detect_duplicate_pairs(legs)
+                await self._session.flush()
 
         for trade_data in parsed_trades:
             if raw_projection_rebuild and use_raw_pipeline:
