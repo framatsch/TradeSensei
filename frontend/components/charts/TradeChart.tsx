@@ -50,12 +50,16 @@ import {
   createChart,
   createSeriesMarkers,
   CandlestickSeries,
+  HistogramSeries,
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
   type SeriesMarker,
   type Time,
+  type IPriceLine,
   ColorType,
+  LineStyle,
+  CrosshairMode,
 } from "lightweight-charts";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -172,6 +176,7 @@ interface OhlcBar {
   high: number | string;
   low: number | string;
   close: number | string;
+  volume?: number | string;
 }
 
 interface ChartCandle {
@@ -180,6 +185,7 @@ interface ChartCandle {
   high: number;
   low: number;
   close: number;
+  volume?: number;
 }
 
 function mapBars(raw: OhlcBar[]): ChartCandle[] {
@@ -203,15 +209,16 @@ function mapBars(raw: OhlcBar[]): ChartCandle[] {
       // Convert milliseconds → seconds if accidentally in ms (> year 3000 in sec)
       if (ts > 32503680000) ts = Math.floor(ts / 1000);
 
-      // OHLC values may be strings — coerce to number.
       const open = Number(bar.open);
       const high = Number(bar.high);
       const low = Number(bar.low);
       const close = Number(bar.close);
+      const volume = Number(bar.volume || 0);
 
       if ([open, high, low, close].some(isNaN)) return null;
+      if (open === 0 && high === 0 && low === 0 && close === 0) return null;
 
-      return { time: ts as Time, open, high, low, close };
+      return { time: ts as Time, open, high, low, close, volume };
     })
     .filter((b): b is ChartCandle => b !== null)
     .sort((a, b) => (a.time as number) - (b.time as number));
@@ -463,7 +470,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   const allowedIntervals = useMemo(() => {
     return settings?.chart_intervals && settings.chart_intervals.length > 0 
       ? settings.chart_intervals as Interval[] 
-      : (["1h", "4h", "1d", "1w"] as Interval[]);
+      : (["1h", "1d", "1w"] as Interval[]);
   }, [settings?.chart_intervals]);
 
   const occ = parseOccSymbol(trade.symbol);
@@ -491,16 +498,30 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   // If no Hub URL is configured we go straight to fallback — no loading needed
   const [loading, setLoading] = useState(true);
   const [useFallback, setUseFallback] = useState(false);
+  const [noData, setNoData] = useState(false);
+  const [showTradeLines, setShowTradeLines] = useState(true);
+  const showTradeLinesRef = useRef(true);
+  const [showMarkers, setShowMarkers] = useState(true);
+  const showMarkersRef = useRef(true);
+  const [showVolume, setShowVolume] = useState(true);
+  const showVolumeRef = useRef(true);
+  const [showCrosshair, setShowCrosshair] = useState(true);
+  const showCrosshairRef = useRef(true);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const markersDataRef = useRef<SeriesMarker<Time>[]>([]);
+  const priceLinesRef = useRef<IPriceLine[]>([]);
 
   // ── Fetch chart data ───────────────────────────────────────────────────────
   const fetchAndRender = useCallback(
     async (iv: Interval) => {
       setLoading(true);
+      setNoData(false);
       try {
         const url = buildApiUrl(
           chartSymbol,
@@ -573,42 +594,6 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
           const candleSet = new Set(candles.map((c) => c.time as number));
 
-          // Insert synthetic flat candles for any marker timestamp not covered
-          // by an existing bar.  This guarantees the marker is rendered at the
-          // correct chronological position even when the LSEG hub has a data gap
-          // (e.g. the trade occurred weeks before the hub's earliest available bar).
-          const synthetics: ChartCandle[] = [];
-          for (const raw of markerTimestamps) {
-            const ts = normalise(raw);
-            if (!candleSet.has(ts)) {
-              // Use the price from the nearest real candle as the synthetic close
-              let nearest = candles[0];
-              let bestDiff = candles.length > 0 ? Math.abs((candles[0].time as number) - ts) : 0;
-              for (const c of candles) {
-                const d = Math.abs((c.time as number) - ts);
-                if (d < bestDiff) {
-                  nearest = c;
-                  bestDiff = d;
-                }
-              }
-              const p = nearest.close;
-              synthetics.push({
-                time: ts as Time,
-                open: p,
-                high: p,
-                low: p,
-                close: p,
-              });
-              candleSet.add(ts);
-            }
-          }
-
-          if (synthetics.length > 0) {
-            candles = [...candles, ...synthetics].sort(
-              (a, b) => (a.time as number) - (b.time as number),
-            );
-          }
-
           if (chartMode === "to-exit" && exitTs !== null) {
             const cutoff = exitTs;
             candles = candles.filter((c) => (c.time as number) <= cutoff);
@@ -617,10 +602,57 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             candles = candles.filter((c) => (c.time as number) <= cutoff);
           }
 
+          chartRef.current?.applyOptions({
+            timeScale: {
+              timeVisible: iv === "1h" || iv === "4h",
+            }
+          });
+
           seriesRef.current.setData(candles);
+          
+          if (volumeSeriesRef.current) {
+            volumeSeriesRef.current.setData(
+              candles.map(c => ({
+                time: c.time,
+                value: c.volume || 0,
+                color: c.close >= c.open ? "rgba(38, 166, 154, 0.4)" : "rgba(239, 83, 80, 0.4)"
+              }))
+            );
+          }
+
+          // Clear old price lines
+          if (priceLinesRef.current) {
+            priceLinesRef.current.forEach((pl) => seriesRef.current?.removePriceLine(pl));
+            priceLinesRef.current = [];
+          }
+
+          // Add horizontal price lines for entry and exit
+          if (showTradeLinesRef.current) {
+            if (trade.entry_price) {
+              const pl = seriesRef.current.createPriceLine({
+                price: parseFloat(trade.entry_price),
+                color: "#00d2ff", // Cyan
+                lineWidth: 2,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: "Entry",
+              });
+              priceLinesRef.current.push(pl);
+            }
+            if (trade.exit_price) {
+              const pl = seriesRef.current.createPriceLine({
+                price: parseFloat(trade.exit_price),
+                color: "#f97316", // Orange
+                lineWidth: 2,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: "Exit",
+              });
+              priceLinesRef.current.push(pl);
+            }
+          }
 
           // Snap: map an exact timestamp to the closest available bar time.
-          // Because we injected synthetic bars above, execution timestamps will
           // always find an exact or very close match.
           const snap = (target: number): Time => {
             const norm = normalise(target);
@@ -647,6 +679,8 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
                   snap,
                 )
               : buildFallbackMarkers(entryTs, activeExitTs, trade.direction, snap);
+              
+          markersDataRef.current = finalMarkers;
 
           // Spacing and overall marker styling
           seriesRef.current.applyOptions({
@@ -656,11 +690,11 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           } as any);
 
           if (markersRef.current) {
-            markersRef.current.setMarkers(finalMarkers);
+            markersRef.current.setMarkers(showMarkersRef.current ? finalMarkers : []);
           } else if (seriesRef.current) {
             markersRef.current = createSeriesMarkers(
               seriesRef.current,
-              finalMarkers,
+              showMarkersRef.current ? finalMarkers : [],
             );
           }
 
@@ -680,8 +714,18 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         }
 
         setUseFallback(false);
-      } catch (e) { console.error("fetchAndRender error:", e);
-        setUseFallback(true);
+      } catch (e: any) {
+        // HTTP 503 is the expected signal from the backend that the Market Data Hub
+        // is not configured. We fall back to TradingView silently.
+        if (e instanceof Error && e.message.includes("HTTP 503")) {
+          setUseFallback(true);
+        } else {
+          // For other errors or "No data returned", we show the empty state instead of TradingView
+          if (!(e instanceof Error) || !e.message.includes("No data returned")) {
+            console.error("fetchAndRender error:", e);
+          }
+          setNoData(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -713,13 +757,22 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         horzLines: { color: "rgba(255,255,255,0.04)" },
       },
       crosshair: {
+        mode: showCrosshairRef.current ? CrosshairMode.Normal : CrosshairMode.Hidden,
         vertLine: {
-          color: "rgba(255,255,255,0.15)",
-          labelBackgroundColor: "#1e1e2e",
+          width: 1,
+          color: "#a1a1aa",
+          style: LineStyle.Dashed,
+          labelBackgroundColor: "#2B2B43",
+          visible: true,
+          labelVisible: true,
         },
         horzLine: {
-          color: "rgba(255,255,255,0.15)",
-          labelBackgroundColor: "#1e1e2e",
+          width: 1,
+          color: "#a1a1aa",
+          style: LineStyle.Dashed,
+          labelBackgroundColor: "#2B2B43",
+          visible: true,
+          labelVisible: true,
         },
       },
       rightPriceScale: {
@@ -747,8 +800,19 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
       wickDownColor: "#ef5350",
     });
 
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: "#26a69a",
+      priceFormat: { type: "volume" },
+      priceScaleId: "", 
+      visible: showVolumeRef.current,
+    });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+
     chartRef.current = chart;
     seriesRef.current = series;
+    volumeSeriesRef.current = volumeSeries;
 
     // Responsive resize
     const observer = new ResizeObserver((entries) => {
@@ -767,6 +831,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      volumeSeriesRef.current = null;
       markersRef.current = null;
     };
   }, [useFallback]);
@@ -782,6 +847,81 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   // ── Interval change handler ────────────────────────────────────────────────
   function handleIntervalChange(iv: Interval) {
     setInterval(iv);
+  }
+
+  // ── Trade lines toggle handlers ───────────────────────────────────────────
+  function handleToggleTradeLines() {
+    const nextVal = !showTradeLines;
+    setShowTradeLines(nextVal);
+    showTradeLinesRef.current = nextVal;
+
+    if (!seriesRef.current) return;
+
+    // Remove existing lines
+    if (priceLinesRef.current) {
+      priceLinesRef.current.forEach(pl => seriesRef.current?.removePriceLine(pl));
+      priceLinesRef.current = [];
+    }
+
+    // Add lines back if enabled
+    if (nextVal) {
+      if (trade.entry_price) {
+        const pl = seriesRef.current.createPriceLine({
+          price: parseFloat(trade.entry_price),
+          color: "#00d2ff",
+          lineWidth: 2,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: "Entry",
+        });
+        priceLinesRef.current.push(pl);
+      }
+      if (trade.exit_price) {
+        const pl = seriesRef.current.createPriceLine({
+          price: parseFloat(trade.exit_price),
+          color: "#f97316",
+          lineWidth: 2,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: "Exit",
+        });
+        priceLinesRef.current.push(pl);
+      }
+    }
+  }
+
+  function handleToggleMarkers() {
+    const nextVal = !showMarkers;
+    setShowMarkers(nextVal);
+    showMarkersRef.current = nextVal;
+
+    if (markersRef.current) {
+      markersRef.current.setMarkers(nextVal ? markersDataRef.current : []);
+    }
+  }
+
+  function handleToggleVolume() {
+    const nextVal = !showVolume;
+    setShowVolume(nextVal);
+    showVolumeRef.current = nextVal;
+
+    if (volumeSeriesRef.current) {
+      volumeSeriesRef.current.applyOptions({ visible: nextVal });
+    }
+  }
+
+  function handleToggleCrosshair() {
+    const nextVal = !showCrosshair;
+    setShowCrosshair(nextVal);
+    showCrosshairRef.current = nextVal;
+
+    if (chartRef.current) {
+      chartRef.current.applyOptions({
+        crosshair: {
+          mode: nextVal ? CrosshairMode.Normal : CrosshairMode.Hidden,
+        }
+      });
+    }
   }
 
   // ── TradingView fallback (no Hub URL configured, or API error) ────────────
@@ -843,6 +983,48 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           </div>
         </div>
 
+        <div className="relative">
+          <button
+            onClick={() => setIsOptionsOpen(!isOptionsOpen)}
+            title="Chart Display Options"
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border shadow-inner ${
+              isOptionsOpen
+                ? "bg-primary/20 text-primary border-primary/30"
+                : "bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span className="hidden sm:inline">Options</span>
+          </button>
+          
+          {isOptionsOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsOptionsOpen(false)} />
+              <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-48 bg-card border border-border rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1">
+                <label className="flex items-center gap-2.5 p-2 hover:bg-secondary/50 rounded-lg cursor-pointer text-sm">
+                  <input type="checkbox" checked={showTradeLines} onChange={handleToggleTradeLines} className="w-4 h-4 rounded border-border text-primary focus:ring-primary/30" />
+                  <span className="text-foreground">Price Lines</span>
+                </label>
+                <label className="flex items-center gap-2.5 p-2 hover:bg-secondary/50 rounded-lg cursor-pointer text-sm">
+                  <input type="checkbox" checked={showMarkers} onChange={handleToggleMarkers} className="w-4 h-4 rounded border-border text-primary focus:ring-primary/30" />
+                  <span className="text-foreground">Execution Arrows</span>
+                </label>
+                <label className="flex items-center gap-2.5 p-2 hover:bg-secondary/50 rounded-lg cursor-pointer text-sm">
+                  <input type="checkbox" checked={showVolume} onChange={handleToggleVolume} className="w-4 h-4 rounded border-border text-primary focus:ring-primary/30" />
+                  <span className="text-foreground">Volume</span>
+                </label>
+                <label className="flex items-center gap-2.5 p-2 hover:bg-secondary/50 rounded-lg cursor-pointer text-sm">
+                  <input type="checkbox" checked={showCrosshair} onChange={handleToggleCrosshair} className="w-4 h-4 rounded border-border text-primary focus:ring-primary/30" />
+                  <span className="text-foreground">Crosshair</span>
+                </label>
+              </div>
+            </>
+          )}
+        </div>
+
         <div className="flex-1" />
         {/* Open in TradingView */}
         <a
@@ -868,16 +1050,32 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
       </div>
 
       {/* Chart canvas */}
-      <div className="flex-1 relative min-h-0">
+      <div className="flex-1 relative min-h-0 bg-background/50">
         {loading && (
           <div className="absolute inset-0 z-10">
             <ChartSkeleton />
           </div>
         )}
+        {noData && !loading && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4">
+            <div className="bg-secondary/40 border border-border/50 px-6 py-5 rounded-2xl flex flex-col items-center gap-3 max-w-sm text-center backdrop-blur-sm shadow-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-muted-foreground/60">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="11" y1="8" x2="11" y2="14" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
+              <div>
+                <p className="text-sm font-bold text-foreground tracking-wide">No Market Data Available</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mt-1">The Market Data Hub returned no price data for the selected interval ({interval}).</p>
+              </div>
+            </div>
+          </div>
+        )}
         <div
           ref={chartContainerRef}
           className="w-full h-full"
-          style={{ opacity: loading ? 0 : 1, transition: "opacity 0.2s ease" }}
+          style={{ opacity: loading || noData ? 0 : 1, transition: "opacity 0.2s ease" }}
         />
       </div>
     </div>

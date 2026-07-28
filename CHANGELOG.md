@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Added interactive display options dropdown to `TradeChart`, allowing users to independently toggle Entry/Exit Price Lines, Execution Marker Arrows, and Volume histogram.
+- [frontend] Added volume histogram rendering to `TradeChart`, utilizing volume data provided by the Market Data Hub.
+- [frontend] Added native `lightweight-charts` crosshair implementation (CrosshairMode.Normal) mimicking TradingView style with dashed lines and axis labels.
+
+### Fixed
+- [frontend] Removed aggressive CSS cursor override that was breaking axis resizing functionality (`ew-resize` and `ns-resize`) in lightweight-charts.
+- [frontend] Enhanced silent fallback detection in `TradeChart` to accurately detect missing intraday data (e.g. LSEG daily fallbacks) and trigger the "No Market Data Available" empty state appropriately.
+
 ## [1.8.0] - 2026-07-27
 
 ### Added
