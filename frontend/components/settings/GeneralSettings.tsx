@@ -79,6 +79,27 @@ export function GeneralSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [showClearCacheConfirm, setShowClearCacheConfirm] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
+
+  const handleClearCache = async () => {
+    setIsClearingCache(true);
+    try {
+      const res = await fetch("/api/proxy/api/v1/market-data/cache", {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to clear cache");
+      toast.success("Chart candles cache cleared successfully");
+    } catch (err) {
+      console.error("Failed to clear cache:", err);
+      toast.error("Failed to clear chart candles cache");
+    } finally {
+      setIsClearingCache(false);
+      setShowClearCacheConfirm(false);
+    }
+  };
+
+
   useEffect(() => {
     if (settings) {
       // @ts-ignore
@@ -299,6 +320,29 @@ export function GeneralSettings() {
           </div>
         </div>
 
+        <div className="pt-2">
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Chart Cache
+          </label>
+          <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 mb-3">
+            <p className="text-sm font-semibold text-destructive flex items-center gap-1.5 mb-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              Danger: Global Cache Deletion
+            </p>
+            <p className="text-xs text-destructive/90">
+              This action clears the entire globally cached chart data for all symbols. Because market data is shared, this will force a fresh fetch from the market data provider for <b>all users across the entire platform</b>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowClearCacheConfirm(true)}
+            className="px-4 py-2 border border-border rounded-md text-sm font-medium text-foreground bg-secondary hover:bg-secondary/80 transition-colors"
+          >
+            Clear chart candles cache
+          </button>
+        </div>
+
+
         {error && (
           <p className="text-sm text-danger mt-2">{error}</p>
         )}
@@ -313,6 +357,39 @@ export function GeneralSettings() {
           </button>
         </div>
       </div>
+
+      {showClearCacheConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-border p-6 rounded-lg max-w-sm w-full shadow-lg">
+            <h3 className="text-lg font-medium text-destructive flex items-center gap-2 mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              Clear Global Chart Cache?
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              This will delete the entire locally cached chart data for all symbols. Fresh data will be fetched on demand. <b>Warning: This affects all users across the entire platform.</b>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowClearCacheConfirm(false)}
+                className="px-4 py-2 text-sm font-medium rounded-md border border-border bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+                disabled={isClearingCache}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearCache}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 transition-colors flex items-center justify-center"
+                disabled={isClearingCache}
+              >
+                {isClearingCache ? "Clearing..." : "Yes, clear cache"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

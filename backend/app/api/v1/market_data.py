@@ -33,8 +33,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_session
+from app.core.deps import get_current_user
+from app.models.user import User
 from app.schemas.market_data import OHLCResponse
 from app.services.market_data_service import MarketDataService
+from app.services.audit_service import AuditEventService, generate_request_id
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
 
@@ -84,6 +87,7 @@ async def get_price_history(
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
     sec_type: str | None = Query(default=None),
+    force_refresh: bool = Query(default=False),
 ) -> OHLCResponse:
     """Proxy OHLC candlestick history from the Market Data Hub with local caching.
 
@@ -109,14 +113,17 @@ async def get_price_history(
     end_dt = datetime.fromisoformat(end.replace("Z", "+00:00")) if end else None
 
     # Try to serve from cache if we have the full range
-    cached_bars = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
+    cached_bars = None
+    if not force_refresh:
+        cached_bars = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
+
 
     # Simplified coverage check: if we have bars and the first/last match
     # our requested range (with some tolerance for weekend/market hours),
     # we consider it a hit. For crypto/FX it's exact.
     # For now, if we have bars, we skip the upstream call IF the end_dt
     # is in the past. If end_dt is None (requesting until "now"), we always fetch.
-    if cached_bars and end_dt and cached_bars[-1].start >= end_dt:
+    if not force_refresh and cached_bars and end_dt and cached_bars[-1].start >= end_dt:
         return OHLCResponse.model_validate({"data": service.format_bars(cached_bars)})
 
     # 2. Fetch from upstream Hub
@@ -169,3 +176,32 @@ async def get_price_history(
         await service.cache_prices(bars)
 
     return OHLCResponse.model_validate(response_json)
+
+
+@router.delete(
+    "/cache",
+    summary="Clear OHLC cache",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def clear_cache(
+    request: Request,
+    service: Annotated[MarketDataService, Depends(_get_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    """Clear all entries in the global OHLC prices cache table for all users."""
+    await service.clear_all_cache()
+    
+    request_id = getattr(request.state, "request_id", None) or generate_request_id()
+    AuditEventService().create_audit_event(
+        action="market_data.cache_cleared",
+        user_id=current_user.id,
+        email=current_user.email,
+        resource_type="cache",
+        resource_id=None,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        request_id=request_id,
+        status_code=204,
+        method=request.method,
+        path=request.url.path,
+    )

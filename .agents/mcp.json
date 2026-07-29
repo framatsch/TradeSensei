@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "playwright-test": {
+      "command": "npx",
+      "args": [
+        "playwright",
+        "run-test-mcp-server"
+      ]
+    },
+    "engram": {
+      "command": "/usr/bin/engram",
+      "args": [
+        "mcp",
+        "--tools=agent"
+      ]
+    },
+    "serena": {
+      "type": "remote",
+      "url": "http://localhost:9121/mcp"
+    }
+  }
+}

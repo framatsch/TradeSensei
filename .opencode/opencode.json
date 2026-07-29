@@ -8,5 +8,11 @@
   "compaction": {
     "auto": false,
     "prune": false
-  }
+  },
+  mcp: {
+    "serena": {
+      "type": "remote",
+      "url": "http://localhost:9121/mcp",
+    }    
+  } 
 }

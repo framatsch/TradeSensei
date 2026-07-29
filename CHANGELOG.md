@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [backend] `DELETE /api/v1/market-data/cache` now performs a global unconditional wipe of all cached prices across all users, rather than filtering by the current user's traded symbols.
+- [frontend] Updated the "Clear Cache" button in General Settings with a "Danger" warning to clarify that it clears market data for all users platform-wide.
 ## [1.8.1] - 2026-07-28
 
 ### Added

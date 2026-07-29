@@ -16,7 +16,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -92,5 +92,11 @@ class OhlcPriceRepository:
                 "meta": stmt.excluded.meta,
             },
         )
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def clear_all_cache(self) -> None:
+        """Clear all cached OHLC prices from the database."""
+        stmt = delete(OhlcPrice)
         await self._session.execute(stmt)
         await self._session.flush()

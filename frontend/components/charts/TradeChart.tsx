@@ -133,6 +133,7 @@ function buildApiUrl(
   entryDate: Date,
   exitDate: Date | null,
   assetClass: AssetClass,
+  forceRefresh: boolean = false,
 ): string {
   const secs = INTERVAL_SECONDS[interval];
   // Buffer start by 30 candles
@@ -151,6 +152,10 @@ function buildApiUrl(
 
   if (isIndexSymbol(symbol, assetClass)) {
     params.set("sec_type", "index");
+  }
+
+  if (forceRefresh) {
+    params.set("force_refresh", "true");
   }
 
   return `${MARKET_DATA_PROXY}/prices/${encodeURIComponent(symbol)}/history?${params.toString()}`;
@@ -519,7 +524,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
   // ── Fetch chart data ───────────────────────────────────────────────────────
   const fetchAndRender = useCallback(
-    async (iv: Interval) => {
+    async (iv: Interval, forceRefresh: boolean = false) => {
       setLoading(true);
       setNoData(false);
       try {
@@ -529,6 +534,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           entryDate,
           exitDate,
           assetClass,
+          forceRefresh
         );
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -981,6 +987,24 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </div>
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => fetchAndRender(interval, true)}
+            title="Force Refresh Data"
+            disabled={loading}
+            className={`flex items-center justify-center p-1.5 rounded-full transition-all duration-300 border shadow-inner ${
+              loading
+                ? "bg-secondary border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                : "bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}>
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+          </button>
         </div>
 
         <div className="relative">
