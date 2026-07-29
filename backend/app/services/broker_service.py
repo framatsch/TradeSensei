@@ -139,7 +139,7 @@ class BrokerService:
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
         if account.type == AccountType.SCHWAB:
-            return await self._sync_schwab(account, days)
+            return await self._sync_schwab(account, days, overwrite_manually_edited=overwrite_manually_edited)
         elif account.type == AccountType.IBKR:
             return await self._sync_ibkr(
                 account,
@@ -548,7 +548,7 @@ class BrokerService:
             metadata={"provider": "schwab"},
         )
 
-    async def _sync_schwab(self, account: Account, days: int) -> BrokerSyncResult:
+    async def _sync_schwab(self, account: Account, days: int, overwrite_manually_edited: bool = False) -> BrokerSyncResult:
         """Fetch Schwab transactions and import via the shared raw pipeline."""
         access_token = await self._get_valid_schwab_access_token(account)
         self._resolve_property({}, account, SCHWAB_APP_KEY_KEYS)
@@ -610,6 +610,7 @@ class BrokerService:
             portfolio_id=account.portfolio_id,
             account_id=account.id,
             user_id=account.user_id,
+            overwrite_manually_edited=overwrite_manually_edited,
         )
         return BrokerSyncResult(
             imported_count=result.trades_created,
