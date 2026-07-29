@@ -632,6 +632,8 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/scheffold/TradeSensei/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/scheffold/TradeSensei/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/scheffold/TradeSensei/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/scheffold/TradeSensei/compare/v1.6.1...v1.7.0
