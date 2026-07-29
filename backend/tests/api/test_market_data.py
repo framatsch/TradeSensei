@@ -11,7 +11,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import uuid
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -44,7 +43,7 @@ async def test_get_price_history_force_refresh(
     override_market_data_dependency.format_bars.return_value = []
 
     # When force_refresh=true
-    response = await client.get(
+    await client.get(
         "/api/v1/market-data/prices/AAPL/history?force_refresh=true",
         headers=primary_user["headers"]
     )

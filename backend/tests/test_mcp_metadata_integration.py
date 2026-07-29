@@ -13,8 +13,10 @@
 
 import json
 import uuid
+
 import pytest
 from httpx import AsyncClient
+
 
 async def _register_and_get_pat(client: AsyncClient) -> tuple[str, dict[str, str]]:
     suffix = str(uuid.uuid4())[:8]

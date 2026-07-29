@@ -14,7 +14,7 @@
 """Integration tests for NoteRepository."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -53,7 +53,7 @@ async def _make_trade(session: AsyncSession, user_id: uuid.UUID) -> Trade:
         asset_class=AssetClass.EQUITY,
         quantity=Decimal("5"),
         entry_price=Decimal("200"),
-        opened_at=datetime(2024, 3, 1, 9, 30, tzinfo=timezone.utc),
+        opened_at=datetime(2024, 3, 1, 9, 30, tzinfo=UTC),
         currency="USD",
     )
     session.add(trade)

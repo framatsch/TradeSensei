@@ -12,6 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
+from datetime import UTC
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -23,13 +24,11 @@ from app.core.dependencies import require_portfolio_owner
 from app.core.exceptions import AccountNotFoundError, ConfigurationError
 from app.main import app
 from app.schemas.account import (
-    AccountCreate,
     AccountMetrics,
     AccountRead,
-    AccountUpdate,
 )
-from app.schemas.broker import BrokerConnectionTestRequest, BrokerConnectionTestResult
-from app.schemas.common import CursorPage, ResponseEnvelope
+from app.schemas.broker import BrokerConnectionTestResult
+from app.schemas.common import CursorPage
 
 pytestmark = pytest.mark.asyncio
 
@@ -108,7 +107,7 @@ async def test_create_account(
 ):
     mock_service, _ = override_account_dependency
     account_id = uuid.uuid4()
-    from datetime import datetime, timezone
+    from datetime import datetime
     mock_service.create_account.return_value = AccountRead(
         id=account_id,
         name="My Account",
@@ -118,8 +117,8 @@ async def test_create_account(
         portfolio_id=uuid.uuid4(),
         user_id=uuid.uuid4(),
         is_active=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
     portfolio_id = str(uuid.uuid4())
@@ -162,7 +161,7 @@ async def test_get_account(
 ):
     mock_service, _ = override_account_dependency
     
-    from datetime import datetime, timezone
+    from datetime import datetime
     mock_service.get_account.return_value = AccountRead(
         id=uuid.uuid4(),
         name="Test",
@@ -172,8 +171,8 @@ async def test_get_account(
         portfolio_id=uuid.uuid4(),
         user_id=uuid.uuid4(),
         is_active=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     portfolio_id = str(uuid.uuid4())
@@ -198,7 +197,7 @@ async def test_update_account(
 ):
     mock_service, _ = override_account_dependency
     
-    from datetime import datetime, timezone
+    from datetime import datetime
     mock_service.update_account.return_value = AccountRead(
         id=uuid.uuid4(),
         name="Test",
@@ -208,8 +207,8 @@ async def test_update_account(
         portfolio_id=uuid.uuid4(),
         user_id=uuid.uuid4(),
         is_active=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     portfolio_id = str(uuid.uuid4())

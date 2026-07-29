@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -58,8 +58,8 @@ async def test_create_annotation_definition(
         icon_identifier="icon",
         scope="GLOBAL",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     res = await client.post(
@@ -105,8 +105,8 @@ async def test_get_annotation_definition(
         icon_identifier="icon",
         scope="GLOBAL",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     definition_id = str(uuid.uuid4())
@@ -140,8 +140,8 @@ async def test_update_annotation_definition(
         icon_identifier="icon",
         scope="GLOBAL",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     definition_id = str(uuid.uuid4())
@@ -194,8 +194,8 @@ async def test_delete_annotation_definition(
         icon_identifier="icon",
         scope="GLOBAL",
         is_archived=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     res2 = await client.delete(
         f"/api/v1/annotation-definitions/{definition_id}",
@@ -227,8 +227,8 @@ async def test_archive_annotation_definition(
         icon_identifier="icon",
         scope="GLOBAL",
         is_archived=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     definition_id = str(uuid.uuid4())
@@ -262,8 +262,8 @@ async def test_unarchive_annotation_definition(
         icon_identifier="icon",
         scope="GLOBAL",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     definition_id = str(uuid.uuid4())

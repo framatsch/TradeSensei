@@ -12,21 +12,20 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
-from app.core.dependencies import require_portfolio_owner
-from typing import Any
-from unittest.mock import AsyncMock, patch
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
 
 from app.api.v1.executions import _get_service
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_session_with_rls
 from app.core.exceptions import ExecutionNotFoundError, ExecutionValidationError
-
-from app.schemas.execution import LogicalExecutionRead, SplitExecutionResponse, MergeExecutionsResponse
 from app.models.trade import AssetClass, Direction
+from app.schemas.execution import LogicalExecutionRead, MergeExecutionsResponse, SplitExecutionResponse
 
 pytestmark = pytest.mark.asyncio
 
@@ -55,7 +54,7 @@ def get_mock_execution(portfolio_id, user_id, execution_id, trade_id):
         direction=Direction.LONG,
         quantity=Decimal("1"),
         price=Decimal("100.0"),
-        executed_at=datetime.now(timezone.utc),
+        executed_at=datetime.now(UTC),
         multiplier=Decimal("1"),
         origin="manual",
         user_modified=False,
@@ -63,11 +62,11 @@ def get_mock_execution(portfolio_id, user_id, execution_id, trade_id):
         journal=None,
         is_manual=True,
         currency="USD",
-        execution_time_original=datetime.now(timezone.utc),
+        execution_time_original=datetime.now(UTC),
         deleted=False,
         raw_transactions=[],
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC)
     )
 
 async def test_list_trade_executions(client: AsyncClient, primary_user: dict[str, Any], override_dependency):
@@ -96,7 +95,7 @@ async def test_create_manual_execution(client: AsyncClient, primary_user: dict[s
             "direction": "LONG",
             "quantity": 1,
             "price": 100.0,
-            "executed_at": datetime.now(timezone.utc).isoformat()
+            "executed_at": datetime.now(UTC).isoformat()
         },
         headers=primary_user["headers"]
     )
@@ -246,9 +245,10 @@ async def test_detach_execution(client: AsyncClient, primary_user: dict[str, Any
     portfolio_id = uuid.uuid4()
     execution_id = uuid.uuid4()
     
-    from app.schemas.trade import TradeRead
-    from app.models.trade import AssetClass, Direction
     from decimal import Decimal
+
+    from app.models.trade import AssetClass, Direction
+    from app.schemas.trade import TradeRead
     
     def get_mock_trade():
         return TradeRead(
@@ -265,7 +265,7 @@ async def test_detach_execution(client: AsyncClient, primary_user: dict[str, Any
             exit_price=None,
             stop_loss=None,
             take_profit=None,
-            opened_at=datetime.now(timezone.utc),
+            opened_at=datetime.now(UTC),
             closed_at=None,
             pnl=None,
             net_pnl=None,
@@ -286,8 +286,8 @@ async def test_detach_execution(client: AsyncClient, primary_user: dict[str, Any
             trade_notes=[],
             legs=[],
             is_manually_edited=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         
     override_dependency.detach_execution.return_value = get_mock_trade()

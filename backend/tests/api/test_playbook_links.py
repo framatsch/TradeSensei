@@ -32,7 +32,7 @@ pytestmark = pytest.mark.asyncio
 def mock_service():
     mock = AsyncMock()
     # Mock return values
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
     link_res = PlaybookLinkResponse(
         id=uuid.uuid4(),
         playbook_id=uuid.uuid4(),

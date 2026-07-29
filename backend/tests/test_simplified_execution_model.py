@@ -152,7 +152,7 @@ async def test_aggregator_excludes_deleted_executions(mock_session: AsyncMock) -
         deleted=False,
     )
     # Deleted entry: buy 5 @ 200 — must NOT be counted
-    deleted_entry = _make_execution(
+    _make_execution(
         trade_id=trade.id,
         user_id=trade.user_id,
         direction=Direction.LONG,

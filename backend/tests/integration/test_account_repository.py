@@ -12,6 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 

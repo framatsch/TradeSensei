@@ -12,17 +12,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
+from datetime import UTC, date, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
-from datetime import datetime, timezone, date
 
 import pytest
 from httpx import AsyncClient
 
 from app.api.v1.checkins import _get_service
 from app.core.deps import get_session_with_rls
-from app.core.exceptions import DailyCheckinNotFoundError, ConfigurationError, UnsupportedContentTypeError
-
+from app.core.exceptions import ConfigurationError, DailyCheckinNotFoundError, UnsupportedContentTypeError
 from app.schemas.daily_checkin import DailyCheckinRead
 
 pytestmark = pytest.mark.asyncio
@@ -53,8 +52,8 @@ def get_mock_checkin():
         custom_metrics={},
         custom_fields={},
         is_manually_edited=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC)
     )
 
 async def test_generate_screenshot_upload_url(client: AsyncClient, primary_user: dict[str, Any]):

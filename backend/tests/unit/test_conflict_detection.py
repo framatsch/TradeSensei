@@ -17,6 +17,7 @@ from decimal import Decimal
 
 from app.utils.conflict_detection import detect_duplicate_pairs
 
+
 @dataclass
 class _MockLeg:
     symbol: str

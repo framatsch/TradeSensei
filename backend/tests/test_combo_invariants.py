@@ -23,9 +23,9 @@ from typing import cast
 
 import pytest
 
-from app.schemas.trade import TradeCreate
-from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.models.trade import AssetClass, Direction
+from app.schemas.corporate_action import CorporateActionCreateRequest
+from app.schemas.trade import TradeCreate
 from app.utils.parsers.aggregator import (
     ExecutionLike,
     aggregate_executions_fifo,
@@ -33,7 +33,6 @@ from app.utils.parsers.aggregator import (
     logical_executions_to_trade_creates,
 )
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
-
 
 _FIXTURE = Path(__file__).resolve().parents[2] / "tests" / "test_data" / "ibkr" / "combo_positions.xml"
 

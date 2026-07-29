@@ -189,7 +189,7 @@ async def test_register_success(monkeypatch):
         content_type="image/png",
     )
     with patch.object(PlaybookImageResponse, "model_validate", return_value=MagicMock()):
-        result = await svc.register(_PLAYBOOK_ID, _USER_ID, payload)
+        await svc.register(_PLAYBOOK_ID, _USER_ID, payload)
 
     svc._attachment_repo.create.assert_called_once()
 

@@ -11,16 +11,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import xml.etree.ElementTree as ET
 from decimal import Decimal
+
 import pytest
+
+from app.core.exceptions import ImportParseError
 from app.utils.parsers.ibkr_xml import (
+    IBKRXMLParser,
     _extract_occ_underlying,
     _parse_execution_datetime,
     _safe_decimal,
-    IBKRXMLParser,
 )
-from app.core.exceptions import ImportParseError
+
 
 def test_extract_occ_underlying():
     assert _extract_occ_underlying("AAPL") == "AAPL"

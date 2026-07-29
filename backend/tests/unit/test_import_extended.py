@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -233,7 +233,8 @@ async def test_set_statement_timeout_skips_when_zero():
 # _split_execution_for_trade
 # ---------------------------------------------------------------------------
 
-from app.core.exceptions import TradeNotFoundError, ExecutionNotFoundError
+from app.core.exceptions import ExecutionNotFoundError, TradeNotFoundError
+
 
 async def test_split_execution_raises_when_trade_not_found():
     svc = _make_service()
@@ -262,7 +263,7 @@ async def test_split_execution_success():
     orig_exec.quantity = Decimal("10")
     orig_exec.price = Decimal("100")
     orig_exec.commission = Decimal("2")
-    orig_exec.executed_at = datetime.now(timezone.utc)
+    orig_exec.executed_at = datetime.now(UTC)
     orig_exec.pnl = Decimal("50")
     orig_exec.currency = "USD"
     orig_exec.multiplier = 1

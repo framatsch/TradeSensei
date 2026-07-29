@@ -410,15 +410,13 @@ class ImportService:
             # exist, causing the trade-creation loop to skip re-creating them
             # entirely (it treats "db_trade_id is not None" as "already
             # exists", regardless of whether that trade was just deleted).
+            existing_trades_by_key = {}
             if account_id is not None:
                 preserved_trade_ids = [trade.id for trade in open_combo_positions]
-                await self._trade_repo.delete_by_user_account(
-                    user_id=user_id,
-                    account_id=account_id,
-                    include_manually_edited=overwrite_manually_edited,
-                    exclude_trade_ids=preserved_trade_ids,
-                )
-                await self._session.flush()
+                existing_trades = await self._trade_repo.list_by_user_account(user_id, account_id)
+                existing_trades_by_key = {
+                    (t.broker_conid, t.opened_at): t for t in existing_trades
+                }
 
             # Load logical executions in batches to cap peak memory during import.
             parsed_trades = await self._collect_trade_creates_from_logical_batches(
@@ -492,62 +490,20 @@ class ImportService:
                     trades_skipped_manually_edited += 1
                     continue
 
-                db_trade_id = trade_data.db_trade_id
-                if db_trade_id is not None:
-                    if db_trade_id in open_lot_ids or db_trade_id in orphaned_lot_ids:
-                        is_orphan = db_trade_id in orphaned_lot_ids
-                        is_ready_to_close = trade_data.closed_at is not None and (
-                            trade_data.is_combo or (trade_data.exit_price is not None and trade_data.entry_price != Decimal("0.001"))
-                        )
-                        if is_ready_to_close and db_trade_id not in already_updated_ids:
-                            try:
-                                if is_orphan:
-                                    await self._trade_repo.fill_orphaned_lot(
-                                        trade_id=db_trade_id,
-                                        user_id=user_id,
-                                        entry_price=cast(Decimal, trade_data.entry_price),
-                                        opened_at=trade_data.opened_at,
-                                        pnl=trade_data.pnl,
-                                        pnl_eur=trade_data.pnl_eur,
-                                        net_pnl=trade_data.net_pnl,
-                                        net_pnl_eur=trade_data.net_pnl_eur,
-                                        commission_add=trade_data.commission,
-                                        quantity=cast(Decimal, trade_data.quantity),
-                                    )
-                                elif trade_data.is_combo:
-                                    await self._trade_repo.close_open_combo_trade(
-                                        trade_id=db_trade_id,
-                                        user_id=user_id,
-                                        closed_at=cast(datetime, trade_data.closed_at),
-                                        pnl=trade_data.pnl,
-                                        pnl_eur=trade_data.pnl_eur,
-                                        net_pnl=trade_data.net_pnl,
-                                        net_pnl_eur=trade_data.net_pnl_eur,
-                                        commission_total=trade_data.commission,
-                                    )
-                                else:
-                                    await self._trade_repo.close_open_lot(
-                                        trade_id=db_trade_id,
-                                        user_id=user_id,
-                                        exit_price=cast(Decimal, trade_data.exit_price),
-                                        closed_at=cast(datetime, trade_data.closed_at),
-                                        pnl=trade_data.pnl,
-                                        pnl_eur=trade_data.pnl_eur,
-                                        net_pnl=trade_data.net_pnl,
-                                        net_pnl_eur=trade_data.net_pnl_eur,
-                                        commission_add=trade_data.commission,
-                                        quantity=cast(Decimal, trade_data.quantity),
-                                    )
-                                already_updated_ids.add(db_trade_id)
-                                trades_updated += 1
-                            except Exception as exc:  # noqa: BLE001
-                                msg = f"Failed to update combo/seed trade {db_trade_id} ({trade_data.symbol}): {exc}"
-                                logger.warning(msg)
-                                create_warnings.append(msg)
-
-                    existing_trade = await self._trade_repo.get_by_id(db_trade_id, user_id)
-                    if existing_trade is not None and i < len(trades_with_sources):
+                existing_trade = existing_trades_by_key.get(match_key)
+                if existing_trade is not None:
+                    update_data = trade_data.model_dump(
+                        exclude={"id", "db_trade_id", "user_id", "account_id"},
+                        exclude_unset=True,
+                    )
+                    for field, value in update_data.items():
+                        setattr(existing_trade, field, value)
+                    self._session.add(existing_trade)
+                    trades_updated += 1
+                    if i < len(trades_with_sources):
                         trades_with_sources[i].created_trade = existing_trade
+                    
+                    existing_trades_by_key.pop(match_key)
                     continue
 
                 trade_with_owner = trade_data.model_copy(
@@ -585,6 +541,16 @@ class ImportService:
                         continue
                     legs = await self._exec_repo.list_by_trade_id(trade.id, include_deleted=False)
                     trade.has_conflict = detect_duplicate_pairs(legs)
+                
+                valid_trade_ids = [tws.created_trade.id for tws in trades_with_sources if tws.created_trade is not None]
+                exclude_ids = list(set(valid_trade_ids + preserved_trade_ids))
+                if account_id is not None:
+                    await self._trade_repo.delete_by_user_account(
+                        user_id=user_id,
+                        account_id=account_id,
+                        include_manually_edited=overwrite_manually_edited,
+                        exclude_trade_ids=exclude_ids,
+                    )
                 await self._session.flush()
 
         for trade_data in parsed_trades:

@@ -11,12 +11,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from app.services.import_service import ImportService
 from app.utils.parsers.factory import BrokerType
+
 
 @pytest.fixture
 def import_service():

@@ -11,24 +11,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from app.core.exceptions import ImportNotAllowedError, AccountNotFoundError
-from app.core.dependencies import require_portfolio_owner
-from app.models.account import Account, AccountType
-from app.api.v1.imports import _validate_account_import
 import uuid
+from datetime import UTC
 from typing import Any
 from unittest.mock import AsyncMock, patch
-from app.schemas.imports import ImportResult
-from app.schemas.broker_raw_transaction import BrokerRawTransactionRead
-from pydantic import ValidationError
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 
-from app.api.v1.imports import _get_service
+from app.api.v1.imports import _get_service, _validate_account_import
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_session_with_rls
+from app.core.exceptions import AccountNotFoundError, ImportNotAllowedError
+from app.models.account import Account, AccountType
+from app.schemas.imports import FreshStartResult, ImportResult
 from app.utils.parsers.factory import BrokerType
-from app.schemas.imports import ImportResult, FreshStartResult
 
 pytestmark = pytest.mark.asyncio
 
@@ -125,14 +123,13 @@ async def test_upload_import_file_too_large(client: AsyncClient, primary_user: d
 
     large_content = b"0" * (21 * 1024 * 1024)
 
-    with patch("app.api.v1.imports._validate_account_import", return_value=BrokerType.IBKR):
-        with patch("app.api.v1.imports.IMPORT_MAX_FILE_SIZE_MB", 20):
-            response = await client.post(
-                f"/api/v1/portfolios/{portfolio_id}/imports/upload",
-                data={"account_id": str(account_id)},
-                files={"file": ("test.xml", large_content, "text/xml")},
-                headers=primary_user["headers"]
-            )
+    with patch("app.api.v1.imports._validate_account_import", return_value=BrokerType.IBKR), patch("app.api.v1.imports.IMPORT_MAX_FILE_SIZE_MB", 20):
+        response = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/imports/upload",
+            data={"account_id": str(account_id)},
+            files={"file": ("test.xml", large_content, "text/xml")},
+            headers=primary_user["headers"]
+        )
 
     assert response.status_code == 413
 
@@ -182,7 +179,6 @@ async def test_upload_import_validation_error(client: AsyncClient, primary_user:
     portfolio_id = uuid.uuid4()
     account_id = uuid.uuid4()
 
-    from pydantic import ValidationError
     # We just need any validation error for mock
     override_dependency.import_file.side_effect = ValidationError.from_exception_data(
         title="Test", line_errors=[]
@@ -323,9 +319,10 @@ async def test_validate_account_import_success(mock_session):
 
 
 async def test_import_schwab_json(client: AsyncClient, primary_user: dict[str, Any], override_dependency):
-    from app.schemas.imports import ImportResult
-    from app.schemas.account import AccountType
     from unittest.mock import AsyncMock, patch
+
+    from app.schemas.account import AccountType
+    from app.schemas.imports import ImportResult
 
     override_dependency.import_file.return_value = ImportResult(broker="SCHWAB", filename="x.json", trades_parsed=1, trades_created=1, trades_skipped=0, raw_transactions_created=1, raw_suppressed_skipped=0, raw_deleted_skipped=0, warnings=[])
     portfolio_id = uuid.uuid4()
@@ -346,7 +343,7 @@ async def test_import_schwab_json(client: AsyncClient, primary_user: dict[str, A
 
 async def test_suppress_raw_transaction(client: AsyncClient, primary_user: dict[str, Any], override_dependency):
     override_dependency.suppress_raw_transaction.return_value = None
-    from datetime import datetime, timezone
+    from datetime import datetime
     from decimal import Decimal
     
     mock_dict = {
@@ -361,14 +358,14 @@ async def test_suppress_raw_transaction(client: AsyncClient, primary_user: dict[
         "quantity": Decimal("10"),
         "price": Decimal("150"),
         "commission": Decimal("1"),
-        "executed_at": datetime.now(timezone.utc),
+        "executed_at": datetime.now(UTC),
         "multiplier": Decimal("1"),
         "row_data": "{}",
-        "created_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
         "suppressed": True
     }
     
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
     with patch("app.api.v1.imports.BrokerRawTransactionRead.model_validate") as mock_validate:
         mock_validate.return_value = mock_dict
         portfolio_id = uuid.uuid4()
@@ -432,6 +429,7 @@ async def test_import_schwab_json_errors(client: AsyncClient, primary_user: dict
     portfolio_id = uuid.uuid4()
     account_id = uuid.uuid4()
     from unittest.mock import AsyncMock, patch
+
     from app.schemas.account import AccountType
     class MockAccount:
         type = AccountType.SCHWAB
@@ -465,8 +463,9 @@ async def test_flex_import_errors(client: AsyncClient, primary_user: dict[str, A
     assert response.status_code == 429
 
 async def test_upload_import_errors_extra(client: AsyncClient, primary_user: dict[str, Any], override_dependency):
-    from app.core.exceptions import ImportParseError, UnsupportedBrokerError
     from unittest.mock import patch
+
+    from app.core.exceptions import ImportParseError, UnsupportedBrokerError
     from app.utils.parsers.factory import BrokerType
     portfolio_id = uuid.uuid4()
     account_id = uuid.uuid4()
@@ -506,7 +505,6 @@ async def test_import_schwab_json_unhandled_exception(client: AsyncClient, prima
     assert response.status_code == 400
 
 async def test_import_schwab_json_validation_error(client: AsyncClient, primary_user: dict[str, Any], override_dependency):
-    from pydantic import ValidationError
     override_dependency.import_file.side_effect = ValidationError.from_exception_data("error", [])
     portfolio_id = uuid.uuid4()
     account_id = uuid.uuid4()

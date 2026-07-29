@@ -237,9 +237,8 @@ async def test_update_annotation_raises_not_found_when_assignment_missing():
     svc._annotation_definition_repo.get_by_id = AsyncMock(return_value=mock_def)
     svc._checkin_annotation_repo.update = AsyncMock(return_value=None)
 
-    with patch("app.services.checkin_metadata_service.map_value_to_column", return_value={"value_int": 5}):
-        with pytest.raises(MetadataAssignmentNotFoundError):
-            await svc.update_annotation(_CHECKIN_ID, _ANNOTATION_DEF_ID, 5, _USER_ID)
+    with patch("app.services.checkin_metadata_service.map_value_to_column", return_value={"value_int": 5}), pytest.raises(MetadataAssignmentNotFoundError):
+        await svc.update_annotation(_CHECKIN_ID, _ANNOTATION_DEF_ID, 5, _USER_ID)
 
 
 # ---------------------------------------------------------------------------

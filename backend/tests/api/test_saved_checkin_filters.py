@@ -24,7 +24,6 @@ from app.core.exceptions import (
     SavedCheckinFilterNotFoundError,
 )
 from app.models.saved_checkin_filter import SavedCheckinFilter
-from app.schemas.saved_checkin_filter import SavedCheckinFilterCreate, SavedCheckinFilterUpdate
 
 pytestmark = pytest.mark.asyncio
 
@@ -33,7 +32,7 @@ pytestmark = pytest.mark.asyncio
 def mock_service():
     mock = AsyncMock()
     # Mock return values
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
     filter_obj = SavedCheckinFilter(
         id=uuid.uuid4(),
         user_id=uuid.uuid4(),

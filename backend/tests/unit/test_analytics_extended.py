@@ -18,11 +18,11 @@ from __future__ import annotations
 import uuid
 from datetime import date
 from decimal import Decimal
-
-import pytest
 from unittest.mock import AsyncMock
 
-from app.services.analytics_service import AnalyticsService, _ComputedMetrics
+import pytest
+
+from app.services.analytics_service import AnalyticsService
 
 pytestmark = pytest.mark.asyncio
 
@@ -211,7 +211,6 @@ async def test_build_curves_drawdown_computed():
 
 
 async def test_downsample_returns_all_when_below_max():
-    from app.core.constants import EQUITY_CURVE_MAX_POINTS
 
     rows = [_row(i) for i in range(10)]
     result = AnalyticsService._downsample_rows(rows)

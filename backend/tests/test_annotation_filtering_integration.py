@@ -13,8 +13,10 @@
 
 import json
 import uuid
+
 import pytest
 from httpx import AsyncClient
+
 
 async def _register_and_auth_headers(
     client: AsyncClient,

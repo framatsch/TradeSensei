@@ -12,12 +12,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """Unit tests for list endpoints."""
+import datetime
+
 import pytest
 from httpx import AsyncClient
-from uuid import uuid4
-import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from unittest.mock import patch
+
 
 @pytest.fixture(autouse=True)
 def mock_storage(monkeypatch):
@@ -25,18 +25,19 @@ def mock_storage(monkeypatch):
         return "https://s3.mock/bucket/key?signed=true"
     monkeypatch.setattr("app.services.storage_service.StorageService.generate_presigned_get_url", mock_generate)
 
-import sqlalchemy as sa
-from app.models.trade import Trade
 from app.models.daily_checkin import DailyCheckin
+from app.models.trade import Trade
+
 
 @pytest.mark.asyncio
 async def test_get_trades_list_presigned_urls(client: AsyncClient, db_session: AsyncSession, primary_user: dict):
     # Setup trade with image_url as key
     
     # Create portfolio
-    from app.models.portfolio import Portfolio
-    from app.models.account import Account
     import uuid
+
+    from app.models.account import Account
+    from app.models.portfolio import Portfolio
     portfolio_id = uuid.uuid4()
     portfolio = Portfolio(id=portfolio_id, user_id=primary_user["user_id"], name="Test Portfolio", base_currency="USD")
     db_session.add(portfolio)
@@ -61,7 +62,7 @@ async def test_get_trades_list_presigned_urls(client: AsyncClient, db_session: A
         asset_class="EQUITY",
         quantity=10,
         entry_price=100,
-        opened_at=datetime.datetime.now(datetime.timezone.utc),
+        opened_at=datetime.datetime.now(datetime.UTC),
         commission=0,
         image_urls=["test-bucket/trades/test.png"],
         is_combo=False,
@@ -83,9 +84,9 @@ async def test_get_trades_list_presigned_urls(client: AsyncClient, db_session: A
 async def test_get_checkins_list_presigned_urls(client: AsyncClient, db_session: AsyncSession, primary_user: dict):
     
     # Create portfolio
-    from app.models.portfolio import Portfolio
-    from app.models.account import Account
     import uuid
+
+    from app.models.portfolio import Portfolio
     portfolio_id = uuid.uuid4()
     portfolio = Portfolio(id=portfolio_id, user_id=primary_user["user_id"], name="Test Portfolio", base_currency="USD")
     db_session.add(portfolio)
@@ -96,7 +97,7 @@ async def test_get_checkins_list_presigned_urls(client: AsyncClient, db_session:
     checkin = DailyCheckin(
         
         user_id=user_id,
-        date=datetime.datetime.now(datetime.timezone.utc).date(),
+        date=datetime.datetime.now(datetime.UTC).date(),
         market_phase="BULL",
         notes="Test notes",
         screenshot_urls=["test-bucket/checkins/test.png"]
@@ -104,7 +105,7 @@ async def test_get_checkins_list_presigned_urls(client: AsyncClient, db_session:
     db_session.add(checkin)
     await db_session.flush()
     
-    response = await client.get(f"/api/v1/checkins", headers=primary_user["headers"])
+    response = await client.get("/api/v1/checkins", headers=primary_user["headers"])
     assert response.status_code == 200, response.text
     data = response.json()["data"]["items"]
     assert len(data) > 0

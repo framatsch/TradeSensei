@@ -337,7 +337,6 @@ class TestUnexpectedExceptionPropagates:
         ``decode_token`` would raise ``InvalidTokenError`` instead of letting
         the ``AttributeError`` propagate.
         """
-        from unittest.mock import patch
 
         with (
             patch("app.core.security.jwt.decode", side_effect=AttributeError("boom")),

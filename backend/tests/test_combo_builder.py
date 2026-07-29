@@ -31,7 +31,6 @@ from app.utils.parsers.aggregator import (
 )
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
 
-
 _FIXTURE = Path(__file__).resolve().parents[2] / "tests" / "test_data" / "ibkr" / "combo_positions.xml"
 
 

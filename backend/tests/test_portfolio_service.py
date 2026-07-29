@@ -55,7 +55,7 @@ async def test_create_portfolio_rejects_duplicate_name(
     user_id = uuid.uuid4()
     service._repo.get_by_name = AsyncMock(return_value=_make_portfolio(user_id=user_id))  # type: ignore[method-assign]
 
-    with pytest.raises(PortfolioValidationError) as exc:
+    with pytest.raises(PortfolioValidationError):
         await service.create_portfolio(
             user_id,
             PortfolioCreate(name="Main", base_currency="USD", color_hex="#123456"),
@@ -90,7 +90,7 @@ async def test_update_portfolio_rejects_base_currency_change_when_trades_exist(
     service._repo.get_by_id = AsyncMock(return_value=existing)  # type: ignore[method-assign]
     service._repo.has_trades = AsyncMock(return_value=True)  # type: ignore[method-assign]
 
-    with pytest.raises(PortfolioValidationError) as exc:
+    with pytest.raises(PortfolioValidationError):
         await service.update_portfolio(
             existing.id,
             user_id,
@@ -109,7 +109,7 @@ async def test_update_portfolio_rejects_duplicate_name(
     service._repo.get_by_id = AsyncMock(return_value=existing)  # type: ignore[method-assign]
     service._repo.get_by_name = AsyncMock(return_value=duplicate)  # type: ignore[method-assign]
 
-    with pytest.raises(PortfolioValidationError) as exc:
+    with pytest.raises(PortfolioValidationError):
         await service.update_portfolio(
             existing.id,
             user_id,

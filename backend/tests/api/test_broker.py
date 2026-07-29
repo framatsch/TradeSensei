@@ -18,7 +18,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.v1.broker import _get_service, _get_service_public
-from app.core.exceptions import AccountNotFoundError, ConfigurationError
+from app.core.exceptions import ConfigurationError
 from app.main import app
 from app.models.account import Account
 

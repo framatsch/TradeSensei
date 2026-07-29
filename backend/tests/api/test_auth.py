@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -52,8 +52,8 @@ async def test_register_success(client: AsyncClient, override_dependency):
         email="test@test.com", 
         hashed_password="pw", 
         is_active=True, 
-        created_at=datetime.now(timezone.utc), 
-        updated_at=datetime.now(timezone.utc)
+        created_at=datetime.now(UTC), 
+        updated_at=datetime.now(UTC)
     )
     # mock model_validate if needed, or just let Pydantic read the ORM model
     override_dependency.register.return_value = user

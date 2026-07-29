@@ -14,13 +14,15 @@
 """Test migration e6c9b3f1a2d0 (URL to storage ref backfill)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import AsyncSession
 from alembic.config import Config
+
 from alembic import command
 from app.core.config import settings
+
 
 # Run this test serially to avoid messing with other tests' schemas.
 @pytest.mark.integration
@@ -56,25 +58,25 @@ async def test_migration_roundtrip(engine):
         playbook_id = uuid.uuid4()
         attachment_id = uuid.uuid4()
         
-        await conn.execute(sa.text("INSERT INTO users (id, username, email, hashed_password, created_at, updated_at) VALUES (:id, 'mig_test', :email, :pw, :ts, :ts)"), {"id": user_id, "email": "mig_test@example.com", "pw": "hash", "ts": datetime.now(timezone.utc)})
-        await conn.execute(sa.text("INSERT INTO portfolios (id, user_id, name, base_currency, created_at, updated_at) VALUES (:id, :uid, 'Mig', 'USD', :ts, :ts)"), {"id": portfolio_id, "uid": user_id, "ts": datetime.now(timezone.utc)})
-        await conn.execute(sa.text("INSERT INTO accounts (id, portfolio_id, user_id, name, type, created_at, updated_at) VALUES (:id, :pid, :uid, 'Mig', 'manual', :ts, :ts)"), {"id": account_id, "pid": portfolio_id, "uid": user_id, "ts": datetime.now(timezone.utc)})
+        await conn.execute(sa.text("INSERT INTO users (id, username, email, hashed_password, created_at, updated_at) VALUES (:id, 'mig_test', :email, :pw, :ts, :ts)"), {"id": user_id, "email": "mig_test@example.com", "pw": "hash", "ts": datetime.now(UTC)})
+        await conn.execute(sa.text("INSERT INTO portfolios (id, user_id, name, base_currency, created_at, updated_at) VALUES (:id, :uid, 'Mig', 'USD', :ts, :ts)"), {"id": portfolio_id, "uid": user_id, "ts": datetime.now(UTC)})
+        await conn.execute(sa.text("INSERT INTO accounts (id, portfolio_id, user_id, name, type, created_at, updated_at) VALUES (:id, :pid, :uid, 'Mig', 'manual', :ts, :ts)"), {"id": account_id, "pid": portfolio_id, "uid": user_id, "ts": datetime.now(UTC)})
         
         # Insert checkin with text array
         await conn.execute(sa.text("INSERT INTO daily_checkins (id, user_id, date, market_phase, notes, news_links, custom_metrics, screenshot_urls, created_at, updated_at) VALUES (:id, :uid, '2023-01-01', 'BULL', '', '{}', '{}', :urls, :ts, :ts)"), {
-            "id": checkin_id, "uid": user_id, "urls": [f"{public_url}/bucket/checkins/img1.png", "https://other.com/img.png", ""], "ts": datetime.now(timezone.utc)
+            "id": checkin_id, "uid": user_id, "urls": [f"{public_url}/bucket/checkins/img1.png", "https://other.com/img.png", ""], "ts": datetime.now(UTC)
         })
         
         # Insert trade with JSONB array
         import json
         await conn.execute(sa.text("INSERT INTO trades (id, user_id, account_id, position_id, direction, symbol, asset_class, quantity, entry_price, opened_at, commission, notes, image_urls, is_combo, created_at, updated_at) VALUES (:id, :uid, :aid, :id, 'LONG', 'AAPL', 'EQUITY', 10, 100, :ts, 0, '', :urls, false, :ts, :ts)"), {
-                "id": trade_id, "uid": user_id, "aid": account_id, "urls": json.dumps([f"{public_url}/bucket/trades/img2.png"]), "ts": datetime.now(timezone.utc)
+                "id": trade_id, "uid": user_id, "aid": account_id, "urls": json.dumps([f"{public_url}/bucket/trades/img2.png"]), "ts": datetime.now(UTC)
             })
         
         # Insert playbook attachment
-        await conn.execute(sa.text("INSERT INTO playbooks (id, user_id, name, description, content_markdown, target_winrate, is_active, created_at, updated_at) VALUES (:id, :uid, 'PB', '', '', 0.5, true, :ts, :ts)"), {"id": playbook_id, "uid": user_id, "ts": datetime.now(timezone.utc)})
+        await conn.execute(sa.text("INSERT INTO playbooks (id, user_id, name, description, content_markdown, target_winrate, is_active, created_at, updated_at) VALUES (:id, :uid, 'PB', '', '', 0.5, true, :ts, :ts)"), {"id": playbook_id, "uid": user_id, "ts": datetime.now(UTC)})
         await conn.execute(sa.text("INSERT INTO playbook_attachments (id, playbook_id, user_id, filename, content_type, storage_url, created_at) VALUES (:id, :pid, :uid, 'f.png', 'image/png', :url, :ts)"), {
-                "id": attachment_id, "pid": playbook_id, "uid": user_id, "url": f"{public_url}/bucket/playbooks/img3.png", "ts": datetime.now(timezone.utc)
+                "id": attachment_id, "pid": playbook_id, "uid": user_id, "url": f"{public_url}/bucket/playbooks/img3.png", "ts": datetime.now(UTC)
             })
     
     # 3. Upgrade to e6c9b3f1a2d0

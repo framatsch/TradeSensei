@@ -11,13 +11,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pytest
-from app.api.v1.imports import _validate_account_import
-from app.models.account import Account, AccountType
-from app.core.exceptions import ImportNotAllowedError, AccountNotFoundError
-from app.utils.parsers.factory import BrokerType
 import uuid
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from app.api.v1.imports import _validate_account_import
+from app.core.exceptions import AccountNotFoundError, ImportNotAllowedError
+from app.models.account import Account, AccountType
+from app.utils.parsers.factory import BrokerType
+
 
 @pytest.mark.asyncio
 async def test_validate_account_import_success(mock_session):

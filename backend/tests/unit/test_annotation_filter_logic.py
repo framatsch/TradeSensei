@@ -15,7 +15,7 @@ import uuid
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import Column, Integer, String, Boolean, Float, select, Uuid
+from sqlalchemy import Boolean, Column, Float, Integer, String, Uuid, select
 from sqlalchemy.orm import declarative_base
 
 from app.repositories._annotation_filter import _column_and_value, _operator_expr, apply_annotation_filters

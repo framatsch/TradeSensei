@@ -12,22 +12,21 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
-from app.core.dependencies import require_portfolio_owner
+from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 from unittest.mock import AsyncMock, patch
-from datetime import datetime, timezone
-from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
 
 from app.api.v1.trades import _get_service
+from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_session_with_rls
-from app.core.exceptions import ConfigurationError, UnsupportedContentTypeError, TradeNotFoundError
-
-from app.schemas.trade import TradeRead
+from app.core.exceptions import ConfigurationError, TradeNotFoundError, UnsupportedContentTypeError
 from app.models.trade import AssetClass, Direction
 from app.schemas.common import CursorPage
+from app.schemas.trade import TradeRead
 
 pytestmark = pytest.mark.asyncio
 
@@ -59,7 +58,7 @@ def get_mock_trade(portfolio_id, user_id, trade_id):
         exit_price=None,
         stop_loss=None,
         take_profit=None,
-        opened_at=datetime.now(timezone.utc),
+        opened_at=datetime.now(UTC),
         closed_at=None,
         pnl=None,
         net_pnl=None,
@@ -80,8 +79,8 @@ def get_mock_trade(portfolio_id, user_id, trade_id):
         trade_notes=[],
         legs=[],
         is_manually_edited=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
 async def test_get_trade_image_upload_url(client: AsyncClient, primary_user: dict[str, Any]):
@@ -222,7 +221,7 @@ async def test_create_trade(client: AsyncClient, primary_user: dict[str, Any], o
             "direction": "LONG",
             "asset_class": "EQUITY",
             "quantity": 1,
-            "opened_at": datetime.now(timezone.utc).isoformat(),
+            "opened_at": datetime.now(UTC).isoformat(),
             "entry_price": 100.0,
             "currency": "USD",
         },
@@ -278,7 +277,7 @@ async def test_partial_close_trade(client: AsyncClient, primary_user: dict[str, 
     
     response = await client.post(
         f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/partial-close",
-        json={"quantity": 5, "exit_price": 105.0, "closed_at": datetime.now(timezone.utc).isoformat()},
+        json={"quantity": 5, "exit_price": 105.0, "closed_at": datetime.now(UTC).isoformat()},
         headers=primary_user["headers"]
     )
     assert response.status_code == 200
@@ -286,7 +285,7 @@ async def test_partial_close_trade(client: AsyncClient, primary_user: dict[str, 
     override_dependency.partial_close_trade.side_effect = TradeNotFoundError()
     response = await client.post(
         f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/partial-close",
-        json={"quantity": 5, "exit_price": 105.0, "closed_at": datetime.now(timezone.utc).isoformat()},
+        json={"quantity": 5, "exit_price": 105.0, "closed_at": datetime.now(UTC).isoformat()},
         headers=primary_user["headers"]
     )
     assert response.status_code == 404

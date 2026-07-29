@@ -13,14 +13,16 @@
 
 """Unit tests for schema presigned URL generation."""
 
-from uuid import uuid4
-from datetime import datetime, timezone
-import pytest
+from datetime import UTC, datetime
 from decimal import Decimal
-from app.schemas.trade import TradeRead
+from uuid import uuid4
+
+import pytest
+
 from app.schemas.daily_checkin import DailyCheckinRead
 from app.schemas.playbook_attachment import PlaybookImageResponse
-from app.services.storage_service import StorageService
+from app.schemas.trade import TradeRead
+
 
 @pytest.fixture
 def mock_storage_service():
@@ -48,13 +50,13 @@ def test_trade_read_schema_generates_presigned_urls(mock_storage_service):
         "exit_price": None,
         "stop_loss": None,
         "take_profit": None,
-        "opened_at": datetime.now(timezone.utc),
+        "opened_at": datetime.now(UTC),
         "closed_at": None,
         "pnl": None,
         "commission": Decimal("0"),
         "journal": "",
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC),
         "image_urls": ["test-bucket/trades/user1/image1.png", "other-bucket/trades/image2.png"],
         "playbook_id": None,
         "is_combo": False,
@@ -76,13 +78,13 @@ def test_daily_checkin_read_schema_generates_presigned_urls(mock_storage_service
         "id": uuid4(),
         "portfolio_id": uuid4(),
         "user_id": uuid4(),
-        "date": datetime.now(timezone.utc).date(),
+        "date": datetime.now(UTC).date(),
         "market_phase": "BULL",
         "notes": "",
         "news_links": [],
         "custom_metrics": {},
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC),
         "screenshot_urls": ["test-bucket/checkins/user1/sc1.png"]
     }
     
@@ -101,8 +103,8 @@ def test_playbook_attachment_read_schema_generates_presigned_urls(mock_storage_s
         "filename": "rules.pdf",
         "content_type": "application/pdf",
         "storage_url": "test-bucket/playbooks/rules.pdf",
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc)
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC)
     }
     
     context = {"storage_service": mock_storage_service}

@@ -14,7 +14,7 @@
 """Integration tests for MetricsRepository."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -69,8 +69,8 @@ async def _make_closed_trade(
         entry_price=Decimal("100"),
         exit_price=Decimal("110"),
         pnl=pnl,
-        opened_at=datetime(2024, 1, 10, 9, 30, tzinfo=timezone.utc),
-        closed_at=datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc),
+        opened_at=datetime(2024, 1, 10, 9, 30, tzinfo=UTC),
+        closed_at=datetime(2024, 1, 15, 15, 0, tzinfo=UTC),
         currency="USD",
     )
     session.add(t)
@@ -120,8 +120,8 @@ async def test_get_closed_trades_for_account_with_date_range(db_session: AsyncSe
     repo = MetricsRepository(db_session)
 
     # Filter to a range that includes the trade
-    from_dt = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    to_dt = datetime(2024, 1, 31, tzinfo=timezone.utc)
+    from_dt = datetime(2024, 1, 1, tzinfo=UTC)
+    to_dt = datetime(2024, 1, 31, tzinfo=UTC)
     trades = await repo.get_closed_trades_for_account(
         account_id=account.id,
         portfolio_id=portfolio.id,
@@ -141,7 +141,7 @@ async def test_get_closed_trades_for_account_date_range_excludes(db_session: Asy
     repo = MetricsRepository(db_session)
 
     # Filter to a range that excludes the trade
-    from_dt = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    from_dt = datetime(2025, 1, 1, tzinfo=UTC)
     trades = await repo.get_closed_trades_for_account(
         account_id=account.id,
         portfolio_id=portfolio.id,
@@ -203,8 +203,8 @@ async def test_get_closed_trades_for_user_with_date_filters(db_session: AsyncSes
     await _make_closed_trade(db_session, user.id, account.id)
     repo = MetricsRepository(db_session)
 
-    from_dt = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    to_dt = datetime(2024, 12, 31, tzinfo=timezone.utc)
+    from_dt = datetime(2024, 1, 1, tzinfo=UTC)
+    to_dt = datetime(2024, 12, 31, tzinfo=UTC)
     trades = await repo.get_closed_trades_for_user(
         user_id=user.id,
         portfolio_id=portfolio.id,

@@ -14,7 +14,7 @@
 """Integration tests for TimeSeriesRepository."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -59,7 +59,7 @@ async def _make_closed_trade(
     account_id: uuid.UUID,
     symbol: str = "AAPL",
     pnl: Decimal = Decimal("150"),
-    closed_at: datetime = datetime(2024, 6, 1, 15, 0, tzinfo=timezone.utc),
+    closed_at: datetime = datetime(2024, 6, 1, 15, 0, tzinfo=UTC),
     asset_class: AssetClass = AssetClass.EQUITY,
 ) -> Trade:
     t = Trade(
@@ -72,7 +72,7 @@ async def _make_closed_trade(
         entry_price=Decimal("100"),
         exit_price=Decimal("115"),
         pnl=pnl,
-        opened_at=datetime(2024, 5, 31, 9, 30, tzinfo=timezone.utc),
+        opened_at=datetime(2024, 5, 31, 9, 30, tzinfo=UTC),
         closed_at=closed_at,
         currency="USD",
     )
@@ -103,7 +103,7 @@ async def test_get_daily_pnl_with_trades(db_session: AsyncSession):
     await _make_closed_trade(
         db_session, user.id, account.id,
         pnl=Decimal("50"),
-        closed_at=datetime(2024, 6, 2, 15, 0, tzinfo=timezone.utc),
+        closed_at=datetime(2024, 6, 2, 15, 0, tzinfo=UTC),
     )
     repo = TimeSeriesRepository(db_session)
 
@@ -139,8 +139,8 @@ async def test_get_daily_pnl_with_date_range(db_session: AsyncSession):
     await _make_closed_trade(db_session, user.id, account.id)
     repo = TimeSeriesRepository(db_session)
 
-    from_dt = datetime(2024, 6, 1, tzinfo=timezone.utc)
-    to_dt = datetime(2024, 6, 30, tzinfo=timezone.utc)
+    from_dt = datetime(2024, 6, 1, tzinfo=UTC)
+    to_dt = datetime(2024, 6, 30, tzinfo=UTC)
     result = await repo.get_daily_pnl(
         user_id=user.id, portfolio_id=portfolio.id, account_id=None, from_dt=from_dt, to_dt=to_dt
     )
@@ -197,7 +197,7 @@ async def test_get_pnl_by_symbol_aggregates(db_session: AsyncSession):
     await _make_closed_trade(
         db_session, user.id, account.id, symbol="GOOG",
         pnl=Decimal("-50"),
-        closed_at=datetime(2024, 6, 5, 15, 0, tzinfo=timezone.utc),
+        closed_at=datetime(2024, 6, 5, 15, 0, tzinfo=UTC),
     )
     repo = TimeSeriesRepository(db_session)
 

@@ -67,7 +67,7 @@ def _assert_table_empty(bind: sa.engine.Connection, table_name: str) -> None:
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
+    op.get_bind()
 
     # Guard against accidental data loss in legacy tables.
     # for table_name in _LEGACY_TABLES:

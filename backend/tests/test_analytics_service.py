@@ -233,7 +233,7 @@ async def test_attribution_service_converts_spec5_missing_to_503(
         side_effect=Spec5NotDeployedError("daily_checkins table not available")
     )
 
-    with pytest.raises(Spec5NotDeployedError) as exc_info:
+    with pytest.raises(Spec5NotDeployedError):
         await service.get_market_phase_correlation(
             portfolio_id=uuid.uuid4(),
             user_id=uuid.uuid4(),

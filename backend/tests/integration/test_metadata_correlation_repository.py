@@ -18,8 +18,8 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User
 from app.models.portfolio import Portfolio
+from app.models.user import User
 from app.repositories.metadata_correlation_repository import MetadataCorrelationRepository
 
 pytestmark = pytest.mark.asyncio

@@ -25,7 +25,6 @@ from app.core.exceptions import (
     SavedTradeFilterValidationError,
 )
 from app.models.saved_trade_filter import SavedTradeFilter
-from app.schemas.saved_trade_filter import SavedTradeFilterCreate, SavedTradeFilterUpdate
 
 pytestmark = pytest.mark.asyncio
 
@@ -34,8 +33,9 @@ pytestmark = pytest.mark.asyncio
 def mock_service():
     mock = AsyncMock()
     # Mock return values
+    from datetime import UTC, datetime
+
     from app.models.saved_trade_filter import FilterScope
-    from datetime import datetime, UTC
     filter_obj = SavedTradeFilter(
         id=uuid.uuid4(),
         owner_id=uuid.uuid4(),

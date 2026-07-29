@@ -13,13 +13,16 @@
 
 import json
 from decimal import Decimal
+
 import pytest
-from app.utils.parsers.schwab_json import (
-    decode_schwab_wrapped_payload,
-    SchwabJSONParser,
-)
+
 from app.core.exceptions import ImportParseError
-from app.models.trade import AssetClass, Direction
+from app.models.trade import AssetClass
+from app.utils.parsers.schwab_json import (
+    SchwabJSONParser,
+    decode_schwab_wrapped_payload,
+)
+
 
 def test_decode_schwab_wrapped_payload():
     with pytest.raises(ImportParseError, match="not valid UTF-8"):

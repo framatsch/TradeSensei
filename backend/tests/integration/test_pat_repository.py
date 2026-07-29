@@ -12,12 +12,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.pat_repository import PersonalAccessTokenRepository
 from app.models.user import User
+from app.repositories.pat_repository import PersonalAccessTokenRepository
 
 pytestmark = pytest.mark.asyncio
 
@@ -43,7 +44,7 @@ async def test_pat_repository_mark_used(db_session: AsyncSession):
         expires_at=None
     )
     
-    used_time = datetime.now(timezone.utc)
+    used_time = datetime.now(UTC)
     await repo.mark_used(token=token, used_at=used_time)
     
     # Assert it was updated

@@ -11,11 +11,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from app.schemas.trade import TradeRead
+
 from app.models.trade import AssetClass, Direction
+from app.schemas.trade import TradeRead
+
 
 def get_mock_trade(portfolio_id, user_id, trade_id):
     return TradeRead(
@@ -31,7 +32,7 @@ def get_mock_trade(portfolio_id, user_id, trade_id):
         exit_price=None,
         stop_loss=None,
         take_profit=None,
-        opened_at=datetime.now(timezone.utc),
+        opened_at=datetime.now(UTC),
         closed_at=None,
         pnl=None,
         net_pnl=None,
@@ -52,6 +53,6 @@ def get_mock_trade(portfolio_id, user_id, trade_id):
         trade_notes=[],
         legs=[],
         is_manually_edited=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )

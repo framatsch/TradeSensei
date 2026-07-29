@@ -37,8 +37,8 @@ from app.models.trade import AssetClass, Direction, Trade
 from app.repositories.broker_raw_transaction_repository import (
     BrokerRawTransactionRepository,
 )
-from app.services.broker_service import BrokerService
 from app.services.audit_service import AuditEventService
+from app.services.broker_service import BrokerService
 
 # ---------------------------------------------------------------------------
 # URL constants

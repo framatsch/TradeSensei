@@ -19,7 +19,7 @@ test.describe('Chart Cache Refresh', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to a trade detail page where TradeChart is rendered
     // Using a mocked trade or clicking into the first trade in the dashboard
-    await page.goto('http://localhost:3000/dashboard/trades');
+    await page.goto('/dashboard/trades');
     
     // Wait for trades to load and click the first one
     const firstTrade = page.locator('tbody tr').first();
@@ -33,7 +33,7 @@ test.describe('Chart Cache Refresh', () => {
   test('Refresh button triggers data reload', async ({ page }) => {
     // Intercept the API call to mock the response
     let fetchCount = 0;
-    await page.route('**/api/v1/market-data/prices/*/history?*', async (route) => {
+    await page.route('**/api/v1/market-data/prices/*/history*', async (route) => {
       const url = new URL(route.request().url());
       if (url.searchParams.get('force_refresh') === 'true') {
         fetchCount++;

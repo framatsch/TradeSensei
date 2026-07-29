@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -53,8 +53,8 @@ async def test_create_taxonomy(
         description="desc",
         icon_identifier="icon",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     res = await client.post(
@@ -98,8 +98,8 @@ async def test_get_taxonomy(
         description="desc",
         icon_identifier="icon",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     taxonomy_id = str(uuid.uuid4())
@@ -131,8 +131,8 @@ async def test_update_taxonomy(
         description="desc",
         icon_identifier="icon",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     taxonomy_id = str(uuid.uuid4())
@@ -183,8 +183,8 @@ async def test_delete_taxonomy(
         description="desc",
         icon_identifier="icon",
         is_archived=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     res2 = await client.delete(
         f"/api/v1/taxonomies/{taxonomy_id}",
@@ -214,8 +214,8 @@ async def test_archive_taxonomy(
         description="desc",
         icon_identifier="icon",
         is_archived=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     taxonomy_id = str(uuid.uuid4())
@@ -247,8 +247,8 @@ async def test_unarchive_taxonomy(
         description="desc",
         icon_identifier="icon",
         is_archived=False,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     
     taxonomy_id = str(uuid.uuid4())

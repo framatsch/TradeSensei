@@ -89,7 +89,7 @@ async def test_create_link_success():
     payload = PlaybookLinkCreate(label="My Link", url="https://example.com")
 
     with patch.object(PlaybookLinkResponse, "model_validate", return_value=MagicMock()):
-        result = await svc.create(_PLAYBOOK_ID, _USER_ID, payload)
+        await svc.create(_PLAYBOOK_ID, _USER_ID, payload)
 
     svc._link_repo.create.assert_called_once()
 

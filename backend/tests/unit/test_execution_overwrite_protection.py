@@ -11,14 +11,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pytest
-from uuid import uuid4
 from decimal import Decimal
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
-from app.services.execution import ExecutionService
-from app.models.logical_execution import LogicalExecution, EXECUTION_ORIGIN_IMPORTED, EXECUTION_ORIGIN_SPLIT, EXECUTION_ORIGIN_MERGED, EXECUTION_ORIGIN_MANUAL
+import pytest
+
+from app.models.logical_execution import EXECUTION_ORIGIN_IMPORTED, EXECUTION_ORIGIN_MANUAL, EXECUTION_ORIGIN_MERGED, EXECUTION_ORIGIN_SPLIT, LogicalExecution
 from app.schemas.execution import LogicalExecutionUpdate
+from app.services.execution import ExecutionService
+
 
 @pytest.fixture
 def mock_execution_repo():

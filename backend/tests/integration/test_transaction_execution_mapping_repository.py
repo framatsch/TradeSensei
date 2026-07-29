@@ -18,7 +18,7 @@ here contribute significantly to overall coverage.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -53,7 +53,7 @@ async def _make_raw_transaction(session: AsyncSession, user_id: uuid.UUID, raw_i
         direction="LONG",
         quantity=Decimal("10"),
         price=Decimal("100"),
-        executed_at=datetime(2024, 1, 10, 9, 30, tzinfo=timezone.utc),
+        executed_at=datetime(2024, 1, 10, 9, 30, tzinfo=UTC),
     )
     session.add(raw)
     await session.flush()
@@ -71,7 +71,7 @@ async def _make_logical_execution(session: AsyncSession, user_id: uuid.UUID) -> 
         direction=Direction.LONG,
         quantity=Decimal("10"),
         price=Decimal("100"),
-        executed_at=datetime(2024, 1, 10, 9, 30, tzinfo=timezone.utc),
+        executed_at=datetime(2024, 1, 10, 9, 30, tzinfo=UTC),
         origin="imported",
     )
     session.add(le)

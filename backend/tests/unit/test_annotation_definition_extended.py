@@ -77,7 +77,7 @@ async def test_create_success():
     svc._repo.create = AsyncMock(return_value=mock_def)
 
     with patch("app.services.annotation_definition_service.AnnotationDefinitionResponse.model_validate", return_value=MagicMock()):
-        result = await svc.create(_make_create_payload(), user_id=_USER_ID)
+        await svc.create(_make_create_payload(), user_id=_USER_ID)
 
     svc._repo.create.assert_called_once()
     svc._cache.invalidate_user.assert_called_once_with(_USER_ID)
@@ -150,7 +150,7 @@ async def test_get_success():
     svc._repo.get_by_id = AsyncMock(return_value=mock_def)
 
     with patch("app.services.annotation_definition_service.AnnotationDefinitionResponse.model_validate", return_value=MagicMock()):
-        result = await svc.get(_USER_ID, _DEF_ID)
+        await svc.get(_USER_ID, _DEF_ID)
 
     svc._repo.get_by_id.assert_called_once_with(user_id=_USER_ID, definition_id=_DEF_ID)
 
@@ -328,7 +328,7 @@ async def test_delete_archives_when_assignments_exist():
     svc._repo.archive = AsyncMock(return_value=archived)
 
     with patch("app.services.annotation_definition_service.AnnotationDefinitionResponse.model_validate", return_value=MagicMock()):
-        result = await svc.delete(_DEF_ID, user_id=_USER_ID)
+        await svc.delete(_DEF_ID, user_id=_USER_ID)
 
     svc._repo.archive.assert_called_once_with(mock_def)
 

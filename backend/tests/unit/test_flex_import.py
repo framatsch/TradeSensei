@@ -18,7 +18,6 @@ from __future__ import annotations
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -433,13 +432,11 @@ async def test_poll_report_raises_on_non_1018_error():
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=mock_response)
 
-    with patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()):
-        with pytest.raises(FlexAPIError, match="Fatal error"):
-            await svc._poll_report(mock_client, "REF123")
+    with patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()), pytest.raises(FlexAPIError, match="Fatal error"):
+        await svc._poll_report(mock_client, "REF123")
 
 
 async def test_poll_report_raises_timeout_after_max_attempts():
-    from app.core.constants import FLEX_POLL_MAX_ATTEMPTS
 
     svc = _make_service()
 
@@ -457,9 +454,8 @@ async def test_poll_report_raises_timeout_after_max_attempts():
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=mock_response)
 
-    with patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()):
-        with pytest.raises(FlexAPIError, match="not ready after"):
-            await svc._poll_report(mock_client, "REF123")
+    with patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()), pytest.raises(FlexAPIError, match="not ready after"):
+        await svc._poll_report(mock_client, "REF123")
 
 
 # ---------------------------------------------------------------------------
@@ -472,9 +468,8 @@ async def test_send_request_with_retries_propagates_rate_limit_immediately():
 
     mock_client = AsyncMock()
 
-    with patch.object(svc, "_send_request_once", side_effect=RateLimitError("rate limited", 900)):
-        with pytest.raises(RateLimitError):
-            await svc._send_request_with_retries(mock_client, "https://example.com", {})
+    with patch.object(svc, "_send_request_once", side_effect=RateLimitError("rate limited", 900)), pytest.raises(RateLimitError):
+        await svc._send_request_with_retries(mock_client, "https://example.com", {})
 
 
 async def test_send_request_with_retries_retries_transient_error():
@@ -490,9 +485,8 @@ async def test_send_request_with_retries_retries_transient_error():
             raise FlexAPIError("statement could not be generated at this time")
         return "REF123"
 
-    with patch.object(svc, "_send_request_once", side_effect=_flaky):
-        with patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()):
-            result = await svc._send_request_with_retries(mock_client, "https://example.com", {})
+    with patch.object(svc, "_send_request_once", side_effect=_flaky), patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()):
+        result = await svc._send_request_with_retries(mock_client, "https://example.com", {})
 
     assert result == "REF123"
     assert call_count == 2

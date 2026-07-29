@@ -43,7 +43,7 @@ def mock_service():
     )
     mock.generate_upload_url.return_value = upload_url_res
 
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
     image_res = PlaybookImageResponse(
         id=uuid.uuid4(),
         playbook_id=uuid.uuid4(),

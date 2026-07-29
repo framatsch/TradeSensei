@@ -1148,6 +1148,27 @@ class TradeRepository:
             if row.closed_at is not None and row.exit_price is not None
         }
 
+    async def list_by_user_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+    ) -> Sequence[Trade]:
+        """List all trades for a given user and account.
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Account UUID.
+
+        Returns:
+            A sequence of Trade instances.
+        """
+        stmt = select(Trade).where(
+            Trade.user_id == user_id,
+            Trade.account_id == account_id,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
+
     async def list_open_lots_by_user(
         self,
         user_id: uuid.UUID,
