@@ -498,6 +498,7 @@ class BrokerService:
             raise ConfigurationError("OAuth state mismatch. Please start Schwab authorization again.")
         verifier = self._get_property(account, SCHWAB_OAUTH_CODE_VERIFIER)
         await self._exchange_and_store(account, code=code, state=state, verifier=verifier)
+        await self._session.commit()
         return account
 
     async def get_schwab_status(self, account_id: uuid.UUID, user_id: uuid.UUID) -> BrokerStatusResponse:

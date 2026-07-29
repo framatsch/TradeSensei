@@ -151,7 +151,6 @@ class SchwabClient:
         payload: dict[str, str] = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
-            "redirect_uri": redirect_uri,
         }
         async with httpx.AsyncClient() as client:
             response = await client.post(self.TOKEN_URL, data=payload, headers=headers)
