@@ -110,10 +110,7 @@ async def list_accounts(
     "/test-connection",
     response_model=ResponseEnvelope[BrokerConnectionTestResult],
     summary="Test Broker API Connection",
-    description=(
-        "Validate supplied (or stored) broker credentials for IBKR or Schwab "
-        "without creating or updating an account."
-    ),
+    description=("Validate supplied (or stored) broker credentials for IBKR or Schwab without creating or updating an account."),
     response_description="Credential validation result wrapped in a response envelope.",
     responses={
         200: {"description": "Connection test succeeded."},
@@ -189,10 +186,7 @@ async def create_account(
     "/{account_id}/credentials",
     response_model=ResponseEnvelope[AccountCredentialsRead],
     summary="Get Account Credentials",
-    description=(
-        "Return decrypted broker credentials for an account owned by the "
-        "authenticated user."
-    ),
+    description=("Return decrypted broker credentials for an account owned by the authenticated user."),
     response_description="Plaintext credentials wrapped in a response envelope.",
     responses={
         200: {"description": "Credentials returned successfully."},
@@ -413,8 +407,8 @@ async def clear_account_trades(
 
     return ResponseEnvelope[ClearTradesResult](data=result)
 
-clear_account_trades.audit_metadata = {"skip_audit": True}  # type: ignore[attr-defined]
 
+clear_account_trades.audit_metadata = {"skip_audit": True}  # type: ignore[attr-defined]
 
 
 @router.get(

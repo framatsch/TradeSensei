@@ -13,15 +13,12 @@
 
 """Service for fetching and caching OHLC price data."""
 
-import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ohlc_price import OhlcPrice
-from app.models.trade import Trade
 from app.repositories.ohlc_price_repository import OhlcPriceRepository
 
 
@@ -120,7 +117,7 @@ class MarketDataService:
 
     async def clear_all_cache(self) -> None:
         """Clear the entire OHLC price cache for all symbols.
-        
+
         Warning: This deletes all cached market data globally. It will
         temporarily increase downstream API load as all users will fetch
         fresh data.

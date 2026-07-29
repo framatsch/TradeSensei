@@ -69,6 +69,7 @@ from app.schemas.imports import FreshStartResult, ImportResult
 from app.schemas.trade import TradeCreate
 from app.services.audit_service import AuditEventService, generate_request_id
 from app.services.logical_execution_service import LogicalExecutionService
+from app.utils.conflict_detection import detect_duplicate_pairs
 from app.utils.parsers.aggregator import (
     CorporateActionLike,
     ExecutionAllocation,
@@ -82,7 +83,6 @@ from app.utils.parsers.aggregator import (
 from app.utils.parsers.base import BrokerParser
 from app.utils.parsers.factory import BrokerType, get_parser
 from app.utils.parsers.schwab_json import decode_schwab_wrapped_payload
-from app.utils.conflict_detection import detect_duplicate_pairs
 from app.utils.schwab_account_resolution import resolve_schwab_account_entry
 
 logger = logging.getLogger(__name__)
@@ -496,15 +496,8 @@ class ImportService:
                 if db_trade_id is not None:
                     if db_trade_id in open_lot_ids or db_trade_id in orphaned_lot_ids:
                         is_orphan = db_trade_id in orphaned_lot_ids
-                        is_ready_to_close = (
-                            trade_data.closed_at is not None
-                            and (
-                                trade_data.is_combo
-                                or (
-                                    trade_data.exit_price is not None
-                                    and trade_data.entry_price != Decimal("0.001")
-                                )
-                            )
+                        is_ready_to_close = trade_data.closed_at is not None and (
+                            trade_data.is_combo or (trade_data.exit_price is not None and trade_data.entry_price != Decimal("0.001"))
                         )
                         if is_ready_to_close and db_trade_id not in already_updated_ids:
                             try:

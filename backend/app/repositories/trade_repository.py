@@ -687,10 +687,10 @@ class TradeRepository:
         update_data = data.model_dump(exclude_unset=True, exclude={"taxonomy_ids"})
         for field, value in update_data.items():
             setattr(trade, field, value)
-        
+
         # Mark as manually edited so broker sync doesn't wipe user metadata.
         trade.is_manually_edited = True
-        
+
         self._session.add(trade)
         await self._session.flush()
 
@@ -710,6 +710,7 @@ class TradeRepository:
     async def mark_manually_edited(self, trade_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Mark a trade as manually edited to protect its metadata from broker sync."""
         from sqlalchemy import update as sa_update
+
         stmt = sa_update(Trade).where(Trade.id == trade_id, Trade.user_id == user_id).values(is_manually_edited=True)
         await self._session.execute(stmt)
         await self._session.flush()
@@ -924,7 +925,12 @@ class TradeRepository:
                 return 0
             stmt = sa_update(Trade).where(Trade.id.in_(scoped_ids)).values(playbook_id=playbook_id, is_manually_edited=True).returning(Trade.id)
         else:
-            stmt = sa_update(Trade).where(Trade.id.in_(trade_ids), Trade.user_id == user_id).values(playbook_id=playbook_id, is_manually_edited=True).returning(Trade.id)
+            stmt = (
+                sa_update(Trade)
+                .where(Trade.id.in_(trade_ids), Trade.user_id == user_id)
+                .values(playbook_id=playbook_id, is_manually_edited=True)
+                .returning(Trade.id)
+            )
         result = await self._session.execute(stmt)
         updated = list(result.scalars().all())
         await self._session.flush()

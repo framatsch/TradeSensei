@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 
 _BROKER_TYPE: str = "ibkr"
 
+
 def _extract_occ_underlying(symbol: str) -> str:
     """Return the underlying ticker for an OCC-format option symbol.
 

@@ -117,10 +117,7 @@ class BrokerConnectionTestRequest(BaseModel):
     )
     properties: dict[str, str] | None = Field(
         default=None,
-        description=(
-            "Optional plaintext credential overrides keyed by provider field "
-            "name (e.g. IBKR_FLEX_TOKEN)."
-        ),
+        description=("Optional plaintext credential overrides keyed by provider field name (e.g. IBKR_FLEX_TOKEN)."),
     )
     account_id: uuid.UUID | None = Field(
         default=None,

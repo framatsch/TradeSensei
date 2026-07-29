@@ -205,11 +205,7 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
             if leg.source_execution_id is not None:
                 combo_leg_ids.add(leg.source_execution_id)
 
-    fifo_executions = [
-        execution
-        for execution in executions
-        if execution.source_execution_id not in combo_leg_ids
-    ]
+    fifo_executions = [execution for execution in executions if execution.source_execution_id not in combo_leg_ids]
 
     open_positions: list[_OpenComboPosition] = []
     warnings: list[str] = []
@@ -223,9 +219,7 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
         markers = {getattr(leg, "open_close", None) for leg in group.legs}
         non_null_markers = {marker for marker in markers if marker in {"O", "C"}}
         if len(non_null_markers) != 1:
-            warnings.append(
-                f"Combo order {group.order_id} has mixed/unknown open_close markers; skipped combo matching for this order."
-            )
+            warnings.append(f"Combo order {group.order_id} has mixed/unknown open_close markers; skipped combo matching for this order.")
             continue
 
         marker = next(iter(non_null_markers))
@@ -236,10 +230,7 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
 
         if marker == "O":
             opening_net_cash = sum(
-                (
-                    cast(Decimal, getattr(leg, "net_cash", Decimal("0")) or Decimal("0"))
-                    for leg in group.legs
-                ),
+                (cast(Decimal, getattr(leg, "net_cash", Decimal("0")) or Decimal("0")) for leg in group.legs),
                 Decimal("0"),
             )
             group_db_trade_id = next((leg.db_trade_id for leg in group.legs if leg.db_trade_id is not None), None)
@@ -314,16 +305,11 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
         same_symbol_open = [
             position
             for position in open_positions
-            if position.symbol == symbol
-            and not position.close_legs
-            and (position.remaining_units is None or position.remaining_units > Decimal("0"))
+            if position.symbol == symbol and not position.close_legs and (position.remaining_units is None or position.remaining_units > Decimal("0"))
         ]
         expected_sets = [set(position.contract_set) for position in same_symbol_open]
         received_set = set(contract_set)
-        warnings.append(
-            "Unmatched combo close order "
-            f"{group.order_id}: expected one of {expected_sets or '[]'}, received {received_set}."
-        )
+        warnings.append(f"Unmatched combo close order {group.order_id}: expected one of {expected_sets or '[]'}, received {received_set}.")
 
         # Keep behavior loud and debuggable: do not reroute into FIFO.
         # If exactly one open combo exists for the same underlying, attach anomalous
@@ -1066,6 +1052,7 @@ def _apply_split_event(
             )
         else:
             open_lots[new_key] = existing_queue
+
 
 def aggregate_executions_fifo_with_sources(
     executions: list[TradeCreate],

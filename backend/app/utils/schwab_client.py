@@ -105,13 +105,10 @@ class SchwabClient:
             :class:`httpx.HTTPStatusError`: If the token endpoint returns a non-2xx response.
         """
         import base64
-        
+
         auth_string = f"{client_id}:{client_secret}"
         b64_auth = base64.b64encode(auth_string.encode("ascii")).decode("ascii")
-        headers = {
-            "Authorization": f"Basic {b64_auth}",
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
+        headers = {"Authorization": f"Basic {b64_auth}", "Content-Type": "application/x-www-form-urlencoded"}
 
         payload: dict[str, str] = {
             "grant_type": "authorization_code",
@@ -146,13 +143,10 @@ class SchwabClient:
             :class:`httpx.HTTPStatusError`: If the token endpoint returns a non-2xx response.
         """
         import base64
-        
+
         auth_string = f"{client_id}:{client_secret}"
         b64_auth = base64.b64encode(auth_string.encode("ascii")).decode("ascii")
-        headers = {
-            "Authorization": f"Basic {b64_auth}",
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
+        headers = {"Authorization": f"Basic {b64_auth}", "Content-Type": "application/x-www-form-urlencoded"}
 
         payload: dict[str, str] = {
             "grant_type": "refresh_token",
@@ -260,7 +254,7 @@ class SchwabClient:
 
         for part in link_header.split(","):
             token = part.strip()
-            if "rel=\"next\"" not in token and "rel=next" not in token:
+            if 'rel="next"' not in token and "rel=next" not in token:
                 continue
             if "<" not in token or ">" not in token:
                 continue

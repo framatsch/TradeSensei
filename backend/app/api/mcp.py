@@ -632,9 +632,7 @@ async def _apply_playbook_taxonomies(
 
     for taxonomy_id in taxonomy_ids:
         insert_stmt = (
-            pg_insert(PlaybookTaxonomy)
-            .values(playbook_id=playbook_id, taxonomy_id=taxonomy_id)
-            .on_conflict_do_nothing(constraint="uq_playbook_taxonomy_pair")
+            pg_insert(PlaybookTaxonomy).values(playbook_id=playbook_id, taxonomy_id=taxonomy_id).on_conflict_do_nothing(constraint="uq_playbook_taxonomy_pair")
         )
         await db.execute(insert_stmt)
 
@@ -769,10 +767,7 @@ async def _handle_list_strategy_playbooks(
                 "target_winrate": _serialize_decimal(playbook.target_winrate),
                 "is_active": playbook.is_active,
                 "created_at": _serialize_datetime(playbook.created_at),
-                "taxonomy_assignments": [
-                    {"taxonomy_id": str(item.id), "name": item.name}
-                    for item in taxonomy_assignments
-                ],
+                "taxonomy_assignments": [{"taxonomy_id": str(item.id), "name": item.name} for item in taxonomy_assignments],
             }
         )
 
@@ -808,10 +803,7 @@ async def _handle_get_strategy_playbook(
         "is_active": p.is_active,
         "created_at": _serialize_datetime(p.created_at),
         "updated_at": _serialize_datetime(p.updated_at),
-        "taxonomy_assignments": [
-            {"taxonomy_id": str(item.id), "name": item.name}
-            for item in taxonomy_assignments
-        ],
+        "taxonomy_assignments": [{"taxonomy_id": str(item.id), "name": item.name} for item in taxonomy_assignments],
     }
 
 
@@ -1438,8 +1430,7 @@ async def _handle_get_trade(
         "tradingview_link": trade.tradingview_link,
         "playbook_id": str(trade.playbook_id) if trade.playbook_id else None,
         "taxonomy_assignments": [
-            {"taxonomy_id": str(item.taxonomy_id), "name": item.taxonomy.name if item.taxonomy else None}
-            for item in trade.taxonomy_assignments
+            {"taxonomy_id": str(item.taxonomy_id), "name": item.taxonomy.name if item.taxonomy else None} for item in trade.taxonomy_assignments
         ],
         "annotation_assignments": [
             {
@@ -1491,8 +1482,7 @@ async def _handle_get_checkin(
         "custom_metrics": checkin.custom_metrics,
         "screenshot_count": len(checkin.screenshot_urls or []),
         "taxonomy_assignments": [
-            {"taxonomy_id": str(item.taxonomy_id), "name": item.taxonomy.name if item.taxonomy else None}
-            for item in checkin.taxonomy_assignments
+            {"taxonomy_id": str(item.taxonomy_id), "name": item.taxonomy.name if item.taxonomy else None} for item in checkin.taxonomy_assignments
         ],
         "annotation_assignments": [
             {
@@ -2388,8 +2378,7 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "get_trade_attachments": {
         "description": (
-            "Return a trade's image attachments as base64 MCP image content blocks (default) or "
-            "presigned URLs, bounded by max_items and a per-image byte cap."
+            "Return a trade's image attachments as base64 MCP image content blocks (default) or presigned URLs, bounded by max_items and a per-image byte cap."
         ),
         "inputSchema": {
             "type": "object",
@@ -2405,8 +2394,7 @@ _TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "get_playbook_attachments": {
         "description": (
-            "Return a playbook's image attachments (base64 blocks or presigned URLs) and labeled "
-            "links, bounded by max_items and a per-image byte cap."
+            "Return a playbook's image attachments (base64 blocks or presigned URLs) and labeled links, bounded by max_items and a per-image byte cap."
         ),
         "inputSchema": {
             "type": "object",

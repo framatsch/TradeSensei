@@ -342,9 +342,7 @@ class BrokerService:
         except httpx.HTTPStatusError as exc:
             response_text = (exc.response.text if exc.response is not None else "").lower()
             if "invalid_client" in response_text or "invalid_grant" in response_text:
-                raise ConfigurationError(
-                    "Schwab refresh token is invalid or expired. Reconnect required via Schwab OAuth."
-                ) from exc
+                raise ConfigurationError("Schwab refresh token is invalid or expired. Reconnect required via Schwab OAuth.") from exc
             raise ConfigurationError(f"Schwab access-token refresh failed: {exc}") from exc
         except Exception as exc:
             raise ConfigurationError(f"Schwab access-token refresh failed: {exc}") from exc
@@ -526,7 +524,7 @@ class BrokerService:
             await self._delete_account_property(account_id=account.id, key=key)
         for key in SCHWAB_TOKEN_EXPIRES_AT_KEYS:
             await self._delete_account_property(account_id=account.id, key=key)
-        
+
         await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER)
         await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE)
         await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT)

@@ -156,8 +156,7 @@ async def sync_account(
     "/schwab/authorize/{account_id}",
     summary="Start Schwab OAuth authorization",
     description=(
-        "Generates PKCE/state correlation records for a Schwab account and returns "
-        "the Schwab authorization URL. Requires Bearer auth and account ownership."
+        "Generates PKCE/state correlation records for a Schwab account and returns the Schwab authorization URL. Requires Bearer auth and account ownership."
     ),
     response_model=ResponseEnvelope[SchwabAuthorizeResponse],
     status_code=status.HTTP_200_OK,
@@ -185,10 +184,7 @@ async def start_schwab_authorization(
 @router.post(
     "/schwab/complete/{account_id}",
     summary="Complete Schwab OAuth with pasted redirect URL",
-    description=(
-        "Completes Schwab OAuth for paste mode by parsing code/state from a pasted "
-        "redirect URL, exchanging the code, and storing encrypted tokens."
-    ),
+    description=("Completes Schwab OAuth for paste mode by parsing code/state from a pasted redirect URL, exchanging the code, and storing encrypted tokens."),
     response_model=ResponseEnvelope[BrokerStatusResponse],
     status_code=status.HTTP_200_OK,
     responses={
@@ -280,10 +276,7 @@ async def get_schwab_status(
 @router.delete(
     "/schwab/connect/{account_id}",
     summary="Disconnect Schwab OAuth connection",
-    description=(
-        "Deletes stored Schwab OAuth token properties for the account and emits "
-        "a broker.schwab_disconnected audit event."
-    ),
+    description=("Deletes stored Schwab OAuth token properties for the account and emits a broker.schwab_disconnected audit event."),
     response_model=ResponseEnvelope[BrokerStatusResponse],
     status_code=status.HTTP_200_OK,
     responses={

@@ -162,11 +162,7 @@ class TradeService:
 
         image_refs = list(trade_model.image_urls or [])
         target_ref = next(
-            (
-                ref
-                for ref in image_refs
-                if ref.split("?", 1)[0].endswith(f"/{filename}")
-            ),
+            (ref for ref in image_refs if ref.split("?", 1)[0].endswith(f"/{filename}")),
             None,
         )
         if target_ref is None:

@@ -143,11 +143,7 @@ class CorporateActionRepository:
                 )
             )
 
-        result = await self._session.execute(
-            select(CorporateAction)
-            .where(*where_clause)
-            .order_by(CorporateAction.date.asc())
-        )
+        result = await self._session.execute(select(CorporateAction).where(*where_clause).order_by(CorporateAction.date.asc()))
         return list(result.scalars().all())
 
     async def list_by_user_in_date_range(

@@ -48,10 +48,7 @@ def split_adjust_execution_values(
     executed_date_utc = executed_at.astimezone(UTC).date()
 
     applicable_actions = [
-        action
-        for action in corporate_actions
-        if _matches_action(action=action, symbol=symbol, conid=conid)
-        and action.date > executed_date_utc
+        action for action in corporate_actions if _matches_action(action=action, symbol=symbol, conid=conid) and action.date > executed_date_utc
     ]
     if not applicable_actions:
         return raw_price, raw_quantity

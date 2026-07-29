@@ -127,10 +127,7 @@ class ExecutionService:
                 corporate_actions=corporate_actions_by_key[(execution.symbol, execution.conid)],
             )
 
-            payload = {
-                column.name: getattr(execution, column.name)
-                for column in execution.__table__.columns
-            }
+            payload = {column.name: getattr(execution, column.name) for column in execution.__table__.columns}
             payload["price"] = adjusted_price
             payload["quantity"] = adjusted_quantity
             payload["raw_price"] = raw_price
@@ -334,11 +331,7 @@ class ExecutionService:
                 status_code=204,
                 method="DELETE",
                 path="/executions",
-                metadata=(
-                    {"released_source_id": released_source_id}
-                    if released_source_id is not None
-                    else {}
-                ),
+                metadata=({"released_source_id": released_source_id} if released_source_id is not None else {}),
             )
             await self.session.commit()
             return None
@@ -424,9 +417,7 @@ class ExecutionService:
                 raise ExecutionNotFoundError("Execution not found.")
 
         if execution.origin != EXECUTION_ORIGIN_MANUAL:
-            raise ExecutionValidationError(
-                f"Only manual executions can be linked to a broker transaction (origin='{execution.origin}')."
-            )
+            raise ExecutionValidationError(f"Only manual executions can be linked to a broker transaction (origin='{execution.origin}').")
 
         raw = await self.raw_transaction_repo.get_by_id_for_user(raw_transaction_id, user_id)
         if raw is None:
@@ -437,20 +428,16 @@ class ExecutionService:
             exclude_execution_id=execution.id,
         )
         if existing_link is not None:
-            raise ExecutionValidationError(
-                f"Broker transaction is already linked to execution {existing_link.id}. Delete that link first."
-            )
+            raise ExecutionValidationError(f"Broker transaction is already linked to execution {existing_link.id}. Delete that link first.")
 
         # Atomic: point the manual execution at the BRT and suppress the BRT
         # so future imports do not re-materialise the original imported leg.
         execution.source_id = raw_transaction_id
         try:
             await self.session.flush()
-        except IntegrityError:
+        except IntegrityError as err:
             await self.session.rollback()
-            raise ExecutionValidationError(
-                "Broker transaction is already linked to another execution. Delete that link first."
-            )
+            raise ExecutionValidationError("Broker transaction is already linked to another execution. Delete that link first.") from err
         await self.raw_transaction_repo.set_suppressed(raw_transaction_id, True)
 
         # Linking resolves a potential unlinked-duplicate conflict — re-aggregate.

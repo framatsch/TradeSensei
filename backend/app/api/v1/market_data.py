@@ -36,8 +36,8 @@ from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.schemas.market_data import OHLCResponse
-from app.services.market_data_service import MarketDataService
 from app.services.audit_service import AuditEventService, generate_request_id
+from app.services.market_data_service import MarketDataService
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
 
@@ -117,7 +117,6 @@ async def get_price_history(
     if not force_refresh:
         cached_bars = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
 
-
     # Simplified coverage check: if we have bars and the first/last match
     # our requested range (with some tolerance for weekend/market hours),
     # we consider it a hit. For crypto/FX it's exact.
@@ -190,7 +189,7 @@ async def clear_cache(
 ) -> None:
     """Clear all entries in the global OHLC prices cache table for all users."""
     await service.clear_all_cache()
-    
+
     request_id = getattr(request.state, "request_id", None) or generate_request_id()
     AuditEventService().create_audit_event(
         action="market_data.cache_cleared",
