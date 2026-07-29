@@ -11944,6 +11944,10 @@ export type GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetData = {
          * Sec Type
          */
         sec_type?: string | null;
+        /**
+         * Force Refresh
+         */
+        force_refresh?: boolean;
     };
     url: '/api/v1/market-data/prices/{symbol}/history';
 };
@@ -11965,6 +11969,22 @@ export type GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetResponses = {
 };
 
 export type GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetResponse = GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetResponses[keyof GetPriceHistoryApiV1MarketDataPricesSymbolHistoryGetResponses];
+
+export type ClearCacheApiV1MarketDataCacheDeleteData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/market-data/cache';
+};
+
+export type ClearCacheApiV1MarketDataCacheDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ClearCacheApiV1MarketDataCacheDeleteResponse = ClearCacheApiV1MarketDataCacheDeleteResponses[keyof ClearCacheApiV1MarketDataCacheDeleteResponses];
 
 export type ListMarketIndexesApiV1MarketIndexesGetData = {
     body?: never;

@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { useTheme } from "next-themes";
 import type { Theme } from "@/lib/types";
+import { clearCacheApiV1MarketDataCacheDelete } from "@/lib/api";
 
 // ─── Theme selector ────────────────────────────────────────────────────────
 
@@ -85,10 +86,7 @@ export function GeneralSettings() {
   const handleClearCache = async () => {
     setIsClearingCache(true);
     try {
-      const res = await fetch("/api/proxy/api/v1/market-data/cache", {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to clear cache");
+      await clearCacheApiV1MarketDataCacheDelete();
       toast.success("Chart candles cache cleared successfully");
     } catch (err) {
       console.error("Failed to clear cache:", err);
