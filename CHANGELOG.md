@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.8.3] - 2026-07-29
-
 ### Fixed
 - [frontend] Fixed the Chart Component Refresh Icon to match the spec by using the exact title "Refresh" instead of "Force Refresh Data".
 - [backend] Fixed critical data loss bug where broker sync (Schwab/IBKR) wiped out trade metadata. Implemented stable `UPSERT` matching logic in `ImportService` using `broker_conid` and `opened_at` to preserve user metadata during sync.
