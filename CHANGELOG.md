@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Fixed the Chart Component Refresh Icon to match the spec by using the exact title "Refresh" instead of "Force Refresh Data".
+
 ## [1.8.2] - 2026-07-29
 
 ### Changed
@@ -635,7 +638,6 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
-[1.8.2]: https://github.com/scheffold/TradeSensei/compare/v1.8.1...v1.8.2
 [unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.8.2...HEAD
 [1.8.2]: https://github.com/scheffold/TradeSensei/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/scheffold/TradeSensei/compare/v1.8.0...v1.8.1

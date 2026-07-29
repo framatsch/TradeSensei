@@ -19,7 +19,7 @@ test.describe('Chart Cache Refresh', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to a trade detail page where TradeChart is rendered
     // Using a mocked trade or clicking into the first trade in the dashboard
-    await page.goto('/dashboard/trades');
+    await page.goto('http://localhost:3000/dashboard/trades');
     
     // Wait for trades to load and click the first one
     const firstTrade = page.locator('tbody tr').first();
@@ -27,7 +27,7 @@ test.describe('Chart Cache Refresh', () => {
     await firstTrade.click();
     
     // Wait for the chart component to be visible
-    await page.waitForSelector('button[title="Force Refresh Data"]');
+    await page.waitForSelector('button[title="Refresh"]');
   });
 
   test('Refresh button triggers data reload', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('Chart Cache Refresh', () => {
       });
     });
 
-    const refreshButton = page.locator('button[title="Force Refresh Data"]');
+    const refreshButton = page.locator('button[title="Refresh"]');
     await refreshButton.click();
 
     // Verify the button spins or we can just verify the API was called

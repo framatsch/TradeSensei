@@ -992,7 +992,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         <div className="relative">
           <button
             onClick={() => fetchAndRender(interval, true)}
-            title="Force Refresh Data"
+            title="Refresh"
             disabled={loading}
             className={`flex items-center justify-center p-1.5 rounded-full transition-all duration-300 border shadow-inner ${
               loading
