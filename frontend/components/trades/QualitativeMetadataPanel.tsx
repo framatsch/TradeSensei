@@ -42,6 +42,16 @@ interface QualitativeMetadataPanelProps {
   portfolioId?: string;
 }
 
+/** Maps a trade's persisted annotation assignments into the draft-state shape keyed by definition id. */
+function buildAnnotationDraft(trade: Trade): Record<string, string | number | boolean> {
+  const draft: Record<string, string | number | boolean> = {};
+  for (const annotation of trade.annotations ?? []) {
+    if (annotation.value === null || annotation.value === undefined) continue;
+    draft[annotation.annotation_definition_id] = annotation.value;
+  }
+  return draft;
+}
+
 export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMetadataPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
   const quickNotesEnabled = useFeatureFlag("enable_quick_notes");
@@ -67,14 +77,16 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     setJournalTab("preview");
     setDraftPlaybookId(trade.playbook_id);
     setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
-    setDraftAnnotations({});
+    setDraftAnnotations(buildAnnotationDraft(trade));
     setImportedNoteIds([]);
   }, [trade.id]);
 
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
     trade.taxonomies?.map((t) => t.id) ?? []
   );
-  const [draftAnnotations, setDraftAnnotations] = useState<Record<string, string | number | boolean>>({});
+  const [draftAnnotations, setDraftAnnotations] = useState<Record<string, string | number | boolean>>(
+    () => buildAnnotationDraft(trade)
+  );
   const [draftPlaybookId, setDraftPlaybookId] = useState<string | null>(trade.playbook_id);
   
 
@@ -154,7 +166,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     setDraftJournal(trade.journal ?? "");
     setDraftPlaybookId(trade.playbook_id);
     setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
-    setDraftAnnotations({});
+    setDraftAnnotations(buildAnnotationDraft(trade));
     setImportedNoteIds([]);
   };
 
