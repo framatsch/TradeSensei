@@ -78,6 +78,13 @@ def upgrade() -> None:
 
     repaired = 0
     skipped = 0
+    # The uniqueness check in `_ORPHAN_CANDIDATES_SQL` is per-orphan: two
+    # distinct orphan executions could each independently resolve to the
+    # same open, complementary trade as their sole candidate. Track trades
+    # already claimed within this run so a second orphan never re-closes
+    # (and silently overwrites the close fields of) a trade already repaired
+    # by an earlier orphan in the same batch.
+    claimed_trade_ids: set[str] = set()
     for row in rows:
         if row.candidate_count != 1 or row.trade_id is None:
             # Zero or multiple candidate trades — do not guess.
@@ -90,6 +97,20 @@ def upgrade() -> None:
             )
             skipped += 1
             continue
+
+        if row.trade_id in claimed_trade_ids:
+            # Another orphan in this same run already claimed this trade —
+            # do not double-close it.
+            logger.warning(
+                "orphan_repair_skipped execution_id=%s symbol=%s executed_at=%s reason=trade_already_claimed trade_id=%s",
+                row.execution_id,
+                row.symbol,
+                row.executed_at,
+                row.trade_id,
+            )
+            skipped += 1
+            continue
+        claimed_trade_ids.add(row.trade_id)
 
         multiplier = Decimal(row.multiplier)
         if row.trade_direction == "LONG":

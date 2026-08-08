@@ -23,7 +23,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.constants import SCREENSHOT_MAX_FILE_SIZE_MB
+from app.core.constants import PROTECTED_METADATA_COLUMNS, SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
 from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
 from app.models.trade import Trade
@@ -46,14 +46,6 @@ from app.services.cache_service import CacheService
 from app.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
-
-_METADATA_SIGNAL_FIELDS = {
-    "journal",
-    "user_rating",
-    "image_urls",
-    "tradingview_link",
-    "playbook_id",
-}
 
 
 class TradeService:
@@ -448,7 +440,7 @@ class TradeService:
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         pre_update_updated_at = trade.updated_at
-        should_mark_execution_user_modified = bool(_METADATA_SIGNAL_FIELDS & data.model_fields_set)
+        should_mark_execution_user_modified = bool(PROTECTED_METADATA_COLUMNS & data.model_fields_set)
         updated = await self._repo.update(trade, data)
 
         if should_mark_execution_user_modified:

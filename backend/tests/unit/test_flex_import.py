@@ -197,6 +197,11 @@ async def test_import_flex_skips_duplicate_trades():
 
 
 async def test_import_flex_creates_new_trade():
+    """Create a new trade from a parsed Flex trade when no duplicate exists.
+
+    Regression guard: a successful create must be reported only via
+    ``activity_log``, never surfaced as a false warning.
+    """
     svc = _make_service()
 
     trade = _make_parsed_trade()
@@ -216,6 +221,8 @@ async def test_import_flex_creates_new_trade():
 
     assert result.trades_created == 1
     assert result.trades_skipped == 0
+    assert result.warnings == []
+    assert any("created:" in line for line in result.activity_log)
 
 
 async def test_import_flex_skips_manually_edited_trades():

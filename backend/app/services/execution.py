@@ -320,7 +320,7 @@ class ExecutionService:
             released_source_id = execution.source_id
             await self.execution_repo.delete(execution_id)
             if released_source_id is not None:
-                await self.raw_transaction_repo.set_suppressed(released_source_id, False)
+                await self.raw_transaction_repo.set_suppressed(released_source_id, False, user_id=user_id)
             if trade_id:
                 remaining = await self.execution_repo.list_by_trade_id(trade_id, include_deleted=False)
                 if not remaining:
@@ -334,7 +334,7 @@ class ExecutionService:
                 else:
                     await self._re_aggregate_trade(trade_id, user_id)
             self._audit.create_audit_event(
-                action="execution.deleted",
+                action="execution.reset",
                 user_id=user_id,
                 email=None,
                 resource_type="execution",
@@ -361,7 +361,7 @@ class ExecutionService:
             released_source_id = execution.source_id
             await self.execution_repo.delete(execution_id)
             if released_source_id is not None:
-                await self.raw_transaction_repo.set_suppressed(released_source_id, False)
+                await self.raw_transaction_repo.set_suppressed(released_source_id, False, user_id=user_id)
             if trade_id:
                 remaining = await self.execution_repo.list_by_trade_id(trade_id, include_deleted=False)
                 if not remaining:
@@ -398,6 +398,20 @@ class ExecutionService:
             updated = await self.execution_repo.get_by_id(execution_id)
             if trade_id:
                 await self._re_aggregate_trade(trade_id, user_id)
+            self._audit.create_audit_event(
+                action="execution.deleted",
+                user_id=user_id,
+                email=None,
+                resource_type="execution",
+                resource_id=execution_id,
+                ip_address=None,
+                user_agent=None,
+                request_id=str(uuid.uuid4()),
+                status_code=200,
+                method="DELETE",
+                path="/executions",
+                metadata={"soft_delete": True},
+            )
             await self.session.commit()
             return updated
 
@@ -494,7 +508,7 @@ class ExecutionService:
         except IntegrityError as err:
             await self.session.rollback()
             raise ExecutionValidationError("Broker transaction is already linked to another execution. Delete that link first.") from err
-        await self.raw_transaction_repo.set_suppressed(raw_transaction_id, True)
+        await self.raw_transaction_repo.set_suppressed(raw_transaction_id, True, user_id=user_id)
 
         # Linking resolves a potential unlinked-duplicate conflict — re-aggregate.
         if execution.trade_id:

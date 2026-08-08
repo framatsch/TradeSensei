@@ -26,6 +26,7 @@
 import { useState } from "react";
 import { Copy, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import type { ImportResult } from "@/lib/types";
+import { ImportLogLine } from "@/components/imports/ImportLogLine";
 
 export type FileStatus = "pending" | "uploading" | "done" | "error";
 
@@ -108,7 +109,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
 export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
   const totalCreated = files.reduce((s, f) => s + (f.result?.trades_created ?? 0), 0);
   const totalSkipped = files.reduce((s, f) => s + (f.result?.trades_skipped ?? 0), 0);
-  const totalProtected = files.reduce((s, f) => s + ((f.result as any)?.trades_protected_reconciled ?? 0), 0);
+  const totalProtected = files.reduce((s, f) => s + (f.result?.trades_protected_reconciled ?? 0), 0);
   const errorCount = files.filter((f) => f.status === "error").length;
   const warnCount = files.reduce((s, f) => s + (f.result?.warnings.length ?? 0), 0);
 
@@ -120,7 +121,7 @@ export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <SummaryBox label="Created" value={totalCreated} color="text-success" />
         <SummaryBox label="Skipped" value={totalSkipped} color="text-warning" />
-        <SummaryBox label="Protected" value={totalProtected} color="text-blue-400" />
+        <SummaryBox label="Protected" value={totalProtected} color="text-primary" />
         <SummaryBox
           label="Errors"
           value={errorCount}
@@ -147,7 +148,7 @@ function SummaryBox({
 }) {
   return (
     <div className="text-center bg-[color-mix(in_srgb,var(--muted)_40%,transparent)] rounded-lg py-2 px-1">
-      <p className={`text-xl font-bold ${color}`}>{value}</p>
+      <p className={`text-xl font-bold font-mono ${color}`}>{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
     </div>
   );
@@ -156,15 +157,21 @@ function SummaryBox({
 function FileQueueItem({ qf }: { qf: QueuedFile }) {
   const [isLogsOpen, setIsLogsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const logsPanelId = `file-queue-logs-${qf.file.name}`;
 
-  const hasWarnings = qf.result && qf.result.warnings && qf.result.warnings.length > 0;
-  const isImported = qf.result && qf.result.trades_created > 0;
-  const shouldShowLogs = hasWarnings && isImported;
-  const protectedCount = (qf.result as any)?.trades_protected_reconciled || 0;
-  
+  const activityLog = qf.result?.activity_log ?? [];
+  const warnings = qf.result?.warnings ?? [];
+  const logLines = [...activityLog, ...warnings];
+  const hasWarnings = warnings.length > 0;
+  // Show the Logs panel whenever there's anything to show — not just when new
+  // trades were created. A purely-reconciled import (onto protected trades) has
+  // zero new trades but may still have activity/warnings worth reviewing.
+  const shouldShowLogs = logLines.length > 0;
+  const protectedCount = qf.result?.trades_protected_reconciled ?? 0;
+
   const handleCopyLogs = () => {
-    if (!qf.result?.warnings) return;
-    const logText = qf.result.warnings.map((w) => {
+    if (logLines.length === 0) return;
+    const logText = logLines.map((w) => {
         const isProtected = w.startsWith("protected_");
         return isProtected ? `[INFO/PROTECTED] ${w}` : `[WARNING] ${w}`;
     }).join('\n');
@@ -197,7 +204,9 @@ function FileQueueItem({ qf }: { qf: QueuedFile }) {
             {shouldShowLogs && (
               <button
                 onClick={() => setIsLogsOpen(!isLogsOpen)}
-                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 bg-black/20 px-2 py-1 rounded transition-colors"
+                aria-expanded={isLogsOpen}
+                aria-controls={logsPanelId}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)] px-2 py-1 rounded transition-colors"
               >
                 Logs {isLogsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
@@ -212,11 +221,11 @@ function FileQueueItem({ qf }: { qf: QueuedFile }) {
                 <span className="text-warning">{qf.result.trades_skipped} skipped</span>
               )}
               {protectedCount > 0 && (
-                <span className="text-blue-400">{protectedCount} protected</span>
+                <span className="text-primary">{protectedCount} protected</span>
               )}
               {hasWarnings && (
                 <span className="text-warning">
-                  {qf.result.warnings.length} warning{qf.result.warnings.length !== 1 ? "s" : ""}
+                  {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
                 </span>
               )}
             </div>
@@ -231,45 +240,19 @@ function FileQueueItem({ qf }: { qf: QueuedFile }) {
       
       {/* Expandable Logs */}
       {isLogsOpen && shouldShowLogs && (
-        <div className="relative mt-2 border border-border p-3 rounded bg-black/40">
+        <div id={logsPanelId} className="relative mt-2 border border-border p-3 rounded bg-[color-mix(in_srgb,var(--foreground)_5%,transparent)]">
           <button
             onClick={handleCopyLogs}
             className="absolute top-2 right-2 p-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all flex items-center gap-1 text-[10px]"
             title="Copy to clipboard"
           >
-            {copied ? <CheckCircle2 size={12} className="text-emerald-400" /> : <Copy size={12} />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? <CheckCircle2 size={12} className="text-success" /> : <Copy size={12} />}
+            <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
           </button>
           <div className="space-y-1.5 font-mono text-[10px] max-h-48 overflow-y-auto pr-8 custom-scrollbar">
-            {qf.result!.warnings.map((w, i) => {
-              const isProtected = w.startsWith("protected_");
-              const isCreated = w.startsWith("created:");
-              const isSkipped = w.startsWith("skipped:");
-              const isUpdated = w.startsWith("updated:");
-              
-              let textColor = "text-amber-400";
-              let arrowColor = "text-amber-500/50";
-              if (isProtected) {
-                textColor = "text-blue-400";
-                arrowColor = "text-blue-500/50";
-              } else if (isCreated) {
-                textColor = "text-emerald-400";
-                arrowColor = "text-emerald-500/50";
-              } else if (isSkipped) {
-                textColor = "text-yellow-500";
-                arrowColor = "text-yellow-500/50";
-              } else if (isUpdated) {
-                textColor = "text-teal-400";
-                arrowColor = "text-teal-500/50";
-              }
-
-              return (
-                <div key={i} className={`flex items-start gap-2 ${textColor}`}>
-                  <span className={`${arrowColor} select-none`}>▶</span>
-                  <span>{w}</span>
-                </div>
-              );
-            })}
+            {logLines.map((w, i) => (
+              <ImportLogLine key={i} text={w} />
+            ))}
           </div>
         </div>
       )}

@@ -40,6 +40,7 @@ from app.core.constants import (
     IMPORT_RETRY_BASE_DELAY_SECONDS,
     IMPORT_RETRY_MAX_ATTEMPTS,
     MILLISECONDS_PER_SECOND,
+    PROTECTED_METADATA_COLUMNS,
 )
 from app.core.exceptions import (
     AccountNotFoundError,
@@ -86,11 +87,6 @@ from app.utils.parsers.schwab_json import decode_schwab_wrapped_payload
 from app.utils.schwab_account_resolution import resolve_schwab_account_entry
 
 logger = logging.getLogger(__name__)
-
-# execution-metadata-protection-hardening D2/D8: user-authored trade columns
-# that the FIFO aggregator never populates on `TradeCreate`. Must stay in
-# sync with `trade_service._METADATA_SIGNAL_FIELDS`.
-_PROTECTED_METADATA_COLUMNS = frozenset({"journal", "user_rating", "image_urls", "tradingview_link", "playbook_id"})
 
 
 class ImportService:
@@ -398,6 +394,7 @@ class ImportService:
                     raw_suppressed_skipped=suppressed_count,
                     raw_deleted_skipped=0,
                     warnings=parser_warnings,
+                    activity_log=[],
                 )
 
             # Purge split-child executions and restore their soft-deleted parents
@@ -522,7 +519,8 @@ class ImportService:
         trades_protected_reconciled = 0
         trades_protected_skipped = 0
         create_warnings: list[str] = []
-        raw_projection_rebuild = use_raw_pipeline and account_id is not None and (bool(inserted_raw_ids) or overwrite_manually_edited)
+        activity_log: list[str] = []
+        raw_projection_rebuild = use_raw_pipeline and account_id is not None and (bool(inserted_raw_ids) or bool(released_raw_ids) or overwrite_manually_edited)
 
         # Track db_trade_ids that have already been updated once.  If the same
         # seed lot appears more than once in parsed_trades (partial close split),
@@ -576,17 +574,16 @@ class ImportService:
                     # metadata columns on `TradeCreate`, so `exclude_unset`
                     # always excludes them here — the reconcile path must
                     # never overwrite a protected trade's user-authored data.
-                    assert not _PROTECTED_METADATA_COLUMNS & update_data.keys(), "Import rebuild must never write protected metadata columns during reconcile"
+                    if PROTECTED_METADATA_COLUMNS & update_data.keys():
+                        raise RuntimeError("Import rebuild must never write protected metadata columns during reconcile")
                     was_protected = existing_trade.is_manually_edited
                     for field, value in update_data.items():
                         setattr(existing_trade, field, value)
                     self._session.add(existing_trade)
                     trades_updated += 1
-                    
+
                     if not was_protected:
-                        create_warnings.append(
-                            f"updated: trade {trade_data.symbol} opened {trade_data.opened_at}"
-                        )
+                        activity_log.append(f"updated: trade {trade_data.symbol} opened {trade_data.opened_at}")
 
                     if was_protected:
                         trades_protected_reconciled += 1
@@ -616,7 +613,7 @@ class ImportService:
                     if i < len(trades_with_sources):
                         trades_with_sources[i].created_trade = created_trade
                     trades_created += 1
-                    create_warnings.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
+                    activity_log.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
                 except Exception as exc:  # noqa: BLE001
                     msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                     logger.warning(msg)
@@ -688,7 +685,7 @@ class ImportService:
                 try:
                     await self._trade_repo.create(trade_with_owner)
                     trades_created += 1
-                    create_warnings.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
+                    activity_log.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
                 except Exception as exc:  # noqa: BLE001
                     msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                     logger.warning(msg)
@@ -795,7 +792,7 @@ class ImportService:
 
                             already_updated_ids.add(db_trade_id)
                             trades_updated += 1
-                            create_warnings.append(f"updated: closed lot {db_trade_id} ({trade_data.symbol})")
+                            activity_log.append(f"updated: closed lot {db_trade_id} ({trade_data.symbol})")
                         except Exception as exc:  # noqa: BLE001
                             msg = f"Failed to close/fill open/orphaned lot {db_trade_id} ({trade_data.symbol}): {exc}"
                             logger.warning(msg)
@@ -807,7 +804,7 @@ class ImportService:
                         try:
                             await self._trade_repo.create(trade_with_owner)
                             trades_created += 1
-                            create_warnings.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
+                            activity_log.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
                         except Exception as exc:  # noqa: BLE001
                             msg = f"Failed to insert partial close for {trade_data.symbol} closed at {trade_data.closed_at}: {exc}"
                             logger.warning(msg)
@@ -1011,6 +1008,7 @@ class ImportService:
             trades_protected_reconciled=trades_protected_reconciled,
             trades_protected_skipped=trades_protected_skipped,
             warnings=all_warnings,
+            activity_log=activity_log,
         )
 
     async def fresh_start_import(
@@ -1139,7 +1137,7 @@ class ImportService:
                 from app.core.exceptions import BrokerRawTransactionNotFoundError
 
                 raise BrokerRawTransactionNotFoundError(f"BrokerRawTransaction {raw_id} not found.")
-        await self._raw_repo.set_suppressed(raw_id, suppressed)
+        await self._raw_repo.set_suppressed(raw_id, suppressed, user_id=user_id)
 
     async def _backfill_execution_trade_links(
         self,
@@ -1609,6 +1607,12 @@ class ImportService:
         target_taxonomy_ids = {a.taxonomy_id for a in target_trade.taxonomy_assignments}
         for taxonomy_assignment in list(old_trade.taxonomy_assignments):
             if taxonomy_assignment.taxonomy_id in target_taxonomy_ids:
+                logger.info(
+                    "protected_metadata_carry_forward_duplicate_dropped kind=taxonomy from_trade_id=%s to_trade_id=%s taxonomy_id=%s",
+                    old_trade.id,
+                    target_trade.id,
+                    taxonomy_assignment.taxonomy_id,
+                )
                 await self._session.delete(taxonomy_assignment)
             else:
                 target_trade.taxonomy_assignments.append(taxonomy_assignment)
@@ -1616,6 +1620,12 @@ class ImportService:
         target_annotation_ids = {a.annotation_definition_id for a in target_trade.annotation_assignments}
         for annotation_assignment in list(old_trade.annotation_assignments):
             if annotation_assignment.annotation_definition_id in target_annotation_ids:
+                logger.info(
+                    "protected_metadata_carry_forward_duplicate_dropped kind=annotation from_trade_id=%s to_trade_id=%s annotation_definition_id=%s",
+                    old_trade.id,
+                    target_trade.id,
+                    annotation_assignment.annotation_definition_id,
+                )
                 await self._session.delete(annotation_assignment)
             else:
                 target_trade.annotation_assignments.append(annotation_assignment)

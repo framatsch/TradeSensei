@@ -19,19 +19,20 @@ import io
 import json
 import logging
 import uuid
+from unittest.mock import MagicMock
 
 import pytest
+from fastapi import Request
 from httpx import AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
 from app.services.audit_service import AuditEventService
 from app.services.trade_service import TradeService
 
 
-async def _create_portfolio(
-    client: AsyncClient, headers: dict[str, str], name: str
-) -> str:
+async def _create_portfolio(client: AsyncClient, headers: dict[str, str], name: str) -> str:
     resp = await client.post(
         "/api/v1/portfolios",
         json={"name": name, "base_currency": "USD"},
@@ -94,11 +95,7 @@ def _capture_audit_logger() -> tuple[logging.Logger, logging.Handler, io.StringI
 
 
 def _get_audit_payloads(stream: io.StringIO) -> list[dict[str, object]]:
-    lines = [
-        line
-        for line in stream.getvalue().splitlines()
-        if line.strip().startswith("{") and '"logger":"audit"' in line
-    ]
+    lines = [line for line in stream.getvalue().splitlines() if line.strip().startswith("{") and '"logger":"audit"' in line]
     payloads: list[dict[str, object]] = []
     for line in lines:
         try:
@@ -525,3 +522,25 @@ async def test_audit_logs_database_error_with_request_id(
     _assert_action(payloads, "error.database")
     assert any(payload.get("request_id") for payload in payloads)
     logger.removeHandler(handler)
+
+
+@pytest.mark.unit
+def test_skip_audit_metadata_on_route() -> None:
+    middleware = AuditMiddleware.__new__(AuditMiddleware)
+    mock_route = MagicMock()
+    mock_route.audit_metadata = {"skip_audit": True}
+    mock_route.endpoint = None
+    mock_request = MagicMock(spec=Request)
+    mock_request.scope = {"route": mock_route}
+    mock_request.method = "DELETE"
+    mock_request.url.path = "/api/v1/executions/abc-123"
+
+    metadata = AuditMiddleware._extract_route_metadata(mock_request)
+    assert metadata == {"skip_audit": True}
+
+    action, resource_type, resource_id, parent_type, parent_id = middleware._infer_action(mock_request)
+    assert action == "skip"
+    assert resource_type is None
+    assert resource_id is None
+    assert parent_type is None
+    assert parent_id is None

@@ -123,7 +123,6 @@ export function useTrades({
           symbols: filters?.symbols?.length ? filters.symbols : undefined,
           excluded_symbols: filters?.excluded_symbols?.length ? filters.excluded_symbols : undefined,
           direction: filters?.direction as import("@/lib/api/types.gen").Direction | undefined,
-          // @ts-ignore
           is_combo: filters?.asset_classes?.includes("COMBO") ? true : undefined,
           playbook_id: filters?.playbook_id ?? undefined,
           taxonomy_ids: filters?.taxonomy_ids?.length ? filters.taxonomy_ids : undefined,

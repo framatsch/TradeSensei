@@ -338,10 +338,12 @@ export interface AnnotationDefinitionUpdate {
 }
 
 export interface TradeAnnotationResponse {
-  trade_id: string;
   annotation_definition_id: string;
-  definition: AnnotationDefinitionResponse;
-  value: string | number | boolean;
+  name: string;
+  type: AnnotationType;
+  scope: string;
+  icon_identifier: string | null;
+  value: unknown;
 }
 
 export interface CheckinAnnotationResponse {
@@ -403,7 +405,18 @@ export interface ImportResult {
   trades_skipped: number;
   raw_suppressed_skipped?: number;
   raw_deleted_skipped?: number;
+  /** Number of metadata-protected trades that absorbed new incoming executions. */
+  trades_protected_reconciled?: number;
+  /** Number of metadata-protected positions skipped (no trade to reconcile onto). */
+  trades_protected_skipped?: number;
   warnings: string[];
+  /**
+   * Informational "created:"/"updated:"/"skipped:" activity lines, kept separate
+   * from `warnings` so `warnings` only ever contains genuine protection warnings.
+   * Optional until the backend's execution-metadata-protection-hardening follow-up
+   * lands and the OpenAPI client is regenerated.
+   */
+  activity_log?: string[];
 }
 
 /** Result returned by POST /imports/{account_id}/fresh-start (task 8.6). */
@@ -485,6 +498,13 @@ export interface BrokerSyncResult {
   imported_count: number;
   skipped_count: number;
   errors: string[];
+  warnings?: string[];
+  /** Number of metadata-protected trades that absorbed new incoming executions. */
+  trades_protected_reconciled?: number;
+  /** Number of metadata-protected positions skipped (no trade to reconcile onto). */
+  trades_protected_skipped?: number;
+  /** See `ImportResult.activity_log` doc. */
+  activity_log?: string[];
 }
 
 // ─── User Settings ────────────────────────────────────────────────────────────

@@ -255,6 +255,9 @@ async def delete_execution(
     return ResponseEnvelope(data=LogicalExecutionRead.model_validate(result))
 
 
+delete_execution.audit_metadata = {"skip_audit": True}  # type: ignore[attr-defined]
+
+
 @router.post(
     "/executions/{execution_id}/restore",
     response_model=ResponseEnvelope[LogicalExecutionRead],

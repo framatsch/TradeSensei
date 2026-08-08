@@ -21,6 +21,12 @@ depends_on: str | Sequence[str] | None = None
 
 logger = logging.getLogger("alembic.runtime.migration")
 
+# Divergence tolerance for comparing an imported execution's price/quantity/
+# commission against its linked BrokerRawTransaction. A difference larger
+# than this epsilon is treated as a genuine user edit rather than floating
+# point/Decimal rounding noise.
+_DIVERGENCE_TOLERANCE = "0.0000001"
+
 
 def upgrade() -> None:
     conn = op.get_bind()
@@ -79,7 +85,7 @@ def upgrade() -> None:
 
     marked_executions_for_divergence_result = conn.execute(
         sa.text(
-            """
+            f"""
             UPDATE logical_executions AS le
             SET user_modified = true
             FROM broker_raw_transactions AS brt
@@ -88,9 +94,9 @@ def upgrade() -> None:
               AND le.deleted = false
               AND le.user_modified IS DISTINCT FROM true
               AND (
-                  ABS(COALESCE(le.price, 0) - COALESCE(brt.price, 0)) > 0.0000001
-                  OR ABS(COALESCE(le.quantity, 0) - COALESCE(brt.quantity, 0)) > 0.0000001
-                  OR ABS(COALESCE(le.commission, 0) - COALESCE(brt.commission, 0)) > 0.0000001
+                  ABS(COALESCE(le.price, 0) - COALESCE(brt.price, 0)) > {_DIVERGENCE_TOLERANCE}
+                  OR ABS(COALESCE(le.quantity, 0) - COALESCE(brt.quantity, 0)) > {_DIVERGENCE_TOLERANCE}
+                  OR ABS(COALESCE(le.commission, 0) - COALESCE(brt.commission, 0)) > {_DIVERGENCE_TOLERANCE}
               )
             """
         )

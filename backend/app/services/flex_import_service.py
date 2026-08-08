@@ -152,6 +152,7 @@ class FlexImportService:
         trades_created = 0
         trades_skipped = 0
         create_warnings: list[str] = []
+        activity_log: list[str] = []
 
         for trade_data in parsed_trades:
             trade_with_owner = trade_data.model_copy(update={"account_id": account_id, "user_id": user_id})
@@ -162,7 +163,7 @@ class FlexImportService:
                 trades_skipped += 1
                 msg = f"skipped: manually-edited trade {trade_with_owner.symbol} opened {trade_with_owner.opened_at}"
                 logger.debug(msg)
-                create_warnings.append(msg)
+                activity_log.append(msg)
                 continue
 
             # Duplicate check: same user + symbol + opened_at already exists.
@@ -175,13 +176,13 @@ class FlexImportService:
                 trades_skipped += 1
                 msg = f"skipped: duplicate trade {trade_with_owner.symbol} @ {trade_with_owner.opened_at}"
                 logger.debug(msg)
-                create_warnings.append(msg)
+                activity_log.append(msg)
                 continue
 
             try:
                 await self._trade_repo.create(trade_with_owner)
                 trades_created += 1
-                create_warnings.append(f"created: trade {trade_with_owner.symbol} @ {trade_with_owner.opened_at}")
+                activity_log.append(f"created: trade {trade_with_owner.symbol} @ {trade_with_owner.opened_at}")
             except Exception as exc:  # noqa: BLE001
                 msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                 logger.warning(msg)
@@ -207,6 +208,7 @@ class FlexImportService:
             trades_created=trades_created,
             trades_skipped=trades_skipped,
             warnings=all_warnings,
+            activity_log=activity_log,
         )
 
     # ─── Flex API helpers ─────────────────────────────────────────────────────

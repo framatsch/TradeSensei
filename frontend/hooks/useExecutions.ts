@@ -174,6 +174,10 @@ export function useUpdateExecution() {
  *  - Imported/merged/split executions are soft-deleted (response: 200 + body).
  *  - Manual executions are hard-deleted (response: 204 no body).
  * In both cases, we refetch the execution list after the operation.
+ *
+ * Note: the backend also supports a reset-to-broker-state mode (restoring a
+ * soft-deleted imported execution back to its original broker values). That
+ * mode has no frontend entry point yet — it is backend/ops-only for now.
  */
 export function useDeleteExecution() {
   const qc = useQueryClient();

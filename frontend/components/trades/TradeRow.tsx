@@ -116,7 +116,9 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
         </Link>
       </td>
       <td className="px-4 py-3">
-        <DirectionBadge direction={trade.direction} />
+        {/* Direction is often meaningless for a combo trade — show only the COMBO
+            indicator in the asset-class column below instead of a LONG/SHORT badge. */}
+        {!trade.is_combo && <DirectionBadge direction={trade.direction} />}
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">
         {trade.is_combo ? "COMBO" : trade.asset_class}

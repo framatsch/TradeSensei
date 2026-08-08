@@ -261,17 +261,25 @@ class BrokerRawTransactionRepository:
             }
         return meta
 
-    async def set_suppressed(self, raw_id: str, suppressed: bool) -> bool:
+    async def set_suppressed(self, raw_id: str, suppressed: bool, user_id: uuid.UUID | None = None) -> bool:
         """Toggle the suppressed flag on a raw transaction.
 
         Args:
             raw_id: Primary key of the raw transaction.
             suppressed: New value for the suppressed flag.
+            user_id: Optional owning user's ID. When provided, the update is
+                additionally scoped to rows owned by this user (defense in
+                depth — all current callers already validate ownership
+                upstream, but this closes the gap for any future caller that
+                doesn't).
 
         Returns:
             True if the row was found and updated, False otherwise.
         """
-        stmt = update(BrokerRawTransaction).where(BrokerRawTransaction.id == raw_id).values(suppressed=suppressed)
+        stmt = update(BrokerRawTransaction).where(BrokerRawTransaction.id == raw_id)
+        if user_id is not None:
+            stmt = stmt.where(BrokerRawTransaction.user_id == user_id)
+        stmt = stmt.values(suppressed=suppressed)
         result = await self._session.execute(stmt)
         await self._session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)

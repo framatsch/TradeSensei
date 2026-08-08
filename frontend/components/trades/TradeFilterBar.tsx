@@ -594,15 +594,16 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
             <label className={LABEL_CLASS}>Asset Class</label>
             <div className="flex flex-wrap gap-2 mt-1">
               {ASSET_CLASSES.map((ac) => {
-                const selected = filters.asset_classes?.includes(ac);
+                const selected = !!filters.asset_classes?.includes(ac);
                 return (
                   <button
                     key={ac}
                     type="button"
                     onClick={() => handleAssetClassToggle(ac)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                    aria-pressed={selected}
+                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       selected
-                        ? "bg-primary/15 border-primary/40 text-primary"
+                        ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary"
                         : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
                     }`}
                   >
@@ -618,15 +619,16 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
             <label className={LABEL_CLASS}>Execution State</label>
             <div className="flex flex-wrap gap-2 mt-1">
               {EXECUTION_STATES.map((state) => {
-                const selected = filters.execution_state?.includes(state.value);
+                const selected = !!filters.execution_state?.includes(state.value);
                 return (
                   <button
                     key={state.value}
                     type="button"
                     onClick={() => handleExecutionStateToggle(state.value)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                    aria-pressed={selected}
+                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       selected
-                        ? "bg-primary/15 border-primary/40 text-primary"
+                        ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary"
                         : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
                     }`}
                   >

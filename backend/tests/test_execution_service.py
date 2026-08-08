@@ -17,7 +17,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -118,6 +118,8 @@ def service(mock_session: AsyncMock) -> ExecutionService:
     # list_for_trade now scopes corporate actions per execution leg via
     # list_for_execution(symbol=, conid=) rather than list_for_aggregator.
     svc.corporate_action_service.list_for_execution = AsyncMock(return_value=[])
+    svc.raw_transaction_repo = AsyncMock()
+    svc._audit = MagicMock()
     # Mock the internal re-aggregation method to isolate tests
     svc._re_aggregate_trade = AsyncMock()
     return svc
@@ -143,9 +145,7 @@ def _make_corporate_action(
 class TestExecutionService:
     """Test suite for ExecutionService."""
 
-    async def test_create_manual_execution_success(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_create_manual_execution_success(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """create_manual_execution should create an execution and re-aggregate."""
         user_id = uuid.uuid4()
         trade = _make_trade(user_id=user_id)
@@ -168,9 +168,7 @@ class TestExecutionService:
         service._re_aggregate_trade.assert_called_once_with(trade.id, user_id)
         mock_session.commit.assert_called_once()
 
-    async def test_create_manual_execution_not_found(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_create_manual_execution_not_found(self, service: ExecutionService) -> None:
         """Should raise 404 if trade does not exist or user mismatch."""
         service.trade_repo.get_by_id.return_value = None
         data = LogicalExecutionCreate(
@@ -183,9 +181,7 @@ class TestExecutionService:
         with pytest.raises(TradeNotFoundError):
             await service.create_manual_execution(uuid.uuid4(), uuid.uuid4(), data)
 
-    async def test_create_manual_execution_combo_uses_leg_overrides(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_create_manual_execution_combo_uses_leg_overrides(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """COMBO leg creation should use per-leg asset_class/multiplier overrides."""
         user_id = uuid.uuid4()
         trade = _make_trade(
@@ -217,15 +213,11 @@ class TestExecutionService:
         service._re_aggregate_trade.assert_called_once_with(trade.id, user_id)
         mock_session.commit.assert_called_once()
 
-    async def test_update_execution_success(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_update_execution_success(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """update_execution should update and re-aggregate."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL
-        )
+        ex = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL)
         service.execution_repo.get_by_id.return_value = ex
         service.execution_repo.update.return_value = ex
 
@@ -237,15 +229,11 @@ class TestExecutionService:
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
         mock_session.commit.assert_called_once()
 
-    async def test_update_imported_execution_sets_user_modified(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_update_imported_execution_sets_user_modified(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """Patching an imported execution should set user_modified=True."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED
-        )
+        ex = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED)
         service.execution_repo.get_by_id.return_value = ex
         service.execution_repo.update.return_value = ex
 
@@ -255,15 +243,11 @@ class TestExecutionService:
         call_kwargs = service.execution_repo.update.call_args[1]
         assert call_kwargs.get("user_modified") is True
 
-    async def test_update_manual_execution_no_user_modified(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_update_manual_execution_no_user_modified(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """Patching a manual execution should NOT set user_modified=True."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL
-        )
+        ex = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL)
         service.execution_repo.get_by_id.return_value = ex
         service.execution_repo.update.return_value = ex
 
@@ -273,9 +257,7 @@ class TestExecutionService:
         call_kwargs = service.execution_repo.update.call_args[1]
         assert "user_modified" not in call_kwargs
 
-    async def test_update_execution_symbol_change_reaggregates_old_symbol_chain(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_update_execution_symbol_change_reaggregates_old_symbol_chain(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         user_id = uuid.uuid4()
         account_id = uuid.uuid4()
         source_trade_id = uuid.uuid4()
@@ -310,15 +292,11 @@ class TestExecutionService:
         service._re_aggregate_trade.assert_any_await(source_trade_id, user_id)
         service._re_aggregate_trade.assert_any_await(old_symbol_trade_id, user_id)
 
-    async def test_delete_manual_execution_hard_delete(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_delete_manual_execution_hard_delete(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """Deleting a manual execution should hard-delete (return None, 204)."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL
-        )
+        ex = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL)
         service.execution_repo.get_by_id.return_value = ex
 
         result = await service.delete_execution(ex.id, user_id)
@@ -327,21 +305,18 @@ class TestExecutionService:
         service.execution_repo.delete.assert_called_once_with(ex.id)
         service.execution_repo.soft_delete.assert_not_called()
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
+        # Regression test for round-1 Should Fix #8: exactly one audit event
+        # must fire for the manual hard-delete branch.
+        service._audit.create_audit_event.assert_called_once()
+        assert service._audit.create_audit_event.call_args.kwargs["action"] == "execution.deleted"
         mock_session.commit.assert_called_once()
 
-    async def test_delete_imported_execution_soft_delete(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_delete_imported_execution_soft_delete(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """Deleting an imported execution should soft-delete (return execution, 200)."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED
-        )
-        soft_deleted_ex = _make_execution(
-            id=ex.id, user_id=user_id, trade_id=trade_id,
-            origin=EXECUTION_ORIGIN_IMPORTED, deleted=True
-        )
+        ex = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED)
+        soft_deleted_ex = _make_execution(id=ex.id, user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED, deleted=True)
         service.execution_repo.get_by_id.side_effect = [ex, soft_deleted_ex]
 
         result = await service.delete_execution(ex.id, user_id)
@@ -351,35 +326,27 @@ class TestExecutionService:
         service.execution_repo.soft_delete.assert_called_once_with(ex.id)
         service.execution_repo.delete.assert_not_called()
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
+        # Regression test for round-1 Should Fix #8: exactly one audit event
+        # must fire for the soft-delete branch.
+        service._audit.create_audit_event.assert_called_once()
+        assert service._audit.create_audit_event.call_args.kwargs["action"] == "execution.deleted"
         mock_session.commit.assert_called_once()
 
-    async def test_delete_already_deleted_execution_raises_409(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_delete_already_deleted_execution_raises_409(self, service: ExecutionService) -> None:
         """Delete on already-deleted execution should raise ExecutionValidationError."""
         user_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, origin=EXECUTION_ORIGIN_IMPORTED, deleted=True
-        )
+        ex = _make_execution(user_id=user_id, origin=EXECUTION_ORIGIN_IMPORTED, deleted=True)
         service.execution_repo.get_by_id.return_value = ex
 
         with pytest.raises(ExecutionValidationError, match="already deleted"):
             await service.delete_execution(ex.id, user_id)
 
-    async def test_restore_deleted_execution(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_restore_deleted_execution(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """restore_execution should set deleted=False and re-aggregate."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, trade_id=trade_id,
-            origin=EXECUTION_ORIGIN_IMPORTED, deleted=True
-        )
-        restored_ex = _make_execution(
-            id=ex.id, user_id=user_id, trade_id=trade_id,
-            origin=EXECUTION_ORIGIN_IMPORTED, deleted=False
-        )
+        ex = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED, deleted=True)
+        restored_ex = _make_execution(id=ex.id, user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED, deleted=False)
         service.execution_repo.get_by_id.side_effect = [ex, restored_ex]
 
         result = await service.restore_execution(ex.id, user_id)
@@ -389,28 +356,51 @@ class TestExecutionService:
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
         mock_session.commit.assert_called_once()
 
-    async def test_restore_non_deleted_execution_raises_400(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_restore_non_deleted_execution_raises_400(self, service: ExecutionService) -> None:
         """restore_execution on non-deleted execution should raise 400."""
         user_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, origin=EXECUTION_ORIGIN_IMPORTED, deleted=False
-        )
+        ex = _make_execution(user_id=user_id, origin=EXECUTION_ORIGIN_IMPORTED, deleted=False)
         service.execution_repo.get_by_id.return_value = ex
 
         with pytest.raises(ExecutionValidationError, match="not deleted"):
             await service.restore_execution(ex.id, user_id)
 
-    async def test_delete_execution_reaggregates_parent(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_delete_imported_execution_reset_true_hard_deletes_and_audits_once(self, service: ExecutionService, mock_session: AsyncMock) -> None:
+        """An imported execution with reset=True hard-deletes and audits once.
+
+        Deletes the execution, releases the linked BrokerRawTransaction guard,
+        and fires exactly one ``execution.reset`` audit event. Regression test
+        for round-1 Should Fix #8 (audit-event deduplication) on the reset
+        branch.
+        """
+        user_id = uuid.uuid4()
+        trade_id = uuid.uuid4()
+        source_id = uuid.uuid4()
+        ex = _make_execution(
+            user_id=user_id,
+            trade_id=trade_id,
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex.source_id = source_id
+        service.execution_repo.get_by_id.return_value = ex
+        service.execution_repo.list_by_trade_id.return_value = [_make_execution(trade_id=trade_id)]
+
+        result = await service.delete_execution(ex.id, user_id, reset=True)
+
+        assert result is None  # hard-delete → 204
+        service.execution_repo.delete.assert_called_once_with(ex.id)
+        service.execution_repo.soft_delete.assert_not_called()
+        service.raw_transaction_repo.set_suppressed.assert_called_once_with(source_id, False, user_id=user_id)
+        service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
+        service._audit.create_audit_event.assert_called_once()
+        assert service._audit.create_audit_event.call_args.kwargs["action"] == "execution.reset"
+        mock_session.commit.assert_called_once()
+
+    async def test_delete_execution_reaggregates_parent(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """delete_execution should re-aggregate parent trade after deletion."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
-        ex = _make_execution(
-            user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL
-        )
+        ex = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_MANUAL)
         service.execution_repo.get_by_id.return_value = ex
 
         await service.delete_execution(ex.id, user_id)
@@ -418,9 +408,7 @@ class TestExecutionService:
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
         mock_session.commit.assert_called_once()
 
-    async def test_reassign_execution_success(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_reassign_execution_success(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """reassign_execution should update trade_id and re-aggregate both trades."""
         user_id = uuid.uuid4()
         account_id = uuid.uuid4()
@@ -433,18 +421,14 @@ class TestExecutionService:
             account_id=account_id,
             symbol="AAPL",
         )
-        target_trade = _make_trade(
-            id=target_trade_id, user_id=user_id, account_id=account_id, symbol="AAPL"
-        )
+        target_trade = _make_trade(id=target_trade_id, user_id=user_id, account_id=account_id, symbol="AAPL")
 
         service.execution_repo.get_by_id.return_value = ex
         service.trade_repo.get_by_id.return_value = target_trade
         service.execution_repo.list_by_trade_id.return_value = [_make_execution()]
 
         # Setup update mock to return execution with new trade_id
-        updated_ex = _make_execution(
-            id=ex.id, trade_id=target_trade_id, user_id=user_id
-        )
+        updated_ex = _make_execution(id=ex.id, trade_id=target_trade_id, user_id=user_id)
         service.execution_repo.update.return_value = updated_ex
 
         result = await service.reassign_execution(ex.id, target_trade_id, user_id)
@@ -467,9 +451,7 @@ class TestExecutionService:
         with pytest.raises(ExecutionValidationError):
             await service.reassign_execution(ex.id, target_trade.id, user_id)
 
-    async def test_detach_execution_success(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_detach_execution_success(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """detach_execution should create a new trade and reassign the execution."""
         user_id = uuid.uuid4()
         source_trade_id = uuid.uuid4()
@@ -506,18 +488,14 @@ class TestExecutionService:
         with pytest.raises(ExecutionValidationError):
             await service.detach_execution(ex.id, user_id)
 
-    async def test_delete_execution_not_found(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_delete_execution_not_found(self, service: ExecutionService) -> None:
         """delete_execution should raise ExecutionNotFoundError if not found."""
         service.execution_repo.get_by_id.return_value = None
 
         with pytest.raises(ExecutionNotFoundError):
             await service.delete_execution(uuid.uuid4(), uuid.uuid4())
 
-    async def test_merge_executions_success(
-        self, service: ExecutionService, mock_session: AsyncMock
-    ) -> None:
+    async def test_merge_executions_success(self, service: ExecutionService, mock_session: AsyncMock) -> None:
         """merge_executions should soft-delete sources and create merged execution."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
@@ -544,9 +522,7 @@ class TestExecutionService:
         )
 
         # get_by_id is called: ex_a, ex_b, then reloads for ex_a, ex_b
-        service.execution_repo.get_by_id.side_effect = [
-            ex_a, ex_b, ex_a, ex_b
-        ]
+        service.execution_repo.get_by_id.side_effect = [ex_a, ex_b, ex_a, ex_b]
         service.execution_repo.create.return_value = merged_ex
 
         data = MergeExecutionsRequest(
@@ -561,9 +537,7 @@ class TestExecutionService:
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
         mock_session.commit.assert_called_once()
 
-    async def test_merge_executions_primary_not_in_ids(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_merge_executions_primary_not_in_ids(self, service: ExecutionService) -> None:
         """merge_executions should raise 400 if primary_id not in execution_ids."""
         user_id = uuid.uuid4()
         data = MergeExecutionsRequest(
@@ -573,19 +547,17 @@ class TestExecutionService:
         with pytest.raises(ExecutionValidationError, match="primary_id"):
             await service.merge_executions(user_id=user_id, data=data)
 
-    async def test_merge_executions_deleted_source_raises(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_merge_executions_deleted_source_raises(self, service: ExecutionService) -> None:
         """merge_executions should raise 400 if any source is already deleted."""
         user_id = uuid.uuid4()
         trade_id = uuid.uuid4()
         ex_deleted = _make_execution(
-            user_id=user_id, trade_id=trade_id, deleted=True,
+            user_id=user_id,
+            trade_id=trade_id,
+            deleted=True,
             origin=EXECUTION_ORIGIN_IMPORTED,
         )
-        ex_b = _make_execution(
-            user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED
-        )
+        ex_b = _make_execution(user_id=user_id, trade_id=trade_id, origin=EXECUTION_ORIGIN_IMPORTED)
         service.execution_repo.get_by_id.side_effect = [ex_deleted, ex_b]
 
         data = MergeExecutionsRequest(
@@ -595,9 +567,7 @@ class TestExecutionService:
         with pytest.raises(ExecutionValidationError, match="already deleted"):
             await service.merge_executions(user_id=user_id, data=data)
 
-    async def test_list_for_trade_applies_split_adjustment_and_keeps_raw_values(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_list_for_trade_applies_split_adjustment_and_keeps_raw_values(self, service: ExecutionService) -> None:
         user_id = uuid.uuid4()
         trade = _make_trade(user_id=user_id, symbol="AAPL")
         execution = _make_execution(
@@ -624,9 +594,7 @@ class TestExecutionService:
         assert item.price == Decimal("50")
         assert item.quantity == Decimal("10")
 
-    async def test_list_for_trade_compounds_splits_and_handles_no_corporate_actions(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_list_for_trade_compounds_splits_and_handles_no_corporate_actions(self, service: ExecutionService) -> None:
         user_id = uuid.uuid4()
         trade = _make_trade(user_id=user_id, symbol="AAPL")
         split_execution = _make_execution(
@@ -666,9 +634,7 @@ class TestExecutionService:
         assert result[1].price == result[1].raw_price
         assert result[1].quantity == result[1].raw_quantity
 
-    async def test_list_for_trade_manual_leg_fallback_and_adjustment(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_list_for_trade_manual_leg_fallback_and_adjustment(self, service: ExecutionService) -> None:
         user_id = uuid.uuid4()
         trade = _make_trade(user_id=user_id, symbol="AAPL")
         manual_no_ca = _make_execution(
@@ -704,9 +670,7 @@ class TestExecutionService:
         assert result[1].raw_price == Decimal("500")
         assert result[1].raw_quantity == Decimal("1")
 
-    async def test_list_for_trade_notional_invariant_after_adjustment(
-        self, service: ExecutionService
-    ) -> None:
+    async def test_list_for_trade_notional_invariant_after_adjustment(self, service: ExecutionService) -> None:
         user_id = uuid.uuid4()
         trade = _make_trade(user_id=user_id, symbol="AAPL")
         execution = _make_execution(

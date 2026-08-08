@@ -248,3 +248,12 @@ FRESH_START_STATEMENT_TIMEOUT_SECONDS: int = 60
 Passed to PostgreSQL as ``SET LOCAL statement_timeout`` so that an
 unexpectedly large account cannot hang the server indefinitely.  Configurable
 via the ``FRESH_START_TIMEOUT`` environment variable (integer seconds)."""
+
+# ─── Execution-Overwrite Protection ────────────────────────────────────────────
+
+PROTECTED_METADATA_COLUMNS: frozenset[str] = frozenset({"journal", "user_rating", "image_urls", "tradingview_link", "playbook_id"})
+"""User-authored trade columns the FIFO aggregator never populates on
+`TradeCreate`. Presence of any of these in a mutation's `model_fields_set`
+signals user-authored metadata edit (marks the trade protected). The import
+reconcile path must never write these columns — see
+`ImportService.import_file`'s reconcile-before-skip branch."""

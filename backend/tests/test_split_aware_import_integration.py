@@ -819,13 +819,30 @@ async def test_reset_then_plain_reimport_rematerialises_the_execution(
         f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
     )
     rematerialised = trades_resp_2.json()["data"]["items"]
-    assert any(trade["symbol"] == symbol for trade in rematerialised)
+    matching_trades = [trade for trade in rematerialised if trade["symbol"] == symbol]
+    assert len(matching_trades) == 1, (
+        "Reset-then-reimport must re-materialise onto the original trade, "
+        f"not create a duplicate: found {len(matching_trades)} trades for {symbol}"
+    )
 
     suppressed_after_reimport = await db_session.execute(
         text("SELECT suppressed FROM broker_raw_transactions WHERE id LIKE :pat"),
         {"pat": f"%{tx_prefix}E1"},
     )
     assert suppressed_after_reimport.scalar() is False
+
+    # No orphaned executions: the released raw row must materialise onto a
+    # LogicalExecution that is actually linked to a trade, not left dangling
+    # with trade_id IS NULL (the exact defect class this OpenSpec change
+    # exists to eliminate).
+    orphaned_executions = await db_session.execute(
+        text(
+            "SELECT COUNT(*) FROM logical_executions "
+            "WHERE account_id = :account_id AND trade_id IS NULL AND deleted = false"
+        ),
+        {"account_id": account_id},
+    )
+    assert orphaned_executions.scalar() == 0
 
 
 @pytest.mark.integration

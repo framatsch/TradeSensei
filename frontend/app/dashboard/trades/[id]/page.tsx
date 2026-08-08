@@ -292,7 +292,7 @@ export default function TradeDetailPage() {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">{trade.symbol}</h1>
-            {trade.direction && (
+            {trade.direction && !isCombo && (
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium ${
                   isLong

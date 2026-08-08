@@ -110,6 +110,10 @@ class BrokerSyncResult(BaseModel):
         default=0,
         description="Number of metadata-protected positions skipped.",
     )
+    activity_log: list[str] = Field(
+        default_factory=list,
+        description=("Informational log of routine, successful row-level outcomes ('created:'/'updated:'/'skipped:' lines). Not an error or warning signal."),
+    )
 
 
 class BrokerConnectionTestRequest(BaseModel):

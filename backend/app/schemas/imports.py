@@ -92,6 +92,7 @@ class ImportResult(BaseModel):
         trades_protected_skipped: Number of metadata-protected positions
             skipped because no existing trade could be resolved for them.
         warnings: Human-readable descriptions of each skipped row.
+        activity_log: Informational log of routine created/updated rows.
     """
 
     broker: str = Field(
@@ -172,6 +173,19 @@ class ImportResult(BaseModel):
         description=("Human-readable descriptions of rows that were skipped during import. Empty when all rows were imported successfully."),
         examples=[
             ["IBKR row 3: skipped — Row has only 5 columns; expected at least 16."],
+            [],
+        ],
+    )
+    activity_log: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Informational log of routine, successful row-level outcomes "
+            "('created:'/'updated:' lines). Not an error or warning signal — "
+            "kept separate from `warnings` so callers never mistake normal "
+            "import activity for a problem."
+        ),
+        examples=[
+            ["created: trade AAPL opened 2024-03-15T09:30:00Z"],
             [],
         ],
     )

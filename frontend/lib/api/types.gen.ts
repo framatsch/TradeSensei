@@ -1112,6 +1112,12 @@ export type BrokerSyncResult = {
      * Number of metadata-protected positions skipped.
      */
     trades_protected_skipped?: number;
+    /**
+     * Activity Log
+     *
+     * Informational log of routine, successful row-level outcomes ('created:'/'updated:'/'skipped:' lines). Not an error or warning signal.
+     */
+    activity_log?: Array<string>;
 };
 
 /**
@@ -2042,6 +2048,7 @@ export type HttpValidationError = {
  * trades_protected_skipped: Number of metadata-protected positions
  * skipped because no existing trade could be resolved for them.
  * warnings: Human-readable descriptions of each skipped row.
+ * activity_log: Informational log of routine created/updated rows.
  */
 export type ImportResult = {
     /**
@@ -2110,6 +2117,12 @@ export type ImportResult = {
      * Human-readable descriptions of rows that were skipped during import. Empty when all rows were imported successfully.
      */
     warnings?: Array<string>;
+    /**
+     * Activity Log
+     *
+     * Informational log of routine, successful row-level outcomes ('created:'/'updated:' lines). Not an error or warning signal — kept separate from `warnings` so callers never mistake normal import activity for a problem.
+     */
+    activity_log?: Array<string>;
 };
 
 /**

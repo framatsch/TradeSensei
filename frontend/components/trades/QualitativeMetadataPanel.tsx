@@ -32,7 +32,7 @@ import {
 import { useUpdateTrade } from "@/hooks/useTrade";
 import { useDeleteNote } from "@/hooks/useNotes";
 import { usePlaybooks } from "@/hooks/usePlaybooks";
-import type { Trade } from "@/lib/types";
+import type { AnnotationType, Trade } from "@/lib/types";
 import { TaxonomySelector } from "./TaxonomySelector";
 import { AnnotationInputs } from "./AnnotationInputs";
 import Link from "next/link";
@@ -42,18 +42,30 @@ interface QualitativeMetadataPanelProps {
   portfolioId?: string;
 }
 
+/**
+ * Normalizes a persisted annotation value for comparison/draft use: numeric-typed
+ * annotations that come back as strings are coerced to numbers so they compare
+ * equal to the numeric values held in draft state. Used both when pre-filling the
+ * draft and when checking whether a value has changed, so the two never drift.
+ */
+function normalizeAnnotationValue(
+  value: unknown,
+  type: AnnotationType
+): string | number | boolean | null | undefined {
+  if (value === null || value === undefined) return value as null | undefined;
+  if (typeof value === "string" && (type === "float" || type === "int")) {
+    return Number(value);
+  }
+  return value as string | number | boolean;
+}
+
 /** Maps a trade's persisted annotation assignments into the draft-state shape keyed by definition id. */
 function buildAnnotationDraft(trade: Trade): Record<string, string | number | boolean> {
   const draft: Record<string, string | number | boolean> = {};
   for (const annotation of trade.annotations ?? []) {
-    if (annotation.value === null || annotation.value === undefined) continue;
-    
-    let val = annotation.value;
-    if (typeof val === "string" && (annotation.type === "float" || annotation.type === "int")) {
-      val = Number(val);
-    }
-    
-    draft[annotation.annotation_definition_id] = val as string | number | boolean;
+    const val = normalizeAnnotationValue(annotation.value, annotation.type);
+    if (val === null || val === undefined) continue;
+    draft[annotation.annotation_definition_id] = val;
   }
   return draft;
 }
@@ -148,7 +160,8 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
       // 3. Annotations
       for (const def of annotationDefs) {
         const draftVal = draftAnnotations[def.id];
-        const originalVal = trade.annotations?.find((a) => a.annotation_definition_id === def.id)?.value;
+        const rawOriginal = trade.annotations?.find((a) => a.annotation_definition_id === def.id)?.value;
+        const originalVal = normalizeAnnotationValue(rawOriginal, def.type);
 
         if (draftVal !== undefined && draftVal !== originalVal) {
           if (originalVal === undefined) {
@@ -184,7 +197,8 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   let annotationsChanged = false;
   for (const def of annotationDefs) {
     const draftVal = draftAnnotations[def.id];
-    const originalVal = trade.annotations?.find((a) => a.annotation_definition_id === def.id)?.value;
+    const rawOriginal = trade.annotations?.find((a) => a.annotation_definition_id === def.id)?.value;
+    const originalVal = normalizeAnnotationValue(rawOriginal, def.type);
     if (draftVal !== undefined && draftVal !== originalVal) {
       annotationsChanged = true;
       break;

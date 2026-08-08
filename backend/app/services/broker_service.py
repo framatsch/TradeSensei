@@ -619,6 +619,7 @@ class BrokerService:
             warnings=[w for w in result.warnings if w.startswith("protected_")],
             trades_protected_reconciled=result.trades_protected_reconciled,
             trades_protected_skipped=result.trades_protected_skipped,
+            activity_log=result.activity_log,
         )
 
     def _emit_account_number_bound_audit(
@@ -705,6 +706,7 @@ class BrokerService:
                 warnings=[w for w in result.warnings if w.startswith("protected_")],
                 trades_protected_reconciled=result.trades_protected_reconciled,
                 trades_protected_skipped=result.trades_protected_skipped,
+                activity_log=result.activity_log,
             )
         except RateLimitError as exc:
             raise ConfigurationError(f"IBKR API rate limit reached: {exc}") from exc
