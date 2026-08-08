@@ -87,6 +87,11 @@ from app.utils.schwab_account_resolution import resolve_schwab_account_entry
 
 logger = logging.getLogger(__name__)
 
+# execution-metadata-protection-hardening D2/D8: user-authored trade columns
+# that the FIFO aggregator never populates on `TradeCreate`. Must stay in
+# sync with `trade_service._METADATA_SIGNAL_FIELDS`.
+_PROTECTED_METADATA_COLUMNS = frozenset({"journal", "user_rating", "image_urls", "tradingview_link", "playbook_id"})
+
 
 class ImportService:
     """Service layer for importing broker trade files.
@@ -362,8 +367,38 @@ class ImportService:
                 if orm_raw is not None:
                     new_orm_raws.append(orm_raw)
 
+            # D11 fix: a raw row already present in the DB is never reported
+            # as "newly inserted" (ON CONFLICT DO NOTHING), so a row released
+            # by "reset to broker state" (suppressed cleared, execution
+            # physically deleted) would otherwise never get a fresh
+            # LogicalExecution on a plain re-import. Find such released rows
+            # among the file's already-existing IDs and materialise them too.
+            existing_raw_ids = [r.id for r in stamped_raw if r.id not in inserted_raw_ids]
+            released_raws = await self._raw_repo.list_released_without_execution(existing_raw_ids)
+            new_orm_raws.extend(released_raws)
+            released_raw_ids = {r.id for r in released_raws}
+
             _, suppressed_count = await self._logical_svc.bulk_create_from_raw(new_orm_raws)
             await self._session.flush()
+
+            should_rebuild_projection = bool(inserted_raw_ids) or bool(released_raw_ids) or overwrite_manually_edited
+
+            if not should_rebuild_projection:
+                # Zero-insert re-import without override: skip projection rebuild
+                # entirely and return a no-op import result.
+                await parser.enrich_pnl_eur([], self._session)
+                parser_warnings += getattr(parser, "warnings", [])
+                return ImportResult(
+                    broker=str(broker),
+                    filename=filename,
+                    trades_parsed=0,
+                    trades_created=0,
+                    trades_skipped=0,
+                    raw_transactions_created=len(inserted_raw_ids),
+                    raw_suppressed_skipped=suppressed_count,
+                    raw_deleted_skipped=0,
+                    warnings=parser_warnings,
+                )
 
             # Purge split-child executions and restore their soft-deleted parents
             # before re-aggregation.
@@ -373,7 +408,7 @@ class ImportService:
             # On a subsequent import those split children must be removed and the
             # original ``imported`` parents restored so the FIFO pass operates on
             # the complete, non-duplicated base-execution layer.
-            if account_id is not None:
+            if account_id is not None and should_rebuild_projection:
                 deleted_split = await self._exec_repo.delete_split_children_for_account(
                     user_id=user_id,
                     account_id=account_id,
@@ -411,18 +446,29 @@ class ImportService:
             # entirely (it treats "db_trade_id is not None" as "already
             # exists", regardless of whether that trade was just deleted).
             existing_trades_by_key = {}
-            if account_id is not None:
+            existing_trades_by_id: dict[uuid.UUID, Trade] = {}
+            # D10 snapshot: each metadata-protected trade's non-deleted leg
+            # IDs in chronological order, taken BEFORE this rebuild's linking
+            # runs, so a later pass can tell whether the trade's original
+            # anchor execution moved to a different trade during rebuild.
+            # Only needed for the reset-to-broker-state path
+            # (`overwrite_manually_edited=True`), where protected trades are
+            # actually eligible for deletion by `delete_by_user_account`.
+            protected_ordered_legs: dict[uuid.UUID, list[uuid.UUID]] = {}
+            if account_id is not None and should_rebuild_projection:
                 preserved_trade_ids = [trade.id for trade in open_combo_positions]
                 existing_trades = await self._trade_repo.list_by_user_account(user_id, account_id)
-                existing_trades_by_key = {
-                    (t.broker_conid, t.opened_at): t for t in existing_trades
-                }
+                existing_trades_by_key = {(t.broker_conid, t.opened_at): t for t in existing_trades}
+                existing_trades_by_id = {t.id: t for t in existing_trades}
+                if overwrite_manually_edited:
+                    protected_trade_ids = [t.id for t in existing_trades if t.is_manually_edited]
+                    protected_ordered_legs = await self._exec_repo.list_ordered_execution_ids_by_trade_ids(protected_trade_ids)
 
             # Load logical executions in batches to cap peak memory during import.
             parsed_trades = await self._collect_trade_creates_from_logical_batches(
                 user_id=user_id,
                 account_id=account_id,
-                include_existing_trade_ids=has_open_combo_seed_positions,
+                include_existing_trade_ids=(has_open_combo_seed_positions and should_rebuild_projection),
             )
 
             # Run FIFO aggregation from the logical layer only.
@@ -473,8 +519,10 @@ class ImportService:
         trades_created = 0
         trades_updated = 0
         trades_skipped_manually_edited = 0
+        trades_protected_reconciled = 0
+        trades_protected_skipped = 0
         create_warnings: list[str] = []
-        raw_projection_rebuild = use_raw_pipeline and account_id is not None
+        raw_projection_rebuild = use_raw_pipeline and account_id is not None and (bool(inserted_raw_ids) or overwrite_manually_edited)
 
         # Track db_trade_ids that have already been updated once.  If the same
         # seed lot appears more than once in parsed_trades (partial close split),
@@ -484,26 +532,75 @@ class ImportService:
 
         # For raw pipeline with source tracking, store created trades for backfilling
         if raw_projection_rebuild and use_raw_pipeline:
+            # D8/D9 (execution-metadata-protection-hardening follow-up):
+            # resolve each aggregated position's stable anchor-execution
+            # identity BEFORE deciding to skip or reconcile. A trade's
+            # durable cross-import identity is the trade currently owning
+            # its chronologically-first surviving execution — this is
+            # authoritative and replaces the brittle
+            # `(broker_conid, opened_at)` key, which breaks whenever FIFO
+            # re-slices a position differently across imports. The legacy
+            # key match below is kept only as a fallback for positions with
+            # no resolvable anchor (e.g. brand-new ground-truth/combo legs).
+            anchor_trade_id_by_index = await self._resolve_anchor_trade_ids(trades_with_sources, user_id)
+
             for i, trade_data in enumerate(parsed_trades):
                 match_key = (trade_data.broker_conid, trade_data.opened_at)
-                if match_key in manually_edited_keys:
-                    trades_skipped_manually_edited += 1
-                    continue
 
-                existing_trade = existing_trades_by_key.get(match_key)
-                if existing_trade is not None:
+                anchor_trade_id = anchor_trade_id_by_index.get(i)
+                existing_trade = existing_trades_by_id.get(anchor_trade_id) if anchor_trade_id is not None else None
+                if existing_trade is None:
+                    existing_trade = existing_trades_by_key.get(match_key)
+
+                # D8: resolve the existing trade BEFORE honoring the
+                # protection skip — only skip when no existing trade
+                # resolves at all (anchor or legacy key). A resolved trade
+                # is always reconciled, even when metadata-protected: the
+                # structural update below never touches metadata columns.
+                if existing_trade is None:
+                    if match_key in manually_edited_keys:
+                        trades_skipped_manually_edited += 1
+                        trades_protected_skipped += 1
+                        create_warnings.append(
+                            f"protected_skipped: no existing trade resolved for "
+                            f"manually-edited position {trade_data.symbol} opened "
+                            f"{trade_data.opened_at} — position skipped."
+                        )
+                        continue
+                else:
                     update_data = trade_data.model_dump(
                         exclude={"id", "db_trade_id", "user_id", "account_id"},
                         exclude_unset=True,
                     )
+                    # D8/D9 invariant: the FIFO aggregator never sets
+                    # metadata columns on `TradeCreate`, so `exclude_unset`
+                    # always excludes them here — the reconcile path must
+                    # never overwrite a protected trade's user-authored data.
+                    assert not _PROTECTED_METADATA_COLUMNS & update_data.keys(), "Import rebuild must never write protected metadata columns during reconcile"
+                    was_protected = existing_trade.is_manually_edited
                     for field, value in update_data.items():
                         setattr(existing_trade, field, value)
                     self._session.add(existing_trade)
                     trades_updated += 1
+                    
+                    if not was_protected:
+                        create_warnings.append(
+                            f"updated: trade {trade_data.symbol} opened {trade_data.opened_at}"
+                        )
+
+                    if was_protected:
+                        trades_protected_reconciled += 1
+                        create_warnings.append(
+                            f"protected_reconciled: metadata-protected trade "
+                            f"{trade_data.symbol} opened {trade_data.opened_at} "
+                            f"absorbed new executions from this import; "
+                            f"metadata unchanged."
+                        )
                     if i < len(trades_with_sources):
                         trades_with_sources[i].created_trade = existing_trade
-                    
-                    existing_trades_by_key.pop(match_key)
+
+                    existing_trades_by_key.pop(match_key, None)
+                    existing_trades_by_id.pop(existing_trade.id, None)
                     continue
 
                 trade_with_owner = trade_data.model_copy(
@@ -519,6 +616,7 @@ class ImportService:
                     if i < len(trades_with_sources):
                         trades_with_sources[i].created_trade = created_trade
                     trades_created += 1
+                    create_warnings.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
                 except Exception as exc:  # noqa: BLE001
                     msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                     logger.warning(msg)
@@ -541,7 +639,24 @@ class ImportService:
                         continue
                     legs = await self._exec_repo.list_by_trade_id(trade.id, include_deleted=False)
                     trade.has_conflict = detect_duplicate_pairs(legs)
-                
+
+                # D10: any metadata-protected trade left un-reconciled above is
+                # about to be deleted below (only possible when
+                # `overwrite_manually_edited=True` — otherwise
+                # `delete_by_user_account` unconditionally preserves
+                # `is_manually_edited=True` rows). If its original anchor
+                # execution moved to a different rebuilt trade, carry its
+                # metadata forward before the delete so nothing is lost.
+                if overwrite_manually_edited and protected_ordered_legs:
+                    leftover_protected = [t for t in existing_trades_by_id.values() if t.is_manually_edited and t.id not in preserved_trade_ids]
+                    if leftover_protected:
+                        await self._carry_forward_orphaned_protected_metadata(
+                            leftover_protected=leftover_protected,
+                            protected_ordered_legs=protected_ordered_legs,
+                            trades_with_sources=trades_with_sources,
+                            user_id=user_id,
+                        )
+
                 valid_trade_ids = [tws.created_trade.id for tws in trades_with_sources if tws.created_trade is not None]
                 exclude_ids = list(set(valid_trade_ids + preserved_trade_ids))
                 if account_id is not None:
@@ -573,6 +688,7 @@ class ImportService:
                 try:
                     await self._trade_repo.create(trade_with_owner)
                     trades_created += 1
+                    create_warnings.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
                 except Exception as exc:  # noqa: BLE001
                     msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                     logger.warning(msg)
@@ -585,7 +701,21 @@ class ImportService:
 
             if db_trade_id is not None and (db_trade_id in open_lot_ids or db_trade_id in orphaned_lot_ids):
                 is_orphan = db_trade_id in orphaned_lot_ids
-                # Check for manual-edit protection on the original open lot
+                # Check for manual-edit protection on the original open lot.
+                #
+                # D8 investigation (task 9.5): this legacy/non-raw pipeline is
+                # NOT vulnerable to the raw-pipeline orphaned-execution defect.
+                # Unlike the raw pipeline, it never persists an execution row
+                # independently before the trade decision (no `parse_raw` /
+                # `bulk_create_from_raw` layer) and never bulk-deletes existing
+                # trades (`delete_by_user_account` is only called from the
+                # raw-pipeline branch above). Skipping here simply discards
+                # the incoming closing execution for this manually-edited lot
+                # — no `trade_id IS NULL` orphan is ever created. This is the
+                # pre-existing, intentional protection behaviour from
+                # `execution-overwrite-protection` (task 5.2), not a
+                # regression. Both current parsers (IBKR, Schwab) implement
+                # `parse_raw`, so this path is a fallback only.
                 match_key = (trade_data.broker_conid, trade_data.opened_at)
                 if match_key in manually_edited_keys:
                     logger.debug(
@@ -665,6 +795,7 @@ class ImportService:
 
                             already_updated_ids.add(db_trade_id)
                             trades_updated += 1
+                            create_warnings.append(f"updated: closed lot {db_trade_id} ({trade_data.symbol})")
                         except Exception as exc:  # noqa: BLE001
                             msg = f"Failed to close/fill open/orphaned lot {db_trade_id} ({trade_data.symbol}): {exc}"
                             logger.warning(msg)
@@ -676,6 +807,7 @@ class ImportService:
                         try:
                             await self._trade_repo.create(trade_with_owner)
                             trades_created += 1
+                            create_warnings.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
                         except Exception as exc:  # noqa: BLE001
                             msg = f"Failed to insert partial close for {trade_data.symbol} closed at {trade_data.closed_at}: {exc}"
                             logger.warning(msg)
@@ -801,39 +933,43 @@ class ImportService:
                 # The legacy pipeline does not create LogicalExecution rows,
                 # so we synthesise them here so the Execution Legs table is
                 # populated for every imported trade.
-                exit_direction = TradeDirection.SHORT if trade_data.direction == TradeDirection.LONG else TradeDirection.LONG
-                await self._exec_repo.create(
-                    user_id=user_id,
-                    account_id=account_id,
-                    symbol=created_trade.symbol,
-                    asset_class=created_trade.asset_class,
-                    direction=created_trade.direction,
-                    quantity=created_trade.quantity,
-                    price=created_trade.entry_price,
-                    commission=created_trade.commission,
-                    executed_at=created_trade.opened_at,
-                    multiplier=created_trade.multiplier,
-                    currency=created_trade.currency,
-                    origin=EXECUTION_ORIGIN_IMPORTED,
-                    trade_id=created_trade.id,
+                can_create_synthetic_legs = (
+                    created_trade.asset_class is not None and created_trade.quantity is not None and created_trade.entry_price is not None
                 )
-                if created_trade.closed_at is not None and created_trade.exit_price is not None:
+                if can_create_synthetic_legs:
+                    exit_direction = TradeDirection.SHORT if trade_data.direction == TradeDirection.LONG else TradeDirection.LONG
                     await self._exec_repo.create(
                         user_id=user_id,
                         account_id=account_id,
                         symbol=created_trade.symbol,
                         asset_class=created_trade.asset_class,
-                        direction=exit_direction,
+                        direction=created_trade.direction,
                         quantity=created_trade.quantity,
-                        price=created_trade.exit_price,
+                        price=created_trade.entry_price,
                         commission=created_trade.commission,
-                        executed_at=created_trade.closed_at,
+                        executed_at=created_trade.opened_at,
                         multiplier=created_trade.multiplier,
                         currency=created_trade.currency,
                         origin=EXECUTION_ORIGIN_IMPORTED,
                         trade_id=created_trade.id,
-                        pnl=created_trade.pnl,
                     )
+                    if created_trade.closed_at is not None and created_trade.exit_price is not None:
+                        await self._exec_repo.create(
+                            user_id=user_id,
+                            account_id=account_id,
+                            symbol=created_trade.symbol,
+                            asset_class=created_trade.asset_class,
+                            direction=exit_direction,
+                            quantity=created_trade.quantity,
+                            price=created_trade.exit_price,
+                            commission=created_trade.commission,
+                            executed_at=created_trade.closed_at,
+                            multiplier=created_trade.multiplier,
+                            currency=created_trade.currency,
+                            origin=EXECUTION_ORIGIN_IMPORTED,
+                            trade_id=created_trade.id,
+                            pnl=created_trade.pnl,
+                        )
             except Exception as exc:  # noqa: BLE001
                 msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                 logger.warning(msg)
@@ -872,6 +1008,8 @@ class ImportService:
             raw_transactions_created=len(inserted_raw_ids) if use_raw_pipeline else 0,
             raw_suppressed_skipped=suppressed_count,
             raw_deleted_skipped=0,
+            trades_protected_reconciled=trades_protected_reconciled,
+            trades_protected_skipped=trades_protected_skipped,
             warnings=all_warnings,
         )
 
@@ -1308,6 +1446,181 @@ class ImportService:
             batch_rows = await self._exec_repo.list_by_ids(execution_id_batch)
             loaded.extend(row for row in batch_rows if row.user_id == user_id)
         return loaded
+
+    async def _resolve_anchor_trade_ids(
+        self,
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> dict[int, uuid.UUID]:
+        """Resolve each aggregated trade's stable anchor-execution trade link.
+
+        D9 (execution-metadata-protection-hardening follow-up): a trade's
+        durable cross-import identity is the trade currently owning its
+        chronologically-first non-deleted source execution (earliest
+        ``executed_at``, tie-broken by execution ``id``). For each newly
+        aggregated trade, this resolves that anchor execution's *current*
+        (pre-rebuild) ``trade_id`` — the trade it should inherit, if any.
+
+        Schema-free by design: the anchor is derived on demand from existing
+        execution rows rather than persisted as a denormalized column.
+
+        Args:
+            trades_with_sources: Aggregated trades with source allocation
+                metadata, in the same order as ``parsed_trades``.
+            user_id: Authenticated user ID, for ownership filtering.
+
+        Returns:
+            Mapping of index (into ``trades_with_sources``/``parsed_trades``)
+            to the existing trade ID its anchor execution currently belongs
+            to. Indices with no resolvable anchor (e.g. brand-new positions,
+            or positions built solely from non-UUID ground-truth legs) are
+            omitted.
+        """
+        all_execution_ids = {alloc.execution_id for tws in trades_with_sources for alloc in tws.source_executions if isinstance(alloc.execution_id, uuid.UUID)}
+        if not all_execution_ids:
+            return {}
+
+        executions = await self._list_executions_for_backfill(list(all_execution_ids), user_id)
+        exec_meta = {e.id: (e.executed_at, e.trade_id) for e in executions}
+
+        anchor_trade_id_by_index: dict[int, uuid.UUID] = {}
+        for i, tws in enumerate(trades_with_sources):
+            candidates = [
+                (exec_meta[alloc.execution_id][0], alloc.execution_id)
+                for alloc in tws.source_executions
+                if isinstance(alloc.execution_id, uuid.UUID) and alloc.execution_id in exec_meta
+            ]
+            if not candidates:
+                continue
+            _, anchor_execution_id = min(candidates, key=lambda pair: (pair[0], pair[1]))
+            anchor_trade_id = exec_meta[anchor_execution_id][1]
+            if anchor_trade_id is not None:
+                anchor_trade_id_by_index[i] = anchor_trade_id
+        return anchor_trade_id_by_index
+
+    async def _carry_forward_orphaned_protected_metadata(
+        self,
+        leftover_protected: list[Trade],
+        protected_ordered_legs: dict[uuid.UUID, list[uuid.UUID]],
+        trades_with_sources: list[TradeCreateWithSources],
+        user_id: uuid.UUID,
+    ) -> None:
+        """D10: carry metadata forward for protected trades about to be deleted.
+
+        Called only on the reset-to-broker-state path
+        (``overwrite_manually_edited=True``), after execution ``trade_id``
+        links have been backfilled and before ``delete_by_user_account``
+        runs. For each trade in ``leftover_protected`` (metadata-protected,
+        not reconciled onto any rebuilt trade this round), walks its
+        pre-rebuild leg order and finds the first leg whose *current*
+        (post-backfill) trade differs from the trade being deleted — i.e.
+        the next-oldest surviving execution's rebuilt trade — and transfers
+        the old trade's metadata onto it. Trades with no surviving leg are
+        logged and left as-is (the position no longer exists in the broker
+        data; there is nothing to carry the metadata to).
+
+        Args:
+            leftover_protected: Protected trades not reconciled this round.
+            protected_ordered_legs: Pre-rebuild snapshot of each protected
+                trade's non-deleted leg IDs in chronological order.
+            trades_with_sources: Aggregated trades with their ``created_trade``
+                already resolved (create/update loop must have already run).
+            user_id: Authenticated user ID, for ownership filtering.
+        """
+        all_candidate_execution_ids = {eid for legs in protected_ordered_legs.values() for eid in legs}
+        if not all_candidate_execution_ids:
+            return
+
+        current_executions = await self._list_executions_for_backfill(list(all_candidate_execution_ids), user_id)
+        current_trade_id_by_execution_id = {e.id: e.trade_id for e in current_executions}
+        created_trade_by_id = {tws.created_trade.id: tws.created_trade for tws in trades_with_sources if tws.created_trade is not None}
+
+        for old_trade in leftover_protected:
+            target_trade: Trade | None = None
+            for execution_id in protected_ordered_legs.get(old_trade.id, []):
+                current_trade_id = current_trade_id_by_execution_id.get(execution_id)
+                if current_trade_id is None or current_trade_id == old_trade.id:
+                    continue
+                target_trade = created_trade_by_id.get(current_trade_id)
+                if target_trade is not None:
+                    break
+            if target_trade is None:
+                logger.warning(
+                    "protected_metadata_carry_forward_no_target trade_id=%s symbol=%s opened_at=%s",
+                    old_trade.id,
+                    old_trade.symbol,
+                    old_trade.opened_at,
+                )
+                continue
+            await self._transfer_protected_trade_metadata(old_trade, target_trade)
+            logger.info(
+                "protected_metadata_carried_forward from_trade_id=%s to_trade_id=%s symbol=%s",
+                old_trade.id,
+                target_trade.id,
+                old_trade.symbol,
+            )
+
+    async def _transfer_protected_trade_metadata(
+        self,
+        old_trade: Trade,
+        target_trade: Trade,
+    ) -> None:
+        """Copy protected columns and re-parent related rows onto ``target_trade``.
+
+        D10/D2: copies ``journal``, ``user_rating``, ``image_urls``,
+        ``tradingview_link``, ``playbook_id`` (never overwriting a value
+        ``target_trade`` already has, except ``journal`` which is appended)
+        and re-parents (never copies) ``trade_notes``, ``taxonomy_assignments``,
+        and ``annotation_assignments`` via the ORM collections so nothing is
+        duplicated or lost when ``old_trade`` is deleted afterwards. Uses the
+        same append-based re-parenting pattern as ``TradeService.merge_trades``.
+
+        Must be called before the caller deletes ``old_trade``.
+
+        Args:
+            old_trade: The metadata-protected trade about to be deleted.
+            target_trade: The rebuilt trade now anchored by the surviving
+                execution history; receives the transferred metadata.
+        """
+        if old_trade.journal:
+            if target_trade.journal:
+                target_trade.journal += f"\n\n[Carried forward from {old_trade.id}]:\n{old_trade.journal}"
+            else:
+                target_trade.journal = old_trade.journal
+        if old_trade.user_rating is not None and target_trade.user_rating is None:
+            target_trade.user_rating = old_trade.user_rating
+        if old_trade.tradingview_link and not target_trade.tradingview_link:
+            target_trade.tradingview_link = old_trade.tradingview_link
+        if old_trade.image_urls:
+            target_trade.image_urls = [*target_trade.image_urls, *old_trade.image_urls]
+        if old_trade.playbook_id is not None and target_trade.playbook_id is None:
+            target_trade.playbook_id = old_trade.playbook_id
+        target_trade.is_manually_edited = True
+        self._session.add(target_trade)
+
+        await self._session.refresh(
+            old_trade,
+            attribute_names=["trade_notes", "taxonomy_assignments", "annotation_assignments"],
+        )
+
+        for note in list(old_trade.trade_notes):
+            target_trade.trade_notes.append(note)
+
+        target_taxonomy_ids = {a.taxonomy_id for a in target_trade.taxonomy_assignments}
+        for taxonomy_assignment in list(old_trade.taxonomy_assignments):
+            if taxonomy_assignment.taxonomy_id in target_taxonomy_ids:
+                await self._session.delete(taxonomy_assignment)
+            else:
+                target_trade.taxonomy_assignments.append(taxonomy_assignment)
+
+        target_annotation_ids = {a.annotation_definition_id for a in target_trade.annotation_assignments}
+        for annotation_assignment in list(old_trade.annotation_assignments):
+            if annotation_assignment.annotation_definition_id in target_annotation_ids:
+                await self._session.delete(annotation_assignment)
+            else:
+                target_trade.annotation_assignments.append(annotation_assignment)
+
+        await self._session.flush()
 
     async def _collect_trade_creates_from_logical_batches(
         self,

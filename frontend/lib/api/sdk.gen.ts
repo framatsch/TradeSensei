@@ -423,10 +423,11 @@ export const createManualExecutionApiV1PortfoliosPortfolioIdTradesTradeIdExecuti
 /**
  * Delete an execution
  *
- * Delete an execution. Behaviour depends on ``origin``:
+ * Delete an execution. Behaviour depends on ``origin`` and the ``reset`` flag:
  *
- * - ``imported|merged|split``: soft-delete (``deleted=true``), returns 200 with execution body. BRT link is preserved so re-import cannot resurrect it.
+ * - ``imported|merged|split`` (``reset`` omitted or false): soft-delete (``deleted=true``), returns 200 with execution body. BRT link is preserved so re-import cannot resurrect it.
  * - ``manual``: hard-delete (row removed), returns 204 No Content.
+ * - ``imported`` with ``reset=true``: 'reset to broker state' — hard-delete (row removed) and release the linked ``BrokerRawTransaction`` guard (``suppressed=false``) so the leg re-materialises unmodified on the next import. Returns 204 No Content. ``reset`` is ignored for non-``imported`` origins.
  * - Already deleted: returns 409 Conflict.
  *
  * The parent trade is re-aggregated after every delete.

@@ -1112,6 +1112,7 @@ class TradeFilterParams(BaseModel):
         hour_of_day: Filter by UTC hour of ``opened_at`` (0–23).
         day_of_week: Filter by ISO day of week of ``opened_at``
             (0 = Monday, …, 6 = Sunday).
+        is_combo: Filter trades by whether they are combos.
     """
 
     symbols: list[str] | None = Field(
@@ -1145,6 +1146,10 @@ class TradeFilterParams(BaseModel):
     position_id: uuid.UUID | None = Field(
         default=None,
         description="Filter by shared business-position UUID.",
+    )
+    is_combo: bool | None = Field(
+        default=None,
+        description="Filter trades by combo status.",
     )
     opened_at_from: datetime | None = Field(
         default=None,
@@ -1189,6 +1194,12 @@ class TradeFilterParams(BaseModel):
     annotation_filters: list[AnnotationFilterItem] | None = Field(
         default=None,
         description="Annotation-based filter conditions.",
+    )
+    execution_state: list[Literal["manual", "edited", "imported"]] | None = Field(
+        default=None,
+        description=(
+            "Filter trades by linked execution state. manual=origin manual, edited=user_modified true, imported=origin imported with user_modified false."
+        ),
     )
 
     @field_validator(

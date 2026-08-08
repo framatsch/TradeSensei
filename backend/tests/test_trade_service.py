@@ -515,7 +515,7 @@ class TestUpdateTrade:
             patch(
                 "app.services.trade_service.TradeRepository.get_by_id",
                 new_callable=AsyncMock,
-                return_value=trade,
+                side_effect=[trade, updated],
             ),
             patch(
                 "app.services.trade_service.TradeRepository.update",
@@ -563,7 +563,7 @@ class TestUpdateTrade:
             patch(
                 "app.services.trade_service.TradeRepository.get_by_id",
                 new_callable=AsyncMock,
-                return_value=trade,
+                side_effect=[trade, updated],
             ),
             patch(
                 "app.services.trade_service.TradeRepository.update",
@@ -589,6 +589,91 @@ class TestUpdateTrade:
             user_id=user_id,
             compare_updated_at=trade.updated_at,
         )
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "update_payload",
+        [
+            TradeUpdate(journal="manual note"),
+            TradeUpdate(user_rating=5),
+            TradeUpdate(image_urls=["bucket/path.png"]),
+            TradeUpdate(tradingview_link="https://tradingview.com/chart/abc"),
+            TradeUpdate(playbook_id=uuid.uuid4()),
+        ],
+    )
+    async def test_marks_execution_user_modified_on_metadata_fields(
+        self,
+        service: TradeService,
+        update_payload: TradeUpdate,
+    ) -> None:
+        trade = _make_trade()
+        updated = _make_trade(symbol="AAPL")
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                side_effect=[trade, updated],
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.update",
+                new_callable=AsyncMock,
+                return_value=updated,
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.mark_manually_edited",
+                new_callable=AsyncMock,
+                return_value=None,
+            ) as mark_trade,
+            patch(
+                "app.services.trade_service.ExecutionRepository.mark_user_modified_for_trade",
+                new_callable=AsyncMock,
+                return_value=1,
+            ) as mark_user_modified,
+        ):
+            await service.update_trade(
+                trade.id,
+                update_payload,
+                trade.user_id,
+            )
+
+        mark_trade.assert_awaited_once_with(trade.id, trade.user_id)
+        mark_user_modified.assert_awaited_once_with(trade.id)
+
+    @pytest.mark.unit
+    async def test_does_not_mark_execution_user_modified_for_non_metadata_fields(
+        self, service: TradeService
+    ) -> None:
+        trade = _make_trade()
+        updated = _make_trade(symbol="MSFT")
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                side_effect=[trade, updated],
+            ),
+            patch(
+                "app.services.trade_service.TradeRepository.update",
+                new_callable=AsyncMock,
+                return_value=updated,
+            ),
+            patch.object(
+                service,
+                "_re_aggregate_trade",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.trade_service.ExecutionRepository.mark_user_modified_for_trade",
+                new_callable=AsyncMock,
+                return_value=0,
+            ) as mark_user_modified,
+        ):
+            await service.update_trade(
+                trade.id,
+                TradeUpdate(direction=Direction.SHORT),
+                trade.user_id,
+            )
+
+        mark_user_modified.assert_not_awaited()
 
 
 class TestTradeUpdateNullableSentinel:
@@ -662,7 +747,7 @@ class TestTradeUpdateNullableSentinel:
             patch(
                 "app.services.trade_service.TradeRepository.get_by_id",
                 new_callable=AsyncMock,
-                return_value=trade,
+                side_effect=[trade, updated],
             ),
             patch(
                 "app.services.trade_service.TradeRepository.update",

@@ -52,6 +52,7 @@ export interface TradeFilters {
   day_of_week?: number;
   /** Annotation filter rows (serialized as JSON for the API). */
   annotation_filters?: AnnotationFilterRow[];
+  execution_state?: Array<"manual" | "edited" | "imported">;
 }
 
 export interface TradeSortConfig {
@@ -122,6 +123,8 @@ export function useTrades({
           symbols: filters?.symbols?.length ? filters.symbols : undefined,
           excluded_symbols: filters?.excluded_symbols?.length ? filters.excluded_symbols : undefined,
           direction: filters?.direction as import("@/lib/api/types.gen").Direction | undefined,
+          // @ts-ignore
+          is_combo: filters?.asset_classes?.includes("COMBO") ? true : undefined,
           playbook_id: filters?.playbook_id ?? undefined,
           taxonomy_ids: filters?.taxonomy_ids?.length ? filters.taxonomy_ids : undefined,
           pnl_positive: filters?.pnl_positive ?? undefined,
@@ -133,13 +136,16 @@ export function useTrades({
           opened_at_to: filters?.opened_at_to ? toUtcTo(filters.opened_at_to) : undefined,
           closed_at_from: filters?.closed_at_from ? toUtcFrom(filters.closed_at_from) : undefined,
           closed_at_to: filters?.closed_at_to ? toUtcTo(filters.closed_at_to) : undefined,
-          asset_classes: filters?.asset_classes?.length ? (filters.asset_classes as import("@/lib/api/types.gen").AssetClass[]) : undefined,
+          asset_classes: filters?.asset_classes?.length 
+            ? (filters.asset_classes.filter(ac => ac !== "COMBO") as import("@/lib/api/types.gen").AssetClass[]) 
+            : undefined,
           sort_by: sort?.sort_by as import("@/lib/api/types.gen").TradeSortField | undefined,
           sort_dir: sort?.sort_dir ?? undefined,
           annotation_filters:
             filters?.annotation_filters && filters.annotation_filters.length > 0
               ? JSON.stringify(filters.annotation_filters.map(({ _key: _, ...rest }) => rest))
               : undefined,
+          execution_state: filters?.execution_state?.length ? filters.execution_state : undefined,
         },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");

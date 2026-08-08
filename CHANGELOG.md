@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [docs] Finalized and archived OpenSpec `execution-metadata-protection-hardening` with updated specifications for user-metadata overwrite protection during broker imports.
+
 ## [1.8.3] - 2026-07-29
 
 ### Fixed

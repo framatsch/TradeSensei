@@ -51,7 +51,12 @@ function resolveValue(
   if (buffered && defId in buffered) return buffered[defId];
   const a = assigned.find((x) => x.annotation_definition_id === defId);
   if (!a) return null;
-  return a.value;
+  
+  let val = a.value;
+  if (typeof val === "string" && (a.type === "float" || a.type === "int")) {
+    val = Number(val);
+  }
+  return val;
 }
 
 interface SingleAnnotationInputProps {

@@ -421,3 +421,69 @@ class TestTradeSort:
         assert dates == sorted(dates)
 
 
+@pytest.mark.integration
+class TestTradeFilterExecutionState:
+    """Tests for execution_state filter on ``GET /api/v1/trades``."""
+
+    async def test_filter_by_execution_state_manual(self, client: AsyncClient) -> None:
+        h = await _get_auth_headers(client)
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        manual_trade = await _post_trade(client, h, portfolio_id, account_id, symbol="ESTATEM")
+
+        items = await _list_trades(
+            client,
+            h,
+            portfolio_id,
+            execution_state=["manual"],
+            symbols=["ESTATE"],
+        )
+        returned_ids = {item["id"] for item in items}
+        assert manual_trade["id"] in returned_ids
+
+    async def test_filter_by_execution_state_edited_after_metadata_patch(
+        self, client: AsyncClient
+    ) -> None:
+        h = await _get_auth_headers(client)
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        trade = await _post_trade(client, h, portfolio_id, account_id, symbol="ESTATEE")
+
+        patch_res = await client.patch(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade['id']}",
+            json={"journal": "metadata-edit"},
+            headers=h,
+        )
+        assert patch_res.status_code == 200, patch_res.text
+
+        items = await _list_trades(
+            client,
+            h,
+            portfolio_id,
+            execution_state=["edited"],
+            symbols=["ESTATEE"],
+        )
+        returned_ids = {item["id"] for item in items}
+        assert trade["id"] in returned_ids
+
+    async def test_filter_by_execution_state_or_semantics(self, client: AsyncClient) -> None:
+        h = await _get_auth_headers(client)
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+        manual_trade = await _post_trade(client, h, portfolio_id, account_id, symbol="ESTATEOR1")
+        edited_trade = await _post_trade(client, h, portfolio_id, account_id, symbol="ESTATEOR2")
+
+        patch_res = await client.patch(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{edited_trade['id']}",
+            json={"journal": "edited-trade"},
+            headers=h,
+        )
+        assert patch_res.status_code == 200, patch_res.text
+
+        items = await _list_trades(
+            client,
+            h,
+            portfolio_id,
+            execution_state=["manual", "edited"],
+            symbols=["ESTATEOR"],
+        )
+        returned_ids = {item["id"] for item in items}
+        assert manual_trade["id"] in returned_ids
+        assert edited_trade["id"] in returned_ids

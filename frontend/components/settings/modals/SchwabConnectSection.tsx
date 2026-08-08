@@ -35,6 +35,7 @@ interface Props {
 export function SchwabConnectSection({ account }: Props) {
   const qc = useQueryClient();
   const [pasteUrl, setPasteUrl] = useState("");
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
   
   // Status Query
   const { data: statusRes, isLoading: statusLoading } = useQuery({
@@ -48,7 +49,8 @@ export function SchwabConnectSection({ account }: Props) {
     },
     refetchInterval: (query) => {
       const isConnected = (query.state.data as any)?.connected;
-      return isConnected ? false : 5000;
+      const oauthMode = (query.state.data as any)?.schwab_oauth_mode;
+      return (!isConnected && isAuthorizing && oauthMode === "callback") ? 5000 : false;
     },
   });
 
@@ -65,6 +67,7 @@ export function SchwabConnectSection({ account }: Props) {
     },
     onSuccess: (data) => {
       window.open(data.authorization_url, "_blank");
+      setIsAuthorizing(true);
     },
     onError: (err) => {
       toast.error(extractApiError(err, "Failed to start authorization"));

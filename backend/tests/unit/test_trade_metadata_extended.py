@@ -46,6 +46,7 @@ def _make_service():
     svc._annotation_definition_repo = AsyncMock()
     svc._trade_taxonomy_repo = AsyncMock()
     svc._trade_annotation_repo = AsyncMock()
+    svc._execution_repo = AsyncMock()
     return svc
 
 
@@ -178,6 +179,35 @@ async def test_remove_taxonomy_success():
     await svc.remove_taxonomy(_TRADE_ID, _TAXONOMY_ID, _USER_ID)
 
     svc._trade_taxonomy_repo.remove.assert_called_once_with(_TRADE_ID, _TAXONOMY_ID)
+
+
+@pytest.mark.parametrize(
+    "method_name,args",
+    [
+        ("assign_taxonomy", (_TRADE_ID, _TAXONOMY_ID, _USER_ID)),
+        ("remove_taxonomy", (_TRADE_ID, _TAXONOMY_ID, _USER_ID)),
+        ("assign_annotation", (_TRADE_ID, _ANNOTATION_DEF_ID, 42, _USER_ID)),
+        ("update_annotation", (_TRADE_ID, _ANNOTATION_DEF_ID, 42, _USER_ID)),
+        ("remove_annotation", (_TRADE_ID, _ANNOTATION_DEF_ID, _USER_ID)),
+    ],
+)
+async def test_metadata_mutations_mark_trade_executions_user_modified(method_name: str, args: tuple[object, ...]):
+    svc = _make_service()
+    svc._trade_repo.get_by_id = AsyncMock(return_value=_make_mock_trade())
+    svc._trade_repo.mark_manually_edited = AsyncMock(return_value=None)
+    svc._execution_repo.mark_user_modified_for_trade = AsyncMock(return_value=1)
+    svc._taxonomy_repo.get_by_id = AsyncMock(return_value=_make_mock_taxonomy())
+    svc._trade_taxonomy_repo.assign = AsyncMock(return_value=None)
+    svc._trade_taxonomy_repo.remove = AsyncMock(return_value=True)
+    svc._annotation_definition_repo.get_by_id = AsyncMock(return_value=_make_mock_annotation_def())
+    svc._trade_annotation_repo.assign = AsyncMock(return_value=None)
+    svc._trade_annotation_repo.update = AsyncMock(return_value=MagicMock())
+    svc._trade_annotation_repo.remove = AsyncMock(return_value=True)
+
+    with patch("app.services.trade_metadata_service.map_value_to_column", return_value={"value_int": 42}):
+        await getattr(svc, method_name)(*args)
+
+    svc._execution_repo.mark_user_modified_for_trade.assert_awaited_once_with(_TRADE_ID)
 
 
 # ---------------------------------------------------------------------------

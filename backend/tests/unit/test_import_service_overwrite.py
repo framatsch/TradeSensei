@@ -105,19 +105,6 @@ async def test_import_file_without_overwrite_manually_edited(import_service):
             overwrite_manually_edited=False,
         )
 
-    import_service._exec_repo.delete_split_children_for_account.assert_called_once_with(
-        user_id=user_id,
-        account_id=account_id,
-        override=False
-    )
-    import_service._exec_repo.restore_split_parents_for_account.assert_called_once_with(
-        user_id=user_id,
-        account_id=account_id,
-        override=False
-    )
-    import_service._trade_repo.delete_by_user_account.assert_called_once_with(
-        user_id=user_id,
-        account_id=account_id,
-        include_manually_edited=False,
-        exclude_trade_ids=[]
-    )
+    import_service._exec_repo.delete_split_children_for_account.assert_not_called()
+    import_service._exec_repo.restore_split_parents_for_account.assert_not_called()
+    import_service._trade_repo.delete_by_user_account.assert_not_called()

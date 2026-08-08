@@ -98,6 +98,18 @@ class BrokerSyncResult(BaseModel):
         description="Error messages for any orders that could not be processed.",
         examples=[[], ["Order 12345: unsupported asset type"]],
     )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Informational or warning messages.",
+    )
+    trades_protected_reconciled: int = Field(
+        default=0,
+        description="Number of metadata-protected trades that absorbed new executions.",
+    )
+    trades_protected_skipped: int = Field(
+        default=0,
+        description="Number of metadata-protected positions skipped.",
+    )
 
 
 class BrokerConnectionTestRequest(BaseModel):

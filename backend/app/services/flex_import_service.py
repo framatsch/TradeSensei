@@ -160,11 +160,9 @@ class FlexImportService:
             match_key = (trade_with_owner.broker_conid, trade_with_owner.opened_at)
             if match_key in manually_edited_keys:
                 trades_skipped += 1
-                logger.debug(
-                    "Skipping re-import of manually-edited trade: symbol=%s opened_at=%s",
-                    trade_with_owner.symbol,
-                    trade_with_owner.opened_at,
-                )
+                msg = f"skipped: manually-edited trade {trade_with_owner.symbol} opened {trade_with_owner.opened_at}"
+                logger.debug(msg)
+                create_warnings.append(msg)
                 continue
 
             # Duplicate check: same user + symbol + opened_at already exists.
@@ -175,16 +173,15 @@ class FlexImportService:
                 portfolio_id=portfolio_id,
             ):
                 trades_skipped += 1
-                logger.debug(
-                    "Skipping duplicate trade: %s @ %s",
-                    trade_with_owner.symbol,
-                    trade_with_owner.opened_at,
-                )
+                msg = f"skipped: duplicate trade {trade_with_owner.symbol} @ {trade_with_owner.opened_at}"
+                logger.debug(msg)
+                create_warnings.append(msg)
                 continue
 
             try:
                 await self._trade_repo.create(trade_with_owner)
                 trades_created += 1
+                create_warnings.append(f"created: trade {trade_with_owner.symbol} @ {trade_with_owner.opened_at}")
             except Exception as exc:  # noqa: BLE001
                 msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
                 logger.warning(msg)

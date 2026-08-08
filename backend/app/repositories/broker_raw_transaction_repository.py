@@ -21,11 +21,12 @@ import uuid
 from collections.abc import Sequence
 from decimal import Decimal
 
-from sqlalchemy import Numeric, cast, delete, select, update
+from sqlalchemy import Numeric, cast, delete, exists, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.broker_raw_transaction import BrokerRawTransaction
+from app.models.logical_execution import LogicalExecution
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 
 
@@ -96,6 +97,42 @@ class BrokerRawTransactionRepository:
             if row is not None:
                 inserted_ids.append(rec.id)
         return inserted_ids
+
+    async def list_released_without_execution(
+        self,
+        raw_ids: list[str],
+    ) -> list[BrokerRawTransaction]:
+        """Find already-existing raw rows that were released but never re-linked.
+
+        execution-metadata-protection-hardening D11: a "reset to broker
+        state" hard-delete physically removes the ``LogicalExecution`` and
+        clears ``suppressed`` on its raw transaction, but leaves the raw row
+        itself in place. Because :meth:`upsert` uses ``ON CONFLICT DO
+        NOTHING``, such an already-existing row is never reported as
+        "newly inserted" on a subsequent import, so it would otherwise never
+        get a fresh ``LogicalExecution``. This method finds exactly those
+        rows — not suppressed, but with no ``LogicalExecution`` (in any
+        state) referencing them via ``source_id`` — so the caller can
+        materialise them alongside truly-new rows.
+
+        Args:
+            raw_ids: Candidate raw transaction IDs to check (typically the
+                subset of an import file's rows that were *not* newly
+                inserted this round).
+
+        Returns:
+            The matching :class:`~app.models.broker_raw_transaction.BrokerRawTransaction`
+            rows, if any.
+        """
+        if not raw_ids:
+            return []
+        stmt = select(BrokerRawTransaction).where(
+            BrokerRawTransaction.id.in_(raw_ids),
+            BrokerRawTransaction.suppressed.is_(False),
+            ~exists().where(LogicalExecution.source_id == BrokerRawTransaction.id),
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
     async def get_by_id(self, raw_id: str) -> BrokerRawTransaction | None:
         """Retrieve a single raw transaction by its primary key.

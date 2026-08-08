@@ -25,6 +25,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { Copy, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
 import { usePortfolioStore } from "@/stores/portfolioStore";
@@ -641,31 +642,120 @@ function SyncResultPanel({
   result,
   onReset,
 }: {
-  result: BrokerSyncResult;
+  result: BrokerSyncResult & { trades_protected_reconciled?: number; warnings?: string[] };
   onReset: () => void;
 }) {
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Combine errors and warnings
+  const hasLogs = result.errors.length > 0 || (result.warnings && result.warnings.length > 0);
+  const protectedCount = result.trades_protected_reconciled || 0;
+
+  const handleCopyLogs = () => {
+    const logText = [
+      ...result.errors.map((e) => `[ERROR] ${e}`),
+      ...(result.warnings || []).map((w) => `[INFO/PROTECTED] ${w}`)
+    ].join('\n');
+    
+    navigator.clipboard.writeText(logText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-4">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {/* 1. Extended Metrics */}
+      <div className="grid grid-cols-4 gap-4 p-4 bg-secondary/50 rounded-lg border border-border">
         <StatBox label="Imported" value={result.imported_count} color="text-emerald-400" />
-        <StatBox label="Skipped" value={result.skipped_count} color="text-amber-400" />
+        <StatBox label="Skipped" value={result.skipped_count} color="text-zinc-400" />
+        <StatBox label="Protected" value={protectedCount} color="text-blue-400" />
         <StatBox label="Errors" value={result.errors.length} color="text-red-400" />
       </div>
-      {result.errors.length > 0 && (
-        <ul className="space-y-1 max-h-32 overflow-y-auto">
-          {result.errors.map((e, i) => (
-            <li key={i} className="text-xs text-red-400 bg-red-900/10 px-3 py-1.5 rounded">
-              {e}
-            </li>
-          ))}
-        </ul>
+
+      {/* 2. Expandable Logs Area */}
+      {result.imported_count > 0 && (
+        <div className="border border-border rounded-lg overflow-hidden bg-background">
+          <button
+            onClick={() => setIsLogsOpen(!isLogsOpen)}
+            className="w-full flex items-center justify-between p-3 bg-secondary/30 hover:bg-secondary/50 transition-colors text-sm font-medium text-foreground"
+          >
+            <span className="flex items-center gap-2">
+              Sync Logs & Details
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${hasLogs ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+                {result.errors.length + (result.warnings?.length || 0)}
+              </span>
+            </span>
+            {isLogsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+        {isLogsOpen && (
+          <div className="relative border-t border-border p-4 bg-black/40">
+            {hasLogs ? (
+              <>
+                {/* Copy Button */}
+                <button
+                  onClick={handleCopyLogs}
+                  className="absolute top-3 right-3 p-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all flex items-center gap-1 text-xs"
+                  title="Copy to clipboard"
+                >
+                  {copied ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+
+                {/* Log Viewer */}
+                <div className="space-y-2 font-mono text-[11px] max-h-64 overflow-y-auto pr-8 custom-scrollbar">
+                  {result.errors.map((e, i) => (
+                    <div key={`err-${i}`} className="text-red-400 flex items-start gap-2">
+                      <span className="text-red-500/50 select-none">▶</span>
+                      <span>{e}</span>
+                    </div>
+                  ))}
+                  {(result.warnings || []).map((w, i) => {
+                    const isProtected = w.startsWith("protected_");
+                    const isCreated = w.startsWith("created:");
+                    const isSkipped = w.startsWith("skipped:");
+                    const isUpdated = w.startsWith("updated:");
+                    
+                    let textColor = "text-amber-400";
+                    let arrowColor = "text-amber-500/50";
+                    if (isProtected) {
+                      textColor = "text-blue-400";
+                      arrowColor = "text-blue-500/50";
+                    } else if (isCreated) {
+                      textColor = "text-emerald-400";
+                      arrowColor = "text-emerald-500/50";
+                    } else if (isSkipped) {
+                      textColor = "text-yellow-500";
+                      arrowColor = "text-yellow-500/50";
+                    } else if (isUpdated) {
+                      textColor = "text-teal-400";
+                      arrowColor = "text-teal-500/50";
+                    }
+
+                    return (
+                      <div key={`warn-${i}`} className={`${textColor} flex items-start gap-2`}>
+                        <span className={`${arrowColor} select-none`}>▶</span>
+                        <span>{w}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground italic text-center py-4">No issues or warnings found during this sync.</p>
+            )}
+          </div>
+        )}
+      </div>
       )}
+
       <button
         type="button"
         onClick={onReset}
-        className="text-xs text-muted-foreground hover:text-foreground underline"
+        className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
       >
-        Sync again
+        Start new sync
       </button>
     </div>
   );

@@ -29,6 +29,7 @@ from app.models.annotation_definition import AnnotationDefinition
 from app.repositories.annotation_definition_repository import (
     AnnotationDefinitionRepository,
 )
+from app.repositories.execution import ExecutionRepository
 from app.repositories.taxonomy_repository import TaxonomyRepository
 from app.repositories.trade_annotation_repository import TradeAnnotationRepository
 from app.repositories.trade_repository import TradeRepository
@@ -43,6 +44,7 @@ class TradeMetadataService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._trade_repo = TradeRepository(session)
+        self._execution_repo = ExecutionRepository(session)
         self._taxonomy_repo = TaxonomyRepository(session)
         self._annotation_definition_repo = AnnotationDefinitionRepository(session)
         self._trade_taxonomy_repo = TradeTaxonomyRepository(session)
@@ -73,6 +75,7 @@ class TradeMetadataService:
         except IntegrityError as exc:
             raise MetadataAssignmentValidationError("taxonomy is already assigned to this trade") from exc
         await self._trade_repo.mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)
 
     async def remove_taxonomy(
         self,
@@ -85,6 +88,7 @@ class TradeMetadataService:
         if not removed:
             raise MetadataAssignmentNotFoundError("taxonomy assignment not found")
         await self._trade_repo.mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)
 
     async def assign_annotation(
         self,
@@ -111,6 +115,7 @@ class TradeMetadataService:
         except IntegrityError as exc:
             raise MetadataAssignmentValidationError("annotation is already assigned to this trade") from exc
         await self._trade_repo.mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)
 
     async def update_annotation(
         self,
@@ -135,6 +140,7 @@ class TradeMetadataService:
         if assignment is None:
             raise MetadataAssignmentNotFoundError("annotation assignment not found")
         await self._trade_repo.mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)
 
     async def remove_annotation(
         self,
@@ -150,6 +156,7 @@ class TradeMetadataService:
         if not removed:
             raise MetadataAssignmentNotFoundError("annotation assignment not found")
         await self._trade_repo.mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)
 
     def _validate_annotation_assignment(
         self,

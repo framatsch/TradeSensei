@@ -98,6 +98,41 @@ class ExecutionRepository:
         result = await self.session.execute(select(LogicalExecution).where(LogicalExecution.id.in_(execution_ids)))
         return list(result.scalars().all())
 
+    async def list_ordered_execution_ids_by_trade_ids(
+        self,
+        trade_ids: Sequence[uuid.UUID],
+    ) -> dict[uuid.UUID, list[uuid.UUID]]:
+        """Return each trade's non-deleted execution IDs in chronological order.
+
+        Used to derive a trade's stable "anchor execution" — its earliest
+        (``executed_at``, tie-broken by execution ``id``) non-deleted leg,
+        i.e. ``result[trade_id][0]`` — and, more generally, to walk a
+        trade's leg history in order. See D9/D10 in the
+        ``execution-metadata-protection-hardening`` OpenSpec change.
+
+        Args:
+            trade_ids: Trade UUIDs to resolve.
+
+        Returns:
+            Mapping of ``trade_id`` to its ordered list of execution IDs
+            (chronologically first to last). Trades with no non-deleted
+            executions are omitted.
+        """
+        if not trade_ids:
+            return {}
+        stmt = (
+            select(LogicalExecution.trade_id, LogicalExecution.id)
+            .where(LogicalExecution.trade_id.in_(trade_ids), LogicalExecution.deleted.is_(False))
+            .order_by(LogicalExecution.trade_id, LogicalExecution.executed_at.asc(), LogicalExecution.id.asc())
+        )
+        result = await self.session.execute(stmt)
+        ordered: dict[uuid.UUID, list[uuid.UUID]] = {}
+        for trade_id, execution_id in result.all():
+            if trade_id is None:  # pragma: no cover — excluded by the WHERE clause
+                continue
+            ordered.setdefault(trade_id, []).append(execution_id)
+        return ordered
+
     async def list_by_user(
         self,
         user_id: uuid.UUID,
@@ -199,7 +234,8 @@ class ExecutionRepository:
         return bool(getattr(result, "rowcount", 0) > 0)
 
     async def delete(self, execution_id: uuid.UUID) -> bool:
-        """Hard-delete an execution by ID (used for manual executions only).
+        """Hard-delete an execution by ID (manual executions, or an
+        ``imported`` execution's explicit "reset to broker state").
 
         Args:
             execution_id: The ID of the execution to delete.
@@ -251,6 +287,27 @@ class ExecutionRepository:
         result = await self.session.execute(stmt)
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)
+
+    async def mark_user_modified_for_trade(self, trade_id: uuid.UUID) -> int:
+        """Mark all non-deleted executions for a trade as user-modified.
+
+        Args:
+            trade_id: Trade UUID whose active executions should be protected.
+
+        Returns:
+            Number of execution rows updated.
+        """
+        stmt = (
+            update(LogicalExecution)
+            .where(
+                LogicalExecution.trade_id == trade_id,
+                LogicalExecution.deleted.is_(False),
+            )
+            .values(user_modified=True)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return int(getattr(result, "rowcount", 0))
 
     async def get_by_parent_id(self, parent_id: uuid.UUID) -> list[LogicalExecution]:
         """Query split children by their parent_id (used in split-aware linking).

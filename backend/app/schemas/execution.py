@@ -20,6 +20,7 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.constants import SYMBOL_MAX_LENGTH, SYMBOL_MIN_LENGTH
 from app.models.trade import AssetClass, Direction
 
 # Valid origin values for type annotation
@@ -74,6 +75,11 @@ class LogicalExecutionUpdate(BaseModel):
     service when patching an imported execution.
     """
 
+    symbol: str | None = Field(
+        default=None,
+        min_length=SYMBOL_MIN_LENGTH,
+        max_length=SYMBOL_MAX_LENGTH,
+    )
     direction: Direction | None = None
     quantity: Decimal | None = Field(default=None, gt=0)
     price: Decimal | None = Field(default=None, ge=0)

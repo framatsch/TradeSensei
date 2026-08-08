@@ -25,6 +25,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
 
   const assetClassRaw = params.get("asset_class");
   const taxonomyIdsRaw = params.get("taxonomy_ids");
+  const executionStateRaw = params.get("execution_state");
 
   const statusRaw = params.get("status");
   const status: "open" | "closed" | "all" | null =
@@ -42,6 +43,14 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     symbols = [oldSymbolRaw];
   }
 
+  const parsedExecutionStates = executionStateRaw
+    ? executionStateRaw
+        .split(",")
+        .filter((value): value is "manual" | "edited" | "imported" =>
+          value === "manual" || value === "edited" || value === "imported"
+        )
+    : undefined;
+
   return {
     symbols,
     excluded_symbols: excludedSymbolsRaw ? excludedSymbolsRaw.split(",").filter(Boolean) : undefined,
@@ -57,6 +66,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     status: status === "all" ? null : status,
     hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
     day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
+    execution_state: parsedExecutionStates,
   };
 }
 

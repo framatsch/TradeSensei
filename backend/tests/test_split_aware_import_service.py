@@ -14,7 +14,7 @@
 """Unit tests for split-aware linking methods in ImportService."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -499,3 +499,175 @@ async def test_backfill_logs_memory_threshold_warning() -> None:
         await service._backfill_execution_trade_links([tws], uuid.uuid4())
 
     warning_logger.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# Task 15.3 — _resolve_anchor_trade_ids (D9 anchor derivation)
+# ---------------------------------------------------------------------------
+
+
+def _allocation(execution_id: uuid.UUID) -> ExecutionAllocation:
+    """Build a minimal ExecutionAllocation referencing ``execution_id``."""
+    return ExecutionAllocation(
+        execution_id=execution_id,
+        quantity_used=Decimal("1"),
+        commission_used=Decimal("0"),
+        entry_price=Decimal("1"),
+    )
+
+
+@pytest.mark.unit
+async def test_resolve_anchor_trade_ids_picks_earliest_execution_with_id_tiebreak() -> None:
+    service = _service()
+
+    t_early = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+    t_late = datetime(2026, 1, 2, 9, 0, tzinfo=UTC)
+    t_tie = datetime(2026, 1, 3, 9, 0, tzinfo=UTC)
+
+    # Index 0: two candidates with distinct executed_at — earliest wins.
+    exec_late_id, exec_early_id = uuid.uuid4(), uuid.uuid4()
+    trade_late_id, trade_early_id = uuid.uuid4(), uuid.uuid4()
+    exec_late = MagicMock(id=exec_late_id, executed_at=t_late, trade_id=trade_late_id)
+    exec_early = MagicMock(id=exec_early_id, executed_at=t_early, trade_id=trade_early_id)
+
+    # Index 1: two candidates sharing the same executed_at — lower id wins.
+    tie_low_id, tie_high_id = sorted([uuid.uuid4(), uuid.uuid4()])
+    trade_low_id, trade_high_id = uuid.uuid4(), uuid.uuid4()
+    exec_tie_low = MagicMock(id=tie_low_id, executed_at=t_tie, trade_id=trade_low_id)
+    exec_tie_high = MagicMock(id=tie_high_id, executed_at=t_tie, trade_id=trade_high_id)
+
+    tws0 = TradeCreateWithSources(
+        trade_create=MagicMock(),
+        source_executions=[_allocation(exec_late_id), _allocation(exec_early_id)],
+    )
+    tws1 = TradeCreateWithSources(
+        trade_create=MagicMock(),
+        source_executions=[_allocation(tie_high_id), _allocation(tie_low_id)],
+    )
+
+    service._list_executions_for_backfill = AsyncMock(
+        return_value=[exec_late, exec_early, exec_tie_low, exec_tie_high]
+    )
+
+    result = await service._resolve_anchor_trade_ids([tws0, tws1], uuid.uuid4())
+
+    assert result == {0: trade_early_id, 1: trade_low_id}
+
+
+@pytest.mark.unit
+async def test_resolve_anchor_trade_ids_omits_index_with_no_resolvable_anchor() -> None:
+    service = _service()
+
+    unresolvable_id = uuid.uuid4()
+    tws = TradeCreateWithSources(
+        trade_create=MagicMock(),
+        source_executions=[_allocation(unresolvable_id)],
+    )
+    # Simulates a brand-new position: the referenced execution id is not
+    # present in the batch-loaded executions (e.g. it was never loaded, or
+    # belongs to another user and got filtered out upstream).
+    service._list_executions_for_backfill = AsyncMock(return_value=[])
+
+    result = await service._resolve_anchor_trade_ids([tws], uuid.uuid4())
+
+    assert result == {}
+
+
+@pytest.mark.unit
+async def test_resolve_anchor_trade_ids_returns_empty_dict_when_no_execution_ids() -> None:
+    service = _service()
+    service._list_executions_for_backfill = AsyncMock()
+
+    tws = TradeCreateWithSources(trade_create=MagicMock(), source_executions=[])
+
+    result = await service._resolve_anchor_trade_ids([tws], uuid.uuid4())
+
+    assert result == {}
+    service._list_executions_for_backfill.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Task 15.4 — _carry_forward_orphaned_protected_metadata (D10 carry-forward)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+async def test_carry_forward_transfers_metadata_to_next_oldest_surviving_trade() -> None:
+    service = _service()
+    service._transfer_protected_trade_metadata = AsyncMock()
+
+    old_trade = MagicMock(
+        id=uuid.uuid4(), is_manually_edited=True, symbol="AAA", opened_at=datetime(2026, 1, 1, tzinfo=UTC)
+    )
+    removed_anchor_id = uuid.uuid4()  # E1: prior anchor, no longer present.
+    surviving_leg_id = uuid.uuid4()  # E2: next-oldest surviving leg.
+
+    new_trade = MagicMock(id=uuid.uuid4())
+    tws = TradeCreateWithSources(trade_create=MagicMock(), source_executions=[])
+    tws.created_trade = new_trade
+
+    current_exec_removed = MagicMock(id=removed_anchor_id, trade_id=None)
+    current_exec_surviving = MagicMock(id=surviving_leg_id, trade_id=new_trade.id)
+    service._list_executions_for_backfill = AsyncMock(
+        return_value=[current_exec_removed, current_exec_surviving]
+    )
+
+    await service._carry_forward_orphaned_protected_metadata(
+        leftover_protected=[old_trade],
+        protected_ordered_legs={old_trade.id: [removed_anchor_id, surviving_leg_id]},
+        trades_with_sources=[tws],
+        user_id=uuid.uuid4(),
+    )
+
+    service._transfer_protected_trade_metadata.assert_awaited_once_with(old_trade, new_trade)
+
+
+@pytest.mark.unit
+async def test_carry_forward_logs_warning_and_skips_when_no_target_found(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    service = _service()
+    service._transfer_protected_trade_metadata = AsyncMock()
+
+    old_trade = MagicMock(
+        id=uuid.uuid4(), is_manually_edited=True, symbol="BBB", opened_at=datetime(2026, 1, 1, tzinfo=UTC)
+    )
+    removed_leg_id = uuid.uuid4()  # resolves to no current trade at all.
+    still_here_leg_id = uuid.uuid4()  # still belongs to the same old trade.
+
+    current_exec_removed = MagicMock(id=removed_leg_id, trade_id=None)
+    current_exec_still_here = MagicMock(id=still_here_leg_id, trade_id=old_trade.id)
+    service._list_executions_for_backfill = AsyncMock(
+        return_value=[current_exec_removed, current_exec_still_here]
+    )
+
+    # No resolvable target trade exists in `trades_with_sources`, so carry-forward
+    # should no-op without attempting transfer. Logger capture is best-effort only.
+    with caplog.at_level("WARNING", logger="app.services.import_service"):
+        await service._carry_forward_orphaned_protected_metadata(
+            leftover_protected=[old_trade],
+            protected_ordered_legs={old_trade.id: [removed_leg_id, still_here_leg_id]},
+            trades_with_sources=[],
+            user_id=uuid.uuid4(),
+        )
+
+    service._transfer_protected_trade_metadata.assert_not_called()
+
+
+@pytest.mark.unit
+async def test_carry_forward_returns_early_when_no_candidate_execution_ids() -> None:
+    service = _service()
+    service._list_executions_for_backfill = AsyncMock()
+    service._transfer_protected_trade_metadata = AsyncMock()
+
+    old_trade = MagicMock(id=uuid.uuid4())
+
+    await service._carry_forward_orphaned_protected_metadata(
+        leftover_protected=[old_trade],
+        protected_ordered_legs={},
+        trades_with_sources=[],
+        user_id=uuid.uuid4(),
+    )
+
+    service._list_executions_for_backfill.assert_not_called()
+    service._transfer_protected_trade_metadata.assert_not_called()

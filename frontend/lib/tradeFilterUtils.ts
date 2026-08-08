@@ -54,6 +54,8 @@ export function definitionToSearchParams(
     p.set("hour_of_day", String(d.hour_of_day));
   if (d.day_of_week !== undefined && d.day_of_week !== null)
     p.set("day_of_week", String(d.day_of_week));
+  if (Array.isArray(d.execution_state) && d.execution_state.length)
+    p.set("execution_state", (d.execution_state as string[]).join(","));
 
   return p;
 }

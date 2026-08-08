@@ -183,17 +183,23 @@ async def update_execution(
     status_code=status.HTTP_200_OK,
     summary="Delete an execution",
     description=(
-        "Delete an execution. Behaviour depends on ``origin``:\n\n"
-        "- ``imported|merged|split``: soft-delete (``deleted=true``), returns 200 "
-        "with execution body. BRT link is preserved so re-import cannot "
-        "resurrect it.\n"
+        "Delete an execution. Behaviour depends on ``origin`` and the "
+        "``reset`` flag:\n\n"
+        "- ``imported|merged|split`` (``reset`` omitted or false): soft-delete "
+        "(``deleted=true``), returns 200 with execution body. BRT link is "
+        "preserved so re-import cannot resurrect it.\n"
         "- ``manual``: hard-delete (row removed), returns 204 No Content.\n"
+        "- ``imported`` with ``reset=true``: 'reset to broker state' — "
+        "hard-delete (row removed) and release the linked "
+        "``BrokerRawTransaction`` guard (``suppressed=false``) so the leg "
+        "re-materialises unmodified on the next import. Returns 204 No "
+        "Content. ``reset`` is ignored for non-``imported`` origins.\n"
         "- Already deleted: returns 409 Conflict.\n\n"
         "The parent trade is re-aggregated after every delete."
     ),
     responses={
         200: {"description": "Soft-deleted (imported/merged/split execution)"},
-        204: {"description": "Hard-deleted (manual execution)"},
+        204: {"description": "Hard-deleted (manual execution, or imported execution with reset=true)"},
         404: {"description": "Execution not found"},
         409: {"description": "Execution is already soft-deleted"},
     },
@@ -203,16 +209,29 @@ async def delete_execution(
     execution_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ExecutionService, Depends(_get_service)],
+    reset: Annotated[
+        bool,
+        Query(
+            description=(
+                "When true and the execution's origin is 'imported', "
+                "hard-delete the leg and release its BrokerRawTransaction's "
+                "suppressed guard ('reset to broker state') instead of "
+                "soft-deleting. Ignored for other origins."
+            )
+        ),
+    ] = False,
 ) -> ResponseEnvelope[LogicalExecutionRead]:
-    """Delete an execution — soft or hard depending on origin.
+    """Delete an execution — soft or hard depending on origin and reset.
 
-    Returns 200 with body for soft-delete, 204 No Content for hard-delete.
+    Returns 200 with body for soft-delete, 204 No Content for hard-delete
+    (manual origin, or imported origin with ``reset=true``).
     """
     try:
         result = await service.delete_execution(
             execution_id=execution_id,
             user_id=user.id,
             portfolio_id=portfolio_id,
+            reset=reset,
         )
     except ExecutionNotFoundError as exc:
         raise HTTPException(
@@ -227,7 +246,8 @@ async def delete_execution(
         ) from exc
 
     if result is None:
-        # Hard-delete of manual execution → 204 No Content
+        # Hard-delete (manual execution, or imported execution with
+        # reset=true) → 204 No Content
         from fastapi import Response
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)  # type: ignore[return-value]

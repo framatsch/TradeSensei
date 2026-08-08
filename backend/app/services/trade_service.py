@@ -47,6 +47,14 @@ from app.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
+_METADATA_SIGNAL_FIELDS = {
+    "journal",
+    "user_rating",
+    "image_urls",
+    "tradingview_link",
+    "playbook_id",
+}
+
 
 class TradeService:
     """Service layer for trade CRUD operations.
@@ -440,7 +448,12 @@ class TradeService:
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
         pre_update_updated_at = trade.updated_at
+        should_mark_execution_user_modified = bool(_METADATA_SIGNAL_FIELDS & data.model_fields_set)
         updated = await self._repo.update(trade, data)
+
+        if should_mark_execution_user_modified:
+            await self._repo.mark_manually_edited(trade_id, user_id)
+            await self._exec_repo.mark_user_modified_for_trade(trade_id)
 
         propagation_fields = {"playbook_id", "taxonomy_ids", "journal", "user_rating"}
         should_propagate = bool(propagation_fields & data.model_fields_set)
@@ -478,7 +491,10 @@ class TradeService:
             if account is not None and account.portfolio_id is not None:
                 await self._cache.invalidate_portfolio(account.portfolio_id, user_id)
         await self._session.commit()
-        return TradeRead.model_validate(updated, context={"storage_service": self._storage})
+        refreshed_trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
+        if refreshed_trade is None:
+            raise TradeNotFoundError(f"Trade {trade_id} not found.")
+        return TradeRead.model_validate(refreshed_trade, context={"storage_service": self._storage})
 
     async def delete_trade(
         self,

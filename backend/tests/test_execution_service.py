@@ -273,6 +273,43 @@ class TestExecutionService:
         call_kwargs = service.execution_repo.update.call_args[1]
         assert "user_modified" not in call_kwargs
 
+    async def test_update_execution_symbol_change_reaggregates_old_symbol_chain(
+        self, service: ExecutionService, mock_session: AsyncMock
+    ) -> None:
+        user_id = uuid.uuid4()
+        account_id = uuid.uuid4()
+        source_trade_id = uuid.uuid4()
+        old_symbol_trade_id = uuid.uuid4()
+        ex = _make_execution(
+            user_id=user_id,
+            account_id=account_id,
+            trade_id=source_trade_id,
+            symbol="AAA",
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        moved_ex = _make_execution(
+            id=ex.id,
+            user_id=user_id,
+            account_id=account_id,
+            trade_id=source_trade_id,
+            symbol="BBB",
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+
+        service.execution_repo.get_by_id.return_value = ex
+        service.execution_repo.update.return_value = moved_ex
+        service.trade_repo.list_by_user_account.return_value = [
+            _make_trade(id=source_trade_id, user_id=user_id, account_id=account_id, symbol="BBB"),
+            _make_trade(id=old_symbol_trade_id, user_id=user_id, account_id=account_id, symbol="AAA"),
+        ]
+
+        data = LogicalExecutionUpdate(symbol="BBB")
+        await service.update_execution(ex.id, user_id, data)
+
+        assert service._re_aggregate_trade.await_count == 2
+        service._re_aggregate_trade.assert_any_await(source_trade_id, user_id)
+        service._re_aggregate_trade.assert_any_await(old_symbol_trade_id, user_id)
+
     async def test_delete_manual_execution_hard_delete(
         self, service: ExecutionService, mock_session: AsyncMock
     ) -> None:

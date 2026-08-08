@@ -15,7 +15,7 @@
 
 import json
 import uuid
-from typing import Annotated, NoReturn
+from typing import Annotated, Literal, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
@@ -417,6 +417,10 @@ async def list_trades(
         str | None,
         Query(description="JSON-encoded list of AnnotationFilterItem objects."),
     ] = None,
+    execution_state: Annotated[
+        list[Literal["manual", "edited", "imported"]] | None,
+        Query(description="Repeatable execution state filter values: manual, edited, imported."),
+    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 
@@ -459,6 +463,8 @@ async def list_trades(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Invalid annotation_filters format — expected JSON array of filter objects.",
             ) from exc
+    if execution_state is not None:
+        filters.execution_state = execution_state
 
     selected_account_ids = account_ids[:] if account_ids is not None else []
     if account_id is not None:

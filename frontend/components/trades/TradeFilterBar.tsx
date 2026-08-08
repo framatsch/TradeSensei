@@ -52,7 +52,12 @@ interface Props {
   isUpdating?: boolean;
 }
 
-const ASSET_CLASSES = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO"] as const;
+const ASSET_CLASSES = ["EQUITY", "OPTION", "FUTURE", "FOREX", "CRYPTO", "COMBO"] as const;
+const EXECUTION_STATES = [
+  { value: "manual", label: "Manual" },
+  { value: "edited", label: "Edited" },
+  { value: "imported", label: "Imported" },
+] as const;
 
 /** Count how many filter fields are non-empty. */
 function countActiveFilters(filters: TradeFilters): number {
@@ -73,6 +78,7 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) count++;
   if (filters.day_of_week !== undefined && filters.day_of_week !== null) count++;
   if (filters.annotation_filters?.length) count++;
+  if (filters.execution_state?.length) count++;
   return count;
 }
 
@@ -93,6 +99,7 @@ const EMPTY_FILTERS: TradeFilters = {
   hour_of_day: undefined,
   day_of_week: undefined,
   annotation_filters: [],
+  execution_state: [],
 };
 
 const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -289,6 +296,14 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
 
   const handlePlaybookChange = (value: string) => {
     onChange({ ...filters, playbook_id: value || undefined });
+  };
+
+  const handleExecutionStateToggle = (executionState: "manual" | "edited" | "imported") => {
+    const current = filters.execution_state ?? [];
+    const updated = current.includes(executionState)
+      ? current.filter((state) => state !== executionState)
+      : [...current, executionState];
+    onChange({ ...filters, execution_state: updated.length ? updated : undefined });
   };
 
   const handlePnlPositiveChange = (value: string) => {
@@ -592,6 +607,30 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
                     }`}
                   >
                     {ac}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Execution state */}
+          <div className="sm:col-span-2">
+            <label className={LABEL_CLASS}>Execution State</label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {EXECUTION_STATES.map((state) => {
+                const selected = filters.execution_state?.includes(state.value);
+                return (
+                  <button
+                    key={state.value}
+                    type="button"
+                    onClick={() => handleExecutionStateToggle(state.value)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                      selected
+                        ? "bg-primary/15 border-primary/40 text-primary"
+                        : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                    }`}
+                  >
+                    {state.label}
                   </button>
                 );
               })}

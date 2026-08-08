@@ -615,7 +615,10 @@ class BrokerService:
         return BrokerSyncResult(
             imported_count=result.trades_created,
             skipped_count=result.trades_skipped,
-            errors=result.warnings,
+            errors=[w for w in result.warnings if not w.startswith("protected_")],
+            warnings=[w for w in result.warnings if w.startswith("protected_")],
+            trades_protected_reconciled=result.trades_protected_reconciled,
+            trades_protected_skipped=result.trades_protected_skipped,
         )
 
     def _emit_account_number_bound_audit(
@@ -698,7 +701,10 @@ class BrokerService:
             return BrokerSyncResult(
                 imported_count=result.trades_created,
                 skipped_count=result.trades_skipped,
-                errors=result.warnings,
+                errors=[w for w in result.warnings if not w.startswith("protected_")],
+                warnings=[w for w in result.warnings if w.startswith("protected_")],
+                trades_protected_reconciled=result.trades_protected_reconciled,
+                trades_protected_skipped=result.trades_protected_skipped,
             )
         except RateLimitError as exc:
             raise ConfigurationError(f"IBKR API rate limit reached: {exc}") from exc

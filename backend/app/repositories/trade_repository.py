@@ -35,7 +35,11 @@ from app.core.constants import PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT
 from app.core.security import decode_cursor as _decode_signed_cursor
 from app.core.security import encode_cursor as _encode_signed_cursor
 from app.models.account import Account
-from app.models.logical_execution import LogicalExecution
+from app.models.logical_execution import (
+    EXECUTION_ORIGIN_IMPORTED,
+    EXECUTION_ORIGIN_MANUAL,
+    LogicalExecution,
+)
 from app.models.portfolio import Portfolio
 from app.models.trade import Trade
 from app.models.trade_annotation import TradeAnnotation
@@ -242,6 +246,9 @@ def _apply_filters(
     if filters.direction is not None:
         stmt = stmt.where(Trade.direction == filters.direction)
 
+    if filters.is_combo is not None:
+        stmt = stmt.where(Trade.is_combo == filters.is_combo)
+
     if filters.asset_classes is not None and len(filters.asset_classes) > 0:
         stmt = stmt.where(Trade.asset_class.in_(filters.asset_classes))
 
@@ -297,6 +304,43 @@ def _apply_filters(
         # Our API convention is 0=Monday, …, 6=Sunday (ISO).
         # Convert: postgres_dow = (api_day_of_week + 1) % 7
         stmt = stmt.where(func.extract("dow", Trade.opened_at) == (filters.day_of_week + 1) % 7)
+
+    if filters.execution_state:
+        execution_state_predicates: list[ColumnElement[bool]] = []
+        for state in filters.execution_state:
+            if state == "manual":
+                execution_state_predicates.append(
+                    exists(
+                        select(LogicalExecution.id).where(
+                            LogicalExecution.trade_id == Trade.id,
+                            LogicalExecution.deleted.is_(False),
+                            LogicalExecution.origin == EXECUTION_ORIGIN_MANUAL,
+                        )
+                    )
+                )
+            elif state == "edited":
+                execution_state_predicates.append(
+                    exists(
+                        select(LogicalExecution.id).where(
+                            LogicalExecution.trade_id == Trade.id,
+                            LogicalExecution.deleted.is_(False),
+                            LogicalExecution.user_modified.is_(True),
+                        )
+                    )
+                )
+            elif state == "imported":
+                execution_state_predicates.append(
+                    exists(
+                        select(LogicalExecution.id).where(
+                            LogicalExecution.trade_id == Trade.id,
+                            LogicalExecution.deleted.is_(False),
+                            LogicalExecution.origin == EXECUTION_ORIGIN_IMPORTED,
+                            LogicalExecution.user_modified.is_(False),
+                        )
+                    )
+                )
+        if execution_state_predicates:
+            stmt = stmt.where(or_(*execution_state_predicates))
 
     return stmt
 
@@ -687,9 +731,6 @@ class TradeRepository:
         update_data = data.model_dump(exclude_unset=True, exclude={"taxonomy_ids"})
         for field, value in update_data.items():
             setattr(trade, field, value)
-
-        # Mark as manually edited so broker sync doesn't wipe user metadata.
-        trade.is_manually_edited = True
 
         self._session.add(trade)
         await self._session.flush()

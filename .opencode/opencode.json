@@ -1,18 +1,44 @@
-{
-  "$schema": "https://opencode.ai/config.json",
-  "lsp": true,
-  "permission": {
-    "*": "allow",
-    "external_directory": "deny"
+{  
+   "$schema": "https://opencode.ai/config.json",
+   "theme":  "ayu",
+  "mcp": {
+    "headroom": {
+      "type": "local",
+      "command": [
+        "/home/scheffold/.pyenv/shims/headroom",
+        "mcp",
+        "serve"
+      ],
+      "enabled": true
+    },
+	 "engram": {
+      "command": [
+        "/usr/bin/engram",
+        "mcp",
+        "--tools=agent"
+      ],
+      "enabled": true,
+      "type": "local"
+    }
+  },
+  "provider": {
+    "headroom": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Headroom Proxy",
+      "options": {
+        "baseURL": "http://127.0.0.1:8787/v1"
+      }
+    }
   },
   "compaction": {
     "auto": false,
     "prune": false
   },
-  mcp: {
-    "serena": {
-      "type": "remote",
-      "url": "http://localhost:9121/mcp",
-    }    
-  } 
+  "plugin": [
+    "opencode-claude-auth@latest",
+    "opencode-agent-skills", 
+    "@franlol/opencode-md-table-formatter@0.0.3",
+    "opencode-claude-auth",
+    "claude-skills"
+  ]
 }

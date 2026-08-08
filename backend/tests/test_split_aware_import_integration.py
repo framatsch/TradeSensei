@@ -20,6 +20,8 @@ from time import perf_counter
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
@@ -247,6 +249,235 @@ async def test_reimport_idempotency_via_fresh_start(client: AsyncClient) -> None
 
     assert int(first["trades_created"]) == int(second["trades_created"])
     assert int(second["trades_parsed"]) >= int(second["trades_created"])
+
+
+@pytest.mark.integration
+async def test_metadata_protected_trade_survives_reimport_without_override(
+    client: AsyncClient,
+) -> None:
+    """A metadata-protected trade should survive a subsequent non-override re-import."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+
+    await _import_xml(client, headers, portfolio_id, account_id, _make_split_xml(1))
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    items = trades_resp.json()["data"]["items"]
+    assert items
+    protected_trade_id = items[0]["id"]
+
+    patch_resp = await client.patch(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
+        headers=headers,
+        json={"journal": "metadata-protected"},
+    )
+    assert patch_resp.status_code == 200, patch_resp.text
+    assert patch_resp.json()["data"]["journal"] == "metadata-protected"
+
+    second_import = await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_split_xml(2),
+    )
+    assert int(second_import["raw_transactions_created"]) > 0
+
+    protected_trade_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}", headers=headers
+    )
+    assert protected_trade_resp.status_code == 200, protected_trade_resp.text
+    assert protected_trade_resp.json()["data"]["journal"] == "metadata-protected"
+
+
+def _make_single_leg_xml(symbol: str, conid: str, tx_prefix: str, *, include_close: bool) -> bytes:
+    """Build a single-symbol IBKR XML fixture: one opening leg, optionally closed.
+
+    Args:
+        symbol: Ticker symbol for the fixture.
+        conid: Broker contract identifier.
+        tx_prefix: Prefix for transaction IDs (kept identical across two
+            imports of the same opening leg so the raw upsert is a no-op for
+            the entry and only the new closing row is inserted).
+        include_close: When ``True``, adds a fully-closing leg.
+
+    Returns:
+        UTF-8 encoded FlexQuery XML bytes.
+    """
+    opened_at = datetime(2026, 4, 1, 9, 30, tzinfo=UTC)
+    closed_at = datetime(2026, 4, 2, 10, 0, tzinfo=UTC)
+    rows = [
+        (
+            '<Trade transactionID="{tx}" assetCategory="STK" symbol="{symbol}" '
+            'conid="{conid}" tradeDate="{date}" dateTime="{datetime}" '
+            'quantity="100" tradePrice="50" ibCommission="-1" currency="USD" />'
+        ).format(
+            tx=f"{tx_prefix}E1",
+            symbol=symbol,
+            conid=conid,
+            date=opened_at.strftime("%Y%m%d"),
+            datetime=opened_at.strftime("%Y%m%d;%H%M%S"),
+        )
+    ]
+    if include_close:
+        rows.append(
+            (
+                '<Trade transactionID="{tx}" assetCategory="STK" symbol="{symbol}" '
+                'conid="{conid}" tradeDate="{date}" dateTime="{datetime}" '
+                'quantity="-100" tradePrice="55" ibCommission="-1" '
+                'fifoPnlRealized="500" currency="USD" />'
+            ).format(
+                tx=f"{tx_prefix}C1",
+                symbol=symbol,
+                conid=conid,
+                date=closed_at.strftime("%Y%m%d"),
+                datetime=closed_at.strftime("%Y%m%d;%H%M%S"),
+            )
+        )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<FlexQueryResponse><FlexStatements><FlexStatement><Trades>"
+        + "".join(rows)
+        + "</Trades></FlexStatement>"
+        + "</FlexStatements></FlexQueryResponse>"
+    )
+    return xml.encode("utf-8")
+
+
+@pytest.mark.integration
+async def test_protected_open_trade_reconciles_new_closing_execution(
+    client: AsyncClient,
+) -> None:
+    """Reconcile-before-skip (D8): a metadata-protected OPEN trade must
+    absorb a new closing execution on re-import instead of the incoming
+    leg being silently dropped as an unlinked orphan.
+
+    Regression coverage for the orphaned-execution defect fixed in
+    ``execution-metadata-protection-hardening`` task group 9: previously the
+    `manually_edited_keys` skip ran *before* the existing-trade lookup, so
+    the protected trade never received the new leg (`trade_id` stayed
+    ``NULL``), the trade never closed, and the import reported the leg as
+    silently absorbed with no warning.
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    symbol, conid, tx_prefix = "PROT001", "700001", "PR"
+
+    await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=False),
+    )
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    items = trades_resp.json()["data"]["items"]
+    assert items
+    protected_trade_id = items[0]["id"]
+
+    patch_resp = await client.patch(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
+        headers=headers,
+        json={"journal": "protected-open-trade"},
+    )
+    assert patch_resp.status_code == 200, patch_resp.text
+    assert patch_resp.json()["data"]["is_manually_edited"] is True
+
+    # Re-import the same opening leg (no-op upsert) plus a NEW closing leg.
+    second_import = await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
+    )
+    # Task 15.5 (D12): protection outcomes are surfaced on ImportResult
+    # rather than being silently invisible.
+    assert second_import["trades_protected_reconciled"] == 1
+    assert any("protected_reconciled" in warning for warning in second_import["warnings"])
+
+    reconciled_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}", headers=headers
+    )
+    assert reconciled_resp.status_code == 200, reconciled_resp.text
+    reconciled = reconciled_resp.json()["data"]
+    # The protected trade's id is preserved (anchor-based identity, D9) and
+    # its metadata survives, but it must now be closed by the new leg —
+    # proving the leg was linked, not silently dropped.
+    assert reconciled["journal"] == "protected-open-trade"
+    assert reconciled["closed_at"] is not None
+
+    ex_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}/executions",
+        headers=headers,
+    )
+    assert ex_resp.status_code == 200, ex_resp.text
+    executions = ex_resp.json()["data"]
+    assert len(executions) == 2
+    assert all(exec_row["trade_id"] == protected_trade_id for exec_row in executions)
+
+
+@pytest.mark.integration
+async def test_reconciled_import_leaves_zero_orphaned_imported_executions(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Task 15.2: after a rebuild reconciles a protected trade, no imported
+    execution should be left with ``trade_id IS NULL`` for the account.
+
+    Regression coverage for the orphaned-execution defect (D8): before the
+    reconcile-before-skip fix, the new closing leg landed unlinked.
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    symbol, conid, tx_prefix = "PROT002", "700002", "PR2"
+
+    await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=False),
+    )
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    items = trades_resp.json()["data"]["items"]
+    assert items
+    protected_trade_id = items[0]["id"]
+
+    patch_resp = await client.patch(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
+        headers=headers,
+        json={"journal": "zero-orphan-check"},
+    )
+    assert patch_resp.status_code == 200, patch_resp.text
+
+    await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
+    )
+
+    result = await db_session.execute(
+        text(
+            "SELECT COUNT(*) FROM logical_executions "
+            "WHERE origin='imported' AND deleted=false AND trade_id IS NULL "
+            "AND account_id = :account_id"
+        ),
+        {"account_id": uuid.UUID(account_id)},
+    )
+    assert result.scalar() == 0
 
 
 def _make_split_and_open_combo_xml(trade_count: int) -> bytes:
@@ -485,6 +716,166 @@ async def test_combo_split_close_preserves_option_fields_on_split_children(
             assert execution["strike"] in ("620.00000000", "640.00000000"), execution
             assert execution["expiry"] == "2026-07-31", execution
             assert execution["open_close"] in ("O", "C"), execution
+
+
+@pytest.mark.integration
+async def test_reset_to_broker_state_hard_deletes_and_releases_guard(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Task 15.6 (D11): ``DELETE .../executions/{id}?reset=true`` on an
+    imported leg returns 204, physically removes the ``LogicalExecution``
+    row, and releases the linked ``BrokerRawTransaction.suppressed`` guard.
+
+    Re-materialisation on a subsequent plain re-import (the third THEN of
+    the "Reset re-materialises the broker leg on next import" scenario) is
+    covered separately by
+    ``test_reset_then_plain_reimport_rematerialises_the_execution`` below.
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    symbol, conid, tx_prefix = "RST001", "700003", "RS"
+    xml_content = _make_single_leg_xml(symbol, conid, tx_prefix, include_close=False)
+
+    first_import = await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+    assert int(first_import["raw_transactions_created"]) == 1
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    trade_id = trades_resp.json()["data"]["items"][0]["id"]
+
+    ex_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+        headers=headers,
+    )
+    assert ex_resp.status_code == 200, ex_resp.text
+    execution_id = ex_resp.json()["data"][0]["id"]
+
+    delete_resp = await client.delete(
+        f"/api/v1/portfolios/{portfolio_id}/executions/{execution_id}?reset=true",
+        headers=headers,
+    )
+    assert delete_resp.status_code == 204, delete_resp.text
+
+    remaining = await db_session.execute(
+        text("SELECT COUNT(*) FROM logical_executions WHERE id = :id"),
+        {"id": uuid.UUID(execution_id)},
+    )
+    assert remaining.scalar() == 0
+
+    suppressed_after_reset = await db_session.execute(
+        text("SELECT suppressed FROM broker_raw_transactions WHERE id LIKE :pat"),
+        {"pat": f"%{tx_prefix}E1"},
+    )
+    assert suppressed_after_reset.scalar() is False
+
+
+@pytest.mark.integration
+async def test_reset_then_plain_reimport_rematerialises_the_execution(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Task 15.6 (D11): a plain re-import after reset recreates the
+    execution/trade from the (still-present, now un-suppressed) broker raw
+    transaction — the "Reset re-materialises the broker leg on next import"
+    spec scenario.
+
+    Regression coverage: ``bulk_upsert`` uses ``ON CONFLICT (id) DO
+    NOTHING``, so a raw row released by reset is never reported as "newly
+    inserted" on a plain re-import. ``ImportService`` additionally checks
+    ``BrokerRawTransactionRepository.list_released_without_execution`` for
+    un-suppressed rows with no active/any execution and materialises those
+    too, so the zero-insert guard (D5) does not wrongly skip the rebuild.
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    symbol, conid, tx_prefix = "RST002", "700004", "RS2"
+    xml_content = _make_single_leg_xml(symbol, conid, tx_prefix, include_close=False)
+
+    await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    trade_id = trades_resp.json()["data"]["items"][0]["id"]
+    ex_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+        headers=headers,
+    )
+    execution_id = ex_resp.json()["data"][0]["id"]
+
+    delete_resp = await client.delete(
+        f"/api/v1/portfolios/{portfolio_id}/executions/{execution_id}?reset=true",
+        headers=headers,
+    )
+    assert delete_resp.status_code == 204, delete_resp.text
+
+    # raw_transactions_created stays 0 — the raw row was never removed, only
+    # released — but the execution/trade must still re-materialise.
+    second_import = await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+    assert int(second_import["raw_transactions_created"]) == 0
+
+    trades_resp_2 = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    rematerialised = trades_resp_2.json()["data"]["items"]
+    assert any(trade["symbol"] == symbol for trade in rematerialised)
+
+    suppressed_after_reimport = await db_session.execute(
+        text("SELECT suppressed FROM broker_raw_transactions WHERE id LIKE :pat"),
+        {"pat": f"%{tx_prefix}E1"},
+    )
+    assert suppressed_after_reimport.scalar() is False
+
+
+@pytest.mark.integration
+async def test_default_delete_on_imported_execution_remains_soft_delete(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Task 15.6 (D11): default DELETE on imported legs remains soft-delete.
+
+    This guards the non-reset contract: without ``?reset=true``, imported
+    executions must remain in-place with ``deleted=true`` (not physically
+    removed), preserving explicit user suppression intent.
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    symbol, conid, tx_prefix = "RST003", "700005", "RS3"
+    xml_content = _make_single_leg_xml(symbol, conid, tx_prefix, include_close=False)
+
+    await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    trade_id = trades_resp.json()["data"]["items"][0]["id"]
+    ex_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+        headers=headers,
+    )
+    execution_id = ex_resp.json()["data"][0]["id"]
+
+    delete_resp = await client.delete(
+        f"/api/v1/portfolios/{portfolio_id}/executions/{execution_id}",
+        headers=headers,
+    )
+    assert delete_resp.status_code == 200, delete_resp.text
+    assert delete_resp.json()["data"]["deleted"] is True
+
+    remaining = await db_session.execute(
+        text("SELECT COUNT(*) FROM logical_executions WHERE id = :id"),
+        {"id": uuid.UUID(execution_id)},
+    )
+    assert remaining.scalar() == 1
+
+    # Default imported-delete keeps the BRT row untouched (no forced release).
+    # The fixture's initial import path may leave it suppressed either way
+    # depending on prior state, but it must remain present.
+    raw_row_exists = await db_session.execute(
+        text("SELECT COUNT(*) FROM broker_raw_transactions WHERE id LIKE :pat"),
+        {"pat": f"%{tx_prefix}E1"},
+    )
+    assert raw_row_exists.scalar() == 1
 
 
 @pytest.mark.integration

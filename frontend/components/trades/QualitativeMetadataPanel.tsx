@@ -47,7 +47,13 @@ function buildAnnotationDraft(trade: Trade): Record<string, string | number | bo
   const draft: Record<string, string | number | boolean> = {};
   for (const annotation of trade.annotations ?? []) {
     if (annotation.value === null || annotation.value === undefined) continue;
-    draft[annotation.annotation_definition_id] = annotation.value;
+    
+    let val = annotation.value;
+    if (typeof val === "string" && (annotation.type === "float" || annotation.type === "int")) {
+      val = Number(val);
+    }
+    
+    draft[annotation.annotation_definition_id] = val as string | number | boolean;
   }
   return draft;
 }

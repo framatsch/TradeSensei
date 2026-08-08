@@ -22,6 +22,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NoteNotFoundError
+from app.repositories.execution import ExecutionRepository
 from app.repositories.note_repository import NoteRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.note import TradeNoteCreate, TradeNoteRead, TradeNoteUpdate
@@ -45,6 +46,7 @@ class NoteService:
                 request.
         """
         self._repo = NoteRepository(session)
+        self._execution_repo = ExecutionRepository(session)
 
     async def list_notes(
         self,
@@ -81,6 +83,7 @@ class NoteService:
         """
         note = await self._repo.create(data, trade_id, user_id)
         await TradeRepository(self._repo._session).mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)
         return TradeNoteRead.model_validate(note)
 
     async def update_note(
@@ -110,6 +113,7 @@ class NoteService:
             raise NoteNotFoundError(f"Note {note_id} not found.")
         updated = await self._repo.update(note, data)
         await TradeRepository(self._repo._session).mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)
         return TradeNoteRead.model_validate(updated)
 
     async def delete_note(
@@ -134,3 +138,4 @@ class NoteService:
             raise NoteNotFoundError(f"Note {note_id} not found.")
         await self._repo.delete(note)
         await TradeRepository(self._repo._session).mark_manually_edited(trade_id, user_id)
+        await self._execution_repo.mark_user_modified_for_trade(trade_id)

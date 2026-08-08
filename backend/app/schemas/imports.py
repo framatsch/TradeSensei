@@ -86,6 +86,11 @@ class ImportResult(BaseModel):
         raw_deleted_skipped: Number of BrokerRawTransaction records skipped
             because their linked execution has ``deleted=True`` (user intent
             preserved — execution was previously deleted by the user).
+        trades_protected_reconciled: Number of metadata-protected trades
+            (``is_manually_edited=True``) that absorbed new executions
+            during this import instead of being skipped.
+        trades_protected_skipped: Number of metadata-protected positions
+            skipped because no existing trade could be resolved for them.
         warnings: Human-readable descriptions of each skipped row.
     """
 
@@ -138,6 +143,27 @@ class ImportResult(BaseModel):
             "Number of raw broker transactions skipped because their linked "
             "execution was previously deleted by the user (``deleted=True``). "
             "Re-import will not recreate these executions."
+        ),
+        examples=[0, 1],
+    )
+    trades_protected_reconciled: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Number of metadata-protected trades (``is_manually_edited=True``) "
+            "that absorbed new incoming executions during this import (linked "
+            "and, if applicable, closed) instead of being skipped. Structural "
+            "fields are updated; user metadata is never touched."
+        ),
+        examples=[0, 1],
+    )
+    trades_protected_skipped: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Number of metadata-protected positions skipped during this import "
+            "because no existing trade could be resolved to reconcile them "
+            "onto. See ``warnings`` for the affected symbol/date."
         ),
         examples=[0, 1],
     )

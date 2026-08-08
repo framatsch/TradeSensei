@@ -800,6 +800,10 @@ export type BodyListTradesApiV1PortfoliosPortfolioIdTradesGet = {
      * Annotation Filters
      */
     annotation_filters?: Array<AnnotationFilterItem> | null;
+    /**
+     * Execution State
+     */
+    execution_state?: Array<'manual' | 'edited' | 'imported'> | null;
 };
 
 /**
@@ -1090,6 +1094,24 @@ export type BrokerSyncResult = {
      * Error messages for any orders that could not be processed.
      */
     errors?: Array<string>;
+    /**
+     * Warnings
+     *
+     * Informational or warning messages.
+     */
+    warnings?: Array<string>;
+    /**
+     * Trades Protected Reconciled
+     *
+     * Number of metadata-protected trades that absorbed new executions.
+     */
+    trades_protected_reconciled?: number;
+    /**
+     * Trades Protected Skipped
+     *
+     * Number of metadata-protected positions skipped.
+     */
+    trades_protected_skipped?: number;
 };
 
 /**
@@ -2014,6 +2036,11 @@ export type HttpValidationError = {
  * raw_deleted_skipped: Number of BrokerRawTransaction records skipped
  * because their linked execution has ``deleted=True`` (user intent
  * preserved — execution was previously deleted by the user).
+ * trades_protected_reconciled: Number of metadata-protected trades
+ * (``is_manually_edited=True``) that absorbed new executions
+ * during this import instead of being skipped.
+ * trades_protected_skipped: Number of metadata-protected positions
+ * skipped because no existing trade could be resolved for them.
  * warnings: Human-readable descriptions of each skipped row.
  */
 export type ImportResult = {
@@ -2065,6 +2092,18 @@ export type ImportResult = {
      * Number of raw broker transactions skipped because their linked execution was previously deleted by the user (``deleted=True``). Re-import will not recreate these executions.
      */
     raw_deleted_skipped?: number;
+    /**
+     * Trades Protected Reconciled
+     *
+     * Number of metadata-protected trades (``is_manually_edited=True``) that absorbed new incoming executions during this import (linked and, if applicable, closed) instead of being skipped. Structural fields are updated; user metadata is never touched.
+     */
+    trades_protected_reconciled?: number;
+    /**
+     * Trades Protected Skipped
+     *
+     * Number of metadata-protected positions skipped during this import because no existing trade could be resolved to reconcile them onto. See ``warnings`` for the affected symbol/date.
+     */
+    trades_protected_skipped?: number;
     /**
      * Warnings
      *
@@ -2316,6 +2355,10 @@ export type LogicalExecutionRead = {
  * service when patching an imported execution.
  */
 export type LogicalExecutionUpdate = {
+    /**
+     * Symbol
+     */
+    symbol?: string | null;
     direction?: Direction | null;
     /**
      * Quantity
@@ -7882,7 +7925,14 @@ export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDelete
          */
         execution_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Reset
+         *
+         * When true and the execution's origin is 'imported', hard-delete the leg and release its BrokerRawTransaction's suppressed guard ('reset to broker state') instead of soft-deleting. Ignored for other origins.
+         */
+        reset?: boolean;
+    };
     url: '/api/v1/portfolios/{portfolio_id}/executions/{execution_id}';
 };
 
@@ -7909,7 +7959,7 @@ export type DeleteExecutionApiV1PortfoliosPortfolioIdExecutionsExecutionIdDelete
      */
     200: ResponseEnvelopeLogicalExecutionRead;
     /**
-     * Hard-deleted (manual execution)
+     * Hard-deleted (manual execution, or imported execution with reset=true)
      */
     204: void;
 };
@@ -8393,6 +8443,12 @@ export type ListTradesApiV1PortfoliosPortfolioIdTradesGetData = {
          */
         annotation_filters?: string | null;
         /**
+         * Execution State
+         *
+         * Repeatable execution state filter values: manual, edited, imported.
+         */
+        execution_state?: Array<'manual' | 'edited' | 'imported'> | null;
+        /**
          * Direction
          */
         direction?: Direction | null;
@@ -8408,6 +8464,10 @@ export type ListTradesApiV1PortfoliosPortfolioIdTradesGetData = {
          * Position Id
          */
         position_id?: string | null;
+        /**
+         * Is Combo
+         */
+        is_combo?: boolean | null;
         /**
          * Opened At From
          */

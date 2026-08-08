@@ -1,0 +1,356 @@
+## ADDED Requirements
+
+### Requirement: Trade metadata mutation marks protection
+
+The system SHALL mark a trade and its executions as user-protected whenever the trade acquires or changes any user-supplied metadata. The protected metadata signals are the trade columns `journal`, `user_rating`, `image_urls`, `tradingview_link`, and `playbook_id`, plus the related collections `trade_notes`, `trade_taxonomies` (tags), and `trade_annotations`. When `PATCH /api/v1/trades/{id}` mutates any of the listed columns, the operation SHALL set `Trade.is_manually_edited = True` AND set `LogicalExecution.user_modified = True` on every non-deleted execution linked to that trade. The screenshot add/remove flow, which routes through the same trade-update path, SHALL be covered by this rule. The existing note, tag, and annotation assignment endpoints SHALL continue to mark `Trade.is_manually_edited = True` and SHALL additionally set `user_modified = True` on the trade's non-deleted executions.
+
+#### Scenario: Adding a journal marks the trade and its executions
+
+- **GIVEN** an imported trade `T` with `is_manually_edited=false` and legs all `user_modified=false`
+- **WHEN** the user patches `T` with a non-empty `journal`
+- **THEN** `T.is_manually_edited` SHALL become `true`
+- **THEN** every non-deleted leg of `T` SHALL have `user_modified=true`
+
+#### Scenario: Uploading a screenshot marks protection
+
+- **WHEN** the user adds a screenshot to trade `T` (mutating `image_urls`)
+- **THEN** `T.is_manually_edited` SHALL become `true`
+- **THEN** every non-deleted leg of `T` SHALL have `user_modified=true`
+
+#### Scenario: Setting a rating or tradingview link marks protection
+
+- **WHEN** the user patches `T` with `user_rating` or `tradingview_link`
+- **THEN** `T.is_manually_edited` SHALL become `true`
+- **THEN** every non-deleted leg of `T` SHALL have `user_modified=true`
+
+#### Scenario: Assigning a playbook marks protection
+
+- **WHEN** the user patches `T` with a `playbook_id`
+- **THEN** `T.is_manually_edited` SHALL become `true`
+- **THEN** every non-deleted leg of `T` SHALL have `user_modified=true`
+
+#### Scenario: Assigning a tag marks execution-level protection
+
+- **WHEN** the user assigns a taxonomy (tag) to trade `T`
+- **THEN** `T.is_manually_edited` SHALL become `true`
+- **THEN** every non-deleted leg of `T` SHALL have `user_modified=true`
+
+#### Scenario: A trade with metadata survives re-import
+
+- **GIVEN** a trade `T` protected by any metadata signal
+- **WHEN** a broker re-import rebuilds the account projection with `overwrite_manually_edited=false`
+- **THEN** `T` SHALL NOT be deleted
+- **THEN** `T`'s metadata (journal, rating, screenshots, tradingview link, playbook, notes, tags, annotations) SHALL remain unchanged
+
+#### Scenario: Non-metadata patch does not mark protection
+
+- **WHEN** the user patches only re-aggregation fields (e.g. `direction`) with no metadata field present
+- **THEN** the metadata-marking rule SHALL NOT apply from this requirement (behaviour of those fields is unchanged)
+
+---
+
+### Requirement: Legacy metadata protection backfill migration
+
+The change SHALL provide an Alembic data-migration (no schema change) that retroactively protects trades edited before this protection shipped. The migration SHALL set `Trade.is_manually_edited = True` for every trade that carries any metadata signal: `journal IS NOT NULL AND journal <> ''`, `user_rating IS NOT NULL`, `image_urls <> '[]'`, `tradingview_link IS NOT NULL`, `playbook_id IS NOT NULL`, or the existence of at least one related `trade_notes`, `trade_taxonomies`, or `trade_annotations` row. For every trade so marked, the migration SHALL set `LogicalExecution.user_modified = True` on all of that trade's non-deleted executions. The migration SHALL additionally set `user_modified = True` on any `origin='imported'` execution whose `price`, `quantity`, or `commission` differs (beyond a Decimal tolerance) from its linked `BrokerRawTransaction` (matched via `source_id`); `symbol` differences SHALL be ignored because corporate-action remaps legitimately change the symbol. The migration SHALL NOT mark `origin` values `split`, `merged`, or `manual` en masse. The downgrade SHALL be a no-op (the backfilled boolean values are not reverted, since the pre-migration state is unrecoverable and reverting would re-expose the data-loss path).
+
+#### Scenario: Legacy trade with a journal is backfilled
+
+- **GIVEN** a trade `T` with a non-empty `journal`, `is_manually_edited=false`, and legs `user_modified=false`, created before this change
+- **WHEN** the migration runs
+- **THEN** `T.is_manually_edited` SHALL become `true`
+- **THEN** every non-deleted leg of `T` SHALL have `user_modified=true`
+
+#### Scenario: Legacy trade with only notes is backfilled
+
+- **GIVEN** a trade `T` with at least one `trade_notes` row and no other metadata
+- **WHEN** the migration runs
+- **THEN** `T.is_manually_edited` SHALL become `true`
+- **THEN** every non-deleted leg of `T` SHALL have `user_modified=true`
+
+#### Scenario: Divergent imported leg is backfilled
+
+- **GIVEN** an `origin='imported'` execution `E` with `source_id='R'` whose `price` differs from `BrokerRawTransaction R.price` beyond tolerance
+- **WHEN** the migration runs
+- **THEN** `E.user_modified` SHALL become `true`
+
+#### Scenario: Symbol-only divergence is not treated as an edit
+
+- **GIVEN** an `origin='imported'` execution `E` whose `symbol` differs from its BRT (corporate-action remap) but whose `price`, `quantity`, and `commission` match
+- **WHEN** the migration runs
+- **THEN** `E.user_modified` SHALL remain `false` (unless another rule marks it)
+
+#### Scenario: Clean imported trade is not marked
+
+- **GIVEN** a trade `T` with no metadata and legs matching their BRTs exactly
+- **WHEN** the migration runs
+- **THEN** `T.is_manually_edited` SHALL remain `false`
+- **THEN** its legs SHALL remain `user_modified=false`
+
+---
+
+### Requirement: Import guard clause on zero inserts
+
+When a raw-pipeline import inserts exactly zero new `BrokerRawTransaction` rows and the request's `overwrite_manually_edited` flag is `false`, the import SHALL skip the split-child purge (`delete_split_children_for_account`), the parent restore (`restore_split_parents_for_account`), and the full trade-projection rebuild. The import SHALL still complete successfully and report `raw_transactions_created = 0`. When `overwrite_manually_edited` is `true`, the rebuild SHALL run even on zero inserts (preserving the explicit reset semantics of the override).
+
+#### Scenario: Re-uploading an already-imported file is a no-op rebuild
+
+- **GIVEN** an account whose broker file has already been imported
+- **WHEN** the same file is re-uploaded with `overwrite_manually_edited=false` and yields zero new raw rows
+- **THEN** the split purge, parent restore, and projection rebuild SHALL NOT run
+- **THEN** all existing trades and their metadata SHALL remain unchanged
+- **THEN** the import response SHALL report `raw_transactions_created=0`
+
+#### Scenario: Override forces rebuild even with zero inserts
+
+- **WHEN** a zero-insert import runs with `overwrite_manually_edited=true`
+- **THEN** the split purge and projection rebuild SHALL run
+- **THEN** user-modified rows SHALL be subject to the override as defined by "Overwrite user modifications override"
+
+#### Scenario: Non-zero inserts run the rebuild as before
+
+- **WHEN** an import inserts one or more new raw rows
+- **THEN** the split purge, parent restore, and rebuild SHALL run as today
+
+---
+
+### Requirement: Execution symbol change re-aggregates both chains
+
+When `PATCH /api/v1/executions/{id}` changes an execution's `symbol`, the service SHALL read the previous `symbol` before applying the update and SHALL re-aggregate the FIFO chain for both the old and the new symbol so that the old-symbol trade is corrected (or emptied) and the new-symbol trade reflects the moved leg. A patch that does not change `symbol` SHALL re-aggregate only the affected trade as today.
+
+#### Scenario: Symbol change cleans the old chain and builds the new one
+
+- **GIVEN** an execution `E` on trade `T_old` with `symbol='AAA'`
+- **WHEN** the user patches `E.symbol` to `'BBB'`
+- **THEN** `E.user_modified` SHALL become `true` (per the existing marker rule)
+- **THEN** re-aggregation SHALL run for the `'AAA'` trade chain so `T_old` reflects the removed leg
+- **THEN** re-aggregation SHALL run for the `'BBB'` trade chain so the moved leg is correctly incorporated
+
+#### Scenario: Non-symbol patch re-aggregates only the affected trade
+
+- **WHEN** the user patches `E.price` without changing `symbol`
+- **THEN** only `E`'s current trade SHALL be re-aggregated
+
+---
+
+### Requirement: Trade list filter by execution state
+
+`GET /api/v1/trades` SHALL accept an optional repeatable query parameter `execution_state` whose values are drawn from `manual`, `edited`, and `imported`. The filter SHALL be implemented with `EXISTS` subqueries against `logical_executions`. A trade SHALL be returned when at least one of its non-deleted executions matches at least one requested state (OR semantics across the provided values). The state predicates are: `manual` → an execution with `origin='manual'`; `edited` → an execution with `user_modified=True`; `imported` → an execution with `origin='imported'` and `user_modified=False`. When `execution_state` is omitted, the trade list SHALL be unfiltered by execution state.
+
+#### Scenario: Filter by edited returns trades with a user-modified leg
+
+- **GIVEN** trades `T1` (has a `user_modified=true` leg) and `T2` (all legs `user_modified=false`)
+- **WHEN** the client requests `GET /api/v1/trades?execution_state=edited`
+- **THEN** the response SHALL include `T1`
+- **THEN** the response SHALL NOT include `T2`
+
+#### Scenario: Filter by manual returns trades with a manual leg
+
+- **WHEN** the client requests `GET /api/v1/trades?execution_state=manual`
+- **THEN** only trades with at least one `origin='manual'` leg SHALL be returned
+
+#### Scenario: Filter by imported returns trades with an unmodified imported leg
+
+- **WHEN** the client requests `GET /api/v1/trades?execution_state=imported`
+- **THEN** only trades with at least one `origin='imported'` and `user_modified=false` leg SHALL be returned
+
+#### Scenario: Multiple states use OR semantics
+
+- **WHEN** the client requests `GET /api/v1/trades?execution_state=manual&execution_state=edited`
+- **THEN** a trade SHALL be returned if it has a manual leg OR an edited leg
+
+#### Scenario: Omitting the parameter does not filter by state
+
+- **WHEN** the client requests `GET /api/v1/trades` with no `execution_state`
+- **THEN** the execution-state filter SHALL NOT restrict the result set
+
+---
+
+### Requirement: Trade table UI exposes the execution-state filter
+
+The trades list filter panel (`TradeFilterBar`) SHALL provide a control for the execution-state filter with the selectable values `Manual`, `Edited`, and `Imported`, allowing zero or more to be active at once (multi-select). The selected values SHALL be carried on the client `TradeFilters` object as `execution_state`, sent to `GET /api/v1/trades` by the trades query hook, serialized to and read from the URL query string for shareable/saved views, counted in the active-filter badge, and cleared by "Clear Filters". When no value is selected, the client SHALL omit the parameter.
+
+#### Scenario: Selecting a state filters the table
+
+- **WHEN** the user activates the `Edited` value in the trade filter panel
+- **THEN** the trades query SHALL send `execution_state=edited`
+- **THEN** the table SHALL show only trades with at least one edited leg
+
+#### Scenario: Multiple selected states are sent together
+
+- **WHEN** the user activates both `Manual` and `Edited`
+- **THEN** the trades query SHALL send both values
+- **THEN** the table SHALL show trades matching either state (OR semantics)
+
+#### Scenario: The filter round-trips through the URL
+
+- **WHEN** the user selects `Imported` and reloads the page (or opens a saved view carrying the value)
+- **THEN** the `Imported` value SHALL be restored as active in the filter panel
+- **THEN** the table SHALL reflect the filter
+
+#### Scenario: Active-filter badge and clear
+
+- **WHEN** at least one execution-state value is active
+- **THEN** the filter badge count SHALL include the execution-state filter
+- **WHEN** the user clicks "Clear Filters"
+- **THEN** the execution-state selection SHALL be cleared and the parameter omitted
+
+## MODIFIED Requirements
+
+### Requirement: Trade rebuild preserves user-modified executions
+The raw-pipeline trade rebuild SHALL NOT delete trades whose only remaining execution legs are all `user_modified=True`, and SHALL NOT reassign a `user_modified=True` leg to a different trade during re-aggregation. This protection is independent of `Trade.is_manually_edited`. In addition, the rebuild SHALL NOT delete any trade whose `is_manually_edited=True`, so that trades protected solely by user-supplied metadata (journal, rating, screenshots, tradingview link, playbook, notes, tags, annotations) survive the rebuild even if their legs are not individually `user_modified`.
+
+#### Scenario: Trade backed by a user-modified leg survives the rebuild
+- **GIVEN** trade `T` whose only leg `E1a` has `user_modified=true` and `is_manually_edited=false` on `T`
+- **WHEN** the raw-pipeline import calls `delete_by_user_account` before re-aggregation
+- **THEN** `T` SHALL NOT be deleted
+- **THEN** `E1a` SHALL keep `trade_id=T`
+- **THEN** trade-level metadata (playbook, tags, notes) SHALL remain unchanged
+
+#### Scenario: Trade protected by metadata alone survives the rebuild
+- **GIVEN** trade `T` with `is_manually_edited=true` (set by a metadata mutation) whose legs are all `user_modified=false`
+- **WHEN** the raw-pipeline import calls `delete_by_user_account` with `overwrite_manually_edited=false`
+- **THEN** `T` SHALL NOT be deleted
+- **THEN** `T`'s metadata SHALL remain unchanged
+
+#### Scenario: Aggregated fields recompute from protected legs
+- **WHEN** re-aggregation runs over a trade whose legs mix `user_modified=true` and `user_modified=false` rows
+- **THEN** the trade's cached fields (`pnl`, `entry_price`, `quantity`, etc.) SHALL reflect the current leg values
+ - **THEN** no `user_modified=true` leg SHALL be mutated during re-aggregation
+
+## ADDED Requirements
+
+### Requirement: Import reconciles new executions onto metadata-protected trades
+
+During a raw-pipeline re-import, when a newly aggregated position corresponds to a trade the user has metadata-protected (`is_manually_edited=true`), the system SHALL reconcile the incoming executions onto that existing trade rather than skipping the position. The system SHALL resolve the existing trade BEFORE honoring any protection skip, apply only structural (non-metadata) field updates via an `exclude_unset` update, and link every newly inserted `LogicalExecution` to the existing trade's `id`. User metadata columns (`journal`, `user_rating`, `image_urls`, `tradingview_link`, `playbook_id`) and related rows (`trade_notes`, `trade_taxonomies`, `trade_annotations`) SHALL remain unchanged. A protection skip SHALL occur only when no existing trade resolves for the protected key.
+
+#### Scenario: New closing execution links to a metadata-protected open trade
+
+- **GIVEN** an open, metadata-protected trade `T` (`is_manually_edited=true`) with one linked entry execution
+- **WHEN** a re-import brings a new closing `LogicalExecution` for `T`'s instrument that FIFO-matches `T`
+- **THEN** the new execution SHALL be linked to `T` (`trade_id = T.id`, not `NULL`)
+- **THEN** `T` SHALL become closed with recomputed `exit_price`/`closed_at`/`pnl`
+- **THEN** `T`'s journal, rating, screenshots, tags, annotations, and notes SHALL remain unchanged
+
+#### Scenario: Import never produces an orphaned imported execution
+
+- **WHEN** a raw-pipeline import completes for an account
+- **THEN** no `LogicalExecution` with `origin='imported'`, `deleted=false`, and `trade_id IS NULL` SHALL remain for that account as a result of protection skipping
+
+#### Scenario: Protected key without a backing trade is skipped defensively
+
+- **GIVEN** a protected key that resolves to no existing trade in the account
+- **WHEN** the rebuild processes that position
+- **THEN** the system SHALL skip it and count it as a protection skip
+- **THEN** the system SHALL NOT create a new unprotected trade row for it
+
+---
+
+### Requirement: Trade cross-import identity uses a stable execution anchor
+
+The system SHALL identify a trade across re-imports by its anchor execution — the chronologically-first non-deleted `LogicalExecution` linked to the trade (earliest `executed_at`, ties broken deterministically by execution `id`) — instead of the `(broker_conid, opened_at)` match-key. On rebuild, a newly computed trade whose anchor execution already backs an existing DB trade SHALL inherit that trade's `id`, preserving all related metadata. The anchor MAY be derived from existing data and SHALL NOT require a schema change.
+
+#### Scenario: Trade identity survives FIFO re-slicing
+
+- **GIVEN** a metadata-protected trade `T` whose entry leg is execution `E`
+- **WHEN** a re-import re-aggregates `T`'s history into differently-sliced trades
+- **THEN** the trade anchored by `E` SHALL inherit `T`'s `id`
+- **THEN** `T`'s metadata SHALL remain attached to that trade
+
+#### Scenario: Identity is stable when opened_at shifts
+
+- **GIVEN** a trade `T` whose recomputed `opened_at` differs from the prior import (e.g. timestamp normalization)
+- **WHEN** the rebuild resolves identity by anchor execution rather than `(broker_conid, opened_at)`
+- **THEN** `T` SHALL still be recognized as the same trade and retain its metadata
+
+#### Scenario: Deterministic tie-break for simultaneous fills
+
+- **GIVEN** two entry executions with identical `executed_at`
+- **WHEN** the anchor is derived
+- **THEN** the anchor SHALL be selected deterministically by execution `id`
+
+---
+
+### Requirement: Metadata carries forward when the anchor execution is removed
+
+When a rebuilt trade's prior anchor execution is no longer present in the active (non-deleted) set, the system SHALL transfer the old trade's metadata (columns `journal`, `user_rating`, `image_urls`, `tradingview_link`, `playbook_id`, and related `trade_notes`, `trade_taxonomies`, `trade_annotations` rows) to the trade anchored by the next-oldest surviving execution of that history, BEFORE the old trade row is deleted by the projection rebuild.
+
+#### Scenario: Metadata follows the surviving execution history
+
+- **GIVEN** a protected trade `T` with anchor execution `E1` and a later execution `E2`, and metadata attached to `T`
+- **WHEN** `E1` is removed and a re-import re-anchors the history on `E2`
+- **THEN** `T`'s metadata SHALL be transferred to the trade anchored by `E2` before `T` is deleted
+- **THEN** no metadata SHALL be lost
+
+#### Scenario: No carry-forward when the anchor persists
+
+- **GIVEN** a protected trade whose anchor execution remains in the active set
+- **WHEN** the rebuild runs
+- **THEN** identity SHALL be inherited directly (per the anchor-identity requirement) and no carry-forward transfer SHALL occur
+
+---
+
+### Requirement: Import result reports protection-driven outcomes
+
+`ImportResult` SHALL report the number of trades reconciled because they were metadata-protected and the number of protected positions skipped, and SHALL include a human-readable warning identifying each such trade (by symbol and date) so protection outcomes are never silent. These fields SHALL be additive and default such that existing clients are unaffected.
+
+#### Scenario: Reconciled protected trade is reported
+
+- **WHEN** an import links new executions onto a metadata-protected trade
+- **THEN** `ImportResult` SHALL increment the protected-reconciled count
+- **THEN** `ImportResult.warnings` SHALL include an entry naming the affected trade (symbol + date)
+
+#### Scenario: Skipped protected position is reported
+
+- **WHEN** an import skips a protected key with no backing trade
+- **THEN** `ImportResult` SHALL increment the protected-skipped count
+- **THEN** the outcome SHALL be visible in the result rather than surfacing as an unexplained `trades_created = 0`
+
+---
+
+### Requirement: Hard-delete reset of an imported execution releases the re-import guard
+
+The system SHALL provide an explicit "reset to broker state" hard-delete for `origin='imported'` executions, distinct from the default soft-delete. When invoked, the system SHALL physically delete the `LogicalExecution` and, in the same atomic transaction, clear the re-import guard on the linked `BrokerRawTransaction` (`suppressed=False`) so the execution re-materialises unmodified on the next import. The default `DELETE` behaviour (soft-delete for imported legs) SHALL be unchanged when the reset intent is not supplied. The operation SHALL emit an audit event including the released source identifier.
+
+#### Scenario: Reset re-materialises the broker leg on next import
+
+- **GIVEN** an `imported` execution `E` linked to `BrokerRawTransaction` `R`
+- **WHEN** the user invokes reset-to-broker-state on `E`
+- **THEN** `E` SHALL be physically removed
+- **THEN** `R.suppressed` SHALL become `false`
+- **THEN** a subsequent import of the same broker data SHALL recreate `E` from `R`
+
+#### Scenario: Default delete still soft-deletes an imported leg
+
+- **WHEN** the user deletes an `imported` execution without the reset intent
+- **THEN** the execution SHALL be soft-deleted (`deleted=true`), unchanged from prior behaviour
+- **THEN** the linked raw transaction guard SHALL NOT be released
+
+#### Scenario: Reset is audit-logged
+
+- **WHEN** a reset-to-broker-state hard-delete succeeds
+- **THEN** an audit event SHALL be recorded including the released source identifier
+
+---
+
+### Requirement: Orphaned imported executions are repaired by data migration
+
+The change SHALL provide an idempotent, data-only Alembic migration that repairs already-orphaned imported executions (`origin='imported'`, `deleted=false`, `trade_id IS NULL`). For each orphan, the migration SHALL resolve the owning open trade by matching `user_id`, `account_id`, `symbol`, complementary direction, and `quantity` against open trades, link the execution's `trade_id`, and recompute the trade's `exit_price`, `closed_at`, `pnl`, `net_pnl`, and `commission` from its now-complete leg set. When zero or more than one candidate trade matches, the migration SHALL skip the orphan and log it rather than guess. The downgrade SHALL be a no-op.
+
+#### Scenario: Stuck closing execution is linked and its trade closed
+
+- **GIVEN** an orphaned imported closing execution whose complementary open trade uniquely matches on `(user, account, symbol, direction, quantity)`
+- **WHEN** the migration runs
+- **THEN** the execution SHALL be linked to that trade
+- **THEN** the trade SHALL be recomputed as closed with the correct `exit_price`/`closed_at`/`pnl`
+
+#### Scenario: Ambiguous or unmatched orphan is skipped, not guessed
+
+- **GIVEN** an orphaned execution with zero or multiple candidate trades
+- **WHEN** the migration runs
+- **THEN** the execution SHALL be left unchanged
+- **THEN** the migration SHALL log the skipped orphan
+
+#### Scenario: Migration is idempotent
+
+- **WHEN** the migration is run more than once
+- **THEN** already-linked executions SHALL be unaffected and no duplicate links or recomputations SHALL occur

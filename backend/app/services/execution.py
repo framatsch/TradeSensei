@@ -231,6 +231,8 @@ class ExecutionService:
                 raise ExecutionNotFoundError("Execution not found.")
 
         update_data = data.model_dump(exclude_unset=True)
+        old_symbol = execution.symbol
+        source_trade_id = execution.trade_id
 
         # Execution-overwrite-protection: mark PATCHes on all editable origins
         # (imported | split | merged) so the import pipeline preserves them.
@@ -246,6 +248,11 @@ class ExecutionService:
         execution = await self.execution_repo.update(execution, **update_data)
         if execution.trade_id:
             await self._re_aggregate_trade(execution.trade_id, user_id)
+        if update_data.get("symbol") is not None and update_data["symbol"] != old_symbol and execution.account_id is not None:
+            account_trades = await self.trade_repo.list_by_user_account(user_id, execution.account_id)
+            old_symbol_trade_ids = [trade.id for trade in account_trades if trade.symbol == old_symbol and trade.id != source_trade_id]
+            for old_trade_id in old_symbol_trade_ids:
+                await self._re_aggregate_trade(old_trade_id, user_id)
 
         await self.session.commit()
         return execution
@@ -255,11 +262,17 @@ class ExecutionService:
         execution_id: uuid.UUID,
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
+        reset: bool = False,
     ) -> LogicalExecution | None:
         """Delete an execution following Decision 4 rules.
 
         - ``imported|merged|split`` → soft-delete (``deleted=True``), return execution
         - ``manual`` → hard-delete (row removed), return None
+        - ``imported`` with ``reset=True`` → hard-delete + release the linked
+          ``BrokerRawTransaction`` guard (``suppressed=False``) so the leg
+          re-materialises unmodified on the next import ("reset to broker
+          state" — see ``execution-metadata-protection-hardening`` D11).
+          Returns None (→ 204 No Content).
         - Already soft-deleted → raise ExecutionValidationError (409)
 
         After delete, the parent trade is re-aggregated.
@@ -268,9 +281,15 @@ class ExecutionService:
             execution_id: Execution to delete.
             user_id: User ownership check.
             portfolio_id: Optional portfolio scope for ownership isolation.
+            reset: When ``True`` and the execution's ``origin`` is
+                ``imported``, hard-delete the leg and release its raw
+                transaction's ``suppressed`` guard instead of soft-deleting.
+                Ignored for other origins (default soft/hard-delete rules
+                apply unchanged).
 
         Returns:
-            The soft-deleted execution (for imported/merged/split), or None (manual).
+            The soft-deleted execution (for imported/merged/split without
+            reset), or None (manual hard-delete, or imported reset).
 
         Raises:
             ExecutionNotFoundError: If execution is not found or not owned by user.
@@ -293,6 +312,43 @@ class ExecutionService:
             raise ExecutionValidationError("Execution is already deleted. Use restore to undo.")
 
         trade_id = execution.trade_id
+
+        if execution.origin == EXECUTION_ORIGIN_IMPORTED and reset:
+            # D11: reset-to-broker-state — physical delete + release the
+            # BrokerRawTransaction guard in the same transaction so the leg
+            # re-materialises unmodified on the next import.
+            released_source_id = execution.source_id
+            await self.execution_repo.delete(execution_id)
+            if released_source_id is not None:
+                await self.raw_transaction_repo.set_suppressed(released_source_id, False)
+            if trade_id:
+                remaining = await self.execution_repo.list_by_trade_id(trade_id, include_deleted=False)
+                if not remaining:
+                    trade_to_delete = await self.trade_repo.get_by_id(
+                        trade_id,
+                        user_id,
+                        portfolio_id,
+                    )
+                    if trade_to_delete:
+                        await self.trade_repo.delete(trade_to_delete)
+                else:
+                    await self._re_aggregate_trade(trade_id, user_id)
+            self._audit.create_audit_event(
+                action="execution.deleted",
+                user_id=user_id,
+                email=None,
+                resource_type="execution",
+                resource_id=execution_id,
+                ip_address=None,
+                user_agent=None,
+                request_id=str(uuid.uuid4()),
+                status_code=204,
+                method="DELETE",
+                path="/executions",
+                metadata={"reset": True, **({"released_source_id": released_source_id} if released_source_id is not None else {})},
+            )
+            await self.session.commit()
+            return None
 
         if execution.origin == EXECUTION_ORIGIN_MANUAL:
             # Hard-delete: row removed, return None (→ 204 No Content).

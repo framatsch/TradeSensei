@@ -66,6 +66,7 @@ const EMPTY_FILTERS: TradeFilters = {
   hour_of_day: undefined,
   day_of_week: undefined,
   annotation_filters: [],
+  execution_state: [],
 };
 
 // ─── Date range helpers ───────────────────────────────────────────────────────
@@ -102,6 +103,15 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
 
   const hourRaw = params.get("hour_of_day");
   const dowRaw = params.get("day_of_week");
+  const executionStateRaw = params.get("execution_state");
+
+  const parsedExecutionStates = executionStateRaw
+    ? executionStateRaw
+        .split(",")
+        .filter((value): value is "manual" | "edited" | "imported" =>
+          value === "manual" || value === "edited" || value === "imported"
+        )
+    : undefined;
 
   return {
     symbols: params.get("symbols") ? params.get("symbols")!.split(",").filter(Boolean) : (params.get("symbol") ? params.get("symbol")!.split(",").filter(Boolean) : undefined),
@@ -123,6 +133,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     status: status === "all" ? null : status,
     hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
     day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
+    execution_state: parsedExecutionStates,
   };
 }
 
@@ -161,6 +172,7 @@ function filtersToParams(
   if (filters.day_of_week !== undefined && filters.day_of_week !== null) {
     p.set("day_of_week", String(filters.day_of_week));
   }
+  if (filters.execution_state?.length) p.set("execution_state", filters.execution_state.join(","));
   if (sort.sort_by) p.set("sort_by", sort.sort_by);
   if (sort.sort_dir) p.set("sort_dir", sort.sort_dir);
   if (limit !== 20) p.set("limit", String(limit));

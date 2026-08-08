@@ -23,6 +23,8 @@
 
 "use client";
 
+import { useState } from "react";
+import { Copy, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import type { ImportResult } from "@/lib/types";
 
 export type FileStatus = "pending" | "uploading" | "done" | "error";
@@ -94,54 +96,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
       {/* Per-file list */}
       <ul className="space-y-1.5">
         {files.map((qf, idx) => (
-          <li
-            key={idx}
-            className={[
-              "flex items-start gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
-              qf.status === "uploading"
-                ? "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] border-[color-mix(in_srgb,var(--primary)_20%,transparent)]"
-                : qf.status === "done"
-                ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]"
-                : qf.status === "error"
-                ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
-                : "bg-secondary border-border",
-            ].join(" ")}
-          >
-            <div className="mt-0.5">{STATUS_ICON[qf.status]}</div>
-
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-foreground truncate">
-                {qf.file.name}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatBytes(qf.file.size)}
-              </p>
-
-              {/* Result summary */}
-              {qf.status === "done" && qf.result && (
-                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <span className="text-success">
-                    +{qf.result.trades_created} created
-                  </span>
-                  {qf.result.trades_skipped > 0 && (
-                    <span className="text-warning">
-                      {qf.result.trades_skipped} skipped
-                    </span>
-                  )}
-                  {qf.result.warnings.length > 0 && (
-                    <span className="text-warning">
-                      {qf.result.warnings.length} warning{qf.result.warnings.length !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Error message */}
-              {qf.status === "error" && qf.error && (
-                <p className="mt-1 text-xs text-danger">{qf.error}</p>
-              )}
-            </div>
-          </li>
+          <FileQueueItem key={idx} qf={qf} />
         ))}
       </ul>
     </div>
@@ -153,6 +108,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
 export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
   const totalCreated = files.reduce((s, f) => s + (f.result?.trades_created ?? 0), 0);
   const totalSkipped = files.reduce((s, f) => s + (f.result?.trades_skipped ?? 0), 0);
+  const totalProtected = files.reduce((s, f) => s + ((f.result as any)?.trades_protected_reconciled ?? 0), 0);
   const errorCount = files.filter((f) => f.status === "error").length;
   const warnCount = files.reduce((s, f) => s + (f.result?.warnings.length ?? 0), 0);
 
@@ -161,11 +117,12 @@ export function FileQueueSummary({ files }: { files: QueuedFile[] }) {
       <p className="text-sm font-semibold text-foreground">
         Import complete — {files.length} file{files.length !== 1 ? "s" : ""} processed
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <SummaryBox label="Trades Created" value={totalCreated} color="text-success" />
-        <SummaryBox label="Trades Skipped" value={totalSkipped} color="text-warning" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SummaryBox label="Created" value={totalCreated} color="text-success" />
+        <SummaryBox label="Skipped" value={totalSkipped} color="text-warning" />
+        <SummaryBox label="Protected" value={totalProtected} color="text-blue-400" />
         <SummaryBox
-          label="Files with Errors"
+          label="Errors"
           value={errorCount}
           color={errorCount > 0 ? "text-danger" : "text-muted-foreground"}
         />
@@ -193,5 +150,129 @@ function SummaryBox({
       <p className={`text-xl font-bold ${color}`}>{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
     </div>
+  );
+}
+
+function FileQueueItem({ qf }: { qf: QueuedFile }) {
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const hasWarnings = qf.result && qf.result.warnings && qf.result.warnings.length > 0;
+  const isImported = qf.result && qf.result.trades_created > 0;
+  const shouldShowLogs = hasWarnings && isImported;
+  const protectedCount = (qf.result as any)?.trades_protected_reconciled || 0;
+  
+  const handleCopyLogs = () => {
+    if (!qf.result?.warnings) return;
+    const logText = qf.result.warnings.map((w) => {
+        const isProtected = w.startsWith("protected_");
+        return isProtected ? `[INFO/PROTECTED] ${w}` : `[WARNING] ${w}`;
+    }).join('\n');
+    navigator.clipboard.writeText(logText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <li
+      className={[
+        "flex flex-col gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
+        qf.status === "uploading"
+          ? "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] border-[color-mix(in_srgb,var(--primary)_20%,transparent)]"
+          : qf.status === "done"
+          ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]"
+          : qf.status === "error"
+          ? "bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+          : "bg-secondary border-border",
+      ].join(" ")}
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5">{STATUS_ICON[qf.status]}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-medium text-foreground truncate">{qf.file.name}</p>
+              <p className="text-xs text-muted-foreground">{formatBytes(qf.file.size)}</p>
+            </div>
+            {shouldShowLogs && (
+              <button
+                onClick={() => setIsLogsOpen(!isLogsOpen)}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 bg-black/20 px-2 py-1 rounded transition-colors"
+              >
+                Logs {isLogsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
+          </div>
+
+          {/* Result summary */}
+          {qf.status === "done" && qf.result && (
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <span className="text-success">+{qf.result.trades_created} created</span>
+              {qf.result.trades_skipped > 0 && (
+                <span className="text-warning">{qf.result.trades_skipped} skipped</span>
+              )}
+              {protectedCount > 0 && (
+                <span className="text-blue-400">{protectedCount} protected</span>
+              )}
+              {hasWarnings && (
+                <span className="text-warning">
+                  {qf.result.warnings.length} warning{qf.result.warnings.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Error message */}
+          {qf.status === "error" && qf.error && (
+            <p className="mt-1 text-xs text-danger">{qf.error}</p>
+          )}
+        </div>
+      </div>
+      
+      {/* Expandable Logs */}
+      {isLogsOpen && shouldShowLogs && (
+        <div className="relative mt-2 border border-border p-3 rounded bg-black/40">
+          <button
+            onClick={handleCopyLogs}
+            className="absolute top-2 right-2 p-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all flex items-center gap-1 text-[10px]"
+            title="Copy to clipboard"
+          >
+            {copied ? <CheckCircle2 size={12} className="text-emerald-400" /> : <Copy size={12} />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <div className="space-y-1.5 font-mono text-[10px] max-h-48 overflow-y-auto pr-8 custom-scrollbar">
+            {qf.result!.warnings.map((w, i) => {
+              const isProtected = w.startsWith("protected_");
+              const isCreated = w.startsWith("created:");
+              const isSkipped = w.startsWith("skipped:");
+              const isUpdated = w.startsWith("updated:");
+              
+              let textColor = "text-amber-400";
+              let arrowColor = "text-amber-500/50";
+              if (isProtected) {
+                textColor = "text-blue-400";
+                arrowColor = "text-blue-500/50";
+              } else if (isCreated) {
+                textColor = "text-emerald-400";
+                arrowColor = "text-emerald-500/50";
+              } else if (isSkipped) {
+                textColor = "text-yellow-500";
+                arrowColor = "text-yellow-500/50";
+              } else if (isUpdated) {
+                textColor = "text-teal-400";
+                arrowColor = "text-teal-500/50";
+              }
+
+              return (
+                <div key={i} className={`flex items-start gap-2 ${textColor}`}>
+                  <span className={`${arrowColor} select-none`}>▶</span>
+                  <span>{w}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </li>
   );
 }
