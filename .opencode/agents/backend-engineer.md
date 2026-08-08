@@ -1,7 +1,7 @@
 ---
 description: Implements Python backend features following the project's layered architecture (FastAPI, SQLAlchemy, Pydantic, TimescaleDB)
 mode: subagent
-model: model:  github-copilot/gpt-5.3-codex
+# model: github-copilot/gpt-5.3-codex
 temperature: 0.2
 tools:
   write: true
