@@ -995,6 +995,10 @@ class ExecutionService:
         from app.models.trade import (
             Direction,
         )
+        from app.repositories.corporate_action_repository import CorporateActionRepository
+
+        ca_repo = CorporateActionRepository(self.session)
+        corporate_actions = await ca_repo.list_by_user_and_symbol_or_conid(user_id, trade.symbol, conid=None)
 
         is_long = trade.direction == Direction.LONG
 
@@ -1012,15 +1016,23 @@ class ExecutionService:
         for ex in executions:
             total_commission += ex.commission
 
+            # Apply corporate actions (splits) that occurred AFTER this execution
+            effective_qty = ex.quantity
+            effective_price = ex.price
+            for ca in corporate_actions:
+                if ca.date > ex.executed_at.date():
+                    effective_qty *= ca.ratio
+                    effective_price /= ca.ratio
+
             is_entry = (is_long and ex.direction == Direction.LONG) or (not is_long and ex.direction == Direction.SHORT)
 
             if is_entry:
-                entry_qty += ex.quantity
-                entry_cost += ex.quantity * ex.price
+                entry_qty += effective_qty
+                entry_cost += effective_qty * effective_price
                 entry_times.append(ex.executed_at)
             else:
-                exit_qty += ex.quantity
-                exit_cost += ex.quantity * ex.price
+                exit_qty += effective_qty
+                exit_cost += effective_qty * effective_price
                 exit_times.append(ex.executed_at)
 
             # Accumulate broker-reported PnL when available

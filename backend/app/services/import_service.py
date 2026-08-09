@@ -769,6 +769,7 @@ class ImportService:
                                     net_pnl_eur=trade_data.net_pnl_eur,
                                     commission_add=trade_data.commission,
                                     quantity=cast(Decimal, trade_data.quantity),
+                                    entry_price=cast(Decimal, trade_data.entry_price),
                                 )
 
                             # Create exit execution for closed lot
@@ -828,7 +829,20 @@ class ImportService:
                             await self._trade_repo.create(trade_with_owner)
                             trades_created += 1
                         except Exception as exc:  # noqa: BLE001
-                            msg = f"Failed to insert remaining open/orphaned lot for {trade_data.symbol}: {exc}"
+                            msg = f"Failed to insert unmatched portion for {trade_data.symbol}: {exc}"
+                            logger.warning(msg)
+                            create_warnings.append(msg)
+                    else:
+                        # Unchanged open lot - ensure split-adjusted quantity and entry_price are saved
+                        try:
+                            await self._trade_repo.update_open_lot_details(
+                                trade_id=db_trade_id,
+                                user_id=user_id,
+                                quantity=cast(Decimal, trade_data.quantity),
+                                entry_price=cast(Decimal, trade_data.entry_price),
+                            )
+                        except Exception as exc:  # noqa: BLE001
+                            msg = f"Failed to update open lot details for {trade_data.symbol}: {exc}"
                             logger.warning(msg)
                             create_warnings.append(msg)
                     # If not in already_updated_ids, it means the seed lot wasn't

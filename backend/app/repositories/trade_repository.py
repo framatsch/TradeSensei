@@ -1329,6 +1329,7 @@ class TradeRepository:
         net_pnl_eur: Decimal | None,
         commission_add: Decimal,
         quantity: Decimal,
+        entry_price: Decimal | None = None,
     ) -> None:
         """Close an existing open trade lot in-place by setting exit fields.
 
@@ -1347,18 +1348,36 @@ class TradeRepository:
             quantity: Final quantity of the closed lot (may differ from the
                 original when a partial fill was matched).
         """
+        values = {
+            "exit_price": exit_price,
+            "closed_at": closed_at,
+            "pnl": pnl,
+            "pnl_eur": pnl_eur,
+            "net_pnl": net_pnl,
+            "net_pnl_eur": net_pnl_eur,
+            "commission": Trade.commission + commission_add,
+            "quantity": quantity,
+        }
+        if entry_price is not None:
+            values["entry_price"] = entry_price
+
+        stmt = sa_update(Trade).where(Trade.id == trade_id, Trade.user_id == user_id).values(**values)
+        await self._session.execute(stmt)
+
+    async def update_open_lot_details(
+        self,
+        trade_id: uuid.UUID,
+        user_id: uuid.UUID,
+        quantity: Decimal,
+        entry_price: Decimal,
+    ) -> None:
+        """Update an open lot's quantity and entry price (e.g. after a corporate action split)."""
         stmt = (
             sa_update(Trade)
             .where(Trade.id == trade_id, Trade.user_id == user_id)
             .values(
-                exit_price=exit_price,
-                closed_at=closed_at,
-                pnl=pnl,
-                pnl_eur=pnl_eur,
-                net_pnl=net_pnl,
-                net_pnl_eur=net_pnl_eur,
-                commission=Trade.commission + commission_add,
                 quantity=quantity,
+                entry_price=entry_price,
             )
         )
         await self._session.execute(stmt)

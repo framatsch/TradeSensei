@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [backend] Fixed trade aggregation to persist split-adjusted `quantity` and `entry_price` to the database after corporate actions, and ensured manual execution splits correctly apply corporate action ratios when re-aggregating the trade.
+
 ## [1.9.1] - 2026-08-09
 
 ### Added
