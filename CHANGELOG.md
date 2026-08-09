@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [docs] Finalized and archived OpenSpec `execution-metadata-protection-hardening` with updated specifications for user-metadata overwrite protection during broker imports.
 
+### Fixed
+- [backend] Fixed execution symbol-change spec to match implemented behavior — the execution's own trade re-aggregates under its new symbol, and a same-account old-symbol sweep runs as a safety net, not a two-chain split.
+- [backend] Added regression guard ensuring broker sync's `FlexImportService` does not surface successful creates as false warnings.
+- [backend] Added audit middleware `skip_audit` unit test to guard against double-audit regressions on `DELETE /executions/{id}`.
+- [backend] Removed tautological broker service test and fixed `AsyncMock` → `MagicMock` for synchronous audit method.
+- [backend] Fixed PEP 257 docstring violations in execution and flex-import test suites.
+
 ## [1.8.3] - 2026-07-29
 
 ### Fixed
