@@ -26,7 +26,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -220,33 +220,37 @@ async def complete_schwab_connection(
     description=(
         "Receives Schwab callback query parameters (code/state) without Bearer auth, "
         "resolves the account via stored state correlation, exchanges/stores tokens, "
-        "and redirects to frontend settings with a success or error flag."
+        "and returns an HTML response instructing the user to close the tab."
     ),
     include_in_schema=True,
+    response_class=HTMLResponse,
     responses={
-        307: {"description": "Redirect to frontend settings with callback result flag."},
+        200: {"description": "HTML page instructing the user to close the tab."},
     },
 )
 async def schwab_callback(
     service: Annotated[BrokerService, Depends(_get_service_public)],
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
-) -> RedirectResponse:
-    from app.core.config import settings
-
-    base = settings.frontend_url.rstrip("/")
+) -> HTMLResponse:
     if not code or not state:
-        return RedirectResponse(url=f"{base}/dashboard/settings?tab=portfolios-brokers&schwab_callback=error", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        return HTMLResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content="<h1>Invalid request. Missing code or state. Please retry authorization.</h1>",
+        )
 
     try:
-        account = await service.complete_schwab_callback(code=code, state=state)
-        return RedirectResponse(
-            url=f"{base}/dashboard/settings?tab=portfolios-brokers&schwab_callback=success&account_id={account.id}",
-            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        await service.complete_schwab_callback(code=code, state=state)
+        return HTMLResponse(
+            status_code=status.HTTP_200_OK,
+            content="<h1>Authorization successful. You may close this tab.</h1>",
         )
     except Exception:
         logger.exception("Schwab callback failed")
-        return RedirectResponse(url=f"{base}/dashboard/settings?tab=portfolios-brokers&schwab_callback=error", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        return HTMLResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content="<h1>Authorization failed. Please retry.</h1>",
+        )
 
 
 @router.get(
