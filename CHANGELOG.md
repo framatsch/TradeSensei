@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [tools] New `ibkr_cli.py` CLI tool for fetching trades via IBKR Flex Query API with `--since` support and robust retry logic.
+
 ## [1.9.0] - 2026-08-09
 
 ### Added
