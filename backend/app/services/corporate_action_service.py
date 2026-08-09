@@ -24,11 +24,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import CorporateActionNotFoundError
 from app.models.corporate_action import CorporateAction
 from app.repositories.corporate_action_repository import CorporateActionRepository
+from app.repositories.trade_repository import TradeRepository
 from app.schemas.corporate_action import (
     CorporateActionCreate,
     CorporateActionRead,
     CorporateActionUpdate,
 )
+from app.services.execution import ExecutionService
 
 
 class CorporateActionService:
@@ -135,6 +137,9 @@ class CorporateActionService:
         data.user_id = user_id
         action = await self._repo.create(data)
         await self._session.commit()
+
+        await self._re_aggregate_symbol_trades(user_id, action.symbol)
+
         await self._session.refresh(action)
         return CorporateActionRead.model_validate(action)
 
@@ -164,8 +169,15 @@ class CorporateActionService:
         action = await self._repo.get_by_id(action_id, user_id)
         if action is None:
             raise CorporateActionNotFoundError(f"Corporate action {action_id} not found.")
+
+        old_symbol = action.symbol
         action = await self._repo.update(action, data)
         await self._session.commit()
+
+        await self._re_aggregate_symbol_trades(user_id, old_symbol)
+        if action.symbol != old_symbol:
+            await self._re_aggregate_symbol_trades(user_id, action.symbol)
+
         await self._session.refresh(action)
         return CorporateActionRead.model_validate(action)
 
@@ -190,5 +202,19 @@ class CorporateActionService:
         action = await self._repo.get_by_id(action_id, user_id)
         if action is None:
             raise CorporateActionNotFoundError(f"Corporate action {action_id} not found.")
+
+        symbol = action.symbol
         await self._repo.delete(action)
         await self._session.commit()
+
+        await self._re_aggregate_symbol_trades(user_id, symbol)
+
+    async def _re_aggregate_symbol_trades(self, user_id: uuid.UUID, symbol: str) -> None:
+        """Trigger re-aggregation for all trades of a symbol."""
+        trade_repo = TradeRepository(self._session)
+        exec_service = ExecutionService(self._session)
+        trades = await trade_repo.list_by_user_and_symbol(user_id, symbol)
+        for trade in trades:
+            await exec_service.re_aggregate_trade(trade.id, user_id)
+        if trades:
+            await self._session.commit()

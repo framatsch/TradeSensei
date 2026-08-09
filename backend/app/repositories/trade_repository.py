@@ -1208,7 +1208,17 @@ class TradeRepository:
             Trade.account_id == account_id,
         )
         result = await self._session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
+
+    async def list_by_user_and_symbol(
+        self,
+        user_id: uuid.UUID,
+        symbol: str,
+    ) -> list[Trade]:
+        """Return all trades for a user and symbol."""
+        stmt = _trade_query_with_eager_loads().where(Trade.user_id == user_id, Trade.symbol == symbol).order_by(Trade.opened_at.asc())
+        result = await self._session.execute(stmt)
+        return list(result.unique().scalars().all())
 
     async def list_open_lots_by_user(
         self,
