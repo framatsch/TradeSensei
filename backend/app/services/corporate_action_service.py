@@ -19,18 +19,21 @@ No HTTP concepts (``Request``, ``Response``, status codes) appear here.
 
 import uuid
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import CorporateActionNotFoundError
+from app.core.exceptions import CorporateActionConflictError, CorporateActionNotFoundError
 from app.models.corporate_action import CorporateAction
+from app.repositories.account_repository import AccountRepository
 from app.repositories.corporate_action_repository import CorporateActionRepository
+from app.repositories.ohlc_price_repository import OhlcPriceRepository
 from app.repositories.trade_repository import TradeRepository
 from app.schemas.corporate_action import (
     CorporateActionCreate,
     CorporateActionRead,
     CorporateActionUpdate,
 )
-from app.services.execution import ExecutionService
+from app.services.audit_service import AuditEventService, generate_request_id
 
 
 class CorporateActionService:
@@ -51,6 +54,9 @@ class CorporateActionService:
         """
         self._repo = CorporateActionRepository(session)
         self._session = session
+        self._trade_repo = TradeRepository(session)
+        self._account_repo = AccountRepository(session)
+        self._audit = AuditEventService()
 
     async def list_corporate_actions(self, user_id: uuid.UUID) -> list[CorporateActionRead]:
         """Return all corporate actions owned by the given user.
@@ -135,10 +141,32 @@ class CorporateActionService:
             A :class:`CorporateActionRead` DTO for the newly created record.
         """
         data.user_id = user_id
-        action = await self._repo.create(data)
-        await self._session.commit()
+        existing = await self._repo.find_by_user_symbol_date(
+            user_id=user_id,
+            symbol=data.symbol,
+            action_date=data.date,
+        )
+        if existing is not None:
+            raise CorporateActionConflictError(str(existing.id))
 
-        await self._re_aggregate_symbol_trades(user_id, action.symbol)
+        try:
+            action = await self._repo.create(data)
+            await self._re_aggregate_symbol_trades(user_id, action.symbol)
+            await self._invalidate_price_cache_for_symbol(action.symbol)
+            await self._session.commit()
+        except IntegrityError as exc:
+            await self._session.rollback()
+            collision = await self._repo.find_by_user_symbol_date(
+                user_id=user_id,
+                symbol=data.symbol,
+                action_date=data.date,
+            )
+            if collision is not None:
+                raise CorporateActionConflictError(str(collision.id)) from exc
+            raise CorporateActionConflictError("Corporate action already exists for symbol/date") from exc
+        except Exception:
+            await self._session.rollback()
+            raise
 
         await self._session.refresh(action)
         return CorporateActionRead.model_validate(action)
@@ -170,13 +198,42 @@ class CorporateActionService:
         if action is None:
             raise CorporateActionNotFoundError(f"Corporate action {action_id} not found.")
 
-        old_symbol = action.symbol
-        action = await self._repo.update(action, data)
-        await self._session.commit()
+        target_symbol = data.symbol if data.symbol is not None else action.symbol
+        target_date = data.date if data.date is not None else action.date
+        conflict = await self._repo.find_by_user_symbol_date(
+            user_id=user_id,
+            symbol=target_symbol,
+            action_date=target_date,
+        )
+        if conflict is not None and conflict.id != action.id:
+            raise CorporateActionConflictError(str(conflict.id))
 
-        await self._re_aggregate_symbol_trades(user_id, old_symbol)
-        if action.symbol != old_symbol:
-            await self._re_aggregate_symbol_trades(user_id, action.symbol)
+        try:
+            old_symbol = action.symbol
+            old_date = action.date
+            old_ratio = action.ratio
+            action = await self._repo.update(action, data)
+
+            await self._re_aggregate_symbol_trades(user_id, old_symbol)
+            if action.symbol != old_symbol:
+                await self._re_aggregate_symbol_trades(user_id, action.symbol)
+            await self._invalidate_price_cache_for_symbol(old_symbol)
+            if action.symbol != old_symbol or action.date != old_date or action.ratio != old_ratio:
+                await self._invalidate_price_cache_for_symbol(action.symbol)
+            await self._session.commit()
+        except IntegrityError as exc:
+            await self._session.rollback()
+            collision = await self._repo.find_by_user_symbol_date(
+                user_id=user_id,
+                symbol=target_symbol,
+                action_date=target_date,
+            )
+            if collision is not None and collision.id != action_id:
+                raise CorporateActionConflictError(str(collision.id)) from exc
+            raise CorporateActionConflictError("Corporate action already exists for symbol/date") from exc
+        except Exception:
+            await self._session.rollback()
+            raise
 
         await self._session.refresh(action)
         return CorporateActionRead.model_validate(action)
@@ -204,17 +261,64 @@ class CorporateActionService:
             raise CorporateActionNotFoundError(f"Corporate action {action_id} not found.")
 
         symbol = action.symbol
-        await self._repo.delete(action)
-        await self._session.commit()
-
-        await self._re_aggregate_symbol_trades(user_id, symbol)
+        try:
+            await self._repo.delete(action)
+            await self._re_aggregate_symbol_trades(user_id, symbol)
+            await self._invalidate_price_cache_for_symbol(symbol)
+            await self._session.commit()
+        except Exception:
+            await self._session.rollback()
+            raise
 
     async def _re_aggregate_symbol_trades(self, user_id: uuid.UUID, symbol: str) -> None:
         """Trigger re-aggregation for all trades of a symbol."""
-        trade_repo = TradeRepository(self._session)
+        from app.services.execution import ExecutionService
+
         exec_service = ExecutionService(self._session)
-        trades = await trade_repo.list_by_user_and_symbol(user_id, symbol)
+        corporate_actions = await self._repo.list_by_user_and_symbol_or_conid(user_id, symbol, conid=None)
+        trades = await self._trade_repo.list_by_user_and_symbol(user_id, symbol)
         for trade in trades:
-            await exec_service.re_aggregate_trade(trade.id, user_id)
+            await exec_service.re_aggregate_trade(
+                trade.id,
+                user_id,
+                corporate_actions=corporate_actions,
+            )
         if trades:
-            await self._session.commit()
+            await self._emit_recalculation_audit(user_id, symbol, len(trades))
+
+    async def _emit_recalculation_audit(
+        self,
+        user_id: uuid.UUID,
+        symbol: str,
+        trades_affected: int,
+    ) -> None:
+        """Emit manual audit event for bulk trade recalculation side effects."""
+        portfolio_id: uuid.UUID | None = None
+        accounts = await self._account_repo.list_by_user(user_id)
+        if accounts:
+            portfolio_id = accounts[0].portfolio_id
+
+        self._audit.create_audit_event(
+            action="corporate_action.recalculated",
+            user_id=user_id,
+            email=None,
+            resource_type="corporate_action",
+            resource_id=None,
+            parent_resource_type="portfolio" if portfolio_id is not None else None,
+            parent_resource_id=portfolio_id,
+            ip_address=None,
+            user_agent=None,
+            request_id=generate_request_id(),
+            status_code=200,
+            method="SYSTEM",
+            path="corporate_action_service._re_aggregate_symbol_trades",
+            metadata={
+                "symbol": symbol,
+                "trades_affected": trades_affected,
+            },
+        )
+
+    async def _invalidate_price_cache_for_symbol(self, symbol: str) -> None:
+        """Delete cached OHLC bars for one symbol."""
+        repo = OhlcPriceRepository(self._session)
+        await repo.clear_symbol_cache(symbol)

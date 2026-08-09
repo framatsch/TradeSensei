@@ -831,6 +831,21 @@ class TradeRead(BaseModel):
         description=("Execution price at which the position was closed. Null if the trade is still open."),
         examples=["155.00", "1.0901", None],
     )
+    chart_quantity: Decimal | None = Field(
+        default=None,
+        description="Chart-adjusted quantity derived on read.",
+        examples=["10", "3.45", None],
+    )
+    chart_entry_price: Decimal | None = Field(
+        default=None,
+        description="Chart-adjusted entry price derived on read.",
+        examples=["28.80", "1.44", None],
+    )
+    chart_exit_price: Decimal | None = Field(
+        default=None,
+        description="Chart-adjusted exit price derived on read.",
+        examples=["35.00", "2.10", None],
+    )
     stop_loss: Decimal | None = Field(
         ...,
         description="Stop-loss price level. Null if no stop-loss was set.",
@@ -965,6 +980,12 @@ class TradeRead(BaseModel):
         ),
         examples=[False, True],
     )
+    corporate_action_impact: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Corporate actions that affect this trade symbol for chart-adjusted display. Each item includes id, symbol, date, ratio, old_conid, and new_conid."
+        ),
+    )
     created_at: datetime = Field(
         ...,
         description="UTC timestamp of when this record was inserted into the database.",
@@ -1069,6 +1090,44 @@ class TradeRead(BaseModel):
                 with contextlib.suppress(Exception):
                     data.__dict__["legs"] = data.__dict__["logical_executions"]
         return data
+
+    @model_validator(mode="after")
+    def _derive_chart_basis_and_corporate_action_impact(self) -> "TradeRead":
+        return self.derive_chart_basis_and_corporate_action_impact()
+
+    def derive_chart_basis_and_corporate_action_impact(self) -> "TradeRead":
+        self.corporate_action_impact = []
+        if self.is_combo:
+            self.chart_quantity = self.quantity
+            self.chart_entry_price = self.entry_price
+            self.chart_exit_price = self.exit_price
+            return self
+
+        if not self.legs:
+            self.chart_quantity = self.quantity
+            self.chart_entry_price = self.entry_price
+            self.chart_exit_price = self.exit_price
+            return self
+
+        entry_qty = Decimal("0")
+        entry_cost = Decimal("0")
+        exit_qty = Decimal("0")
+        exit_cost = Decimal("0")
+
+        for leg in self.legs:
+            is_entry = leg.direction == self.direction
+            if is_entry:
+                entry_qty += leg.quantity
+                entry_cost += leg.price * leg.quantity
+            else:
+                exit_qty += leg.quantity
+                exit_cost += leg.price * leg.quantity
+
+        self.chart_quantity = entry_qty if entry_qty > 0 else self.quantity
+        self.chart_entry_price = entry_cost / entry_qty if entry_qty > 0 else self.entry_price
+        self.chart_exit_price = exit_cost / exit_qty if exit_qty > 0 else self.exit_price
+
+        return self
 
     @model_validator(mode="after")
     def _resolve_image_urls(self, info: ValidationInfo) -> "TradeRead":

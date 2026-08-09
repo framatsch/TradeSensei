@@ -44,26 +44,36 @@ async def test_sequential_import_matches_in_memory_ground_truth(
        The 2023 seed lots must be adjusted by the 2024 corporate action correctly
        before matching against the 2024 closing executions.
     2. Cross-year options/multiplier: VST or other options opened in one year
-       and closed in another must persist their `multiplier` (e.g., 100) via
-       the `SeedLotLike` protocol so they are correctly calculated upon exit.
+       and closed in another must keep their `multiplier` (e.g., 100) so they
+       are correctly calculated upon exit.
 
     If this test fails, a refactoring has broken the aggregation logic.
     Do NOT change the expected outcomes in this test; change the code to pass it.
     """
 
-    # 1. Setup paths to the test XML files (use real ones if available, or mock if needed)
-    # We assume these exist in the backend root for this specific test case as they are our ground truth
+    # 1. Setup paths to the test XML files.
+    # Prefer split historical files; fall back to the anonymized combined fixture.
     base_dir = Path(__file__).resolve().parent.parent.parent
-    paths = [
+    split_paths = [
         base_dir / "TraderJournal_2023.xml",
         base_dir / "TraderJournal_2024.xml",
         base_dir / "TraderJournal_2025.xml",
         base_dir / "TraderJournal_Q1_2026.xml",
     ]
+    if all(p.exists() for p in split_paths):
+        paths = split_paths
+    else:
+        paths = [
+            base_dir.parent
+            / "tests"
+            / "test_data"
+            / "ibkr"
+            / "TraderJournal_anonymized_combined.xml"
+        ]
 
-    # If the files are missing (e.g. running in CI without real data), skip safely
+    # If no fixture is available, skip safely.
     if not all(p.exists() for p in paths):
-        pytest.skip("Historical XML files not found. Skipping full regression test.")
+        pytest.skip("Historical XML fixtures not found. Skipping full regression test.")
 
     # Calculate the IN-MEMORY Ground Truth trades directly
     from tests.integration.ground_truth_aggregator import (

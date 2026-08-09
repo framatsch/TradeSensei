@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.trade import TradeCreate
-from app.utils.parsers.aggregator import CorporateActionLike, SeedLotLike
+from app.utils.parsers.aggregator import CorporateActionLike
 
 
 class BrokerParser(ABC):
@@ -51,8 +51,6 @@ class BrokerParser(ABC):
         content: bytes,
         filename: str,
         corporate_actions: Sequence[CorporateActionLike] | None = None,
-        seed_open_lots: Sequence[SeedLotLike] | None = None,
-        seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
     ) -> tuple[list[TradeCreate], list[object]]:
         """Parse broker export file content into Pydantic schemas.
 
@@ -63,13 +61,6 @@ class BrokerParser(ABC):
                 the aggregator so that split adjustments are applied during
                 execution matching.  When ``None`` the behaviour is unchanged
                 from before.
-            seed_open_lots: Optional sequence of existing open DB trades to
-                pre-populate the FIFO aggregator queue.  When provided,
-                incoming closing executions are matched against these seed lots
-                first, allowing cross-period imports to correctly close
-                positions opened in a prior import.  Closed results originating
-                from a seed lot carry ``db_trade_id`` so the caller can issue an
-                UPDATE rather than an INSERT.
 
         Returns:
             A tuple containing:

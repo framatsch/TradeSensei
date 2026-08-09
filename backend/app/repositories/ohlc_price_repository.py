@@ -100,3 +100,9 @@ class OhlcPriceRepository:
         stmt = delete(OhlcPrice)
         await self._session.execute(stmt)
         await self._session.flush()
+
+    async def clear_symbol_cache(self, symbol: str) -> None:
+        """Clear all cached OHLC bars for one symbol."""
+        stmt = delete(OhlcPrice).where(OhlcPrice.symbol == symbol)
+        await self._session.execute(stmt)
+        await self._session.flush()

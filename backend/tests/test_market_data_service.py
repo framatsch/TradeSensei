@@ -139,3 +139,9 @@ async def test_cache_prices_with_interval_fallback(
 
     await service.cache_prices(bars)
     mock_session.execute.assert_called_once()
+
+
+@pytest.mark.unit
+async def test_clear_symbol_cache(service: MarketDataService, mock_session: AsyncMock) -> None:
+    await service._repo.clear_symbol_cache("AAPL")
+    mock_session.execute.assert_called_once()

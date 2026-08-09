@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_session_with_rls
-from app.core.exceptions import CorporateActionNotFoundError
+from app.core.exceptions import CorporateActionConflictError, CorporateActionNotFoundError
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.corporate_action import (
@@ -121,7 +121,16 @@ async def create_corporate_action(
         :class:`CorporateActionRead` DTO.
     """
     create_schema = payload.to_corporate_action_create(current_user.id)
-    action = await service.create_corporate_action(create_schema, current_user.id)
+    try:
+        action = await service.create_corporate_action(create_schema, current_user.id)
+    except CorporateActionConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Corporate action already exists for symbol/date.",
+                "existing_action_id": str(exc),
+            },
+        ) from exc
     return ResponseEnvelope[CorporateActionRead](data=action)
 
 
@@ -165,6 +174,14 @@ async def update_corporate_action(
     """
     try:
         action = await service.update_corporate_action(corporate_action_id, payload, current_user.id)
+    except CorporateActionConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Corporate action already exists for symbol/date.",
+                "existing_action_id": str(exc),
+            },
+        ) from exc
     except CorporateActionNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

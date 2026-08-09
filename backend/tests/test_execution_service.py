@@ -38,7 +38,9 @@ from app.schemas.execution import (
     LogicalExecutionUpdate,
     MergeExecutionsRequest,
 )
+from app.schemas.trade import TradeCreate
 from app.services.execution import ExecutionService
+from app.utils.parsers.aggregator import aggregate_executions_fifo
 
 
 def _make_trade(
@@ -50,6 +52,8 @@ def _make_trade(
     asset_class: AssetClass = AssetClass.EQUITY,
     quantity: Decimal = Decimal("10"),
     entry_price: Decimal = Decimal("150.00"),
+    opened_at: datetime | None = None,
+    closed_at: datetime | None = None,
     currency: str | None = None,
     multiplier: int = 1,
 ) -> Trade:
@@ -63,6 +67,8 @@ def _make_trade(
         asset_class=asset_class,
         quantity=quantity,
         entry_price=entry_price,
+        opened_at=opened_at or datetime.now(UTC),
+        closed_at=closed_at,
         currency=currency,
         multiplier=multiplier,
     )
@@ -80,6 +86,7 @@ def _make_execution(
     price: Decimal = Decimal("150.00"),
     commission: Decimal = Decimal("0"),
     executed_at: datetime | None = None,
+    currency: str | None = None,
     origin: str = EXECUTION_ORIGIN_MANUAL,
     deleted: bool = False,
     user_modified: bool = False,
@@ -98,6 +105,7 @@ def _make_execution(
         price=price,
         commission=commission,
         executed_at=executed_at or now,
+        currency=currency,
         origin=origin,
         deleted=deleted,
         user_modified=user_modified,
@@ -633,6 +641,371 @@ class TestExecutionService:
         assert result[1].quantity == Decimal("3")
         assert result[1].price == result[1].raw_price
         assert result[1].quantity == result[1].raw_quantity
+
+    async def test_reaggregate_trade_holding_period_does_not_adjust_pre_split_closed_trade(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="OTLK",
+            direction=Direction.LONG,
+            opened_at=datetime(2023, 5, 22, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2023, 5, 24, 14, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="OTLK",
+            direction=Direction.LONG,
+            quantity=Decimal("69"),
+            price=Decimal("1.44"),
+            executed_at=datetime(2023, 5, 22, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="OTLK",
+            direction=Direction.SHORT,
+            quantity=Decimal("69"),
+            price=Decimal("1.50"),
+            executed_at=datetime(2023, 5, 24, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        split = _make_corporate_action(symbol="ATOS", ratio=Decimal("0.05"), date_value=datetime(2024, 3, 13, 0, 0, tzinfo=UTC))
+        ex_close.currency = "USD"
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+
+        assert trade.quantity == Decimal("69")
+        assert trade.entry_price == Decimal("1.44")
+
+    async def test_reaggregate_trade_effective_date_execution_is_post_split(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="ATOS",
+            direction=Direction.LONG,
+            opened_at=datetime(2024, 3, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2024, 3, 13, 15, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="ATOS",
+            direction=Direction.LONG,
+            quantity=Decimal("100"),
+            price=Decimal("2"),
+            executed_at=datetime(2024, 3, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="ATOS",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("40"),
+            executed_at=datetime(2024, 3, 13, 15, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        split = _make_corporate_action(symbol="ATOS", ratio=Decimal("0.05"), date_value=datetime(2024, 3, 13, 0, 0, tzinfo=UTC))
+        ex_close.currency = "USD"
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+
+        assert trade.quantity == Decimal("5")
+        assert trade.entry_price == Decimal("40")
+
+    async def test_reaggregate_trade_holding_period_adjusts_open_position_once(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="ATOS",
+            direction=Direction.LONG,
+            opened_at=datetime(2024, 3, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2024, 4, 1, 14, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="ATOS",
+            direction=Direction.LONG,
+            quantity=Decimal("150"),
+            price=Decimal("2"),
+            executed_at=datetime(2024, 3, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="ATOS",
+            direction=Direction.SHORT,
+            quantity=Decimal("7.5"),
+            price=Decimal("42"),
+            executed_at=datetime(2024, 4, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        split = _make_corporate_action(symbol="ATOS", ratio=Decimal("0.05"), date_value=datetime(2024, 3, 13, 0, 0, tzinfo=UTC))
+        ex_close.currency = "USD"
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+
+        assert trade.quantity == Decimal("7.5")
+        assert trade.entry_price == Decimal("40")
+
+    async def test_reaggregate_trade_after_hours_uses_exchange_local_date(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="AFTER",
+            direction=Direction.LONG,
+            opened_at=datetime(2024, 3, 13, 1, 30, tzinfo=UTC),
+            closed_at=datetime(2024, 3, 14, 15, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AFTER",
+            direction=Direction.LONG,
+            quantity=Decimal("100"),
+            price=Decimal("2"),
+            executed_at=datetime(2024, 3, 13, 1, 30, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+            currency="USD",
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AFTER",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("40"),
+            executed_at=datetime(2024, 3, 14, 15, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+            currency="USD",
+        )
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        split = _make_corporate_action(symbol="AFTER", ratio=Decimal("0.05"), date_value=datetime(2024, 3, 13, 0, 0, tzinfo=UTC))
+        ex_close.currency = "USD"
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+
+        assert trade.quantity == Decimal("5")
+        assert trade.entry_price == Decimal("40")
+
+    async def test_reaggregate_trade_commission_is_not_split_scaled(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="COMM",
+            direction=Direction.LONG,
+            opened_at=datetime(2024, 1, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2024, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="COMM",
+            direction=Direction.LONG,
+            quantity=Decimal("100"),
+            price=Decimal("2"),
+            commission=Decimal("3"),
+            executed_at=datetime(2024, 1, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="COMM",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("44"),
+            commission=Decimal("2"),
+            executed_at=datetime(2024, 6, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        split = _make_corporate_action(symbol="COMM", ratio=Decimal("0.05"), date_value=datetime(2024, 3, 13, 0, 0, tzinfo=UTC))
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+
+        assert trade.commission == Decimal("5")
+
+    async def test_reaggregate_trade_matches_import_aggregator_values(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        opened_at = datetime(2024, 1, 1, 14, 0, tzinfo=UTC)
+        closed_at = datetime(2024, 6, 1, 14, 0, tzinfo=UTC)
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="ALIGN",
+            direction=Direction.LONG,
+            opened_at=opened_at,
+            closed_at=closed_at,
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="ALIGN",
+            direction=Direction.LONG,
+            quantity=Decimal("100"),
+            price=Decimal("2"),
+            commission=Decimal("3"),
+            executed_at=opened_at,
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="ALIGN",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("44"),
+            commission=Decimal("2"),
+            executed_at=closed_at,
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        split = _make_corporate_action(symbol="ALIGN", ratio=Decimal("0.05"), date_value=datetime(2024, 3, 13, 0, 0, tzinfo=UTC))
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+
+        import_trades = [
+            TradeCreate(
+                symbol="ALIGN",
+                direction=Direction.LONG,
+                asset_class=AssetClass.EQUITY,
+                quantity=Decimal("100"),
+                entry_price=Decimal("2"),
+                opened_at=opened_at,
+                commission=Decimal("3"),
+                currency="USD",
+                broker_conid=None,
+            ),
+            TradeCreate(
+                symbol="ALIGN",
+                direction=Direction.SHORT,
+                asset_class=AssetClass.EQUITY,
+                quantity=Decimal("5"),
+                entry_price=Decimal("44"),
+                opened_at=closed_at,
+                pnl=Decimal("20"),
+                commission=Decimal("2"),
+                currency="USD",
+                broker_conid=None,
+            ),
+        ]
+        fifo_result = aggregate_executions_fifo(import_trades, corporate_actions=[split])
+        completed = [row for row in fifo_result if row.closed_at is not None]
+        assert len(completed) == 1
+        expected = completed[0]
+
+        assert trade.quantity == expected.quantity
+        assert trade.entry_price == expected.entry_price
+        assert trade.exit_price == expected.exit_price
+        assert trade.commission == expected.commission
+        assert trade.net_pnl == expected.net_pnl
+
+    async def test_reaggregate_trade_idempotent_for_same_inputs(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="IDEMP",
+            direction=Direction.LONG,
+            opened_at=datetime(2024, 1, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2024, 6, 1, 14, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="IDEMP",
+            direction=Direction.LONG,
+            quantity=Decimal("100"),
+            price=Decimal("2"),
+            commission=Decimal("3"),
+            executed_at=datetime(2024, 1, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="IDEMP",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("44"),
+            commission=Decimal("2"),
+            executed_at=datetime(2024, 6, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        split = _make_corporate_action(ratio=Decimal("0.05"), date_value=datetime(2024, 3, 13, 0, 0, tzinfo=UTC))
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+        first = (
+            trade.quantity,
+            trade.entry_price,
+            trade.exit_price,
+            trade.commission,
+            trade.pnl,
+            trade.net_pnl,
+            trade.closed_at,
+        )
+
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[split])
+        second = (
+            trade.quantity,
+            trade.entry_price,
+            trade.exit_price,
+            trade.commission,
+            trade.pnl,
+            trade.net_pnl,
+            trade.closed_at,
+        )
+
+        assert second == first
 
     async def test_list_for_trade_manual_leg_fallback_and_adjustment(self, service: ExecutionService) -> None:
         user_id = uuid.uuid4()

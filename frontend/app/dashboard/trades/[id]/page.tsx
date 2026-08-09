@@ -213,17 +213,21 @@ export default function TradeDetailPage() {
   const isLong = trade.direction === "LONG";
   const isCombo = trade.is_combo;
   const isOpen = !trade.closed_at;
+  const headerQuantity = trade.chart_quantity ?? trade.quantity;
+  const headerEntryPrice = trade.chart_entry_price ?? trade.entry_price;
+  const headerExitPrice = trade.chart_exit_price ?? trade.exit_price;
 
   // ── Performance calculations ──────────────────────────────────────────────
-  const qty = trade.quantity === null ? 0 : parseFloat(trade.quantity);
-  const entryP = trade.entry_price === null ? 0 : parseFloat(trade.entry_price);
-  const exitP = trade.exit_price ? parseFloat(trade.exit_price) : null;
+  const qty = headerQuantity === null ? 0 : parseFloat(headerQuantity);
+  const riskEntryP = trade.entry_price === null ? 0 : parseFloat(trade.entry_price);
+  const basisEntryP = headerEntryPrice === null ? 0 : parseFloat(headerEntryPrice);
+  const exitP = headerExitPrice ? parseFloat(headerExitPrice) : null;
   const stopP = trade.stop_loss ? parseFloat(trade.stop_loss) : null;
   const takePP = trade.take_profit ? parseFloat(trade.take_profit) : null;
   const pnlVal = trade.pnl ? parseFloat(trade.pnl) : null;
   const commVal = parseFloat(trade.commission ?? "0");
 
-  const riskPerShare = stopP !== null ? Math.abs(entryP - stopP) : null;
+  const riskPerShare = stopP !== null ? Math.abs(riskEntryP - stopP) : null;
   const initialRisk = riskPerShare !== null ? riskPerShare * qty : null;
   const realizedR =
     pnlVal !== null && initialRisk !== null && initialRisk > 0
@@ -231,16 +235,16 @@ export default function TradeDetailPage() {
       : null;
   const plannedRrr =
     stopP !== null && takePP !== null && riskPerShare! > 0
-      ? Math.abs(takePP - entryP) / riskPerShare!
+      ? Math.abs(takePP - riskEntryP) / riskPerShare!
       : null;
-  const capitalDeployed = entryP * qty;
+  const capitalDeployed = basisEntryP * qty;
   const returnPct =
     pnlVal !== null && capitalDeployed > 0
       ? (pnlVal / capitalDeployed) * 100
       : null;
   const grossPnl =
     exitP !== null
-      ? (isLong ? exitP - entryP : entryP - exitP) * qty
+      ? (isLong ? exitP - basisEntryP : basisEntryP - exitP) * qty
       : null;
   const netPnl = grossPnl !== null ? grossPnl - commVal : null;
 
@@ -380,6 +384,11 @@ export default function TradeDetailPage() {
             document.getElementById("executions-table")?.scrollIntoView({ behavior: "smooth" });
           }}
         />
+      )}
+      {trade.corporate_action_impact && trade.corporate_action_impact.length > 0 && (
+        <div role="status" aria-live="polite" className="rounded-lg border surface-warning p-3 text-sm text-warning">
+          This trade is affected by corporate actions. Trade header values are chart-adjusted; execution rows still show raw values.
+        </div>
       )}
 
       {/* Grid Layout */}

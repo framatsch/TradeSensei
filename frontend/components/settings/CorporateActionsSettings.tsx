@@ -33,6 +33,7 @@ import {
   useUpdateCorporateAction,
   useDeleteCorporateAction,
 } from "@/hooks/useCorporateActions";
+import { extractApiError } from "@/lib/apiErrors";
 import type { CorporateAction, CorporateActionCreate, CorporateActionUpdate } from "@/lib/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -370,7 +371,7 @@ export function CorporateActionsSettings() {
         setAddForm(EMPTY_FORM);
       },
       onError: (err) => {
-        setAddError(err.message ?? "Failed to create corporate action.");
+        setAddError(extractApiError(err, "Failed to create corporate action."));
       },
     });
   }
@@ -403,7 +404,7 @@ export function CorporateActionsSettings() {
           setEditingCa(null);
         },
         onError: (err) => {
-          setEditError(err.message ?? "Failed to update corporate action.");
+          setEditError(extractApiError(err, "Failed to update corporate action."));
         },
       }
     );

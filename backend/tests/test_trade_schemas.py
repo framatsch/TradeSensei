@@ -205,7 +205,6 @@ class TestTradeRead:
         trade.updated_at = datetime(2025, 6, 2, tzinfo=UTC)
         trade.image_urls = []
         trade.is_manually_edited = False
-        trade.tags = []
         trade.trade_notes = []
 
         read = TradeRead.model_validate(trade)
@@ -213,6 +212,117 @@ class TestTradeRead:
         assert read.pnl == Decimal("1000")
         assert read.position_id == trade.position_id
         assert read.user_rating == 4
+
+    @pytest.mark.unit
+    def test_chart_basis_invariant_legs_sum_to_header_per_basis(self) -> None:
+        trade = {
+            "id": uuid.uuid4(),
+            "position_id": uuid.uuid4(),
+            "symbol": "ATOS",
+            "direction": Direction.LONG,
+            "asset_class": AssetClass.EQUITY,
+            "is_combo": False,
+            "quantity": Decimal("100"),
+            "entry_price": Decimal("2"),
+            "exit_price": Decimal("3"),
+            "stop_loss": None,
+            "take_profit": None,
+            "opened_at": datetime(2024, 1, 1, tzinfo=UTC),
+            "closed_at": datetime(2024, 1, 10, tzinfo=UTC),
+            "pnl": Decimal("100"),
+            "commission": Decimal("0"),
+            "journal": None,
+            "user_rating": None,
+            "tradingview_link": None,
+            "image_urls": [],
+            "currency": "USD",
+            "pnl_eur": None,
+            "net_pnl_eur": None,
+            "playbook_id": None,
+            "playbook_name": None,
+            "account_id": None,
+            "portfolio_id": None,
+            "account_name": None,
+            "account_type": None,
+            "taxonomies": [],
+            "annotations": [],
+            "trade_notes": [],
+            "is_manually_edited": False,
+            "has_conflict": False,
+            "created_at": datetime(2024, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2024, 1, 10, tzinfo=UTC),
+            "legs": [
+                {
+                    "id": uuid.uuid4(),
+                    "user_id": uuid.uuid4(),
+                    "account_id": None,
+                    "symbol": "ATOS",
+                    "conid": None,
+                    "asset_class": AssetClass.EQUITY,
+                    "direction": Direction.LONG,
+                    "quantity": Decimal("5"),
+                    "price": Decimal("40"),
+                    "raw_quantity": Decimal("100"),
+                    "raw_price": Decimal("2"),
+                    "commission": Decimal("0"),
+                    "executed_at": datetime(2024, 1, 1, tzinfo=UTC),
+                    "pnl": None,
+                    "pnl_eur": None,
+                    "multiplier": 1,
+                    "currency": "USD",
+                    "open_close": "O",
+                    "strike": None,
+                    "expiry": None,
+                    "option_type": None,
+                    "origin": EXECUTION_ORIGIN_IMPORTED,
+                    "deleted": False,
+                    "user_modified": False,
+                    "source_id": None,
+                    "parent_id": None,
+                    "trade_id": None,
+                    "created_at": datetime(2024, 1, 1, tzinfo=UTC),
+                    "updated_at": datetime(2024, 1, 1, tzinfo=UTC),
+                },
+                {
+                    "id": uuid.uuid4(),
+                    "user_id": uuid.uuid4(),
+                    "account_id": None,
+                    "symbol": "ATOS",
+                    "conid": None,
+                    "asset_class": AssetClass.EQUITY,
+                    "direction": Direction.SHORT,
+                    "quantity": Decimal("5"),
+                    "price": Decimal("60"),
+                    "raw_quantity": Decimal("100"),
+                    "raw_price": Decimal("3"),
+                    "commission": Decimal("0"),
+                    "executed_at": datetime(2024, 1, 10, tzinfo=UTC),
+                    "pnl": Decimal("100"),
+                    "pnl_eur": None,
+                    "multiplier": 1,
+                    "currency": "USD",
+                    "open_close": "C",
+                    "strike": None,
+                    "expiry": None,
+                    "option_type": None,
+                    "origin": EXECUTION_ORIGIN_IMPORTED,
+                    "deleted": False,
+                    "user_modified": False,
+                    "source_id": None,
+                    "parent_id": None,
+                    "trade_id": None,
+                    "created_at": datetime(2024, 1, 10, tzinfo=UTC),
+                    "updated_at": datetime(2024, 1, 10, tzinfo=UTC),
+                },
+            ],
+        }
+
+        read = TradeRead.model_validate(trade)
+
+        assert read.chart_quantity == Decimal("5")
+        assert read.chart_entry_price == Decimal("40")
+        assert read.chart_exit_price == Decimal("60")
+        assert read.corporate_action_impact == []
 
 
 class TestLogicalExecutionCreate:

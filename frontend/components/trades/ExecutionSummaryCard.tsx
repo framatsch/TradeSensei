@@ -240,14 +240,18 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
     );
   }
 
+  const headerQuantity = trade.chart_quantity ?? trade.quantity;
+  const headerEntryPrice = trade.chart_entry_price ?? trade.entry_price;
+  const headerExitPrice = trade.chart_exit_price ?? trade.exit_price;
+
   const notionalEntry =
-    isMult && trade.entry_price !== null && trade.quantity !== null
-      ? parseFloat(trade.entry_price) * parseFloat(trade.quantity) * trade.multiplier
+    isMult && headerEntryPrice !== null && headerQuantity !== null
+      ? parseFloat(headerEntryPrice) * parseFloat(headerQuantity) * trade.multiplier
       : null;
 
   const notionalExit =
-    isMult && trade.exit_price !== null && trade.quantity !== null
-      ? parseFloat(trade.exit_price) * parseFloat(trade.quantity) * trade.multiplier
+    isMult && headerExitPrice !== null && headerQuantity !== null
+      ? parseFloat(headerExitPrice) * parseFloat(headerQuantity) * trade.multiplier
       : null;
 
   const optionLeg = executions.find((ex) => ex.option_type !== null);
@@ -265,7 +269,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
             Values are computed from {count} execution leg{count !== 1 ? "s" : ""}
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">
-            Uses raw execution values (chart markers may show split-adjusted prices).
+            Uses chart-adjusted trade header values when available; execution rows may still show raw values.
           </p>
         </div>
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border uppercase tracking-wider">
@@ -284,13 +288,13 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
           <dt className="text-xs text-muted-foreground mb-0.5">
             {isMult ? "Entry Price (per unit)" : "VWAP Entry"}
           </dt>
-          <dd className="font-medium text-foreground text-sm font-mono">{fmt(trade.entry_price)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmt(headerEntryPrice)}</dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">
             {isMult ? "Exit Price (per unit)" : "VWAP Exit"}
           </dt>
-          <dd className="font-medium text-foreground text-sm font-mono">{fmt(trade.exit_price)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmt(headerExitPrice)}</dd>
         </div>
         {isMult && notionalEntry !== null && (
           <div>
@@ -306,7 +310,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         )}
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Total Quantity</dt>
-          <dd className="font-medium text-foreground text-sm font-mono">{fmtQty(trade.quantity)}</dd>
+          <dd className="font-medium text-foreground text-sm font-mono">{fmtQty(headerQuantity)}</dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground mb-0.5">Total Commission</dt>

@@ -27,7 +27,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import lru_cache
 from time import perf_counter
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy import event
 from sqlalchemy import text as sa_text
@@ -75,7 +75,6 @@ from app.utils.parsers.aggregator import (
     CorporateActionLike,
     ExecutionAllocation,
     ExecutionLike,
-    SeedLotLike,
     TradeCreateWithSources,
     aggregate_executions_fifo_with_sources,
     build_combo_positions,
@@ -283,14 +282,18 @@ class ImportService:
             content = json.dumps(payload).encode("utf-8")
 
         ca_for_parser: Sequence[CorporateActionLike] | None = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
-        seed_for_parser: Sequence[SeedLotLike] | None = cast(Sequence[SeedLotLike], open_lots) if open_lots else None
 
         parser_warnings: list[str] = []
         suppressed_count: int = 0
         raw_records: list[BrokerRawTransactionCreate] = []
         parsed_corporate_actions: list[CorporateActionCreateRequest] = []
         inserted_raw_ids: set[str] = set()
+        released_raw_ids: set[str] = set()
         trades_with_sources: list[TradeCreateWithSources] = []
+        existing_trades_by_key: dict[tuple[str | None, datetime], Trade] = {}
+        existing_trades_by_id: dict[uuid.UUID, Trade] = {}
+        protected_ordered_legs: dict[uuid.UUID, list[uuid.UUID]] = {}
+        preserved_trade_ids: list[uuid.UUID] = []
 
         # ── Raw-data pipeline (preferred) ────────────────────────────────────
         # Use parse_raw() when the parser supports it.  This persists each
@@ -322,14 +325,18 @@ class ImportService:
                 has_open_combo_seed_positions = bool(open_combo_positions)
 
             for ca in parsed_corporate_actions:
-                existing = await self._ca_repo.find_by_user_symbol_date_ratio(
+                existing = await self._ca_repo.find_by_user_symbol_date(
                     user_id=user_id,
                     symbol=ca.symbol,
                     action_date=ca.date,
-                    ratio=ca.ratio,
                 )
                 if existing is None:
                     await self._ca_repo.create(ca.to_corporate_action_create(user_id))
+                else:
+                    existing.ratio = ca.ratio
+                    existing.old_conid = ca.old_conid
+                    existing.new_conid = ca.new_conid
+                    await self._session.flush()
 
             # Reload corporate actions after adding new ones from the file
             corporate_actions = await self._ca_repo.list_by_user(user_id)
@@ -443,7 +450,7 @@ class ImportService:
             # entirely (it treats "db_trade_id is not None" as "already
             # exists", regardless of whether that trade was just deleted).
             existing_trades_by_key = {}
-            existing_trades_by_id: dict[uuid.UUID, Trade] = {}
+            existing_trades_by_id = {}
             # D10 snapshot: each metadata-protected trade's non-deleted leg
             # IDs in chronological order, taken BEFORE this rebuild's linking
             # runs, so a later pass can tell whether the trade's original
@@ -451,7 +458,7 @@ class ImportService:
             # Only needed for the reset-to-broker-state path
             # (`overwrite_manually_edited=True`), where protected trades are
             # actually eligible for deletion by `delete_by_user_account`.
-            protected_ordered_legs: dict[uuid.UUID, list[uuid.UUID]] = {}
+            protected_ordered_legs = {}
             if account_id is not None and should_rebuild_projection:
                 preserved_trade_ids = [trade.id for trade in open_combo_positions]
                 existing_trades = await self._trade_repo.list_by_user_account(user_id, account_id)
@@ -485,8 +492,6 @@ class ImportService:
             fifo_trades_with_sources = aggregate_executions_fifo_with_sources(
                 combo_build_result.fifo_executions,
                 corporate_actions=ca_for_parser,
-                seed_open_lots=None,
-                seed_orphaned_lots=None,
             )
             trades_with_sources = sorted(
                 [*combo_build_result.combo_trades, *fifo_trades_with_sources],
@@ -503,8 +508,6 @@ class ImportService:
                 content,
                 filename,
                 corporate_actions=ca_for_parser,
-                seed_open_lots=seed_for_parser,
-                seed_orphaned_lots=cast(Sequence[SeedLotLike], orphaned_lots) if orphaned_lots else None,
             )
 
         # Enrich pnl_eur — base class provides a no-op default so this is always safe.
@@ -635,7 +638,7 @@ class ImportService:
                     if trade is None:
                         continue
                     legs = await self._exec_repo.list_by_trade_id(trade.id, include_deleted=False)
-                    trade.has_conflict = detect_duplicate_pairs(legs)
+                    trade.has_conflict = detect_duplicate_pairs(cast(Any, legs))
 
                 # D10: any metadata-protected trade left un-reconciled above is
                 # about to be deleted below (only possible when

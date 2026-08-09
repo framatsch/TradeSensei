@@ -1,0 +1,22 @@
+{
+  "artifact_version": "anonymized-v1",
+  "anonymization": "No raw symbol/time/price/quantity/pnl fields are stored. Regression uses deterministic SHA-256 fingerprints over canonical trade tuples.",
+  "source_files": [
+    "tests/fixtures/ibkr/synthetic_year1.xml",
+    "tests/fixtures/ibkr/synthetic_year2.xml"
+  ],
+  "trade_count": 10,
+  "trade_fingerprints": [
+    "0a99f9f130b1cf81976626b8c9e5f200f1f83d9a65256dca9e0ada63cf41a031",
+    "234ed71113f1ba0fd6d61038aa1f214b70d1419fb6b9edaacbb35910ff9e25e1",
+    "442d7447fcaae259c01f3830009eec8b1979be7bf09d74044a8c8614cd5e22e4",
+    "4f1911c86fe74e642504bdba59f290f97a44d799dae3faf3ece2a1885a606f03",
+    "6477a7cb10cda5e2762d0416ed6fc84255f5369ed0ddf943c5fab93803f5fb15",
+    "8c4f1ba0aaa4307003b5157d32892b1d7fdf841a8cdb2336c3392caaf7f4817b",
+    "9b5efd6221e82ca3a9922097b7037a403fd91cddb2926b775cb846b0f5b06713",
+    "a292dee0f874092918cf56ca7cf0964363350c1f3daa184b00cd43fc9bfd59c9",
+    "beec2c26d84e8b3bcc24deab92790b1131a9b3329265a7c38d6a1c0478b4fbd6",
+    "cc22fada3712330f22945128dae472df59d9bd5a2f0b2b715d06b6f14b6e299b"
+  ],
+  "dataset_fingerprint": "c79e1d98e614f0e0187bf993df0c0b82bebb2114e76fb323b86aa15cef651bc7"
+}

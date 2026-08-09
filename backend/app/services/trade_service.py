@@ -19,12 +19,15 @@ No HTTP concepts (``Request``, ``Response``, status codes) appear here.
 
 import logging
 import uuid
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.constants import PROTECTED_METADATA_COLUMNS, SCREENSHOT_MAX_FILE_SIZE_MB
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
+from app.models.corporate_action import CorporateAction
 from app.models.logical_execution import EXECUTION_ORIGIN_MANUAL
 from app.models.trade import Trade
 from app.repositories.account_repository import AccountRepository
@@ -44,6 +47,11 @@ from app.schemas.trade import (
 )
 from app.services.cache_service import CacheService
 from app.services.storage_service import StorageService
+from app.utils.split_adjust import execution_effective_date, split_adjust_execution_values
+
+if TYPE_CHECKING:
+    from app.models.logical_execution import LogicalExecution
+    from app.schemas.execution import LogicalExecutionRead
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +81,142 @@ class TradeService:
         self._account_repo = AccountRepository(session)
         self._cache = CacheService()
         self._storage = StorageService()
+
+    @staticmethod
+    def _action_applies_to_leg(action: CorporateAction, leg_symbol: str, leg_conid: str | None) -> bool:
+        if action.symbol == leg_symbol:
+            return True
+        if leg_conid is None:
+            return False
+        return leg_conid in {action.old_conid, action.new_conid}
+
+    async def _build_adjusted_trade_legs(
+        self,
+        executions: Sequence["LogicalExecution"],
+        user_id: uuid.UUID,
+    ) -> tuple[list["LogicalExecutionRead"], dict[tuple[str, str | None], list[CorporateAction]]]:
+        from app.schemas.execution import LogicalExecutionRead
+        from app.services.corporate_action_service import CorporateActionService
+
+        corporate_action_service = CorporateActionService(self._session)
+        corporate_actions_by_key: dict[tuple[str, str | None], list[CorporateAction]] = {}
+        for execution in executions:
+            symbol = execution.symbol
+            conid = execution.conid
+            key = (symbol, conid)
+            if key in corporate_actions_by_key:
+                continue
+            corporate_actions_by_key[key] = await corporate_action_service.list_for_execution(
+                user_id,
+                symbol=symbol,
+                conid=conid,
+            )
+
+        legs: list[LogicalExecutionRead] = []
+        for execution in executions:
+            raw_price = execution.price
+            raw_quantity = execution.quantity
+            adjusted_price, adjusted_quantity = split_adjust_execution_values(
+                raw_price=raw_price,
+                raw_quantity=raw_quantity,
+                executed_at=execution.executed_at,
+                symbol=execution.symbol,
+                conid=execution.conid,
+                corporate_actions=corporate_actions_by_key[(execution.symbol, execution.conid)],
+                currency=execution.currency,
+            )
+
+            payload = {column.name: getattr(execution, column.name) for column in execution.__table__.columns}
+            payload["price"] = adjusted_price
+            payload["quantity"] = adjusted_quantity
+            payload["raw_price"] = raw_price
+            payload["raw_quantity"] = raw_quantity
+            legs.append(LogicalExecutionRead.model_validate(payload))
+
+        return legs, corporate_actions_by_key
+
+    def _derive_corporate_action_impact(
+        self,
+        read: TradeRead,
+        corporate_actions_by_key: dict[tuple[str, str | None], list[CorporateAction]],
+    ) -> list[dict[str, str | None]]:
+        impacted_actions: dict[uuid.UUID, CorporateAction] = {}
+        for leg in read.legs:
+            if leg.raw_price is None or leg.raw_quantity is None:
+                continue
+            if leg.raw_price == leg.price and leg.raw_quantity == leg.quantity:
+                continue
+
+            actions = corporate_actions_by_key.get((leg.symbol, leg.conid), [])
+            executed_local_date = execution_effective_date(
+                executed_at=leg.executed_at,
+                currency=leg.currency,
+            )
+            for action in actions:
+                if not self._action_applies_to_leg(action, leg.symbol, leg.conid):
+                    continue
+                if action.date <= executed_local_date:
+                    continue
+                impacted_actions[action.id] = action
+
+        return [
+            {
+                "id": str(action.id),
+                "symbol": action.symbol,
+                "date": action.date.isoformat(),
+                "ratio": str(action.ratio),
+                "old_conid": action.old_conid,
+                "new_conid": action.new_conid,
+            }
+            for action in sorted(impacted_actions.values(), key=lambda item: (item.date, item.symbol, str(item.id)))
+        ]
+
+    async def _build_trade_read(
+        self,
+        trade: Trade,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> TradeRead:
+        """Build TradeRead enriched with split-adjusted execution legs and impact metadata."""
+        reads = await self._build_trade_reads_batch([trade], user_id, portfolio_id)
+        return reads[0]
+
+    async def _build_trade_reads_batch(
+        self,
+        trades: Sequence[Trade],
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None = None,
+    ) -> list[TradeRead]:
+        """Build enriched TradeRead DTOs for multiple trades in one DB pass for legs."""
+        if not trades:
+            return []
+
+        trade_ids = [trade.id for trade in trades]
+        executions_by_trade = await self._exec_repo.list_by_trade_ids(
+            trade_ids,
+            include_deleted=False,
+        )
+
+        reads: list[TradeRead] = []
+        for trade in trades:
+            read = TradeRead.model_validate(trade, context={"storage_service": self._storage})
+            executions = executions_by_trade.get(trade.id, [])
+            legs, corporate_actions_by_key = await self._build_adjusted_trade_legs(executions, user_id)
+            read.legs = legs
+            read = read.derive_chart_basis_and_corporate_action_impact()
+
+            if read.is_combo:
+                read.corporate_action_impact = []
+                reads.append(read)
+                continue
+
+            read.corporate_action_impact = self._derive_corporate_action_impact(
+                read,
+                corporate_actions_by_key,
+            )
+            reads.append(read)
+
+        return reads
 
     async def add_screenshot(
         self,
@@ -336,8 +480,10 @@ class TradeService:
                     trade.user_id,
                 )
         trade_reloaded = await self._repo.get_by_id(trade.id, trade.user_id)
+        if trade_reloaded is None:
+            raise TradeNotFoundError(f"Trade {trade.id} not found.")
 
-        return TradeRead.model_validate(trade_reloaded, context={"storage_service": self._storage})
+        return await self._build_trade_read(trade_reloaded, trade.user_id, portfolio_id)
 
     async def get_trade(
         self,
@@ -360,7 +506,7 @@ class TradeService:
         trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
         if trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
-        return TradeRead.model_validate(trade, context={"storage_service": self._storage})
+        return await self._build_trade_read(trade, user_id, portfolio_id)
 
     async def list_trades(
         self,
@@ -410,8 +556,14 @@ class TradeService:
         except ValueError as exc:
             raise InvalidCursorError("Invalid pagination cursor.") from exc
 
+        trade_reads: list[TradeRead] = []
+        if user_id is not None:
+            trade_reads = await self._build_trade_reads_batch(items, user_id, portfolio_id)
+        else:
+            trade_reads = [TradeRead.model_validate(t, context={"storage_service": self._storage}) for t in items]
+
         return CursorPage[TradeRead](
-            items=[TradeRead.model_validate(t, context={"storage_service": self._storage}) for t in items],
+            items=trade_reads,
             next_cursor=next_cursor,
             total=total,
         )
@@ -486,7 +638,7 @@ class TradeService:
         refreshed_trade = await self._repo.get_by_id(trade_id, user_id, portfolio_id)
         if refreshed_trade is None:
             raise TradeNotFoundError(f"Trade {trade_id} not found.")
-        return TradeRead.model_validate(refreshed_trade, context={"storage_service": self._storage})
+        return await self._build_trade_read(refreshed_trade, user_id, portfolio_id)
 
     async def delete_trade(
         self,
@@ -708,9 +860,11 @@ class TradeService:
 
         # Reload survivor
         survivor_reloaded = await self._repo.get_by_id(survivor.id, user_id)
+        if survivor_reloaded is None:
+            raise TradeNotFoundError(f"Trade {survivor.id} not found.")
         if portfolio_id is not None:
             await self._cache.invalidate_portfolio(portfolio_id, user_id)
-        return TradeRead.model_validate(survivor_reloaded, context={"storage_service": self._storage})
+        return await self._build_trade_read(survivor_reloaded, user_id, portfolio_id)
 
     async def partial_close_trade(
         self,
@@ -804,7 +958,9 @@ class TradeService:
                     )
             await self._session.commit()
             updated = await self._repo.get_by_id(trade.id, user_id)
-            return TradeRead.model_validate(updated, context={"storage_service": self._storage})
+            if updated is None:
+                raise TradeNotFoundError(f"Trade {trade.id} not found.")
+            return await self._build_trade_read(updated, user_id, portfolio_id)
 
         # 2. Perform Split (Partial Close).
         # Refresh trade from DB to ensure all associations are correctly loaded
@@ -875,4 +1031,4 @@ class TradeService:
         if portfolio_id is not None:
             await self._cache.invalidate_portfolio(portfolio_id, user_id)
 
-        return TradeRead.model_validate(new_trade_orm, context={"storage_service": self._storage})
+        return await self._build_trade_read(new_trade_orm, user_id, portfolio_id)

@@ -128,7 +128,7 @@ async def _auth_headers(client: AsyncClient, suffix: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _create_account(client: AsyncClient, headers: dict[str, str]) -> str:
+async def _create_account(client: AsyncClient, headers: dict[str, str]) -> tuple[str, str]:
     """Create an account and return its ID."""
     portfolio_res = await client.post(
         _PORTFOLIOS_URL,
@@ -163,6 +163,33 @@ async def _import_xml(
     )
     assert response.status_code == 200, response.text
     return response.json()["data"]
+
+
+async def _projection_snapshot(
+    client: AsyncClient,
+    headers: dict[str, str],
+    portfolio_id: str,
+) -> list[tuple[str, str, str | None, str | None, str | None, str | None]]:
+    """Return a stable projection snapshot for regression comparisons."""
+    response = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=100",
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    items = response.json()["data"]["items"]
+
+    snapshot = [
+        (
+            item["symbol"],
+            item["opened_at"],
+            item.get("quantity"),
+            item.get("entry_price"),
+            item.get("exit_price"),
+            item.get("net_pnl"),
+        )
+        for item in items
+    ]
+    return sorted(snapshot)
 
 
 @pytest.mark.integration
@@ -230,6 +257,55 @@ async def test_trade_executions_api_after_split_import(client: AsyncClient) -> N
 
 
 @pytest.mark.integration
+async def test_trade_read_exposes_chart_basis_and_corporate_action_identity(client: AsyncClient) -> None:
+    """Trade read endpoint should expose chart basis and actionable impact metadata."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, _account_id = await _create_account(client, headers)
+
+    trade_response = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/trades",
+        headers=headers,
+        json={
+            "symbol": "ATOS",
+            "direction": "LONG",
+            "asset_class": "EQUITY",
+            "quantity": "100",
+            "entry_price": "2",
+            "opened_at": "2024-01-02T15:00:00Z",
+            "currency": "USD",
+        },
+    )
+    assert trade_response.status_code == 201, trade_response.text
+    trade_id = str(trade_response.json()["data"]["id"])
+
+    action_response = await client.post(
+        "/api/v1/corporate-actions",
+        headers=headers,
+        json={
+            "symbol": "ATOS",
+            "date": "2024-03-13",
+            "ratio": "0.05",
+            "old_conid": "111",
+            "new_conid": "222",
+        },
+    )
+    assert action_response.status_code == 201, action_response.text
+    action = action_response.json()["data"]
+
+    get_trade_response = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
+        headers=headers,
+    )
+    assert get_trade_response.status_code == 200, get_trade_response.text
+    trade = get_trade_response.json()["data"]
+
+    assert Decimal(trade["entry_price"]) == Decimal("40")
+    assert Decimal(trade["chart_entry_price"]) == Decimal("40")
+    assert Decimal(trade["chart_quantity"]) == Decimal("5")
+    assert trade["corporate_action_impact"] == []
+
+
+@pytest.mark.integration
 async def test_reimport_idempotency_via_fresh_start(client: AsyncClient) -> None:
     """Fresh-start re-import with same file should produce stable trade counts."""
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
@@ -249,6 +325,28 @@ async def test_reimport_idempotency_via_fresh_start(client: AsyncClient) -> None
 
     assert int(first["trades_created"]) == int(second["trades_created"])
     assert int(second["trades_parsed"]) >= int(second["trades_created"])
+
+
+@pytest.mark.integration
+async def test_reimport_preserves_trade_projection_values(client: AsyncClient) -> None:
+    """Re-importing the same file keeps the trade projection identical."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    xml_content = _make_split_xml(4)
+
+    await _import_xml(client, headers, portfolio_id, account_id, xml_content)
+    first_snapshot = await _projection_snapshot(client, headers, portfolio_id)
+
+    fresh = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/imports/{account_id}/fresh-start",
+        headers=headers,
+        data={"broker": "ibkr", "acknowledged": "true"},
+        files={"file": ("split.xml", xml_content, "application/xml")},
+    )
+    assert fresh.status_code == 200, fresh.text
+
+    second_snapshot = await _projection_snapshot(client, headers, portfolio_id)
+    assert second_snapshot == first_snapshot
 
 
 @pytest.mark.integration

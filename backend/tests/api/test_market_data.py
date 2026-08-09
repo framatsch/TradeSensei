@@ -63,3 +63,52 @@ async def test_clear_cache(
     assert response.status_code == 204
     # Ensure clear_all_cache was called without arguments
     override_market_data_dependency.clear_all_cache.assert_called_once_with()
+
+
+async def test_cache_miss_refetches_after_corporate_action_invalidation(
+    client: AsyncClient,
+    primary_user: dict[str, Any],
+    override_market_data_dependency,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr("app.api.v1.market_data._hub_base", lambda: "https://hub.example")
+
+    override_market_data_dependency.get_cached_prices.side_effect = [[], []]
+
+    class _DummyResponse:
+        is_success = True
+        status_code = 200
+        text = ""
+
+        def json(self) -> dict[str, list[dict[str, object]]]:
+            return {
+                "data": [
+                    {
+                        "symbol": "AAPL",
+                        "start": "2024-01-01T00:00:00Z",
+                        "open": "100.0",
+                        "high": "101.0",
+                        "low": "99.5",
+                        "close": "100.5",
+                        "volume": 1000,
+                    }
+                ]
+            }
+
+    class _DummyClient:
+        async def get(self, url: str, params: dict[str, str]) -> _DummyResponse:
+            assert url.endswith("/prices/AAPL/history")
+            assert params["provider"] == "lseg"
+            assert params["interval"] == "1d"
+            return _DummyResponse()
+
+    app.state.market_data_http_client = _DummyClient()
+
+    response = await client.get(
+        "/api/v1/market-data/prices/AAPL/history?start=2024-01-01T00:00:00Z&end=2024-01-02T00:00:00Z",
+        headers=primary_user["headers"],
+    )
+
+    assert response.status_code == 200
+    assert override_market_data_dependency.get_cached_prices.call_count == 1
+    override_market_data_dependency.cache_prices.assert_called_once()

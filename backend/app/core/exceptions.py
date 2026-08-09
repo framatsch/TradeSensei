@@ -110,6 +110,10 @@ class CorporateActionNotFoundError(Exception):
     """Raised when a corporate action cannot be found for the requesting user."""
 
 
+class CorporateActionConflictError(ValueError):
+    """Raised when a corporate action collides on user/symbol/effective date."""
+
+
 class BrokerRawTransactionNotFoundError(Exception):
     """Raised when a BrokerRawTransaction cannot be found."""
 

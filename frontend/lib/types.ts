@@ -196,6 +196,9 @@ export interface Trade {
   quantity: string | null;
   entry_price: string | null;
   exit_price: string | null;
+  chart_quantity?: string | null;
+  chart_entry_price?: string | null;
+  chart_exit_price?: string | null;
   stop_loss: string | null;
   take_profit: string | null;
   opened_at: string;
@@ -227,6 +230,14 @@ export interface Trade {
    * every trade rebuild. Drives the conflict banner on the trade detail page.
    */
   has_conflict?: boolean;
+  corporate_action_impact?: Array<{
+    id: string;
+    symbol: string;
+    date: string;
+    ratio: string;
+    old_conid: string | null;
+    new_conid: string | null;
+  }>;
   tags: Array<{ id: string; name: string; color: string | null }>;
   trade_notes: TradeNote[];
   legs?: LogicalExecution[];

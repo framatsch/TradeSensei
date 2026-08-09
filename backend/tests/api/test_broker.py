@@ -42,7 +42,7 @@ def override_broker_dependency(mock_broker_service):
 async def test_schwab_callback_unauthenticated(
     override_broker_dependency
 ):
-    """Callback route is reachable without a Bearer token and redirects."""
+    """Callback route is reachable without a Bearer token and returns HTML."""
     mock_service = override_broker_dependency
     
     mock_account = Account()
@@ -57,9 +57,8 @@ async def test_schwab_callback_unauthenticated(
             params={"code": "auth-code-123", "state": "state-456"}
         )
     
-    assert res.status_code == 307
-    assert "schwab_callback=success" in res.headers["location"]
-    assert str(mock_account.id) in res.headers["location"]
+    assert res.status_code == 200
+    assert "Authorization successful" in res.text
     mock_service.complete_schwab_callback.assert_awaited_once_with(
         code="auth-code-123", state="state-456"
     )
@@ -67,15 +66,15 @@ async def test_schwab_callback_unauthenticated(
 async def test_schwab_callback_error_redirect(
     override_broker_dependency
 ):
-    """Callback route redirects with error if missing params or exchange fails."""
+    """Callback route returns HTML errors for invalid/missing callback params."""
     mock_service = override_broker_dependency
     
     from httpx import ASGITransport
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # Missing params
         res = await client.get("/api/v1/broker/schwab/callback")
-        assert res.status_code == 307
-        assert "schwab_callback=error" in res.headers["location"]
+        assert res.status_code == 400
+        assert "Missing code or state" in res.text
 
         # Exchange failure
         mock_service.complete_schwab_callback.side_effect = ConfigurationError("bad state")
@@ -83,5 +82,5 @@ async def test_schwab_callback_error_redirect(
             "/api/v1/broker/schwab/callback",
             params={"code": "code", "state": "state"}
         )
-        assert res2.status_code == 307
-        assert "schwab_callback=error" in res2.headers["location"]
+        assert res2.status_code == 500
+        assert "Authorization failed" in res2.text

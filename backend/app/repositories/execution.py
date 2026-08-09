@@ -15,6 +15,7 @@
 
 import uuid
 from collections.abc import Iterator, Sequence
+from inspect import isawaitable
 
 from sqlalchemy import delete, exists, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,6 +61,48 @@ class ExecutionRepository:
         stmt = stmt.order_by(LogicalExecution.executed_at.asc())
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def list_by_trade_ids(
+        self,
+        trade_ids: Sequence[uuid.UUID],
+        include_deleted: bool = False,
+    ) -> dict[uuid.UUID, list[LogicalExecution]]:
+        """Fetch executions for multiple trades in one query.
+
+        Args:
+            trade_ids: Trade IDs to fetch executions for.
+            include_deleted: When False (default), excludes soft-deleted executions.
+
+        Returns:
+            Mapping ``trade_id -> ordered executions``. Trade IDs with no executions
+            are omitted.
+        """
+        if not trade_ids:
+            return {}
+
+        stmt = select(LogicalExecution).where(LogicalExecution.trade_id.in_(trade_ids))
+        if not include_deleted:
+            stmt = stmt.where(LogicalExecution.deleted.is_(False))
+        stmt = stmt.order_by(
+            LogicalExecution.trade_id.asc(),
+            LogicalExecution.executed_at.asc(),
+            LogicalExecution.id.asc(),
+        )
+        result = await self.session.execute(stmt)
+
+        scalars = result.scalars()
+        if isawaitable(scalars):
+            scalars = await scalars
+        rows = scalars.all()
+        if isawaitable(rows):
+            rows = await rows
+
+        grouped: dict[uuid.UUID, list[LogicalExecution]] = {}
+        for execution in rows:
+            if execution.trade_id is None:
+                continue
+            grouped.setdefault(execution.trade_id, []).append(execution)
+        return grouped
 
     async def get_by_id(
         self,

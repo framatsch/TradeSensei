@@ -17,7 +17,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +52,10 @@ from app.schemas.execution import (
 from app.services.audit_service import AuditEventService
 from app.services.corporate_action_service import CorporateActionService
 from app.utils.conflict_detection import detect_duplicate_pairs
-from app.utils.split_adjust import split_adjust_execution_values
+from app.utils.split_adjust import (
+    split_adjust_execution_values,
+    split_adjust_execution_values_for_holding_period,
+)
 
 if TYPE_CHECKING:
     from app.models.broker_raw_transaction import BrokerRawTransaction
@@ -125,6 +128,7 @@ class ExecutionService:
                 symbol=execution.symbol,
                 conid=execution.conid,
                 corporate_actions=corporate_actions_by_key[(execution.symbol, execution.conid)],
+                currency=execution.currency,
             )
 
             payload = {column.name: getattr(execution, column.name) for column in execution.__table__.columns}
@@ -954,6 +958,7 @@ class ExecutionService:
         trade_id: uuid.UUID,
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
+        corporate_actions: Sequence[CorporateAction] | None = None,
     ) -> None:
         """Re-aggregate a trade's values from its active logical executions.
 
@@ -990,17 +995,26 @@ class ExecutionService:
         # unlinked-duplicate conflict flag on every rebuild — always set,
         # never merged. Editing, deleting, or manually-linking a leg flows
         # through here, so the flag auto-clears when the duplicate disappears.
-        trade.has_conflict = detect_duplicate_pairs(executions)
+        trade.has_conflict = detect_duplicate_pairs(cast(Any, executions))
 
         from app.models.trade import (
             Direction,
         )
-        from app.repositories.corporate_action_repository import CorporateActionRepository
 
-        ca_repo = CorporateActionRepository(self.session)
-        corporate_actions = await ca_repo.list_by_user_and_symbol_or_conid(user_id, trade.symbol, conid=None)
+        if corporate_actions is None:
+            from app.repositories.corporate_action_repository import CorporateActionRepository
+
+            ca_repo = CorporateActionRepository(self.session)
+            corporate_actions = await ca_repo.list_by_user_and_symbol_or_conid(user_id, trade.symbol, conid=None)
 
         is_long = trade.direction == Direction.LONG
+        entry_direction = Direction.LONG if is_long else Direction.SHORT
+        exit_direction = Direction.SHORT if is_long else Direction.LONG
+
+        entry_executed_at = [ex.executed_at for ex in executions if ex.direction == entry_direction]
+        exit_executed_at = [ex.executed_at for ex in executions if ex.direction == exit_direction]
+        opened_at_for_rule = min(entry_executed_at) if entry_executed_at else trade.opened_at
+        closed_at_for_rule = max(exit_executed_at) if exit_executed_at else None
 
         entry_qty = Decimal(0)
         entry_cost = Decimal(0)
@@ -1016,13 +1030,17 @@ class ExecutionService:
         for ex in executions:
             total_commission += ex.commission
 
-            # Apply corporate actions (splits) that occurred AFTER this execution
-            effective_qty = ex.quantity
-            effective_price = ex.price
-            for ca in corporate_actions:
-                if ca.date > ex.executed_at.date():
-                    effective_qty *= ca.ratio
-                    effective_price /= ca.ratio
+            effective_price, effective_qty = split_adjust_execution_values_for_holding_period(
+                raw_price=ex.price,
+                raw_quantity=ex.quantity,
+                executed_at=ex.executed_at,
+                trade_opened_at=opened_at_for_rule,
+                trade_closed_at=closed_at_for_rule,
+                symbol=ex.symbol,
+                conid=ex.conid,
+                corporate_actions=corporate_actions,
+                currency=ex.currency,
+            )
 
             is_entry = (is_long and ex.direction == Direction.LONG) or (not is_long and ex.direction == Direction.SHORT)
 
@@ -1059,8 +1077,9 @@ class ExecutionService:
             else:
                 trade.pnl = None
 
-            if trade.pnl is not None:
-                trade.net_pnl = (trade.pnl - total_commission).quantize(_PRECISION).normalize()
+            pnl_value = trade.pnl
+            if pnl_value is not None:
+                trade.net_pnl = (pnl_value - total_commission).quantize(_PRECISION).normalize()
             else:
                 trade.net_pnl = None
         else:
@@ -1088,12 +1107,17 @@ class ExecutionService:
                     trade.pnl = total_pnl.quantize(_PRECISION).normalize()
                 else:
                     multiplier = Decimal(trade.multiplier)
-                    if is_long:
-                        raw_pnl = (trade.exit_price - trade.entry_price) * exit_qty * multiplier
-                    else:
-                        raw_pnl = (trade.entry_price - trade.exit_price) * exit_qty * multiplier
+                    exit_price = trade.exit_price
+                    entry_price = trade.entry_price
+                    assert exit_price is not None
+                    assert entry_price is not None
+                    raw_pnl = (exit_price - entry_price) * exit_qty * multiplier if is_long else (entry_price - exit_price) * exit_qty * multiplier
                     trade.pnl = raw_pnl.quantize(_PRECISION).normalize()
-                trade.net_pnl = (trade.pnl - total_commission).quantize(_PRECISION).normalize()
+                pnl_value = trade.pnl
+                if pnl_value is not None:
+                    trade.net_pnl = (pnl_value - total_commission).quantize(_PRECISION).normalize()
+                else:
+                    trade.net_pnl = None
             else:
                 trade.pnl = None
                 trade.net_pnl = None
@@ -1106,6 +1130,7 @@ class ExecutionService:
         trade_id: uuid.UUID,
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
+        corporate_actions: Sequence[CorporateAction] | None = None,
     ) -> None:
         """Public wrapper for _re_aggregate_trade.
 
@@ -1113,4 +1138,9 @@ class ExecutionService:
             trade_id: Target trade UUID.
             user_id: Owner user UUID.
         """
-        await self._re_aggregate_trade(trade_id, user_id, portfolio_id)
+        await self._re_aggregate_trade(
+            trade_id,
+            user_id,
+            portfolio_id,
+            corporate_actions=corporate_actions,
+        )

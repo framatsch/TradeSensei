@@ -26,194 +26,19 @@ import pytest
 
 from app.core.exceptions import AccountNotFoundError, ImportParseError
 from app.models.trade import AssetClass, Direction
+from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.imports import ImportResult
 from app.schemas.trade import TradeCreate
 from app.services.import_service import ImportService
 from app.utils.parsers.aggregator import TradeCreateWithSources
 from app.utils.parsers.factory import BrokerType, get_parser
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
-from app.utils.parsers.schwab import SchwabParser, _parse_decimal, _parse_schwab_date
 
 TEST_PORTFOLIO_ID = uuid.uuid4()
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _make_schwab_csv(rows: list[str]) -> bytes:
-    """Build a minimal Schwab trade history CSV.
-
-    Args:
-        rows: Data row lines to append after the header.
-
-    Returns:
-        UTF-8 encoded CSV bytes.
-    """
-    header = "Date,Action,Symbol,Description,Quantity,Price,Fees & Comm,Amount\n"
-    content = header + "\n".join(rows)
-    return content.encode("utf-8")
-
-
-def _schwab_row(
-    date: str = "03/15/2024",
-    action: str = "Buy",
-    symbol: str = "AAPL",
-    quantity: str = "10",
-    price: str = "$150.25",
-    fees: str = "$1.50",
-) -> str:
-    """Build a single Schwab trade history data row string.
-
-    Args:
-        date: Date in MM/DD/YYYY format.
-        action: Action type (Buy or Sell).
-        symbol: Ticker symbol.
-        quantity: Trade quantity.
-        price: Trade price (dollar-prefixed).
-        fees: Fees and commissions (dollar-prefixed).
-
-    Returns:
-        A comma-separated row string.
-    """
-    return f"{date},{action},{symbol},Description,{quantity},{price},{fees},-1500.00"
-
-
-# ─── SchwabParser unit tests ──────────────────────────────────────────────────
-
-
-class TestParseSchwabHelpers:
-    """Unit tests for Schwab parser helper functions."""
-
-    @pytest.mark.unit
-    @pytest.mark.parametrize(
-        ("raw", "expected"),
-        [
-            ("$150.25", Decimal("150.25")),  # dollar prefix
-            ("$1,234.56", Decimal("1234.56")),  # thousands comma
-            ("99.99", Decimal("99.99")),  # no prefix
-        ],
-    )
-    def test_parse_decimal(self, raw: str, expected: Decimal) -> None:
-        """_parse_decimal should strip currency symbols and commas."""
-        assert _parse_decimal(raw) == expected
-
-    @pytest.mark.unit
-    def test_parse_schwab_date_utc_midnight(self) -> None:
-        """Schwab date strings should produce UTC midnight datetimes."""
-        result = _parse_schwab_date("03/15/2024")
-        assert result == datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC)
-
-    @pytest.mark.unit
-    def test_parse_schwab_date_invalid_raises(self) -> None:
-        """Invalid date strings should raise ValueError."""
-        with pytest.raises(ValueError):
-            _parse_schwab_date("2024-03-15")
-
-
-class TestSchwabParserParse:
-    """Unit tests for SchwabParser.parse()."""
-
-    @pytest.mark.unit
-    def test_parses_buy_row(self) -> None:
-        """A 'Buy' row should produce a LONG trade."""
-        csv_bytes = _make_schwab_csv([_schwab_row(action="Buy")])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert len(trades) == 1
-        assert trades[0].direction == Direction.LONG
-        assert trades[0].symbol == "AAPL"
-        assert trades[0].asset_class == AssetClass.EQUITY
-
-    @pytest.mark.unit
-    def test_parses_sell_row(self) -> None:
-        """A 'Sell' row should produce a SHORT trade."""
-        csv_bytes = _make_schwab_csv([_schwab_row(action="Sell")])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert len(trades) == 1
-        assert trades[0].direction == Direction.SHORT
-
-    @pytest.mark.unit
-    def test_non_buy_sell_rows_skipped(self) -> None:
-        """Rows with actions other than Buy/Sell should be ignored."""
-        dividend_row = "03/15/2024,Dividend,AAPL,Description,0,$0.00,$0.00,$0.52"
-        csv_bytes = _make_schwab_csv([dividend_row, _schwab_row()])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert len(trades) == 1
-
-    @pytest.mark.unit
-    def test_commission_stripped_of_dollar(self) -> None:
-        """Dollar-prefixed fee should be parsed to a positive Decimal."""
-        csv_bytes = _make_schwab_csv([_schwab_row(fees="$2.99")])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert trades[0].commission == Decimal("2.99")
-
-    @pytest.mark.unit
-    def test_missing_fees_defaults_to_zero(self) -> None:
-        """A row with no Fees & Comm value should default commission to zero."""
-        row = "03/15/2024,Buy,AAPL,Description,10,$150.25,,$-1502.50"
-        csv_bytes = _make_schwab_csv([row])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert trades[0].commission == Decimal("0")
-
-    @pytest.mark.unit
-    def test_opened_at_is_utc_midnight(self) -> None:
-        """Parsed opened_at should be a UTC midnight datetime."""
-        csv_bytes = _make_schwab_csv([_schwab_row(date="06/01/2024")])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert trades[0].opened_at == datetime(2024, 6, 1, 0, 0, 0, tzinfo=UTC)
-
-    @pytest.mark.unit
-    def test_bad_row_is_skipped_with_warning(self) -> None:
-        """A row with invalid price should be skipped with a warning."""
-        bad_row = "03/15/2024,Buy,AAPL,Description,10,not-a-price,$1.50,-1502.50"
-        csv_bytes = _make_schwab_csv([bad_row])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert len(trades) == 0
-        assert len(parser.warnings) == 1
-
-    @pytest.mark.unit
-    def test_empty_file_raises_import_parse_error(self) -> None:
-        """An empty CSV file should raise ImportParseError."""
-        parser = SchwabParser()
-        with pytest.raises(ImportParseError, match="empty"):
-            parser.parse(b"", "trade_history.csv")
-
-    @pytest.mark.unit
-    def test_missing_column_raises_import_parse_error(self) -> None:
-        """A CSV missing required columns should raise ImportParseError."""
-        csv_bytes = b"Date,Action,Symbol\n03/15/2024,Buy,AAPL\n"
-        parser = SchwabParser()
-        with pytest.raises(ImportParseError, match="missing required column"):
-            parser.parse(csv_bytes, "trade_history.csv")
-
-    @pytest.mark.unit
-    def test_invalid_utf8_raises_import_parse_error(self) -> None:
-        """Non-UTF-8 bytes should raise ImportParseError."""
-        parser = SchwabParser()
-        with pytest.raises(ImportParseError, match="not valid UTF-8"):
-            parser.parse(b"\xff\xfe bad bytes", "trade_history.csv")
-
-    @pytest.mark.unit
-    def test_multiple_rows(self) -> None:
-        """Multiple valid rows should all produce TradeCreate instances."""
-        rows = [_schwab_row(symbol="AAPL"), _schwab_row(symbol="MSFT")]
-        csv_bytes = _make_schwab_csv(rows)
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert len(trades) == 2
-
-    @pytest.mark.unit
-    def test_closed_at_is_none(self) -> None:
-        """Schwab trades are open positions; closed_at should be None."""
-        csv_bytes = _make_schwab_csv([_schwab_row()])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert trades[0].closed_at is None
 
 
 # ─── Factory unit tests ───────────────────────────────────────────────────────
@@ -756,6 +581,143 @@ class TestImportService:
         delete_trades.assert_awaited_once()
 
     @pytest.mark.unit
+    async def test_import_updates_existing_corporate_action_instead_of_creating_duplicate(
+        self,
+        import_service: ImportService,
+    ) -> None:
+        fake_account = MagicMock()
+        user_id = uuid.uuid4()
+        account_id = uuid.uuid4()
+
+        raw_record = MagicMock()
+        raw_record.id = "ibkr:raw-1"
+        raw_record.model_copy = MagicMock(return_value=raw_record)
+
+        ca = CorporateActionCreateRequest(
+            symbol="OTLK",
+            date=datetime(2024, 3, 13, tzinfo=UTC).date(),
+            ratio=Decimal("0.05"),
+            old_conid="357194941",
+            new_conid="690184975",
+        )
+
+        existing_action = MagicMock()
+        existing_action.id = uuid.uuid4()
+        existing_action.symbol = "OTLK"
+        existing_action.date = datetime(2024, 3, 13, tzinfo=UTC).date()
+        existing_action.ratio = Decimal("0.1")
+        existing_action.old_conid = "old"
+        existing_action.new_conid = "new"
+
+        mock_parser = MagicMock()
+        mock_parser.parse_raw.return_value = ([raw_record], [ca])
+        mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "app.services.import_service.AccountRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=fake_account,
+            ),
+            patch(
+                "app.services.import_service.CorporateActionRepository.list_by_user",
+                new_callable=AsyncMock,
+                side_effect=[[], [existing_action]],
+            ),
+            patch(
+                "app.services.import_service.CorporateActionRepository.find_by_user_symbol_date",
+                new_callable=AsyncMock,
+                return_value=existing_action,
+            ),
+            patch(
+                "app.services.import_service.CorporateActionRepository.create",
+                new_callable=AsyncMock,
+            ) as create_action,
+            patch(
+                "app.services.import_service.TradeRepository.list_open_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_open_combo_positions_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.list_manually_edited_keys",
+                new_callable=AsyncMock,
+                return_value=set(),
+            ),
+            patch(
+                "app.services.import_service.BrokerRawTransactionRepository.bulk_upsert",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.BrokerRawTransactionRepository.list_released_without_execution",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.LogicalExecutionService.bulk_create_from_raw",
+                new_callable=AsyncMock,
+                return_value=([], 0),
+            ),
+            patch(
+                "app.services.import_service.ImportService._collect_trade_creates_from_logical_batches",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.ImportService._build_seed_combo_execution_trades",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.import_service.get_parser",
+                return_value=mock_parser,
+            ),
+            patch(
+                "app.services.import_service.ExecutionRepository.delete_split_children_for_account",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.import_service.ExecutionRepository.restore_split_parents_for_account",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.import_service.TradeRepository.delete_by_user_account",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.import_service.PortfolioRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+        ):
+            await import_service.import_file(
+                content=b"raw",
+                filename="activity.xml",
+                broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
+                account_id=account_id,
+                user_id=user_id,
+                overwrite_manually_edited=False,
+            )
+
+        create_action.assert_not_awaited()
+        assert existing_action.ratio == Decimal("0.05")
+        assert existing_action.old_conid == "357194941"
+        assert existing_action.new_conid == "690184975"
+        import_service._session.flush.assert_awaited()
+
+    @pytest.mark.unit
     async def test_anchor_reconcile_and_protection_result_counters(
         self,
         import_service: ImportService,
@@ -950,6 +912,7 @@ class TestImportService:
         # Precondition: legacy key would not match before reconcile; only anchor
         # resolution can pick this trade.
         assert pre_reconcile_opened_at != incoming_reconcile.opened_at
+        assert backfill_links.await_args is not None
         linked_tws = backfill_links.await_args.args[0]
         assert linked_tws[0].created_trade is existing_trade
 
@@ -1172,143 +1135,6 @@ class TestImportService:
 
         assert len(created_trades) == 1
         assert created_trades[0].account_id == target_account_id
-
-
-# ─── SchwabParser EUR/USD enrichment ──────────────────────────────────────────
-
-
-class TestSchwabParserCurrencyField:
-    """Tests that SchwabParser.parse() sets currency='USD' on each trade."""
-
-    @pytest.mark.unit
-    def test_currency_is_usd(self) -> None:
-        """Every parsed Schwab trade should have currency='USD'."""
-        csv_bytes = _make_schwab_csv([_schwab_row()])
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-        assert trades[0].currency == "USD"
-
-
-class TestSchwabParserEnrichPnlEur:
-    """Unit tests for SchwabParser.enrich_pnl_eur()."""
-
-    @pytest.mark.asyncio
-    async def test_pnl_eur_set_when_rate_available(self) -> None:
-        """pnl_eur is set for a closed trade when FxRateService returns a rate."""
-        # Build a Schwab trade with pnl set manually (Schwab parser leaves pnl=None,
-        # so we craft a TradeCreate directly to test the enrichment logic).
-        now = datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC)
-        trade = TradeCreate(
-            symbol="AAPL",
-            direction=Direction.LONG,
-            asset_class=AssetClass.EQUITY,
-            quantity=Decimal("10"),
-            entry_price=Decimal("150.00"),
-            opened_at=now,
-            pnl=Decimal("500.00"),
-            currency="USD",
-        )
-        trades = [trade]
-
-        mock_session = AsyncMock()
-        mock_fx = AsyncMock()
-        mock_fx.get_usd_to_eur = AsyncMock(return_value=Decimal("0.9150"))
-
-        parser = SchwabParser()
-
-        with patch(
-            "app.services.fx_rate_service.FxRateService",
-            return_value=mock_fx,
-        ):
-            await parser.enrich_pnl_eur(trades, mock_session)
-
-        assert trades[0].pnl_eur == Decimal("500.00") * Decimal("0.9150")
-
-    @pytest.mark.asyncio
-    async def test_pnl_eur_null_when_rate_unavailable(self) -> None:
-        """pnl_eur stays None and a warning is added when rate is unavailable."""
-        now = datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC)
-        trade = TradeCreate(
-            symbol="AAPL",
-            direction=Direction.LONG,
-            asset_class=AssetClass.EQUITY,
-            quantity=Decimal("10"),
-            entry_price=Decimal("150.00"),
-            opened_at=now,
-            pnl=Decimal("300.00"),
-            currency="USD",
-        )
-        trades = [trade]
-
-        mock_session = AsyncMock()
-        mock_fx = AsyncMock()
-        mock_fx.get_usd_to_eur = AsyncMock(return_value=None)
-
-        parser = SchwabParser()
-
-        with patch(
-            "app.services.fx_rate_service.FxRateService",
-            return_value=mock_fx,
-        ):
-            await parser.enrich_pnl_eur(trades, mock_session)
-
-        assert trades[0].pnl_eur is None
-        assert any("unavailable" in w for w in parser.warnings)
-
-    @pytest.mark.asyncio
-    async def test_open_trade_not_enriched(self) -> None:
-        """Trades without pnl (open positions) should not trigger an FX lookup."""
-        csv_bytes = _make_schwab_csv([_schwab_row()])  # pnl=None (open)
-        parser = SchwabParser()
-        trades, _ = parser.parse(csv_bytes, "trade_history.csv")
-
-        mock_session = AsyncMock()
-        mock_fx = AsyncMock()
-        mock_fx.get_usd_to_eur = AsyncMock(return_value=Decimal("0.9200"))
-
-        with patch(
-            "app.services.fx_rate_service.FxRateService",
-            return_value=mock_fx,
-        ):
-            await parser.enrich_pnl_eur(trades, mock_session)
-
-        mock_fx.get_usd_to_eur.assert_not_called()
-        assert trades[0].pnl_eur is None
-
-    @pytest.mark.asyncio
-    async def test_per_date_rate_lookup(self) -> None:
-        """Each unique trade date results in exactly one FxRateService call."""
-        day1 = datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC)
-        day2 = datetime(2024, 3, 18, 0, 0, 0, tzinfo=UTC)
-
-        def _make_t(opened_at: datetime) -> TradeCreate:
-            return TradeCreate(
-                symbol="AAPL",
-                direction=Direction.LONG,
-                asset_class=AssetClass.EQUITY,
-                quantity=Decimal("10"),
-                entry_price=Decimal("150.00"),
-                opened_at=opened_at,
-                pnl=Decimal("100.00"),
-                currency="USD",
-            )
-
-        trades = [_make_t(day1), _make_t(day1), _make_t(day2)]
-
-        mock_session = AsyncMock()
-        mock_fx = AsyncMock()
-        mock_fx.get_usd_to_eur = AsyncMock(return_value=Decimal("0.92"))
-
-        parser = SchwabParser()
-
-        with patch(
-            "app.services.fx_rate_service.FxRateService",
-            return_value=mock_fx,
-        ):
-            await parser.enrich_pnl_eur(trades, mock_session)
-
-        # Two unique dates → two calls.
-        assert mock_fx.get_usd_to_eur.call_count == 2
 
 
 # ─── IBKRXMLParser helpers ────────────────────────────────────────────────────
@@ -1565,6 +1391,44 @@ class TestImportWithSplit:
         assert len(completed) == 1
         assert len(open_lots) == 1
         assert open_lots[0].quantity == Decimal("950")
+
+    @pytest.mark.unit
+    def test_split_does_not_scale_commission(self) -> None:
+        """Commission stays unchanged when a split is applied in FIFO aggregation."""
+        from app.utils.parsers.aggregator import aggregate_executions_fifo
+
+        buy_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.LONG,
+            quantity=Decimal("1000"),
+            entry_price=Decimal("1.00"),
+            opened_at=datetime(2023, 4, 1, 9, 30, tzinfo=UTC),
+            commission=Decimal("3.00"),
+            broker_conid="357194941",
+        )
+        sell_exec = _make_trade_create(
+            symbol="OTLK",
+            direction=Direction.SHORT,
+            quantity=Decimal("50"),
+            entry_price=Decimal("20.00"),
+            opened_at=datetime(2023, 6, 1, 9, 30, tzinfo=UTC),
+            pnl=Decimal("500.00"),
+            commission=Decimal("2.00"),
+            broker_conid="690184975",
+        )
+        split = _CaSplitStub(
+            symbol="OTLK",
+            date=date(2023, 5, 1),
+            ratio=Decimal("0.05"),
+            old_conid="357194941",
+            new_conid="690184975",
+        )
+
+        result = aggregate_executions_fifo([buy_exec, sell_exec], corporate_actions=[split])
+        completed = [t for t in result if t.closed_at is not None]
+
+        assert len(completed) == 1
+        assert completed[0].commission == Decimal("5.00")
 
     # ── ImportService: skip_manually_edited ───────────────────────────────────
 

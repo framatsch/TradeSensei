@@ -18,7 +18,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Numeric, String, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -111,6 +111,7 @@ class CorporateAction(Base):
     )
 
     __table_args__ = (
+        UniqueConstraint("user_id", "symbol", "date", name="uq_corporate_actions_user_symbol_date"),
         Index("ix_corporate_actions_user_id", "user_id"),
         Index("ix_corporate_actions_symbol", "symbol"),
         Index("ix_corporate_actions_date", "date"),

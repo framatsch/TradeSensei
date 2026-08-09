@@ -24,11 +24,7 @@ the aggregator applies the ratio adjustments to all open lots for the affected
 symbol at the correct chronological point — before matching any subsequent
 closing executions.
 
-Seed lots (existing open DB trades) can be supplied via *seed_open_lots* so
-that a cross-period import correctly closes positions that were opened in a
-previous import.  When a seed lot is closed, the resulting :class:`TradeCreate`
-carries the original ``db_trade_id`` so the caller can issue an UPDATE instead
-of an INSERT.
+Aggregation input is always rebuilt from immutable logical executions.
 """
 
 import logging
@@ -42,6 +38,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 from app.models.trade import AssetClass, Direction
 from app.schemas.trade import TradeCreate
+from app.utils.split_adjust import apply_split_ratio, execution_effective_date
 
 if TYPE_CHECKING:
     from app.models.trade import Trade
@@ -391,25 +388,6 @@ class CorporateActionLike(Protocol):
     new_conid: str | None
 
 
-class SeedLotLike(Protocol):
-    """Structural protocol for existing open DB trades used to seed the aggregator.
-
-    Any object exposing these attributes is accepted (the ORM
-    :class:`~app.models.trade.Trade` satisfies this protocol).
-    """
-
-    id: uuid.UUID
-    symbol: str
-    broker_conid: str | None
-    asset_class: AssetClass | str  # AssetClass StrEnum or its string value
-    quantity: Decimal
-    entry_price: Decimal
-    commission: Decimal
-    opened_at: datetime
-    direction: Direction | str  # Direction StrEnum or its string value
-    multiplier: int
-
-
 class ExecutionLike(Protocol):
     """Structural protocol for per-execution objects that can be aggregated.
 
@@ -509,58 +487,6 @@ def iter_logical_executions_to_trade_creates(
         )
 
 
-def _preload_seed_lots(
-    seed_lots: Sequence[SeedLotLike],
-    target_queue: dict[tuple[str, str | None, str], deque[TradeCreate]],
-    symbol_map: dict[str, str] | None,
-    conid_map: dict[str, str] | None,
-    is_orphaned: bool = False,
-) -> None:
-    """Pre-load existing seed lots into a FIFO queue."""
-    for seed in sorted(seed_lots, key=lambda s: s.opened_at):
-        seed_symbol = seed.symbol
-        if symbol_map and seed_symbol in symbol_map:
-            seed_symbol = symbol_map[seed_symbol]
-        seed_conid = seed.broker_conid
-        if conid_map and seed_conid in conid_map:
-            seed_conid = conid_map[seed_conid]
-
-        asset_class_val: str = str(seed.asset_class)
-        key: tuple[str, str | None, str] = (
-            seed_symbol,
-            seed_conid,
-            asset_class_val,
-        )
-        if key not in target_queue:
-            target_queue[key] = deque()
-
-        opened_at = seed.opened_at
-        if opened_at.tzinfo is None:
-            opened_at = opened_at.replace(tzinfo=UTC)
-
-        closed_at = getattr(seed, "closed_at", None) if is_orphaned else None
-        if closed_at and closed_at.tzinfo is None:
-            closed_at = closed_at.replace(tzinfo=UTC)
-
-        seed_tc = TradeCreate(
-            user_id=None,
-            symbol=seed_symbol,
-            direction=Direction(seed.direction),
-            asset_class=AssetClass(seed.asset_class),
-            quantity=seed.quantity,
-            entry_price=seed.entry_price,
-            exit_price=getattr(seed, "exit_price", None) if is_orphaned else None,
-            commission=seed.commission,
-            opened_at=opened_at,
-            closed_at=closed_at,
-            pnl=getattr(seed, "pnl", None) if is_orphaned else None,
-            broker_conid=seed_conid,
-            db_trade_id=seed.id,
-            multiplier=seed.multiplier,
-        )
-        target_queue[key].append(seed_tc)
-
-
 def _reconcile_orphaned_lots(
     open_lots: dict[tuple[str, str | None, str], deque[TradeCreate]],
     orphaned_lots: dict[tuple[str, str | None, str], deque[TradeCreate]],
@@ -652,8 +578,6 @@ def aggregate_executions_fifo(
     symbol_map: dict[str, str] | None = None,
     conid_map: dict[str, str] | None = None,
     corporate_actions: Sequence[CorporateActionLike] | None = None,
-    seed_open_lots: Sequence[SeedLotLike] | None = None,
-    seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
 ) -> list[TradeCreate]:
     """Group execution-level TradeCreate objects into round-trip TradeCreate objects.
 
@@ -672,12 +596,6 @@ def aggregate_executions_fifo(
     internal queue key is re-keyed so that subsequent executions arriving with the
     new conid are matched to the correct open lots.
 
-    When *seed_open_lots* are provided, they are pre-loaded into the FIFO queue
-    **before** any executions are processed.  This allows a cross-period import to
-    correctly close positions that were opened in a prior import.  Each seed lot's
-    ``db_trade_id`` is set to its original database ``id`` so that the caller can
-    issue an UPDATE (rather than an INSERT) for those lots when they are closed.
-
     Args:
         executions: A list of :class:`~app.schemas.trade.TradeCreate` representing
             individual executions.
@@ -687,12 +605,6 @@ def aggregate_executions_fifo(
             :class:`CorporateActionLike` that should be applied during aggregation.
             When *None* or empty the behaviour is identical to the previous
             implementation (backward compatible).
-        seed_open_lots: Optional sequence of objects satisfying :class:`SeedLotLike`
-            representing open trades already stored in the database.  When supplied,
-            these are pre-populated into the FIFO queue so that incoming closing
-            executions can be matched against them.  Closed results originating from
-            a seed lot will have ``db_trade_id`` set to the seed's database ``id``.
-
     Returns:
         A list of aggregated round-trip :class:`~app.schemas.trade.TradeCreate`
         objects.
@@ -707,23 +619,19 @@ def aggregate_executions_fifo(
     open_lots: dict[tuple[str, str | None, str], deque[TradeCreate]] = {}
     completed_trades: list[TradeCreate] = []
 
-    # Pre-populate the queue with seed lots from the DB (existing open positions).
-    if seed_open_lots:
-        _preload_seed_lots(seed_open_lots, open_lots, symbol_map, conid_map, is_orphaned=False)
-
     # Two-pointer merge: advance through executions; apply any split events whose
     # date falls at or before the current execution's date first.
 
     # orphaned_lots: queue keyed by (symbol, conid, asset_class)
     orphaned_lots: dict[tuple[str, str | None, str], deque[TradeCreate]] = {}
 
-    if seed_orphaned_lots:
-        _preload_seed_lots(seed_orphaned_lots, orphaned_lots, symbol_map, conid_map, is_orphaned=True)
-
     ca_idx = 0
 
     for exec_trade in sorted_execs:
-        exec_date = exec_trade.opened_at.date()
+        exec_date = execution_effective_date(
+            executed_at=exec_trade.opened_at,
+            currency=exec_trade.currency,
+        )
 
         # Apply all split events that happened *before* this execution (or on the
         # same day — splits take effect at market open).
@@ -1012,22 +920,20 @@ def _apply_split_event(
 
             lot_qty = cast(Decimal, lot.quantity)
             lot_entry_price = cast(Decimal, lot.entry_price)
-            lot.quantity = lot_qty * ca.ratio
-            lot.entry_price = lot_entry_price / ca.ratio
+            adjusted_price, adjusted_quantity = apply_split_ratio(
+                raw_price=lot_entry_price,
+                raw_quantity=lot_qty,
+                ratio=ca.ratio,
+            )
+            lot.quantity = adjusted_quantity
+            lot.entry_price = adjusted_price
             lot.source_qty_factor = (lot.source_qty_factor or Decimal("1")) * ca.ratio
             # Update the conid stored in each lot to the new conid (if provided)
             if ca.new_conid is not None:
                 lot.broker_conid = ca.new_conid
 
-            # Scale source_commission proportionally if it was set
-            if lot.source_commission is not None:
-                lot.source_commission = lot.source_commission * ca.ratio
-
-            # Note: We do NOT scale commission_used_open here because it's only
-            # set when a lot is matched and moved to completed_trades.
-            # Open lots only have 'commission'.
-            if lot.commission is not None:
-                lot.commission = lot.commission * ca.ratio
+            # Commission and source_commission are currency values and do not
+            # scale with split ratios.
 
         # Schedule queue re-keying if conid changed
         if ca.old_conid is not None and ca.new_conid is not None:
@@ -1059,8 +965,6 @@ def aggregate_executions_fifo_with_sources(
     symbol_map: dict[str, str] | None = None,
     conid_map: dict[str, str] | None = None,
     corporate_actions: Sequence[CorporateActionLike] | None = None,
-    seed_open_lots: Sequence[SeedLotLike] | None = None,
-    seed_orphaned_lots: Sequence[SeedLotLike] | None = None,
 ) -> list[TradeCreateWithSources]:
     """Enhanced aggregation that tracks source executions for split-aware linking.
 
@@ -1085,8 +989,6 @@ def aggregate_executions_fifo_with_sources(
         symbol_map=symbol_map,
         conid_map=conid_map,
         corporate_actions=corporate_actions,
-        seed_open_lots=seed_open_lots,
-        seed_orphaned_lots=seed_orphaned_lots,
     )
 
     # Create TradeCreateWithSources wrappers with proper allocation tracking.

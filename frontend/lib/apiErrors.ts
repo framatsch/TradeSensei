@@ -36,6 +36,11 @@ export function extractApiError(error: unknown, fallback = "An unexpected error 
 
     if (typeof err.detail === "string") return err.detail;
 
+    if (err.detail && typeof err.detail === "object") {
+      const detailObj = err.detail as Record<string, unknown>;
+      if (typeof detailObj.message === "string") return detailObj.message;
+    }
+
     if (Array.isArray(err.detail) && err.detail.length > 0) {
       const first = err.detail[0] as Record<string, unknown>;
       if (typeof first.msg === "string") return first.msg;

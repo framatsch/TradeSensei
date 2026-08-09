@@ -1,0 +1,5 @@
+{
+  "verification": "test_reimport_preserves_trade_projection_values",
+  "result": "passed",
+  "details": "Re-importing identical raw transactions yields identical projection snapshot."
+}

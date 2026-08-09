@@ -486,6 +486,8 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
   const entryDate = new Date(trade.opened_at);
   const exitDate = trade.closed_at ? new Date(trade.closed_at) : null;
+  const lineEntryPrice = trade.chart_entry_price ?? trade.entry_price;
+  const lineExitPrice = trade.chart_exit_price ?? trade.exit_price;
 
   const [interval, setInterval] = useState<Interval>(() =>
     smartDefaultInterval(entryDate, exitDate, allowedIntervals),
@@ -634,9 +636,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
           // Add horizontal price lines for entry and exit
           if (showTradeLinesRef.current) {
-            if (trade.entry_price) {
+            if (lineEntryPrice) {
               const pl = seriesRef.current.createPriceLine({
-                price: parseFloat(trade.entry_price),
+                price: parseFloat(lineEntryPrice),
                 color: "#00d2ff", // Cyan
                 lineWidth: 2,
                 lineStyle: LineStyle.Dashed,
@@ -645,9 +647,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
               });
               priceLinesRef.current.push(pl);
             }
-            if (trade.exit_price) {
+            if (lineExitPrice) {
               const pl = seriesRef.current.createPriceLine({
-                price: parseFloat(trade.exit_price),
+                price: parseFloat(lineExitPrice),
                 color: "#f97316", // Orange
                 lineWidth: 2,
                 lineStyle: LineStyle.Dashed,
@@ -743,6 +745,10 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
       trade.opened_at,
       trade.closed_at,
       trade.direction,
+      trade.entry_price,
+      trade.exit_price,
+      trade.chart_entry_price,
+      trade.chart_exit_price,
       executions,
       chartMode,
     ],
@@ -871,9 +877,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
     // Add lines back if enabled
     if (nextVal) {
-      if (trade.entry_price) {
+      if (lineEntryPrice) {
         const pl = seriesRef.current.createPriceLine({
-          price: parseFloat(trade.entry_price),
+          price: parseFloat(lineEntryPrice),
           color: "#00d2ff",
           lineWidth: 2,
           lineStyle: LineStyle.Dashed,
@@ -882,9 +888,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         });
         priceLinesRef.current.push(pl);
       }
-      if (trade.exit_price) {
+      if (lineExitPrice) {
         const pl = seriesRef.current.createPriceLine({
-          price: parseFloat(trade.exit_price),
+          price: parseFloat(lineExitPrice),
           color: "#f97316",
           lineWidth: 2,
           lineStyle: LineStyle.Dashed,

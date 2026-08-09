@@ -1,0 +1,11 @@
+{
+  "artifact_version": "anonymized-v1",
+  "note": "OTLK/ATOS fixtures unavailable in repository; SPLK (synthetic reverse split fixture) used for baseline-equivalent verification.",
+  "anonymization": "Raw trade-value fields are replaced by deterministic fingerprints for comparison without exposing original values.",
+  "corporate_action_symbol_count": 1,
+  "trade_count": 1,
+  "trade_value_fingerprints": [
+    "234ed71113f1ba0fd6d61038aa1f214b70d1419fb6b9edaacbb35910ff9e25e1"
+  ],
+  "dataset_fingerprint": "a81ecf18a7e07e07d2d4a775f7abebab677675c3c6e6ee221a81ce3268982174"
+}

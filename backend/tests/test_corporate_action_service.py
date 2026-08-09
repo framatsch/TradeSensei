@@ -25,7 +25,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.exceptions import CorporateActionNotFoundError
+from app.core.exceptions import CorporateActionConflictError, CorporateActionNotFoundError
 from app.models.corporate_action import CorporateAction
 from app.schemas.corporate_action import (
     CorporateActionCreate,
@@ -200,10 +200,19 @@ class TestCreateCorporateAction:
             old_conid="357194941",
             new_conid="690184975",
         )
-        with patch(
-            f"{_REPO}.create",
-            new_callable=AsyncMock,
-            return_value=ca,
+        with (
+            patch(
+                f"{_REPO}.find_by_user_symbol_date",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                f"{_REPO}.create",
+                new_callable=AsyncMock,
+                return_value=ca,
+            ),
+            patch.object(service, "_re_aggregate_symbol_trades", new_callable=AsyncMock),
+            patch.object(service, "_invalidate_price_cache_for_symbol", new_callable=AsyncMock),
         ):
             result = await service.create_corporate_action(
                 CorporateActionCreate(
@@ -221,6 +230,69 @@ class TestCreateCorporateAction:
         assert result.ratio == Decimal("0.05")
         assert result.old_conid == "357194941"
         assert result.new_conid == "690184975"
+
+    @pytest.mark.unit
+    async def test_create_conflict_raises_conflict_error(self, service: CorporateActionService) -> None:
+        user_id = uuid.uuid4()
+        existing = _make_ca(user_id=user_id)
+        with patch(
+            f"{_REPO}.find_by_user_symbol_date",
+            new_callable=AsyncMock,
+            return_value=existing,
+        ):
+            with pytest.raises(CorporateActionConflictError):
+                await service.create_corporate_action(
+                    CorporateActionCreate(
+                        symbol=existing.symbol,
+                        date=existing.date,
+                        ratio=existing.ratio,
+                        old_conid=existing.old_conid,
+                        new_conid=existing.new_conid,
+                    ),
+                    user_id,
+                )
+
+    @pytest.mark.unit
+    async def test_create_rolls_back_when_reaggregation_fails(
+        self,
+        service: CorporateActionService,
+        mock_session: AsyncMock,
+    ) -> None:
+        user_id = uuid.uuid4()
+        created = _make_ca(user_id=user_id)
+        with (
+            patch(
+                f"{_REPO}.find_by_user_symbol_date",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                f"{_REPO}.create",
+                new_callable=AsyncMock,
+                return_value=created,
+            ),
+            patch.object(
+                service,
+                "_re_aggregate_symbol_trades",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("boom"),
+            ),
+            patch.object(service, "_invalidate_price_cache_for_symbol", new_callable=AsyncMock),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await service.create_corporate_action(
+                CorporateActionCreate(
+                    symbol=created.symbol,
+                    date=created.date,
+                    ratio=created.ratio,
+                    old_conid=created.old_conid,
+                    new_conid=created.new_conid,
+                ),
+                user_id,
+            )
+
+        mock_session.rollback.assert_awaited_once()
+        mock_session.commit.assert_not_called()
 
 
 # ── TestUpdateCorporateAction ──────────────────────────────────────────────────
@@ -252,6 +324,13 @@ class TestUpdateCorporateAction:
                 new_callable=AsyncMock,
                 return_value=updated_ca,
             ),
+            patch(
+                f"{_REPO}.find_by_user_symbol_date",
+                new_callable=AsyncMock,
+                return_value=updated_ca,
+            ),
+            patch.object(service, "_re_aggregate_symbol_trades", new_callable=AsyncMock),
+            patch.object(service, "_invalidate_price_cache_for_symbol", new_callable=AsyncMock),
         ):
             result = await service.update_corporate_action(
                 ca.id,  # type: ignore[arg-type]
@@ -261,6 +340,42 @@ class TestUpdateCorporateAction:
 
         assert isinstance(result, CorporateActionRead)
         assert result.ratio == Decimal("2.0")
+
+    @pytest.mark.unit
+    async def test_update_conflict_raises_conflict_error(
+        self, service: CorporateActionService
+    ) -> None:
+        ca = _make_ca(symbol="OTLK", ratio=Decimal("0.05"))
+        updated_ca = _make_ca(
+            id=ca.id,  # type: ignore[arg-type]
+            user_id=ca.user_id,  # type: ignore[arg-type]
+            symbol="OTLK",
+            ratio=Decimal("2.0"),
+        )
+        conflict = _make_ca(symbol="OTLK", ratio=Decimal("1.5"))
+        with (
+            patch(
+                f"{_REPO}.get_by_id",
+                new_callable=AsyncMock,
+                return_value=ca,
+            ),
+            patch(
+                f"{_REPO}.update",
+                new_callable=AsyncMock,
+                return_value=updated_ca,
+            ),
+            patch(
+                f"{_REPO}.find_by_user_symbol_date",
+                new_callable=AsyncMock,
+                return_value=conflict,
+            ),
+        ):
+            with pytest.raises(CorporateActionConflictError):
+                await service.update_corporate_action(
+                    ca.id,  # type: ignore[arg-type]
+                    CorporateActionUpdate(ratio=Decimal("2.0")),
+                    ca.user_id,  # type: ignore[arg-type]
+                )
 
     @pytest.mark.unit
     async def test_raises_not_found_when_missing(
@@ -281,6 +396,67 @@ class TestUpdateCorporateAction:
                 CorporateActionUpdate(ratio=Decimal("2.0")),
                 uuid.uuid4(),
             )
+
+    @pytest.mark.unit
+    async def test_update_date_invalidates_symbol_cache(self, service: CorporateActionService) -> None:
+        ca = _make_ca(symbol="OTLK", ratio=Decimal("0.05"))
+        updated_ca = _make_ca(
+            id=ca.id,  # type: ignore[arg-type]
+            user_id=ca.user_id,  # type: ignore[arg-type]
+            symbol="OTLK",
+            action_date=date(2023, 6, 1),
+            ratio=ca.ratio,
+        )
+        with (
+            patch(f"{_REPO}.get_by_id", new_callable=AsyncMock, return_value=ca),
+            patch(f"{_REPO}.update", new_callable=AsyncMock, return_value=updated_ca),
+            patch(f"{_REPO}.find_by_user_symbol_date", new_callable=AsyncMock, return_value=updated_ca),
+            patch.object(service, "_re_aggregate_symbol_trades", new_callable=AsyncMock),
+            patch.object(service, "_invalidate_price_cache_for_symbol", new_callable=AsyncMock) as invalidate,
+        ):
+            await service.update_corporate_action(
+                ca.id,  # type: ignore[arg-type]
+                CorporateActionUpdate(date=date(2023, 6, 1)),
+                ca.user_id,  # type: ignore[arg-type]
+            )
+
+        assert invalidate.await_count == 2
+        invalidate.assert_awaited_with("OTLK")
+
+    @pytest.mark.unit
+    async def test_update_rolls_back_when_reaggregation_fails(
+        self,
+        service: CorporateActionService,
+        mock_session: AsyncMock,
+    ) -> None:
+        ca = _make_ca(symbol="OTLK", ratio=Decimal("0.05"))
+        updated_ca = _make_ca(
+            id=ca.id,  # type: ignore[arg-type]
+            user_id=ca.user_id,  # type: ignore[arg-type]
+            symbol="OTLK",
+            ratio=Decimal("2.0"),
+        )
+        with (
+            patch(f"{_REPO}.get_by_id", new_callable=AsyncMock, return_value=ca),
+            patch(f"{_REPO}.update", new_callable=AsyncMock, return_value=updated_ca),
+            patch(f"{_REPO}.find_by_user_symbol_date", new_callable=AsyncMock, return_value=updated_ca),
+            patch.object(
+                service,
+                "_re_aggregate_symbol_trades",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("boom"),
+            ),
+            patch.object(service, "_invalidate_price_cache_for_symbol", new_callable=AsyncMock),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await service.update_corporate_action(
+                ca.id,  # type: ignore[arg-type]
+                CorporateActionUpdate(ratio=Decimal("2.0")),
+                ca.user_id,  # type: ignore[arg-type]
+            )
+
+        mock_session.rollback.assert_awaited_once()
+        mock_session.commit.assert_not_called()
 
 
 # ── TestDeleteCorporateAction ──────────────────────────────────────────────────
@@ -307,6 +483,7 @@ class TestDeleteCorporateAction:
                 f"{_REPO}.delete",
                 new=mock_delete,
             ),
+            patch.object(service, "_re_aggregate_symbol_trades", new_callable=AsyncMock),
         ):
             await service.delete_corporate_action(
                 ca.id,  # type: ignore[arg-type]
@@ -330,3 +507,30 @@ class TestDeleteCorporateAction:
             pytest.raises(CorporateActionNotFoundError),
         ):
             await service.delete_corporate_action(uuid.uuid4(), uuid.uuid4())
+
+    @pytest.mark.unit
+    async def test_delete_rolls_back_when_reaggregation_fails(
+        self,
+        service: CorporateActionService,
+        mock_session: AsyncMock,
+    ) -> None:
+        ca = _make_ca()
+        with (
+            patch(f"{_REPO}.get_by_id", new_callable=AsyncMock, return_value=ca),
+            patch(f"{_REPO}.delete", new_callable=AsyncMock),
+            patch.object(
+                service,
+                "_re_aggregate_symbol_trades",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("boom"),
+            ),
+            patch.object(service, "_invalidate_price_cache_for_symbol", new_callable=AsyncMock),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await service.delete_corporate_action(
+                ca.id,  # type: ignore[arg-type]
+                ca.user_id,  # type: ignore[arg-type]
+            )
+
+        mock_session.rollback.assert_awaited_once()
+        mock_session.commit.assert_not_called()

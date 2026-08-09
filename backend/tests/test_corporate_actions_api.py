@@ -22,9 +22,14 @@ Requires a live TimescaleDB instance (migrations applied via ``conftest.py``).
 """
 
 import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from app.models.ohlc_price import OhlcPrice
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
@@ -76,6 +81,66 @@ _VALID_PAYLOAD: dict[str, object] = {
 }
 
 _UPDATE_PAYLOAD: dict[str, object] = {"ratio": "2.0"}
+
+
+async def _create_portfolio_id(client: AsyncClient, headers: dict[str, str], suffix: str) -> str:
+    response = await client.post(
+        "/api/v1/portfolios",
+        headers=headers,
+        json={"name": f"CA Portfolio {suffix}", "base_currency": "USD"},
+    )
+    assert response.status_code == 201, response.text
+    return str(response.json()["data"]["id"])
+
+
+async def _create_account_id(client: AsyncClient, headers: dict[str, str], portfolio_id: str, suffix: str) -> str:
+    response = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        headers=headers,
+        json={"name": f"CA Account {suffix}", "type": "manual", "currency": "USD"},
+    )
+    assert response.status_code == 201, response.text
+    return str(response.json()["data"]["id"])
+
+
+async def _create_closed_trade(
+    client: AsyncClient,
+    headers: dict[str, str],
+    portfolio_id: str,
+    account_id: str,
+    *,
+    symbol: str,
+) -> str:
+    trade_response = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/trades",
+        headers=headers,
+        json={
+            "symbol": symbol,
+            "direction": "LONG",
+            "asset_class": "EQUITY",
+            "quantity": "69",
+            "entry_price": "1.44",
+            "opened_at": datetime(2023, 5, 22, 14, 0, tzinfo=UTC).isoformat(),
+            "commission": "1.00",
+            "account_id": account_id,
+        },
+    )
+    assert trade_response.status_code == 201, trade_response.text
+    trade_id = str(trade_response.json()["data"]["id"])
+
+    close_response = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}/executions",
+        headers=headers,
+        json={
+            "direction": "SHORT",
+            "quantity": "69",
+            "price": "1.50",
+            "commission": "0.50",
+            "executed_at": datetime(2023, 5, 24, 14, 0, tzinfo=UTC).isoformat(),
+        },
+    )
+    assert close_response.status_code == 201, close_response.text
+    return trade_id
 
 
 # ── TestListCorporateActions ───────────────────────────────────────────────────
@@ -196,6 +261,17 @@ class TestCreateCorporateAction:
         data = resp.json()["data"]
         assert data["old_conid"] is None
         assert data["new_conid"] is None
+
+    async def test_duplicate_manual_create_returns_conflict(self, client: AsyncClient) -> None:
+        headers = await _get_auth_headers(client, "create_duplicate")
+        first = await client.post(_BASE_URL, json=_VALID_PAYLOAD, headers=headers)
+        assert first.status_code == 201
+
+        second = await client.post(_BASE_URL, json=_VALID_PAYLOAD, headers=headers)
+        assert second.status_code == 409
+        detail = second.json().get("detail", {})
+        assert isinstance(detail, dict)
+        assert "existing_action_id" in detail
 
 
 # ── TestUpdateCorporateAction ──────────────────────────────────────────────────
@@ -346,3 +422,118 @@ class TestDeleteCorporateAction:
         assert resp.status_code == 401, (
             f"Expected 401, got {resp.status_code}: {resp.text}"
         )
+
+
+@pytest.mark.integration
+class TestCorporateActionLifecycleEffects:
+    async def test_create_update_delete_leave_pre_split_closed_trade_untouched(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        headers = await _get_auth_headers(client, "lifecycle_closed_trade")
+        portfolio_id = await _create_portfolio_id(client, headers, "lifecycle_closed_trade")
+        account_id = await _create_account_id(client, headers, portfolio_id, "lifecycle_closed_trade")
+        trade_id = await _create_closed_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            symbol="OTLK",
+        )
+
+        before = await client.get(f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers)
+        assert before.status_code == 200, before.text
+        before_data = before.json()["data"]
+
+        create_resp = await client.post(
+            _BASE_URL,
+            json={
+                "symbol": "OTLK",
+                "date": "2024-03-13",
+                "ratio": "0.05",
+                "old_conid": "357194941",
+                "new_conid": "690184975",
+            },
+            headers=headers,
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        action_id = str(create_resp.json()["data"]["id"])
+
+        update_resp = await client.put(
+            f"{_BASE_URL}/{action_id}",
+            json={"date": "2024-03-20", "ratio": "0.05"},
+            headers=headers,
+        )
+        assert update_resp.status_code == 200, update_resp.text
+
+        delete_resp = await client.delete(f"{_BASE_URL}/{action_id}", headers=headers)
+        assert delete_resp.status_code == 204, delete_resp.text
+
+        after = await client.get(f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers)
+        assert after.status_code == 200, after.text
+        after_data = after.json()["data"]
+
+        assert Decimal(after_data["quantity"]) == Decimal(before_data["quantity"])
+        assert Decimal(after_data["entry_price"]) == Decimal(before_data["entry_price"])
+        assert Decimal(after_data["exit_price"]) == Decimal(before_data["exit_price"])
+        assert Decimal(after_data["commission"]) == Decimal(before_data["commission"])
+        assert Decimal(after_data["pnl"]) == Decimal(before_data["pnl"])
+        assert Decimal(after_data["net_pnl"]) == Decimal(before_data["net_pnl"])
+
+    async def test_corporate_action_crud_invalidates_symbol_cache_rows(
+        self,
+        client: AsyncClient,
+        db_session,
+    ) -> None:
+        headers = await _get_auth_headers(client, "cache_invalidation")
+        symbol = "CACHECA"
+
+        async def _insert_cache_row(start_iso: str) -> None:
+            db_session.add(
+                OhlcPrice(
+                    symbol=symbol,
+                    interval="1d",
+                    provider="lseg",
+                    start=datetime.fromisoformat(start_iso),
+                    open=Decimal("10"),
+                    high=Decimal("11"),
+                    low=Decimal("9"),
+                    close=Decimal("10.5"),
+                    volume=Decimal("1000"),
+                )
+            )
+            await db_session.flush()
+
+        async def _count_cache_rows() -> int:
+            result = await db_session.execute(select(OhlcPrice).where(OhlcPrice.symbol == symbol))
+            return len(result.scalars().all())
+
+        await _insert_cache_row("2024-01-02T00:00:00+00:00")
+        assert await _count_cache_rows() == 1
+
+        create_resp = await client.post(
+            _BASE_URL,
+            json={"symbol": symbol, "date": "2024-03-13", "ratio": "0.5"},
+            headers=headers,
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        action_id = str(create_resp.json()["data"]["id"])
+        assert await _count_cache_rows() == 0
+
+        await _insert_cache_row("2024-01-03T00:00:00+00:00")
+        assert await _count_cache_rows() == 1
+
+        update_resp = await client.put(
+            f"{_BASE_URL}/{action_id}",
+            json={"date": "2024-03-14"},
+            headers=headers,
+        )
+        assert update_resp.status_code == 200, update_resp.text
+        assert await _count_cache_rows() == 0
+
+        await _insert_cache_row("2024-01-04T00:00:00+00:00")
+        assert await _count_cache_rows() == 1
+
+        delete_resp = await client.delete(f"{_BASE_URL}/{action_id}", headers=headers)
+        assert delete_resp.status_code == 204, delete_resp.text
+        assert await _count_cache_rows() == 0

@@ -16,11 +16,14 @@
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.core.exceptions import InvalidCursorError, TradeNotFoundError
+from app.models.logical_execution import EXECUTION_ORIGIN_IMPORTED
+from app.models.logical_execution import LogicalExecution
 from app.models.trade import AssetClass, Direction, Trade
 from app.schemas.trade import TradeCreate, TradePartialCloseRequest, TradeRead, TradeUpdate
 from app.services.trade_service import TradeService
@@ -118,6 +121,52 @@ def _make_trade(
     trade.tags = []  # type: ignore[assignment]
     trade.trade_notes = []  # type: ignore[assignment]
     return trade
+
+
+def _make_execution_model(
+    trade_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    symbol: str,
+    quantity: Decimal,
+    price: Decimal,
+    raw_quantity: Decimal,
+    raw_price: Decimal,
+    executed_at: datetime,
+    currency: str | None,
+) -> LogicalExecution:
+    execution = LogicalExecution(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        account_id=None,
+        symbol=symbol,
+        conid=None,
+        asset_class=AssetClass.EQUITY,
+        direction=Direction.LONG,
+        quantity=quantity,
+        price=price,
+        commission=Decimal("0"),
+        executed_at=executed_at,
+        pnl=None,
+        pnl_eur=None,
+        multiplier=1,
+        currency=currency,
+        open_close="O",
+        strike=None,
+        expiry=None,
+        option_type=None,
+        origin=EXECUTION_ORIGIN_IMPORTED,
+        deleted=False,
+        user_modified=False,
+        source_id=None,
+        parent_id=None,
+        trade_id=trade_id,
+        created_at=executed_at,
+        updated_at=executed_at,
+    )
+    execution.raw_quantity = raw_quantity  # type: ignore[attr-defined]
+    execution.raw_price = raw_price  # type: ignore[attr-defined]
+    return execution
 
 
 def _make_create_payload(**kwargs: object) -> TradeCreate:
@@ -453,6 +502,76 @@ class TestGetTrade:
             pytest.raises(TradeNotFoundError),
         ):
             await service.get_trade(uuid.uuid4(), uuid.uuid4())
+
+    @pytest.mark.unit
+    async def test_get_trade_exposes_structured_corporate_action_impact(
+        self,
+        service: TradeService,
+    ) -> None:
+        """get_trade should return structured action metadata for split-impacted legs."""
+        trade = _make_trade(
+            symbol="ATOS",
+            direction=Direction.LONG,
+            quantity=Decimal("100"),
+            entry_price=Decimal("2"),
+            currency="USD",
+        )
+        user_id = uuid.uuid4()
+        trade.user_id = user_id  # type: ignore[assignment]
+
+        execution = _make_execution_model(
+            trade_id=trade.id,
+            user_id=user_id,
+            symbol="ATOS",
+            quantity=Decimal("5"),
+            price=Decimal("40"),
+            raw_quantity=Decimal("100"),
+            raw_price=Decimal("2"),
+            executed_at=datetime(2024, 1, 2, tzinfo=UTC),
+            currency="USD",
+        )
+
+        action_id = uuid.uuid4()
+        action = SimpleNamespace(
+            id=action_id,
+            symbol="ATOS",
+            date=datetime(2024, 3, 13, tzinfo=UTC).date(),
+            ratio=Decimal("0.05"),
+            old_conid="111",
+            new_conid="222",
+        )
+
+        with (
+            patch(
+                "app.services.trade_service.TradeRepository.get_by_id",
+                new_callable=AsyncMock,
+                return_value=trade,
+            ),
+            patch(
+                "app.repositories.execution.ExecutionRepository.list_by_trade_ids",
+                new_callable=AsyncMock,
+                return_value={trade.id: [execution]},
+            ),
+            patch(
+                "app.services.corporate_action_service.CorporateActionService.list_for_execution",
+                new_callable=AsyncMock,
+                return_value=[action],
+            ),
+        ):
+            result = await service.get_trade(trade.id, user_id)
+
+        assert result.chart_quantity == Decimal("0.25")
+        assert result.chart_entry_price == Decimal("800")
+        assert result.corporate_action_impact == [
+            {
+                "id": str(action_id),
+                "symbol": "ATOS",
+                "date": "2024-03-13",
+                "ratio": "0.05",
+                "old_conid": "111",
+                "new_conid": "222",
+            }
+        ]
 
 
 class TestListTrades:

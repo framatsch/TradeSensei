@@ -9,10 +9,10 @@
     "auto": false,
     "prune": false
   },
-  mcp: {
+  "mcp": {
     "serena": {
       "type": "remote",
-      "url": "http://localhost:9121/mcp",
-    }    
-  } 
+      "url": "http://localhost:9121/mcp"
+    }
+  }
 }
