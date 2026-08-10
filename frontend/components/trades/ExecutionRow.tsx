@@ -26,12 +26,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2 } from "lucide-react";
+import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2, Split } from "lucide-react";
 import type { LogicalExecution, Trade } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
 import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { extractApiError } from "@/lib/apiErrors";
+
 
 interface Props {
   execution: LogicalExecution;
@@ -84,6 +85,42 @@ function fmtOpenClose(value: "O" | "C" | null | undefined): string {
   if (value === "O") return "Open";
   if (value === "C") return "Close";
   return "—";
+}
+
+/**
+ * Renders the as-traded (primary) value, and — when the chart-adjusted value
+ * differs — the adjusted counterpart in parentheses, marked with the shared
+ * corporate-action `Split` icon instead of the word "adjusted". Single value
+ * when as-traded and adjusted are numerically equal.
+ */
+function DualValueWithIcon({
+  asTraded,
+  adjusted,
+  formatter,
+}: {
+  asTraded: string;
+  adjusted: string;
+  formatter: (val: string) => string;
+}) {
+  const formattedAsTraded = formatter(asTraded);
+  const numAsTraded = parseFloat(asTraded);
+  const numAdjusted = parseFloat(adjusted);
+  const differs = !isNaN(numAsTraded) && !isNaN(numAdjusted) && numAsTraded !== numAdjusted;
+
+  if (!differs) return <>{formattedAsTraded}</>;
+
+  return (
+    <>
+      {formattedAsTraded}{" "}
+      <span
+        className="inline-flex items-center gap-0.5 text-muted-foreground"
+        title={`The price chart shows this value as ${formatter(adjusted)} (split-adjusted). The value above is as-traded.`}
+      >
+        (<Split className="w-3 h-3" aria-hidden="true" />
+        {formatter(adjusted)})
+      </span>
+    </>
+  );
 }
 
 export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, onLinkBroker, hasOptionLeg, colSpan, isConflict }: Props) {
@@ -242,15 +279,15 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
           </>
         )}
 
-        <td className="px-3 py-2 text-sm text-right font-mono">{fmtQty(execution.quantity)}</td>
+        <td className="px-3 py-2 text-sm text-right font-mono"><DualValueWithIcon asTraded={execution.raw_quantity} adjusted={execution.quantity} formatter={fmtQty} /></td>
         <td className="px-3 py-2 text-sm text-right text-muted-foreground font-mono">
           {execution.multiplier === 1 ? "—" : execution.multiplier}
         </td>
         <td className="px-3 py-2 text-sm text-right font-mono">
-          {fmt(execution.price)}
+          <DualValueWithIcon asTraded={execution.raw_price} adjusted={execution.price} formatter={fmt} />
           {execution.multiplier > 1 && (
             <div className="text-[10px] text-muted-foreground">
-              Notional: {fmt((parseFloat(execution.quantity) * parseFloat(execution.price) * execution.multiplier).toString())}
+              Notional: {fmt((parseFloat(execution.raw_quantity) * parseFloat(execution.raw_price) * execution.multiplier).toString())}
             </div>
           )}
         </td>
@@ -382,7 +419,9 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
             />
           ) : (
             <div className="inline-flex items-center justify-end gap-1.5">
-              <span className="cursor-pointer font-mono" onClick={() => setIsEditing(true)}>{fmtQty(execution.quantity)}</span>
+              <span className="cursor-pointer font-mono" onClick={() => setIsEditing(true)}>
+                <DualValueWithIcon asTraded={execution.raw_quantity} adjusted={execution.quantity} formatter={fmtQty} />
+              </span>
               {execution.origin === "split" && execution.parent_id && (
                 <span
                   className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
@@ -412,10 +451,12 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
             />
           ) : (
             <>
-              <div className="cursor-pointer font-mono" onClick={() => setIsEditing(true)}>{fmt(execution.price)}</div>
+              <div className="cursor-pointer font-mono" onClick={() => setIsEditing(true)}>
+                <DualValueWithIcon asTraded={execution.raw_price} adjusted={execution.price} formatter={fmt} />
+              </div>
               {execution.multiplier > 1 && (
                 <div className="text-[10px] text-muted-foreground mt-0.5 font-mono" title="Notional Value">
-                  {fmt((parseFloat(execution.quantity) * parseFloat(execution.price) * execution.multiplier).toString())}
+                  {fmt((parseFloat(execution.raw_quantity) * parseFloat(execution.raw_price) * execution.multiplier).toString())}
                 </div>
               )}
             </>

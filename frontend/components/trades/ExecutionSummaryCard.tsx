@@ -240,9 +240,9 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
     );
   }
 
-  const headerQuantity = trade.chart_quantity ?? trade.quantity;
-  const headerEntryPrice = trade.chart_entry_price ?? trade.entry_price;
-  const headerExitPrice = trade.chart_exit_price ?? trade.exit_price;
+  const headerQuantity = trade.quantity;
+  const headerEntryPrice = trade.entry_price;
+  const headerExitPrice = trade.exit_price;
 
   const notionalEntry =
     isMult && headerEntryPrice !== null && headerQuantity !== null
@@ -267,9 +267,6 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
           )}
           <p className="text-xs text-muted-foreground mt-0.5">
             Values are computed from {count} execution leg{count !== 1 ? "s" : ""}
-          </p>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Uses chart-adjusted trade header values when available; execution rows may still show raw values.
           </p>
         </div>
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border uppercase tracking-wider">

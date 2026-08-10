@@ -32,10 +32,19 @@ export function definitionToSearchParams(
   const p = new URLSearchParams();
   const d = definition as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-  if (d.symbol) p.set("symbol", String(d.symbol));
+  if (Array.isArray(d.symbols) && d.symbols.length)
+    p.set("symbols", (d.symbols as string[]).join(","));
+  else if (d.symbol)
+    p.set("symbol", String(d.symbol));
+
+  if (Array.isArray(d.excluded_symbols) && d.excluded_symbols.length)
+    p.set("excluded_symbols", (d.excluded_symbols as string[]).join(","));
+
   if (d.direction) p.set("direction", String(d.direction));
-  if (Array.isArray(d.asset_classes) && d.asset_classes.length)
+  if (Array.isArray(d.asset_classes) && d.asset_classes.length) {
     p.set("asset_class", (d.asset_classes as string[]).join(","));
+    p.set("asset_classes", (d.asset_classes as string[]).join(","));
+  }
   if (d.opened_at_from) p.set("opened_at_from", String(d.opened_at_from));
   if (d.opened_at_to) p.set("opened_at_to", String(d.opened_at_to));
   if (d.closed_at_from) p.set("closed_at_from", String(d.closed_at_from));
@@ -56,6 +65,8 @@ export function definitionToSearchParams(
     p.set("day_of_week", String(d.day_of_week));
   if (Array.isArray(d.execution_state) && d.execution_state.length)
     p.set("execution_state", (d.execution_state as string[]).join(","));
+  if (Array.isArray(d.annotation_filters) && d.annotation_filters.length)
+    p.set("annotation_filters", JSON.stringify(d.annotation_filters));
 
   return p;
 }

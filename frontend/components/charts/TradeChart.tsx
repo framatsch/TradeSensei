@@ -45,6 +45,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { AssetClass, Trade, LogicalExecution } from "@/lib/types";
 import { parseOccSymbol } from "@/lib/parseOccSymbol";
 import { formatPriceLabel } from "@/lib/executionPriceLabel";
+import { formatSplitRatio } from "@/lib/formatSplitRatio";
 import { useSettings } from "@/hooks/useSettings";
 import {
   createChart,
@@ -460,6 +461,54 @@ function buildFallbackMarkers(
   return markers;
 }
 
+/**
+ * Marker style for a corporate-action event: amber circle, in-bar.
+ * Uses the same amber tone as the corporate-action disclosure banner
+ * (`--warning`), so the chart marker reads as the same "Split" cue used on
+ * the trade table indicator, the event row, and the per-leg mark.
+ */
+const CORPORATE_ACTION_STYLE = {
+  position: "inBar" as const,
+  shape: "circle" as const,
+  color: "#f59e0b",
+};
+
+/**
+ * Build one marker per corporate action affecting this trade's symbol, placed
+ * at the action's effective date. This is the chart-level counterpart of the
+ * execution-legs "Corporate Action" event row — same "Split <ratio> on <date>"
+ * wording, same visual cue, different surface.
+ */
+function buildCorporateActionMarkers(
+  corporateActionImpact: NonNullable<Trade["corporate_action_impact"]> | undefined,
+  candles: ChartCandle[],
+  snap: (target: number) => Time,
+): SeriesMarker<Time>[] {
+  if (!corporateActionImpact || corporateActionImpact.length === 0 || candles.length === 0) {
+    return [];
+  }
+
+  const firstCandleTs = candles[0].time as number;
+  const lastCandleTs = candles[candles.length - 1].time as number;
+
+  const markers: SeriesMarker<Time>[] = [];
+  for (const action of corporateActionImpact) {
+    const actionTs = Math.floor(new Date(action.date + "T00:00:00Z").getTime() / 1000);
+    // Only place a marker if the effective date falls within the rendered range;
+    // otherwise `snap` would clamp it to the nearest edge candle, misleadingly
+    // suggesting the split happened at the start/end of the visible chart.
+    if (actionTs < firstCandleTs || actionTs > lastCandleTs) continue;
+
+    markers.push({
+      time: snap(actionTs),
+      ...CORPORATE_ACTION_STYLE,
+      text: `Split ${formatSplitRatio(action.ratio)} on ${action.date}`,
+      size: 1,
+    });
+  }
+  return markers;
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export interface TradeChartProps {
@@ -678,7 +727,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           };
 
           // Use per-execution markers when available; fall back to trade-level timestamps
-          const finalMarkers: SeriesMarker<Time>[] =
+          const executionMarkers: SeriesMarker<Time>[] =
             activeExecutions && activeExecutions.length > 0
               ? buildExecutionMarkers(
                   activeExecutions,
@@ -687,7 +736,21 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
                   snap,
                 )
               : buildFallbackMarkers(entryTs, activeExitTs, trade.direction, snap);
-              
+
+          // Corporate-action markers: chart-level counterpart of the execution-legs
+          // "Corporate Action" event row, same visual cue as the table indicator and
+          // per-leg mark (see buildCorporateActionMarkers doc comment).
+          const corporateActionMarkers = buildCorporateActionMarkers(
+            trade.corporate_action_impact,
+            candles,
+            snap,
+          );
+
+          const finalMarkers: SeriesMarker<Time>[] = [
+            ...executionMarkers,
+            ...corporateActionMarkers,
+          ].sort((a, b) => (a.time as number) - (b.time as number));
+
           markersDataRef.current = finalMarkers;
 
           // Spacing and overall marker styling

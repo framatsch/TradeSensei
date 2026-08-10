@@ -66,7 +66,8 @@ _ARTIFACTS_DIR = (
     Path(__file__).resolve().parents[2]
     / "openspec"
     / "changes"
-    / "corporate-action-lifecycle"
+    / "archive"
+    / "2026-08-09-corporate-action-lifecycle"
     / "artifacts"
 )
 _BASELINE_01 = _ARTIFACTS_DIR / "0.1-baseline-ground-truth-synthetic.json"
@@ -224,41 +225,41 @@ def test_all_positions_closed_after_both_files() -> None:
 
 
 def test_s1_aapl_simple_roundtrip() -> None:
-    """S1: simple same-year round-trip remains one profitable closed trade."""
+    """S1: AAPL BUY 10 @ 150 → SELL 10 @ 155.  gross=50, net=49."""
     trades = _ground_truth_trades()
     aapl = [t for t in trades if t.symbol == "AAPL" and t.closed_at]
     assert len(aapl) == 1, f"Expected 1 AAPL trade, got {len(aapl)}"
     t = aapl[0]
-    assert t.quantity is not None and t.quantity > 0
-    assert t.entry_price is not None
-    assert t.exit_price is not None and t.exit_price > t.entry_price
-    assert t.net_pnl is not None and t.net_pnl > 0
+    assert t.quantity == Decimal("10")
+    assert t.entry_price == Decimal("150")
+    assert t.exit_price == Decimal("155")
+    assert _q(t.pnl) == Decimal("50.00000000")
+    assert _q(t.net_pnl) == Decimal("49.00000000")
 
 
 def test_s2_msft_partial_close() -> None:
-    """S2: partial close yields two closed MSFT trades with increasing PnL."""
+    """S2: MSFT BUY 20 @ 200 → SELL 10 @ 210, SELL 10 @ 220 (two trades)."""
     trades = _ground_truth_trades()
     msft = sorted(
         [t for t in trades if t.symbol == "MSFT" and t.closed_at],
         key=lambda t: t.exit_price or Decimal(0),
     )
     assert len(msft) == 2, f"Expected 2 MSFT trades, got {len(msft)}"
-    assert msft[0].net_pnl is not None
-    assert msft[1].net_pnl is not None
-    assert msft[1].net_pnl > msft[0].net_pnl
+    assert _q(msft[0].net_pnl) == Decimal("99.25000000")  # 10×(210-200) - 0.25 - 0.25
+    assert _q(msft[1].net_pnl) == Decimal("199.25000000")  # 10×(220-200) - 0.25 - 0.25
 
 
 def test_s3_tsla_cross_year_close() -> None:
-    """S3: cross-year TSLA trade closes in next year with positive net PnL."""
+    """S3: TSLA opened 2024-11-01 @ 100, closed 2025-02-01 @ 120.  net=98."""
     trades = _ground_truth_trades()
     tsla = [t for t in trades if t.symbol == "TSLA" and t.closed_at]
     assert len(tsla) == 1, f"Expected 1 TSLA trade, got {len(tsla)}"
     t = tsla[0]
     assert t.opened_at.year == 2024
     assert t.closed_at is not None and t.closed_at.year == 2025
-    assert t.entry_price is not None
-    assert t.exit_price is not None and t.exit_price > t.entry_price
-    assert t.net_pnl is not None and t.net_pnl > 0
+    assert t.entry_price == Decimal("100")
+    assert t.exit_price == Decimal("120")
+    assert _q(t.net_pnl) == Decimal("98.00000000")
 
 
 def test_s4_splk_reverse_split_cross_year_close() -> None:
@@ -273,14 +274,19 @@ def test_s4_splk_reverse_split_cross_year_close() -> None:
     splk = [t for t in trades if t.symbol == "SPLK" and t.closed_at]
     assert len(splk) == 1, f"Expected 1 SPLK trade, got {len(splk)}"
     t = splk[0]
-    assert t.quantity is not None and t.quantity < Decimal("100")
-    assert t.entry_price is not None
-    assert t.exit_price is not None and t.exit_price < t.entry_price
-    assert t.pnl is not None and t.pnl < 0
+    assert t.quantity == Decimal("10"), f"Expected qty=10 post-split, got {t.quantity}"
+    assert t.entry_price == Decimal("100"), f"Expected split-adjusted entry=100, got {t.entry_price}"
+    assert t.exit_price == Decimal("80")
+    assert _q(t.pnl) == Decimal("-200.00000000")
 
 
 def test_s5_nflx_co_flip_produces_two_trades() -> None:
-    """S5: C;O flip produces one LONG close and one SHORT close in sequence."""
+    """S5: NFLX C;O flip produces exactly 2 closed trades with correct PnL.
+
+    LONG 10 @ 500 → SELL 15 @ 520 (C;O) → BUY 5 @ 530
+    Trade 1: LONG  10 @ 500 → exit 520  gross=200, net=199 (comm 0.50+0.50)
+    Trade 2: SHORT  5 @ 520 → exit 530  gross=-50, net=-50.50 (comm 0.25+0.25)
+    """
     trades = _ground_truth_trades()
     nflx = [t for t in trades if t.symbol == "NFLX" and t.closed_at]
     assert len(nflx) == 2, f"Expected 2 NFLX trades, got {len(nflx)}"
@@ -290,17 +296,16 @@ def test_s5_nflx_co_flip_produces_two_trades() -> None:
     assert long_trade is not None
     assert short_trade is not None
 
-    assert long_trade.entry_price is not None
-    assert long_trade.exit_price is not None
-    assert long_trade.net_pnl is not None and long_trade.net_pnl > 0
+    assert _q(long_trade.net_pnl) == Decimal("199.00000000")
+    assert long_trade.entry_price == Decimal("500")
+    assert long_trade.exit_price == Decimal("520")
 
     # The short was opened at 520 (the flip price) and closed at 530.
-    assert short_trade.entry_price == long_trade.exit_price, (
+    assert short_trade.entry_price == Decimal("520"), (
         f"SHORT entry should be 520 (C;O flip price), got {short_trade.entry_price}. This indicates the C;O remainder was mis-classified as orphaned."
     )
-    assert short_trade.exit_price is not None and short_trade.entry_price is not None
-    assert short_trade.exit_price > short_trade.entry_price
-    assert short_trade.net_pnl is not None and short_trade.net_pnl < 0
+    assert short_trade.exit_price == Decimal("530")
+    assert _q(short_trade.net_pnl) == Decimal("-50.50000000")
 
 
 def test_s6_goog_zero_pnl_breakeven_close() -> None:
@@ -338,18 +343,29 @@ def test_s7_amzn_same_timestamp_lots_fifo_order() -> None:
     )
     assert len(amzn) == 2, f"Expected 2 AMZN trades, got {len(amzn)}"
 
-    lot_a = amzn[0]
-    lot_b = amzn[1]
-    assert lot_a.entry_price is not None and lot_b.entry_price is not None
-    assert lot_a.entry_price < lot_b.entry_price
-    assert lot_a.quantity is not None and lot_b.quantity is not None
-    assert lot_a.quantity > lot_b.quantity
-    assert lot_a.net_pnl is not None and lot_b.net_pnl is not None
-    assert lot_a.net_pnl > lot_b.net_pnl
+    lot_a = amzn[0]  # entry=200
+    lot_b = amzn[1]  # entry=202
+    assert lot_a.entry_price == Decimal("200")
+    assert lot_a.quantity == Decimal("10")
+    assert _q(lot_a.net_pnl) == Decimal("99.00000000")  # 10×(210-200) - 0.50 - 0.50
+
+    assert lot_b.entry_price == Decimal("202")
+    assert lot_b.quantity == Decimal("5")
+    assert _q(lot_b.net_pnl) == Decimal("39.50000000")  # 5×(210-202) - 0.25 - 0.25
 
 
-def test_yearly_pnl_totals_have_expected_sign_pattern() -> None:
-    """Coarse roll-up sanity; exact totals are asserted via fingerprint baseline."""
+def test_yearly_pnl_totals_match_ground_truth() -> None:
+    """Yearly net PnL totals from the FIFO must match per-year ground truth.
+
+    This is the roll-up assertion: if individual scenario tests pass but a
+    cross-trade interaction is wrong, this will catch it.
+
+    2025 total reflects the fix for the split-commission bug: commission is a
+    currency amount and must never be scaled by a split ratio. The SPLK open
+    leg's commission (-0.50) is no longer scaled to -0.05, so net PnL is
+    -201.00 (not the previously-asserted, buggy -200.55), and the 2025 total
+    is -103.00 (98.00 TSLA + -201.00 SPLK) instead of the old -102.55.
+    """
     trades = _ground_truth_trades()
     by_year: dict[int, Decimal] = defaultdict(Decimal)
     for t in trades:
@@ -359,8 +375,8 @@ def test_yearly_pnl_totals_have_expected_sign_pattern() -> None:
         if value is not None:
             by_year[t.closed_at.year] += _q(value)
 
-    assert by_year[2024] > Decimal("0")
-    assert by_year[2025] < Decimal("0")
+    assert by_year[2024] == Decimal("634.30000000"), f"2024 net PnL mismatch: {by_year[2024]}"
+    assert by_year[2025] == Decimal("-103.00000000"), f"2025 net PnL mismatch: {by_year[2025]}"
 
 
 def test_anonymized_baseline_fingerprint_matches_fixture_projection() -> None:

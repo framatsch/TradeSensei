@@ -116,7 +116,7 @@ describe("ExecutionRow", () => {
     render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
 
     // For example, clicking delete and confirm
-    const overflowButton = screen.getByRole("button", { name: "" }); // or find by icon
+    const overflowButton = screen.getByRole("button", { name: "Row actions" }); // or find by icon
     // Wait, the action button depends on the state. It's better to just test that the functions like handleSave or handleRestore won't mutate.
     // Actually, it's easier to verify that the disabled state or early return works.
     // Let's just simulate a restore on a deleted row
@@ -129,5 +129,54 @@ describe("ExecutionRow", () => {
     
     // Should NOT have called mutate
     expect(mockMutateRestore).not.toHaveBeenCalled();
+  });
+
+  it("shows single value when adjusted and raw values are equal", () => {
+    const eqExec = { ...splitExecution, price: "150", raw_price: "150", quantity: "10", raw_quantity: "10" };
+    render(<table><tbody><ExecutionRow execution={eqExec} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
+    expect(screen.getByText("$150.00")).toBeInTheDocument();
+    expect(screen.queryByText(/raw:/)).not.toBeInTheDocument();
+  });
+
+  it("shows the as-traded value as primary with the chart-adjusted value disclosed via the corporate-action icon when they differ", () => {
+    const diffExec = { ...splitExecution, price: "150", raw_price: "50", quantity: "10", raw_quantity: "30" };
+    render(<table><tbody><ExecutionRow execution={diffExec} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
+    // Primary (as-traded) values are the plain figures
+    expect(screen.getByText(/\$50\.00/)).toBeInTheDocument();
+    // Chart-adjusted counterparts are disclosed via the Split icon's accessible title, not text
+    expect(screen.getByTitle(/\$150\.00 \(split-adjusted\)/)).toBeInTheDocument();
+    expect(screen.getByTitle(/^The price chart shows this value as 10 \(split-adjusted\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/adjusted:/)).not.toBeInTheDocument();
+  });
+
+  it("marks a chart-restated value with the corporate-action icon, and leaves untouched values unmarked", () => {
+    const adjustedExec = { ...splitExecution, id: "adjusted", price: "150", raw_price: "50" };
+    const untouchedExec = { ...splitExecution, id: "untouched", price: "50", raw_price: "50" };
+    
+    render(
+      <table>
+        <tbody>
+          <ExecutionRow execution={adjustedExec} trade={baseTrade} tradeId="trade-1" />
+          <ExecutionRow execution={untouchedExec} trade={baseTrade} tradeId="trade-1" />
+        </tbody>
+      </table>
+    );
+    
+    // Exactly one value (the adjustedExec's price) carries the chart-adjusted disclosure
+    const indicators = screen.getAllByTitle(/The price chart shows this value as/);
+    expect(indicators).toHaveLength(1);
+  });
+
+  it("calculates notional using raw_price × raw_quantity × multiplier", () => {
+    const notionalExec = {
+      ...splitExecution,
+      raw_price: "15.00",
+      raw_quantity: "100",
+      multiplier: 100, // 15 * 100 * 100 = 150000
+    };
+    render(<table><tbody><ExecutionRow execution={notionalExec} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
+    
+    // The test guards that it computes from raw_price * raw_quantity * multiplier
+    expect(screen.getByTitle("Notional Value")).toHaveTextContent("$150,000.00");
   });
 });

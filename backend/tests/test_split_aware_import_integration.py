@@ -302,7 +302,14 @@ async def test_trade_read_exposes_chart_basis_and_corporate_action_identity(clie
     assert Decimal(trade["entry_price"]) == Decimal("40")
     assert Decimal(trade["chart_entry_price"]) == Decimal("40")
     assert Decimal(trade["chart_quantity"]) == Decimal("5")
-    assert trade["corporate_action_impact"] == []
+    assert len(trade["corporate_action_impact"]) == 1
+    impact = trade["corporate_action_impact"][0]
+    assert impact["id"] == action["id"]
+    assert impact["symbol"] == "ATOS"
+    assert impact["date"] == "2024-03-13"
+    assert Decimal(impact["ratio"]) == Decimal("0.05")
+    assert impact["old_conid"] == "111"
+    assert impact["new_conid"] == "222"
 
 
 @pytest.mark.integration

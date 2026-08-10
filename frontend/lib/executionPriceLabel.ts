@@ -1,28 +1,38 @@
-/*
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+export function formatDualValueLabel(
+  primary: string | null | undefined,
+  secondary: string | null | undefined,
+  formatter: (val: string) => string,
+  secondaryLabel: string = "raw"
+): string {
+  if (!primary) return "—";
+  
+  const formattedPrimary = formatter(primary);
+  
+  if (!secondary) return formattedPrimary;
+  
+  const formattedSecondary = formatter(secondary);
+  
+  // Parse numerically to avoid string differences like "150" vs "150.0"
+  const numPrimary = parseFloat(primary);
+  const numSecondary = parseFloat(secondary);
+  
+  // If numerically equal (or both NaN), treat as equal
+  if (numPrimary === numSecondary || (isNaN(numPrimary) && isNaN(numSecondary))) {
+    return formattedPrimary;
+  }
+  
+  // Fallback to string comparison just in case
+  if (formattedPrimary === formattedSecondary) {
+    return formattedPrimary;
+  }
+  
+  return `${formattedPrimary} (${secondaryLabel}: ${formattedSecondary})`;
+}
 
 export function formatCurrency(value: string): string {
   return `$${Number(value).toFixed(2)}`;
 }
 
 export function formatPriceLabel(adjustedPrice: string, rawPrice: string): string {
-  const adjusted = formatCurrency(adjustedPrice);
-  const raw = formatCurrency(rawPrice);
-  if (adjusted === raw) {
-    return adjusted;
-  }
-
-  return `${adjusted} (raw: ${raw})`;
+  return formatDualValueLabel(adjustedPrice, rawPrice, formatCurrency);
 }

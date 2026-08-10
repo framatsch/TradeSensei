@@ -23,10 +23,11 @@
 
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight, Plus, Loader2, Split } from "lucide-react";
 import { useTradeExecutions, useReassignExecution, useDetachExecution } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
+import { formatSplitRatio } from "@/lib/formatSplitRatio";
 import { ExecutionRow } from "./ExecutionRow";
 import { AddExecutionModal } from "./AddExecutionModal";
 import { TradePickerModal } from "./TradePickerModal";
@@ -58,6 +59,38 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   // Count only non-deleted for the header badge
   const activeCount = executions?.filter((ex: LogicalExecution) => !ex.deleted).length ?? 0;
   const deletedCount = executions?.filter((e: LogicalExecution) => e.deleted).length ?? 0;
+
+  const isClosedBeforeSplit =
+    trade.quantity !== null &&
+    trade.chart_quantity !== null &&
+    trade.quantity !== trade.chart_quantity;
+
+  const timelineItems = useMemo(() => {
+    if (!executions) return [];
+    type TimelineItem =
+      | { type: "execution"; data: LogicalExecution }
+      | { type: "corporate_action"; data: NonNullable<Trade["corporate_action_impact"]>[number] };
+
+    const items: TimelineItem[] = executions.map((ex: LogicalExecution) => ({
+      type: "execution",
+      data: ex,
+    }));
+
+    if (trade.corporate_action_impact && !isClosedBeforeSplit) {
+      trade.corporate_action_impact.forEach((ca) => {
+        items.push({ type: "corporate_action", data: ca });
+      });
+    }
+
+    items.sort((a, b) => {
+      const dateA = a.type === "execution" ? a.data.executed_at : a.data.date;
+      const dateB = b.type === "execution" ? b.data.executed_at : b.data.date;
+      return dateA.localeCompare(dateB);
+    });
+
+    return items;
+  }, [executions, trade.corporate_action_impact]);
+
   const totalCount = executions?.length ?? 0;
   const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
   const hasOptionLeg = executions?.some((ex: LogicalExecution) => ex.option_type !== null) ?? false;
@@ -219,21 +252,39 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {executions?.map((ex: LogicalExecution) => (
-                  <ExecutionRow
-                    key={ex.id}
-                    execution={ex}
-                    trade={trade}
-                    tradeId={tradeId}
-                    colSpan={10 + (trade.is_combo ? 3 : 0) + (hasOptionLeg ? 3 : 0)}
-                    onMoveToTrade={handleMoveToTrade}
-                    onDetach={handleDetach}
-                    onSplit={setSplitExecution}
-                    onLinkBroker={setLinkExecution}
-                    hasOptionLeg={hasOptionLeg}
-                    isConflict={conflictLegIds.has(ex.id)}
-                  />
-                ))}
+                {timelineItems.map((item) =>
+                  item.type === "corporate_action" ? (
+                    <tr key={`ca-${item.data.id}`} className="bg-muted/30">
+                      <td colSpan={10 + (trade.is_combo ? 3 : 0) + (hasOptionLeg ? 3 : 0)}>
+                        <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                          <Split className="w-4 h-4" />
+                          <span>
+                            Corporate Action: Split {formatSplitRatio(item.data.ratio)} on {item.data.date}
+                            {item.data.old_conid &&
+                            item.data.new_conid &&
+                            item.data.old_conid !== item.data.new_conid
+                              ? " (Symbol changed)"
+                              : ""}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <ExecutionRow
+                      key={item.data.id}
+                      execution={item.data}
+                      trade={trade}
+                      tradeId={tradeId}
+                      colSpan={10 + (trade.is_combo ? 3 : 0) + (hasOptionLeg ? 3 : 0)}
+                      onMoveToTrade={handleMoveToTrade}
+                      onDetach={handleDetach}
+                      onSplit={setSplitExecution}
+                      onLinkBroker={setLinkExecution}
+                      hasOptionLeg={hasOptionLeg}
+                      isConflict={conflictLegIds.has(item.data.id)}
+                    />
+                  )
+                )}
               </tbody>
             </table>
           )}

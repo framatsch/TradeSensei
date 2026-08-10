@@ -18,7 +18,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Check, X, MoreHorizontal } from "lucide-react";
+import { Check, X, MoreHorizontal, Split } from "lucide-react";
 import { useTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useTradeExecutions } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
@@ -34,6 +34,7 @@ import { TradePickerModal } from "@/components/trades/TradePickerModal";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 import { QualitativeMetadataPanel } from "@/components/trades/QualitativeMetadataPanel";
 import { ConflictBanner } from "@/components/trades/ConflictBanner";
+import { formatSplitRatio } from "@/lib/formatSplitRatio";
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -295,7 +296,32 @@ export default function TradeDetailPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-5 rounded-xl border border-border shadow-sm">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">{trade.symbol}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-foreground">{trade.symbol}</h1>
+              {trade.corporate_action_impact && trade.corporate_action_impact.length > 0 && (
+                <span
+                  className="inline-flex text-muted-foreground hover:text-foreground cursor-help"
+                  tabIndex={0}
+                  title={
+                    "Affected by a corporate action. Values may differ across the table, " +
+                    "the chart, and the as-traded price — see the execution legs below for the " +
+                    "reconciled per-leg values.\n" +
+                    trade.corporate_action_impact
+                      .map((a) => {
+                        const remap =
+                          a.old_conid && a.new_conid && a.old_conid !== a.new_conid
+                            ? " (Symbol changed)"
+                            : "";
+                        return `Split ${formatSplitRatio(a.ratio)} on ${a.date}${remap}`;
+                      })
+                      .join("\n")
+                  }
+                  aria-label="Affected by a corporate action"
+                >
+                  <Split className="w-5 h-5" />
+                </span>
+              )}
+            </div>
             {trade.direction && !isCombo && (
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium ${
@@ -385,11 +411,7 @@ export default function TradeDetailPage() {
           }}
         />
       )}
-      {trade.corporate_action_impact && trade.corporate_action_impact.length > 0 && (
-        <div role="status" aria-live="polite" className="rounded-lg border surface-warning p-3 text-sm text-warning">
-          This trade is affected by corporate actions. Trade header values are chart-adjusted; execution rows still show raw values.
-        </div>
-      )}
+
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -417,7 +439,7 @@ export default function TradeDetailPage() {
                 onSave={handleSaveTakeProfit}
                 helpAnchor="take-profit"
               />
-              
+
               {/* Divider */}
               <div className="border-t border-border pt-3 space-y-3">
                 <div className="flex justify-between items-center">

@@ -1096,7 +1096,13 @@ class TradeRead(BaseModel):
         return self.derive_chart_basis_and_corporate_action_impact()
 
     def derive_chart_basis_and_corporate_action_impact(self) -> "TradeRead":
-        self.corporate_action_impact = []
+        # NOTE: `corporate_action_impact` is intentionally left untouched here.
+        # It defaults to `[]` (see field definition) and is populated by
+        # `TradeService._derive_corporate_action_impact`. This validator runs
+        # on every Pydantic (re-)validation pass — including when a TradeRead
+        # instance is nested inside `CursorPage[TradeRead]` or
+        # `ResponseEnvelope[...]` constructors — so resetting the field here
+        # would silently wipe out the service-computed value on serialization.
         if self.is_combo:
             self.chart_quantity = self.quantity
             self.chart_entry_price = self.entry_price

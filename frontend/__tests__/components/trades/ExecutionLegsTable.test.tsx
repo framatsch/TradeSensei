@@ -211,4 +211,29 @@ describe("ExecutionLegsTable", () => {
     expect(screen.getByText("Call")).toBeInTheDocument();
     expect(screen.getByText(/Oct 3, 2025/)).toBeInTheDocument();
   });
+
+  it("renders a value-free corporate-action event row at the effective date", () => {
+    const tradeWithCa = {
+      ...baseTrade,
+      chart_quantity: "10",
+      corporate_action_impact: [
+        {
+          id: "ca-1",
+          symbol: "AAPL",
+          date: "2023-08-30",
+          ratio: "0.25",
+          old_conid: null,
+          new_conid: null,
+        }
+      ]
+    };
+    useTradeExecutions.mockReturnValue({
+      data: [splitExecution],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+    render(<ExecutionLegsTable tradeId="trade-1" trade={tradeWithCa} />);
+    expect(screen.getByText(/Corporate Action: Split 1:4 on 2023-08-30/)).toBeInTheDocument();
+  });
 });

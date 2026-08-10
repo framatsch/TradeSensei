@@ -104,6 +104,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const hourRaw = params.get("hour_of_day");
   const dowRaw = params.get("day_of_week");
   const executionStateRaw = params.get("execution_state");
+  const annotationFiltersRaw = params.get("annotation_filters");
 
   const parsedExecutionStates = executionStateRaw
     ? executionStateRaw
@@ -112,6 +113,15 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
           value === "manual" || value === "edited" || value === "imported"
         )
     : undefined;
+
+  let annotation_filters: import("@/components/ui/AnnotationFilterRows").AnnotationFilterRow[] | undefined = undefined;
+  if (annotationFiltersRaw) {
+    try {
+      annotation_filters = JSON.parse(annotationFiltersRaw);
+    } catch (e) {
+      console.error("Failed to parse annotation_filters from URL", e);
+    }
+  }
 
   return {
     symbols: params.get("symbols") ? params.get("symbols")!.split(",").filter(Boolean) : (params.get("symbol") ? params.get("symbol")!.split(",").filter(Boolean) : undefined),
@@ -134,6 +144,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
     day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
     execution_state: parsedExecutionStates,
+    annotation_filters,
   };
 }
 
@@ -173,6 +184,7 @@ function filtersToParams(
     p.set("day_of_week", String(filters.day_of_week));
   }
   if (filters.execution_state?.length) p.set("execution_state", filters.execution_state.join(","));
+  if (filters.annotation_filters?.length) p.set("annotation_filters", JSON.stringify(filters.annotation_filters));
   if (sort.sort_by) p.set("sort_by", sort.sort_by);
   if (sort.sort_dir) p.set("sort_dir", sort.sort_dir);
   if (limit !== 20) p.set("limit", String(limit));

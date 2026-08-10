@@ -20,13 +20,15 @@
 
 "use client";
 
+
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUp, ArrowDown, Split } from "lucide-react";
 import type { Trade } from "@/lib/types";
 import { TaxonomyBadge } from "@/components/trades/TaxonomyBadge";
 import { QuickNoteInput } from "@/components/notes/QuickNoteInput";
 import useFeatureFlag from "@/hooks/useFeatureFlag";
+import { formatSplitRatio } from "@/lib/formatSplitRatio";
 
 interface Props {
   trade: Trade;
@@ -107,13 +109,38 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
         />
       </td>
       <td className="px-4 py-3 text-sm font-medium text-foreground">
-        <Link
-          href={`/dashboard/trades/${trade.id}`}
-          className="hover:text-primary transition-colors inline-flex items-center gap-1.5"
-          title={trade.id}
-        >
-          {trade.symbol}
-        </Link>
+        <div className="inline-flex items-center gap-1.5">
+          <Link
+            href={`/dashboard/trades/${trade.id}`}
+            className="hover:text-primary transition-colors"
+            title={trade.id}
+          >
+            {trade.symbol}
+          </Link>
+          {trade.corporate_action_impact && trade.corporate_action_impact.length > 0 && (
+            <span
+              className="inline-flex text-muted-foreground hover:text-foreground cursor-help"
+              tabIndex={0}
+              title={
+                "Affected by a corporate action. Values may differ across the table, " +
+                "the chart, and the as-traded price — open the trade for the " +
+                "reconciled per-leg values.\n" +
+                trade.corporate_action_impact
+                  .map((a) => {
+                    const remap =
+                      a.old_conid && a.new_conid && a.old_conid !== a.new_conid
+                        ? " (Symbol changed)"
+                        : "";
+                    return `Split ${formatSplitRatio(a.ratio)} on ${a.date}${remap}`;
+                  })
+                  .join("\n")
+              }
+              aria-label="Affected by a corporate action"
+            >
+              <Split className="w-3.5 h-3.5" />
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3">
         {/* Direction is often meaningless for a combo trade — show only the COMBO
