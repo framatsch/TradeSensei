@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-08-11
+
 ### Added
 - [frontend] Replaced legacy corporate action warning banner with a clean, tooltip-enabled split icon in the Trade Detail header.
 
@@ -667,11 +669,12 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [backend] TimescaleDB integration with hypertable partitioning for trades.
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
+[1.10.0]: https://github.com/scheffold/TradeSensei/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/scheffold/TradeSensei/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/scheffold/TradeSensei/compare/v1.8.3...v1.9.0
 [1.8.3]: https://github.com/scheffold/TradeSensei/compare/v1.8.3...v1.8.3
 [1.8.3]: https://github.com/scheffold/TradeSensei/compare/v1.8.2...v1.8.3
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.9.1...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...HEAD
 [1.8.2]: https://github.com/scheffold/TradeSensei/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/scheffold/TradeSensei/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/scheffold/TradeSensei/compare/v1.7.0...v1.8.0
@@ -704,7 +707,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [0.3.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scheffold/OpenTradeJournal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scheffold/OpenTradeJournal/releases/tag/v0.1.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.9.1...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...HEAD
 [1.3.5]: https://github.com/scheffold/TradeSensei/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/scheffold/TradeSensei/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/scheffold/TradeSensei/compare/v1.3.2...v1.3.3
