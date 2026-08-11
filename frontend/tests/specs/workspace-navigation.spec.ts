@@ -17,6 +17,9 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Workspace Navigation', () => {
   test.beforeEach(async ({ page }) => {
+    // Clear localStorage to prevent WorkspaceFilterContext from redirecting and cancelling our navigations
+    await page.goto('/dashboard/workspace/overview');
+    await page.evaluate(() => window.localStorage.clear());
     await page.goto('/dashboard/workspace/overview');
     await expect(page.getByText('Portfolio Workspace', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   });

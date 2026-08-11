@@ -304,11 +304,10 @@ test.describe('Add Execution Modal', () => {
     // Wait for execution table to load
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
 
-    // Get initial row count
     let tbodyRows = page.locator('table tbody tr');
-    const initialCount = await tbodyRows.count();
     // Assert we have exactly 3 rows: 1 auto-created + 2 manual from seeding
-    expect(initialCount).toBe(3);
+    await expect(tbodyRows).toHaveCount(3, { timeout: 15_000 });
+    const initialCount = 3;
 
     await openAddExecutionModal(page);
 
@@ -345,14 +344,14 @@ test.describe('Add Execution Modal', () => {
     await quantityInput.clear();
     await quantityInput.fill('0');
 
-    const initialCount = await page.locator('table tbody tr').count();
+    await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 15_000 });
 
     // Click submit button
     await page.locator('#add-execution-form').getByRole('button', { name: 'Add Execution' }).click();
 
     // For invalid quantity, modal stays open and no new execution is added
     await expect(page.locator('#add-execution-form')).toBeVisible();
-    await expect(page.locator('table tbody tr')).toHaveCount(initialCount);
+    await expect(page.locator('table tbody tr')).toHaveCount(2);
   });
 });
 
@@ -428,7 +427,7 @@ test.describe('Inline Sidebar Editing', () => {
   });
 });
 
-test.describe('Merge Workflow', () => {
+test.describe.serial('Merge Workflow', () => {
   // Helper: locate a trade row by the trade ID stored in the link's title attribute
   function tradeRow(page: import('@playwright/test').Page, tradeId: string) {
     return page.locator(`tr:has(a[title="${tradeId}"])`);
@@ -577,10 +576,8 @@ test.describe('Execution Context Menu', () => {
     // Wait for execution table rows
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
     let tbodyRows = page.locator('table tbody tr');
-    await expect(tbodyRows.first()).toBeVisible({ timeout: 10_000 });
-    const initialCount = await tbodyRows.count();
     // Assert we have exactly 4 rows: 1 auto-created + 3 manual from seeding
-    expect(initialCount).toBe(4);
+    await expect(tbodyRows).toHaveCount(4, { timeout: 15_000 });
 
     // Set up dialog handler before clicking
     page.on('dialog', (d) => d.accept());
@@ -597,7 +594,7 @@ test.describe('Execution Context Menu', () => {
     await page.getByRole('button', { name: 'Detach' }).click();
 
     // Wait for table to update and row count to decrease by one
-    await expect(page.locator('table tbody tr')).toHaveCount(initialCount - 1, { timeout: 15_000 });
+    await expect(page.locator('table tbody tr')).toHaveCount(3, { timeout: 15_000 });
   });
 });
 
