@@ -293,7 +293,7 @@ export default function TradeDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-5 rounded-xl border border-border shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 solid-card p-5 shadow-sm">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -422,7 +422,7 @@ export default function TradeDetailPage() {
 
         {/* Right Column: Performance Metrics */}
         <div className="lg:col-span-1">
-          <div className="bg-card rounded-xl border border-border p-5 shadow-sm h-full flex flex-col">
+          <div className="solid-card p-5 shadow-sm h-full flex flex-col">
             <h2 className="text-base font-semibold text-foreground mb-4">
               Performance
             </h2>

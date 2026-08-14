@@ -63,7 +63,7 @@ export function SchwabConnectionCard() {
     return (
       <div
         data-testid="schwab-card-loading"
-        className="bg-card rounded-xl border border-border p-6 animate-pulse"
+        className="solid-card p-6 animate-pulse"
       >
         <div className="h-5 w-32 bg-secondary rounded mb-4" />
         <div className="h-4 w-48 bg-secondary rounded" />
@@ -77,7 +77,7 @@ export function SchwabConnectionCard() {
   return (
     <div
       data-testid="schwab-connection-card"
-      className="bg-card rounded-xl border border-border p-6 space-y-4"
+      className="solid-card p-6 space-y-4"
     >
       {/* Header */}
       <div className="flex items-center justify-between">

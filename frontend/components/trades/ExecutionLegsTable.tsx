@@ -190,7 +190,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="solid-card">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-3">
@@ -374,7 +374,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
 
       {detachExecutionId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl">
+          <div className="w-full max-w-sm solid-card p-5 shadow-2xl">
             <h3 className="text-sm font-semibold text-foreground">Detach Execution</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Detach this execution into a new trade? The execution will be removed from this trade.

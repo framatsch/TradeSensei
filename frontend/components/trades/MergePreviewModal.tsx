@@ -105,7 +105,7 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-card border border-border shadow-xl p-6">
+      <div className="w-full max-w-lg solid-card shadow-2xl p-6">
         <h2 className="text-lg font-bold text-foreground mb-1">Merge Trades</h2>
         <p className="text-sm text-muted-foreground mb-5">
           All execution legs will be moved to the oldest trade. This action cannot be undone.

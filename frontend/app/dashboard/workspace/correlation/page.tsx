@@ -112,7 +112,7 @@ export default function CorrelationPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="w-full bg-card border border-border rounded-md shadow-sm p-4">
+      <div className="w-full solid-card shadow-sm p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className={LABEL_CLASS}>Date From</label>
@@ -163,7 +163,7 @@ export default function CorrelationPage() {
       </div>
 
       {/* Axes Selection */}
-      <div className="w-full bg-card border border-border rounded-md shadow-sm p-4">
+      <div className="w-full solid-card shadow-sm p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={LABEL_CLASS}>X-Axis</label>
@@ -199,7 +199,7 @@ export default function CorrelationPage() {
       {/* KPIs */}
       {hasAxes && !isError && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="radiant-card p-4">
+          <div className="solid-card p-4">
             <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">
               <span>Win Rate</span>
               <MetricHelpLink anchor="win-rate" />
@@ -208,7 +208,7 @@ export default function CorrelationPage() {
               {kpis?.win_rate ? `${(Number(kpis.win_rate) * 100).toFixed(1)}%` : "—"}
             </div>
           </div>
-          <div className="radiant-card p-4">
+          <div className="solid-card p-4">
             <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">
               <span>Max Drawdown</span>
               <MetricHelpLink anchor="max-drawdown" />
@@ -217,7 +217,7 @@ export default function CorrelationPage() {
               {kpis?.max_drawdown_pct ? `${(Number(kpis.max_drawdown_pct) * 100).toFixed(1)}%` : "—"}
             </div>
           </div>
-          <div className="radiant-card p-4">
+          <div className="solid-card p-4">
             <div className="text-sm font-medium text-muted-foreground">Matched / Total</div>
             <div className="text-2xl font-bold font-mono mt-1">
               {kpis ? `${kpis.matched_count} / ${kpis.total_trades_count}` : "—"}
@@ -228,7 +228,7 @@ export default function CorrelationPage() {
 
       {/* Chart */}
       {hasAxes && !isError && (
-        <div className="h-[400px] w-full bg-card border border-border rounded-md shadow-sm p-4">
+        <div className="h-[400px] w-full solid-card shadow-sm p-4">
           {isLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading chart...</div>
           ) : correlationData ? (
@@ -245,7 +245,7 @@ export default function CorrelationPage() {
 
       {/* Raw Data Table */}
       {hasAxes && correlationData?.data_points && correlationData.data_points.length > 0 && (
-        <div className="w-full bg-card border border-border rounded-md shadow-sm overflow-hidden">
+        <div className="w-full solid-card shadow-sm overflow-hidden">
           <div className="p-4 border-b border-border">
             <h2 className="text-lg font-semibold">Raw Data</h2>
           </div>

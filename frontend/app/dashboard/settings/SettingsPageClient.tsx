@@ -68,7 +68,7 @@ export function SettingsPageClient() {
 
   return (
     <div className="w-full min-h-full p-6 md:p-12 flex justify-center items-start">
-      <div className="space-y-6 w-full max-w-4xl bg-card border border-border p-6 md:p-8 rounded-xl shadow-sm">
+      <div className="space-y-6 w-full max-w-4xl solid-card p-6 md:p-8 shadow-sm">
         {/* Page header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Settings</h1>

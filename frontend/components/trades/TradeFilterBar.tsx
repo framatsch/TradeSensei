@@ -330,7 +330,7 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
       : "";
 
   return (
-    <div className="bg-card rounded-md border border-border shadow-sm">
+    <div className="solid-card shadow-sm mb-4">
       {/* Toggle row */}
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-4">

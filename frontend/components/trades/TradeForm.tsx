@@ -423,7 +423,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       )}
 
       {/* ── Section 1: Instrument ─────────────────────────────────────────── */}
-      <div className="bg-card rounded-xl border border-border p-5">
+      <div className="solid-card p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Instrument</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -501,7 +501,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       </div>
 
       {/* ── Advanced Mode Toggle ────────────────────────────────────────── */}
-      <div className="flex items-center justify-between bg-card rounded-xl border border-border p-5">
+      <div className="flex items-center justify-between solid-card p-5">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Advanced Mode (Manual Legs)</h3>
           <p className="text-xs text-muted-foreground mt-1">
@@ -521,7 +521,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
       {/* ── Execution Legs (Advanced Mode) ────────────────────────────────── */}
       {isAdvancedMode && (
-        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
+        <div className="solid-card p-5 space-y-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-semibold text-muted-foreground">Execution Legs</h3>
             {errors.executions?.message && typeof errors.executions.message === "string" && (
@@ -638,7 +638,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       )}
 
       {/* ── Section 2: Entry / Exit ───────────────────────────────────────── */}
-      <div className="bg-card rounded-xl border border-border p-5">
+      <div className="solid-card p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Entry / Exit</h3>
         {isEditing && trade && (
           <div className="mb-6">
@@ -751,7 +751,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
 
       {/* ── Section 3: Timestamps ─────────────────────────────────────────── */}
       {!isEditing && (
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="solid-card p-5">
           <h3 className="text-sm font-semibold text-muted-foreground mb-4">Timestamps (UTC)</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -779,7 +779,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       )}
 
       {/* ── Section 4: Qualitative Data ────────────────────────────────────── */}
-      <div className="bg-card rounded-xl border border-border p-5">
+      <div className="solid-card p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Qualitative Data</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -808,7 +808,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       </div>
 
       {/* ── Section 5: Notes ──────────────────────────────────────────────── */}
-      <div className="bg-card rounded-xl border border-border p-5">
+      <div className="solid-card p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Notes</h3>
         <div className="mb-4 max-w-xs">
           <label className={labelCls}>User Rating (1-5)</label>
@@ -831,7 +831,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         />
       </div>
 
-      <div className="bg-card rounded-xl border border-border p-5">
+      <div className="solid-card p-5">
         <h3 className="text-sm font-semibold text-muted-foreground mb-4">Images</h3>
         <div className="space-y-4">
           <TradeScreenshotUploader

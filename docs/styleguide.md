@@ -112,9 +112,9 @@ instead of re-implementing complex surfaces.
 
 | Class          | Description                                                  | When to use                        |
 | -------------- | ------------------------------------------------------------ | ---------------------------------- |
-| `.radiant-card`  | Glass-morphism: `backdrop-blur-xl`, translucent bg, lit border | Primary cards, dashboard panels    |
-| `.card-glossy`   | Same as `.radiant-card` without blur                          | Nested cards, lighter surfaces     |
-| `.solid-card`    | Opaque `bg-card`, no translucency                            | Dense data panels, table wrappers  |
+| `.solid-card`    | Opaque `bg-card`, no translucency                            | ALL cards, dashboard panels, tables|
+| `.radiant-card`  | Glass-morphism: `backdrop-blur-xl` (Deprecated by user pref) | Legacy/Do not use                  |
+| `.card-glossy`   | Same as `.radiant-card` without blur                          | Legacy/Do not use                  |
 
 ### Buttons
 

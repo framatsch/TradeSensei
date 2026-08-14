@@ -29,60 +29,51 @@ export function CheckinSidebar() {
 
   const isCheckinsRoute = pathname === "/dashboard/checkins" || pathname.startsWith("/dashboard/checkins/");
 
+  const SECTION_HEADER_CLASS = "px-4 pt-4 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-slate-500 select-none";
+  const NAV_ITEM_CLASS = "w-full flex items-center gap-3 px-4 py-2 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all duration-150 text-left";
+  const NAV_ITEM_ACTIVE = "w-full flex items-center gap-3 px-4 py-2 text-sm font-medium nav-active transition-all duration-150 text-left";
+
   return (
-    <div className="flex flex-col h-full p-4">
-      <div className="mb-6">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Calendar
-        </h2>
+    <div className="w-full h-full flex flex-col bg-sidebar overflow-y-auto pb-6">
+      <div className={SECTION_HEADER_CLASS}>Calendar</div>
+      <div className="px-4 pb-2">
         <CheckinMiniCalendar />
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Views
-        </h2>
-        <div className="space-y-1">
-          <button
-            onClick={() => {
-              if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=timeline";
-              else setFilter(prev => ({ ...prev, view: "timeline", page: 1 }));
-              setMobileOpen(false);
-            }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
-              isCheckinsRoute && (filter.view === "timeline" || !filter.view)
-                ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-[color-mix(in_srgb,var(--muted)_60%,transparent)]"
-            }`}
-          >
-            <List className="w-4 h-4" />
-            <span>Timeline</span>
-          </button>
+      <div className={SECTION_HEADER_CLASS}>Views</div>
+      <div className="space-y-0.5">
+        <button
+          onClick={() => {
+            if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=timeline";
+            else setFilter(prev => ({ ...prev, view: "timeline", page: 1 }));
+            setMobileOpen(false);
+          }}
+          className={isCheckinsRoute && (filter.view === "timeline" || !filter.view) ? NAV_ITEM_ACTIVE : NAV_ITEM_CLASS}
+        >
+          <List className="w-4 h-4 shrink-0 opacity-70" />
+          <span>Timeline</span>
+        </button>
 
-          <button
-            onClick={() => {
-              if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=gallery";
-              else setFilter(prev => ({ ...prev, view: "gallery", page: 1 }));
-              setMobileOpen(false);
-            }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg ${
-              isCheckinsRoute && filter.view === "gallery"
-                ? "text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-[color-mix(in_srgb,var(--muted)_60%,transparent)]"
-            }`}
-          >
-            <Grid className="w-4 h-4" />
-            <span>Gallery</span>
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            if (!isCheckinsRoute) window.location.href = "/dashboard/checkins?view=gallery";
+            else setFilter(prev => ({ ...prev, view: "gallery", page: 1 }));
+            setMobileOpen(false);
+          }}
+          className={isCheckinsRoute && filter.view === "gallery" ? NAV_ITEM_ACTIVE : NAV_ITEM_CLASS}
+        >
+          <Grid className="w-4 h-4 shrink-0 opacity-70" />
+          <span>Gallery</span>
+        </button>
       </div>
 
       <div className="mt-auto pt-4 border-t border-border">
+        <div className={SECTION_HEADER_CLASS}>Preferences</div>
         <Link
           href="/dashboard/settings?tab=checkin"
-          className="flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg text-muted-foreground hover:text-foreground hover:bg-[color-mix(in_srgb,var(--muted)_60%,transparent)]"
+          className={NAV_ITEM_CLASS}
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-4 h-4 shrink-0 opacity-70" />
           <span>Check-in Settings</span>
         </Link>
       </div>

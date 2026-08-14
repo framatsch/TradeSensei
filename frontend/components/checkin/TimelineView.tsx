@@ -79,13 +79,12 @@ export function TimelineView() {
           <div
             key={checkin.id}
             onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
-            className="group relative bg-card border rounded-xl shadow-sm flex flex-col sm:flex-row cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-            style={{ borderLeftWidth: "4px", borderLeftColor: colorHex }}
+            className="group relative solid-card shadow-sm flex flex-col sm:flex-row cursor-pointer hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] transition-colors overflow-hidden"
           >
             {/* Image Thumbnail on the left */}
             {checkin.screenshot_urls && checkin.screenshot_urls.length > 0 && (
               <div 
-                className="w-full sm:w-1/3 lg:w-1/4 shrink-0 bg-muted border-b sm:border-b-0 sm:border-r border-border relative p-4 flex items-center justify-center cursor-pointer min-h-[200px]"
+                className="w-full sm:w-1/3 lg:w-1/4 shrink-0 border-b sm:border-b-0 sm:border-r border-border relative p-4 flex items-center justify-center cursor-pointer min-h-[200px]"
                 onClick={(e) => {
                   e.stopPropagation();
                   setLightboxData({ urls: checkin.screenshot_urls!.map(resolveStorageUrl), index: 0 });
@@ -170,7 +169,7 @@ export function TimelineView() {
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2962FF]/10 hover:bg-[#2962FF]/20 border border-[#2962FF]/20 rounded-md text-xs font-medium text-[#2962FF] dark:text-[#739aff] transition-colors shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--primary)_20%,transparent)] border border-[color-mix(in_srgb,var(--primary)_20%,transparent)] rounded-md text-xs font-medium text-primary transition-colors shadow-sm"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                         {index.symbol} Chart

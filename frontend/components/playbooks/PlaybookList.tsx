@@ -131,7 +131,7 @@ export function PlaybookList() {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <div className="solid-card">
         {items.length === 0 ? (
           <div className="px-4 py-16 text-center text-muted-foreground">
             <p className="text-base font-medium mb-1">No playbooks yet</p>

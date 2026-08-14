@@ -164,7 +164,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
     }, [activeExecutions]);
 
     return (
-      <div className="bg-card rounded-xl border border-border p-4">
+      <div className="solid-card p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Execution Summary</h3>
@@ -258,7 +258,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
   const contractLabel = optionLeg ? formatContractLabel(optionLeg.symbol, optionLeg.option_type ?? null, optionLeg.strike ?? null, optionLeg.expiry ?? null) : null;
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4">
+    <div className="solid-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Execution Summary</h3>

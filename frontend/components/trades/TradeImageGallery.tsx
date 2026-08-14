@@ -49,7 +49,7 @@ export function TradeImageGallery({ imageUrls }: TradeImageGalleryProps) {
 
   if (imageUrls.length === 0) {
     return (
-      <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+      <div className="solid-card p-5 shadow-sm">
         <h2 className="text-base font-semibold text-foreground mb-2">Trade Images</h2>
         <p className="text-sm text-muted-foreground">No images attached.</p>
       </div>
@@ -57,7 +57,7 @@ export function TradeImageGallery({ imageUrls }: TradeImageGalleryProps) {
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+    <div className="solid-card p-5 shadow-sm">
       <h2 className="text-base font-semibold text-foreground mb-4">Trade Images</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {imageUrls.map((url) => (

@@ -70,7 +70,7 @@ export function CorrectTradeModal({ trade, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-xl bg-card p-6 shadow-xl border border-border">
+      <div className="w-full max-w-sm solid-card p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-bold text-foreground">Correct Trade</h2>
         <p className="mb-5 text-xs text-muted-foreground">
           These fields affect trade identity. Only change them to fix import errors.

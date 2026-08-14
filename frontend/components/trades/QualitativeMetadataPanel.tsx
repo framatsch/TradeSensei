@@ -210,7 +210,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   const activeTaxonomies = taxonomies.filter(t => !t.is_archived || draftTaxonomyIds.includes(t.id));
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm w-full">
+    <div className="solid-card shadow-sm w-full">
       <div className="flex items-center justify-between p-5 border-b border-border">
         <h2 className="text-base font-semibold text-foreground">Qualitative Analysis &amp; Metadata</h2>
         {isDirty && (

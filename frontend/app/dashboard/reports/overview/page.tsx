@@ -27,7 +27,7 @@ import { MonthlyWinrateChart } from "@/components/charts/MonthlyWinrateChart";
 
 function ChartSkeleton() {
   return (
-    <div className="bg-card rounded-xl p-5 border border-border flex items-center justify-center h-48">
+    <div className="solid-card p-5 flex items-center justify-center h-48">
       <Spinner />
     </div>
   );

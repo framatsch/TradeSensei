@@ -145,7 +145,7 @@ export function AccountList({ accounts }: Props) {
 
       {/* Accounts table */}
       {accounts.length > 0 && (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="solid-card">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">

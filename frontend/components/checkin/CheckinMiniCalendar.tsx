@@ -133,7 +133,7 @@ export function CheckinMiniCalendar() {
   ];
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="solid-card p-4">
       {/* Header */}
       <div className="flex flex-col gap-2 mb-4">
         {/* Month/Year Selection Row (Centered) */}

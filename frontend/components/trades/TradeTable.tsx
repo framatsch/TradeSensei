@@ -216,7 +216,7 @@ export function TradeTable({
   const totalCols = allColumns.length + 1;
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="solid-card">
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>

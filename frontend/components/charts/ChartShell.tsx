@@ -50,7 +50,7 @@ export function ChartShell({
 }: Props) {
   return (
     <div
-      className={`bg-card rounded-xl border border-border overflow-hidden p-5 flex flex-col ${className}`}
+      className={`solid-card p-5 flex flex-col ${className}`}
     >
       <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
         {title}

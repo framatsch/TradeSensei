@@ -34,12 +34,12 @@ export default function CheckinLayout({ children }: { children: ReactNode }) {
         )}
         <div
           className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 shrink-0 border-r border-border bg-sidebar transition-all duration-300 ease-in-out overflow-hidden ${
-            mobileSidebarOpen ? "translate-x-0 w-[220px]" : "-translate-x-full w-[220px] lg:translate-x-0"
+            mobileSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 lg:translate-x-0"
           } ${
-            desktopSidebarOpen ? "lg:w-[220px]" : "lg:w-0 lg:border-r-0"
+            desktopSidebarOpen ? "lg:w-64" : "lg:w-0 lg:border-r-0"
           }`}
         >
-          <div className="w-[220px] h-full">
+          <div className="w-64 h-full">
             <CheckinSidebar />
           </div>
         </div>

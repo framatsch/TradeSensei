@@ -790,6 +790,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         // is not configured. We fall back to TradingView silently.
         if (e instanceof Error && e.message.includes("HTTP 503")) {
           setUseFallback(true);
+        } else if (e instanceof Error && e.message.includes("HTTP 404")) {
+          // 404 means the symbol was not found by the data provider. Handle silently.
+          setNoData(true);
         } else {
           // For other errors or "No data returned", we show the empty state instead of TradingView
           if (!(e instanceof Error) || !e.message.includes("No data returned")) {

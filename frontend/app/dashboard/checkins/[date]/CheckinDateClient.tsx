@@ -84,7 +84,7 @@ export function CheckinDateClient({ date }: Props) {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+      <div className="solid-card p-6 shadow-sm">
         {isLoading && !entry ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />

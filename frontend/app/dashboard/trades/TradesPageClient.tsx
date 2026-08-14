@@ -216,7 +216,7 @@ function TaxonomyPickerModal({ onConfirm, onCancel, isPending }: TaxonomyPickerM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="solid-card p-6 w-full max-w-sm shadow-2xl">
         <h2 className="text-base font-semibold text-foreground mb-4">Assign Taxonomies</h2>
         <div className="flex flex-wrap gap-2 mb-6 min-h-12">
           {(taxonomies ?? []).length === 0 && (
@@ -273,7 +273,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="solid-card p-6 w-full max-w-sm shadow-2xl">
         <h2 className="text-base font-semibold text-foreground mb-4">Assign Playbook</h2>
         <div className="space-y-2 mb-6">
           <label className="flex items-center gap-3 cursor-pointer">

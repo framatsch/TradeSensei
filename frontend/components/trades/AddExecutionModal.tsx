@@ -121,7 +121,7 @@ export function AddExecutionModal({ tradeId, trade, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-card p-6 shadow-xl border border-border">
+      <div className="w-full max-w-md solid-card p-6 shadow-2xl">
         <h2 className="mb-5 text-xl font-bold text-foreground">Add Execution</h2>
 
         {errorMsg && (

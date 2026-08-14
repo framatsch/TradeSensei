@@ -76,11 +76,11 @@ export function GalleryView() {
             <div
               key={checkin.id}
               onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
-              className="group block relative bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] cursor-pointer"
+              className="group block relative solid-card hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
             >
               {/* Image Thumbnail */}
               <div 
-                className="aspect-video w-full bg-muted border-b border-border overflow-hidden relative p-4"
+                className="aspect-video w-full border-b border-border overflow-hidden relative p-4"
                 onClick={(e) => {
                   if (checkin.screenshot_urls && checkin.screenshot_urls.length > 0) {
                     e.stopPropagation();
@@ -140,7 +140,7 @@ export function GalleryView() {
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#2962FF]/10 hover:bg-[#2962FF]/20 border border-[#2962FF]/20 rounded-md text-[10px] font-medium text-[#2962FF] dark:text-[#739aff] transition-colors"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--primary)_20%,transparent)] border border-[color-mix(in_srgb,var(--primary)_20%,transparent)] rounded-md text-[10px] font-medium text-primary transition-colors"
                             title={`${index.name} Chart`}
                           >
                             <ExternalLink className="w-2.5 h-2.5" />

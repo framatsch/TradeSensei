@@ -168,7 +168,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
       {/* Middle: Chart & Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Chart Area */}
-        <div className="bg-card rounded-xl border border-border overflow-hidden col-span-1 lg:col-span-3 p-4 h-[400px]">
+        <div className="solid-card col-span-1 lg:col-span-3 p-4 h-[400px]">
           <h3 className="text-sm font-semibold mb-4 text-foreground">{selectedMetric} by {effectiveDimensionLabel}</h3>
           <ResponsiveContainer width="100%" height="85%">
             <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
@@ -216,7 +216,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
         </div>
 
         {/* Insights Sidebar */}
-        <div className="bg-card rounded-xl border border-border overflow-hidden col-span-1 p-6 flex flex-col gap-6">
+        <div className="solid-card col-span-1 p-6 flex flex-col gap-6">
           <h3 className="text-sm font-semibold text-foreground border-b border-border/50 pb-2">Insights</h3>
 
           <div className="flex flex-col gap-1">
@@ -261,7 +261,7 @@ export const PerformanceAnalysisDashboard: React.FC<PerformanceAnalysisDashboard
       </div>
 
       {/* Bottom: Data Table */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden overflow-x-auto">
+      <div className="solid-card overflow-x-auto">
         <table className="min-w-full divide-y divide-[#dadbdf] dark:divide-[#29292b]">
           <thead>
             {/* Grouping row */}

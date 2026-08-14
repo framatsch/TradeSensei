@@ -38,7 +38,7 @@ import { Spinner } from "@/components/ui/Spinner";
 
 function ChartSkeleton() {
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden flex items-center justify-center h-48">
+    <div className="solid-card flex items-center justify-center h-48">
       <Spinner />
     </div>
   );

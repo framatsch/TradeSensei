@@ -100,7 +100,7 @@ export function TradePickerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-card border border-border shadow-xl flex flex-col max-h-[80vh]">
+      <div className="w-full max-w-lg solid-card shadow-2xl flex flex-col max-h-[80vh]">
         {/* Header */}
         <div className="px-5 py-4 border-b border-border">
           <h2 className="text-base font-bold text-foreground mb-3">

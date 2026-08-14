@@ -366,7 +366,7 @@ export function MediaChartsCard({ trade, executions, className }: { trade: Trade
 
   return (
     <div
-      className={`bg-card rounded-xl border border-border flex flex-col ${className ?? "h-[520px]"}`}
+      className={`solid-card flex flex-col ${className ?? "h-[520px]"}`}
     >
       {/* Tab bar */}
       <div className="flex border-b border-border shrink-0">

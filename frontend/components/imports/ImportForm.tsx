@@ -304,7 +304,7 @@ export function ImportForm() {
   return (
     <div className="space-y-6">
       {/* Step 1: Account selection */}
-      <div className="bg-card rounded-xl border border-border p-6 space-y-3">
+      <div className="solid-card p-6 space-y-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
             Step 1 — Select Account
@@ -378,7 +378,7 @@ export function ImportForm() {
               </div>
 
               {activeTab === "sync" ? (
-                <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+                <div className="solid-card p-6 space-y-4">
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">
                       Sync via API
@@ -479,7 +479,7 @@ export function ImportForm() {
             </div>
           ) : (accountType === "ibkr" || accountType === "schwab") ? (
             /* Broker account without API keys — only show upload */
-            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+            <div className="solid-card p-6 space-y-4">
               <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md px-4 py-3">
                 <span className="text-amber-600 text-sm leading-relaxed">
                   ⚠ No API credentials stored for this {TYPE_LABEL[accountType]} account. Add them in Settings → Accounts to enable API sync, or upload files below.
@@ -548,7 +548,7 @@ function FileUploadCard({
   handleReset,
 }: FileUploadCardProps) {
   return (
-    <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+    <div className="solid-card p-6 space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-foreground">
           Upload Files

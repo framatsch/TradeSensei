@@ -125,7 +125,7 @@ export function DashboardHeader({ summary }: Props) {
     : "rgba(251, 113, 133, 0.12)";
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden relative">
+    <div className="solid-card relative">
       {/* Ambient radial glow in the top-right corner */}
       <div
         aria-hidden
