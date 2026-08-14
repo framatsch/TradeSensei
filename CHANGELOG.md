@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [frontend] Unified visual style across Trading Log and Checkin components by enforcing `.solid-card` as the standard container format.
+- [frontend] Aligned `CheckinSidebar` layout, widths, headers, and hover states to perfectly match `TradingLogSidebar`.
+- [docs] Updated UI `styleguide.md` to deprecate `.radiant-card` and establish `.solid-card` as the mandatory card component format.
+
 ## [1.11.0] - 2026-08-14
 
 ### Added
