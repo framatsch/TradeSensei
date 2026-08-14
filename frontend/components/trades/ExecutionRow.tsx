@@ -24,9 +24,15 @@
 
 "use client";
 
+<<<<<<< Updated upstream
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2, Split } from "lucide-react";
+=======
+import { useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2 } from "lucide-react";
+>>>>>>> Stashed changes
 import type { LogicalExecution, Trade } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
 import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
@@ -140,9 +146,6 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   });
   const [editPnl, setEditPnl] = useState(execution.pnl ?? "");
-  const menuRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
   const updateExecution = useUpdateExecution();
   const deleteExecution = useDeleteExecution();
@@ -151,31 +154,9 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
   const isLong = execution.direction === "LONG";
   const isDeleted = execution.deleted === true;
 
-  // Determine if this execution can be split (non-deleted, imported or manual origin)
   const canSplit = !isDeleted && (execution.origin === "imported" || execution.origin === "manual");
   // Only unlinked manual legs can be linked to a broker transaction
   const canLinkBroker = !isDeleted && execution.origin === "manual" && !execution.source_id;
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
-          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (menuOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.right + window.scrollX - 176, // 176px = w-44
-      });
-    }
-  }, [menuOpen]);
 
   function handleSave() {
     if (!activePortfolioId) return;
@@ -218,7 +199,6 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
   }
 
   function handleDelete() {
-    setMenuOpen(false);
     setShowDeleteConfirm(true);
   }
 
@@ -547,70 +527,68 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
              </div>
            ) : (
              <>
-               <button
-                 ref={buttonRef}
-                 onClick={() => setMenuOpen(!menuOpen)}
-                 className="p-1 rounded hover:bg-muted text-muted-foreground"
-                 aria-label="Row actions"
-               >
-                 <MoreHorizontal size={14} />
-               </button>
-               {menuOpen && menuPosition && createPortal(
-                 <div
-                   ref={menuRef}
-                   className="fixed z-50 w-44 bg-popover border border-border rounded-lg shadow-lg py-1"
-                   style={{
-                     top: `${menuPosition.top}px`,
-                     left: `${menuPosition.left}px`,
-                   }}
-                 >
+               <DropdownMenu.Root>
+                 <DropdownMenu.Trigger asChild>
                    <button
-                     onClick={() => { setIsEditing(true); setMenuOpen(false); }}
-                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
+                     className="p-1 rounded hover:bg-muted text-muted-foreground"
+                     aria-label="Row actions"
                    >
-                     Edit
+                     <MoreHorizontal size={14} />
                    </button>
-                    {canSplit && onSplit && (
-                      <button
-                        onClick={() => { setMenuOpen(false); onSplit(execution); }}
-                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                      >
-                        Split
-                      </button>
-                    )}
-                    {canLinkBroker && onLinkBroker && (
-                      <button
-                        onClick={() => { setMenuOpen(false); onLinkBroker(execution); }}
-                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                      >
-                        Link broker transaction…
-                      </button>
-                    )}
-                   {onMoveToTrade && (
-                     <button
-                       onClick={() => { setMenuOpen(false); onMoveToTrade(execution.id); }}
-                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                     >
-                       Move to...
-                     </button>
-                   )}
-                   {onDetach && (
-                     <button
-                       onClick={() => { setMenuOpen(false); onDetach(execution.id); }}
-                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground"
-                     >
-                       Detach as new Trade
-                     </button>
-                   )}
-                   <button
-                     onClick={handleDelete}
-                     className="w-full text-left px-3 py-1.5 text-xs hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-danger"
+                 </DropdownMenu.Trigger>
+                 <DropdownMenu.Portal>
+                   <DropdownMenu.Content
+                     align="end"
+                     sideOffset={4}
+                     className="z-50 w-44 bg-popover border border-border rounded-lg shadow-lg py-1 overflow-hidden"
                    >
-                     Delete
-                   </button>
-                 </div>,
-                 document.body
-               )}
+                     <DropdownMenu.Item
+                       onClick={() => setIsEditing(true)}
+                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground cursor-pointer outline-none"
+                     >
+                       Edit
+                     </DropdownMenu.Item>
+                     {canSplit && onSplit && (
+                       <DropdownMenu.Item
+                         onClick={() => onSplit(execution)}
+                         className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground cursor-pointer outline-none"
+                       >
+                         Split
+                       </DropdownMenu.Item>
+                     )}
+                     {canLinkBroker && onLinkBroker && (
+                       <DropdownMenu.Item
+                         onClick={() => onLinkBroker(execution)}
+                         className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground cursor-pointer outline-none"
+                       >
+                         Link broker transaction…
+                       </DropdownMenu.Item>
+                     )}
+                     {onMoveToTrade && (
+                       <DropdownMenu.Item
+                         onClick={() => onMoveToTrade(execution.id)}
+                         className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground cursor-pointer outline-none"
+                       >
+                         Move to...
+                       </DropdownMenu.Item>
+                     )}
+                     {onDetach && (
+                       <DropdownMenu.Item
+                         onClick={() => onDetach(execution.id)}
+                         className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted text-foreground cursor-pointer outline-none"
+                       >
+                         Detach as new Trade
+                       </DropdownMenu.Item>
+                     )}
+                     <DropdownMenu.Item
+                       onClick={handleDelete}
+                       className="w-full text-left px-3 py-1.5 text-xs hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-danger cursor-pointer outline-none"
+                     >
+                       Delete
+                     </DropdownMenu.Item>
+                   </DropdownMenu.Content>
+                 </DropdownMenu.Portal>
+               </DropdownMenu.Root>
              </>
            )}
          </td>

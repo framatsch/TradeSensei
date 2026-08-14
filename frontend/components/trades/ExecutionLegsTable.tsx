@@ -24,7 +24,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+<<<<<<< Updated upstream
 import { ChevronDown, ChevronRight, Plus, Loader2, Split } from "lucide-react";
+=======
+import { ChevronDown, ChevronRight, Plus, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+>>>>>>> Stashed changes
 import { useTradeExecutions, useReassignExecution, useDetachExecution } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { formatSplitRatio } from "@/lib/formatSplitRatio";
@@ -94,6 +98,60 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const totalCount = executions?.length ?? 0;
   const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
   const hasOptionLeg = executions?.some((ex: LogicalExecution) => ex.option_type !== null) ?? false;
+
+  type SortKey = 'executed_at' | 'direction' | 'open_close' | 'symbol' | 'asset_class' | 'strike' | 'option_type' | 'expiry' | 'quantity' | 'multiplier' | 'price' | 'commission' | 'pnl' | 'parent_id' | 'origin';
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+
+  const handleSort = (key: SortKey) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedExecutions = useMemo(() => {
+    if (!executions) return [];
+    const copy = [...executions];
+    if (sortConfig !== null) {
+      copy.sort((a, b) => {
+        let aVal: any = a[sortConfig.key as keyof LogicalExecution];
+        let bVal: any = b[sortConfig.key as keyof LogicalExecution];
+
+        if (['quantity', 'price', 'pnl', 'commission', 'multiplier', 'strike'].includes(sortConfig.key)) {
+          aVal = parseFloat(aVal || '0');
+          bVal = parseFloat(bVal || '0');
+        } else if (['executed_at', 'expiry'].includes(sortConfig.key)) {
+          aVal = aVal ? new Date(aVal).getTime() : 0;
+          bVal = bVal ? new Date(bVal).getTime() : 0;
+        } else {
+          aVal = (aVal || '').toString().toLowerCase();
+          bVal = (bVal || '').toString().toLowerCase();
+        }
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return copy;
+  }, [executions, sortConfig]);
+
+  const SortableHeader = ({ label, sortKey, align = 'left' }: { label: string; sortKey: SortKey; align?: 'left' | 'right' }) => (
+    <th 
+      className={`px-3 py-2 text-${align} text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none`}
+      onClick={() => handleSort(sortKey)}
+    >
+      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+        {label}
+        {sortConfig?.key === sortKey ? (
+          sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+        ) : (
+          <ArrowUpDown size={12} className="opacity-30" />
+        )}
+      </div>
+    </th>
+  );
 
   // Compute duplicate pairs for task 11.2
   const conflictLegIds = new Set<string>();
@@ -225,33 +283,34 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
             <table className="w-full text-sm">
               <thead>
                  <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Side</th>
+                  <SortableHeader label="Date" sortKey="executed_at" />
+                  <SortableHeader label="Side" sortKey="direction" />
                   {trade.is_combo && (
                     <>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Open/Close</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Symbol</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Asset Class</th>
+                      <SortableHeader label="Open/Close" sortKey="open_close" />
+                      <SortableHeader label="Symbol" sortKey="symbol" />
+                      <SortableHeader label="Asset Class" sortKey="asset_class" />
                     </>
                   )}
                   {hasOptionLeg && (
                     <>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Strike</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Type</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Expiry</th>
+                      <SortableHeader label="Strike" sortKey="strike" align="right" />
+                      <SortableHeader label="Type" sortKey="option_type" />
+                      <SortableHeader label="Expiry" sortKey="expiry" />
                     </>
                   )}
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Mult.</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Price</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Commission</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P&amp;L</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Lineage</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Status</th>
+                  <SortableHeader label="Qty" sortKey="quantity" align="right" />
+                  <SortableHeader label="Mult." sortKey="multiplier" align="right" />
+                  <SortableHeader label="Price" sortKey="price" align="right" />
+                  <SortableHeader label="Commission" sortKey="commission" align="right" />
+                  <SortableHeader label="P&L" sortKey="pnl" align="right" />
+                  <SortableHeader label="Lineage" sortKey="parent_id" />
+                  <SortableHeader label="Status" sortKey="origin" />
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
+<<<<<<< Updated upstream
                 {timelineItems.map((item) =>
                   item.type === "corporate_action" ? (
                     <tr key={`ca-${item.data.id}`} className="bg-muted/30">
@@ -285,6 +344,23 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                     />
                   )
                 )}
+=======
+                {sortedExecutions?.map((ex: LogicalExecution) => (
+                  <ExecutionRow
+                    key={ex.id}
+                    execution={ex}
+                    trade={trade}
+                    tradeId={tradeId}
+                    colSpan={10 + (trade.is_combo ? 3 : 0) + (hasOptionLeg ? 3 : 0)}
+                    onMoveToTrade={handleMoveToTrade}
+                    onDetach={handleDetach}
+                    onSplit={setSplitExecution}
+                    onLinkBroker={setLinkExecution}
+                    hasOptionLeg={hasOptionLeg}
+                    isConflict={conflictLegIds.has(ex.id)}
+                  />
+                ))}
+>>>>>>> Stashed changes
               </tbody>
             </table>
           )}

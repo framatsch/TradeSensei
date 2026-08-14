@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -11,13 +12,26 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#!/usr/bin/env python3
+
 """CLI tool to reset a user's password in the database."""
 
 import argparse
 import asyncio
 import sys
 import os
+from pathlib import Path
+
+# Auto-re-exec into the backend uv environment if not already there
+script_path = Path(__file__).resolve()
+backend_dir = script_path.parent.parent / "backend"
+
+if not sys.executable.startswith(str(backend_dir)):
+    if backend_dir.exists():
+        os.execvp("uv", ["uv", "run", "--project", str(backend_dir), "python", str(script_path)] + sys.argv[1:])
+    else:
+        print(f"Error: Could not find backend directory at {backend_dir}", file=sys.stderr)
+        sys.exit(1)
+
 
 # Wir fangen fehlende Env-Vars ab und setzen Fallbacks (besonders fuer secret_key),
 # bevor wir Pydantic's Settings laden

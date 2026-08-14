@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Added clickable sorting functionality to `ExecutionLegsTable` column headers.
+
+### Fixed
+- [frontend] Fixed `ExecutionRow` context menu cutoff at the bottom of the viewport by using Radix UI DropdownMenu for robust collision detection and positioning.
+
 ## [1.10.0] - 2026-08-11
 
 ### Added
