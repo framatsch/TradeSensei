@@ -24,15 +24,9 @@
 
 "use client";
 
-<<<<<<< Updated upstream
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2, Split } from "lucide-react";
-=======
 import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2 } from "lucide-react";
->>>>>>> Stashed changes
+import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2, Split } from "lucide-react";
 import type { LogicalExecution, Trade } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
 import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";

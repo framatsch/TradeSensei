@@ -24,11 +24,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-<<<<<<< Updated upstream
-import { ChevronDown, ChevronRight, Plus, Loader2, Split } from "lucide-react";
-=======
-import { ChevronDown, ChevronRight, Plus, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
->>>>>>> Stashed changes
+import { ChevronDown, ChevronRight, Plus, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Split } from "lucide-react";
 import { useTradeExecutions, useReassignExecution, useDetachExecution } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { formatSplitRatio } from "@/lib/formatSplitRatio";
@@ -69,6 +65,21 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
     trade.chart_quantity !== null &&
     trade.quantity !== trade.chart_quantity;
 
+  const totalCount = executions?.length ?? 0;
+  const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
+  const hasOptionLeg = executions?.some((ex: LogicalExecution) => ex.option_type !== null) ?? false;
+
+  type SortKey = 'executed_at' | 'direction' | 'open_close' | 'symbol' | 'asset_class' | 'strike' | 'option_type' | 'expiry' | 'quantity' | 'multiplier' | 'price' | 'commission' | 'pnl' | 'parent_id' | 'origin';
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+
+  const handleSort = (key: SortKey) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const timelineItems = useMemo(() => {
     if (!executions) return [];
     type TimelineItem =
@@ -86,37 +97,16 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
       });
     }
 
-    items.sort((a, b) => {
-      const dateA = a.type === "execution" ? a.data.executed_at : a.data.date;
-      const dateB = b.type === "execution" ? b.data.executed_at : b.data.date;
-      return dateA.localeCompare(dateB);
-    });
-
-    return items;
-  }, [executions, trade.corporate_action_impact]);
-
-  const totalCount = executions?.length ?? 0;
-  const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
-  const hasOptionLeg = executions?.some((ex: LogicalExecution) => ex.option_type !== null) ?? false;
-
-  type SortKey = 'executed_at' | 'direction' | 'open_close' | 'symbol' | 'asset_class' | 'strike' | 'option_type' | 'expiry' | 'quantity' | 'multiplier' | 'price' | 'commission' | 'pnl' | 'parent_id' | 'origin';
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
-
-  const handleSort = (key: SortKey) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const sortedExecutions = useMemo(() => {
-    if (!executions) return [];
-    const copy = [...executions];
     if (sortConfig !== null) {
-      copy.sort((a, b) => {
-        let aVal: any = a[sortConfig.key as keyof LogicalExecution];
-        let bVal: any = b[sortConfig.key as keyof LogicalExecution];
+      items.sort((a, b) => {
+        if (a.type === "corporate_action" || b.type === "corporate_action") {
+          const dateA = a.type === "execution" ? a.data.executed_at : a.data.date;
+          const dateB = b.type === "execution" ? b.data.executed_at : b.data.date;
+          return dateA.localeCompare(dateB);
+        }
+
+        let aVal: any = a.data[sortConfig.key as keyof LogicalExecution];
+        let bVal: any = b.data[sortConfig.key as keyof LogicalExecution];
 
         if (['quantity', 'price', 'pnl', 'commission', 'multiplier', 'strike'].includes(sortConfig.key)) {
           aVal = parseFloat(aVal || '0');
@@ -133,9 +123,16 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
+    } else {
+      items.sort((a, b) => {
+        const dateA = a.type === "execution" ? a.data.executed_at : a.data.date;
+        const dateB = b.type === "execution" ? b.data.executed_at : b.data.date;
+        return dateA.localeCompare(dateB);
+      });
     }
-    return copy;
-  }, [executions, sortConfig]);
+
+    return items;
+  }, [executions, trade.corporate_action_impact, sortConfig, isClosedBeforeSplit]);
 
   const SortableHeader = ({ label, sortKey, align = 'left' }: { label: string; sortKey: SortKey; align?: 'left' | 'right' }) => (
     <th 
@@ -310,7 +307,6 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                 </tr>
               </thead>
               <tbody>
-<<<<<<< Updated upstream
                 {timelineItems.map((item) =>
                   item.type === "corporate_action" ? (
                     <tr key={`ca-${item.data.id}`} className="bg-muted/30">
@@ -344,23 +340,6 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                     />
                   )
                 )}
-=======
-                {sortedExecutions?.map((ex: LogicalExecution) => (
-                  <ExecutionRow
-                    key={ex.id}
-                    execution={ex}
-                    trade={trade}
-                    tradeId={tradeId}
-                    colSpan={10 + (trade.is_combo ? 3 : 0) + (hasOptionLeg ? 3 : 0)}
-                    onMoveToTrade={handleMoveToTrade}
-                    onDetach={handleDetach}
-                    onSplit={setSplitExecution}
-                    onLinkBroker={setLinkExecution}
-                    hasOptionLeg={hasOptionLeg}
-                    isConflict={conflictLegIds.has(ex.id)}
-                  />
-                ))}
->>>>>>> Stashed changes
               </tbody>
             </table>
           )}
