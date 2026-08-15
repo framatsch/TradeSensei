@@ -93,6 +93,8 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
           quantity: number;
           vwap: number | null;
           notional: number | null;
+          pnl: number;
+          hasPnl: boolean;
         }
       >();
       const groupCost = new Map<string, number>();
@@ -118,6 +120,8 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         }
 
         const existing = grouped.get(key);
+        const pnlValue = pnl !== null && !isNaN(pnl) ? pnl : 0;
+        const legHasPnl = pnl !== null && !isNaN(pnl);
 
         if (!existing) {
           const initialQty = !isNaN(qty) ? qty : 0;
@@ -139,10 +143,15 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
               initialQty > 0 && initialCost >= 0
                 ? (initialCost / initialQty) * initialQty * multiplier
                 : null,
+            pnl: pnlValue,
+            hasPnl: legHasPnl,
           });
           groupCost.set(key, initialCost);
           continue;
         }
+
+        existing.pnl += pnlValue;
+        if (legHasPnl) existing.hasPnl = true;
 
         if (execution.direction === existing.direction && !isNaN(qty) && !isNaN(price)) {
           const prevQty = existing.quantity;
@@ -189,6 +198,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
                 <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Quantity</th>
                 <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Price</th>
                 <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Notional</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P&amp;L</th>
               </tr>
             </thead>
             <tbody>
@@ -221,16 +231,32 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
                     <td className="px-3 py-2 text-right text-foreground font-mono">
                       {row.notional === null ? "—" : fmt(row.notional)}
                     </td>
+                    <td className="px-3 py-2 text-right text-foreground font-mono">
+                      {row.hasPnl ? (
+                        <span className={row.pnl >= 0 ? "text-success font-medium" : "text-danger font-medium"}>
+                          {row.pnl >= 0 ? "+" : ""}
+                          {fmt(row.pnl)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </tr>
                 );
               })}
-              <tr className="bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]">
-                <td className="px-3 py-2 text-xs font-medium text-muted-foreground" colSpan={3}>
-                  Total Commission: <span className="text-foreground font-mono">{fmt(totalCommission)}</span>
+              <tr className="bg-[color-mix(in_srgb,var(--muted)_30%,transparent)] border-t-2 border-border">
+                <td className="px-3 py-2 text-sm font-medium text-muted-foreground text-right" colSpan={5}>
+                  Commission: <span className="text-foreground font-mono mr-2">{fmt(totalCommission)}</span>
                 </td>
-                <td className="px-3 py-2 text-xs font-medium text-muted-foreground" colSpan={2}>
-                  Combined P&amp;L:{" "}
-                  <span className="text-foreground font-mono">{hasBrokerPnl ? fmt(totalPnl) : "—"}</span>
+                <td className="px-3 py-2 text-right text-sm font-medium">
+                  {hasBrokerPnl ? (
+                    <span className={`font-mono ${totalPnl >= 0 ? "text-success" : "text-danger"}`}>
+                      {totalPnl >= 0 ? "+" : ""}
+                      {fmt(totalPnl)}
+                    </span>
+                  ) : (
+                    <span className="text-foreground font-mono">—</span>
+                  )}
                 </td>
               </tr>
             </tbody>
