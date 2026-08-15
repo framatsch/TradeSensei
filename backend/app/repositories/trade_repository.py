@@ -21,6 +21,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
+from inspect import isawaitable
 from typing import Any, cast
 
 from sqlalchemy import delete, exists, func, nullslast, or_, select
@@ -341,6 +342,9 @@ def _apply_filters(
                 )
         if execution_state_predicates:
             stmt = stmt.where(or_(*execution_state_predicates))
+
+    if filters.has_unlinked_executions is not None:
+        stmt = stmt.where(Trade.has_unlinked_executions.is_(filters.has_unlinked_executions))
 
     return stmt
 
@@ -1209,6 +1213,26 @@ class TradeRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_protected_trade_ids_by_user_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+    ) -> list[uuid.UUID]:
+        """Return manually-edited trade IDs for a specific user/account."""
+        stmt = select(Trade.id).where(
+            Trade.user_id == user_id,
+            Trade.account_id == account_id,
+            Trade.is_manually_edited.is_(True),
+        )
+        result = await self._session.execute(stmt)
+        scalars = result.scalars()
+        if isawaitable(scalars):
+            scalars = await scalars
+        ids = scalars.all()
+        if isawaitable(ids):
+            ids = await ids
+        return list(ids)
 
     async def list_by_user_and_symbol(
         self,

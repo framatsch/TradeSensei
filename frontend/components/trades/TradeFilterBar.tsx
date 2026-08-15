@@ -79,6 +79,7 @@ function countActiveFilters(filters: TradeFilters): number {
   if (filters.day_of_week !== undefined && filters.day_of_week !== null) count++;
   if (filters.annotation_filters?.length) count++;
   if (filters.execution_state?.length) count++;
+  if (filters.has_unlinked_executions !== undefined) count++;
   return count;
 }
 
@@ -100,6 +101,7 @@ const EMPTY_FILTERS: TradeFilters = {
   day_of_week: undefined,
   annotation_filters: [],
   execution_state: [],
+  has_unlinked_executions: undefined,
 };
 
 const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -636,6 +638,26 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          <div>
+            <label className={LABEL_CLASS}>Unlinked Protected Executions</label>
+            <div className="mt-2">
+              <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.has_unlinked_executions === true}
+                  onChange={(e) =>
+                    onChange({
+                      ...filters,
+                      has_unlinked_executions: e.target.checked ? true : undefined,
+                    })
+                  }
+                  className="accent-primary"
+                />
+                Show only flagged trades
+              </label>
             </div>
           </div>
 

@@ -808,14 +808,10 @@ class TradeService:
         if len(trades) < 2:
             raise ValueError("Must provide at least two unique trades to merge.")
 
-        ref_trade = trades[0]
-        for t in trades[1:]:
-            if (
-                t.symbol != ref_trade.symbol
-                or t.account_id != ref_trade.account_id
-                or (not t.is_combo and not ref_trade.is_combo and t.asset_class != ref_trade.asset_class)
-            ):
-                raise ValueError("Trades must have the same symbol, account, and asset class to be merged.")
+        symbols = {t.symbol for t in trades}
+        account_ids = {t.account_id for t in trades}
+        if len(symbols) != 1 or len(account_ids) != 1:
+            raise ValueError("Trades must have the same symbol and account to be merged.")
 
         # Sort trades by opened_at
         trades.sort(key=lambda t: t.opened_at)
@@ -854,6 +850,22 @@ class TradeService:
 
             # Delete empty trades
             await self._repo.delete(t)
+
+        survivor_execs = await exec_repo.list_by_trade_id(survivor.id)
+        distinct_conids = {ex.conid for ex in survivor_execs if ex.deleted is False and ex.conid is not None}
+        merge_becomes_combo = len(distinct_conids) >= 2
+
+        if not merge_becomes_combo:
+            non_combo_asset_classes = {t.asset_class for t in trades if not t.is_combo}
+            if len(non_combo_asset_classes) > 1:
+                raise ValueError("Trades must have matching asset class unless merge result is a combo.")
+
+        survivor.is_combo = merge_becomes_combo
+        survivor.is_manually_edited = True
+        mark_user_modified = getattr(exec_repo, "mark_user_modified_for_trade", None)
+        if callable(mark_user_modified):
+            await mark_user_modified(survivor.id)
+        self._session.add(survivor)
 
         # Re-aggregate survivor
         await self._re_aggregate_trade(survivor.id)

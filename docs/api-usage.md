@@ -131,3 +131,29 @@ Behavior:
 - `has_conflict` is a read-only derived flag calculated during trade aggregation. It cannot be set directly via `PATCH /trades/{id}`.
 - Auto-clears to `false` when the duplicate leg is deleted or when the manual leg is linked to a raw broker transaction using `POST /executions/{id}/link-broker-transaction`.
 
+## Protected Trade Unlinked Execution Signal
+
+The `TradeRead` schema now also includes:
+
+- `has_unlinked_executions` (boolean): `true` when at least one broker execution was left unlinked because a protected trade (`is_manually_edited=true`) was isolated from rebuild updates during import.
+
+Behavior:
+
+- This field is additive and defaults to `false`.
+- The flag is set during import when protection blocks auto-linking and is cleared by a later re-aggregation once no outstanding unlinked broker execution remains for the trade's contract set.
+
+## Trade List Filter: has_unlinked_executions
+
+`GET /api/v1/portfolios/{portfolio_id}/trades` accepts an optional query parameter:
+
+- `has_unlinked_executions=true` → return only flagged trades.
+
+When omitted, list behavior is unchanged from prior versions.
+
+Example:
+
+```bash
+curl -X GET \
+  "http://localhost:8000/api/v1/portfolios/<portfolio_id>/trades?has_unlinked_executions=true" \
+  -H "Authorization: Bearer <access_token>"
+```

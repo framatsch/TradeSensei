@@ -980,6 +980,11 @@ class TradeRead(BaseModel):
         ),
         examples=[False, True],
     )
+    has_unlinked_executions: bool = Field(
+        default=False,
+        description=("True when at least one broker execution was left unlinked because this protected trade could not absorb it during import."),
+        examples=[False, True],
+    )
     corporate_action_impact: list[dict[str, Any]] = Field(
         default_factory=list,
         description=(
@@ -1000,15 +1005,20 @@ class TradeRead(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_is_combo(cls, data: Any) -> Any:
-        """Backfill missing/NULL is_combo values to False."""
+        """Backfill missing/NULL derived booleans to False."""
         if isinstance(data, dict):
             if data.get("is_combo") is None:
                 data["is_combo"] = False
+            if data.get("has_unlinked_executions") is None:
+                data["has_unlinked_executions"] = False
             return data
 
         if getattr(data, "is_combo", None) is None:
             with contextlib.suppress(Exception):
                 data.__dict__["is_combo"] = False
+        if getattr(data, "has_unlinked_executions", None) is None:
+            with contextlib.suppress(Exception):
+                data.__dict__["has_unlinked_executions"] = False
         return data
 
     @model_validator(mode="before")
@@ -1265,6 +1275,10 @@ class TradeFilterParams(BaseModel):
         description=(
             "Filter trades by linked execution state. manual=origin manual, edited=user_modified true, imported=origin imported with user_modified false."
         ),
+    )
+    has_unlinked_executions: bool | None = Field(
+        default=None,
+        description="Filter trades by whether they have unlinked protected executions.",
     )
 
     @field_validator(

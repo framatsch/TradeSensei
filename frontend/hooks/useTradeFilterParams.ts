@@ -26,6 +26,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const assetClassRaw = params.get("asset_class");
   const taxonomyIdsRaw = params.get("taxonomy_ids");
   const executionStateRaw = params.get("execution_state");
+  const hasUnlinkedRaw = params.get("has_unlinked_executions");
 
   const statusRaw = params.get("status");
   const status: "open" | "closed" | "all" | null =
@@ -67,6 +68,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
     day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
     execution_state: parsedExecutionStates,
+    has_unlinked_executions: hasUnlinkedRaw === "true" ? true : undefined,
   };
 }
 

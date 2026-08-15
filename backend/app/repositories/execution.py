@@ -15,6 +15,7 @@
 
 import uuid
 from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from inspect import isawaitable
 
 from sqlalchemy import delete, exists, select, update
@@ -28,6 +29,14 @@ from app.models.logical_execution import (
     EXECUTION_ORIGIN_SPLIT,
     LogicalExecution,
 )
+
+
+@dataclass(frozen=True)
+class ExecutionContractRef:
+    execution_id: uuid.UUID
+    symbol: str
+    conid: str | None
+    trade_id: uuid.UUID
 
 
 class ExecutionRepository:
@@ -140,6 +149,97 @@ class ExecutionRepository:
             return []
         result = await self.session.execute(select(LogicalExecution).where(LogicalExecution.id.in_(execution_ids)))
         return list(result.scalars().all())
+
+    async def list_unlinked_by_source_ids_for_contracts(
+        self,
+        source_ids: Sequence[str],
+        contracts: set[tuple[str, str | None]],
+    ) -> list[LogicalExecution]:
+        """Return unlinked non-deleted executions matching source IDs and contracts."""
+        if not source_ids or not contracts:
+            return []
+
+        rows = await self.session.execute(
+            select(LogicalExecution).where(
+                LogicalExecution.source_id.in_(source_ids),
+                LogicalExecution.trade_id.is_(None),
+                LogicalExecution.deleted.is_(False),
+            )
+        )
+        scalars = rows.scalars()
+        if isawaitable(scalars):
+            scalars = await scalars
+        candidates = scalars.all()
+        if isawaitable(candidates):
+            candidates = await candidates
+        candidates = list(candidates)
+        return [ex for ex in candidates if (ex.symbol, ex.conid) in contracts]
+
+    async def list_active_execution_contract_refs_by_trade_ids(
+        self,
+        trade_ids: Sequence[uuid.UUID],
+    ) -> list[ExecutionContractRef]:
+        """Return non-deleted execution IDs and their contract refs for trade IDs."""
+        if not trade_ids:
+            return []
+        stmt = (
+            select(
+                LogicalExecution.id,
+                LogicalExecution.symbol,
+                LogicalExecution.conid,
+                LogicalExecution.trade_id,
+            )
+            .where(
+                LogicalExecution.trade_id.in_(trade_ids),
+                LogicalExecution.deleted.is_(False),
+            )
+            .order_by(LogicalExecution.executed_at.asc(), LogicalExecution.id.asc())
+        )
+        result = await self.session.execute(stmt)
+        refs: list[ExecutionContractRef] = []
+        rows = result.all()
+        if isawaitable(rows):
+            rows = await rows
+        for execution_id, symbol, conid, trade_id in rows:
+            if trade_id is None:
+                continue
+            refs.append(
+                ExecutionContractRef(
+                    execution_id=execution_id,
+                    symbol=symbol,
+                    conid=conid,
+                    trade_id=trade_id,
+                )
+            )
+        return refs
+
+    async def has_unlinked_for_trade_contracts(self, trade_id: uuid.UUID) -> bool:
+        """Check whether unlinked non-deleted executions match this trade's contracts."""
+        linked = aliased(LogicalExecution)
+        unlinked = aliased(LogicalExecution)
+
+        stmt = (
+            select(unlinked.id)
+            .select_from(linked)
+            .join(
+                unlinked,
+                unlinked.user_id == linked.user_id,
+            )
+            .where(
+                linked.trade_id == trade_id,
+                linked.deleted.is_(False),
+                unlinked.trade_id.is_(None),
+                unlinked.deleted.is_(False),
+                unlinked.symbol == linked.symbol,
+                unlinked.conid == linked.conid,
+            )
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        scalar = result.scalar_one_or_none()
+        if isawaitable(scalar):
+            scalar = await scalar
+        return scalar is not None
 
     async def list_ordered_execution_ids_by_trade_ids(
         self,

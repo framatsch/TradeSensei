@@ -252,6 +252,12 @@ class Trade(Base):
             "See the execution-overwrite-protection spec."
         ),
     )
+    has_unlinked_executions: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+        comment=("True when at least one broker execution was left unlinked because the protected trade could not absorb it during import."),
+    )
     currency: Mapped[str | None] = mapped_column(
         String(CURRENCY_LENGTH),
         nullable=True,

@@ -65,6 +65,8 @@ export function definitionToSearchParams(
     p.set("day_of_week", String(d.day_of_week));
   if (Array.isArray(d.execution_state) && d.execution_state.length)
     p.set("execution_state", (d.execution_state as string[]).join(","));
+  if (d.has_unlinked_executions === true)
+    p.set("has_unlinked_executions", "true");
   if (Array.isArray(d.annotation_filters) && d.annotation_filters.length)
     p.set("annotation_filters", JSON.stringify(d.annotation_filters));
 

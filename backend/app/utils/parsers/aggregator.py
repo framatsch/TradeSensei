@@ -578,6 +578,7 @@ def aggregate_executions_fifo(
     symbol_map: dict[str, str] | None = None,
     conid_map: dict[str, str] | None = None,
     corporate_actions: Sequence[CorporateActionLike] | None = None,
+    protected_contracts: set[tuple[str, str | None]] | None = None,
 ) -> list[TradeCreate]:
     """Group execution-level TradeCreate objects into round-trip TradeCreate objects.
 
@@ -679,6 +680,14 @@ def aggregate_executions_fifo(
                 )
                 queue.append(stored_trade)
             else:
+                if protected_contracts and (symbol, conid) in protected_contracts:
+                    logger.warning(
+                        "suppressed_orphan_lot_for_protected_contract symbol=%s conid=%s executed_at=%s",
+                        symbol,
+                        conid,
+                        exec_trade.opened_at,
+                    )
+                    continue
                 # It's an orphaned closing leg (open leg was before the export period).
                 # Reconstruct a closed trade.
                 orig_direction = Direction.LONG if exec_trade.direction == Direction.SHORT else Direction.SHORT
@@ -803,6 +812,14 @@ def aggregate_executions_fifo(
         # or it's an orphaned closing quantity.
         if exec_qty_remaining > Decimal("0"):
             if is_closing_leg and not getattr(exec_trade, "is_mixed_execution", False):
+                if protected_contracts and (symbol, conid) in protected_contracts:
+                    logger.warning(
+                        "suppressed_orphan_remainder_for_protected_contract symbol=%s conid=%s executed_at=%s",
+                        symbol,
+                        conid,
+                        exec_trade.opened_at,
+                    )
+                    continue
                 # Orphaned closing remainder
                 orig_direction = Direction.LONG if exec_trade.direction == Direction.SHORT else Direction.SHORT
                 opened_at = exec_trade.opened_at
@@ -965,6 +982,7 @@ def aggregate_executions_fifo_with_sources(
     symbol_map: dict[str, str] | None = None,
     conid_map: dict[str, str] | None = None,
     corporate_actions: Sequence[CorporateActionLike] | None = None,
+    protected_contracts: set[tuple[str, str | None]] | None = None,
 ) -> list[TradeCreateWithSources]:
     """Enhanced aggregation that tracks source executions for split-aware linking.
 
@@ -989,6 +1007,7 @@ def aggregate_executions_fifo_with_sources(
         symbol_map=symbol_map,
         conid_map=conid_map,
         corporate_actions=corporate_actions,
+        protected_contracts=protected_contracts,
     )
 
     # Create TradeCreateWithSources wrappers with proper allocation tracking.

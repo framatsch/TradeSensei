@@ -75,7 +75,7 @@ def test_trade_create_with_sources_dataclass_creation() -> None:
         source_execution_id=uuid.uuid4(),
     )
     src = ExecutionAllocation(
-        execution_id=trade.source_execution_id,
+        execution_id=trade.source_execution_id or uuid.uuid4(),
         quantity_used=Decimal("10"),
         commission_used=Decimal("0"),
         entry_price=Decimal("100"),
@@ -285,3 +285,50 @@ def test_execution_allocation_has_slots() -> None:
 def test_trade_create_with_sources_has_slots() -> None:
     """TradeCreateWithSources should use slots for reduced per-instance memory."""
     assert hasattr(TradeCreateWithSources, "__slots__")
+
+
+def test_protected_contract_suppresses_orphan_sentinel_trade() -> None:
+    """Closing-only execution on a protected contract should not create a sentinel lot."""
+    close_exec_id = uuid.uuid4()
+    trades = [
+        _trade(
+            symbol="PROT_ORPH",
+            direction=Direction.SHORT,
+            quantity="1",
+            entry_price="150",
+            opened_at=datetime(2026, 3, 2, 10, 0, tzinfo=UTC),
+            source_execution_id=close_exec_id,
+            pnl="10",
+        ),
+    ]
+
+    result = aggregate_executions_fifo_with_sources(
+        trades,
+        protected_contracts={("PROT_ORPH", None)},
+    )
+
+    assert result == []
+
+
+def test_non_protected_contract_still_creates_orphan_sentinel_trade() -> None:
+    """Closing-only execution on an unrelated contract keeps prior orphan behavior."""
+    close_exec_id = uuid.uuid4()
+    trades = [
+        _trade(
+            symbol="NONPROT_ORPH",
+            direction=Direction.SHORT,
+            quantity="1",
+            entry_price="150",
+            opened_at=datetime(2026, 3, 2, 10, 0, tzinfo=UTC),
+            source_execution_id=close_exec_id,
+            pnl="10",
+        ),
+    ]
+
+    result = aggregate_executions_fifo_with_sources(
+        trades,
+        protected_contracts={("OTHER_SYMBOL", None)},
+    )
+
+    assert len(result) == 1
+    assert result[0].trade_create.entry_price == Decimal("0.001")

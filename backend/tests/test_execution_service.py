@@ -532,6 +532,7 @@ class TestExecutionService:
         # get_by_id is called: ex_a, ex_b, then reloads for ex_a, ex_b
         service.execution_repo.get_by_id.side_effect = [ex_a, ex_b, ex_a, ex_b]
         service.execution_repo.create.return_value = merged_ex
+        service.trade_repo.mark_manually_edited = AsyncMock(return_value=None)
 
         data = MergeExecutionsRequest(
             execution_ids=[ex_a.id, ex_b.id],
@@ -542,8 +543,33 @@ class TestExecutionService:
         assert result.merged.origin == EXECUTION_ORIGIN_MERGED
         assert len(result.sources) == 2
         assert service.execution_repo.soft_delete.call_count == 2
+        assert service.execution_repo.create.call_args.kwargs["user_modified"] is True
+        service.trade_repo.mark_manually_edited.assert_awaited_once_with(trade_id, user_id)
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
         mock_session.commit.assert_called_once()
+
+    async def test_reaggregate_trade_clears_has_unlinked_executions(self, service: ExecutionService) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(user_id=user_id)
+        trade.has_unlinked_executions = True
+        execution = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol=trade.symbol,
+            direction=trade.direction,
+            quantity=Decimal("5"),
+            price=Decimal("100"),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [execution]
+        service.execution_repo.has_unlinked_for_trade_contracts = AsyncMock(return_value=False)
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        await service._re_aggregate_trade(trade.id, user_id, corporate_actions=[])
+
+        assert trade.has_unlinked_executions is False
 
     async def test_merge_executions_primary_not_in_ids(self, service: ExecutionService) -> None:
         """merge_executions should raise 400 if primary_id not in execution_ids."""

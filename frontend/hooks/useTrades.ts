@@ -53,6 +53,7 @@ export interface TradeFilters {
   /** Annotation filter rows (serialized as JSON for the API). */
   annotation_filters?: AnnotationFilterRow[];
   execution_state?: Array<"manual" | "edited" | "imported">;
+  has_unlinked_executions?: boolean;
 }
 
 export interface TradeSortConfig {
@@ -145,6 +146,7 @@ export function useTrades({
               ? JSON.stringify(filters.annotation_filters.map(({ _key: _, ...rest }) => rest))
               : undefined,
           execution_state: filters?.execution_state?.length ? filters.execution_state : undefined,
+          has_unlinked_executions: filters?.has_unlinked_executions ?? undefined,
         },
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");

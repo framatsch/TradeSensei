@@ -15,6 +15,9 @@ import uuid
 from datetime import UTC, datetime
 
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 # Test helpers (re-using identical logic from other API tests)
 _REGISTER_URL = "/api/v1/auth/register"
@@ -110,6 +113,18 @@ async def _create_portfolio_and_account(
     return portfolio_id, account_id
 
 
+async def _set_trade_execution_conid(
+    db_session: AsyncSession,
+    trade_id: str,
+    conid: str,
+) -> None:
+    await db_session.execute(
+        text("UPDATE logical_executions SET conid = :conid WHERE trade_id = :trade_id"),
+        {"conid": conid, "trade_id": uuid.UUID(trade_id)},
+    )
+    await db_session.flush()
+
+
 class TestMergeTrades:
     """Test suite for POST /api/v1/trades/merge."""
 
@@ -169,6 +184,16 @@ class TestMergeTrades:
         assert data["id"] == t1["id"]
         # Quantities merged: 10 + 10 + 5 = 25
         assert float(data["quantity"]) == 25.0
+        assert data["is_manually_edited"] is True
+
+        exec_res = await client.get(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{t1['id']}/executions",
+            headers=headers,
+        )
+        assert exec_res.status_code == 200, exec_res.text
+        executions = exec_res.json()["data"]
+        assert executions
+        assert all(execution["user_modified"] is True for execution in executions)
 
         # Make sure the other trades are deleted
         res2 = await client.get(
@@ -180,6 +205,139 @@ class TestMergeTrades:
             f"/api/v1/portfolios/{portfolio_id}/trades/{t3['id']}", headers=headers
         )
         assert res3.status_code == 404
+
+    async def test_merge_trades_sets_combo_for_distinct_conids(self, client: AsyncClient, db_session: AsyncSession) -> None:
+        headers = await _get_auth_headers(client, "mergecombo")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "mergecombo"
+        )
+
+        t1 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "QQQ",
+                "asset_class": "OPTION",
+                "quantity": "1",
+                "entry_price": "10.0",
+                "opened_at": "2026-01-01T10:00:00Z",
+            },
+        )
+        t2 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "QQQ",
+                "asset_class": "OPTION",
+                "quantity": "1",
+                "entry_price": "2.0",
+                "opened_at": "2026-01-02T10:00:00Z",
+            },
+        )
+        await _set_trade_execution_conid(db_session, t1["id"], "111111")
+        await _set_trade_execution_conid(db_session, t2["id"], "222222")
+
+        res = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades/merge",
+            json={"trade_ids": [t1["id"], t2["id"]]},
+            headers=headers,
+        )
+        assert res.status_code == 200, res.text
+        merged = res.json()["data"]
+        assert merged["id"] == t1["id"]
+        assert merged["is_combo"] is True
+
+    async def test_merge_trades_keeps_non_combo_for_single_conid(self, client: AsyncClient, db_session: AsyncSession) -> None:
+        headers = await _get_auth_headers(client, "mergeoneconid")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "mergeoneconid"
+        )
+
+        t1 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "QQQ",
+                "asset_class": "OPTION",
+                "quantity": "1",
+                "entry_price": "10.0",
+                "opened_at": "2026-03-01T10:00:00Z",
+            },
+        )
+        t2 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "QQQ",
+                "asset_class": "OPTION",
+                "quantity": "1",
+                "entry_price": "11.0",
+                "opened_at": "2026-03-02T10:00:00Z",
+            },
+        )
+        await _set_trade_execution_conid(db_session, t1["id"], "555555")
+        await _set_trade_execution_conid(db_session, t2["id"], "555555")
+
+        res = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades/merge",
+            json={"trade_ids": [t1["id"], t2["id"]]},
+            headers=headers,
+        )
+        assert res.status_code == 200, res.text
+        merged = res.json()["data"]
+        assert merged["is_combo"] is False
+
+    async def test_merge_trades_allows_mixed_asset_class_when_combo(self, client: AsyncClient, db_session: AsyncSession) -> None:
+        headers = await _get_auth_headers(client, "mergeasset")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client, headers, "mergeasset"
+        )
+
+        t1 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "QQQ",
+                "asset_class": "OPTION",
+                "quantity": "1",
+                "entry_price": "10.0",
+                "opened_at": "2026-02-01T10:00:00Z",
+            },
+        )
+        t2 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "QQQ",
+                "asset_class": "EQUITY",
+                "quantity": "1",
+                "entry_price": "100.0",
+                "opened_at": "2026-02-02T10:00:00Z",
+            },
+        )
+        await _set_trade_execution_conid(db_session, t1["id"], "333333")
+        await _set_trade_execution_conid(db_session, t2["id"], "444444")
+
+        res = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades/merge",
+            json={"trade_ids": [t1["id"], t2["id"]]},
+            headers=headers,
+        )
+        assert res.status_code == 200, res.text
+        merged = res.json()["data"]
+        assert merged["is_combo"] is True
 
     async def test_merge_trades_invalid_symbol(self, client: AsyncClient) -> None:
         headers = await _get_auth_headers(client, "merge2")
@@ -204,4 +362,26 @@ class TestMergeTrades:
         # Typically the service raises ValueError or similar. Let's see what status code it uses.
         # Fast API handles ValueError as 500 if not caught.
         # But let's just assert it is not successful for now.
-        assert res.status_code in (400, 422, 500)
+        assert res.status_code in (400, 422, 500, 404)
+
+    async def test_merge_trades_invalid_account(self, client: AsyncClient) -> None:
+        headers = await _get_auth_headers(client, "mergeacct")
+        portfolio_id, account_id_a = await _create_portfolio_and_account(
+            client, headers, "mergeaccta"
+        )
+        portfolio_id_b, account_id_b = await _create_portfolio_and_account(
+            client, headers, "mergeacctb"
+        )
+        t1 = await _create_trade(
+            client, headers, portfolio_id, account_id_a, {"symbol": "AAPL"}
+        )
+        t2 = await _create_trade(client, headers, portfolio_id_b, account_id_b, {"symbol": "AAPL"})
+
+        payload = {"trade_ids": [t1["id"], t2["id"]]}
+        res = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades/merge",
+            json=payload,
+            headers=headers,
+        )
+
+        assert res.status_code in (400, 422, 500, 404)

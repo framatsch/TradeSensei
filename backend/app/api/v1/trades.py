@@ -421,6 +421,10 @@ async def list_trades(
         list[Literal["manual", "edited", "imported"]] | None,
         Query(description="Repeatable execution state filter values: manual, edited, imported."),
     ] = None,
+    has_unlinked_executions: Annotated[
+        bool | None,
+        Query(description="Filter by trades flagged with unlinked protected executions."),
+    ] = None,
 ) -> ResponseEnvelope[CursorPage[TradeRead]]:
     """Return a cursor-paginated list of trades with optional filter and sort.
 
@@ -465,6 +469,8 @@ async def list_trades(
             ) from exc
     if execution_state is not None:
         filters.execution_state = execution_state
+    if has_unlinked_executions is not None:
+        filters.has_unlinked_executions = has_unlinked_executions
 
     selected_account_ids = account_ids[:] if account_ids is not None else []
     if account_id is not None:

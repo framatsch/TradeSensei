@@ -805,7 +805,11 @@ class ExecutionService:
             origin=EXECUTION_ORIGIN_MERGED,
             parent_id=primary.id,
             trade_id=primary.trade_id,
+            user_modified=True,
         )
+
+        if first_trade_id is not None:
+            await self.trade_repo.mark_manually_edited(first_trade_id, user_id)
 
         # Reload the soft-deleted sources to return updated state
         reloaded_sources: list[LogicalExecution] = []
@@ -996,6 +1000,7 @@ class ExecutionService:
         # never merged. Editing, deleting, or manually-linking a leg flows
         # through here, so the flag auto-clears when the duplicate disappears.
         trade.has_conflict = detect_duplicate_pairs(cast(Any, executions))
+        trade.has_unlinked_executions = await self.execution_repo.has_unlinked_for_trade_contracts(trade.id)
 
         from app.models.trade import (
             Direction,

@@ -39,4 +39,15 @@ describe("useTradeFilterParams execution_state", () => {
 
     expect(result.current.filters.execution_state).toEqual(["manual", "edited"]);
   });
+
+  it("parses has_unlinked_executions from URL params", () => {
+    mockGet.mockImplementation((key: string) => {
+      if (key === "has_unlinked_executions") return "true";
+      return null;
+    });
+
+    const { result } = renderHook(() => useTradeFilterParams());
+
+    expect(result.current.filters.has_unlinked_executions).toBe(true);
+  });
 });

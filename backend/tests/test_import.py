@@ -922,6 +922,161 @@ class TestImportService:
         assert any("protected_skipped" in warning for warning in result.warnings)
 
     @pytest.mark.unit
+    async def test_unlinked_protected_execution_is_reported_and_counted(
+        self,
+        import_service: ImportService,
+    ) -> None:
+        fake_account = MagicMock()
+        user_id = uuid.uuid4()
+        account_id = uuid.uuid4()
+        now = datetime(2026, 1, 3, 10, 0, tzinfo=UTC)
+
+        incoming = _make_trade_create(
+            symbol="PROTUL",
+            broker_conid="555555",
+            opened_at=now,
+        )
+
+        tws = TradeCreateWithSources(trade_create=incoming, source_executions=[])
+
+        protected_trade = MagicMock()
+        protected_trade.id = uuid.uuid4()
+        protected_trade.broker_conid = incoming.broker_conid
+        protected_trade.opened_at = incoming.opened_at
+        protected_trade.is_manually_edited = True
+
+        raw_record = MagicMock()
+        raw_record.id = "raw-prot-ul-1"
+        stamped_raw = MagicMock()
+        stamped_raw.id = f"{user_id}:{raw_record.id}"
+        raw_record.model_copy.return_value = stamped_raw
+
+        unlinked_execution = MagicMock()
+        unlinked_execution.symbol = "PROTUL"
+        unlinked_execution.conid = "555555"
+        unlinked_execution.executed_at = now.replace(hour=11)
+
+        mock_parser = MagicMock()
+        mock_parser.parse_raw.return_value = ([raw_record], [])
+        mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
+
+        with ExitStack() as stack:
+            common_async_patches = [
+                ("app.services.import_service.AccountRepository.get_by_id", fake_account),
+                ("app.services.import_service.CorporateActionRepository.list_by_user", []),
+                ("app.services.import_service.TradeRepository.list_open_lots_by_user", []),
+                ("app.services.import_service.TradeRepository.list_orphaned_lots_by_user", []),
+                ("app.services.import_service.TradeRepository.list_open_combo_positions_by_user", []),
+                ("app.services.import_service.TradeRepository.list_by_user_account", [protected_trade]),
+                ("app.services.import_service.TradeRepository.list_manually_edited_keys", set()),
+                ("app.services.import_service.TradeRepository.list_existing_entry_keys", set()),
+                ("app.services.import_service.TradeRepository.list_existing_close_keys", set()),
+                ("app.services.import_service.TradeRepository.list_protected_trade_ids_by_user_account", [protected_trade.id]),
+                ("app.services.import_service.BrokerRawTransactionRepository.bulk_upsert", [stamped_raw.id]),
+                ("app.services.import_service.BrokerRawTransactionRepository.get_by_id", MagicMock(id=stamped_raw.id)),
+                ("app.services.import_service.BrokerRawTransactionRepository.list_released_without_execution", []),
+                ("app.services.import_service.LogicalExecutionService.bulk_create_from_raw", ([], 0)),
+                ("app.services.import_service.ImportService._collect_trade_creates_from_logical_batches", []),
+                ("app.services.import_service.ImportService._build_seed_combo_execution_trades", []),
+                ("app.services.import_service.ImportService._resolve_anchor_trade_ids", {0: protected_trade.id}),
+                ("app.services.import_service.ImportService._assign_position_ids_from_sources", None),
+                ("app.services.import_service.ExecutionRepository.list_by_trade_id", []),
+                ("app.services.import_service.ExecutionRepository.delete_split_children_for_account", 0),
+                ("app.services.import_service.ExecutionRepository.restore_split_parents_for_account", 0),
+                ("app.services.import_service.TradeRepository.delete_by_user_account", 0),
+                ("app.services.import_service.PortfolioRepository.get_by_id", None),
+            ]
+            for target, return_value in common_async_patches:
+                stack.enter_context(
+                    patch(target, new_callable=AsyncMock, return_value=return_value)
+                )
+
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.build_combo_positions",
+                    return_value=MagicMock(fifo_executions=[], combo_trades=[], warnings=[]),
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.aggregate_executions_fifo_with_sources",
+                    return_value=[tws],
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.ImportService._backfill_execution_trade_links",
+                    new_callable=AsyncMock,
+                    return_value=None,
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.ExecutionRepository.list_active_execution_contract_refs_by_trade_ids",
+                    new_callable=AsyncMock,
+                    side_effect=[
+                        [
+                            MagicMock(
+                                execution_id=uuid.uuid4(),
+                                symbol="PROTUL",
+                                conid="555555",
+                                trade_id=protected_trade.id,
+                            )
+                        ],
+                        [
+                            MagicMock(
+                                execution_id=uuid.uuid4(),
+                                symbol="PROTUL",
+                                conid="555555",
+                                trade_id=protected_trade.id,
+                            )
+                        ],
+                    ],
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.ExecutionRepository.list_unlinked_by_source_ids_for_contracts",
+                    new_callable=AsyncMock,
+                    return_value=[unlinked_execution],
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.ExecutionRepository.has_unlinked_for_trade_contracts",
+                    new_callable=AsyncMock,
+                    return_value=False,
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.TradeRepository.get_by_id",
+                    new_callable=AsyncMock,
+                    return_value=protected_trade,
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.get_parser",
+                    return_value=mock_parser,
+                )
+            )
+
+            result = await import_service.import_file(
+                content=b"raw",
+                filename="activity.xml",
+                broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
+                account_id=account_id,
+                user_id=user_id,
+                overwrite_manually_edited=False,
+            )
+
+        assert result.unlinked_executions == 1
+        assert any("protected_unlinked_execution" in warning for warning in result.warnings)
+
+    @pytest.mark.unit
     async def test_failed_trade_create_counted_as_skipped(
         self,
         import_service: ImportService,

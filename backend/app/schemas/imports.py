@@ -87,10 +87,11 @@ class ImportResult(BaseModel):
             because their linked execution has ``deleted=True`` (user intent
             preserved — execution was previously deleted by the user).
         trades_protected_reconciled: Number of metadata-protected trades
-            (``is_manually_edited=True``) that absorbed new executions
-            during this import instead of being skipped.
+            encountered during rebuild and skipped from structural updates.
         trades_protected_skipped: Number of metadata-protected positions
             skipped because no existing trade could be resolved for them.
+        unlinked_executions: Number of executions left unlinked because their
+            target contract belongs to a protected trade.
         warnings: Human-readable descriptions of each skipped row.
         activity_log: Informational log of routine created/updated rows.
     """
@@ -150,12 +151,7 @@ class ImportResult(BaseModel):
     trades_protected_reconciled: int = Field(
         default=0,
         ge=0,
-        description=(
-            "Number of metadata-protected trades (``is_manually_edited=True``) "
-            "that absorbed new incoming executions during this import (linked "
-            "and, if applicable, closed) instead of being skipped. Structural "
-            "fields are updated; user metadata is never touched."
-        ),
+        description=("Number of metadata-protected trades (``is_manually_edited=True``) encountered during rebuild and skipped from structural updates."),
         examples=[0, 1],
     )
     trades_protected_skipped: int = Field(
@@ -167,6 +163,12 @@ class ImportResult(BaseModel):
             "onto. See ``warnings`` for the affected symbol/date."
         ),
         examples=[0, 1],
+    )
+    unlinked_executions: int = Field(
+        default=0,
+        ge=0,
+        description=("Number of executions left unlinked because their target contract belongs to a protected trade isolated from rebuild."),
+        examples=[0, 2],
     )
     warnings: list[str] = Field(
         default_factory=list,

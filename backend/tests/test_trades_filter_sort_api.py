@@ -19,9 +19,13 @@ sort_dir) as wired in the list_trades route handler.
 """
 
 from datetime import UTC, datetime
+import uuid
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
@@ -487,3 +491,68 @@ class TestTradeFilterExecutionState:
         returned_ids = {item["id"] for item in items}
         assert manual_trade["id"] in returned_ids
         assert edited_trade["id"] in returned_ids
+
+
+@pytest.mark.integration
+class TestTradeFilterHasUnlinkedExecutions:
+    """Tests for has_unlinked_executions filter on GET /api/v1/trades."""
+
+    async def test_filter_by_has_unlinked_executions_true(self, client: AsyncClient, db_session: AsyncSession) -> None:
+        h = await _get_auth_headers(client)
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+
+        flagged_trade = await _post_trade(client, h, portfolio_id, account_id, symbol="ULINK1")
+        unflagged_trade = await _post_trade(client, h, portfolio_id, account_id, symbol="ULINK2")
+
+        patch_res = await client.patch(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{flagged_trade['id']}",
+            headers=h,
+            json={"has_unlinked_executions": True},
+        )
+        assert patch_res.status_code == 200, patch_res.text
+
+        await db_session.execute(
+            text("UPDATE trades SET has_unlinked_executions = true WHERE id = :trade_id"),
+            {"trade_id": uuid.UUID(str(flagged_trade["id"]))},
+        )
+        await db_session.flush()
+
+        items = await _list_trades(
+            client,
+            h,
+            portfolio_id,
+            has_unlinked_executions=True,
+            symbols=["ULINK"],
+        )
+        returned_ids = {item["id"] for item in items}
+        assert flagged_trade["id"] in returned_ids
+        assert unflagged_trade["id"] not in returned_ids
+
+    async def test_filter_by_has_unlinked_executions_omitted_preserves_behavior(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+    ) -> None:
+        h = await _get_auth_headers(client)
+        portfolio_id, account_id = await _create_portfolio_and_account(client, h)
+
+        trade_a = await _post_trade(client, h, portfolio_id, account_id, symbol="ULINK3")
+        trade_b = await _post_trade(client, h, portfolio_id, account_id, symbol="ULINK4")
+
+        patch_res = await client.patch(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{trade_a['id']}",
+            headers=h,
+            json={"has_unlinked_executions": True},
+        )
+        assert patch_res.status_code == 200, patch_res.text
+
+        await db_session.execute(
+            text("UPDATE trades SET has_unlinked_executions = true WHERE id = :trade_id"),
+            {"trade_id": uuid.UUID(str(trade_a["id"]))},
+        )
+        await db_session.flush()
+
+        all_items = await _list_trades(client, h, portfolio_id, symbols=["ULINK"])
+        returned_ids = {item["id"] for item in all_items}
+        assert trade_a["id"] in returned_ids
+        assert trade_b["id"] in returned_ids

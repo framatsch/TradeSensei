@@ -138,3 +138,134 @@ async def test_list_open_combo_positions_by_user_returns_only_open_combos(
     assert len(rows) == 1
     assert rows[0].id == open_combo.id
     assert rows[0].is_combo is True
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_delete_by_user_account_preserves_protected_trades(
+    db_session: AsyncSession,
+) -> None:
+    user = User(
+        username=f"delete_guard_{uuid.uuid4().hex[:8]}",
+        email=f"delete_guard_{uuid.uuid4().hex[:8]}@example.com",
+        hashed_password="unused",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    portfolio = Portfolio(
+        user_id=user.id,
+        name="Delete Guard",
+        base_currency="USD",
+        color_hex="#223344",
+    )
+    db_session.add(portfolio)
+    await db_session.flush()
+
+    account = Account(
+        user_id=user.id,
+        portfolio_id=portfolio.id,
+        name="IBKR",
+        type=AccountType.IBKR,
+        currency="USD",
+    )
+    db_session.add(account)
+    await db_session.flush()
+
+    protected_trade = Trade(
+        user_id=user.id,
+        account_id=account.id,
+        symbol="PROT_KEEP",
+        direction=Direction.LONG,
+        asset_class=AssetClass.EQUITY,
+        is_manually_edited=True,
+        quantity=Decimal("1"),
+        entry_price=Decimal("100"),
+        opened_at=datetime(2026, 8, 1, tzinfo=UTC),
+        commission=Decimal("0"),
+        multiplier=1,
+    )
+    user_modified_only_trade = Trade(
+        user_id=user.id,
+        account_id=account.id,
+        symbol="USERMOD_KEEP",
+        direction=Direction.LONG,
+        asset_class=AssetClass.EQUITY,
+        is_manually_edited=False,
+        quantity=Decimal("1"),
+        entry_price=Decimal("101"),
+        opened_at=datetime(2026, 8, 2, tzinfo=UTC),
+        commission=Decimal("0"),
+        multiplier=1,
+    )
+    deletable_trade = Trade(
+        user_id=user.id,
+        account_id=account.id,
+        symbol="DELETE_ME",
+        direction=Direction.LONG,
+        asset_class=AssetClass.EQUITY,
+        is_manually_edited=False,
+        quantity=Decimal("1"),
+        entry_price=Decimal("102"),
+        opened_at=datetime(2026, 8, 3, tzinfo=UTC),
+        commission=Decimal("0"),
+        multiplier=1,
+    )
+    db_session.add_all([protected_trade, user_modified_only_trade, deletable_trade])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            LogicalExecution(
+                user_id=user.id,
+                account_id=account.id,
+                trade_id=user_modified_only_trade.id,
+                symbol="USERMOD_KEEP",
+                conid="901001",
+                asset_class=AssetClass.EQUITY,
+                direction=Direction.LONG,
+                quantity=Decimal("1"),
+                price=Decimal("101"),
+                commission=Decimal("0"),
+                executed_at=datetime(2026, 8, 2, 9, 0, tzinfo=UTC),
+                origin=EXECUTION_ORIGIN_IMPORTED,
+                deleted=False,
+                user_modified=True,
+                multiplier=1,
+            ),
+            LogicalExecution(
+                user_id=user.id,
+                account_id=account.id,
+                trade_id=deletable_trade.id,
+                symbol="DELETE_ME",
+                conid="901002",
+                asset_class=AssetClass.EQUITY,
+                direction=Direction.LONG,
+                quantity=Decimal("1"),
+                price=Decimal("102"),
+                commission=Decimal("0"),
+                executed_at=datetime(2026, 8, 3, 9, 0, tzinfo=UTC),
+                origin=EXECUTION_ORIGIN_IMPORTED,
+                deleted=False,
+                user_modified=False,
+                multiplier=1,
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    repo = TradeRepository(db_session)
+    deleted = await repo.delete_by_user_account(
+        user_id=user.id,
+        account_id=account.id,
+        include_manually_edited=False,
+    )
+    await db_session.flush()
+
+    assert deleted == 1
+
+    remaining = await repo.list_by_user_account(user.id, account.id)
+    remaining_symbols = {trade.symbol for trade in remaining}
+    assert "PROT_KEEP" in remaining_symbols
+    assert "USERMOD_KEEP" in remaining_symbols
+    assert "DELETE_ME" not in remaining_symbols

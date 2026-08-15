@@ -455,6 +455,54 @@ async def test_iter_trade_creates_from_logical_batches_pages_results() -> None:
 
 
 @pytest.mark.unit
+async def test_collect_trade_creates_excludes_protected_execution_ids() -> None:
+    service = _service()
+    execution_1 = MagicMock(
+        id=uuid.uuid4(),
+        source_id="raw-1",
+        trade_id=uuid.uuid4(),
+        symbol="AAPL",
+        conid="123",
+        asset_class="EQUITY",
+        direction="LONG",
+        quantity=Decimal("1"),
+        price=Decimal("100"),
+        commission=Decimal("0"),
+        executed_at=datetime(2026, 1, 1, 10, 0, 0),
+        pnl=None,
+        open_close="O",
+        multiplier=1,
+    )
+    execution_2 = MagicMock(
+        id=uuid.uuid4(),
+        source_id="raw-2",
+        trade_id=uuid.uuid4(),
+        symbol="AAPL",
+        conid="123",
+        asset_class="EQUITY",
+        direction="SHORT",
+        quantity=Decimal("1"),
+        price=Decimal("101"),
+        commission=Decimal("0"),
+        executed_at=datetime(2026, 1, 1, 10, 1, 0),
+        pnl=Decimal("1"),
+        open_close="C",
+        multiplier=1,
+    )
+    service._logical_svc.list_by_user = AsyncMock(side_effect=[[execution_1, execution_2], []])
+    service._raw_repo.get_combo_order_meta_by_raw_ids = AsyncMock(return_value={})
+
+    collected = await service._collect_trade_creates_from_logical_batches(
+        user_id=uuid.uuid4(),
+        account_id=uuid.uuid4(),
+        excluded_execution_ids={execution_1.id},
+    )
+
+    assert len(collected) == 1
+    assert collected[0].opened_at.replace(tzinfo=None) == execution_2.executed_at
+
+
+@pytest.mark.unit
 async def test_backfill_logs_memory_threshold_warning() -> None:
     service = _service()
     service._trade_repo.get_by_id = AsyncMock(return_value=MagicMock())
@@ -499,6 +547,46 @@ async def test_backfill_logs_memory_threshold_warning() -> None:
         await service._backfill_execution_trade_links([tws], uuid.uuid4())
 
     warning_logger.assert_called()
+
+
+@pytest.mark.unit
+async def test_backfill_skips_protected_execution_ids() -> None:
+    service = _service()
+    service._trade_repo.get_by_id = AsyncMock(return_value=MagicMock())
+    service._validate_split_backfill_consistency = AsyncMock()
+    service._find_orphaned_children_for_trades = AsyncMock(return_value=0)
+    service._resolve_orphaned_children_for_trades = AsyncMock(return_value=0)
+    service._session.begin_nested = MagicMock(return_value=_AsyncNullContext())
+
+    trade = MagicMock(id=uuid.uuid4(), account_id=uuid.uuid4())
+    execution_id = uuid.uuid4()
+    allocation = ExecutionAllocation(
+        execution_id=execution_id,
+        quantity_used=Decimal("1"),
+        commission_used=Decimal("0"),
+        entry_price=Decimal("100"),
+    )
+    tws = TradeCreateWithSources(trade_create=MagicMock(), source_executions=[allocation])
+    tws.created_trade = trade
+
+    execution = MagicMock(
+        id=execution_id,
+        user_id=uuid.uuid4(),
+        quantity=Decimal("1"),
+        commission=Decimal("0"),
+    )
+    service._exec_repo.list_by_ids = AsyncMock(return_value=[execution])
+    service._exec_repo.bulk_update_trade_ids = AsyncMock(return_value=0)
+    service._process_execution_split = AsyncMock(return_value=0)
+
+    await service._backfill_execution_trade_links(
+        [tws],
+        uuid.uuid4(),
+        protected_execution_ids={execution_id},
+    )
+
+    service._exec_repo.bulk_update_trade_ids.assert_not_awaited()
+    service._process_execution_split.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

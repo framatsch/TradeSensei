@@ -230,6 +230,7 @@ export interface Trade {
    * every trade rebuild. Drives the conflict banner on the trade detail page.
    */
   has_conflict?: boolean;
+  has_unlinked_executions?: boolean;
   corporate_action_impact?: Array<{
     id: string;
     symbol: string;

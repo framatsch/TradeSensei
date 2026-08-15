@@ -57,6 +57,7 @@ describe("TradeFilterBar execution_state filter", () => {
     day_of_week: undefined,
     annotation_filters: [],
     execution_state: [],
+    has_unlinked_executions: undefined,
   };
 
   it("renders and toggles execution_state values", () => {
@@ -73,5 +74,34 @@ describe("TradeFilterBar execution_state filter", () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ execution_state: ["edited"] })
     );
+  });
+
+  it("toggles has_unlinked_executions checkbox", () => {
+    const onChange = jest.fn();
+    render(
+      <TradeFilterBar
+        filters={baseFilters}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter" }));
+    fireEvent.click(screen.getByLabelText("Show only flagged trades"));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ has_unlinked_executions: true })
+    );
+  });
+
+  it("counts has_unlinked_executions as an active filter", () => {
+    const onChange = jest.fn();
+    render(
+      <TradeFilterBar
+        filters={{ ...baseFilters, has_unlinked_executions: true }}
+        onChange={onChange}
+      />
+    );
+
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
 });

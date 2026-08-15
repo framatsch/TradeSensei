@@ -78,6 +78,15 @@ Task 4 adds an `execution_state` trade filter, following the established `EXISTS
 The decisions above shipped the protection but introduced a regression: the raw-pipeline rebuild's `manually_edited_keys` skip (`import_service.py` ~503-508) executes a `continue` **before** the `existing_trades_by_key` lookup, so a metadata-protected trade never receives `created_trade`. `_backfill_execution_trade_links` (which skips sources where `created_trade is None`) then leaves the new leg unlinked (`trade_id=NULL`), the trade never closes, and the zero-insert guard (D5) masks the orphan permanently (`+0 created`). Root fragility: the `(broker_conid, opened_at)` identity, already flagged brittle in `execution-overwrite-protection` D1. The following decisions close this.
 
 ### D8. Reconcile-before-skip: resolve the existing trade before honoring the protection skip
+
+> **⚠️ SUPERSEDED by `protected-trade-rebuild-isolation` — do not reimplement.**
+>
+> D8 caused a confirmed production data-loss incident. Its safety argument ("metadata columns are never touched") is correct but insufficient: `PROTECTED_METADATA_COLUMNS` covers only `{journal, user_rating, image_urls, tradingview_link, playbook_id}`, so the structural columns `closed_at`, `pnl`, and `net_pnl` were freely overwritten whenever the aggregator could not fully reconstruct a position. Independently, D8 placed no constraint on `_backfill_execution_trade_links`, which reassigned the protected trade's own executions to newly created trades.
+>
+> Trade `8436a93e` (QQQ vertical, `is_manually_edited=true`, correctly closed) was reverted to open and stripped of both closing legs by exactly this path — while protected. Root trigger: its combo legs were closed in separate single-contract orders, which `build_combo_positions` cannot regroup, so the rebuild produced an opening-only position that D8 then applied.
+>
+> Replacement: metadata-protected trades are **fully isolated** from the rebuild (excluded from the aggregation input, never updated, never re-linked); unlinkable executions are left unlinked and reported via `has_unlinked_executions` and `ImportResult`. See `openspec/changes/protected-trade-rebuild-isolation/design.md` D1–D3.
+
 **Choice**: In the raw-pipeline rebuild, resolve the existing DB trade for the aggregated position *first*. If one exists (protected or not), route it through the existing `model_dump(exclude_unset=True)` update path and set `created_trade` so the new leg links. Skip only when no existing trade resolves AND the key is protected.
 **Alternatives considered**:
 - Keep the skip; add a separate orphan-relink pass afterward. Rejected — two paths reconciling the same state invites drift; the existing update path already does exactly what's needed.
@@ -85,6 +94,11 @@ The decisions above shipped the protection but introduced a regression: the raw-
 **Rationale**: The metadata-safe update path already exists and runs for non-protected trades; the bug is purely ordering. Reuse is the minimal correct fix. Metadata columns are never touched because the FIFO aggregator never populates them and `exclude_unset` excludes them.
 
 ### D9. Stable UUID anchor = chronologically-first non-deleted `LogicalExecution`
+
+> **⚠️ PARTIALLY SUPERSEDED by `protected-trade-rebuild-isolation`.**
+>
+> Anchor identity remains valid for **non-protected** trades. It MUST NOT be used to route a metadata-protected trade into the reconcile path — that is the mechanism through which D8 destroyed protected data. Under the replacement design a protected trade's executions are absent from the aggregation input, so no rebuilt position can resolve to its anchor.
+
 **Choice**: A trade's durable cross-import identity is the `id` of its earliest (`min(executed_at)`, tie-broken by execution `id`) non-deleted execution. On rebuild, each newly-computed trade resolves its anchor execution's current DB `trade_id`; if that maps to an existing trade, the new trade inherits that `trade_id`. Anchor-based resolution replaces `(broker_conid, opened_at)` in both `existing_trades_by_key` and `manually_edited_keys` resolution.
 **Alternatives considered**:
 - Keep `(broker_conid, opened_at)`. Rejected — the root fragility; breaks on FIFO re-slice, partial-close splits, and corporate-action timestamp/symbol shifts.

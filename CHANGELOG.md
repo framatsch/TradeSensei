@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Added protected-trade rebuild isolation signal `has_unlinked_executions` to `TradeRead` and exposed optional `has_unlinked_executions=true` filtering on `GET /api/v1/portfolios/{portfolio_id}/trades`.
+- [frontend] Added trade-detail notice and trade-list filter toggle for protected trades with unlinked executions, including URL/saved-view serialization support.
+
+### Fixed
+- [backend] Added regression coverage for protected-trade rebuild isolation behavior (unlinked execution reporting, protected execution backfill exclusion, orphan suppression on protected contracts, and merge-protection invariants).
+- [docs] Documented `has_unlinked_executions` semantics and trade-list filter usage in `docs/api-usage.md`.
+
 ## [1.12.0] - 2026-08-14
 
 ### Changed

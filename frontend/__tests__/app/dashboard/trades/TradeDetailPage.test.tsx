@@ -1,3 +1,18 @@
+/*
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import TradeDetailPage from "@/app/dashboard/trades/[id]/page";
@@ -80,6 +95,7 @@ const baseTrade = {
   user_rating: 0,
   trade_notes: [],
   has_conflict: false,
+  has_unlinked_executions: false,
 };
 
 describe("TradeDetailPage Corporate Action Indicator", () => {
@@ -120,5 +136,37 @@ describe("TradeDetailPage Corporate Action Indicator", () => {
     render(<TradeDetailPage />);
 
     expect(screen.queryByLabelText(/Affected by a corporate action/i)).not.toBeInTheDocument();
+  });
+
+  it("renders unlinked execution notice when has_unlinked_executions is true", () => {
+    (useTrade as jest.Mock).mockReturnValue({
+      data: {
+        ...baseTrade,
+        has_unlinked_executions: true,
+        corporate_action_impact: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TradeDetailPage />);
+
+    expect(screen.getByText(/protected trade has unlinked executions from import/i)).toBeInTheDocument();
+  });
+
+  it("hides unlinked execution notice when has_unlinked_executions is false", () => {
+    (useTrade as jest.Mock).mockReturnValue({
+      data: {
+        ...baseTrade,
+        has_unlinked_executions: false,
+        corporate_action_impact: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TradeDetailPage />);
+
+    expect(screen.queryByText(/protected trade has unlinked executions from import/i)).not.toBeInTheDocument();
   });
 });

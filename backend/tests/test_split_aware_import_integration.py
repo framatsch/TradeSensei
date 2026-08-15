@@ -360,7 +360,7 @@ async def test_reimport_preserves_trade_projection_values(client: AsyncClient) -
 async def test_metadata_protected_trade_survives_reimport_without_override(
     client: AsyncClient,
 ) -> None:
-    """A metadata-protected trade should survive a subsequent non-override re-import."""
+    """Protected closed trade keeps structure and linked executions across re-import."""
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
     portfolio_id, account_id = await _create_account(client, headers)
 
@@ -373,6 +373,24 @@ async def test_metadata_protected_trade_survives_reimport_without_override(
     items = trades_resp.json()["data"]["items"]
     assert items
     protected_trade_id = items[0]["id"]
+
+    before_trade_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}", headers=headers
+    )
+    assert before_trade_resp.status_code == 200, before_trade_resp.text
+    before_trade = before_trade_resp.json()["data"]
+    assert before_trade["closed_at"] is not None
+    assert before_trade["pnl"] is not None
+    assert before_trade["net_pnl"] is not None
+
+    before_exec_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}/executions",
+        headers=headers,
+    )
+    assert before_exec_resp.status_code == 200, before_exec_resp.text
+    before_execs = before_exec_resp.json()["data"]
+    before_exec_ids = {row["id"] for row in before_execs}
+    assert before_exec_ids
 
     patch_resp = await client.patch(
         f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
@@ -395,7 +413,21 @@ async def test_metadata_protected_trade_survives_reimport_without_override(
         f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}", headers=headers
     )
     assert protected_trade_resp.status_code == 200, protected_trade_resp.text
-    assert protected_trade_resp.json()["data"]["journal"] == "metadata-protected"
+    protected_trade = protected_trade_resp.json()["data"]
+    assert protected_trade["journal"] == "metadata-protected"
+    assert protected_trade["closed_at"] == before_trade["closed_at"]
+    assert protected_trade["pnl"] == before_trade["pnl"]
+    assert protected_trade["net_pnl"] == before_trade["net_pnl"]
+
+    after_exec_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}/executions",
+        headers=headers,
+    )
+    assert after_exec_resp.status_code == 200, after_exec_resp.text
+    after_execs = after_exec_resp.json()["data"]
+    after_exec_ids = {row["id"] for row in after_execs}
+    assert after_exec_ids == before_exec_ids
+    assert all(row["trade_id"] == protected_trade_id for row in after_execs)
 
 
 def _make_single_leg_xml(symbol: str, conid: str, tx_prefix: str, *, include_close: bool) -> bytes:
@@ -452,20 +484,67 @@ def _make_single_leg_xml(symbol: str, conid: str, tx_prefix: str, *, include_clo
     return xml.encode("utf-8")
 
 
+def _make_same_symbol_two_contracts_xml(*, include_trigger_trade: bool) -> bytes:
+    """Build two same-symbol opening legs on different contracts.
+
+    Args:
+        include_trigger_trade: Adds a third, unrelated opening leg with a fresh
+            transaction id to force non-zero raw inserts on re-import.
+
+    Returns:
+        UTF-8 encoded FlexQuery XML bytes.
+    """
+    opened_at = datetime(2026, 5, 1, 9, 30, tzinfo=UTC)
+    rows = [
+        (
+            '<Trade transactionID="SME1" assetCategory="STK" symbol="SAMESYM" '
+            'conid="710001" tradeDate="{date}" dateTime="{datetime}" '
+            'quantity="100" tradePrice="50" ibCommission="-1" currency="USD" />'
+        ).format(
+            date=opened_at.strftime("%Y%m%d"),
+            datetime=opened_at.strftime("%Y%m%d;%H%M%S"),
+        ),
+        (
+            '<Trade transactionID="SME2" assetCategory="STK" symbol="SAMESYM" '
+            'conid="710002" tradeDate="{date}" dateTime="{datetime}" '
+            'quantity="100" tradePrice="52" ibCommission="-1" currency="USD" />'
+        ).format(
+            date=opened_at.strftime("%Y%m%d"),
+            datetime=opened_at.replace(minute=40).strftime("%Y%m%d;%H%M%S"),
+        ),
+    ]
+
+    if include_trigger_trade:
+        rows.append(
+            (
+                '<Trade transactionID="TRIGGER1" assetCategory="STK" symbol="TRGSYM" '
+                'conid="719999" tradeDate="{date}" dateTime="{datetime}" '
+                'quantity="10" tradePrice="10" ibCommission="-1" currency="USD" />'
+            ).format(
+                date=opened_at.strftime("%Y%m%d"),
+                datetime=opened_at.replace(hour=11, minute=0).strftime("%Y%m%d;%H%M%S"),
+            )
+        )
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<FlexQueryResponse><FlexStatements><FlexStatement><Trades>"
+        + "".join(rows)
+        + "</Trades></FlexStatement>"
+        + "</FlexStatements></FlexQueryResponse>"
+    )
+    return xml.encode("utf-8")
+
+
 @pytest.mark.integration
-async def test_protected_open_trade_reconciles_new_closing_execution(
+async def test_protected_open_trade_keeps_new_closing_execution_unlinked(
     client: AsyncClient,
 ) -> None:
-    """Reconcile-before-skip (D8): a metadata-protected OPEN trade must
-    absorb a new closing execution on re-import instead of the incoming
-    leg being silently dropped as an unlinked orphan.
+    """Protected trade isolation keeps new closing execution unlinked.
 
-    Regression coverage for the orphaned-execution defect fixed in
-    ``execution-metadata-protection-hardening`` task group 9: previously the
-    `manually_edited_keys` skip ran *before* the existing-trade lookup, so
-    the protected trade never received the new leg (`trade_id` stayed
-    ``NULL``), the trade never closed, and the import reported the leg as
-    silently absorbed with no warning.
+    Under protected-trade-rebuild-isolation, a metadata-protected OPEN trade
+    does not absorb new closing executions during re-import. The incoming leg
+    stays unlinked and is reported instead.
     """
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
     portfolio_id, account_id = await _create_account(client, headers)
@@ -503,21 +582,19 @@ async def test_protected_open_trade_reconciles_new_closing_execution(
         account_id,
         _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
     )
-    # Task 15.5 (D12): protection outcomes are surfaced on ImportResult
-    # rather than being silently invisible.
-    assert second_import["trades_protected_reconciled"] == 1
-    assert any("protected_reconciled" in warning for warning in second_import["warnings"])
+    assert "trades_protected_skipped" in second_import
+    assert second_import["unlinked_executions"] == 1
+    assert any("protected_unlinked_execution" in warning for warning in second_import["warnings"])
 
     reconciled_resp = await client.get(
         f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}", headers=headers
     )
     assert reconciled_resp.status_code == 200, reconciled_resp.text
     reconciled = reconciled_resp.json()["data"]
-    # The protected trade's id is preserved (anchor-based identity, D9) and
-    # its metadata survives, but it must now be closed by the new leg —
-    # proving the leg was linked, not silently dropped.
+    # Protected trade stays unchanged structurally; incoming close is left
+    # unlinked and reported.
     assert reconciled["journal"] == "protected-open-trade"
-    assert reconciled["closed_at"] is not None
+    assert reconciled["closed_at"] is None
 
     ex_resp = await client.get(
         f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}/executions",
@@ -525,8 +602,146 @@ async def test_protected_open_trade_reconciles_new_closing_execution(
     )
     assert ex_resp.status_code == 200, ex_resp.text
     executions = ex_resp.json()["data"]
-    assert len(executions) == 2
+    assert len(executions) == 1
     assert all(exec_row["trade_id"] == protected_trade_id for exec_row in executions)
+
+
+@pytest.mark.integration
+async def test_protected_and_non_protected_same_symbol_coexist_through_rebuild(
+    client: AsyncClient,
+) -> None:
+    """A protected and non-protected trade on one symbol must coexist after rebuild."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+
+    await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_same_symbol_two_contracts_xml(include_trigger_trade=False),
+    )
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=50", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    same_symbol_trades = [
+        trade for trade in trades_resp.json()["data"]["items"] if trade["symbol"] == "SAMESYM"
+    ]
+    assert len(same_symbol_trades) == 2
+
+    protected_trade_id = same_symbol_trades[0]["id"]
+    protect_resp = await client.patch(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
+        headers=headers,
+        json={"journal": "protect-one-same-symbol"},
+    )
+    assert protect_resp.status_code == 200, protect_resp.text
+    assert protect_resp.json()["data"]["is_manually_edited"] is True
+
+    second_import = await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_same_symbol_two_contracts_xml(include_trigger_trade=True),
+    )
+    assert int(second_import["raw_transactions_created"]) > 0
+
+    protected_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}", headers=headers
+    )
+    assert protected_resp.status_code == 200, protected_resp.text
+    protected_trade = protected_resp.json()["data"]
+    assert protected_trade["journal"] == "protect-one-same-symbol"
+    assert protected_trade["is_manually_edited"] is True
+
+    after_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=100", headers=headers
+    )
+    assert after_resp.status_code == 200, after_resp.text
+    after_trades = after_resp.json()["data"]["items"]
+
+    same_symbol_after = [trade for trade in after_trades if trade["symbol"] == "SAMESYM"]
+    assert len(same_symbol_after) == 2
+    assert any(trade["id"] == protected_trade_id for trade in same_symbol_after)
+    assert any(trade["id"] != protected_trade_id for trade in same_symbol_after)
+
+
+@pytest.mark.integration
+async def test_merged_trade_survives_subsequent_import_with_legs_intact(
+    client: AsyncClient,
+) -> None:
+    """Merged trade keeps identity, structure, and linked legs across import rebuild."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+
+    await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_same_symbol_two_contracts_xml(include_trigger_trade=False),
+    )
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=50", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    same_symbol_trades = [
+        trade for trade in trades_resp.json()["data"]["items"] if trade["symbol"] == "SAMESYM"
+    ]
+    assert len(same_symbol_trades) == 2
+
+    merge_resp = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/trades/merge",
+        headers=headers,
+        json={"trade_ids": [same_symbol_trades[0]["id"], same_symbol_trades[1]["id"]]},
+    )
+    assert merge_resp.status_code == 200, merge_resp.text
+    merged_trade = merge_resp.json()["data"]
+    merged_trade_id = merged_trade["id"]
+    assert merged_trade["is_manually_edited"] is True
+    assert merged_trade["is_combo"] is True
+
+    before_exec_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{merged_trade_id}/executions",
+        headers=headers,
+    )
+    assert before_exec_resp.status_code == 200, before_exec_resp.text
+    before_execs = before_exec_resp.json()["data"]
+    before_exec_ids = {row["id"] for row in before_execs}
+    assert len(before_exec_ids) == 2
+    assert all(row["trade_id"] == merged_trade_id for row in before_execs)
+
+    second_import = await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_same_symbol_two_contracts_xml(include_trigger_trade=True),
+    )
+    assert int(second_import["raw_transactions_created"]) > 0
+
+    merged_after_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{merged_trade_id}", headers=headers
+    )
+    assert merged_after_resp.status_code == 200, merged_after_resp.text
+    merged_after = merged_after_resp.json()["data"]
+    assert merged_after["id"] == merged_trade_id
+    assert merged_after["is_manually_edited"] is True
+    assert merged_after["is_combo"] is True
+
+    after_exec_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{merged_trade_id}/executions",
+        headers=headers,
+    )
+    assert after_exec_resp.status_code == 200, after_exec_resp.text
+    after_execs = after_exec_resp.json()["data"]
+    after_exec_ids = {row["id"] for row in after_execs}
+    assert after_exec_ids == before_exec_ids
+    assert all(row["trade_id"] == merged_trade_id for row in after_execs)
 
 
 @pytest.mark.integration
@@ -566,13 +781,16 @@ async def test_reconciled_import_leaves_zero_orphaned_imported_executions(
     )
     assert patch_resp.status_code == 200, patch_resp.text
 
-    await _import_xml(
+    second_import = await _import_xml(
         client,
         headers,
         portfolio_id,
         account_id,
         _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
     )
+
+    assert second_import["unlinked_executions"] == 1
+    assert any("protected_unlinked_execution" in warning for warning in second_import["warnings"])
 
     result = await db_session.execute(
         text(
@@ -582,7 +800,7 @@ async def test_reconciled_import_leaves_zero_orphaned_imported_executions(
         ),
         {"account_id": uuid.UUID(account_id)},
     )
-    assert result.scalar() == 0
+    assert result.scalar() == 1
 
 
 def _make_split_and_open_combo_xml(trade_count: int) -> bytes:

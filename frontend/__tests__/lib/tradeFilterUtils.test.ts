@@ -25,4 +25,20 @@ describe("tradeFilterUtils execution_state", () => {
     const definition = buildDefinitionFromFilters({ execution_state: ["edited"] });
     expect(definition.execution_state).toEqual(["edited"]);
   });
+
+  it("round-trips has_unlinked_executions in URL params and saved definition", () => {
+    const params = definitionToSearchParams({ has_unlinked_executions: true });
+    expect(params.get("has_unlinked_executions")).toBe("true");
+
+    const definition = buildDefinitionFromFilters({ has_unlinked_executions: true });
+    expect(definition.has_unlinked_executions).toBe(true);
+  });
+
+  it("keeps has_unlinked_executions inactive when saved view omits the key", () => {
+    const params = definitionToSearchParams({ execution_state: ["manual"] });
+    expect(params.get("has_unlinked_executions")).toBeNull();
+
+    const definition = buildDefinitionFromFilters({ execution_state: ["manual"] });
+    expect(definition.has_unlinked_executions).toBeUndefined();
+  });
 });

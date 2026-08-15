@@ -412,6 +412,12 @@ export default function TradeDetailPage() {
         />
       )}
 
+      {trade.has_unlinked_executions && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This protected trade has unlinked executions from import. Review execution legs and attach outstanding broker legs if needed.
+        </div>
+      )}
+
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

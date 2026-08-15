@@ -67,6 +67,7 @@ const EMPTY_FILTERS: TradeFilters = {
   day_of_week: undefined,
   annotation_filters: [],
   execution_state: [],
+  has_unlinked_executions: undefined,
 };
 
 // ─── Date range helpers ───────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
   const dowRaw = params.get("day_of_week");
   const executionStateRaw = params.get("execution_state");
   const annotationFiltersRaw = params.get("annotation_filters");
+  const hasUnlinkedRaw = params.get("has_unlinked_executions");
 
   const parsedExecutionStates = executionStateRaw
     ? executionStateRaw
@@ -144,6 +146,7 @@ function readFiltersFromParams(params: URLSearchParams): TradeFilters {
     hour_of_day: hourRaw !== null ? parseInt(hourRaw, 10) : undefined,
     day_of_week: dowRaw !== null ? parseInt(dowRaw, 10) : undefined,
     execution_state: parsedExecutionStates,
+    has_unlinked_executions: hasUnlinkedRaw === "true" ? true : undefined,
     annotation_filters,
   };
 }
@@ -184,6 +187,7 @@ function filtersToParams(
     p.set("day_of_week", String(filters.day_of_week));
   }
   if (filters.execution_state?.length) p.set("execution_state", filters.execution_state.join(","));
+  if (filters.has_unlinked_executions === true) p.set("has_unlinked_executions", "true");
   if (filters.annotation_filters?.length) p.set("annotation_filters", JSON.stringify(filters.annotation_filters));
   if (sort.sort_by) p.set("sort_by", sort.sort_by);
   if (sort.sort_dir) p.set("sort_dir", sort.sort_dir);
