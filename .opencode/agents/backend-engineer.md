@@ -64,6 +64,13 @@ These were found in real code reviews. Each one is a bug or architecture violati
   repository method. If the method doesn't exist, add it to the repository.
 - **Never use `assert` as a runtime guard.** `assert` is disabled with `python -O` in
   production. Use `if condition: raise RuntimeError(...)` instead.
+- **Never build a second broker ingestion path.** Every path by which broker data enters
+  the system — file upload, scheduled sync, direct API pull — must terminate in
+  `ImportService.import_trades()`. A broker client may fetch a remote payload; it must not
+  parse, aggregate, deduplicate, or persist, and must never call `TradeRepository.create()`.
+  Reference implementation: `BrokerService._sync_schwab`. A parallel path silently misses
+  every protection applied to the primary one — `FlexImportService` did this and produced
+  leg-less phantom trades in production. See AGENTS.md § Broker Ingestion Paths.
 - **Never call `session.commit()` inside a service method.** Transaction management is
   exclusively the responsibility of the `get_session` dependency generator. Services
   flush but never commit.

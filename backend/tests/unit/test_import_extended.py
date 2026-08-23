@@ -94,16 +94,16 @@ def _make_mock_trade_create(
 
 
 # ---------------------------------------------------------------------------
-# import_file - account not found
+# import_trades - account not found
 # ---------------------------------------------------------------------------
 
 
-async def test_import_file_raises_when_account_not_found():
+async def test_import_trades_raises_when_account_not_found():
     svc = _make_service()
     svc._account_repo.get_by_id = AsyncMock(return_value=None)
 
     with pytest.raises(AccountNotFoundError):
-        await svc.import_file(
+        await svc.import_trades(
             content=b"data",
             filename="file.csv",
             broker=BrokerType.IBKR,
@@ -113,7 +113,7 @@ async def test_import_file_raises_when_account_not_found():
         )
 
 
-async def test_import_file_adds_currency_mismatch_warning():
+async def test_import_trades_adds_currency_mismatch_warning():
     svc = _make_service()
     svc._account_repo.get_by_id = AsyncMock(return_value=None)  # no account
     svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio(base_currency="USD"))
@@ -133,7 +133,7 @@ async def test_import_file_adds_currency_mismatch_warning():
     mock_parser.enrich_pnl_eur = AsyncMock()
 
     with patch("app.services.import_service.get_parser", return_value=mock_parser):
-        result = await svc.import_file(
+        result = await svc.import_trades(
             content=b"data",
             filename="file.csv",
             broker=BrokerType.IBKR,
@@ -145,7 +145,7 @@ async def test_import_file_adds_currency_mismatch_warning():
     assert any("currency_mismatch" in w for w in result.warnings)
 
 
-async def test_import_file_no_account_id_skips_account_lookup():
+async def test_import_trades_no_account_id_skips_account_lookup():
     svc = _make_service()
     svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
     svc._ca_repo.list_by_user = AsyncMock(return_value=[])
@@ -162,7 +162,7 @@ async def test_import_file_no_account_id_skips_account_lookup():
     mock_parser.enrich_pnl_eur = AsyncMock()
 
     with patch("app.services.import_service.get_parser", return_value=mock_parser):
-        result = await svc.import_file(
+        result = await svc.import_trades(
             content=b"data",
             filename="file.csv",
             broker=BrokerType.IBKR,
@@ -175,7 +175,7 @@ async def test_import_file_no_account_id_skips_account_lookup():
     assert result.trades_created == 0
 
 
-async def test_import_file_skips_manually_edited_trades():
+async def test_import_trades_skips_manually_edited_trades():
     svc = _make_service()
     svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
     svc._ca_repo.list_by_user = AsyncMock(return_value=[])
@@ -195,7 +195,7 @@ async def test_import_file_skips_manually_edited_trades():
     mock_parser.enrich_pnl_eur = AsyncMock()
 
     with patch("app.services.import_service.get_parser", return_value=mock_parser):
-        result = await svc.import_file(
+        result = await svc.import_trades(
             content=b"data",
             filename="file.csv",
             broker=BrokerType.IBKR,

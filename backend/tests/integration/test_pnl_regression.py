@@ -113,7 +113,7 @@ async def test_sequential_import_matches_in_memory_ground_truth(
     # 4. Sequentially import into the DB
     service = ImportService(db_session)
     for p in paths:
-        await service.import_file(
+        await service.import_trades(
             content=p.read_bytes(),
             filename=p.name,
             broker=BrokerType.IBKR,

@@ -45,7 +45,7 @@ def import_service():
     return svc
 
 @pytest.mark.asyncio
-async def test_import_file_with_overwrite_manually_edited(import_service):
+async def test_import_trades_with_overwrite_manually_edited(import_service):
     user_id = uuid.uuid4()
     account_id = uuid.uuid4()
     portfolio_id = uuid.uuid4()
@@ -56,7 +56,7 @@ async def test_import_file_with_overwrite_manually_edited(import_service):
     mock_parser.warnings = []
 
     with patch("app.services.import_service.get_parser", return_value=mock_parser):
-        await import_service.import_file(
+        await import_service.import_trades(
             content=b"<dummy />",
             filename="dummy.xml",
             broker=BrokerType.IBKR,
@@ -84,7 +84,7 @@ async def test_import_file_with_overwrite_manually_edited(import_service):
     )
 
 @pytest.mark.asyncio
-async def test_import_file_without_overwrite_manually_edited(import_service):
+async def test_import_trades_without_overwrite_manually_edited(import_service):
     user_id = uuid.uuid4()
     account_id = uuid.uuid4()
     portfolio_id = uuid.uuid4()
@@ -95,7 +95,7 @@ async def test_import_file_without_overwrite_manually_edited(import_service):
     mock_parser.warnings = []
 
     with patch("app.services.import_service.get_parser", return_value=mock_parser):
-        await import_service.import_file(
+        await import_service.import_trades(
             content=b"<dummy />",
             filename="dummy.xml",
             broker=BrokerType.IBKR,

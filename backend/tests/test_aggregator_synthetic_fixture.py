@@ -476,7 +476,7 @@ async def test_sequential_import_matches_ground_truth_synthetic(
     # --- sequential import ---
     svc = ImportService(db_session)
     for xml_path in [_YEAR1_XML, _YEAR2_XML]:
-        await svc.import_file(
+        await svc.import_trades(
             content=xml_path.read_bytes(),
             filename=xml_path.name,
             broker=BrokerType.IBKR,

@@ -47,7 +47,7 @@ from app.repositories.account_repository import AccountRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionRead
 from app.schemas.common import ResponseEnvelope
 from app.schemas.imports import FlexImportRequest, FreshStartResult, ImportResult
-from app.services.flex_import_service import FlexImportService
+from app.services.flex_import_service import FlexImportService, is_transient_send_request_error
 from app.services.import_service import ImportService
 from app.utils.parsers.factory import BrokerType
 
@@ -87,16 +87,14 @@ def _get_service(
     return ImportService(session)
 
 
-def _get_flex_service(
-    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
-) -> FlexImportService:
+def _get_flex_service() -> FlexImportService:
     """FastAPI dependency that constructs a :class:`FlexImportService`.
 
-    Args:
-        session: Injected async database session.
+    ``FlexImportService`` is a pure HTTP client with no database
+    dependency, so this factory takes no injected session.
 
     Returns:
-        A :class:`FlexImportService` bound to the current session.
+        A :class:`FlexImportService` bound to the configured Flex token.
 
     Raises:
         HTTPException: 503 if ``IBKR_FLEX_TOKEN`` is not configured.
@@ -107,7 +105,7 @@ def _get_flex_service(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=("IBKR Flex import is not configured on this server. Set the IBKR_FLEX_TOKEN environment variable to enable it."),
         )
-    return FlexImportService(session, flex_token=token)
+    return FlexImportService(flex_token=token)
 
 
 async def _validate_account_import(
@@ -259,7 +257,7 @@ async def upload_import(
 
     # --- Delegate to service -----------------------------------------------
     try:
-        result = await service.import_file(
+        result = await service.import_trades(
             content=content,
             filename=filename,
             broker=broker,
@@ -286,7 +284,7 @@ async def upload_import(
     except Exception as exc:
         import logging
 
-        logging.getLogger(__name__).exception("Unhandled exception during import_file")
+        logging.getLogger(__name__).exception("Unhandled exception during import_trades")
         from pydantic import ValidationError
 
         if isinstance(exc, ValidationError):
@@ -423,7 +421,7 @@ async def fresh_start_import(
     except Exception as exc:
         import logging
 
-        logging.getLogger(__name__).exception("Unhandled exception during import_file")
+        logging.getLogger(__name__).exception("Unhandled exception during import_trades")
         from pydantic import ValidationError
 
         if isinstance(exc, ValidationError):
@@ -487,7 +485,7 @@ async def import_schwab_json(
 
     try:
         content = json.dumps(body).encode("utf-8")
-        result = await service.import_file(
+        result = await service.import_trades(
             content=content,
             filename="schwab_transactions.json",
             broker=BrokerType.SCHWAB,
@@ -508,7 +506,7 @@ async def import_schwab_json(
     except Exception as exc:
         import logging
 
-        logging.getLogger(__name__).exception("Unhandled exception during import_file")
+        logging.getLogger(__name__).exception("Unhandled exception during import_trades")
         from pydantic import ValidationError
 
         if isinstance(exc, ValidationError):
@@ -596,32 +594,43 @@ async def suppress_raw_transaction(
     summary="Import trades via IBKR Flex Query API",
     description=(
         "Automatically fetch a Flex Query report from the IBKR Flex Web "
-        "Service and import all contained trades. "
-        "The server must have ``IBKR_FLEX_TOKEN`` configured. "
-        "Duplicate trades (same symbol + timestamp already in the database) "
-        "are silently skipped."
+        "Service and import it through the same unified import pipeline used "
+        "by file uploads. The server must have ``IBKR_FLEX_TOKEN`` configured."
     ),
     response_description=("A summary of the import operation wrapped in a response envelope, including the number of trades created and any warnings."),
     responses={
         200: {"description": "Import completed. Check warnings for skipped entries."},
-        400: {"description": "Flex API returned an error."},
+        400: {"description": "Flex API returned a non-transient error, the fetched XML could not be parsed, or an unexpected error occurred."},
         401: {"description": "Authentication required."},
         404: {"description": "Account not found or not owned by the current user."},
+        422: {"description": "Import account mismatch reported by the shared import pipeline."},
         429: {"description": "IBKR Flex API rate limit exceeded."},
-        503: {"description": "IBKR_FLEX_TOKEN not configured on this server."},
+        503: {"description": "IBKR_FLEX_TOKEN not configured on this server, or the Flex API is temporarily unavailable — retry later, not immediately."},
     },
 )
 async def flex_import(
     portfolio_id: uuid.UUID,
-    service: Annotated[FlexImportService, Depends(_get_flex_service)],
+    flex_service: Annotated[FlexImportService, Depends(_get_flex_service)],
+    import_service: Annotated[ImportService, Depends(_get_service)],
+    session: Annotated[AsyncSession, Depends(get_session_with_rls)],
     current_user: Annotated[User, Depends(get_current_user)],
     body: Annotated[FlexImportRequest, Body()],
+    account_id: Annotated[
+        uuid.UUID | None,
+        Query(description="Optional UUID of the account to import trades into."),
+    ] = None,
 ) -> ResponseEnvelope[ImportResult]:
     """Fetch an IBKR Flex Query report and import the trades it contains.
 
     Args:
-        service: Injected Flex import service.
+        flex_service: Injected Flex API client service.
+        import_service: Injected unified import service.
+        session: Database session used for optional account ownership lookup.
         current_user: The authenticated user.
+        account_id: Optional account UUID supplied as a query parameter.
+            When provided, it takes precedence over ``body.account_id``;
+            the body field remains supported for callers that only send
+            it in the JSON payload.
         body: Request payload with ``query_id``, optional ``account_id``,
             and optional ``from_date``.
 
@@ -630,19 +639,42 @@ async def flex_import(
         :class:`~app.schemas.imports.ImportResult`.
 
     Raises:
-        HTTPException: 400 if the Flex API returns an error.
+        HTTPException: 400 if the Flex API returns a non-transient error,
+            the fetched XML cannot be parsed, or another unexpected error
+            occurs while importing.
         HTTPException: 404 if the account is not found or not owned by
             the current user.
+        HTTPException: 422 if the shared import pipeline reports an
+            account mismatch.
         HTTPException: 429 if the IBKR rate limit is hit.
-        HTTPException: 503 if the Flex token is not configured.
+        HTTPException: 503 if the Flex token is not configured, or the
+            Flex API reports a transient generation delay. IBKR's own
+            guidance is to wait minutes, not seconds, before retrying —
+            this endpoint does not retry automatically.
     """
+    resolved_account_id = account_id if account_id is not None else body.account_id
+
     try:
-        result = await service.import_flex(
+        if resolved_account_id is not None:
+            account = await AccountRepository(session).get_by_id(
+                resolved_account_id,
+                current_user.id,
+                portfolio_id,
+            )
+            if account is None:
+                raise AccountNotFoundError(f"Account {resolved_account_id} not found for user {current_user.id}.")
+
+        xml_content = await flex_service.fetch_flex_report(
             query_id=body.query_id,
-            user_id=current_user.id,
-            portfolio_id=portfolio_id,
-            account_id=body.account_id,
             from_date=body.from_date,
+        )
+        result = await import_service.import_trades(
+            content=xml_content,
+            filename=f"flex_query_{body.query_id}.xml",
+            broker=BrokerType.IBKR,
+            portfolio_id=portfolio_id,
+            account_id=resolved_account_id,
+            user_id=current_user.id,
             overwrite_manually_edited=body.overwrite_manually_edited,
         )
     except AccountNotFoundError as exc:
@@ -657,9 +689,39 @@ async def flex_import(
             headers={"Retry-After": str(exc.wait_seconds)},
         ) from exc
     except FlexAPIError as exc:
+        if is_transient_send_request_error(str(exc)):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(f"IBKR Flex API temporarily unavailable: {exc}"),
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
+        ) from exc
+    except (ImportParseError, UnsupportedBrokerError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except ImportAccountMismatchError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).exception("Unhandled exception during flex import")
+        from pydantic import ValidationError
+
+        if isinstance(exc, ValidationError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Validation error during import parsing: {exc}",
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to process Flex import. An unexpected error occurred: {exc}",
         ) from exc
 
     return ResponseEnvelope[ImportResult](data=result)

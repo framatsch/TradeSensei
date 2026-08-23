@@ -65,7 +65,7 @@ async def test_cross_import_seed_lot_regression(client: AsyncClient, db_session)
 
     service = ImportService(db_session)
     for path in (_OPEN_XML, _CLOSE_XML):
-        await service.import_file(
+        await service.import_trades(
             content=path.read_bytes(),
             filename=path.name,
             broker=BrokerType.IBKR,

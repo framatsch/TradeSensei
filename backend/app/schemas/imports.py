@@ -69,11 +69,11 @@ class ClearTradesResult(BaseModel):
 
 
 class ImportResult(BaseModel):
-    """Result of a broker file import operation.
+    """Result of a broker trade import operation.
 
     Attributes:
         broker: Broker identifier used for this import (e.g. ``"ibkr"``).
-        filename: Original filename supplied in the upload request.
+        filename: Source label supplied by the caller.
         trades_parsed: Total number of trade rows successfully parsed from
             the file.
         trades_created: Number of trades actually persisted to the database.
@@ -103,8 +103,17 @@ class ImportResult(BaseModel):
     )
     filename: str = Field(
         ...,
-        description="Original filename supplied with the upload request.",
-        examples=["activity_statement.csv", "trade_history.csv"],
+        description=(
+            "Source label supplied by the caller. For uploaded files this is "
+            "the original filename; for API-driven imports it may be a synthetic "
+            "label such as `flex_query_{query_id}.xml` or "
+            "`schwab_transactions_sync.json`."
+        ),
+        examples=[
+            "activity_statement.csv",
+            "flex_query_123456.xml",
+            "schwab_transactions_sync.json",
+        ],
     )
     trades_parsed: int = Field(
         ...,

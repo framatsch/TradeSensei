@@ -101,14 +101,14 @@ def import_service(mock_session: AsyncMock) -> ImportService:
 
 
 class TestImportService:
-    """Unit tests for :class:`ImportService.import_file`."""
+    """Unit tests for :class:`ImportService.import_trades`."""
 
     @pytest.mark.unit
     async def test_raises_account_not_found_when_account_missing(
         self,
         import_service: ImportService,
     ) -> None:
-        """import_file should raise AccountNotFoundError when account is missing."""
+        """import_trades should raise AccountNotFoundError when account is missing."""
         with (
             patch(
                 "app.services.import_service.AccountRepository.get_by_id",
@@ -117,7 +117,7 @@ class TestImportService:
             ),
             pytest.raises(AccountNotFoundError),
         ):
-            await import_service.import_file(
+            await import_service.import_trades(
                 content=b"",
                 filename="test.csv",
                 broker=BrokerType.IBKR,
@@ -131,7 +131,7 @@ class TestImportService:
         self,
         import_service: ImportService,
     ) -> None:
-        """import_file should return an ImportResult with correct counts."""
+        """import_trades should return an ImportResult with correct counts."""
         fake_account = MagicMock()
         parsed_trades = [_make_trade_create(symbol="AAPL")]
 
@@ -186,7 +186,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
@@ -298,7 +298,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"raw",
                 filename="activity.xml",
                 broker=BrokerType.IBKR,
@@ -426,7 +426,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"raw",
                 filename="activity.xml",
                 broker=BrokerType.IBKR,
@@ -561,7 +561,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"raw",
                 filename="activity.xml",
                 broker=BrokerType.IBKR,
@@ -701,7 +701,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            await import_service.import_file(
+            await import_service.import_trades(
                 content=b"raw",
                 filename="activity.xml",
                 broker=BrokerType.IBKR,
@@ -899,7 +899,7 @@ class TestImportService:
                 )
             )
 
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"raw",
                 filename="activity.xml",
                 broker=BrokerType.IBKR,
@@ -1063,7 +1063,7 @@ class TestImportService:
                 )
             )
 
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"raw",
                 filename="activity.xml",
                 broker=BrokerType.IBKR,
@@ -1142,7 +1142,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
@@ -1204,7 +1204,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
@@ -1279,7 +1279,7 @@ class TestImportService:
                 return_value=None,
             ),
         ):
-            await import_service.import_file(
+            await import_service.import_trades(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
@@ -1592,7 +1592,7 @@ class TestImportWithSplit:
         self,
         import_service: ImportService,
     ) -> None:
-        """import_file must skip trades whose (broker_conid, opened_at) key is in
+        """import_trades must skip trades whose (broker_conid, opened_at) key is in
         the manually-edited set, and count them in trades_skipped (not created).
 
         Scenario:
@@ -1669,7 +1669,7 @@ class TestImportWithSplit:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,
@@ -1742,7 +1742,7 @@ class TestImportWithSplit:
                 return_value=None,
             ),
         ):
-            result = await import_service.import_file(
+            result = await import_service.import_trades(
                 content=b"csv content",
                 filename="activity.csv",
                 broker=BrokerType.IBKR,

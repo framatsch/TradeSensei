@@ -256,4 +256,4 @@ PROTECTED_METADATA_COLUMNS: frozenset[str] = frozenset({"journal", "user_rating"
 `TradeCreate`. Presence of any of these in a mutation's `model_fields_set`
 signals user-authored metadata edit (marks the trade protected). The import
 reconcile path must never write these columns — see
-`ImportService.import_file`'s reconcile-before-skip branch."""
+`ImportService.import_trades`'s reconcile-before-skip branch."""

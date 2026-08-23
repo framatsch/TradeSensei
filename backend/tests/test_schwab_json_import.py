@@ -173,7 +173,7 @@ async def test_schwab_json_import_ground_truth(
     expected_leftovers = sum(1 for trade in expected_trades if trade.closed_at is None)
 
     service = ImportService(db_session)
-    first = await service.import_file(
+    first = await service.import_trades(
         content=fixture_bytes,
         filename="schwab_aggregation.json",
         broker=BrokerType.SCHWAB,
@@ -207,7 +207,7 @@ async def test_schwab_json_import_ground_truth(
     assert len(closed) == expected_closed
     assert len(open_lots) == expected_leftovers
 
-    second = await service.import_file(
+    second = await service.import_trades(
         content=fixture_bytes,
         filename="schwab_aggregation.json",
         broker=BrokerType.SCHWAB,
@@ -241,7 +241,7 @@ async def test_schwab_positions_are_ignored_for_import_ground_truth(
     with_positions = _with_positions(payload, include_positions=True)
     without_positions = _with_positions(payload, include_positions=False)
 
-    first = await service.import_file(
+    first = await service.import_trades(
         content=json.dumps(with_positions).encode("utf-8"),
         filename="schwab_aggregation.json",
         broker=BrokerType.SCHWAB,
@@ -251,7 +251,7 @@ async def test_schwab_positions_are_ignored_for_import_ground_truth(
     )
     assert first.raw_transactions_created == _fixture_trade_count(payload)
 
-    second = await service.import_file(
+    second = await service.import_trades(
         content=json.dumps(without_positions).encode("utf-8"),
         filename="schwab_aggregation_no_positions.json",
         broker=BrokerType.SCHWAB,
@@ -519,7 +519,7 @@ async def test_schwab_short_roundtrip_lifecycle_matches_ground_truth(
     expected = expected_closed[0]
 
     service = ImportService(db_session)
-    imported = await service.import_file(
+    imported = await service.import_trades(
         content=fixture_bytes,
         filename="schwab_short_roundtrip.json",
         broker=BrokerType.SCHWAB,

@@ -18,7 +18,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.v1.broker import _get_service, _get_service_public
-from app.core.exceptions import ConfigurationError
+from app.core.exceptions import ConfigurationError, UpstreamServiceUnavailableError
 from app.main import app
 from app.models.account import Account
 
@@ -84,3 +84,23 @@ async def test_schwab_callback_error_redirect(
         )
         assert res2.status_code == 500
         assert "Authorization failed" in res2.text
+
+
+async def test_sync_account_upstream_unavailable_returns_503(
+    client: AsyncClient,
+    primary_user: dict[str, object],
+    override_broker_dependency,
+):
+    mock_service = override_broker_dependency
+    mock_service.sync_account.side_effect = UpstreamServiceUnavailableError(
+        "IBKR Flex API temporarily unavailable"
+    )
+
+    account_id = uuid.uuid4()
+    res = await client.post(
+        f"/api/v1/broker/sync/{account_id}",
+        headers=primary_user["headers"],  # type: ignore[arg-type]
+    )
+
+    assert res.status_code == 503
+    assert "temporarily unavailable" in res.json()["detail"]

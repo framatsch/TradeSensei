@@ -26,6 +26,9 @@ Run through every section below for all changed files.
 - [ ] No HTTP concepts (`Request`, `Response`, status codes) in `services/` or `repositories/`
 - [ ] ORM models are never returned from `api/` layer — Pydantic schemas only
 - [ ] Frontend components do not call the API client directly — all data fetching via hooks
+- [ ] Every broker ingestion path terminates in `ImportService.import_trades()` — no parsing,
+      aggregation, deduplication, or persistence outside it, and no direct
+      `TradeRepository.create()` (see AGENTS.md § Broker Ingestion Paths)
 
 ### 2. Type safety
 - [ ] No `Any` types without justification comment

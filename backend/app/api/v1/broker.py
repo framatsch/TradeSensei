@@ -31,7 +31,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.deps import get_current_user, get_session_with_rls
-from app.core.exceptions import AccountNotFoundError, ConfigurationError
+from app.core.exceptions import (
+    AccountNotFoundError,
+    ConfigurationError,
+    UpstreamServiceUnavailableError,
+)
 from app.models.user import User
 from app.schemas.broker import (
     BrokerStatusResponse,
@@ -85,6 +89,7 @@ def _get_service_public(
         400: {"description": "Account type is MANUAL — no API sync supported."},
         401: {"description": "Missing or invalid Bearer token."},
         404: {"description": "Account not found (or owned by another user)."},
+        503: {"description": "Broker API temporarily unavailable; retry later."},
     },
 )
 async def sync_account(
@@ -142,6 +147,11 @@ async def sync_account(
     except AccountNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except UpstreamServiceUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
     except ConfigurationError as exc:

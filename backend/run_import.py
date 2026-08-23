@@ -13,7 +13,7 @@
 
 """
 Direct import script — runs inside the backend container at /app/.
-Calls ImportService.import_file() directly for user fscheffold.
+Calls ImportService.import_trades() directly for user fscheffold.
 Pass filenames as args, or it imports all four files in order.
 """
 
@@ -75,7 +75,7 @@ async def main() -> None:
 
             svc = ImportService(session)
             xml_bytes = xml_file.read_bytes()
-            import_result = await svc.import_file(
+            import_result = await svc.import_trades(
                 content=xml_bytes,
                 filename=xml_file.name,
                 broker="ibkr",

@@ -37,6 +37,23 @@ Schwab.
 The control enforces broker-specific max window limits from a capability
 descriptor and removes broker-specific component branching.
 
+## IBKR Flex API Import Pipeline
+
+The IBKR Flex API endpoint and IBKR XML file upload now use the exact same
+import pipeline.
+
+- `POST /api/v1/portfolios/{portfolio_id}/imports/flex` fetches Flex XML,
+  then delegates to `ImportService.import_trades()` with `BrokerType.IBKR`.
+- `POST /api/v1/portfolios/{portfolio_id}/imports/upload` for IBKR XML uses
+  the same parser and raw-transaction execution pipeline.
+
+As a result, both ingestion paths are behaviorally identical:
+
+- both persist `BrokerRawTransaction` rows,
+- both create and link `LogicalExecution` rows,
+- both build trades from the same projection logic,
+- both return the same import counters/protection fields.
+
 ## Execution Leg Shape (Options)
 
 For option trades (where `asset_class` is `"OPTION"` or when part of a COMBO trade), `LogicalExecution` objects in API responses (e.g. `GET /api/v1/trades/{id}`) will include strongly-typed option instrument fields:

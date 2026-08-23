@@ -56,6 +56,7 @@ OpenSpec command wrappers: `.opencode/command/opsx-{propose,explore,apply,archiv
 - **Agent files:** Read the relevant agent file from the table above before writing any code for that domain.
 - **Language:** All code, comments, and text in English.
 - **Python:** `mypy --strict` · async-only DB · `Decimal` for monetary values · UTC datetimes · service layer owns transactions.
+- **Broker ingestion:** Exactly one import pipeline. File upload, scheduled sync, and API pull all terminate in `ImportService.import_trades()`. Broker clients fetch payloads only — never parse, aggregate, deduplicate, persist, or call `TradeRepository.create()`. Reference: `BrokerService._sync_schwab`. See `AGENTS.md` § Broker Ingestion Paths.
 - **Migrations:** Alembic only — never alter schema by hand.
 - **Packages:** `uv add` only — never `pip install`.
 - **Frontend:** No `dark:` modifier — use semantic tokens (`bg-background`, `text-foreground`, …). Theme switches automatically.

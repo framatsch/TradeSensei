@@ -161,7 +161,7 @@ class ImportService:
         if timeout_seconds > 0:
             await self._session.execute(sa_text(f"SET LOCAL statement_timeout = '{timeout_seconds}s'"))
 
-    async def import_file(
+    async def import_trades(
         self,
         content: bytes,
         filename: str,
@@ -171,7 +171,7 @@ class ImportService:
         user_id: uuid.UUID,
         overwrite_manually_edited: bool = False,
     ) -> ImportResult:
-        """Parse a broker export file and bulk-create trades for an account.
+        """Parse broker payload content and bulk-create trades for an account.
 
         The method first verifies that the target account belongs to the
         requesting user (if ``account_id`` is provided).  It then loads all
@@ -192,9 +192,10 @@ class ImportService:
         does **not** commit — that responsibility belongs to the route handler.
 
         Args:
-            content: Raw file bytes from the upload.
-            filename: Original filename (used by the parser for format
-                detection).
+            content: Raw broker payload bytes.
+            filename: Source label supplied by the caller. For uploaded files
+                this is the original filename; for API-driven imports it may
+                be synthetic (for example ``flex_query_{query_id}.xml``).
             broker: The broker type that identifies which parser to use.
             account_id: Optional UUID of the account to associate trades
                 with.  When ``None`` trades are created without an account
@@ -1136,7 +1137,7 @@ class ImportService:
         )
 
         # Step 3: Process the import file
-        import_result = await self.import_file(
+        import_result = await self.import_trades(
             content=content,
             filename=filename,
             broker=broker,
@@ -1860,7 +1861,7 @@ class ImportService:
             request_id=generate_request_id(),
             status_code=200,
             method="SYSTEM",
-            path="import_service.import_file",
+            path="import_service.import_trades",
             metadata={
                 "reason": "schwab_single_account_auto_bind",
             },

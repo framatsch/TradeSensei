@@ -23,6 +23,9 @@ from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.flex_import_service import FlexImportService
+from app.services.import_service import ImportService
+
 _REGISTER_URL = "/api/v1/auth/register"
 _TOKEN_URL = "/api/v1/auth/token"
 _PORTFOLIOS_URL = "/api/v1/portfolios"
@@ -147,6 +150,36 @@ async def _create_account(client: AsyncClient, headers: dict[str, str]) -> tuple
     return portfolio_id, str(res.json()["data"]["id"])
 
 
+async def _create_ibkr_account_with_flex_properties(
+    client: AsyncClient,
+    headers: dict[str, str],
+) -> tuple[str, str]:
+    """Create an IBKR account configured for broker sync tests."""
+    portfolio_res = await client.post(
+        _PORTFOLIOS_URL,
+        headers=headers,
+        json={"name": "Sync Portfolio", "base_currency": "USD"},
+    )
+    assert portfolio_res.status_code == 201, portfolio_res.text
+    portfolio_id = str(portfolio_res.json()["data"]["id"])
+
+    res = await client.post(
+        f"/api/v1/portfolios/{portfolio_id}/accounts",
+        headers=headers,
+        json={
+            "name": "IBKR Sync Account",
+            "type": "ibkr",
+            "currency": "USD",
+            "properties": {
+                "ibkr_flex_token": "dummy-token",
+                "ibkr_flex_query_id": "dummy-query-id",
+            },
+        },
+    )
+    assert res.status_code == 201, res.text
+    return portfolio_id, str(res.json()["data"]["id"])
+
+
 async def _import_xml(
     client: AsyncClient,
     headers: dict[str, str],
@@ -163,6 +196,84 @@ async def _import_xml(
     )
     assert response.status_code == 200, response.text
     return response.json()["data"]
+
+
+async def _sync_ibkr(
+    client: AsyncClient,
+    headers: dict[str, str],
+    account_id: str,
+    *,
+    from_date: str = "20260301",
+) -> dict[str, object]:
+    """Run account-centric broker sync and return response data."""
+    response = await client.post(
+        f"/api/v1/broker/sync/{account_id}?from_date={from_date}",
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]
+
+
+async def _fetch_account_trade_execution_raw_snapshots(
+    db_session: AsyncSession,
+    *,
+    account_id: str,
+) -> tuple[
+    list[tuple[str, str, str | None, str | None, str | None, str | None]],
+    list[tuple[str, str, str, str, str | None]],
+    list[tuple[str, str, str, str]],
+]:
+    """Return normalized snapshots for trades, executions, and raw rows."""
+
+    def _normalize_source_id(value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.rsplit(":", 1)[-1]
+
+    aid = uuid.UUID(account_id)
+
+    trade_rows = await db_session.execute(
+        text(
+            "SELECT symbol, opened_at::text, quantity::text, entry_price::text, "
+            "exit_price::text, net_pnl::text "
+            "FROM trades WHERE account_id = :account_id ORDER BY symbol, opened_at, id"
+        ),
+        {"account_id": aid},
+    )
+    trades = sorted(
+        (row[0], row[1], row[2], row[3], row[4], row[5])
+        for row in trade_rows.fetchall()
+    )
+
+    execution_rows = await db_session.execute(
+        text(
+            "SELECT symbol, executed_at::text, direction::text, quantity::text, source_id "
+            "FROM logical_executions "
+            "WHERE account_id = :account_id AND deleted = false "
+            "ORDER BY symbol, executed_at, id"
+        ),
+        {"account_id": aid},
+    )
+    executions = sorted(
+        (row[0], row[1], row[2], row[3], _normalize_source_id(row[4]))
+        for row in execution_rows.fetchall()
+    )
+
+    raw_rows = await db_session.execute(
+        text(
+            "SELECT symbol, executed_at::text, direction::text, id "
+            "FROM broker_raw_transactions "
+            "WHERE account_id = :account_id "
+            "ORDER BY symbol, executed_at, id"
+        ),
+        {"account_id": aid},
+    )
+    raw = sorted(
+        (row[0], row[1], row[2], _normalize_source_id(row[3]))
+        for row in raw_rows.fetchall()
+    )
+
+    return trades, executions, raw
 
 
 async def _projection_snapshot(
@@ -190,6 +301,271 @@ async def _projection_snapshot(
         for item in items
     ]
     return sorted(snapshot)
+
+
+@pytest.mark.integration
+async def test_ibkr_sync_creates_raw_and_linked_executions(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IBKR sync must materialise raw rows, executions, and linked trades."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    _, account_id = await _create_ibkr_account_with_flex_properties(client, headers)
+    xml_content = _make_split_xml(2)
+
+    async def _fake_fetch(
+        self: FlexImportService,
+        *,
+        query_id: str,
+        from_date: str | None = None,
+    ) -> bytes:
+        del self, query_id, from_date
+        return xml_content
+
+    monkeypatch.setattr(FlexImportService, "fetch_flex_report", _fake_fetch)
+
+    sync_result = await _sync_ibkr(client, headers, account_id)
+    assert int(sync_result["imported_count"]) > 0
+
+    aid = uuid.UUID(account_id)
+    raw_count = await db_session.execute(
+        text("SELECT COUNT(*) FROM broker_raw_transactions WHERE account_id = :account_id"),
+        {"account_id": aid},
+    )
+    assert raw_count.scalar() > 0
+
+    execution_count = await db_session.execute(
+        text("SELECT COUNT(*) FROM logical_executions WHERE account_id = :account_id AND deleted = false"),
+        {"account_id": aid},
+    )
+    assert execution_count.scalar() > 0
+
+    trades_without_execution = await db_session.execute(
+        text(
+            "SELECT COUNT(*) FROM trades t "
+            "WHERE t.account_id = :account_id "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM logical_executions le "
+            "  WHERE le.trade_id = t.id AND le.deleted = false"
+            ")"
+        ),
+        {"account_id": aid},
+    )
+    assert trades_without_execution.scalar() == 0
+
+
+@pytest.mark.integration
+async def test_ibkr_sync_reimport_is_idempotent(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Re-syncing identical Flex payload should not create additional rows."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    _, account_id = await _create_ibkr_account_with_flex_properties(client, headers)
+    xml_content = _make_split_xml(2)
+
+    async def _fake_fetch(
+        self: FlexImportService,
+        *,
+        query_id: str,
+        from_date: str | None = None,
+    ) -> bytes:
+        del self, query_id, from_date
+        return xml_content
+
+    monkeypatch.setattr(FlexImportService, "fetch_flex_report", _fake_fetch)
+
+    first = await _sync_ibkr(client, headers, account_id)
+    assert int(first["imported_count"]) > 0
+    before = await _fetch_account_trade_execution_raw_snapshots(db_session, account_id=account_id)
+
+    second = await _sync_ibkr(client, headers, account_id)
+    after = await _fetch_account_trade_execution_raw_snapshots(db_session, account_id=account_id)
+
+    assert int(second["imported_count"]) == 0
+    assert before == after
+
+
+@pytest.mark.integration
+async def test_second_consecutive_ibkr_sync_skips_projection_rebuild(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Task 6.4: a second consecutive IBKR sync creates zero trades and
+    triggers zero raw-transaction inserts (the zero-insert guard, D5).
+
+    ``BrokerSyncResult`` does not surface ``raw_transactions_created``, so
+    this wraps ``ImportService.import_trades`` to capture the underlying
+    ``ImportResult`` the sync path produces and asserts directly on
+    ``raw_transactions_created == 0`` and ``trades_created == 0`` — the
+    exact input condition ``ImportService.import_trades`` uses internally
+    (``should_rebuild_projection``) to skip the rebuild. This is strong
+    evidence the rebuild is skipped (it is the guard's own trigger
+    condition) but does not directly instrument the branch itself. Runs
+    entirely against the local test database with only the IBKR Flex HTTP
+    fetch mocked, so it does not require a live/unlocked IBKR Flex API.
+    """
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    _, account_id = await _create_ibkr_account_with_flex_properties(client, headers)
+    xml_content = _make_split_xml(2)
+
+    async def _fake_fetch(
+        self: FlexImportService,
+        *,
+        query_id: str,
+        from_date: str | None = None,
+    ) -> bytes:
+        del self, query_id, from_date
+        return xml_content
+
+    monkeypatch.setattr(FlexImportService, "fetch_flex_report", _fake_fetch)
+
+    original_import_trades = ImportService.import_trades
+    captured_results: list[object] = []
+
+    async def _capturing_import_trades(self: ImportService, **kwargs: object) -> object:
+        result = await original_import_trades(self, **kwargs)  # type: ignore[arg-type]
+        captured_results.append(result)
+        return result
+
+    monkeypatch.setattr(ImportService, "import_trades", _capturing_import_trades)
+
+    first = await _sync_ibkr(client, headers, account_id)
+    assert int(first["imported_count"]) > 0
+    assert len(captured_results) == 1
+    assert captured_results[0].raw_transactions_created > 0  # type: ignore[attr-defined]
+
+    second = await _sync_ibkr(client, headers, account_id)
+    assert int(second["imported_count"]) == 0
+    assert len(captured_results) == 2
+
+    second_import_result = captured_results[1]
+    assert second_import_result.trades_created == 0  # type: ignore[attr-defined]
+    assert second_import_result.raw_transactions_created == 0  # type: ignore[attr-defined]
+
+
+@pytest.mark.integration
+async def test_ibkr_sync_and_upload_equivalence(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same IBKR report via sync vs upload must produce identical persistence."""
+    sync_headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    upload_headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    _, sync_account_id = await _create_ibkr_account_with_flex_properties(client, sync_headers)
+    upload_portfolio_id, upload_account_id = await _create_account(client, upload_headers)
+    xml_content = _make_split_xml(2)
+
+    async def _fake_fetch(
+        self: FlexImportService,
+        *,
+        query_id: str,
+        from_date: str | None = None,
+    ) -> bytes:
+        del self, query_id, from_date
+        return xml_content
+
+    monkeypatch.setattr(FlexImportService, "fetch_flex_report", _fake_fetch)
+
+    sync_result = await _sync_ibkr(client, sync_headers, sync_account_id)
+    assert int(sync_result["imported_count"]) > 0
+
+    upload_result = await _import_xml(
+        client,
+        upload_headers,
+        upload_portfolio_id,
+        upload_account_id,
+        xml_content,
+    )
+    assert int(upload_result["trades_created"]) > 0
+
+    sync_snapshot = await _fetch_account_trade_execution_raw_snapshots(
+        db_session,
+        account_id=sync_account_id,
+    )
+    upload_snapshot = await _fetch_account_trade_execution_raw_snapshots(
+        db_session,
+        account_id=upload_account_id,
+    )
+
+    assert sync_snapshot == upload_snapshot
+
+
+@pytest.mark.integration
+async def test_protected_trade_survives_ibkr_sync_without_sentinel_orphan(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Protected trade remains stable and no sentinel orphan is created via sync."""
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_ibkr_account_with_flex_properties(client, headers)
+    symbol = "PROTSYNC"
+    conid = "780001"
+    tx_prefix = "PS"
+
+    payloads = iter(
+        [
+            _make_single_leg_xml(symbol, conid, tx_prefix, include_close=False),
+            _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
+        ]
+    )
+
+    async def _fake_fetch(
+        self: FlexImportService,
+        *,
+        query_id: str,
+        from_date: str | None = None,
+    ) -> bytes:
+        del self, query_id, from_date
+        return next(payloads)
+
+    monkeypatch.setattr(FlexImportService, "fetch_flex_report", _fake_fetch)
+
+    first_sync = await _sync_ibkr(client, headers, account_id)
+    assert int(first_sync["imported_count"]) > 0
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20",
+        headers=headers,
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    items = trades_resp.json()["data"]["items"]
+    assert len(items) == 1
+    protected_trade_id = items[0]["id"]
+
+    patch_resp = await client.patch(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
+        headers=headers,
+        json={"journal": "sync-protected"},
+    )
+    assert patch_resp.status_code == 200, patch_resp.text
+
+    second_sync = await _sync_ibkr(client, headers, account_id)
+    assert any("protected_" in warning for warning in second_sync["warnings"])
+
+    protected_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
+        headers=headers,
+    )
+    assert protected_resp.status_code == 200, protected_resp.text
+    protected_trade = protected_resp.json()["data"]
+    assert protected_trade["journal"] == "sync-protected"
+    assert protected_trade["closed_at"] is None
+
+    aid = uuid.UUID(account_id)
+    sentinel_orphans = await db_session.execute(
+        text(
+            "SELECT COUNT(*) FROM trades "
+            "WHERE account_id = :account_id AND symbol = :symbol AND entry_price = 0.001"
+        ),
+        {"account_id": aid, "symbol": symbol},
+    )
+    assert sentinel_orphans.scalar() == 0
 
 
 @pytest.mark.integration

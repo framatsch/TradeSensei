@@ -15,27 +15,20 @@
 
 from __future__ import annotations
 
-import uuid
 import xml.etree.ElementTree as ET
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.exceptions import AccountNotFoundError, FlexAPIError, RateLimitError
+from app.core.exceptions import FlexAPIError, RateLimitError
 from app.services.flex_import_service import (
     FlexImportService,
-    _is_transient_send_request_error,
     _parse_wait_time,
     _text,
+    is_transient_send_request_error,
 )
 
 pytestmark = pytest.mark.asyncio
-
-_USER_ID = uuid.uuid4()
-_PORTFOLIO_ID = uuid.uuid4()
-_ACCOUNT_ID = uuid.uuid4()
-
 
 # ---------------------------------------------------------------------------
 # Module-level helpers
@@ -78,12 +71,12 @@ async def test_parse_wait_time_case_insensitive():
 
 
 async def test_is_transient_detects_known_messages():
-    assert _is_transient_send_request_error("Statement could not be generated at this time") is True
-    assert _is_transient_send_request_error("Please try again shortly") is True
+    assert is_transient_send_request_error("Statement could not be generated at this time") is True
+    assert is_transient_send_request_error("Please try again shortly") is True
 
 
 async def test_is_transient_returns_false_for_unknown_error():
-    assert _is_transient_send_request_error("Rate limit exceeded") is False
+    assert is_transient_send_request_error("Rate limit exceeded") is False
 
 
 # ---------------------------------------------------------------------------
@@ -91,202 +84,20 @@ async def test_is_transient_returns_false_for_unknown_error():
 # ---------------------------------------------------------------------------
 
 
-def _make_service(
-    account_repo=None,
-    portfolio_repo=None,
-    trade_repo=None,
-    parser=None,
-):
+def _make_service() -> FlexImportService:
     svc = FlexImportService.__new__(FlexImportService)
-    svc._session = AsyncMock()
     svc._token = "test-token"
     svc._timeout = 30
-    svc._account_repo = account_repo or AsyncMock()
-    svc._portfolio_repo = portfolio_repo or AsyncMock()
-    svc._trade_repo = trade_repo or AsyncMock()
-    svc._parser = parser or MagicMock()
     return svc
 
 
-def _make_mock_account():
-    a = MagicMock()
-    a.id = _ACCOUNT_ID
-    return a
-
-
-def _make_mock_portfolio(base_currency: str = "USD"):
-    p = MagicMock()
-    p.id = _PORTFOLIO_ID
-    p.base_currency = base_currency
-    return p
-
-
-def _make_parsed_trade(symbol: str = "AAPL", currency: str = "USD"):
-    t = MagicMock()
-    t.symbol = symbol
-    t.currency = currency
-    t.opened_at = datetime(2024, 1, 15, 9, 30)
-    t.broker_conid = "12345"
-    t.account_id = None
-    t.user_id = None
-    t.model_copy = MagicMock(return_value=t)
-    return t
-
-
-# ---------------------------------------------------------------------------
-# import_flex — account validation
-# ---------------------------------------------------------------------------
-
-
-async def test_import_flex_raises_when_account_not_found():
-    svc = _make_service()
-    svc._account_repo.get_by_id = AsyncMock(return_value=None)
-
-    with pytest.raises(AccountNotFoundError):
-        await svc.import_flex(
-            query_id="123",
-            user_id=_USER_ID,
-            portfolio_id=_PORTFOLIO_ID,
-            account_id=_ACCOUNT_ID,
-        )
-
-
-async def test_import_flex_skips_account_check_when_no_account_id():
-    """When account_id is None, no account lookup should happen."""
-    svc = _make_service()
-    svc._account_repo.get_by_id = AsyncMock()
-
-    trade = _make_parsed_trade()
-    svc._parser.parse = MagicMock(return_value=([trade], []))
-    svc._parser.warnings = []
-    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
-    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value=set())
-    svc._trade_repo.find_duplicate = AsyncMock(return_value=True)
-
-    with patch.object(svc, "_fetch_flex_xml", return_value="<xml/>"):
-        result = await svc.import_flex(
-            query_id="123",
-            user_id=_USER_ID,
-            portfolio_id=_PORTFOLIO_ID,
-            account_id=None,
-        )
-
-    svc._account_repo.get_by_id.assert_not_called()
-    assert result.trades_skipped == 1
-
-
-async def test_import_flex_skips_duplicate_trades():
+async def test_fetch_flex_report_returns_xml_bytes():
     svc = _make_service()
 
-    trade = _make_parsed_trade()
-    svc._parser.parse = MagicMock(return_value=([trade], []))
-    svc._parser.warnings = []
-    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
-    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value=set())
-    svc._trade_repo.find_duplicate = AsyncMock(return_value=True)
+    with patch.object(svc, "_fetch_flex_xml", new=AsyncMock(return_value="<xml/>")):
+        payload = await svc.fetch_flex_report(query_id="123")
 
-    with patch.object(svc, "_fetch_flex_xml", return_value="<xml/>"):
-        result = await svc.import_flex(
-            query_id="123",
-            user_id=_USER_ID,
-            portfolio_id=_PORTFOLIO_ID,
-        )
-
-    assert result.trades_skipped == 1
-    assert result.trades_created == 0
-
-
-async def test_import_flex_creates_new_trade():
-    """Create a new trade from a parsed Flex trade when no duplicate exists.
-
-    Regression guard: a successful create must be reported only via
-    ``activity_log``, never surfaced as a false warning.
-    """
-    svc = _make_service()
-
-    trade = _make_parsed_trade()
-    svc._parser.parse = MagicMock(return_value=([trade], []))
-    svc._parser.warnings = []
-    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
-    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value=set())
-    svc._trade_repo.find_duplicate = AsyncMock(return_value=False)
-    svc._trade_repo.create = AsyncMock()
-
-    with patch.object(svc, "_fetch_flex_xml", return_value="<xml/>"):
-        result = await svc.import_flex(
-            query_id="123",
-            user_id=_USER_ID,
-            portfolio_id=_PORTFOLIO_ID,
-        )
-
-    assert result.trades_created == 1
-    assert result.trades_skipped == 0
-    assert result.warnings == []
-    assert any("created:" in line for line in result.activity_log)
-
-
-async def test_import_flex_skips_manually_edited_trades():
-    svc = _make_service()
-
-    trade = _make_parsed_trade()
-    # The match key is (broker_conid, opened_at) — we put it in manually_edited_keys
-    match_key = (trade.broker_conid, trade.opened_at)
-    svc._parser.parse = MagicMock(return_value=([trade], []))
-    svc._parser.warnings = []
-    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
-    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value={match_key})
-    svc._trade_repo.find_duplicate = AsyncMock(return_value=False)
-
-    with patch.object(svc, "_fetch_flex_xml", return_value="<xml/>"):
-        result = await svc.import_flex(
-            query_id="123",
-            user_id=_USER_ID,
-            portfolio_id=_PORTFOLIO_ID,
-        )
-
-    assert result.trades_skipped == 1
-
-
-async def test_import_flex_adds_currency_mismatch_warning():
-    svc = _make_service()
-
-    trade = _make_parsed_trade(currency="EUR")  # EUR but portfolio base is USD
-    svc._parser.parse = MagicMock(return_value=([trade], []))
-    svc._parser.warnings = []
-    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio(base_currency="USD"))
-    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value=set())
-    svc._trade_repo.find_duplicate = AsyncMock(return_value=True)  # skip creation
-
-    with patch.object(svc, "_fetch_flex_xml", return_value="<xml/>"):
-        result = await svc.import_flex(
-            query_id="123",
-            user_id=_USER_ID,
-            portfolio_id=_PORTFOLIO_ID,
-        )
-
-    assert any("currency_mismatch" in w for w in result.warnings)
-
-
-async def test_import_flex_handles_trade_create_exception():
-    svc = _make_service()
-
-    trade = _make_parsed_trade()
-    svc._parser.parse = MagicMock(return_value=([trade], []))
-    svc._parser.warnings = []
-    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
-    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value=set())
-    svc._trade_repo.find_duplicate = AsyncMock(return_value=False)
-    svc._trade_repo.create = AsyncMock(side_effect=Exception("DB error"))
-
-    with patch.object(svc, "_fetch_flex_xml", return_value="<xml/>"):
-        result = await svc.import_flex(
-            query_id="123",
-            user_id=_USER_ID,
-            portfolio_id=_PORTFOLIO_ID,
-        )
-
-    assert result.trades_skipped == 1
-    assert any("Failed to persist" in w for w in result.warnings)
+    assert payload == b"<xml/>"
 
 
 # ---------------------------------------------------------------------------
@@ -466,20 +277,25 @@ async def test_poll_report_raises_timeout_after_max_attempts():
 
 
 # ---------------------------------------------------------------------------
-# _send_request_with_retries
+# _send_request — no in-process retry
 # ---------------------------------------------------------------------------
 
 
-async def test_send_request_with_retries_propagates_rate_limit_immediately():
+async def test_send_request_propagates_rate_limit_immediately():
     svc = _make_service()
 
     mock_client = AsyncMock()
 
     with patch.object(svc, "_send_request_once", side_effect=RateLimitError("rate limited", 900)), pytest.raises(RateLimitError):
-        await svc._send_request_with_retries(mock_client, "https://example.com", {})
+        await svc._send_request(mock_client, "query-1", None)
 
 
-async def test_send_request_with_retries_retries_transient_error():
+async def test_send_request_does_not_retry_transient_error():
+    """A transient generation error must surface on the first attempt.
+
+    Regression guard: retrying in-process within seconds was observed to
+    itself trip IBKR's "Too many failed attempts" account-level lockout.
+    """
     svc = _make_service()
     mock_client = AsyncMock()
 
@@ -488,12 +304,14 @@ async def test_send_request_with_retries_retries_transient_error():
     async def _flaky(*args, **kwargs):
         nonlocal call_count
         call_count += 1
-        if call_count < 2:
-            raise FlexAPIError("statement could not be generated at this time")
-        return "REF123"
+        raise FlexAPIError("statement could not be generated at this time")
 
-    with patch.object(svc, "_send_request_once", side_effect=_flaky), patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()):
-        result = await svc._send_request_with_retries(mock_client, "https://example.com", {})
+    with (
+        patch.object(svc, "_send_request_once", side_effect=_flaky),
+        patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        pytest.raises(FlexAPIError, match="statement could not be generated"),
+    ):
+        await svc._send_request(mock_client, "query-1", None)
 
-    assert result == "REF123"
-    assert call_count == 2
+    assert call_count == 1
+    mock_sleep.assert_not_awaited()

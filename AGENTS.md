@@ -101,6 +101,37 @@ Detailed rules (anti-patterns, standards, DB conventions) live in the relevant a
 - **Packages** — `uv add` only; never `pip install` or edit `pyproject.toml` manually.
 - **Frontend** — no `dark:` modifiers; use semantic tokens (`bg-background`, `text-foreground`, …).
 - **OpenSpec** — before implementing any OpenSpec task, run `/openspec-apply-change` first.
+- **Broker ingestion** — every path must terminate in `ImportService.import_trades()`. See below.
+
+### Broker Ingestion Paths
+
+**There is exactly one import pipeline.** Every path by which broker data enters the
+system — manual file upload, scheduled account sync, direct broker API pull — MUST
+terminate in `ImportService.import_trades()`.
+
+Rules
+- A broker-specific client MAY fetch a payload from a remote API.
+- That client MUST NOT parse, aggregate, deduplicate, or persist trade data.
+- No ingestion path may call `TradeRepository.create()` directly. Manual user-driven
+  creation (`TradeService.create_trade`, `partial_close_trade`) is the only exception.
+- Pass the fetched payload through unchanged. Do not introduce a broker-specific
+  intermediate representation — that becomes a third format to keep in sync.
+
+Reference implementation
+- `BrokerService._sync_schwab` (`backend/app/services/broker_service.py`) — fetches
+  from the Schwab API, wraps the payload, delegates to `ImportService.import_trades()`.
+
+Why this rule exists
+- A parallel ingestion implementation silently misses every protection, invariant,
+  and bug fix applied to the primary path. `FlexImportService` did exactly that: it
+  used the legacy `parse()` instead of `parse_raw()`, created no `LogicalExecution`
+  rows at all, and had no knowledge of protected-trade isolation. The result was
+  leg-less phantom trades in production while the primary path was demonstrably
+  correct. See `openspec/changes/unified-ibkr-import-pipeline/design.md`.
+- What you inherit for free by delegating: the raw-transaction layer, logical
+  executions with trade links, protected-trade isolation, orphan-lot suppression,
+  anchor-based trade identity, the zero-insert guard, split-aware execution linking,
+  combo position building, and protection reporting in `ImportResult`.
 
 ### Audit Logging Policy
 

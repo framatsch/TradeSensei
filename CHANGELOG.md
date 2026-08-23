@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [backend] Unified IBKR ingestion paths: `/imports/flex` and IBKR file upload now both delegate to `ImportService.import_trades()`, and `FlexImportService` now acts as a pure Flex API fetch client.
+- [backend] Renamed `ImportService.import_file()` to `ImportService.import_trades()` across backend services, routes, and tests while preserving the public `ImportResult.filename` field.
+
+### Added
+- [docs] Added broker ingestion architecture rule in `AGENTS.md` requiring every broker ingestion path (upload/sync/API pull) to terminate in `ImportService.import_trades()`, with `_sync_schwab` as reference implementation.
+- [docs] Documented that IBKR Flex API import and IBKR file upload are behaviorally identical and both create raw transactions and linked executions.
+- [tests] Added comprehensive integration coverage for split-file COMBO lifecycle and execution linking.
+- [tests] Added integration coverage proving the IBKR sync path creates linked executions, is idempotent, matches file-upload results, preserves protected trades, and skips the projection rebuild on a no-op second sync.
+
+### Fixed
+- [backend] Removed an in-process retry loop around IBKR Flex `SendRequest` calls. Retrying a "please try again shortly" response within seconds was found to itself trigger IBKR's stricter "Too many failed attempts" account-level lockout; transient Flex errors and rate limits now surface immediately as HTTP 503 (`/broker/sync/{account_id}` and `/imports/flex`) instead of being silently retried.
+- [backend] `POST /imports/flex` now handles parse/account-mismatch/unexpected errors from the shared import pipeline the same way `POST /imports/upload` does (400/422 instead of an unhandled 500).
+
 ## [1.13.0] - 2026-08-15
 
 ### Added

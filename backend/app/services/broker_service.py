@@ -38,7 +38,12 @@ from app.core.constants import (
     SCHWAB_REFRESH_TOKEN,
     SCHWAB_TOKEN_EXPIRES_AT,
 )
-from app.core.exceptions import AccountNotFoundError, ConfigurationError, ImportAccountMismatchError
+from app.core.exceptions import (
+    AccountNotFoundError,
+    ConfigurationError,
+    ImportAccountMismatchError,
+    UpstreamServiceUnavailableError,
+)
 from app.models.account import Account, AccountType
 from app.models.account_property import AccountProperty
 from app.repositories.account_repository import AccountRepository
@@ -301,9 +306,9 @@ class BrokerService:
 
         from app.services.flex_import_service import FlexImportService
 
-        service = FlexImportService(self._session, flex_token)
+        service = FlexImportService(flex_token)
         try:
-            await service._fetch_flex_xml(query_id=query_id, from_date=None)
+            await service.fetch_flex_report(query_id=query_id, from_date=None)
         except Exception as exc:
             raise ConfigurationError(f"IBKR connection test failed: {exc}") from exc
 
@@ -603,7 +608,7 @@ class BrokerService:
         }
 
         import_service = ImportService(self._session)
-        result = await import_service.import_file(
+        result = await import_service.import_trades(
             content=json.dumps(wrapped_payload).encode("utf-8"),
             filename="schwab_transactions_sync.json",
             broker=BrokerType.SCHWAB,
@@ -684,19 +689,26 @@ class BrokerService:
             from_date = (now - timedelta(days=days)).strftime("%Y%m%d")
 
         from app.core.exceptions import FlexAPIError, RateLimitError
-        from app.services.flex_import_service import FlexImportService
+        from app.services.flex_import_service import FlexImportService, is_transient_send_request_error
 
-        flex_service = FlexImportService(self._session, flex_token)
+        flex_service = FlexImportService(flex_token)
         if account.portfolio_id is None:
             raise ConfigurationError(f"Account {account.id} is not linked to a portfolio.")
 
+        import_service = ImportService(self._session)
+
         try:
-            result = await flex_service.import_flex(
+            flex_xml = await flex_service.fetch_flex_report(
                 query_id=query_id,
-                user_id=account.user_id,
+                from_date=from_date,
+            )
+            result = await import_service.import_trades(
+                content=flex_xml,
+                filename=f"flex_query_{query_id}.xml",
+                broker=BrokerType.IBKR,
                 portfolio_id=account.portfolio_id,
                 account_id=account.id,
-                from_date=from_date,
+                user_id=account.user_id,
                 overwrite_manually_edited=overwrite_manually_edited,
             )
             return BrokerSyncResult(
@@ -709,6 +721,8 @@ class BrokerService:
                 activity_log=result.activity_log,
             )
         except RateLimitError as exc:
-            raise ConfigurationError(f"IBKR API rate limit reached: {exc}") from exc
+            raise UpstreamServiceUnavailableError(f"IBKR API rate limit reached: {exc}") from exc
         except FlexAPIError as exc:
+            if is_transient_send_request_error(str(exc)):
+                raise UpstreamServiceUnavailableError(f"IBKR Flex API temporarily unavailable: {exc}") from exc
             raise ConfigurationError(f"IBKR Flex API error: {exc}") from exc

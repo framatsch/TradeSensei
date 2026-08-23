@@ -26,11 +26,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.exceptions import AccountNotFoundError, ConfigurationError
+from app.core.exceptions import (
+    AccountNotFoundError,
+    ConfigurationError,
+    UpstreamServiceUnavailableError,
+)
 from app.models.account import Account, AccountType
 from app.models.account_property import AccountProperty
 from app.schemas.imports import ImportResult
 from app.services.broker_service import BrokerService
+from app.utils.parsers.factory import BrokerType
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -152,30 +157,138 @@ class TestSyncAccountRouting:
         mock_session.execute = AsyncMock(return_value=mock_result)
 
         mock_flex_instance = AsyncMock()
-        mock_flex_instance.import_flex.return_value = ImportResult(
+        mock_flex_instance.fetch_flex_report.return_value = b"<FlexQueryResponse />"
+
+        import_result = ImportResult(
             broker="ibkr",
-            filename="flex_query",
+            filename="flex_query_12345.xml",
             trades_parsed=2,
             trades_created=2,
             trades_skipped=0,
             warnings=[],
         )
+
         mock_flex_cls.return_value = mock_flex_instance
 
         svc = BrokerService(mock_session)
-        result = await svc.sync_account(account.id, account.user_id)  # type: ignore[arg-type]
+        with patch("app.services.broker_service.ImportService.import_trades", new=AsyncMock(return_value=import_result)) as mock_import:
+            result = await svc.sync_account(account.id, account.user_id)  # type: ignore[arg-type]
 
-        mock_flex_cls.assert_called_once_with(mock_session, "test-token")
+        mock_flex_cls.assert_called_once_with("test-token")
         expected_from_date = (fixed_now - timedelta(days=30)).strftime("%Y%m%d")
-        mock_flex_instance.import_flex.assert_called_once_with(
+        mock_flex_instance.fetch_flex_report.assert_called_once_with(
             query_id="12345",
-            user_id=account.user_id,
+            from_date=expected_from_date,
+        )
+        mock_import.assert_awaited_once_with(
+            content=b"<FlexQueryResponse />",
+            filename="flex_query_12345.xml",
+            broker=BrokerType.IBKR,
             portfolio_id=account.portfolio_id,
             account_id=account.id,
-            from_date=expected_from_date,
+            user_id=account.user_id,
             overwrite_manually_edited=False,
         )
         assert result.imported_count == 2
+
+    @pytest.mark.unit
+    @patch("app.services.flex_import_service.FlexImportService")
+    @patch("app.services.broker_service.decrypt_token")
+    async def test_sync_account_ibkr_transient_flex_error_maps_to_upstream_unavailable(
+        self,
+        mock_decrypt: MagicMock,
+        mock_flex_cls: MagicMock,
+    ) -> None:
+        from app.core.exceptions import FlexAPIError
+
+        mock_decrypt.side_effect = lambda x: x.replace("encrypted-", "")
+
+        mock_session = AsyncMock()
+        prop1 = _make_account_property("ibkr_flex_token", "encrypted-test-token")
+        prop2 = _make_account_property("ibkr_flex_query_id", "encrypted-12345")
+        account = _make_account(AccountType.IBKR, properties=[prop1, prop2])
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = account
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_flex_instance = AsyncMock()
+        mock_flex_instance.fetch_flex_report.side_effect = FlexAPIError(
+            "Flex SendRequest failed: Statement could not be generated at this time. Please try again shortly."
+        )
+        mock_flex_cls.return_value = mock_flex_instance
+
+        svc = BrokerService(mock_session)
+        with pytest.raises(UpstreamServiceUnavailableError, match="temporarily unavailable"):
+            await svc.sync_account(account.id, account.user_id)  # type: ignore[arg-type]
+
+    @pytest.mark.unit
+    @patch("app.services.flex_import_service.FlexImportService")
+    @patch("app.services.broker_service.decrypt_token")
+    async def test_sync_account_ibkr_rate_limit_maps_to_upstream_unavailable(
+        self,
+        mock_decrypt: MagicMock,
+        mock_flex_cls: MagicMock,
+    ) -> None:
+        """IBKR rate-limit errors (error 1019) must map to 503, not a plain config error."""
+        from app.core.exceptions import RateLimitError
+
+        mock_decrypt.side_effect = lambda x: x.replace("encrypted-", "")
+
+        mock_session = AsyncMock()
+        prop1 = _make_account_property("ibkr_flex_token", "encrypted-test-token")
+        prop2 = _make_account_property("ibkr_flex_query_id", "encrypted-12345")
+        account = _make_account(AccountType.IBKR, properties=[prop1, prop2])
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = account
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_flex_instance = AsyncMock()
+        mock_flex_instance.fetch_flex_report.side_effect = RateLimitError("rate limited", wait_seconds=900)
+        mock_flex_cls.return_value = mock_flex_instance
+
+        svc = BrokerService(mock_session)
+        with pytest.raises(UpstreamServiceUnavailableError, match="rate limit reached"):
+            await svc.sync_account(account.id, account.user_id)  # type: ignore[arg-type]
+
+    @pytest.mark.unit
+    @patch("app.services.flex_import_service.FlexImportService")
+    @patch("app.services.broker_service.decrypt_token")
+    async def test_sync_account_ibkr_non_transient_flex_error_stays_configuration_error(
+        self,
+        mock_decrypt: MagicMock,
+        mock_flex_cls: MagicMock,
+    ) -> None:
+        """A genuine (non-transient) Flex config error must NOT be reported as upstream-unavailable.
+
+        Regression guard distinguishing this from the transient-error test
+        above: only messages matching the known transient markers should
+        become ``UpstreamServiceUnavailableError``; everything else stays
+        a plain ``ConfigurationError`` (mapped to HTTP 400 by the API layer).
+        """
+        from app.core.exceptions import FlexAPIError
+
+        mock_decrypt.side_effect = lambda x: x.replace("encrypted-", "")
+
+        mock_session = AsyncMock()
+        prop1 = _make_account_property("ibkr_flex_token", "encrypted-test-token")
+        prop2 = _make_account_property("ibkr_flex_query_id", "encrypted-12345")
+        account = _make_account(AccountType.IBKR, properties=[prop1, prop2])
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = account
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_flex_instance = AsyncMock()
+        mock_flex_instance.fetch_flex_report.side_effect = FlexAPIError("Flex SendRequest failed: invalid query id")
+        mock_flex_cls.return_value = mock_flex_instance
+
+        svc = BrokerService(mock_session)
+        with pytest.raises(ConfigurationError, match="IBKR Flex API error") as exc_info:
+            await svc.sync_account(account.id, account.user_id)  # type: ignore[arg-type]
+
+        assert not isinstance(exc_info.value, UpstreamServiceUnavailableError)
 
 
 class TestConnectionValidation:
@@ -197,14 +310,14 @@ class TestConnectionValidation:
 
         with patch("app.services.flex_import_service.FlexImportService") as mock_flex_cls:
             mock_flex_instance = MagicMock()
-            mock_flex_instance._fetch_flex_xml = AsyncMock(return_value="<xml/>")
+            mock_flex_instance.fetch_flex_report = AsyncMock(return_value=b"<xml/>")
             mock_flex_cls.return_value = mock_flex_instance
 
             result = await svc.test_connection(request, uuid.uuid4(), uuid.uuid4())
 
         assert result.success is True
-        mock_flex_cls.assert_called_once_with(mock_session, "token-1")
-        mock_flex_instance._fetch_flex_xml.assert_awaited_once_with(
+        mock_flex_cls.assert_called_once_with("token-1")
+        mock_flex_instance.fetch_flex_report.assert_awaited_once_with(
             query_id="query-1",
             from_date=None,
         )
@@ -219,8 +332,7 @@ class TestFlexSendRequestFallback:
         from app.core.exceptions import FlexAPIError
         from app.services.flex_import_service import FlexImportService
 
-        mock_session = AsyncMock()
-        svc = FlexImportService(mock_session, "token-1")
+        svc = FlexImportService("token-1")
 
         mock_client = AsyncMock()
         error = FlexAPIError("invalid query id")
@@ -249,39 +361,41 @@ class TestFlexSendRequestFallback:
         }
 
     @pytest.mark.unit
-    async def test_send_request_retries_transient_generation_error(self) -> None:
-        """Transient IBKR generation errors should be retried with backoff."""
+    async def test_send_request_does_not_retry_transient_generation_error(self) -> None:
+        """Transient IBKR generation errors must NOT be retried in-process.
+
+        Regression guard: a tight local retry loop was observed to itself
+        trip IBKR's stricter "Too many failed attempts" account-level
+        lockout by presenting as a rapid-fire burst against the
+        SendRequest endpoint. IBKR's own guidance for "please try again
+        shortly" is to wait minutes, not seconds, so this must surface
+        immediately and let the caller decide when to retry.
+        """
         from app.core.exceptions import FlexAPIError
         from app.services.flex_import_service import FlexImportService
 
-        mock_session = AsyncMock()
-        svc = FlexImportService(mock_session, "token-1")
+        svc = FlexImportService("token-1")
 
         mock_client = AsyncMock()
-        expected_reference = "ref-456"
+        transient_error = FlexAPIError("Flex SendRequest failed: Statement could not be generated at this time. Please try again shortly.")
 
         with (
             patch.object(
                 svc,
                 "_send_request_once",
-                new=AsyncMock(
-                    side_effect=[
-                        FlexAPIError("Flex SendRequest failed: Statement could not be generated at this time. Please try again shortly."),
-                        expected_reference,
-                    ]
-                ),
+                new=AsyncMock(side_effect=transient_error),
             ) as mock_send_once,
             patch("app.services.flex_import_service.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+            pytest.raises(FlexAPIError, match="Statement could not be generated"),
         ):
-            reference = await svc._send_request_with_retries(
+            await svc._send_request(
                 client=mock_client,
-                url="https://example.test/send-request",
-                params={"t": "token-1", "q": "query-1", "v": "3"},
+                query_id="query-1",
+                from_date=None,
             )
 
-        assert reference == expected_reference
-        assert mock_send_once.await_count == 2
-        mock_sleep.assert_awaited_once_with(2)
+        assert mock_send_once.await_count == 1
+        mock_sleep.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -378,7 +492,7 @@ class TestSchwabSyncTransactions:
                 new=AsyncMock(return_value=[{"accountNumber": "45302130", "hashValue": "hash-1"}]),
             ),
             patch("app.services.broker_service.SchwabClient.get_transactions", new=AsyncMock(return_value=[{"activityId": "1"}])),
-            patch("app.services.broker_service.ImportService.import_file", new=AsyncMock(return_value=import_result)) as mock_import,
+            patch("app.services.broker_service.ImportService.import_trades", new=AsyncMock(return_value=import_result)) as mock_import,
         ):
             result = await svc._sync_schwab(account, days=30)
 
@@ -425,10 +539,11 @@ class TestSchwabSyncTransactions:
                 "app.services.broker_service.SchwabClient.get_transactions",
                 new=AsyncMock(return_value=merged_transactions),
             ),
-            patch("app.services.broker_service.ImportService.import_file", new=AsyncMock(return_value=import_result)) as mock_import,
+            patch("app.services.broker_service.ImportService.import_trades", new=AsyncMock(return_value=import_result)) as mock_import,
         ):
             await svc._sync_schwab(account, days=30)
 
+        assert mock_import.await_args is not None
         call_kwargs = mock_import.await_args.kwargs
         payload = call_kwargs["content"].decode("utf-8")
         assert '"activityId": 1' in payload
@@ -464,7 +579,7 @@ class TestSchwabSyncTransactions:
                 new=AsyncMock(return_value=[{"accountNumber": "99887766", "hashValue": "hash-2"}]),
             ),
             patch("app.services.broker_service.SchwabClient.get_transactions", new=AsyncMock(return_value=[])),
-            patch("app.services.broker_service.ImportService.import_file", new=AsyncMock(return_value=import_result)),
+            patch("app.services.broker_service.ImportService.import_trades", new=AsyncMock(return_value=import_result)),
             patch.object(svc, "_emit_account_number_bound_audit") as mock_audit,
         ):
             await svc._sync_schwab(account, days=1)
@@ -524,9 +639,11 @@ class TestSchwabSyncTransactions:
         svc = BrokerService(mock_session)
         account = _make_account(AccountType.SCHWAB, properties=[])
 
-        with patch("app.services.broker_service.SchwabClient.get_account_numbers", new=AsyncMock()) as mock_probe:
-            with pytest.raises(ConfigurationError, match="not connected via OAuth"):
-                await svc._test_schwab({}, account)
+        with (
+            patch("app.services.broker_service.SchwabClient.get_account_numbers", new=AsyncMock()) as mock_probe,
+            pytest.raises(ConfigurationError, match="not connected via OAuth"),
+        ):
+            await svc._test_schwab({}, account)
 
         mock_probe.assert_not_awaited()
 
@@ -536,9 +653,11 @@ class TestSchwabSyncTransactions:
         svc = BrokerService(mock_session)
         account = _make_account(AccountType.SCHWAB, properties=[])
 
-        with patch("app.services.broker_service.SchwabClient.get_transactions", new=AsyncMock()) as mock_transactions:
-            with pytest.raises(ConfigurationError, match="not connected via OAuth"):
-                await svc._sync_schwab(account, days=30)
+        with (
+            patch("app.services.broker_service.SchwabClient.get_transactions", new=AsyncMock()) as mock_transactions,
+            pytest.raises(ConfigurationError, match="not connected via OAuth"),
+        ):
+            await svc._sync_schwab(account, days=30)
 
         mock_transactions.assert_not_awaited()
 

@@ -11,27 +11,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Business-logic service for IBKR Flex Query automatic trade import.
+"""IBKR Flex Web Service client.
 
-Orchestrates the two-step IBKR Flex Web Service workflow:
-
-1. Request report generation via ``FlexStatementService.SendRequest``
-2. Poll ``FlexStatementService.GetStatement`` until the report is ready
-3. Parse the returned XML with :class:`~app.utils.parsers.ibkr_xml.IBKRXMLParser`
-4. Persist the parsed trades, skipping duplicates (same symbol + opened_at +
-   user_id already in the database)
-
-No HTTP concepts from FastAPI appear in this layer.
+This service only executes the Flex request-and-poll protocol and returns the
+raw Flex Query XML payload. Parsing, aggregation, deduplication, and
+persistence are handled by :class:`~app.services.import_service.ImportService`.
 """
 
 import asyncio
 import logging
 import re
-import uuid
 import xml.etree.ElementTree as ET
 
 import httpx
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import (
     FLEX_API_VERSION,
@@ -39,33 +31,32 @@ from app.core.constants import (
     FLEX_POLL_INTERVAL_SECONDS,
     FLEX_POLL_MAX_ATTEMPTS,
 )
-from app.core.exceptions import AccountNotFoundError, FlexAPIError, RateLimitError
-from app.repositories.account_repository import AccountRepository
-from app.repositories.portfolio_repository import PortfolioRepository
-from app.repositories.trade_repository import TradeRepository
-from app.schemas.imports import ImportResult
-from app.utils.parsers.ibkr_xml import IBKRXMLParser
+from app.core.exceptions import FlexAPIError, RateLimitError
 
 logger = logging.getLogger(__name__)
 
-_FLEX_SEND_REQUEST_RETRY_ATTEMPTS = 3
-_FLEX_SEND_REQUEST_RETRY_DELAY_SECONDS = 2
 _FLEX_TRANSIENT_SEND_REQUEST_MESSAGES = (
     "statement could not be generated at this time",
     "please try again shortly",
 )
+"""Substrings of IBKR ``ErrorMessage`` text that indicate the Flex report
+generation needs more time. IBKR's own recommended cooldown between
+consecutive Flex Query generations for the same query is on the order of
+minutes, not seconds, so these are surfaced immediately rather than
+retried in-process. A tight local retry loop was observed to itself
+trigger IBKR's stricter "Too many failed attempts" account-level lockout
+by presenting as a rapid-fire burst against the SendRequest endpoint."""
 
 
 class FlexImportService:
-    """Service for importing trades via the IBKR Flex Web Service API.
+    """Service for fetching IBKR Flex Query XML.
 
-    Wraps the two-step Flex API call (send request → poll for result),
-    parses the returned XML, deduplicates against existing trades and
-    persists the new ones.
+    Wraps the two-step Flex API call (send request -> poll for result) and
+    returns report XML bytes unchanged. This is a pure HTTP client with no
+    database dependency — it does not parse, aggregate, or persist trade
+    data; see :class:`~app.services.import_service.ImportService` for that.
 
     Args:
-        session: An open :class:`~sqlalchemy.ext.asyncio.AsyncSession`
-            managed by the caller.
         flex_token: IBKR Flex Web Service token.  Typically read from
             application settings by the caller.
         http_timeout: Timeout in seconds for individual HTTP requests
@@ -74,142 +65,38 @@ class FlexImportService:
 
     def __init__(
         self,
-        session: AsyncSession,
         flex_token: str,
         http_timeout: int = 60,
     ) -> None:
         """Initialise the service.
 
         Args:
-            session: Database session for all repository operations.
             flex_token: IBKR Flex Web Service token.
             http_timeout: Per-request timeout in seconds.
         """
-        self._session = session
         self._token = flex_token
         self._timeout = http_timeout
-        self._account_repo = AccountRepository(session)
-        self._portfolio_repo = PortfolioRepository(session)
-        self._trade_repo = TradeRepository(session)
-        self._parser = IBKRXMLParser()
 
     # ─── Public method ────────────────────────────────────────────────────────
 
-    async def import_flex(
+    async def fetch_flex_report(
         self,
+        *,
         query_id: str,
-        user_id: uuid.UUID,
-        portfolio_id: uuid.UUID,
-        account_id: uuid.UUID | None = None,
         from_date: str | None = None,
-        overwrite_manually_edited: bool = False,
-    ) -> ImportResult:
-        """Fetch a Flex Query report and import all contained trades.
+    ) -> bytes:
+        """Fetch a Flex Query report and return raw XML bytes.
 
         Args:
             query_id: IBKR Flex Query ID (configured in Account Management).
-            user_id: UUID of the authenticated user.
-            account_id: Optional target broker account UUID.  When supplied,
-                the account must belong to ``user_id``.
             from_date: Optional start date in ``YYYYMMDD`` format passed to
                 the Flex API to restrict the report period.
-            overwrite_manually_edited: When ``True``, trades that have been
-                manually edited are overwritten instead of skipped.
 
         Returns:
-            An :class:`~app.schemas.imports.ImportResult` summarising the
-            outcome.
-
-        Raises:
-            AccountNotFoundError: If ``account_id`` is given but does not
-                belong to ``user_id``.
-            FlexAPIError: If the Flex API returns an error.
-            RateLimitError: If the Flex API rate-limit is hit (includes
-                ``wait_seconds``).
+            Raw XML bytes of the completed Flex Query report.
         """
-        # Verify account ownership when provided.
-        if account_id is not None:
-            account = await self._account_repo.get_by_id(
-                account_id,
-                user_id,
-                portfolio_id,
-            )
-            if account is None:
-                raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
-
-        xml_string = await self._fetch_flex_xml(query_id, from_date)
-        parsed_trades, _ = self._parser.parse(xml_string.encode("utf-8"), filename="flex_query.xml")
-        parser_warnings: list[str] = list(self._parser.warnings)
-        portfolio_base_currency: str | None = None
-        portfolio = await self._portfolio_repo.get_by_id(portfolio_id, user_id)
-        if portfolio is not None:
-            portfolio_base_currency = portfolio.base_currency
-
-        # Load manually-edited keys once for the whole batch (skip when
-        # overwrite_manually_edited is requested).
-        manually_edited_keys = await self._trade_repo.list_manually_edited_keys(user_id, portfolio_id) if not overwrite_manually_edited else set()
-
-        trades_created = 0
-        trades_skipped = 0
-        create_warnings: list[str] = []
-        activity_log: list[str] = []
-
-        for trade_data in parsed_trades:
-            trade_with_owner = trade_data.model_copy(update={"account_id": account_id, "user_id": user_id})
-
-            # Skip trades the user has manually corrected (unless overwriting).
-            match_key = (trade_with_owner.broker_conid, trade_with_owner.opened_at)
-            if match_key in manually_edited_keys:
-                trades_skipped += 1
-                msg = f"skipped: manually-edited trade {trade_with_owner.symbol} opened {trade_with_owner.opened_at}"
-                logger.debug(msg)
-                activity_log.append(msg)
-                continue
-
-            # Duplicate check: same user + symbol + opened_at already exists.
-            if await self._trade_repo.find_duplicate(
-                user_id=user_id,
-                symbol=trade_with_owner.symbol,
-                opened_at=trade_with_owner.opened_at,
-                portfolio_id=portfolio_id,
-            ):
-                trades_skipped += 1
-                msg = f"skipped: duplicate trade {trade_with_owner.symbol} @ {trade_with_owner.opened_at}"
-                logger.debug(msg)
-                activity_log.append(msg)
-                continue
-
-            try:
-                await self._trade_repo.create(trade_with_owner)
-                trades_created += 1
-                activity_log.append(f"created: trade {trade_with_owner.symbol} @ {trade_with_owner.opened_at}")
-            except Exception as exc:  # noqa: BLE001
-                msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
-                logger.warning(msg)
-                create_warnings.append(msg)
-                trades_skipped += 1
-
-        all_warnings = parser_warnings + create_warnings
-
-        if portfolio_base_currency is not None:
-            mismatched_count = sum(1 for trade_data in parsed_trades if trade_data.currency is not None and trade_data.currency != portfolio_base_currency)
-            if mismatched_count > 0:
-                all_warnings.append(
-                    "currency_mismatch: "
-                    f"{mismatched_count} imported trade(s) use a currency "
-                    "different from portfolio "
-                    f"base_currency '{portfolio_base_currency}'."
-                )
-
-        return ImportResult(
-            broker="ibkr",
-            filename=f"flex_query_{query_id}.xml",
-            trades_parsed=len(parsed_trades),
-            trades_created=trades_created,
-            trades_skipped=trades_skipped,
-            warnings=all_warnings,
-            activity_log=activity_log,
-        )
+        xml_string = await self._fetch_flex_xml(query_id=query_id, from_date=from_date)
+        return xml_string.encode("utf-8")
 
     # ─── Flex API helpers ─────────────────────────────────────────────────────
 
@@ -239,6 +126,15 @@ class FlexImportService:
     ) -> str:
         """Send the initial Flex Query generation request.
 
+        Makes exactly one attempt. IBKR's own guidance for a "please try
+        again shortly" response is to wait on the order of minutes before
+        the next Flex Query generation for the same query, so this method
+        deliberately does not retry in-process — a short, tight retry loop
+        was observed to itself trip IBKR's stricter "Too many failed
+        attempts" account-level lockout. Callers that want to retry after a
+        transient failure should do so with a substantial delay (minutes),
+        driven by the caller/user rather than automatically here.
+
         Args:
             client: Shared :class:`httpx.AsyncClient` instance.
             query_id: IBKR Flex Query ID.
@@ -248,7 +144,10 @@ class FlexImportService:
             The ``ReferenceCode`` to use for polling.
 
         Raises:
-            FlexAPIError: On HTTP or API-level errors.
+            FlexAPIError: On HTTP or API-level errors. Use
+                :func:`is_transient_send_request_error` on the message to
+                distinguish a temporary generation delay from a genuine
+                configuration problem.
             RateLimitError: When IBKR responds with error code ``1019``.
         """
         base_params: dict[str, str] = {
@@ -262,36 +161,7 @@ class FlexImportService:
         params = dict(base_params)
         if from_date:
             params["period"] = from_date
-        return await self._send_request_with_retries(client=client, url=url, params=params)
-
-    async def _send_request_with_retries(
-        self,
-        client: httpx.AsyncClient,
-        url: str,
-        params: dict[str, str],
-    ) -> str:
-        """Retry transient Flex SendRequest generation errors with backoff."""
-        for attempt in range(1, _FLEX_SEND_REQUEST_RETRY_ATTEMPTS + 1):
-            try:
-                return await self._send_request_once(client=client, url=url, params=params)
-            except RateLimitError:
-                raise
-            except FlexAPIError as exc:
-                transient = _is_transient_send_request_error(str(exc))
-                if not transient or attempt == _FLEX_SEND_REQUEST_RETRY_ATTEMPTS:
-                    raise
-
-                delay_seconds = attempt * _FLEX_SEND_REQUEST_RETRY_DELAY_SECONDS
-                logger.warning(
-                    "Transient Flex SendRequest failure (%s/%s): %s. Retrying in %ss.",
-                    attempt,
-                    _FLEX_SEND_REQUEST_RETRY_ATTEMPTS,
-                    exc,
-                    delay_seconds,
-                )
-                await asyncio.sleep(delay_seconds)
-
-        raise FlexAPIError("Flex SendRequest failed after retries.")
+        return await self._send_request_once(client=client, url=url, params=params)
 
     async def _send_request_once(
         self,
@@ -427,7 +297,13 @@ def _parse_wait_time(error_message: str) -> int:
     return 900
 
 
-def _is_transient_send_request_error(error_message: str) -> bool:
-    """Detect Flex SendRequest error messages that are usually temporary."""
+def is_transient_send_request_error(error_message: str) -> bool:
+    """Detect Flex SendRequest error messages that are usually temporary.
+
+    Public — used by callers (``BrokerService``, the ``/imports/flex``
+    route handler) to decide whether a ``FlexAPIError`` should be mapped
+    to HTTP 503 (temporary, safe to retry after a substantial delay) or
+    to a genuine configuration error.
+    """
     msg = error_message.lower()
     return any(marker in msg for marker in _FLEX_TRANSIENT_SEND_REQUEST_MESSAGES)

@@ -56,7 +56,7 @@ async def test_upload_import_success(client: AsyncClient, primary_user: dict[str
         raw_deleted_skipped=0,
         warnings=[]
     )
-    override_dependency.import_file.return_value = mock_result
+    override_dependency.import_trades.return_value = mock_result
     
     with patch("app.api.v1.imports._validate_account_import", return_value=BrokerType.IBKR):
         response = await client.post(
@@ -101,7 +101,7 @@ async def test_upload_import_not_allowed(client: AsyncClient, primary_user: dict
         
     assert response.status_code == 422
 
-async def test_upload_import_file_too_large(client: AsyncClient, primary_user: dict[str, Any], override_dependency):
+async def test_upload_import_trades_too_large(client: AsyncClient, primary_user: dict[str, Any], override_dependency):
     portfolio_id = uuid.uuid4()
     account_id = uuid.uuid4()
     
@@ -122,7 +122,7 @@ async def test_upload_import_parse_error(client: AsyncClient, primary_user: dict
     account_id = uuid.uuid4()
     
     from app.core.exceptions import ImportParseError
-    override_dependency.import_file.side_effect = ImportParseError("Parse error")
+    override_dependency.import_trades.side_effect = ImportParseError("Parse error")
     
     with patch("app.api.v1.imports._validate_account_import", return_value=BrokerType.IBKR):
         response = await client.post(
@@ -139,7 +139,7 @@ async def test_upload_import_account_mismatch(client: AsyncClient, primary_user:
     account_id = uuid.uuid4()
     
     from app.core.exceptions import ImportAccountMismatchError
-    override_dependency.import_file.side_effect = ImportAccountMismatchError("Mismatch")
+    override_dependency.import_trades.side_effect = ImportAccountMismatchError("Mismatch")
     
     with patch("app.api.v1.imports._validate_account_import", return_value=BrokerType.IBKR):
         response = await client.post(
@@ -156,7 +156,7 @@ async def test_upload_import_validation_error(client: AsyncClient, primary_user:
     account_id = uuid.uuid4()
     
     # We just need any validation error for mock
-    override_dependency.import_file.side_effect = ValidationError.from_exception_data(
+    override_dependency.import_trades.side_effect = ValidationError.from_exception_data(
         title="Test", line_errors=[]
     )
     
@@ -174,7 +174,7 @@ async def test_upload_import_general_exception(client: AsyncClient, primary_user
     portfolio_id = uuid.uuid4()
     account_id = uuid.uuid4()
     
-    override_dependency.import_file.side_effect = Exception("General error")
+    override_dependency.import_trades.side_effect = Exception("General error")
     
     with patch("app.api.v1.imports._validate_account_import", return_value=BrokerType.IBKR):
         response = await client.post(

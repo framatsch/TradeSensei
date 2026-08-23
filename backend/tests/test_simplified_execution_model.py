@@ -357,7 +357,7 @@ async def test_reimport_idempotent_via_brt_upsert(mock_session: AsyncMock) -> No
 @pytest.mark.asyncio
 async def test_fresh_start_deletes_and_reimports(mock_session: AsyncMock) -> None:
     """fresh_start_import must delete all executions and trades for the account
-    before running import_file; BRTs are not deleted (preserved for audit).
+    before running import_trades; BRTs are not deleted (preserved for audit).
     """
     from app.schemas.imports import FreshStartResult, ImportResult
     from app.services.import_service import ImportService
@@ -388,7 +388,7 @@ async def test_fresh_start_deletes_and_reimports(mock_session: AsyncMock) -> Non
         cash_transactions_skipped=0,
         warnings=[],
     )
-    svc.import_file = AsyncMock(return_value=import_result)  # type: ignore[method-assign]
+    svc.import_trades = AsyncMock(return_value=import_result)  # type: ignore[method-assign]
 
     from app.utils.parsers.factory import BrokerType
 
@@ -410,7 +410,7 @@ async def test_fresh_start_deletes_and_reimports(mock_session: AsyncMock) -> Non
     )
 
     # Import was called
-    svc.import_file.assert_awaited_once()
+    svc.import_trades.assert_awaited_once()
 
     # Result contains deletion counts and the import summary
     assert isinstance(result, FreshStartResult)
@@ -424,7 +424,7 @@ async def test_fresh_start_deletes_and_reimports(mock_session: AsyncMock) -> Non
 
 @pytest.mark.asyncio
 async def test_fresh_start_rollback_on_import_error(mock_session: AsyncMock) -> None:
-    """fresh_start_import must propagate any exception from import_file so the
+    """fresh_start_import must propagate any exception from import_trades so the
     caller's transaction is rolled back (the service does not commit).
 
     The route handler owns the transaction boundary; an exception bubbling up
@@ -447,8 +447,8 @@ async def test_fresh_start_rollback_on_import_error(mock_session: AsyncMock) -> 
     svc._trade_repo = AsyncMock()
     svc._trade_repo.delete_by_user_account = AsyncMock(return_value=2)
 
-    # import_file raises an error
-    svc.import_file = AsyncMock(  # type: ignore[method-assign]
+    # import_trades raises an error
+    svc.import_trades = AsyncMock(  # type: ignore[method-assign]
         side_effect=ValueError("Parse error: malformed CSV")
     )
 

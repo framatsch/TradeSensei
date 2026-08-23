@@ -130,6 +130,10 @@ class ConfigurationError(Exception):
     """Raised when a required configuration value is missing or invalid."""
 
 
+class UpstreamServiceUnavailableError(ConfigurationError):
+    """Raised when an upstream broker API is temporarily unavailable."""
+
+
 class UnsupportedContentTypeError(ValueError):
     """Raised when an uploaded file has an unsupported content type."""
 
