@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-08-24
+
 ### Changed
 - [backend] Unified IBKR ingestion paths: `/imports/flex` and IBKR file upload now both delegate to `ImportService.import_trades()`, and `FlexImportService` now acts as a pure Flex API fetch client.
 - [backend] Renamed `ImportService.import_file()` to `ImportService.import_trades()` across backend services, routes, and tests while preserving the public `ImportResult.filename` field.
@@ -709,7 +711,8 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.13.0...HEAD
+[1.14.0]: https://github.com/scheffold/TradeSensei/compare/v1.13.0...v1.14.0
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.14.0...HEAD
 [1.13.0]: https://github.com/scheffold/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/scheffold/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...v1.11.0
