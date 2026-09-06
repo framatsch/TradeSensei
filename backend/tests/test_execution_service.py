@@ -30,6 +30,7 @@ from app.models.logical_execution import (
     EXECUTION_ORIGIN_IMPORTED,
     EXECUTION_ORIGIN_MANUAL,
     EXECUTION_ORIGIN_MERGED,
+    EXECUTION_ORIGIN_SPLIT,
     LogicalExecution,
 )
 from app.models.trade import AssetClass, Direction, Trade
@@ -363,6 +364,140 @@ class TestExecutionService:
         service.execution_repo.restore.assert_called_once_with(ex.id)
         service._re_aggregate_trade.assert_called_once_with(trade_id, user_id)
         mock_session.commit.assert_called_once()
+
+    async def test_delete_execution_soft_delete_keeps_price_derived_pnl(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="DIOD",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            entry_price=Decimal("108.14"),
+            opened_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+        )
+        ex_to_delete = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("94.75"),
+            commission=Decimal("0.01"),
+            executed_at=datetime(2026, 7, 2, 14, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        updated_deleted = _make_execution(
+            id=ex_to_delete.id,
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("94.75"),
+            commission=Decimal("0.01"),
+            executed_at=ex_to_delete.executed_at,
+            origin=EXECUTION_ORIGIN_IMPORTED,
+            deleted=True,
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            price=Decimal("108.14"),
+            commission=Decimal("0.01"),
+            executed_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close_remaining = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.SHORT,
+            quantity=Decimal("5"),
+            price=Decimal("94.75"),
+            commission=Decimal("0.01"),
+            executed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close_remaining.pnl = Decimal("0")
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        service.execution_repo.get_by_id.side_effect = [ex_to_delete, updated_deleted]
+        service.trade_repo.get_by_id.side_effect = [trade, trade]
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close_remaining]
+
+        await service.delete_execution(ex_to_delete.id, user_id)
+
+        assert trade.pnl == Decimal("-66.95")
+        assert trade.net_pnl == Decimal("-66.97")
+
+    async def test_restore_execution_keeps_price_derived_pnl(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="DIOD",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            entry_price=Decimal("108.14"),
+            opened_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+        )
+        ex_deleted = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.SHORT,
+            quantity=Decimal("10"),
+            price=Decimal("94.75"),
+            commission=Decimal("0.01"),
+            executed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+            deleted=True,
+        )
+        ex_restored = _make_execution(
+            id=ex_deleted.id,
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.SHORT,
+            quantity=Decimal("10"),
+            price=Decimal("94.75"),
+            commission=Decimal("0.01"),
+            executed_at=ex_deleted.executed_at,
+            origin=EXECUTION_ORIGIN_IMPORTED,
+            deleted=False,
+        )
+        ex_restored.pnl = Decimal("0")
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            price=Decimal("108.14"),
+            commission=Decimal("0.01"),
+            executed_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+        service.execution_repo.get_by_id.side_effect = [ex_deleted, ex_restored]
+        service.trade_repo.get_by_id.side_effect = [trade, trade]
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_restored]
+
+        await service.restore_execution(ex_deleted.id, user_id)
+
+        assert trade.pnl == Decimal("-133.9")
+        assert trade.net_pnl == Decimal("-133.92")
 
     async def test_restore_non_deleted_execution_raises_400(self, service: ExecutionService) -> None:
         """restore_execution on non-deleted execution should raise 400."""
@@ -967,7 +1102,177 @@ class TestExecutionService:
         assert trade.entry_price == expected.entry_price
         assert trade.exit_price == expected.exit_price
         assert trade.commission == expected.commission
+        assert trade.pnl == expected.pnl
         assert trade.net_pnl == expected.net_pnl
+
+    async def test_reaggregate_trade_non_combo_ignores_zero_sentinel_pnl(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="DIOD",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            entry_price=Decimal("108.14"),
+            opened_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            price=Decimal("108.14"),
+            commission=Decimal("0.01"),
+            executed_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="DIOD",
+            direction=Direction.SHORT,
+            quantity=Decimal("10"),
+            price=Decimal("94.75"),
+            commission=Decimal("0.01"),
+            executed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close.pnl = Decimal("0")
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+
+        await service._re_aggregate_trade(trade.id, user_id)
+
+        assert trade.pnl == Decimal("-133.9")
+        assert trade.net_pnl == Decimal("-133.92")
+
+    async def test_reaggregate_trade_non_combo_ignores_broker_net_pnl(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="AAPL",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            entry_price=Decimal("100"),
+            opened_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+        )
+        ex_open = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            direction=Direction.LONG,
+            quantity=Decimal("10"),
+            price=Decimal("100"),
+            commission=Decimal("0.8"),
+            executed_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="AAPL",
+            direction=Direction.SHORT,
+            quantity=Decimal("10"),
+            price=Decimal("110"),
+            commission=Decimal("1.2"),
+            executed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_open.pnl = Decimal("49")
+        ex_close.pnl = Decimal("49")
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [ex_open, ex_close]
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+
+        await service._re_aggregate_trade(trade.id, user_id)
+
+        assert trade.pnl == Decimal("100")
+        assert trade.net_pnl == Decimal("98")
+
+    async def test_reaggregate_trade_non_combo_ignores_unprorated_split_child_pnl(
+        self,
+        service: ExecutionService,
+    ) -> None:
+        user_id = uuid.uuid4()
+        trade = _make_trade(
+            user_id=user_id,
+            symbol="TGT",
+            direction=Direction.LONG,
+            quantity=Decimal("20"),
+            entry_price=Decimal("114.487"),
+            opened_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+        )
+        ex_open_a = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="TGT",
+            direction=Direction.LONG,
+            quantity=Decimal("1"),
+            price=Decimal("114.24"),
+            commission=Decimal("1"),
+            executed_at=datetime(2026, 7, 1, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_open_b = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="TGT",
+            direction=Direction.LONG,
+            quantity=Decimal("19"),
+            price=Decimal("114.5"),
+            commission=Decimal("1"),
+            executed_at=datetime(2026, 7, 1, 14, 1, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_IMPORTED,
+        )
+        ex_close_a = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="TGT",
+            direction=Direction.SHORT,
+            quantity=Decimal("19"),
+            price=Decimal("111.345"),
+            commission=Decimal("0.95371"),
+            executed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_SPLIT,
+        )
+        ex_close_b = _make_execution(
+            user_id=user_id,
+            trade_id=trade.id,
+            symbol="TGT",
+            direction=Direction.SHORT,
+            quantity=Decimal("1"),
+            price=Decimal("111.345"),
+            commission=Decimal("0.0502"),
+            executed_at=datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+            origin=EXECUTION_ORIGIN_SPLIT,
+        )
+        ex_close_b.pnl = Decimal("-65.8439")
+
+        service.trade_repo.get_by_id.return_value = trade
+        service.execution_repo.list_by_trade_id.return_value = [
+            ex_open_a,
+            ex_open_b,
+            ex_close_a,
+            ex_close_b,
+        ]
+        service._re_aggregate_trade = ExecutionService._re_aggregate_trade.__get__(service, ExecutionService)
+
+        await service._re_aggregate_trade(trade.id, user_id)
+
+        assert trade.pnl == Decimal("-62.84")
+        assert trade.net_pnl == Decimal("-65.84391")
 
     async def test_reaggregate_trade_idempotent_for_same_inputs(
         self,

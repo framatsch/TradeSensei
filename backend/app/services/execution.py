@@ -1104,20 +1104,18 @@ class ExecutionService:
             else:
                 trade.closed_at = None
 
-            # PnL: prefer sum of broker-reported pnl, else compute from prices
+            # PnL (pnl-calculation): always derive gross from execution prices.
+            # Broker-reported LogicalExecution.pnl is provenance metadata only.
             # Round to 10 decimal places to avoid accumulating precision drift from
             # repeating-decimal VWAP prices (e.g. 23000/150 = 153.333...).
             if exit_qty > 0 and trade.exit_price is not None:
-                if has_broker_pnl and total_pnl is not None:
-                    trade.pnl = total_pnl.quantize(_PRECISION).normalize()
-                else:
-                    multiplier = Decimal(trade.multiplier)
-                    exit_price = trade.exit_price
-                    entry_price = trade.entry_price
-                    assert exit_price is not None
-                    assert entry_price is not None
-                    raw_pnl = (exit_price - entry_price) * exit_qty * multiplier if is_long else (entry_price - exit_price) * exit_qty * multiplier
-                    trade.pnl = raw_pnl.quantize(_PRECISION).normalize()
+                multiplier = Decimal(trade.multiplier)
+                exit_price = trade.exit_price
+                entry_price = trade.entry_price
+                assert exit_price is not None
+                assert entry_price is not None
+                raw_pnl = (exit_price - entry_price) * exit_qty * multiplier if is_long else (entry_price - exit_price) * exit_qty * multiplier
+                trade.pnl = raw_pnl.quantize(_PRECISION).normalize()
                 pnl_value = trade.pnl
                 if pnl_value is not None:
                     trade.net_pnl = (pnl_value - total_commission).quantize(_PRECISION).normalize()

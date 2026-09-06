@@ -13,6 +13,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from httpx import AsyncClient
 from sqlalchemy import text
@@ -385,3 +386,81 @@ class TestMergeTrades:
         )
 
         assert res.status_code in (400, 422, 500, 404)
+
+    async def test_merge_two_schwab_style_closed_trades_keeps_price_derived_pnl(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        headers = await _get_auth_headers(client, "mergediod")
+        portfolio_id, account_id = await _create_portfolio_and_account(
+            client,
+            headers,
+            "mergediod",
+        )
+
+        t1 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "DIOD",
+                "quantity": "4",
+                "entry_price": "108.14",
+                "commission": "0",
+                "opened_at": "2026-07-01T14:00:00Z",
+            },
+        )
+        t2 = await _create_trade(
+            client,
+            headers,
+            portfolio_id,
+            account_id,
+            {
+                "symbol": "DIOD",
+                "quantity": "6",
+                "entry_price": "108.14",
+                "commission": "0",
+                "opened_at": "2026-07-01T15:00:00Z",
+            },
+        )
+
+        close_one = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{t1['id']}/executions",
+            json={
+                "direction": "SHORT",
+                "quantity": "4",
+                "price": "94.75",
+                "commission": "0",
+                "pnl": "0",
+                "executed_at": "2026-07-02T14:00:00Z",
+            },
+            headers=headers,
+        )
+        assert close_one.status_code == 201, close_one.text
+
+        close_two = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades/{t2['id']}/executions",
+            json={
+                "direction": "SHORT",
+                "quantity": "6",
+                "price": "94.75",
+                "commission": "0",
+                "pnl": "0",
+                "executed_at": "2026-07-02T14:10:00Z",
+            },
+            headers=headers,
+        )
+        assert close_two.status_code == 201, close_two.text
+
+        merge_res = await client.post(
+            f"/api/v1/portfolios/{portfolio_id}/trades/merge",
+            json={"trade_ids": [t1["id"], t2["id"]]},
+            headers=headers,
+        )
+        assert merge_res.status_code == 200, merge_res.text
+
+        merged = merge_res.json()["data"]
+        assert merged["id"] == t1["id"]
+        assert Decimal(merged["pnl"]) == Decimal("-133.9")
+        assert Decimal(merged["net_pnl"]) == Decimal("-133.9")

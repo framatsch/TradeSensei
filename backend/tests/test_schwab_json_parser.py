@@ -236,6 +236,15 @@ def test_schwab_open_close_mapping_opening_closing_and_absent() -> None:
 
 
 @pytest.mark.unit
+def test_schwab_closing_position_sets_zero_pnl_as_presence_sentinel() -> None:
+    parser = SchwabJSONParser()
+    payload = _wrapped_payload(_equity_txn(activity_id=9004, position_effect="CLOSING"))
+    raw, _ = parser.parse_raw(json.dumps(payload).encode("utf-8"), "closing_sentinel.json")
+    assert len(raw) == 1
+    assert raw[0].pnl == Decimal("0")
+
+
+@pytest.mark.unit
 def test_real_export_regression_five_records_zero_warnings_and_cost_direction() -> None:
     parser = SchwabJSONParser()
     fixture = Path(__file__).resolve().parents[2] / "tests" / "test_data" / "schwab" / "schwab_transactions_real_trimmed.json"
