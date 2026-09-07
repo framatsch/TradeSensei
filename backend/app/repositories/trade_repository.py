@@ -1234,6 +1234,27 @@ class TradeRepository:
             ids = await ids
         return list(ids)
 
+    async def list_protected_trade_states_by_user_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+    ) -> list[tuple[uuid.UUID, bool]]:
+        """Return protected trade IDs with their open/closed state.
+
+        Returns tuples ``(trade_id, is_open)`` where ``is_open`` is True when
+        ``closed_at IS NULL``.
+        """
+        stmt = select(Trade.id, Trade.closed_at).where(
+            Trade.user_id == user_id,
+            Trade.account_id == account_id,
+            Trade.is_manually_edited.is_(True),
+        )
+        result = await self._session.execute(stmt)
+        rows = result.all()
+        if isawaitable(rows):
+            rows = await rows
+        return [(trade_id, closed_at is None) for trade_id, closed_at in rows]
+
     async def list_by_user_and_symbol(
         self,
         user_id: uuid.UUID,

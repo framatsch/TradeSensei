@@ -194,7 +194,7 @@ class TestMergeTrades:
         assert exec_res.status_code == 200, exec_res.text
         executions = exec_res.json()["data"]
         assert executions
-        assert all(execution["user_modified"] is True for execution in executions)
+        assert all(execution["user_modified"] is False for execution in executions)
 
         # Make sure the other trades are deleted
         res2 = await client.get(

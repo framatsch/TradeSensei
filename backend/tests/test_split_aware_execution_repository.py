@@ -150,3 +150,40 @@ def test_iter_batches_splits_input_by_batch_size() -> None:
 def test_iter_batches_rejects_non_positive_batch_size() -> None:
     with pytest.raises(ValueError, match="batch_size"):
         list(ExecutionRepository.iter_batches([uuid.uuid4()], batch_size=0))
+
+
+@pytest.mark.unit
+async def test_list_manual_standin_contract_refs_by_user_account_filters_expected_rows() -> None:
+    repo, session = _repo_with_session()
+    trade_a = uuid.uuid4()
+    trade_b = uuid.uuid4()
+    session.execute.return_value = MagicMock(
+        all=lambda: [
+            (trade_a, "AAPL", "1001"),
+            (trade_b, "MSFT", None),
+            (None, "IGNORED", "9999"),
+        ]
+    )
+
+    refs = await repo.list_manual_standin_contract_refs_by_user_account(
+        user_id=uuid.uuid4(),
+        account_id=uuid.uuid4(),
+    )
+
+    assert {(ref.trade_id, ref.symbol, ref.conid) for ref in refs} == {
+        (trade_a, "AAPL", "1001"),
+        (trade_b, "MSFT", None),
+    }
+
+
+@pytest.mark.unit
+async def test_list_manual_standin_contract_refs_by_user_account_empty_when_no_rows() -> None:
+    repo, session = _repo_with_session()
+    session.execute.return_value = MagicMock(all=lambda: [])
+
+    refs = await repo.list_manual_standin_contract_refs_by_user_account(
+        user_id=uuid.uuid4(),
+        account_id=uuid.uuid4(),
+    )
+
+    assert refs == []

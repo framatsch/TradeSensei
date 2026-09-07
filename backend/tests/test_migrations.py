@@ -206,6 +206,233 @@ async def test_backfill_migration_seeds_defaults_for_existing_user() -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_user_modified_cleanup_migration_clears_eligible_rows_and_is_idempotent() -> None:
+    """New migration should clear only provably false user_modified markers."""
+    backend_dir = Path(__file__).resolve().parents[1]
+
+    def _run_alembic(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["uv", "run", "alembic", *args],
+            capture_output=True,
+            text=True,
+            cwd=backend_dir,
+            check=False,
+        )
+
+    def _skip_if_db_unavailable(result: subprocess.CompletedProcess[str]) -> None:
+        if result.returncode != 0 and "Connect call failed" in result.stderr:
+            pytest.skip("Database is unavailable for migration integration test.")
+
+    to_before = _run_alembic("downgrade", "5f3d8c2a1b77")
+    _skip_if_db_unavailable(to_before)
+    if to_before.returncode != 0:
+        pytest.skip(
+            "Downgrade failed, likely due to intentionally non-downgradable head "
+            f"or data constraint violations: {to_before.stderr}"
+        )
+
+    user_id = uuid.uuid4()
+    imported_clear_id = uuid.uuid4()
+    split_clear_id = uuid.uuid4()
+    manual_keep_id = uuid.uuid4()
+    imported_keep_id = uuid.uuid4()
+    imported_missing_source_keep_id = uuid.uuid4()
+    imported_parent_id = uuid.uuid4()
+    matching_raw_id = f"{user_id}:cleanup-match"
+    nonmatching_raw_id = f"{user_id}:cleanup-nonmatch"
+    account_id = uuid.uuid4()
+    trade_id = uuid.uuid4()
+    executed_at = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+
+    engine = create_async_engine(settings.async_database_url, echo=False)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        id, username, email, hashed_password, provider,
+                        is_active, refresh_token_version
+                    )
+                    VALUES (:id, :username, :email, :hashed_password, 'local', true, 0)
+                    """
+                ),
+                {
+                    "id": user_id,
+                    "username": f"umc_{user_id.hex[:8]}",
+                    "email": f"umc_{user_id.hex[:8]}@example.com",
+                    "hashed_password": "test-hash",
+                },
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO accounts (id, user_id, name, type, currency)
+                    VALUES (:id, :user_id, 'Migration Account', 'ibkr', 'USD')
+                    """
+                ),
+                {"id": account_id, "user_id": user_id},
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO trades (
+                        id, user_id, account_id, symbol, direction, asset_class,
+                        quantity, entry_price, opened_at, closed_at, commission,
+                        position_id, is_manually_edited
+                    )
+                    VALUES (
+                        :id, :user_id, :account_id, 'AAPL', 'LONG', 'EQUITY',
+                        10, 100, :opened_at, NULL, 0,
+                        gen_random_uuid(), true
+                    )
+                    """
+                ),
+                {
+                    "id": trade_id,
+                    "user_id": user_id,
+                    "account_id": account_id,
+                    "opened_at": executed_at,
+                },
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO broker_raw_transactions (
+                        id, user_id, account_id, broker_type, symbol, conid, asset_class,
+                        direction, quantity, price, commission, executed_at, pnl, currency,
+                        multiplier, open_close, raw_data, suppressed, created_at
+                    )
+                    VALUES
+                    (:matching_raw_id, :user_id, :account_id, 'ibkr', 'AAPL', '1001', 'EQUITY',
+                     'LONG', 10, 100, 1, :executed_at, NULL, 'USD', 1, 'O', '{}'::jsonb, false, NOW()),
+                    (:nonmatching_raw_id, :user_id, :account_id, 'ibkr', 'AAPL', '1001', 'EQUITY',
+                     'LONG', 10, 101, 1, :executed_at, NULL, 'USD', 1, 'O', '{}'::jsonb, false, NOW())
+                    """
+                ),
+                {
+                    "matching_raw_id": matching_raw_id,
+                    "nonmatching_raw_id": nonmatching_raw_id,
+                    "user_id": user_id,
+                    "account_id": account_id,
+                    "executed_at": executed_at,
+                },
+            )
+
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO logical_executions (
+                        id, user_id, account_id, symbol, conid, asset_class, direction,
+                        quantity, price, commission, executed_at, pnl, pnl_eur, multiplier,
+                        currency, origin, deleted, user_modified, is_mixed_execution,
+                        open_close, source_id, parent_id, trade_id, created_at, updated_at
+                    )
+                    VALUES
+                    (:imported_clear_id, :user_id, :account_id, 'AAPL', '1001', 'EQUITY', 'LONG',
+                     10, 100, 1, :executed_at, NULL, NULL, 1,
+                     'USD', 'imported', false, true, false, 'O', :matching_raw_id, NULL, :trade_id, NOW(), NOW()),
+                    (:split_clear_id, :user_id, :account_id, 'AAPL', '1001', 'EQUITY', 'LONG',
+                     5, 100, 0.5, :executed_at, NULL, NULL, 1,
+                     'USD', 'split', false, true, false, 'O', NULL, :imported_parent_id, :trade_id, NOW(), NOW()),
+                    (:manual_keep_id, :user_id, :account_id, 'AAPL', '1001', 'EQUITY', 'LONG',
+                     1, 100, 0, :executed_at, NULL, NULL, 1,
+                     'USD', 'manual', false, true, false, NULL, NULL, NULL, :trade_id, NOW(), NOW()),
+                    (:imported_keep_id, :user_id, :account_id, 'AAPL', '1001', 'EQUITY', 'LONG',
+                     10, 100, 1, :executed_at, NULL, NULL, 1,
+                     'USD', 'imported', false, true, false, 'O', :nonmatching_raw_id, NULL, :trade_id, NOW(), NOW()),
+                    (:imported_missing_source_keep_id, :user_id, :account_id, 'AAPL', '1001', 'EQUITY', 'LONG',
+                     10, 100, 1, :executed_at, NULL, NULL, 1,
+                     'USD', 'imported', false, true, false, 'O', NULL, NULL, :trade_id, NOW(), NOW()),
+                    (:imported_parent_id, :user_id, :account_id, 'AAPL', '1001', 'EQUITY', 'LONG',
+                     10, 100, 1, :executed_at, NULL, NULL, 1,
+                     'USD', 'imported', false, false, false, 'O', NULL, NULL, :trade_id, NOW(), NOW())
+                    """
+                ),
+                {
+                    "imported_clear_id": imported_clear_id,
+                    "split_clear_id": split_clear_id,
+                    "manual_keep_id": manual_keep_id,
+                    "imported_keep_id": imported_keep_id,
+                    "imported_missing_source_keep_id": imported_missing_source_keep_id,
+                    "imported_parent_id": imported_parent_id,
+                    "user_id": user_id,
+                    "account_id": account_id,
+                    "executed_at": executed_at,
+                    "matching_raw_id": matching_raw_id,
+                    "nonmatching_raw_id": nonmatching_raw_id,
+                    "trade_id": trade_id,
+                },
+            )
+
+        apply_migration = _run_alembic("upgrade", "head")
+        _skip_if_db_unavailable(apply_migration)
+        assert apply_migration.returncode == 0, apply_migration.stderr
+
+        async def _fetch_state() -> tuple[dict[uuid.UUID, bool], bool]:
+            async with engine.connect() as conn:
+                execution_rows = await conn.execute(
+                    text(
+                        """
+                        SELECT id, user_modified
+                        FROM logical_executions
+                        WHERE id IN (
+                            :imported_clear_id,
+                            :split_clear_id,
+                            :manual_keep_id,
+                            :imported_keep_id,
+                            :imported_missing_source_keep_id
+                        )
+                        """
+                    ),
+                    {
+                        "imported_clear_id": imported_clear_id,
+                        "split_clear_id": split_clear_id,
+                        "manual_keep_id": manual_keep_id,
+                        "imported_keep_id": imported_keep_id,
+                        "imported_missing_source_keep_id": imported_missing_source_keep_id,
+                    },
+                )
+                execution_map = {row[0]: row[1] for row in execution_rows.fetchall()}
+
+                trade_row = await conn.execute(
+                    text("SELECT is_manually_edited FROM trades WHERE id = :trade_id"),
+                    {"trade_id": trade_id},
+                )
+                trade_flag = bool(trade_row.scalar_one())
+                return execution_map, trade_flag
+
+        state_after_first, trade_flag_after_first = await _fetch_state()
+
+        assert state_after_first[imported_clear_id] is False
+        assert state_after_first[split_clear_id] is False
+        assert state_after_first[manual_keep_id] is True
+        assert state_after_first[imported_keep_id] is True
+        assert state_after_first[imported_missing_source_keep_id] is True
+        assert trade_flag_after_first is True
+
+        rerun = _run_alembic("upgrade", "head")
+        _skip_if_db_unavailable(rerun)
+        assert rerun.returncode == 0, rerun.stderr
+
+        state_after_second, trade_flag_after_second = await _fetch_state()
+        assert state_after_second == state_after_first
+        assert trade_flag_after_second is True
+    finally:
+        async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+        await engine.dispose()
+
+        restore_head = _run_alembic("upgrade", "head")
+        _skip_if_db_unavailable(restore_head)
+        assert restore_head.returncode == 0, restore_head.stderr
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_execution_metadata_protection_backfill_migration_marks_expected_rows() -> None:
     """Backfill migration marks metadata-edited rows and leaves clean rows untouched."""
     backend_dir = Path(__file__).resolve().parents[1]

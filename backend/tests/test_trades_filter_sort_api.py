@@ -444,7 +444,7 @@ class TestTradeFilterExecutionState:
         returned_ids = {item["id"] for item in items}
         assert manual_trade["id"] in returned_ids
 
-    async def test_filter_by_execution_state_edited_after_metadata_patch(
+    async def test_filter_by_execution_state_edited_excludes_metadata_only_patch(
         self, client: AsyncClient
     ) -> None:
         h = await _get_auth_headers(client)
@@ -466,7 +466,7 @@ class TestTradeFilterExecutionState:
             symbols=["ESTATEE"],
         )
         returned_ids = {item["id"] for item in items}
-        assert trade["id"] in returned_ids
+        assert trade["id"] not in returned_ids
 
     async def test_filter_by_execution_state_or_semantics(self, client: AsyncClient) -> None:
         h = await _get_auth_headers(client)

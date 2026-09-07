@@ -162,11 +162,133 @@ def test_build_combo_positions_unmatched_close_warns_and_keeps_open() -> None:
     assert len(result.warnings) == 1
     assert "order-close" in result.warnings[0]
     assert len(result.combo_trades) == 1
-    combo = result.combo_trades[0].trade_create
-    assert combo.closed_at is None
-    assert combo.pnl is None
-    # anomalous close legs stay attached for visibility
-    assert len(result.combo_trades[0].source_executions) == 4
+
+
+@pytest.mark.unit
+def test_build_combo_positions_unmatched_close_suppressed_for_protected_contracts() -> None:
+    """A close order whose missing open belongs to a closed protected trade must not warn.
+
+    The opening legs were excluded from the aggregation input upstream (they
+    belong to an isolated closed metadata-protected trade), so the closing
+    order legitimately has no open counterpart here. That is expected, not
+    an anomaly — the warning is demoted to a debug log instead.
+    """
+    close_leg_a = TradeCreate(
+        symbol="TEST",
+        direction=Direction.SHORT,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("11"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 1, 2, 10, 0, tzinfo=UTC),
+        broker_conid="A",
+        source_execution_id="close-a",
+        broker_order_id="order-close",
+        open_close="C",
+        net_cash=Decimal("1100"),
+        pnl=Decimal("100"),
+    )
+    close_leg_b = TradeCreate(
+        symbol="TEST",
+        direction=Direction.LONG,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("8"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 1, 2, 10, 0, tzinfo=UTC),
+        broker_conid="B",
+        source_execution_id="close-b",
+        broker_order_id="order-close",
+        open_close="C",
+        net_cash=Decimal("-800"),
+        pnl=Decimal("-50"),
+    )
+
+    result = build_combo_positions(
+        [close_leg_a, close_leg_b],
+        protected_contracts={("TEST", "A"), ("TEST", "B")},
+    )
+
+    assert result.warnings == []
+    assert result.combo_trades == []
+
+
+@pytest.mark.unit
+def test_build_combo_positions_unmatched_close_still_warns_when_not_fully_protected() -> None:
+    """Only warning suppression requires EVERY leg's contract to be protected.
+
+    Same fixture as ``test_build_combo_positions_unmatched_close_warns_and_keeps_open``:
+    the close order's contract set ("A", "C") does not match the open
+    position's ("A", "B"). Only "A" is protected — "C" is not — so this
+    remains a genuine anomaly and must still warn.
+    """
+    open_leg_a = TradeCreate(
+        symbol="TEST",
+        direction=Direction.LONG,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("10"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+        broker_conid="A",
+        source_execution_id="open-a",
+        broker_order_id="order-open",
+        open_close="O",
+        net_cash=Decimal("-1000"),
+    )
+    open_leg_b = TradeCreate(
+        symbol="TEST",
+        direction=Direction.SHORT,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("8"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+        broker_conid="B",
+        source_execution_id="open-b",
+        broker_order_id="order-open",
+        open_close="O",
+        net_cash=Decimal("800"),
+    )
+    close_leg_a = TradeCreate(
+        symbol="TEST",
+        direction=Direction.SHORT,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("11"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 1, 2, 10, 0, tzinfo=UTC),
+        broker_conid="A",
+        source_execution_id="close-a",
+        broker_order_id="order-close",
+        open_close="C",
+        net_cash=Decimal("1100"),
+        pnl=Decimal("100"),
+    )
+    close_leg_c = TradeCreate(
+        symbol="TEST",
+        direction=Direction.LONG,
+        asset_class=AssetClass.OPTION,
+        quantity=Decimal("1"),
+        entry_price=Decimal("3"),
+        commission=Decimal("1"),
+        opened_at=datetime(2026, 1, 2, 10, 0, tzinfo=UTC),
+        broker_conid="C",
+        source_execution_id="close-c",
+        broker_order_id="order-close",
+        open_close="C",
+        net_cash=Decimal("-300"),
+        pnl=Decimal("-50"),
+    )
+
+    result = build_combo_positions(
+        [open_leg_a, open_leg_b, close_leg_a, close_leg_c],
+        protected_contracts={("TEST", "A")},
+    )
+
+    assert len(result.warnings) == 1
+    assert "order-close" in result.warnings[0]
+    assert len(result.combo_trades) == 1
 
 
 @pytest.mark.unit

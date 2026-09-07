@@ -25,11 +25,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.exceptions import AccountNotFoundError, ImportParseError
+from app.models.trade import Trade
 from app.models.trade import AssetClass, Direction
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.imports import ImportResult
 from app.schemas.trade import TradeCreate
-from app.services.import_service import ImportService
+from app.services.import_service import IMPORT_UPDATABLE_TRADE_FIELDS, ImportService
 from app.utils.parsers.aggregator import TradeCreateWithSources
 from app.utils.parsers.factory import BrokerType, get_parser
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
@@ -201,6 +202,32 @@ class TestImportService:
         assert result.trades_skipped == 0
         assert result.broker == "ibkr"
         assert result.filename == "activity.csv"
+
+    @pytest.mark.unit
+    def test_import_updatable_trade_fields_cover_all_trade_columns(self) -> None:
+        metadata_fields = {
+            "journal",
+            "user_rating",
+            "image_urls",
+            "tradingview_link",
+            "playbook_id",
+            "is_manually_edited",
+            "stop_loss",
+            "take_profit",
+        }
+        system_fields = {
+            "id",
+            "user_id",
+            "account_id",
+            "created_at",
+            "updated_at",
+            "symbol",
+        }
+        classified_fields = IMPORT_UPDATABLE_TRADE_FIELDS | metadata_fields | system_fields
+        trade_columns = {column.name for column in Trade.__table__.columns}
+
+        assert trade_columns - classified_fields == set()
+        assert IMPORT_UPDATABLE_TRADE_FIELDS - trade_columns == set()
 
     @pytest.mark.unit
     async def test_zero_insert_raw_pipeline_skips_rebuild_without_override(
@@ -799,6 +826,10 @@ class TestImportService:
                     [],
                 ),
                 (
+                    "app.services.import_service.TradeRepository.list_protected_trade_states_by_user_account",
+                    [(existing_trade.id, False)],
+                ),
+                (
                     "app.services.import_service.TradeRepository.list_by_user_account",
                     [existing_trade],
                 ),
@@ -836,6 +867,10 @@ class TestImportService:
                 ),
                 (
                     "app.services.import_service.ImportService._build_seed_combo_execution_trades",
+                    [],
+                ),
+                (
+                    "app.services.import_service.ExecutionRepository.list_manual_standin_contract_refs_by_user_account",
                     [],
                 ),
                 (
@@ -922,7 +957,7 @@ class TestImportService:
         assert any("protected_skipped" in warning for warning in result.warnings)
 
     @pytest.mark.unit
-    async def test_unlinked_protected_execution_is_reported_and_counted(
+    async def test_unlinked_closed_protected_execution_is_reported_and_counted(
         self,
         import_service: ImportService,
     ) -> None:
@@ -972,13 +1007,14 @@ class TestImportService:
                 ("app.services.import_service.TradeRepository.list_manually_edited_keys", set()),
                 ("app.services.import_service.TradeRepository.list_existing_entry_keys", set()),
                 ("app.services.import_service.TradeRepository.list_existing_close_keys", set()),
-                ("app.services.import_service.TradeRepository.list_protected_trade_ids_by_user_account", [protected_trade.id]),
+                ("app.services.import_service.TradeRepository.list_protected_trade_states_by_user_account", [(protected_trade.id, False)]),
                 ("app.services.import_service.BrokerRawTransactionRepository.bulk_upsert", [stamped_raw.id]),
                 ("app.services.import_service.BrokerRawTransactionRepository.get_by_id", MagicMock(id=stamped_raw.id)),
                 ("app.services.import_service.BrokerRawTransactionRepository.list_released_without_execution", []),
                 ("app.services.import_service.LogicalExecutionService.bulk_create_from_raw", ([], 0)),
                 ("app.services.import_service.ImportService._collect_trade_creates_from_logical_batches", []),
                 ("app.services.import_service.ImportService._build_seed_combo_execution_trades", []),
+                ("app.services.import_service.ExecutionRepository.list_manual_standin_contract_refs_by_user_account", []),
                 ("app.services.import_service.ImportService._resolve_anchor_trade_ids", {0: protected_trade.id}),
                 ("app.services.import_service.ImportService._assign_position_ids_from_sources", None),
                 ("app.services.import_service.ExecutionRepository.list_by_trade_id", []),
@@ -1075,6 +1111,110 @@ class TestImportService:
 
         assert result.unlinked_executions == 1
         assert any("protected_unlinked_execution" in warning for warning in result.warnings)
+
+    @pytest.mark.unit
+    async def test_open_protected_trade_is_updated_instead_of_reported_unlinked(
+        self,
+        import_service: ImportService,
+    ) -> None:
+        fake_account = MagicMock()
+        user_id = uuid.uuid4()
+        account_id = uuid.uuid4()
+        now = datetime(2026, 1, 3, 10, 0, tzinfo=UTC)
+
+        existing_trade = MagicMock()
+        existing_trade.id = uuid.uuid4()
+        existing_trade.broker_conid = "777777"
+        existing_trade.opened_at = now
+        existing_trade.is_manually_edited = True
+
+        incoming = _make_trade_create(
+            symbol="PROTOPEN",
+            broker_conid="777777",
+            opened_at=now,
+        )
+        tws = TradeCreateWithSources(trade_create=incoming, source_executions=[])
+
+        raw_record = MagicMock()
+        raw_record.id = "raw-prot-open-1"
+        stamped_raw = MagicMock()
+        stamped_raw.id = f"{user_id}:{raw_record.id}"
+        raw_record.model_copy.return_value = stamped_raw
+
+        mock_parser = MagicMock()
+        mock_parser.parse_raw.return_value = ([raw_record], [])
+        mock_parser.warnings = []
+        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
+
+        with ExitStack() as stack:
+            common_async_patches = [
+                ("app.services.import_service.AccountRepository.get_by_id", fake_account),
+                ("app.services.import_service.CorporateActionRepository.list_by_user", []),
+                ("app.services.import_service.TradeRepository.list_open_lots_by_user", []),
+                ("app.services.import_service.TradeRepository.list_orphaned_lots_by_user", []),
+                ("app.services.import_service.TradeRepository.list_open_combo_positions_by_user", []),
+                ("app.services.import_service.TradeRepository.list_by_user_account", [existing_trade]),
+                ("app.services.import_service.TradeRepository.list_manually_edited_keys", set()),
+                ("app.services.import_service.TradeRepository.list_existing_entry_keys", set()),
+                ("app.services.import_service.TradeRepository.list_existing_close_keys", set()),
+                ("app.services.import_service.TradeRepository.list_protected_trade_states_by_user_account", [(existing_trade.id, True)]),
+                ("app.services.import_service.BrokerRawTransactionRepository.bulk_upsert", [stamped_raw.id]),
+                ("app.services.import_service.BrokerRawTransactionRepository.get_by_id", MagicMock(id=stamped_raw.id)),
+                ("app.services.import_service.BrokerRawTransactionRepository.list_released_without_execution", []),
+                ("app.services.import_service.LogicalExecutionService.bulk_create_from_raw", ([], 0)),
+                ("app.services.import_service.ImportService._collect_trade_creates_from_logical_batches", []),
+                ("app.services.import_service.ImportService._build_seed_combo_execution_trades", []),
+                ("app.services.import_service.ImportService._build_seed_execution_trades_for_open_protected_trades", []),
+                ("app.services.import_service.ExecutionRepository.list_manual_standin_contract_refs_by_user_account", []),
+                ("app.services.import_service.ImportService._resolve_anchor_trade_ids", {0: existing_trade.id}),
+                ("app.services.import_service.ImportService._assign_position_ids_from_sources", None),
+                ("app.services.import_service.ImportService._backfill_execution_trade_links", None),
+                ("app.services.import_service.ExecutionRepository.list_by_trade_id", []),
+                ("app.services.import_service.ExecutionRepository.delete_split_children_for_account", 0),
+                ("app.services.import_service.ExecutionRepository.restore_split_parents_for_account", 0),
+                ("app.services.import_service.ExecutionRepository.list_active_execution_contract_refs_by_trade_ids", []),
+                ("app.services.import_service.ExecutionRepository.list_unlinked_by_source_ids_for_contracts", []),
+                ("app.services.import_service.ExecutionRepository.has_unlinked_for_trade_contracts", False),
+                ("app.services.import_service.TradeRepository.delete_by_user_account", 0),
+                ("app.services.import_service.PortfolioRepository.get_by_id", None),
+            ]
+            for target, return_value in common_async_patches:
+                stack.enter_context(
+                    patch(target, new_callable=AsyncMock, return_value=return_value)
+                )
+
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.build_combo_positions",
+                    return_value=MagicMock(fifo_executions=[], combo_trades=[], warnings=[]),
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.aggregate_executions_fifo_with_sources",
+                    return_value=[tws],
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "app.services.import_service.get_parser",
+                    return_value=mock_parser,
+                )
+            )
+
+            result = await import_service.import_trades(
+                content=b"raw",
+                filename="activity.xml",
+                broker=BrokerType.IBKR,
+                portfolio_id=TEST_PORTFOLIO_ID,
+                account_id=account_id,
+                user_id=user_id,
+                overwrite_manually_edited=False,
+            )
+
+        assert result.unlinked_executions == 0
+        assert any(line.startswith("updated:") for line in result.activity_log)
+        assert not any("protected_unlinked_execution" in warning for warning in result.warnings)
 
     @pytest.mark.unit
     async def test_failed_trade_create_counted_as_skipped(

@@ -346,6 +346,9 @@ function isEntryExecution(
   exec: LogicalExecution,
   tradeDirection: string,
 ): boolean {
+  if (exec.open_close === "O") return true;
+  if (exec.open_close === "C") return false;
+
   const td = tradeDirection.toUpperCase();
   const ed = exec.direction.toUpperCase();
   return td === "LONG"
@@ -532,6 +535,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   // Chart symbol: for options use the underlying, otherwise raw symbol
   const chartSymbol = occ.isOption ? occ.underlying : occ.underlying;
   const assetClass = trade.asset_class ?? "EQUITY";
+  const isOptionsTrade = occ.isOption || assetClass === "OPTION" || (executions?.some(e => e.asset_class === "OPTION") ?? false);
 
   const entryDate = new Date(trade.opened_at);
   const exitDate = trade.closed_at ? new Date(trade.closed_at) : null;
@@ -684,7 +688,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           }
 
           // Add horizontal price lines for entry and exit
-          if (showTradeLinesRef.current) {
+          if (showTradeLinesRef.current && !isOptionsTrade) {
             if (lineEntryPrice) {
               const pl = seriesRef.current.createPriceLine({
                 price: parseFloat(lineEntryPrice),

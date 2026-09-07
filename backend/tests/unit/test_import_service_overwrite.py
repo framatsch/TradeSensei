@@ -38,9 +38,11 @@ def import_service():
     svc._exec_repo.delete_split_children_for_account.return_value = 1
     svc._exec_repo.restore_split_parents_for_account.return_value = 1
     svc._raw_repo.bulk_upsert.return_value = []
+    svc._raw_repo.list_released_without_execution.return_value = []
     svc._logical_svc.bulk_create_from_raw.return_value = ([], 0)
     svc._trade_repo.list_open_combo_positions_by_user.return_value = []
     svc._ca_repo.list_by_user.return_value = []
+    svc._exec_repo.has_absorbable_unlinked_execution_for_open_protected_trades.return_value = False
     
     return svc
 

@@ -90,6 +90,8 @@ class ImportResult(BaseModel):
             encountered during rebuild and skipped from structural updates.
         trades_protected_skipped: Number of metadata-protected positions
             skipped because no existing trade could be resolved for them.
+        protected_positions_closed: Number of executions linked to open
+            metadata-protected trades via seed-lot matching.
         unlinked_executions: Number of executions left unlinked because their
             target contract belongs to a protected trade.
         warnings: Human-readable descriptions of each skipped row.
@@ -171,6 +173,12 @@ class ImportResult(BaseModel):
             "because no existing trade could be resolved to reconcile them "
             "onto. See ``warnings`` for the affected symbol/date."
         ),
+        examples=[0, 1],
+    )
+    protected_positions_closed: int = Field(
+        default=0,
+        ge=0,
+        description=("Number of executions linked to open metadata-protected trades via seed-lot matching during projection rebuild."),
         examples=[0, 1],
     )
     unlinked_executions: int = Field(

@@ -597,7 +597,6 @@ class TradeService:
 
         if should_mark_execution_user_modified:
             await self._repo.mark_manually_edited(trade_id, user_id)
-            await self._exec_repo.mark_user_modified_for_trade(trade_id)
 
         propagation_fields = {"playbook_id", "taxonomy_ids", "journal", "user_rating"}
         should_propagate = bool(propagation_fields & data.model_fields_set)
@@ -862,9 +861,6 @@ class TradeService:
 
         survivor.is_combo = merge_becomes_combo
         survivor.is_manually_edited = True
-        mark_user_modified = getattr(exec_repo, "mark_user_modified_for_trade", None)
-        if callable(mark_user_modified):
-            await mark_user_modified(survivor.id)
         self._session.add(survivor)
 
         # Re-aggregate survivor

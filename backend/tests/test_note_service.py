@@ -121,7 +121,7 @@ class TestAddNote:
         assert result.emotion == "calm"
 
     @pytest.mark.unit
-    async def test_add_note_marks_trade_executions_user_modified(
+    async def test_add_note_marks_trade_manually_edited(
         self,
         service: NoteService,
     ) -> None:
@@ -136,10 +136,10 @@ class TestAddNote:
                 return_value=note,
             ),
             patch(
-                "app.services.note_service.ExecutionRepository.mark_user_modified_for_trade",
+                "app.services.note_service.TradeRepository.mark_manually_edited",
                 new_callable=AsyncMock,
-                return_value=1,
-            ) as mark_user_modified,
+                return_value=None,
+            ) as mark_manually_edited,
         ):
             await service.add_note(
                 trade_id,
@@ -147,7 +147,7 @@ class TestAddNote:
                 user_id,
             )
 
-        mark_user_modified.assert_awaited_once_with(trade_id)
+        mark_manually_edited.assert_awaited_once_with(trade_id, user_id)
 
 
 class TestUpdateNote:
@@ -183,7 +183,7 @@ class TestUpdateNote:
         assert result.content == "Revised: actually a valid setup."
 
     @pytest.mark.unit
-    async def test_update_note_marks_trade_executions_user_modified(
+    async def test_update_note_marks_trade_manually_edited(
         self,
         service: NoteService,
     ) -> None:
@@ -201,10 +201,10 @@ class TestUpdateNote:
                 return_value=updated_note,
             ),
             patch(
-                "app.services.note_service.ExecutionRepository.mark_user_modified_for_trade",
+                "app.services.note_service.TradeRepository.mark_manually_edited",
                 new_callable=AsyncMock,
-                return_value=1,
-            ) as mark_user_modified,
+                return_value=None,
+            ) as mark_manually_edited,
         ):
             await service.update_note(
                 note.id,
@@ -213,7 +213,7 @@ class TestUpdateNote:
                 note.user_id,
             )
 
-        mark_user_modified.assert_awaited_once_with(note.trade_id)
+        mark_manually_edited.assert_awaited_once_with(note.trade_id, note.user_id)
 
     @pytest.mark.unit
     async def test_raises_not_found_when_missing(self, service: NoteService) -> None:
@@ -262,7 +262,7 @@ class TestDeleteNote:
         mock_delete.assert_awaited_once_with(note)
 
     @pytest.mark.unit
-    async def test_delete_note_marks_trade_executions_user_modified(
+    async def test_delete_note_marks_trade_manually_edited(
         self,
         service: NoteService,
     ) -> None:
@@ -278,14 +278,14 @@ class TestDeleteNote:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.services.note_service.ExecutionRepository.mark_user_modified_for_trade",
+                "app.services.note_service.TradeRepository.mark_manually_edited",
                 new_callable=AsyncMock,
-                return_value=1,
-            ) as mark_user_modified,
+                return_value=None,
+            ) as mark_manually_edited,
         ):
             await service.delete_note(note.id, note.trade_id, note.user_id)
 
-        mark_user_modified.assert_awaited_once_with(note.trade_id)
+        mark_manually_edited.assert_awaited_once_with(note.trade_id, note.user_id)
 
     @pytest.mark.unit
     async def test_raises_not_found_when_missing(self, service: NoteService) -> None:

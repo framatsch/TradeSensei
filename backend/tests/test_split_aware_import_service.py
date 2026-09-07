@@ -503,6 +503,85 @@ async def test_collect_trade_creates_excludes_protected_execution_ids() -> None:
 
 
 @pytest.mark.unit
+async def test_resolve_protected_execution_snapshot_splits_open_and_closed() -> None:
+    service = _service()
+    open_trade_id = uuid.uuid4()
+    closed_trade_id = uuid.uuid4()
+    open_exec_id = uuid.uuid4()
+    closed_exec_id = uuid.uuid4()
+
+    service._trade_repo.list_protected_trade_states_by_user_account = AsyncMock(
+        return_value=[
+            (open_trade_id, True),
+            (closed_trade_id, False),
+        ]
+    )
+    service._exec_repo.list_active_execution_contract_refs_by_trade_ids = AsyncMock(
+        return_value=[
+            MagicMock(
+                execution_id=open_exec_id,
+                symbol="OPENPROT",
+                conid="1001",
+                trade_id=open_trade_id,
+            ),
+            MagicMock(
+                execution_id=closed_exec_id,
+                symbol="CLOSEDPROT",
+                conid="1002",
+                trade_id=closed_trade_id,
+            ),
+        ]
+    )
+
+    snapshot = await service._resolve_protected_execution_snapshot(
+        user_id=uuid.uuid4(),
+        account_id=uuid.uuid4(),
+    )
+
+    assert snapshot.open_trade_ids == {open_trade_id}
+    assert snapshot.closed_trade_ids == {closed_trade_id}
+    assert snapshot.open_execution_ids == {open_exec_id}
+    assert snapshot.closed_execution_ids == {closed_exec_id}
+    assert snapshot.closed_contracts == {("CLOSEDPROT", "1002")}
+
+
+@pytest.mark.unit
+async def test_build_seed_execution_trades_for_open_protected_trades_sets_db_trade_id() -> None:
+    service = _service()
+    open_trade_id = uuid.uuid4()
+    execution_id = uuid.uuid4()
+    execution = MagicMock(
+        id=execution_id,
+        trade_id=open_trade_id,
+        open_close="O",
+        symbol="SEED1",
+        conid="2001",
+        asset_class="EQUITY",
+        direction="LONG",
+        quantity=Decimal("2"),
+        price=Decimal("100"),
+        commission=Decimal("1"),
+        executed_at=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
+        pnl=None,
+        multiplier=1,
+        currency="USD",
+    )
+    service._exec_repo.list_by_trade_ids = AsyncMock(
+        return_value={open_trade_id: [execution]}
+    )
+
+    rows = await service._build_seed_execution_trades_for_open_protected_trades(
+        trade_ids={open_trade_id},
+        existing_source_ids=set(),
+    )
+
+    assert len(rows) == 1
+    assert rows[0].db_trade_id == open_trade_id
+    assert rows[0].source_execution_id == execution_id
+    assert rows[0].open_close == "O"
+
+
+@pytest.mark.unit
 async def test_backfill_logs_memory_threshold_warning() -> None:
     service = _service()
     service._trade_repo.get_by_id = AsyncMock(return_value=MagicMock())

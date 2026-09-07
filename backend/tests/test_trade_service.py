@@ -720,7 +720,7 @@ class TestUpdateTrade:
             TradeUpdate(playbook_id=uuid.uuid4()),
         ],
     )
-    async def test_marks_execution_user_modified_on_metadata_fields(
+    async def test_marks_trade_manually_edited_on_metadata_fields(
         self,
         service: TradeService,
         update_payload: TradeUpdate,
@@ -756,10 +756,10 @@ class TestUpdateTrade:
             )
 
         mark_trade.assert_awaited_once_with(trade.id, trade.user_id)
-        mark_user_modified.assert_awaited_once_with(trade.id)
+        mark_user_modified.assert_not_awaited()
 
     @pytest.mark.unit
-    async def test_does_not_mark_execution_user_modified_for_non_metadata_fields(
+    async def test_does_not_mark_trade_manually_edited_for_non_metadata_fields(
         self, service: TradeService
     ) -> None:
         trade = _make_trade()
@@ -781,10 +781,10 @@ class TestUpdateTrade:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.services.trade_service.ExecutionRepository.mark_user_modified_for_trade",
+                "app.services.trade_service.TradeRepository.mark_manually_edited",
                 new_callable=AsyncMock,
-                return_value=0,
-            ) as mark_user_modified,
+                return_value=None,
+            ) as mark_trade,
         ):
             await service.update_trade(
                 trade.id,
@@ -792,7 +792,7 @@ class TestUpdateTrade:
                 trade.user_id,
             )
 
-        mark_user_modified.assert_not_awaited()
+        mark_trade.assert_not_awaited()
 
 
 class TestTradeUpdateNullableSentinel:

@@ -170,7 +170,10 @@ def _derive_combo_direction(opening_net_cash: Decimal) -> Direction:
     return Direction.LONG
 
 
-def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult:
+def build_combo_positions(
+    executions: Sequence[TradeCreate],
+    protected_contracts: set[tuple[str, str | None]] | None = None,
+) -> ComboBuildResult:
     """Build COMBO trades from enriched execution rows.
 
     Expected internal fields on each input execution:
@@ -182,6 +185,16 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
 
     Executions that are not combo-eligible are returned unchanged in
     ``fifo_executions``.
+
+    Args:
+        executions: Combo-eligible and non-combo executions to process.
+        protected_contracts: ``(symbol, conid)`` pairs held by a *closed*
+            metadata-protected trade (see ``ProtectedExecutionSnapshot``).
+            A close order whose every leg's contract is in this set has no
+            open counterpart *by design* — its opening legs were excluded
+            from this aggregation input because they belong to an isolated
+            protected trade — so the "unmatched combo close" warning is
+            demoted to a debug log instead of surfaced as a warning.
     """
 
     by_order: dict[str, list[TradeCreate]] = {}
@@ -306,7 +319,16 @@ def build_combo_positions(executions: Sequence[TradeCreate]) -> ComboBuildResult
         ]
         expected_sets = [set(position.contract_set) for position in same_symbol_open]
         received_set = set(contract_set)
-        warnings.append(f"Unmatched combo close order {group.order_id}: expected one of {expected_sets or '[]'}, received {received_set}.")
+        is_protected_residue = protected_contracts is not None and all((symbol, conid) in protected_contracts for conid in contract_set)
+        if is_protected_residue:
+            logger.debug(
+                "combo_close_matches_protected_trade order_id=%s symbol=%s conids=%s",
+                group.order_id,
+                symbol,
+                received_set,
+            )
+        else:
+            warnings.append(f"Unmatched combo close order {group.order_id}: expected one of {expected_sets or '[]'}, received {received_set}.")
 
         # Keep behavior loud and debuggable: do not reroute into FIFO.
         # If exactly one open combo exists for the same underlying, attach anomalous

@@ -546,7 +546,7 @@ async def test_protected_trade_survives_ibkr_sync_without_sentinel_orphan(
     assert patch_resp.status_code == 200, patch_resp.text
 
     second_sync = await _sync_ibkr(client, headers, account_id)
-    assert any("protected_" in warning for warning in second_sync["warnings"])
+    assert int(second_sync["imported_count"]) == 0
 
     protected_resp = await client.get(
         f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}",
@@ -555,7 +555,7 @@ async def test_protected_trade_survives_ibkr_sync_without_sentinel_orphan(
     assert protected_resp.status_code == 200, protected_resp.text
     protected_trade = protected_resp.json()["data"]
     assert protected_trade["journal"] == "sync-protected"
-    assert protected_trade["closed_at"] is None
+    assert protected_trade["closed_at"] is not None
 
     aid = uuid.UUID(account_id)
     sentinel_orphans = await db_session.execute(
@@ -801,8 +801,6 @@ async def test_metadata_protected_trade_survives_reimport_without_override(
     )
     assert after_exec_resp.status_code == 200, after_exec_resp.text
     after_execs = after_exec_resp.json()["data"]
-    after_exec_ids = {row["id"] for row in after_execs}
-    assert after_exec_ids == before_exec_ids
     assert all(row["trade_id"] == protected_trade_id for row in after_execs)
 
 
@@ -850,6 +848,54 @@ def _make_single_leg_xml(symbol: str, conid: str, tx_prefix: str, *, include_clo
                 datetime=closed_at.strftime("%Y%m%d;%H%M%S"),
             )
         )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<FlexQueryResponse><FlexStatements><FlexStatement><Trades>"
+        + "".join(rows)
+        + "</Trades></FlexStatement>"
+        + "</FlexStatements></FlexQueryResponse>"
+    )
+    return xml.encode("utf-8")
+
+
+def _make_single_leg_with_new_close_xml(
+    symbol: str,
+    conid: str,
+    tx_prefix: str,
+    *,
+    close_tx_suffix: str,
+    close_price: str = "55",
+    close_day_offset: int = 2,
+) -> bytes:
+    """Build fixture with same opening tx and a distinct closing tx for re-imports."""
+    opened_at = datetime(2026, 4, 1, 9, 30, tzinfo=UTC)
+    closed_at = datetime(2026, 4, 1 + close_day_offset, 10, 0, tzinfo=UTC)
+    rows = [
+        (
+            '<Trade transactionID="{tx}" assetCategory="STK" symbol="{symbol}" '
+            'conid="{conid}" tradeDate="{date}" dateTime="{datetime}" '
+            'quantity="100" tradePrice="50" ibCommission="-1" currency="USD" />'
+        ).format(
+            tx=f"{tx_prefix}E1",
+            symbol=symbol,
+            conid=conid,
+            date=opened_at.strftime("%Y%m%d"),
+            datetime=opened_at.strftime("%Y%m%d;%H%M%S"),
+        ),
+        (
+            '<Trade transactionID="{tx}" assetCategory="STK" symbol="{symbol}" '
+            'conid="{conid}" tradeDate="{date}" dateTime="{datetime}" '
+            'quantity="-100" tradePrice="{close_price}" ibCommission="-1" '
+            'fifoPnlRealized="500" currency="USD" />'
+        ).format(
+            tx=f"{tx_prefix}{close_tx_suffix}",
+            symbol=symbol,
+            conid=conid,
+            date=closed_at.strftime("%Y%m%d"),
+            datetime=closed_at.strftime("%Y%m%d;%H%M%S"),
+            close_price=close_price,
+        ),
+    ]
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         "<FlexQueryResponse><FlexStatements><FlexStatement><Trades>"
@@ -913,14 +959,15 @@ def _make_same_symbol_two_contracts_xml(*, include_trigger_trade: bool) -> bytes
 
 
 @pytest.mark.integration
-async def test_protected_open_trade_keeps_new_closing_execution_unlinked(
+async def test_protected_open_trade_absorbs_new_closing_execution(
     client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
-    """Protected trade isolation keeps new closing execution unlinked.
+    """Open protected trade absorbs a new closing execution on re-import.
 
-    Under protected-trade-rebuild-isolation, a metadata-protected OPEN trade
-    does not absorb new closing executions during re-import. The incoming leg
-    stays unlinked and is reported instead.
+    With seed-lot carry-forward, a metadata-protected OPEN trade should close
+    in place when the broker close appears, preserving metadata while linking
+    the closing execution.
     """
     headers = await _auth_headers(client, uuid.uuid4().hex[:8])
     portfolio_id, account_id = await _create_account(client, headers)
@@ -950,27 +997,49 @@ async def test_protected_open_trade_keeps_new_closing_execution_unlinked(
     assert patch_resp.status_code == 200, patch_resp.text
     assert patch_resp.json()["data"]["is_manually_edited"] is True
 
+    before_count_result = await db_session.execute(
+        text("SELECT COUNT(*) FROM trades WHERE account_id = :account_id"),
+        {"account_id": uuid.UUID(account_id)},
+    )
+    before_trade_count = int(before_count_result.scalar() or 0)
+
     # Re-import the same opening leg (no-op upsert) plus a NEW closing leg.
     second_import = await _import_xml(
         client,
         headers,
         portfolio_id,
         account_id,
-        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
+        _make_single_leg_with_new_close_xml(
+            symbol,
+            conid,
+            tx_prefix,
+            close_tx_suffix="C2",
+            close_day_offset=3,
+        ),
     )
-    assert "trades_protected_skipped" in second_import
-    assert second_import["unlinked_executions"] == 1
-    assert any("protected_unlinked_execution" in warning for warning in second_import["warnings"])
+    assert second_import["trades_created"] == 0
+    assert second_import["protected_positions_closed"] == 1
+    assert second_import["unlinked_executions"] == 0
+    assert not any("protected_unlinked_execution" in warning for warning in second_import["warnings"])
+
+    after_count_result = await db_session.execute(
+        text("SELECT COUNT(*) FROM trades WHERE account_id = :account_id"),
+        {"account_id": uuid.UUID(account_id)},
+    )
+    after_trade_count = int(after_count_result.scalar() or 0)
+    assert after_trade_count == before_trade_count
 
     reconciled_resp = await client.get(
         f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}", headers=headers
     )
     assert reconciled_resp.status_code == 200, reconciled_resp.text
     reconciled = reconciled_resp.json()["data"]
-    # Protected trade stays unchanged structurally; incoming close is left
-    # unlinked and reported.
+    # Trade is closed in place and keeps metadata.
     assert reconciled["journal"] == "protected-open-trade"
-    assert reconciled["closed_at"] is None
+    assert reconciled["closed_at"] is not None
+    assert reconciled["exit_price"] is not None
+    assert reconciled["pnl"] is not None
+    assert reconciled["net_pnl"] is not None
 
     ex_resp = await client.get(
         f"/api/v1/portfolios/{portfolio_id}/trades/{protected_trade_id}/executions",
@@ -978,8 +1047,187 @@ async def test_protected_open_trade_keeps_new_closing_execution_unlinked(
     )
     assert ex_resp.status_code == 200, ex_resp.text
     executions = ex_resp.json()["data"]
-    assert len(executions) == 1
+    assert len(executions) == 2
     assert all(exec_row["trade_id"] == protected_trade_id for exec_row in executions)
+
+
+@pytest.mark.integration
+async def test_closed_protected_trade_keeps_new_closing_execution_unlinked(
+    client: AsyncClient,
+) -> None:
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    symbol, conid, tx_prefix = "PROTCLOSED", "700003", "PR3"
+
+    await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
+    )
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    items = trades_resp.json()["data"]["items"]
+    assert items
+    closed_trade_id = items[0]["id"]
+
+    patch_resp = await client.patch(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{closed_trade_id}",
+        headers=headers,
+        json={"journal": "protected-closed-trade"},
+    )
+    assert patch_resp.status_code == 200, patch_resp.text
+    assert patch_resp.json()["data"]["is_manually_edited"] is True
+    before_closed_at = patch_resp.json()["data"]["closed_at"]
+
+    second_import = await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_with_new_close_xml(
+            symbol,
+            conid,
+            tx_prefix,
+            close_tx_suffix="C2",
+            close_day_offset=3,
+        ),
+    )
+    assert second_import["unlinked_executions"] == 1
+    assert any(
+        "protected_unlinked_execution" in warning
+        for warning in second_import["warnings"]
+    )
+
+    closed_trade_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{closed_trade_id}",
+        headers=headers,
+    )
+    assert closed_trade_resp.status_code == 200, closed_trade_resp.text
+    closed_trade = closed_trade_resp.json()["data"]
+    assert closed_trade["closed_at"] == before_closed_at
+    assert closed_trade["journal"] == "protected-closed-trade"
+    assert closed_trade["has_unlinked_executions"] is True
+
+
+@pytest.mark.integration
+async def test_close_by_import_preserves_trade_metadata_and_relations(
+    client: AsyncClient,
+) -> None:
+    headers = await _auth_headers(client, uuid.uuid4().hex[:8])
+    portfolio_id, account_id = await _create_account(client, headers)
+    symbol, conid, tx_prefix = "PROTMETA", "700004", "PR4"
+
+    await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=False),
+    )
+
+    trades_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades?limit=20", headers=headers
+    )
+    assert trades_resp.status_code == 200, trades_resp.text
+    trade_id = trades_resp.json()["data"]["items"][0]["id"]
+
+    playbook_resp = await client.post(
+        "/api/v1/playbooks",
+        json={"name": f"PB-{uuid.uuid4().hex[:8]}", "description": ""},
+        headers=headers,
+    )
+    assert playbook_resp.status_code == 201, playbook_resp.text
+    playbook_id = playbook_resp.json()["data"]["id"]
+
+    patch_trade = await client.patch(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}",
+        headers=headers,
+        json={
+            "journal": "metadata-survives",
+            "user_rating": 4,
+            "tradingview_link": "https://tradingview.com/chart/protmeta",
+            "image_urls": ["tradesensei/trades/protmeta.png"],
+            "playbook_id": playbook_id,
+        },
+    )
+    assert patch_trade.status_code == 200, patch_trade.text
+
+    note_resp = await client.post(
+        f"/api/v1/trades/{trade_id}/notes",
+        json={"content": "important context"},
+        headers=headers,
+    )
+    assert note_resp.status_code == 201, note_resp.text
+
+    taxonomy_resp = await client.post(
+        "/api/v1/taxonomies",
+        json={
+            "name": f"Tax-{uuid.uuid4().hex[:8]}",
+            "scope": "trades",
+            "color_hex": "#A1B2C3",
+        },
+        headers=headers,
+    )
+    assert taxonomy_resp.status_code == 201, taxonomy_resp.text
+    taxonomy_id = taxonomy_resp.json()["data"]["id"]
+    assign_taxonomy = await client.post(
+        f"/api/v1/trades/{trade_id}/taxonomies",
+        json={"taxonomy_id": taxonomy_id},
+        headers=headers,
+    )
+    assert assign_taxonomy.status_code == 201, assign_taxonomy.text
+
+    ann_def_resp = await client.post(
+        "/api/v1/annotation-definitions",
+        json={
+            "name": f"Ann-{uuid.uuid4().hex[:8]}",
+            "type": "int",
+            "scope": "trades",
+            "scale_labels": {"min": 1, "max": 10},
+        },
+        headers=headers,
+    )
+    assert ann_def_resp.status_code == 201, ann_def_resp.text
+    ann_def_id = ann_def_resp.json()["data"]["id"]
+    assign_annotation = await client.post(
+        f"/api/v1/trades/{trade_id}/annotations/{ann_def_id}",
+        json={"value": 7},
+        headers=headers,
+    )
+    assert assign_annotation.status_code == 201, assign_annotation.text
+
+    second_import = await _import_xml(
+        client,
+        headers,
+        portfolio_id,
+        account_id,
+        _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
+    )
+    assert second_import["unlinked_executions"] == 0
+
+    detail_resp = await client.get(
+        f"/api/v1/portfolios/{portfolio_id}/trades/{trade_id}", headers=headers
+    )
+    assert detail_resp.status_code == 200, detail_resp.text
+    detail = detail_resp.json()["data"]
+
+    assert detail["closed_at"] is not None
+    assert detail["journal"] == "metadata-survives"
+    assert detail["user_rating"] == 4
+    assert detail["tradingview_link"] == "https://tradingview.com/chart/protmeta"
+    assert detail["image_urls"] == ["tradesensei/trades/protmeta.png"]
+    assert detail["playbook_id"] == playbook_id
+    assert any(note["content"] == "important context" for note in detail["trade_notes"])
+    assert any(taxonomy["id"] == taxonomy_id for taxonomy in detail["taxonomies"])
+    assert any(
+        annotation["annotation_definition_id"] == ann_def_id
+        for annotation in detail["annotations"]
+    )
 
 
 @pytest.mark.integration
@@ -1165,8 +1413,8 @@ async def test_reconciled_import_leaves_zero_orphaned_imported_executions(
         _make_single_leg_xml(symbol, conid, tx_prefix, include_close=True),
     )
 
-    assert second_import["unlinked_executions"] == 1
-    assert any("protected_unlinked_execution" in warning for warning in second_import["warnings"])
+    assert second_import["unlinked_executions"] == 0
+    assert not any("protected_unlinked_execution" in warning for warning in second_import["warnings"])
 
     result = await db_session.execute(
         text(
@@ -1176,7 +1424,7 @@ async def test_reconciled_import_leaves_zero_orphaned_imported_executions(
         ),
         {"account_id": uuid.UUID(account_id)},
     )
-    assert result.scalar() == 1
+    assert result.scalar() == 0
 
 
 def _make_split_and_open_combo_xml(trade_count: int) -> bytes:

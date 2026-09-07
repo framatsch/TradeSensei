@@ -18,7 +18,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from inspect import isawaitable
 
-from sqlalchemy import delete, exists, select, update
+from sqlalchemy import and_, delete, exists, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -29,6 +29,7 @@ from app.models.logical_execution import (
     EXECUTION_ORIGIN_SPLIT,
     LogicalExecution,
 )
+from app.models.trade import Trade
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,13 @@ class ExecutionContractRef:
     symbol: str
     conid: str | None
     trade_id: uuid.UUID
+
+
+@dataclass(frozen=True)
+class TradeContractRef:
+    trade_id: uuid.UUID
+    symbol: str
+    conid: str | None
 
 
 class ExecutionRepository:
@@ -212,6 +220,148 @@ class ExecutionRepository:
                 )
             )
         return refs
+
+    async def list_manual_standin_contract_refs_by_user_account(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+    ) -> list[TradeContractRef]:
+        """Return contracts held by trades with unresolved manual stand-in legs.
+
+        A trade qualifies when it has:
+        - at least one non-deleted manual leg with ``source_id IS NULL``, and
+        - at least one non-deleted non-manual leg.
+
+        The returned rows are contract refs (symbol/conid) plus owning trade_id,
+        scoped to the given user/account.
+        """
+        base_leg = aliased(LogicalExecution)
+        manual_leg = aliased(LogicalExecution)
+        non_manual_leg = aliased(LogicalExecution)
+
+        has_unlinked_manual = exists(
+            select(1).where(
+                manual_leg.trade_id == base_leg.trade_id,
+                manual_leg.deleted.is_(False),
+                manual_leg.origin == EXECUTION_ORIGIN_MANUAL,
+                manual_leg.source_id.is_(None),
+            )
+        )
+        has_non_manual = exists(
+            select(1).where(
+                non_manual_leg.trade_id == base_leg.trade_id,
+                non_manual_leg.deleted.is_(False),
+                non_manual_leg.origin != EXECUTION_ORIGIN_MANUAL,
+            )
+        )
+
+        stmt = (
+            select(
+                base_leg.trade_id,
+                base_leg.symbol,
+                base_leg.conid,
+            )
+            .where(
+                base_leg.user_id == user_id,
+                base_leg.account_id == account_id,
+                base_leg.deleted.is_(False),
+                base_leg.trade_id.is_not(None),
+                has_unlinked_manual,
+                has_non_manual,
+            )
+            .distinct()
+        )
+
+        result = await self.session.execute(stmt)
+        rows = result.all()
+        if isawaitable(rows):
+            rows = await rows
+
+        refs: list[TradeContractRef] = []
+        for trade_id, symbol, conid in rows:
+            if trade_id is None:
+                continue
+            refs.append(
+                TradeContractRef(
+                    trade_id=trade_id,
+                    symbol=symbol,
+                    conid=conid,
+                )
+            )
+        return refs
+
+    async def has_absorbable_unlinked_execution_for_open_protected_trades(
+        self,
+        user_id: uuid.UUID,
+        account_id: uuid.UUID,
+    ) -> bool:
+        """Check whether an open protected trade has a closing leg waiting to be absorbed.
+
+        Answers a single question for the import pipeline: is there pending
+        reconciliation work that only a projection rebuild can perform?
+
+        True when the account holds a non-deleted, unlinked execution
+        (``trade_id IS NULL``) on the same contract as a metadata-protected
+        trade that is still open. That is exactly the state left behind by an
+        import that ran before open protected trades became closeable — the
+        broker's closing leg exists in ``logical_executions`` but was never
+        linked, so the position stays open forever unless a rebuild runs.
+
+        Contracts held by a trade with an unresolved manual stand-in leg are
+        excluded: the aggregator deliberately suppresses orphan lots there, so
+        their unlinked execution can never be absorbed and would otherwise
+        trigger a rebuild on every single import.
+
+        Args:
+            user_id: Owning user UUID.
+            account_id: Account UUID to inspect.
+
+        Returns:
+            True when at least one absorbable unlinked execution exists.
+        """
+        protected_leg = aliased(LogicalExecution)
+        unlinked = aliased(LogicalExecution)
+        manual_leg = aliased(LogicalExecution)
+
+        has_unresolved_manual_standin = exists(
+            select(1).where(
+                manual_leg.trade_id == protected_leg.trade_id,
+                manual_leg.deleted.is_(False),
+                manual_leg.origin == EXECUTION_ORIGIN_MANUAL,
+                manual_leg.source_id.is_(None),
+            )
+        )
+
+        stmt = (
+            select(unlinked.id)
+            .select_from(protected_leg)
+            .join(Trade, Trade.id == protected_leg.trade_id)
+            .join(
+                unlinked,
+                and_(
+                    unlinked.user_id == protected_leg.user_id,
+                    unlinked.account_id == protected_leg.account_id,
+                    unlinked.symbol == protected_leg.symbol,
+                    unlinked.conid.is_not_distinct_from(protected_leg.conid),
+                ),
+            )
+            .where(
+                protected_leg.user_id == user_id,
+                protected_leg.account_id == account_id,
+                protected_leg.deleted.is_(False),
+                Trade.is_manually_edited.is_(True),
+                Trade.closed_at.is_(None),
+                unlinked.trade_id.is_(None),
+                unlinked.deleted.is_(False),
+                ~has_unresolved_manual_standin,
+            )
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        scalar = result.scalar_one_or_none()
+        if isawaitable(scalar):
+            scalar = await scalar
+        return scalar is not None
 
     async def has_unlinked_for_trade_contracts(self, trade_id: uuid.UUID) -> bool:
         """Check whether unlinked non-deleted executions match this trade's contracts."""

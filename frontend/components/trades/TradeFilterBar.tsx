@@ -642,7 +642,7 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
           </div>
 
           <div>
-            <label className={LABEL_CLASS}>Unlinked Protected Executions</label>
+            <label className={LABEL_CLASS}>Needs linking</label>
             <div className="mt-2">
               <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                 <input
@@ -656,7 +656,7 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
                   }
                   className="accent-primary"
                 />
-                Show only flagged trades
+                Show only trades with unresolved execution linking
               </label>
             </div>
           </div>

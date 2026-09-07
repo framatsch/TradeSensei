@@ -109,6 +109,7 @@ async def test_merge_trades_happy_path(service):
         exec_repo = AsyncMock()
         exec_repo.list_by_trade_id.return_value = [execution]
         exec_repo.reassign_to_trade = AsyncMock(return_value=1)
+        exec_repo.mark_user_modified_for_trade = AsyncMock(return_value=1)
         m.setattr(
             "app.repositories.execution.ExecutionRepository",
             lambda _session: exec_repo,
@@ -116,7 +117,9 @@ async def test_merge_trades_happy_path(service):
         result = await service.merge_trades([t1.id, t2.id], user_id)
 
     assert result.id == t1.id
+    assert result.is_manually_edited is True
     exec_repo.reassign_to_trade.assert_awaited_once_with([execution.id], t1.id)
+    exec_repo.mark_user_modified_for_trade.assert_not_awaited()
     service._repo.delete.assert_awaited_once_with(t2)
     service._re_aggregate_trade.assert_awaited_once_with(t1.id)
 

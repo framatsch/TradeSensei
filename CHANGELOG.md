@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [backend] Broker re-import now closes previously stuck metadata-protected open positions in place, preserving notes/tags/journal while recomputing aggregate trade fields; this correction can change historical performance metrics and equity-curve history on the next qualifying import.
+- [backend] Added a Schwab zero-insert self-heal trigger: if an open metadata-protected trade has an absorbable unlinked execution on the same contract, import now forces a projection rebuild instead of returning a no-op, so pre-fix stuck positions close on the next sync. Unresolved manual-standin contracts are excluded to keep no-op imports fast.
+
 ## [1.14.0] - 2026-08-24
 
 ### Changed

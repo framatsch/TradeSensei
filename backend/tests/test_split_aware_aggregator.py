@@ -14,7 +14,8 @@
 """Unit tests for split-aware source tracking in the FIFO aggregator."""
 
 import uuid
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from app.models.trade import AssetClass, Direction
@@ -24,6 +25,15 @@ from app.utils.parsers.aggregator import (
     TradeCreateWithSources,
     aggregate_executions_fifo_with_sources,
 )
+
+
+@dataclass
+class _FakeCorporateAction:
+    symbol: str
+    date: date
+    ratio: Decimal
+    old_conid: str | None = None
+    new_conid: str | None = None
 
 
 def _trade(
@@ -310,6 +320,75 @@ def test_protected_contract_suppresses_orphan_sentinel_trade() -> None:
     assert result == []
 
 
+def test_open_protected_seed_lot_closes_without_protected_suppression() -> None:
+    open_exec_id = uuid.uuid4()
+    close_exec_id = uuid.uuid4()
+    trades = [
+        _trade(
+            symbol="PROT_OPEN",
+            direction=Direction.LONG,
+            quantity="1",
+            entry_price="100",
+            opened_at=datetime(2026, 3, 1, 10, 0, tzinfo=UTC),
+            source_execution_id=open_exec_id,
+        ).model_copy(update={"db_trade_id": uuid.uuid4(), "open_close": "O"}),
+        _trade(
+            symbol="PROT_OPEN",
+            direction=Direction.SHORT,
+            quantity="1",
+            entry_price="110",
+            opened_at=datetime(2026, 3, 2, 10, 0, tzinfo=UTC),
+            source_execution_id=close_exec_id,
+            pnl="10",
+        ),
+    ]
+
+    result = aggregate_executions_fifo_with_sources(
+        trades,
+        protected_contracts={("OTHER_SYMBOL", None)},
+    )
+
+    assert len(result) == 1
+    closed_trade = result[0].trade_create
+    assert closed_trade.entry_price == Decimal("100")
+    assert closed_trade.exit_price == Decimal("110")
+    assert closed_trade.closed_at is not None
+
+
+def test_opening_seed_plus_closing_leg_still_closes_when_contract_marked_protected() -> None:
+    open_exec_id = uuid.uuid4()
+    close_exec_id = uuid.uuid4()
+    contract = ("PROT_SEED", "3001")
+    trades = [
+        _trade(
+            symbol="PROT_SEED",
+            direction=Direction.LONG,
+            quantity="1",
+            entry_price="100",
+            opened_at=datetime(2026, 3, 1, 10, 0, tzinfo=UTC),
+            source_execution_id=open_exec_id,
+        ).model_copy(update={"db_trade_id": uuid.uuid4(), "open_close": "O"}),
+        _trade(
+            symbol="PROT_SEED",
+            direction=Direction.SHORT,
+            quantity="1",
+            entry_price="120",
+            opened_at=datetime(2026, 3, 2, 10, 0, tzinfo=UTC),
+            source_execution_id=close_exec_id,
+            pnl="20",
+        ),
+    ]
+
+    result = aggregate_executions_fifo_with_sources(
+        trades,
+        protected_contracts={contract},
+    )
+
+    assert len(result) == 1
+    assert result[0].trade_create.entry_price == Decimal("100")
+    assert result[0].trade_create.exit_price == Decimal("120")
+
+
 def test_non_protected_contract_still_creates_orphan_sentinel_trade() -> None:
     """Closing-only execution on an unrelated contract keeps prior orphan behavior."""
     close_exec_id = uuid.uuid4()
@@ -332,3 +411,129 @@ def test_non_protected_contract_still_creates_orphan_sentinel_trade() -> None:
 
     assert len(result) == 1
     assert result[0].trade_create.entry_price == Decimal("0.001")
+
+
+def test_seeded_partial_close_keeps_remaining_open_quantity_and_links_both_legs() -> None:
+    open_exec_id = uuid.uuid4()
+    close_exec_id = uuid.uuid4()
+
+    trades = [
+        _trade(
+            symbol="PROT_PART",
+            direction=Direction.LONG,
+            quantity="10",
+            entry_price="100",
+            opened_at=datetime(2026, 4, 1, 10, 0, tzinfo=UTC),
+            source_execution_id=open_exec_id,
+        ).model_copy(update={"db_trade_id": uuid.uuid4(), "open_close": "O"}),
+        _trade(
+            symbol="PROT_PART",
+            direction=Direction.SHORT,
+            quantity="4",
+            entry_price="110",
+            opened_at=datetime(2026, 4, 2, 10, 0, tzinfo=UTC),
+            source_execution_id=close_exec_id,
+            pnl="40",
+        ),
+    ]
+
+    result = aggregate_executions_fifo_with_sources(trades)
+
+    closed = [row for row in result if row.trade_create.closed_at is not None]
+    open_rows = [row for row in result if row.trade_create.closed_at is None]
+    assert len(closed) == 1
+    assert len(open_rows) == 1
+
+    assert closed[0].trade_create.quantity == Decimal("4")
+    assert {alloc.execution_id for alloc in closed[0].source_executions} == {
+        open_exec_id,
+        close_exec_id,
+    }
+
+    assert open_rows[0].trade_create.quantity == Decimal("6")
+    assert len(open_rows[0].source_executions) == 1
+    assert open_rows[0].source_executions[0].execution_id == open_exec_id
+
+
+def test_seeded_over_close_matches_seed_and_keeps_orphan_remainder_behavior() -> None:
+    open_exec_id = uuid.uuid4()
+    close_exec_id = uuid.uuid4()
+
+    trades = [
+        _trade(
+            symbol="PROT_OVER",
+            direction=Direction.LONG,
+            quantity="3",
+            entry_price="100",
+            opened_at=datetime(2026, 4, 1, 10, 0, tzinfo=UTC),
+            source_execution_id=open_exec_id,
+        ).model_copy(update={"db_trade_id": uuid.uuid4(), "open_close": "O"}),
+        _trade(
+            symbol="PROT_OVER",
+            direction=Direction.SHORT,
+            quantity="5",
+            entry_price="115",
+            opened_at=datetime(2026, 4, 2, 10, 0, tzinfo=UTC),
+            source_execution_id=close_exec_id,
+            pnl="75",
+        ),
+    ]
+
+    result = aggregate_executions_fifo_with_sources(trades)
+
+    closed = [row.trade_create for row in result if row.trade_create.entry_price != Decimal("0.001")]
+    sentinel = [row.trade_create for row in result if row.trade_create.entry_price == Decimal("0.001")]
+
+    assert len(closed) == 1
+    assert closed[0].quantity == Decimal("3")
+    assert len(sentinel) == 1
+    assert sentinel[0].quantity == Decimal("2")
+
+
+def test_split_adjusted_seed_matches_close_after_corporate_action() -> None:
+    open_exec_id = uuid.uuid4()
+    close_exec_id = uuid.uuid4()
+    conid = "900100"
+
+    trades = [
+        _trade(
+            symbol="PROT_SPLIT",
+            direction=Direction.LONG,
+            quantity="10",
+            entry_price="100",
+            opened_at=datetime(2026, 4, 1, 10, 0, tzinfo=UTC),
+            source_execution_id=open_exec_id,
+        ).model_copy(update={"db_trade_id": uuid.uuid4(), "open_close": "O", "broker_conid": conid}),
+        _trade(
+            symbol="PROT_SPLIT",
+            direction=Direction.SHORT,
+            quantity="20",
+            entry_price="60",
+            opened_at=datetime(2026, 4, 3, 10, 0, tzinfo=UTC),
+            source_execution_id=close_exec_id,
+            pnl="200",
+        ).model_copy(update={"broker_conid": conid}),
+    ]
+
+    result = aggregate_executions_fifo_with_sources(
+        trades,
+        corporate_actions=[
+            _FakeCorporateAction(
+                symbol="PROT_SPLIT",
+                date=date(2026, 4, 2),
+                ratio=Decimal("2"),
+            )
+        ],
+    )
+
+    assert len(result) == 1
+    trade = result[0].trade_create
+    assert trade.quantity == Decimal("20")
+    assert trade.entry_price == Decimal("50")
+    assert trade.exit_price == Decimal("60")
+    opening_alloc = next(
+        allocation
+        for allocation in result[0].source_executions
+        if allocation.execution_id == open_exec_id
+    )
+    assert opening_alloc.quantity_used == Decimal("10")

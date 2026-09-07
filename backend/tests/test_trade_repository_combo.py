@@ -26,6 +26,7 @@ from app.models.account import Account, AccountType
 from app.models.logical_execution import EXECUTION_ORIGIN_IMPORTED, LogicalExecution
 from app.models.portfolio import Portfolio
 from app.models.trade import AssetClass, Direction, Trade
+from app.models.trade_note import TradeNote
 from app.models.user import User
 from app.repositories.trade_repository import TradeRepository
 
@@ -269,3 +270,127 @@ async def test_delete_by_user_account_preserves_protected_trades(
     assert "PROT_KEEP" in remaining_symbols
     assert "USERMOD_KEEP" in remaining_symbols
     assert "DELETE_ME" not in remaining_symbols
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_delete_by_user_account_preserves_trade_protected_by_note_only(
+    db_session: AsyncSession,
+) -> None:
+    user = User(
+        username=f"note_guard_{uuid.uuid4().hex[:8]}",
+        email=f"note_guard_{uuid.uuid4().hex[:8]}@example.com",
+        hashed_password="unused",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    portfolio = Portfolio(
+        user_id=user.id,
+        name="Note Guard",
+        base_currency="USD",
+        color_hex="#556677",
+    )
+    db_session.add(portfolio)
+    await db_session.flush()
+
+    account = Account(
+        user_id=user.id,
+        portfolio_id=portfolio.id,
+        name="IBKR",
+        type=AccountType.IBKR,
+        currency="USD",
+    )
+    db_session.add(account)
+    await db_session.flush()
+
+    note_protected_trade = Trade(
+        user_id=user.id,
+        account_id=account.id,
+        symbol="NOTE_KEEP",
+        direction=Direction.LONG,
+        asset_class=AssetClass.EQUITY,
+        is_manually_edited=True,
+        quantity=Decimal("1"),
+        entry_price=Decimal("103"),
+        opened_at=datetime(2026, 8, 4, tzinfo=UTC),
+        commission=Decimal("0"),
+        multiplier=1,
+    )
+    deletable_trade = Trade(
+        user_id=user.id,
+        account_id=account.id,
+        symbol="DELETE_OTHER",
+        direction=Direction.LONG,
+        asset_class=AssetClass.EQUITY,
+        is_manually_edited=False,
+        quantity=Decimal("1"),
+        entry_price=Decimal("104"),
+        opened_at=datetime(2026, 8, 5, tzinfo=UTC),
+        commission=Decimal("0"),
+        multiplier=1,
+    )
+    db_session.add_all([note_protected_trade, deletable_trade])
+    await db_session.flush()
+
+    db_session.add(
+        TradeNote(
+            trade_id=note_protected_trade.id,
+            user_id=user.id,
+            content="metadata-only protection",
+        )
+    )
+    db_session.add_all(
+        [
+            LogicalExecution(
+                user_id=user.id,
+                account_id=account.id,
+                trade_id=note_protected_trade.id,
+                symbol="NOTE_KEEP",
+                conid="901010",
+                asset_class=AssetClass.EQUITY,
+                direction=Direction.LONG,
+                quantity=Decimal("1"),
+                price=Decimal("103"),
+                commission=Decimal("0"),
+                executed_at=datetime(2026, 8, 4, 9, 0, tzinfo=UTC),
+                origin=EXECUTION_ORIGIN_IMPORTED,
+                deleted=False,
+                user_modified=False,
+                multiplier=1,
+            ),
+            LogicalExecution(
+                user_id=user.id,
+                account_id=account.id,
+                trade_id=deletable_trade.id,
+                symbol="DELETE_OTHER",
+                conid="901011",
+                asset_class=AssetClass.EQUITY,
+                direction=Direction.LONG,
+                quantity=Decimal("1"),
+                price=Decimal("104"),
+                commission=Decimal("0"),
+                executed_at=datetime(2026, 8, 5, 9, 0, tzinfo=UTC),
+                origin=EXECUTION_ORIGIN_IMPORTED,
+                deleted=False,
+                user_modified=False,
+                multiplier=1,
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    repo = TradeRepository(db_session)
+    deleted = await repo.delete_by_user_account(
+        user_id=user.id,
+        account_id=account.id,
+        include_manually_edited=False,
+    )
+    await db_session.flush()
+
+    assert deleted == 1
+
+    remaining = await repo.list_by_user_account(user.id, account.id)
+    remaining_symbols = {trade.symbol for trade in remaining}
+    assert "NOTE_KEEP" in remaining_symbols
+    assert "DELETE_OTHER" not in remaining_symbols
