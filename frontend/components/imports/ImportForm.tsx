@@ -24,7 +24,7 @@
 
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Copy, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
@@ -92,6 +92,13 @@ function getYTDFromDate(): string {
   return `${year}0101`;
 }
 
+function toYYYYMMDD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
 /** Compute the number of days between a YYYYMMDD start date and today. */
 function computeDaysFromFromDate(fromDateStr: string): number {
   if (!/^\d{8}$/.test(fromDateStr)) return 30;
@@ -138,7 +145,7 @@ export function ImportForm() {
   const accountType: AccountType | null = selectedAccount?.type ?? null;
 
   // Pre-fill Flex settings from account settings when account changes
-  const handleAccountChange = (id: string) => {
+  const handleAccountChange = useCallback((id: string) => {
     setAccountId(id);
     setQueuedFiles([]);
     setQueueDone(false);
@@ -156,11 +163,33 @@ export function ImportForm() {
       setFlexPreset("ytd");
       setFlexCustomDate(getYTDFromDate());
     }
-  };
+  }, [accounts]);
+
+  // Auto-select the first account if there is exactly one active account
+  useEffect(() => {
+    if (accounts && !accountId) {
+      const activeAccounts = accounts.filter((a) => a.is_active);
+      if (activeAccounts.length === 1) {
+        handleAccountChange(activeAccounts[0].id);
+      }
+    }
+  }, [accounts, accountId, handleAccountChange]);
 
   const getFlexFromDate = (): string => {
-    if (flexPreset === "ytd") return getYTDFromDate();
-    return flexCustomDate || getYTDFromDate();
+    const today = new Date();
+    if (flexPreset === "ytd") {
+      return toYYYYMMDD(new Date(today.getFullYear(), 0, 1));
+    }
+    if (flexPreset === "mtd") {
+      return toYYYYMMDD(new Date(today.getFullYear(), today.getMonth(), 1));
+    }
+    if (flexPreset.endsWith("d")) {
+      const days = parseInt(flexPreset.replace("d", ""), 10);
+      const d = new Date(today);
+      d.setDate(d.getDate() - days);
+      return toYYYYMMDD(d);
+    }
+    return flexCustomDate || toYYYYMMDD(new Date(today.getFullYear(), 0, 1));
   };
 
   // ── Save settings to account ──────────────────────────────────────────────

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Import dialog now automatically pre-selects the account if the user's portfolio only contains a single active account.
+
+### Changed
+- [frontend] Unified import dialog (Schwab/IBKR) date selector redesigned: replaced toggle buttons and progress bar with a compact, stateful dropdown for date presets ("Last 30 days", "YTD", etc.) alongside an always-visible date picker.
+- [backend] Expanded `FlexFromDatePreset` in `AccountSettings` to natively support dynamic date presets (`"7d"`, `"30d"`, `"90d"`, `"180d"`, `"360d"`, `"mtd"`) alongside `"ytd"` and `"custom"`. These presets are now saved dynamically when a user updates their account settings.
+
 ## [1.15.0] - 2026-09-07
 
 ### Fixed

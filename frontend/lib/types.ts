@@ -87,7 +87,7 @@ export interface UserCreate {
 
 export type AccountType = "manual" | "schwab" | "ibkr";
 
-export type FlexFromDatePreset = "ytd" | "custom";
+export type FlexFromDatePreset = "7d" | "30d" | "90d" | "180d" | "360d" | "mtd" | "ytd" | "custom";
 
 export interface AccountSettings {
   sync_days: number;

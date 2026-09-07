@@ -28,7 +28,7 @@ from app.models.account import AccountType
 
 # ── Import/sync settings per account ─────────────────────────────────────────
 
-FlexFromDatePreset = Literal["ytd", "custom"]
+FlexFromDatePreset = Literal["7d", "30d", "90d", "180d", "360d", "mtd", "ytd", "custom"]
 
 
 class AccountSettings(BaseModel):
@@ -41,8 +41,9 @@ class AccountSettings(BaseModel):
         sync_days: Number of past days to fetch when using the broker API
             sync endpoint.  Defaults to ``30``.
         flex_from_date_preset: Controls the Flex import date-range mode.
-            ``"ytd"`` always starts from January 1st of the current year;
-            ``"custom"`` uses the explicit ``flex_custom_from_date`` value.
+            Supports dynamic offsets ('7d', '30d', '90d', '180d', '360d'),
+            'mtd' (month-to-date), 'ytd' (year-to-date), or 'custom' for
+            an explicit ``flex_custom_from_date`` value.
         flex_custom_from_date: Explicit start date (``YYYYMMDD``) used when
             ``flex_from_date_preset`` is ``"custom"``.  ``None`` otherwise.
     """

@@ -49,13 +49,6 @@ function parseYYYYMMDD(s: string): Date | null {
   return isNaN(dt.getTime()) ? null : dt;
 }
 
-function formatDisplay(d: Date): string {
-  if (typeof navigator !== "undefined" && navigator.language) {
-    return d.toLocaleDateString(navigator.language, { day: "2-digit", month: "short", year: "numeric" });
-  }
-  return d.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
-}
-
 function toYYYYMMDD(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -86,6 +79,16 @@ export function ImportDateRange({
     if (preset === "ytd") {
       return new Date(today.getFullYear(), 0, 1);
     }
+    if (preset === "mtd") {
+      return new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+    if (preset.endsWith("d")) {
+      const days = parseInt(preset.replace("d", ""), 10);
+      const d = new Date(today);
+      d.setDate(d.getDate() - days);
+      return d;
+    }
+    // preset === "custom"
     const parsed = parseYYYYMMDD(customFromDate);
     if (!parsed) return new Date(today.getFullYear(), 0, 1);
     return parsed;
@@ -104,106 +107,63 @@ export function ImportDateRange({
     1,
     Math.ceil((today.getTime() - effectiveStart.getTime()) / msInDay)
   );
-  const fillPct = Math.min(100, Math.round((daysCovered / maxWindowDays) * 100));
 
   const minInputDate = toInputDate(earliestAllowed);
   const maxInputDate = toInputDate(today);
 
   const inputValue = useMemo(() => {
-    if (preset !== "custom") return "";
-    const parsed = parseYYYYMMDD(customFromDate);
-    return parsed ? toInputDate(parsed) : "";
-  }, [preset, customFromDate]);
+    return toInputDate(effectiveStart);
+  }, [effectiveStart]);
 
   return (
     <div className="space-y-3">
-      {/* Preset toggle */}
-      <div className="flex items-center gap-2">
+      {/* Date Selection Row */}
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground shrink-0">
           From:
         </span>
-        <div className="flex rounded-md overflow-hidden border border-border text-xs">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onPresetChange("ytd")}
-            className={[
-              "px-3 py-1.5 font-medium transition-colors",
-              preset === "ytd"
-                ? "bg-primary text-white"
-                : "bg-secondary text-muted-foreground hover:bg-muted",
-              disabled ? "opacity-50 cursor-not-allowed" : "",
-            ].join(" ")}
-          >
-            YTD (Jan 1, {today.getFullYear()})
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              onPresetChange("custom");
-              if (!customFromDate) {
-                onCustomFromDateChange(toYYYYMMDD(earliestAllowed));
-              }
-            }}
-            className={[
-              "px-3 py-1.5 font-medium transition-colors border-l border-border",
-              preset === "custom"
-                ? "bg-primary text-white"
-                : "bg-secondary text-muted-foreground hover:bg-muted",
-              disabled ? "opacity-50 cursor-not-allowed" : "",
-            ].join(" ")}
-          >
-            Custom date
-          </button>
-        </div>
+        
+        <select
+          className="px-2 py-1.5 text-xs bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+          disabled={disabled}
+          value={preset}
+          onChange={(e) => {
+            const val = e.target.value as FlexFromDatePreset;
+            onPresetChange(val);
+            if (val === "custom") {
+              onCustomFromDateChange(toYYYYMMDD(effectiveStart));
+            }
+          }}
+        >
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="90d">Last 90 days</option>
+          <option value="180d">Last 180 days</option>
+          <option value="360d">Last 360 days</option>
+          <option value="mtd">Month to date</option>
+          <option value="ytd">Year to date</option>
+          <option value="custom">Custom date...</option>
+        </select>
 
-        {/* Custom date picker */}
-        {preset === "custom" && (
-          <input
-            type="date"
-            value={inputValue}
-            min={minInputDate}
-            max={maxInputDate}
-            disabled={disabled}
-            onChange={(e) => onCustomFromDateChange(fromInputDate(e.target.value))}
-            className="px-2 py-1 text-xs bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-          />
-        )}
+        <input
+          type="date"
+          value={inputValue}
+          min={minInputDate}
+          max={maxInputDate}
+          disabled={disabled}
+          onChange={(e) => {
+            onPresetChange("custom");
+            onCustomFromDateChange(fromInputDate(e.target.value));
+          }}
+          className="px-2 py-1 text-xs bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+        />
       </div>
 
-      {/* Visual timeline bar */}
-      <div className="space-y-1">
-        <div className="relative h-6 bg-secondary rounded-full overflow-hidden">
-          <div
-            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300"
-            style={{ width: `${fillPct}%` }}
-          />
-          {/* Today marker */}
-          <div className="absolute right-0 top-0 h-full w-0.5 bg-muted-foreground" />
-        </div>
-
-        {/* Labels */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{formatDisplay(effectiveStart)}</span>
-          <span className="text-muted-foreground text-center">
-            {daysCovered} day{daysCovered !== 1 ? "s" : ""}
-          </span>
-          <span>Today ({formatDisplay(today)})</span>
-        </div>
-      </div>
-
-      {/* Limit badge */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1 bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-warning px-2 py-0.5 rounded-full font-medium">
-          <span>⚠</span>
-          Max. {maxWindowDays} days
-        </span>
-        {fillPct >= 95 && (
-          <span className="text-warning">
-            — You are near the {maxWindowDays}-day limit.
-          </span>
-        )}
+      {/* Limit hint */}
+      <div className="text-xs text-muted-foreground mt-1">
+        Selected: {daysCovered} day{daysCovered !== 1 ? "s" : ""}
+        <span className="mx-1.5 opacity-50">•</span>
+        Broker API limit: {maxWindowDays} days
       </div>
     </div>
   );
