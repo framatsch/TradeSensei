@@ -269,6 +269,26 @@ class BrokerService:
     ) -> None:
         await self._account_repo.delete_property_unscoped(account_id=account_id, key=key)
 
+    async def _upsert_schwab_token_property(
+        self,
+        *,
+        account_id: uuid.UUID,
+        canonical_key: str,
+        legacy_key: str,
+        value: str,
+    ) -> None:
+        """Write a Schwab token property under its canonical key.
+
+        Also deletes any stale legacy-cased duplicate for the same logical
+        property. ``_resolve_optional_property`` resolves keys in
+        lowercase-first order, so a leftover legacy-cased row would
+        otherwise permanently shadow every future OAuth exchange/refresh,
+        even though the canonical key is kept up to date.
+        """
+        await self._upsert_account_property_encrypted(account_id=account_id, key=canonical_key, value=value)
+        if legacy_key != canonical_key:
+            await self._delete_account_property(account_id=account_id, key=legacy_key)
+
     async def _resolve_account_by_oauth_state(self, state: str) -> Account | None:
         candidates = await self._account_repo.list_accounts_with_property_key_unscoped(SCHWAB_OAUTH_STATE_ACCOUNT)
         for candidate in candidates:
@@ -363,9 +383,15 @@ class BrokerService:
         next_expires_at = (datetime.now(UTC) + timedelta(seconds=expires_in)).isoformat()
 
         async with self._session.begin_nested():
-            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=next_access_token)
-            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=next_refresh_token)
-            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=next_expires_at)
+            await self._upsert_schwab_token_property(
+                account_id=account.id, canonical_key=SCHWAB_ACCESS_TOKEN, legacy_key=SCHWAB_ACCESS_TOKEN_KEYS[0], value=next_access_token
+            )
+            await self._upsert_schwab_token_property(
+                account_id=account.id, canonical_key=SCHWAB_REFRESH_TOKEN, legacy_key=SCHWAB_REFRESH_TOKEN_KEYS[0], value=next_refresh_token
+            )
+            await self._upsert_schwab_token_property(
+                account_id=account.id, canonical_key=SCHWAB_TOKEN_EXPIRES_AT, legacy_key=SCHWAB_TOKEN_EXPIRES_AT_KEYS[0], value=next_expires_at
+            )
             await self._session.flush()
         return next_access_token
 
@@ -433,9 +459,15 @@ class BrokerService:
 
         expires_at = (datetime.now(UTC) + timedelta(seconds=expires_in)).isoformat()
         async with self._session.begin_nested():
-            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_ACCESS_TOKEN, value=access_token)
-            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_REFRESH_TOKEN, value=refresh_token)
-            await self._upsert_account_property_encrypted(account_id=account.id, key=SCHWAB_TOKEN_EXPIRES_AT, value=expires_at)
+            await self._upsert_schwab_token_property(
+                account_id=account.id, canonical_key=SCHWAB_ACCESS_TOKEN, legacy_key=SCHWAB_ACCESS_TOKEN_KEYS[0], value=access_token
+            )
+            await self._upsert_schwab_token_property(
+                account_id=account.id, canonical_key=SCHWAB_REFRESH_TOKEN, legacy_key=SCHWAB_REFRESH_TOKEN_KEYS[0], value=refresh_token
+            )
+            await self._upsert_schwab_token_property(
+                account_id=account.id, canonical_key=SCHWAB_TOKEN_EXPIRES_AT, legacy_key=SCHWAB_TOKEN_EXPIRES_AT_KEYS[0], value=expires_at
+            )
             await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_CODE_VERIFIER)
             await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE)
             await self._delete_account_property(account_id=account.id, key=SCHWAB_OAUTH_STATE_ACCOUNT)
