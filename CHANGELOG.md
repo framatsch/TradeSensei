@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-09-07
+
 ### Fixed
 - [backend] Broker re-import now closes previously stuck metadata-protected open positions in place, preserving notes/tags/journal while recomputing aggregate trade fields; this correction can change historical performance metrics and equity-curve history on the next qualifying import.
 - [backend] Added a Schwab zero-insert self-heal trigger: if an open metadata-protected trade has an absorbable unlinked execution on the same contract, import now forces a projection rebuild instead of returning a no-op, so pre-fix stuck positions close on the next sync. Unresolved manual-standin contracts are excluded to keep no-op imports fast.
@@ -715,8 +717,9 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.15.0]: https://github.com/scheffold/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/scheffold/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.14.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.15.0...HEAD
 [1.13.0]: https://github.com/scheffold/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/scheffold/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...v1.11.0
