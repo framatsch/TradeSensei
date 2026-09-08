@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Disabled automatic background fetching (`refetchOnWindowFocus`) on tab switch and implemented a silent token refresh in the API interceptor to prevent unexpected 401 logouts and data loss in inactive tabs.
+
 ## [1.16.0] - 2026-09-07
 
 ### Added
