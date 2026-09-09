@@ -18,7 +18,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Check, X, MoreHorizontal, Split } from "lucide-react";
+import { Check, X, MoreHorizontal, Split, Pencil } from "lucide-react";
 import { useTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useTradeExecutions } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
@@ -147,10 +147,11 @@ function InlineNumberField({ label, value, onSave, helpAnchor }: InlineNumberFie
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="font-medium text-foreground hover:text-primary hover:underline underline-offset-2 transition-colors text-sm"
+        className="group flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors text-sm border-b border-dashed border-muted-foreground/50 hover:border-primary pb-[1px]"
         title={`Click to edit ${label}`}
       >
-        {value !== null ? `$${parseFloat(value).toFixed(2)}` : <span className="text-zinc-400 italic">—</span>}
+        {value !== null ? `$${parseFloat(value).toFixed(2)}` : <span className="text-muted-foreground/70 italic">Add...</span>}
+        <Pencil size={12} className="text-muted-foreground/50 group-hover:text-primary transition-colors" />
       </button>
     </div>
   );
@@ -293,7 +294,7 @@ export default function TradeDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 solid-card p-5 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 solid-card p-5 shadow-sm overflow-visible">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">

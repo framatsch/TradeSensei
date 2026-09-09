@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Fixed trade detail "Correct Trade" menu being cut off by its parent container by applying `overflow-visible`.
+- [frontend] Enhanced `InlineNumberField` discoverability for Stop Loss and Take Profit with a dashed underline and persistent pencil icon so it's clearly identifiable as editable.
+
 ## [1.16.1] - 2026-09-08
 
 ### Fixed
