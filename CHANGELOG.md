@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [backend] Fixed OIDC silent token refresh failure by setting the refresh token cookie path to `/` instead of `/api/v1/auth`, allowing the frontend proxy to correctly send the cookie.
+- [frontend] Explicitly added `credentials: "same-origin"` to the fetch call in the API interceptor to ensure the refresh token cookie is always sent.
+
 ## [1.16.2] - 2026-09-09
 
 ### Fixed

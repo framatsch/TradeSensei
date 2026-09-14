@@ -247,7 +247,7 @@ async def login(
         secure=True,
         samesite="strict",
         max_age=_REFRESH_MAX_AGE,
-        path="/api/v1/auth",
+        path="/",
     )
     return TokenResponse(access_token=access_token)
 
@@ -308,7 +308,7 @@ async def refresh_token(
         secure=True,
         samesite="strict",
         max_age=_REFRESH_MAX_AGE,
-        path="/api/v1/auth",
+        path="/",
     )
     return TokenResponse(access_token=new_access_token)
 
@@ -351,7 +351,7 @@ async def logout(
         httponly=True,
         secure=True,
         samesite="strict",
-        path="/api/v1/auth",
+        path="/",
     )
 
 
@@ -483,7 +483,7 @@ async def google_callback(
         secure=True,
         samesite="lax",  # Must be lax (not strict) for cross-site OAuth redirects
         max_age=_REFRESH_MAX_AGE,
-        path="/api/v1/auth",
+        path="/",
     )
     return redirect
 
@@ -763,7 +763,7 @@ async def oidc_callback(
         secure=True,
         samesite="lax",
         max_age=_REFRESH_MAX_AGE,
-        path="/api/v1/auth",
+        path="/",
     )
     return redirect
 

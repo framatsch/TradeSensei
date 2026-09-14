@@ -37,7 +37,7 @@ async function handleUnauthorized(response: Response) {
 
     if (!isRefreshing) {
       isRefreshing = true;
-      refreshPromise = fetch("/api/proxy/api/v1/auth/refresh", { method: "POST" })
+      refreshPromise = fetch("/api/proxy/api/v1/auth/refresh", { method: "POST", credentials: "same-origin" })
         .then(async (res) => {
           if (res.ok) {
             const data = await res.json();
