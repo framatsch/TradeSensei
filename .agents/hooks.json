@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "name": "env-protection",
+        "type": "command",
+        "command": ["node", ".agents/hooks/env-protection.js"]
+      }
+    ]
+  }
+}
