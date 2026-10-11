@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Collapsible `PlaybookFilterBar` with quick status tabs (Active, Inactive, All), tag selection, and text search.
+- [frontend] Interactive active/inactive status toggle switch in the Playbook overview table.
+- [frontend] Active/Inactive status toggle in the Playbook Editor header toolbar.
+- [frontend] Playbook overview table sorting by Name, Status, and Created date.
+
+### Changed
+- [frontend] Removed row-level delete button from the Playbook overview table to prevent accidental dissociation of historical trades (permanent deletion remains available inside the Playbook Editor).
+- [frontend] Playbook selection in trade qualitative metadata panel now excludes inactive playbooks for new selections while preserving and labeling existing assignments.
+- [config] Migrated env-protection plugin to `hooks.json` format in `.agents/hooks/`.
+
 ## [1.16.3] - 2026-09-14
 
 ### Fixed
