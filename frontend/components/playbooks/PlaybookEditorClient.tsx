@@ -114,10 +114,11 @@ export function PlaybookEditorClient({ id }: Props) {
   // ── Toolbar state ──────────────────────────────────────────────────────────
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const [targetWinrate, setTargetWinrate] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync name/winrate from loaded playbook (only on first load)
+  // Sync name/winrate/status from loaded playbook (only on first load)
   // useRef instead of useState so React 18 Strict Mode double-mount doesn't
   // reset the flag on remount, which would leave the editor blank.
   const initializedRef = useRef(false);
@@ -125,6 +126,7 @@ export function PlaybookEditorClient({ id }: Props) {
     if (playbook && !initializedRef.current) {
       initializedRef.current = true;
       setName(playbook.name);
+      setIsActive(playbook.is_active);
       setTargetWinrate(
         playbook.target_winrate
           ? (Number(playbook.target_winrate) * 100).toFixed(2).replace(/\.?0+$/, "")
@@ -213,9 +215,15 @@ export function PlaybookEditorClient({ id }: Props) {
   }, [deleteAttachment, id, pendingAttachmentIdsToDelete, pendingAttachmentsToAdd, registerAttachment]);
 
   const handleSave = useCallback(() => {
-    const payload: { name?: string; description?: string | null; target_winrate?: number | null } = {
+    const payload: {
+      name?: string;
+      description?: string | null;
+      target_winrate?: number | null;
+      is_active?: boolean;
+    } = {
       name: name.trim() || playbook?.name,
       description: contentMarkdown,
+      is_active: isActive,
     };
     if (targetWinrate.trim()) {
       const parsed = parseFloat(targetWinrate);
@@ -242,7 +250,7 @@ export function PlaybookEditorClient({ id }: Props) {
         onError: (err) => toast.error(err.message || "Failed to save playbook"),
       }
     );
-  }, [name, playbook?.name, contentMarkdown, targetWinrate, updatePlaybook, id, router, syncAttachmentChanges]);
+  }, [name, playbook?.name, contentMarkdown, targetWinrate, isActive, updatePlaybook, id, router, syncAttachmentChanges]);
 
   // Keyboard shortcut (Cmd/Ctrl + S)
   useEffect(() => {
@@ -512,6 +520,53 @@ export function PlaybookEditorClient({ id }: Props) {
             </div>
           ) : (
             <span className="text-sm font-mono text-foreground">{targetWinrate ? `${targetWinrate}%` : "—"}</span>
+          )}
+        </div>
+
+        {/* Active / Inactive Status */}
+        <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-border">
+          <label className="text-xs text-muted-foreground whitespace-nowrap">Status</label>
+          {isEditMode ? (
+            <button
+              type="button"
+              onClick={() => setIsActive((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                isActive
+                  ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
+                  : "bg-secondary text-muted-foreground border-border hover:bg-muted"
+              }`}
+              aria-label={`Toggle active status, currently ${isActive ? "Active" : "Inactive"}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-success" : "bg-muted-foreground"}`} />
+              {isActive ? "Active" : "Inactive"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                const nextStatus = !playbook?.is_active;
+                updatePlaybook(
+                  { id, payload: { is_active: nextStatus } },
+                  {
+                    onSuccess: () => {
+                      setIsActive(nextStatus);
+                      toast.success(`Playbook marked as ${nextStatus ? "Active" : "Inactive"}`);
+                    },
+                    onError: (err) => toast.error(err.message || "Failed to update status"),
+                  }
+                );
+              }}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+                playbook?.is_active
+                  ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
+                  : "bg-secondary text-muted-foreground border-border hover:bg-muted"
+              }`}
+              title="Click to toggle status"
+              aria-label={`Toggle active status, currently ${playbook?.is_active ? "Active" : "Inactive"}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${playbook?.is_active ? "bg-success" : "bg-muted-foreground"}`} />
+              {playbook?.is_active ? "Active" : "Inactive"}
+            </button>
           )}
         </div>
 

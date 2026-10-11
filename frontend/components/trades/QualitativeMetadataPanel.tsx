@@ -15,7 +15,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Edit2 } from "lucide-react";
 import { MarkdownRenderer } from "../notes/MarkdownRenderer";
 import useFeatureFlag from "@/hooks/useFeatureFlag";
@@ -106,6 +106,10 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     () => buildAnnotationDraft(trade)
   );
   const [draftPlaybookId, setDraftPlaybookId] = useState<string | null>(trade.playbook_id);
+
+  const selectablePlaybooks = useMemo(() => {
+    return playbooks.filter((pb) => pb.is_active || pb.id === draftPlaybookId);
+  }, [playbooks, draftPlaybookId]);
   
 
 
@@ -246,9 +250,11 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
             disabled={isSaving}
             className="w-full rounded border border-border bg-secondary px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors appearance-none"
           >
-            <option value="">{playbooks.length ? "Select a playbook..." : "No playbooks"}</option>
-            {playbooks.map(pb => (
-              <option key={pb.id} value={pb.id}>{pb.name}</option>
+            <option value="">{selectablePlaybooks.length ? "Select a playbook..." : "No playbooks"}</option>
+            {selectablePlaybooks.map((pb) => (
+              <option key={pb.id} value={pb.id}>
+                {pb.name}{!pb.is_active ? " (Inactive)" : ""}
+              </option>
             ))}
           </select>
         </div>

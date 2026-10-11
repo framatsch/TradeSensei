@@ -14,30 +14,103 @@
  */
 
 /**
- * PlaybookList — table of playbooks with inline create and delete actions.
+ * PlaybookList — table of playbooks with filter bar, sorting, and active status toggle.
  */
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   usePlaybooks,
   useCreatePlaybook,
-  useDeletePlaybook,
+  useUpdatePlaybook,
 } from "@/hooks/usePlaybooks";
 import { Spinner } from "@/components/ui/Spinner";
+import {
+  PlaybookFilterBar,
+  DEFAULT_PLAYBOOK_FILTERS,
+  type PlaybookFilters,
+} from "./PlaybookFilterBar";
+
+type SortKey = "name" | "created_at" | "is_active";
+type SortDirection = "asc" | "desc";
 
 export function PlaybookList() {
   const router = useRouter();
   const { data: playbooks, isLoading, isError, error, refetch } = usePlaybooks();
   const { mutate: create, isPending: creating } = useCreatePlaybook();
-  const { mutate: remove } = useDeletePlaybook();
+  const { mutate: updatePlaybook } = useUpdatePlaybook();
   const UNTITLED_PLAYBOOK_NAME = "Untitled Playbook";
 
+  const [filters, setFilters] = useState<PlaybookFilters>(DEFAULT_PLAYBOOK_FILTERS);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
+
+  const rawPlaybooks = useMemo(() => playbooks ?? [], [playbooks]);
+
+  const totalCounts = useMemo(() => {
+    let active = 0;
+    let inactive = 0;
+    for (const pb of rawPlaybooks) {
+      if (pb.is_active) active += 1;
+      else inactive += 1;
+    }
+    return {
+      all: rawPlaybooks.length,
+      active,
+      inactive,
+    };
+  }, [rawPlaybooks]);
+
+  const filteredAndSorted = useMemo(() => {
+    return rawPlaybooks
+      .filter((pb) => {
+        // Status filter
+        if (filters.status === "active" && !pb.is_active) return false;
+        if (filters.status === "inactive" && pb.is_active) return false;
+
+        // Search query filter
+        if (filters.search.trim()) {
+          const q = filters.search.toLowerCase();
+          const matchName = pb.name.toLowerCase().includes(q);
+          const matchDesc = pb.description?.toLowerCase().includes(q);
+          if (!matchName && !matchDesc) return false;
+        }
+
+        // Tag filter
+        if (filters.tagIds.length > 0) {
+          const hasTag = pb.taxonomies?.some((t) => filters.tagIds.includes(t.id));
+          if (!hasTag) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        let cmp = 0;
+        if (sortKey === "name") {
+          cmp = a.name.localeCompare(b.name);
+        } else if (sortKey === "created_at") {
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        } else if (sortKey === "is_active") {
+          cmp = (a.is_active ? 1 : 0) - (b.is_active ? 1 : 0);
+        }
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+  }, [rawPlaybooks, filters, sortKey, sortDir]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
   const getNextUntitledName = () => {
-    const existingNames = new Set((playbooks ?? []).map((pb) => pb.name));
+    const existingNames = new Set(rawPlaybooks.map((pb) => pb.name));
     if (!existingNames.has(UNTITLED_PLAYBOOK_NAME)) {
       return UNTITLED_PLAYBOOK_NAME;
     }
@@ -48,9 +121,6 @@ export function PlaybookList() {
     }
     return `${UNTITLED_PLAYBOOK_NAME} ${counter}`;
   };
-
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCreate = () => {
     const nextUntitledName = getNextUntitledName();
@@ -68,13 +138,10 @@ export function PlaybookList() {
     );
   };
 
-  const handleDelete = (id: string) => {
-    setDeletingId(id);
-    remove(id, {
-      onSettled: () => {
-        setDeletingId(null);
-        setConfirmDeleteId(null);
-      },
+  const handleToggleStatus = (id: string, currentStatus: boolean) => {
+    updatePlaybook({
+      id,
+      payload: { is_active: !currentStatus },
     });
   };
 
@@ -101,12 +168,16 @@ export function PlaybookList() {
     );
   }
 
-  const items = playbooks ?? [];
-
   return (
     <div className="space-y-4">
       {/* Header action */}
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Playbooks</h2>
+          <p className="text-xs text-muted-foreground">
+            Manage your strategy setups, active status, and tags.
+          </p>
+        </div>
         <button
           onClick={handleCreate}
           disabled={creating}
@@ -130,31 +201,106 @@ export function PlaybookList() {
         </button>
       </div>
 
+      {/* Filter Bar */}
+      {rawPlaybooks.length > 0 && (
+        <PlaybookFilterBar
+          filters={filters}
+          onChange={setFilters}
+          totalCounts={totalCounts}
+        />
+      )}
+
       {/* Table */}
       <div className="solid-card">
-        {items.length === 0 ? (
+        {rawPlaybooks.length === 0 ? (
           <div className="px-4 py-16 text-center text-muted-foreground">
             <p className="text-base font-medium mb-1">No playbooks yet</p>
             <p className="text-sm">
               Create your first playbook to start categorizing trades by strategy.
             </p>
           </div>
+        ) : filteredAndSorted.length === 0 ? (
+          <div className="px-4 py-16 text-center text-muted-foreground">
+            <p className="text-base font-medium mb-1">No matching playbooks</p>
+            <p className="text-sm mb-4">
+              No playbooks match your current filter criteria.
+            </p>
+            <button
+              type="button"
+              onClick={() => setFilters(DEFAULT_PLAYBOOK_FILTERS)}
+              className="px-3 py-1.5 text-xs font-medium bg-secondary hover:bg-muted text-foreground rounded-md transition-colors"
+            >
+              Reset filters
+            </button>
+          </div>
         ) : (
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {["Name", "Tags", "Status", "Created", ""].map((col) => (
-                  <th
-                    key={col}
-                    className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap"
+                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("name")}
+                    className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
                   >
-                    {col}
-                  </th>
-                ))}
+                    Name
+                    {sortKey === "name" ? (
+                      sortDir === "asc" ? (
+                        <ArrowUp className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-40" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                  Tags
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("is_active")}
+                    className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
+                  >
+                    Status
+                    {sortKey === "is_active" ? (
+                      sortDir === "asc" ? (
+                        <ArrowUp className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-40" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("created_at")}
+                    className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
+                  >
+                    Created
+                    {sortKey === "created_at" ? (
+                      sortDir === "asc" ? (
+                        <ArrowUp className="w-3 h-3 text-primary" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3 text-primary" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 opacity-40" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
-              {items.map((pb) => (
+              {filteredAndSorted.map((pb) => (
                 <tr
                   key={pb.id}
                   onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}`)}
@@ -185,15 +331,22 @@ export function PlaybookList() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleStatus(pb.id, pb.is_active);
+                      }}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium transition-all ${
                         pb.is_active
-                          ? "bg-success/10 text-success border border-success/30"
-                          : "bg-secondary text-muted-foreground border border-border"
+                          ? "bg-success/10 text-success border border-success/30 hover:bg-success/20"
+                          : "bg-secondary text-muted-foreground border border-border hover:bg-muted"
                       }`}
+                      title={pb.is_active ? "Click to deactivate" : "Click to activate"}
+                      aria-label={`Toggle status for ${pb.name}, currently ${pb.is_active ? "Active" : "Inactive"}`}
                     >
                       {pb.is_active ? "Active" : "Inactive"}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                     {new Date(pb.created_at).toLocaleDateString("en-US", {
@@ -202,64 +355,20 @@ export function PlaybookList() {
                       year: "numeric",
                     })}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      {confirmDeleteId === pb.id ? (
-                        <div
-                          className="flex items-center gap-1.5"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <AlertCircle className="w-3.5 h-3.5 text-destructive shrink-0" />
-                          <span className="text-xs text-foreground whitespace-nowrap">Delete?</span>
-                          <button
-                            onClick={() => handleDelete(pb.id)}
-                            disabled={deletingId === pb.id}
-                            className="px-2 py-0.5 text-xs font-medium bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 disabled:opacity-50"
-                          >
-                            {deletingId === pb.id ? <Spinner size="sm" /> : "Yes"}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}?edit=true`)}
-                            className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            title="Edit playbook"
-                            aria-label={`Edit ${pb.name}`}
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                              <path d="M12 20h9"></path>
-                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(pb.id)}
-                            disabled={deletingId === pb.id}
-                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Delete playbook"
-                            aria-label={`Delete ${pb.name}`}
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="w-4 h-4"
-                            >
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                              <path d="M10 11v6M14 11v6" />
-                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}?edit=true`)}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="Edit playbook"
+                        aria-label={`Edit ${pb.name}`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                          <path d="M12 20h9"></path>
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                      </button>
                     </div>
                   </td>
                 </tr>

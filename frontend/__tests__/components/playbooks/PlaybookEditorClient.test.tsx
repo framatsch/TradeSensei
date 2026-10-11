@@ -131,5 +131,34 @@ describe("PlaybookEditorClient", () => {
       | { payload?: Record<string, unknown> }
       | undefined;
     expect(mutationArg?.payload).not.toHaveProperty("content_markdown");
+    expect(mutationArg?.payload).toHaveProperty("is_active", true);
+  });
+
+  it("toggles active status and saves updated is_active flag", async () => {
+    const user = userEvent.setup();
+
+    render(<PlaybookEditorClient id="playbook-1" />);
+
+    const statusToggle = screen.getByRole("button", {
+      name: "Toggle active status, currently Active",
+    });
+    expect(statusToggle).toBeInTheDocument();
+
+    await user.click(statusToggle);
+    expect(
+      screen.getByRole("button", { name: "Toggle active status, currently Inactive" })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(mockUpdatePlaybook).toHaveBeenCalledWith(
+      {
+        id: "playbook-1",
+        payload: expect.objectContaining({
+          is_active: false,
+        }),
+      },
+      expect.any(Object)
+    );
   });
 });

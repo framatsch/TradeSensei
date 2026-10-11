@@ -147,4 +147,34 @@ describe("QualitativeMetadataPanel", () => {
 
     expect(screen.getByDisplayValue("2")).toBeInTheDocument();
   });
+
+  it("filters out inactive playbooks for unassigned trades", () => {
+    (usePlaybooks as jest.Mock).mockReturnValue({
+      data: [
+        { id: "pb-1", name: "Active Strategy", is_active: true },
+        { id: "pb-2", name: "Retired Strategy", is_active: false },
+      ],
+    });
+
+    render(<QualitativeMetadataPanel trade={buildTrade({ playbook_id: null })} />);
+
+    expect(screen.getByRole("option", { name: "Active Strategy" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /retired strategy/i })).not.toBeInTheDocument();
+  });
+
+  it("preserves and labels assigned inactive playbook", () => {
+    (usePlaybooks as jest.Mock).mockReturnValue({
+      data: [
+        { id: "pb-1", name: "Active Strategy", is_active: true },
+        { id: "pb-2", name: "Retired Strategy", is_active: false },
+      ],
+    });
+
+    render(<QualitativeMetadataPanel trade={buildTrade({ playbook_id: "pb-2" })} />);
+
+    expect(screen.getByRole("option", { name: "Active Strategy" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Retired Strategy (Inactive)" })
+    ).toBeInTheDocument();
+  });
 });
