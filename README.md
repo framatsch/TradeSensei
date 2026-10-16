@@ -14,14 +14,17 @@ Trade Sensei lets you record every trade, import activity from your broker, and 
 ## Features
 
 ### Trade Journaling & Import
-- **Trade journaling** — add trades manually or import them from a broker CSV file
-- **Broker import** — Interactive Brokers (IBKR) Activity Statement CSV and Charles Schwab trade history CSV
-- **Trade image attachments** — attach chart screenshots or setup images directly to trades via drag-and-drop; requires an S3-compatible storage backend (e.g. MinIO or SeaweedFS)
-- **Execution leg editor** — record individual fills with split-aware logic; timestamps auto-sync to the trade open/close times
+- **Trade journaling** — add trades manually, sync directly via broker APIs, or import from broker files
+- **Broker integration (API Sync & File Import)** —
+  - **Interactive Brokers (IBKR):** Direct Flex Web Service API sync and Flex Query XML file import (supports both Activity and Trade Confirmation Flex Queries)
+  - **Charles Schwab:** Direct OAuth 2.0 Trader API sync and wrapped Transactions JSON file import (e.g. via `tools/schwab_cli.py`)
+- **Unified raw-to-FIFO pipeline** — stores immutable raw broker transactions and logical executions, automatically handling FIFO matching, option combos, corporate actions (stock splits), duplicate detection, and overwrite protection for manually edited trades
+- **Trade image attachments** — attach chart screenshots or setup images directly to trades via drag-and-drop; requires an S3-compatible storage backend (bundled with SeaweedFS by default)
+- **Execution leg editor** — record, split, merge, or restore individual fills with split-aware logic; timestamps auto-sync to the trade open/close times
 
 ### Performance Analytics
 - **Performance metrics** — win rate, profit factor, expectancy, Sharpe ratio, max drawdown, and more
-- **Equity curve and drawdown visualization** — interactive time-series charts powered by Recharts
+- **Equity curve and drawdown visualization** — interactive time-series and financial charts powered by Recharts and TradingView Lightweight Charts
 - **Strategy analysis** — MAE/MFE, R-multiple distribution, duration vs. P&L, payoff ratio
 - **Time analysis** — performance breakdown by hour, weekday, month, and year to surface systematic patterns
 - **Metadata Correlation Explorer** — select any Check-in annotation or taxonomy as X and any Trade annotation or taxonomy as Y; automatically renders the correct chart type (scatter, box-and-whisker, co-occurrence heatmap) to surface psychological and market-condition correlations
@@ -42,7 +45,7 @@ Trade Sensei lets you record every trade, import activity from your broker, and 
 - **Multi-user support** — each user has fully isolated data; authentication via JWT (password), Google OAuth 2.0, or custom OIDC providers (e.g. Authentik)
 
 ### MCP AI Integration
-- **MCP server** — expose your trade data to external AI agents (Claude, Gemini, etc.) via the Model Context Protocol over Server-Sent Events, secured by Personal Access Tokens
+- **MCP server** — expose your trade data to external AI agents (Claude, Gemini, OpenCode, etc.) via the Model Context Protocol over Server-Sent Events (`/mcp/sse`), secured by Personal Access Tokens
 - **Domain tools** — AI agents can discover your metadata schema, search trades with multi-dimensional filters, bulk-enrich trades with tags and annotations, and create strategy playbooks from analyzed content
 
 ### Platform
@@ -55,10 +58,12 @@ Trade Sensei lets you record every trade, import activity from your broker, and 
 
 | Layer          | Technology                                                        |
 |----------------|-------------------------------------------------------------------|
-| Backend        | Python 3.12, FastAPI, SQLAlchemy 2.0 (async), Alembic             |
-| Database       | TimescaleDB (PostgreSQL extension)                                |
-| Frontend       | Next.js 14 (App Router), TypeScript, Tailwind CSS, Recharts, React Query |
-| Infrastructure | Docker, Docker Compose, GitHub Actions CI/CD                      |
+| Backend        | Python 3.13+, FastAPI, Pydantic v2, SQLAlchemy 2.0 (async), Alembic, `uv` |
+| Database       | PostgreSQL 18 (TimescaleDB-compatible)                            |
+| Object Storage | SeaweedFS (S3-compatible object storage for trade & check-in images) |
+| Frontend       | Next.js 16 (App Router), React 18, TypeScript 5, Tailwind CSS, Recharts 3, Lightweight Charts 5, TanStack Query v5, Zustand 5, Radix UI |
+| API Client     | OpenAPI-generated (`@hey-api/openapi-ts`)                         |
+| Infrastructure | Docker, Docker Compose, Kubernetes (`k8s/`), GitHub Actions CI/CD |
 
 ---
 
@@ -81,79 +86,21 @@ Copy `.env.example` to `.env` and fill in the required values:
 cp .env.example .env
 ```
 
-The complete variables:
+The core variables:
 
 ```dotenv
 # Database connection (either DATABASE_URL OR the DB_* variables)
 DATABASE_URL=                      # optional, e.g. postgresql+asyncpg://user:pass@db:5432/db
-DB_USER=tradesensei               # required if DATABASE_URL is empty
-DB_PASSWORD=tradesensei           # required if DATABASE_URL is empty
+DB_USER=tradesensei                # required if DATABASE_URL is empty
+DB_PASSWORD=tradesensei            # required if DATABASE_URL is empty
 DB_HOST=db                         # defaults to 'db'
 DB_PORT=5432                       # defaults to 5432
-DB_NAME=tradesensei               # defaults to 'tradesensei'
+DB_NAME=tradesensei                # defaults to 'tradesensei'
 
 # Required
 SECRET_KEY=                        # generate: python -c "import secrets; print(secrets.token_hex(32))"
+BROKER_ENCRYPTION_KEY=             # Fernet key for encrypting stored broker API tokens
 ```
-
-**3. Start the stack**
-
-```bash
-docker compose up -d
-```
-
-**Services:**
-
-| Service       | URL                             |
-|---------------|---------------------------------|
-| Frontend      | http://localhost:3000           |
-| Backend API   | http://localhost:8000           |
-| MCP API       | http://localhost:8001 (MCP)    |
-| Swagger UI    | http://localhost:8000/docs      |
-| ReDoc         | http://localhost:8000/redoc     |
-
-**4. First steps**
-
-1. Open the frontend at `http://localhost:3000`
-2. Register a new account
-3. Go to **Accounts** and create a broker account (e.g., "IBKR Main")
-4. Import trades from a CSV file, or add your first trade manually from the dashboard
-
----
-
-
-The fastest way to run the full stack locally is with Docker Compose.
-
-**1. Clone the repository**
-
-```bash
-git clone <repo-url>
-cd tradesensei
-```
-
-**2. Create your `.env` file**
-
-Copy `.env.example` to `.env` and fill in the required values:
-
-```bash
-cp .env.example .env
-```
-
-The complete set of variables:
-
-```dotenv
-# Database connection (either DATABASE_URL OR the DB_* variables)
-DATABASE_URL=                      # optional, e.g. postgresql+asyncpg://user:pass@db:5432/db
-DB_USER=tradesensei               # required if DATABASE_URL is empty
-DB_PASSWORD=tradesensei           # required if DATABASE_URL is empty
-DB_HOST=db                         # defaults to 'db'
-DB_PORT=5432                       # defaults to 5432
-DB_NAME=tradesensei               # defaults to 'tradesensei'
-
-# Required
-SECRET_KEY=                        # generate: python -c "import secrets; print(secrets.token_hex(32))"
-```
-
 
 Without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, the Google login button is visible in the UI but non-functional; password-based login works as normal.
 
@@ -169,6 +116,7 @@ docker compose up -d
 |---------------|---------------------------------|
 | Frontend      | http://localhost:3000           |
 | Backend API   | http://localhost:8000           |
+| MCP SSE       | http://localhost:8000/mcp/sse   |
 | Swagger UI    | http://localhost:8000/docs      |
 | ReDoc         | http://localhost:8000/redoc     |
 
@@ -176,8 +124,8 @@ docker compose up -d
 
 1. Open the frontend at `http://localhost:3000`
 2. Register a new account
-3. Go to **Accounts** and create a broker account (e.g. "IBKR Main")
-4. Import trades from a CSV file, or add your first trade manually from the dashboard
+3. Go to **Settings → Accounts & Integrations** and create a broker account (`IBKR`, `Schwab`, or `Manual`)
+4. Sync trades directly via the broker API, upload a broker export file (`.xml` for IBKR, `.json` for Schwab), or add your first trade manually from the dashboard
 
 ---
 
@@ -187,30 +135,19 @@ Use this approach if you want to run the backend and frontend outside of contain
 
 ### Backend
 
-Prerequisites: Python 3.12+, [`uv`](https://github.com/astral-sh/uv), a running TimescaleDB/PostgreSQL instance.
+Prerequisites: Python 3.13+, [`uv`](https://github.com/astral-sh/uv), a running PostgreSQL instance.
 
 ```bash
 cd backend
 uv sync
 ```
 
-Set the required environment variables (export them or place them in a `.env` file read by your shell):
+Set the required environment variables (export them or place them in a `backend/.env` file):
 
-```
-DB_USER=user
-DB_PASSWORD=pass
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=tradesensei
-SECRET_KEY=<your-secret-key>
-ENVIRONMENT=development
-LOG_LEVEL=INFO
-CORS_ORIGINS=http://localhost:3000
-```
-
+```dotenv
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tradesensei
 SECRET_KEY=<your-secret-key>
-BROKER_ENCRYPTION_KEY=<your-encryption-key>
+BROKER_ENCRYPTION_KEY=<your-fernet-encryption-key>
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 CORS_ORIGINS=http://localhost:3000
@@ -225,11 +162,11 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ### Frontend
 
-Prerequisites: Node.js 18+.
+Prerequisites: Node.js 20+ (Docker uses Node 24).
 
 ```bash
 cd frontend
-npm install
+npm install --legacy-peer-deps
 ```
 
 Start the development server:
@@ -242,20 +179,30 @@ The frontend is available at `http://localhost:3000`. By default, it proxies API
 
 ---
 
-## Importing trades
+## Broker Support & Importing Trades
 
-1. Open the dashboard and navigate to **Import**
-2. Select your broker — **IBKR** or **Schwab**
-3. Select the account you want to import into
-4. Upload your exported CSV file
+Trade Sensei uses a unified import pipeline that processes raw executions, links multi-leg option combos, adjusts for stock splits, deduplicates fills, and preserves manually edited trades.
 
-**Exporting from Interactive Brokers (IBKR):**
-In TWS or the Client Portal, go to Reports → Activity Statements. Set the period, select the **Trades** section, and export as CSV.
+Supported account types:
+- **Interactive Brokers (`ibkr`)** — API sync via IBKR Flex Web Service + file upload via **Flex Query XML (`.xml`)**
+- **Charles Schwab (`schwab`)** — API sync via Schwab Trader API (OAuth 2.0 + PKCE) + file upload via **wrapped Transactions JSON (`.json`)**
+- **Manual (`manual`)** — manual trade entry and execution tracking
 
-**Exporting from Charles Schwab:**
-Log in to schwab.com, go to Accounts → History, filter to the date range you need, and download the trade history as CSV.
+### 1. Interactive Brokers (IBKR)
 
-Duplicate detection is built in — re-uploading the same file will not create duplicate trades.
+**Format:** Flex Query XML (`.xml`) — both *Activity Flex Queries* (`<Trade>` elements) and *Trade Confirmation Flex Queries* (`<Execution>` elements) are supported. *(Legacy CSV exports are not supported.)*
+
+- **Direct API Sync:** In **Settings → Accounts & Integrations**, configure your IBKR account with your `IBKR_FLEX_TOKEN` and `IBKR_FLEX_QUERY_ID`. You can then trigger an on-demand sync with a custom start date directly from the **Import** dialog or settings.
+- **File Upload:** Export your Activity or Trade Confirmation Flex Query as **XML** from the IBKR Client Portal (*Performance & Reports → Flex Queries*) and upload one or more `.xml` files.
+- See [`docs/flex_query-setup.md`](docs/flex_query-setup.md) for required Flex Query sections and date/time formatting.
+
+### 2. Charles Schwab
+
+**Format:** Wrapped Transactions JSON (`.json`) with top-level `{ "accounts": [{ "accountNumber": "...", "transactions": [...] }] }` structure. *(Legacy CSV exports are not supported.)*
+
+- **Direct API Sync:** Configure your Schwab account with your Schwab Developer App Key & Secret, then connect via OAuth 2.0 (supports both local redirect callback and paste-URL modes). Once connected, sync transactions directly for any lookback window (up to 365 days).
+- **File Upload / CLI:** Use the bundled CLI tool (`python tools/schwab_cli.py transactions`) to fetch transactions into the wrapped JSON format and upload the `.json` file in the UI or via `/api/v1/portfolios/{portfolio_id}/imports/upload`.
+- See [`docs/schwab-positions-tool.md`](docs/schwab-positions-tool.md) for full CLI usage.
 
 ---
 
@@ -289,7 +236,7 @@ The backend handles the full Authorization Code Flow via `authlib`, automaticall
 
 ## Trade image attachments
 
-You can attach chart screenshots or setup images to any trade. Images are stored in an S3-compatible bucket and linked to the trade via a list of URLs.
+You can attach chart screenshots or setup images to any trade or daily check-in. Images are stored in an S3-compatible bucket.
 
 ### Requirements
 
@@ -299,21 +246,22 @@ An S3-compatible storage backend must be configured. Set the following environme
 |---|---|
 | `STORAGE_BACKEND` | Set to `s3` to enable S3 storage |
 | `STORAGE_BUCKET` | Bucket name (must exist) |
-| `STORAGE_PUBLIC_URL` | Optional base URL override for generated presigned URLs (e.g. `https://cdn.example.com/tradesensei`) |
+| `STORAGE_PROXY_URL` | Internal S3 URL used by the Next.js `/api/storage-proxy` route (e.g. `http://seaweedfs:8333`) |
+| `STORAGE_PUBLIC_URL` | Optional base URL override for direct presigned URLs |
 | `STORAGE_ACCESS_KEY` | S3 access key |
 | `STORAGE_SECRET_KEY` | S3 secret key |
-| `STORAGE_ENDPOINT_URL` | Custom endpoint for S3-compatible services (e.g. MinIO at `http://minio:9000`) |
+| `STORAGE_ENDPOINT_URL` | Custom endpoint for S3-compatible services (e.g. `http://seaweedfs:8333` or MinIO) |
 
 If these variables are not set, the upload endpoint returns HTTP 503 and the image upload UI is unavailable. Existing `image_urls` values on trades are still displayed.
 
 ### Local SeaweedFS example (Default)
 
-The local development stack includes a bundled SeaweedFS service that handles object storage. The backend is configured to use it by default with the following settings:
+The local development stack includes a bundled SeaweedFS service that handles object storage internally via the Next.js storage proxy. The backend is configured to use it by default with the following settings:
 
-```
+```dotenv
 STORAGE_BACKEND=s3
 STORAGE_BUCKET=tradesensei
-STORAGE_PUBLIC_URL=http://localhost:8333/tradesensei
+STORAGE_PROXY_URL=http://seaweedfs:8333
 STORAGE_ACCESS_KEY=any
 STORAGE_SECRET_KEY=any
 STORAGE_ENDPOINT_URL=http://seaweedfs:8333
@@ -326,11 +274,8 @@ STORAGE_ENDPOINT_URL=http://seaweedfs:8333
 Playbooks let you group trades by named strategy or setup so you can measure how each one performs over time.
 
 1. Go to **Dashboard → Playbooks**
-2. Create a playbook (e.g. "Breakout", "Mean Reversion", "Earnings Play")
-3. When adding or editing a trade, assign it to a playbook from the dropdown
-4. Performance metrics on the dashboard reflect the trades in your selected account
-
-Filtering metrics by playbook is planned for a future iteration.
+2. Create a playbook (e.g. "Breakout", "Mean Reversion", "Earnings Play") with Markdown strategy rules, target win rate, taxonomy tags, and reference images/links
+3. Assign trades to a playbook and filter analytics across the platform by playbook and tags
 
 ---
 
@@ -377,7 +322,7 @@ uv run pytest tests/                # all tests (requires a running test DB)
 The E2E tests require the full stack to be running. The easiest way is via Docker Compose:
 
 ```bash
-# 1. Start the full stack (db + backend + frontend)
+# 1. Start the full stack (db + backend + frontend + seaweedfs)
 docker compose up -d --wait
 
 # 2. Install Playwright and its browser dependencies (once)
@@ -422,10 +367,11 @@ See [`docs/dev-guide.md`](docs/dev-guide.md) for the full developer guide, inclu
 
 ```
 tradesensei/
-├── backend/      # FastAPI application (Python)
-├── frontend/     # Next.js application (TypeScript)
+├── backend/      # FastAPI application (Python 3.13+)
+├── frontend/     # Next.js 16 application (TypeScript)
+├── tools/        # CLI utilities (Schwab CLI, lint/test/commit helpers)
 ├── k8s/          # Kubernetes manifests
-├── docs/         # Developer documentation
+├── docs/         # Developer and integration documentation
 └── .github/      # CI/CD workflows
 ```
 
@@ -433,4 +379,4 @@ tradesensei/
 
 ## License
 
-MIT License
+GNU Affero General Public License v3.0 (AGPL-3.0) — see [`LICENSE`](LICENSE) for details.
