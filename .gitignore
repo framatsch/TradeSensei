@@ -74,6 +74,8 @@ frontend/playwright-report/
 # OpenCode state
 .opencode/index
 .omo/
+.engram/
+.serena/
 
 #tmp
 tmp
