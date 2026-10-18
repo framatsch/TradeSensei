@@ -90,13 +90,20 @@ async function handler(
     );
   }
 
-  // Copy response headers, excluding hop-by-hop
+  // Copy response headers, excluding hop-by-hop.
+  // Set-Cookie must be copied via getSetCookie() + append() so multiple
+  // cookies (e.g. refresh_token + tradesensei_session on OAuth/OIDC callbacks)
+  // are all preserved instead of overwriting each other.
   const resHeaders = new Headers();
   upstreamRes.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+    const lowerKey = key.toLowerCase();
+    if (!HOP_BY_HOP_HEADERS.has(lowerKey) && lowerKey !== "set-cookie") {
       resHeaders.set(key, value);
     }
   });
+  for (const cookie of upstreamRes.headers.getSetCookie()) {
+    resHeaders.append("set-cookie", cookie);
+  }
 
   const responseBody = await upstreamRes.arrayBuffer();
 

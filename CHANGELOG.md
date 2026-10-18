@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Preserved multiple `Set-Cookie` headers in the Next.js API reverse proxy (`/api/proxy/[...path]`) using `getSetCookie()` and `Headers.append()` so the `refresh_token` cookie on OAuth/OIDC callbacks is no longer overwritten by `tradesensei_session`.
+
 ## [1.16.4] - 2026-10-11
 
 ### Added
