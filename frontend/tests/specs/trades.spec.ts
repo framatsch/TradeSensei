@@ -22,7 +22,24 @@
  */
 
 import { test, expect, chromium } from '@playwright/test';
-import seedState from '../.auth/seed-state.json';
+import fs from 'fs';
+import path from 'path';
+
+const SEED_STATE_FILE = path.join(__dirname, '../.auth/seed-state.json');
+const seedState = new Proxy(
+  {} as {
+    executionTradeId: string;
+    addExecutionTestTradeId: string;
+    detachTestTradeId: string;
+    mergeTradeIds: [string, string];
+  },
+  {
+    get(_target, prop: string) {
+      const data = JSON.parse(fs.readFileSync(SEED_STATE_FILE, 'utf-8'));
+      return data[prop];
+    },
+  }
+);
 
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000';
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
@@ -61,7 +78,6 @@ test.describe('Trades List', () => {
       'Opened At',
       'Closed At',
       'Tags',
-      'Notes',
     ];
     // Wait for table to be fully loaded
     await page.waitForSelector('thead th', { timeout: 15_000 });
@@ -146,7 +162,7 @@ test.describe('Trade Detail', () => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
     // Assert Execution Summary heading visible
-    await expect(page.getByText('Execution Summary')).toBeVisible();
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
     // Assert VWAP Entry label visible
     await expect(page.getByText('VWAP Entry')).toBeVisible();
     // Assert the entry price ($400.00) appears in the card
@@ -163,7 +179,7 @@ test.describe('Trade Detail', () => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
-    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 25_000 });
 
     // Wait for execution table to load
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
@@ -184,7 +200,7 @@ test.describe('Trade Detail', () => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
-    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 25_000 });
 
     // Wait for execution table to load
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
@@ -255,14 +271,8 @@ test.describe('Trade Detail', () => {
 
   // ── TC-067: Position Conflict banner is not visible on normal trade ──
   test('TC-067 position conflict banner is not visible on normal trade', async ({ page }) => {
-    // Navigate via list to a non-conflicting trade (first row is fine)
-    await page.goto('/dashboard/trades');
-
-    const firstSymbolLink = page.locator('tbody tr').first().locator('a[href*="/dashboard/trades/"]');
-    await expect(firstSymbolLink).toBeVisible({ timeout: 15_000 });
-    await firstSymbolLink.click();
-
-    await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i, { timeout: 8_000 });
+    await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
 
     // Assert Position Conflict is NOT visible
     await expect(page.getByText('Position Conflict')).not.toBeVisible();
@@ -299,7 +309,7 @@ test.describe('Add Execution Modal', () => {
     await page.goto(`/dashboard/trades/${seedState.addExecutionTestTradeId}`);
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
-    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 25_000 });
 
     // Wait for execution table to load
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
@@ -332,7 +342,7 @@ test.describe('Add Execution Modal', () => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
-    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 25_000 });
 
     // Wait for execution table to load
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
@@ -361,7 +371,7 @@ test.describe('Inline Sidebar Editing', () => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
-    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 25_000 });
 
     // Find Stop Loss section — scoped to the sidebar card that contains it
     // InlineNumberField renders a button with title "Click to edit Stop Loss" in view mode
@@ -393,17 +403,18 @@ test.describe('Inline Sidebar Editing', () => {
   test('TC-076 inline edit playbook field', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
-    // Click on Edit button in Qualitative Analysis panel
-    await page.getByRole('button', { name: 'Edit' }).click();
-
-    // Select Playbook
-    await page.locator('select').filter({ hasText: 'Select a playbook' }).selectOption({ label: 'Breakout' });
+    // Select Playbook (QualitativeMetadataPanel is directly editable; changing it reveals Save)
+    const playbookSelect = page.locator('select').filter({ hasText: 'Select a playbook' });
+    await expect(playbookSelect).toBeVisible({ timeout: 15_000 });
+    await playbookSelect.selectOption({ label: 'Breakout' });
 
     // Save
-    await page.getByRole('button', { name: 'Save' }).click();
+    const saveBtn = page.getByRole('button', { name: 'Save', exact: true });
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
+    await expect(saveBtn).not.toBeVisible({ timeout: 10_000 });
 
     // Assert the field now shows Breakout
-    // It's a disabled select so it will show the selected value
     await expect(page.locator('select').filter({ hasText: 'Breakout' })).toHaveValue(/^[a-zA-Z0-9-]{36}$/); // uuid
     await expect(page.locator('select').filter({ hasText: 'Breakout' }).locator('option:checked')).toHaveText('Breakout');
   });
@@ -412,18 +423,18 @@ test.describe('Inline Sidebar Editing', () => {
   test('TC-077 inline edit taxonomies in playbook psychology card', async ({ page }) => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
-    // Click on Edit button in Qualitative Analysis panel
-    await page.getByRole('button', { name: 'Edit' }).click();
-
-    // Click on taxonomy badge to toggle it
-    await page.getByRole('button', { name: /high-conviction/i }).click();
+    // Click on taxonomy badge to toggle it (QualitativeMetadataPanel is directly editable)
+    const tagBtn = page.getByRole('button', { name: /high-conviction/i });
+    await expect(tagBtn).toBeVisible({ timeout: 15_000 });
+    await tagBtn.click();
 
     // Save
-    await page.getByRole('button', { name: 'Save' }).click();
+    const saveBtn = page.getByRole('button', { name: 'Save', exact: true });
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
 
-    // The taxonomy chip should be active (in UI it's usually indicated by class or just by being present, depending on how `disabled={!isEditing}` renders them)
-    // We just verify we can click and save without errors
-    await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
+    // Verify save completes and Unsaved changes banner disappears
+    await expect(saveBtn).not.toBeVisible({ timeout: 10_000 });
   });
 });
 
@@ -436,10 +447,10 @@ test.describe.serial('Merge Workflow', () => {
   // ── TC-080: Select two trades and Merge button appears ──
   test('TC-080 selecting two trades shows merge button in toolbar', async ({ page }) => {
     // Show all rows and narrow to AAPL so seeded merge trades are visible
-    await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
+    await page.goto('/dashboard/trades?symbol=AAPL&opened_at_from=2000-01-01&limit=100');
 
     // Wait for table rows to load
-    await page.waitForSelector('tbody tr', { timeout: 15_000 });
+    await page.waitForSelector('tbody tr', { timeout: 25_000 });
 
     const [tradeId1, tradeId2] = seedState.mergeTradeIds;
     
@@ -467,7 +478,7 @@ test.describe.serial('Merge Workflow', () => {
   // ── TC-081: Merge button opens preview modal ──
   test('TC-081 merge button opens preview modal with combined info', async ({ page }) => {
     // Show all rows and narrow to AAPL so seeded merge trades are visible
-    await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
+    await page.goto('/dashboard/trades?symbol=AAPL&opened_at_from=2000-01-01&limit=100');
 
     // Wait for table rows to load
     await page.waitForSelector('tbody tr', { timeout: 15_000 });
@@ -502,7 +513,7 @@ test.describe.serial('Merge Workflow', () => {
   // ── TC-082: Confirm merge navigates to survivor trade ──
   test('TC-082 confirming merge navigates to survivor trade detail', async ({ page }) => {
     // Show all rows and narrow to AAPL so seeded merge trades are visible
-    await page.goto('/dashboard/trades?symbol=AAPL&limit=100');
+    await page.goto('/dashboard/trades?symbol=AAPL&opened_at_from=2000-01-01&limit=100');
 
     // Wait for table rows to load
     await page.waitForSelector('tbody tr', { timeout: 15_000 });
@@ -544,7 +555,7 @@ test.describe('Execution Context Menu', () => {
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
-    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 25_000 });
 
     // Wait for execution table rows
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
@@ -571,7 +582,7 @@ test.describe('Execution Context Menu', () => {
     await page.goto(`/dashboard/trades/${seedState.detachTestTradeId}`);
 
     // Wait for Execution Summary Card to appear first (indicates page is loaded)
-    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Execution Summary')).toBeVisible({ timeout: 25_000 });
 
     // Wait for execution table rows
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });

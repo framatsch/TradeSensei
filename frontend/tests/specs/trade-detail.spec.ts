@@ -14,10 +14,20 @@
  */
 
 import { test, expect } from '@playwright/test';
-import seedState from '../.auth/seed-state.json';
+import fs from 'fs';
+import path from 'path';
+
+const SEED_STATE_FILE = path.join(__dirname, '../.auth/seed-state.json');
+
+function getSeedState() {
+  return JSON.parse(fs.readFileSync(SEED_STATE_FILE, 'utf-8')) as {
+    executionTradeId: string;
+  };
+}
 
 test.describe('Trade Detail Redesign', () => {
   test.beforeEach(async ({ page }) => {
+    const seedState = getSeedState();
     // We use the seeded execution trade ID which is guaranteed to exist
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
     await page.waitForLoadState('networkidle');

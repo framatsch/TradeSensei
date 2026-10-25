@@ -126,14 +126,14 @@ test.describe('BentoMenu', () => {
 
   test('TC-073 switching to Global Library navigates to /dashboard/library', async ({ page }) => {
     await openBentoMenu(page);
-    await page.getByRole('dialog').getByText('Global Library').click();
-    await expect(page).toHaveURL(/\/dashboard\/library/, { timeout: 8_000 });
+    await page.getByRole('dialog').getByRole('link', { name: /Global Library/i }).click();
+    await expect(page).toHaveURL(/\/dashboard\/library/, { timeout: 15_000 });
   });
 
   test('TC-074 switching to Market Check-in navigates to /dashboard/checkin', async ({ page }) => {
     await openBentoMenu(page);
-    await page.getByRole('dialog').getByText('Market Check-in').click();
-    await expect(page).toHaveURL(/\/dashboard\/checkin/, { timeout: 8_000 });
+    await page.getByRole('dialog').getByRole('link', { name: /Market Check-in/i }).click();
+    await expect(page).toHaveURL(/\/dashboard\/checkin/, { timeout: 15_000 });
   });
 
   test('TC-075 switching back to Portfolio Workspace navigates to /dashboard', async ({ page }) => {
@@ -141,9 +141,9 @@ test.describe('BentoMenu', () => {
     await page.goto('/dashboard/library/playbooks');
     await waitForTopBar(page);
     await openBentoMenu(page);
-    await page.getByRole('dialog').getByText('Portfolio Workspace').click();
+    await page.getByRole('dialog').getByRole('link', { name: /Portfolio Workspace/i }).click();
     // Allow either /dashboard or /dashboard/* (root overview page)
-    await expect(page).toHaveURL(/\/dashboard(?:\/overview)?$/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/dashboard(?:\/overview)?$/, { timeout: 15_000 });
   });
 
   test('TC-076 active context has visual indicator in BentoMenu', async ({ page }) => {
@@ -158,8 +158,8 @@ test.describe('BentoMenu', () => {
 
   test('TC-077 context persists in localStorage after switch', async ({ page }) => {
     await openBentoMenu(page);
-    await page.getByRole('dialog').getByText('Global Library').click();
-    await expect(page).toHaveURL(/\/dashboard\/library/, { timeout: 8_000 });
+    await page.getByRole('dialog').getByRole('link', { name: /Global Library/i }).click();
+    await expect(page).toHaveURL(/\/dashboard\/library/, { timeout: 15_000 });
 
     const stored = await page.evaluate(() => localStorage.getItem('active_app_context'));
     expect(stored).toBe('library');

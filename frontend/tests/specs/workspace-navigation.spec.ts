@@ -17,10 +17,17 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Workspace Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    // Clear localStorage to prevent WorkspaceFilterContext from redirecting and cancelling our navigations
-    await page.goto('/dashboard/workspace/overview');
-    await page.evaluate(() => window.localStorage.clear());
-    await page.goto('/dashboard/workspace/overview');
+    // Clear workspace filter state from localStorage without wiping auth token
+    await page.goto('/dashboard/workspace/overview?status=closed');
+    await page.evaluate(() => {
+      for (const key of Object.keys(window.localStorage)) {
+        if (key !== 'access_token' && key !== 'active_portfolio_id' && key !== 'active_app_context') {
+          window.localStorage.removeItem(key);
+        }
+      }
+    });
+    // Include ?status=closed so WorkspaceFilterContext's debounced URL sync does not call router.replace() mid-click
+    await page.goto('/dashboard/workspace/overview?status=closed');
     await expect(page.getByText('Portfolio Workspace', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   });
 

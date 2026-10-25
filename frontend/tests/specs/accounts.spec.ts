@@ -56,7 +56,7 @@ async function expandFirstPortfolio(page: Page) {
   }
 }
 
-// Open the "New Account" inline form
+// Open the "Create Broker Account" modal
 async function openNewAccountForm(page: Page) {
   await expandFirstPortfolio(page);
   
@@ -67,7 +67,20 @@ async function openNewAccountForm(page: Page) {
   }
   
   await addBtn.click();
-  await expect(page.getByRole('heading', { name: 'New Account' })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('heading', { name: 'Create Broker Account' })).toBeVisible({ timeout: 5_000 });
+}
+
+// Helper to permanently delete an account via the Edit Account modal Danger Zone
+async function deleteAccountByName(page: Page, accountName: string) {
+  const rowBtn = page.getByText(accountName, { exact: true }).locator('..').locator('..').getByRole('button');
+  await rowBtn.click();
+  await expect(page.getByRole('heading', { name: 'Edit Account' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show Danger Zone' }).click();
+  await page.getByTestId('delete-confirm-input').fill(accountName);
+  await page.getByTestId('delete-account-button').click();
+  await expect(page.getByText(accountName, { exact: true })).toHaveCount(0, {
+    timeout: 15_000,
+  });
 }
 
 test.describe('Accounts', () => {
@@ -100,7 +113,7 @@ test.describe('Accounts', () => {
   test('TC-081 create a manual account', async ({ page }) => {
     await openNewAccountForm(page);
 
-    await page.getByLabel('Name').fill('My Manual Account TC081');
+    await page.getByLabel('Display Name').fill('My Manual Account TC081');
     await page.getByLabel('Broker Type').selectOption('manual');
 
     await page.getByRole('button', { name: 'Create Account' }).click();
@@ -110,15 +123,7 @@ test.describe('Accounts', () => {
     });
 
     // Clean up
-    const rowBtn = page.getByText('My Manual Account TC081', { exact: true }).locator('..').locator('..').getByRole('button');
-    await rowBtn.click(); // Click Edit button
-    
-    await expect(page.getByRole('heading', { name: 'Edit Account' })).toBeVisible();
-    await page.getByRole('button', { name: 'Deactivate Account' }).click();
-    await page.reload();
-    await expect(page.getByText('My Manual Account TC081')).toHaveCount(0, {
-      timeout: 15_000,
-    });
+    await deleteAccountByName(page, 'My Manual Account TC081');
   });
 
   // ─── TC-082: Create IBKR account (full happy path) ─────────────────────────
@@ -127,18 +132,18 @@ test.describe('Accounts', () => {
     await openNewAccountForm(page);
 
     // Fill base fields
-    await page.getByLabel('Name').fill('IBKR Main TC082');
+    await page.getByLabel('Display Name').fill('IBKR Main TC082');
 
     // Switch type to IBKR
     await page.getByLabel('Broker Type').selectOption('ibkr');
 
     // IBKR credential fields appear
-    await expect(page.getByLabel('Flex Token')).toBeVisible({ timeout: 3_000 });
-    await expect(page.getByLabel('Flex Query ID')).toBeVisible();
+    await expect(page.getByLabel('Flex Token', { exact: true })).toBeVisible({ timeout: 3_000 });
+    await expect(page.getByLabel('Flex Query ID', { exact: true })).toBeVisible();
 
     // Fill credentials
-    await page.getByLabel('Flex Token').fill('test-flex-token-abc123');
-    await page.getByLabel('Flex Query ID').fill('123456');
+    await page.getByLabel('Flex Token', { exact: true }).fill('test-flex-token-abc123');
+    await page.getByLabel('Flex Query ID', { exact: true }).fill('123456');
 
     await page.getByRole('button', { name: 'Create Account' }).click();
 
@@ -148,14 +153,7 @@ test.describe('Accounts', () => {
     });
 
     // Clean up
-    const rowBtn = page.getByText('IBKR Main TC082', { exact: true }).locator('..').locator('..').getByRole('button');
-    await rowBtn.click();
-    await expect(page.getByRole('heading', { name: 'Edit Account' })).toBeVisible();
-    await page.getByRole('button', { name: 'Deactivate Account' }).click();
-    await page.reload();
-    await expect(page.getByText('IBKR Main TC082')).toHaveCount(0, {
-      timeout: 15_000,
-    });
+    await deleteAccountByName(page, 'IBKR Main TC082');
   });
 
   // ─── TC-083: Credential fields toggle on type change ───────────────────────
@@ -164,18 +162,18 @@ test.describe('Accounts', () => {
     await openNewAccountForm(page);
 
     // IBKR is default, so fields should be visible
-    await expect(page.getByLabel('Flex Token')).toBeVisible();
+    await expect(page.getByLabel('Flex Token', { exact: true })).toBeVisible();
 
     // Switch to Manual -> fields should disappear
     await page.getByLabel('Broker Type').selectOption('manual');
-    await expect(page.getByLabel('Flex Token')).not.toBeVisible();
-    await expect(page.getByLabel('App Key')).not.toBeVisible();
+    await expect(page.getByLabel('Flex Token', { exact: true })).not.toBeVisible();
+    await expect(page.getByLabel('App Key', { exact: true })).not.toBeVisible();
 
     // Switch to Schwab -> Schwab fields should appear
     await page.getByLabel('Broker Type').selectOption('schwab');
-    await expect(page.getByLabel('App Key')).toBeVisible();
-    await expect(page.getByLabel('App Secret')).toBeVisible();
-    await expect(page.getByLabel('Flex Token')).not.toBeVisible(); // IBKR fields hidden
+    await expect(page.getByLabel('App Key', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('App Secret', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Flex Token', { exact: true })).not.toBeVisible(); // IBKR fields hidden
   });
 
   // ─── TC-084: Create Schwab account ─────────────────────────────────────────
@@ -183,11 +181,11 @@ test.describe('Accounts', () => {
   test('TC-084 create a Schwab account', async ({ page }) => {
     await openNewAccountForm(page);
 
-    await page.getByLabel('Name').fill('Schwab TC084');
+    await page.getByLabel('Display Name').fill('Schwab TC084');
     await page.getByLabel('Broker Type').selectOption('schwab');
 
-    await page.getByLabel('App Key').fill('test-app-key');
-    await page.getByLabel('App Secret').fill('test-app-secret');
+    await page.getByLabel('App Key', { exact: true }).fill('test-app-key');
+    await page.getByLabel('App Secret', { exact: true }).fill('test-app-secret');
 
     await page.getByRole('button', { name: 'Create Account' }).click();
 
@@ -196,14 +194,7 @@ test.describe('Accounts', () => {
     });
 
     // Clean up
-    const rowBtn = page.getByText('Schwab TC084', { exact: true }).locator('..').locator('..').getByRole('button');
-    await rowBtn.click();
-    await expect(page.getByRole('heading', { name: 'Edit Account' })).toBeVisible();
-    await page.getByRole('button', { name: 'Deactivate Account' }).click();
-    await page.reload();
-    await expect(page.getByText('Schwab TC084')).toHaveCount(0, {
-      timeout: 15_000,
-    });
+    await deleteAccountByName(page, 'Schwab TC084');
   });
 
   // ─── TC-085: Edit an account name ──────────────────────────────────────────
@@ -218,7 +209,7 @@ test.describe('Accounts', () => {
     await rowBtn.click();
     await expect(page.getByRole('heading', { name: 'Edit Account' })).toBeVisible();
 
-    await page.getByLabel('Name').fill('E2E Test Account - Edited');
+    await page.getByLabel('Display Name').fill('E2E Test Account - Edited');
     await page.getByRole('button', { name: 'Save Changes' }).click();
 
     // Verify update
@@ -230,7 +221,7 @@ test.describe('Accounts', () => {
     const editBtn = page.getByText('E2E Test Account - Edited', { exact: true }).locator('..').locator('..').getByRole('button');
     await editBtn.click();
     await expect(page.getByRole('heading', { name: 'Edit Account' })).toBeVisible();
-    await page.getByLabel('Name').fill('E2E Test Account');
+    await page.getByLabel('Display Name').fill('E2E Test Account');
     await page.getByRole('button', { name: 'Save Changes' }).click();
 
     await expect(page.getByText('E2E Test Account', { exact: true }).first()).toBeVisible({
@@ -243,23 +234,14 @@ test.describe('Accounts', () => {
   test('TC-086 delete an account removes it from the list', async ({ page }) => {
     // 1. Create a throwaway account first
     await openNewAccountForm(page);
-    await page.getByLabel('Name').fill('DeleteMe TC086');
+    await page.getByLabel('Display Name').fill('DeleteMe TC086');
     await page.getByLabel('Broker Type').selectOption('manual');
     await page.getByRole('button', { name: 'Create Account' }).click();
 
     await expect(page.getByText('DeleteMe TC086')).toBeVisible({ timeout: 8_000 });
 
-    // 2. Delete it
-    const rowBtn = page.getByText('DeleteMe TC086', { exact: true }).locator('..').locator('..').getByRole('button');
-    await rowBtn.click(); // Open edit modal
-    
-    await expect(page.getByRole('heading', { name: 'Edit Account' })).toBeVisible();
-    await page.getByRole('button', { name: 'Deactivate Account' }).click();
-
-    await page.reload();
-
-    // 3. Assert it's gone
-    await expect(page.getByText('DeleteMe TC086')).toHaveCount(0, { timeout: 15_000 });
+    // 2. Delete it and assert it's gone
+    await deleteAccountByName(page, 'DeleteMe TC086');
   });
 });
 

@@ -47,8 +47,8 @@ test.describe('Performance Reports — Navigation', () => {
 
     // Verify it navigated to the trades page with date query params
     await expect(page).toHaveURL(/\/dashboard\/trades/, { timeout: 8_000 });
-    await expect(page).toHaveURL(/date_from=/);
-    await expect(page).toHaveURL(/date_to=/);
+    await expect(page).toHaveURL(/closed_at_from=/);
+    await expect(page).toHaveURL(/closed_at_to=/);
   });
 });
 

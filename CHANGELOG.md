@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [frontend] Eliminated nested `overflow-hidden` scroll traps in the Playbook Markdown view/editor so long strategy documents scroll naturally with the page.
 - [frontend] Persisted buffered tags and annotations immediately after creating a new Market Check-in entry.
+- [test] Stabilized Playwright E2E test suite by reading `seed-state.json` dynamically after `globalSetup`, isolating IBKR import test accounts, preserving auth tokens on context resets, and aligning selectors with updated Global Library and Trade Detail UI components.
 
 ## [1.16.5] - 2026-10-18
 

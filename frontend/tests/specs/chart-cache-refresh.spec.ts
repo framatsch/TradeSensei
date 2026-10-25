@@ -16,23 +16,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Chart Cache Refresh', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to a trade detail page where TradeChart is rendered
-    // Using a mocked trade or clicking into the first trade in the dashboard
-    await page.goto('/dashboard/trades');
-    
-    // Wait for trades to load and click the first one
-    const firstTrade = page.locator('tbody tr').first();
-    await firstTrade.waitFor({ state: 'visible' });
-    await firstTrade.click();
-    
-    // Wait for the chart component to be visible
-    await page.waitForSelector('button[title="Refresh"]');
-  });
+  let fetchCount = 0;
 
-  test('Refresh button triggers data reload', async ({ page }) => {
-    // Intercept the API call to mock the response
-    let fetchCount = 0;
+  test.beforeEach(async ({ page }) => {
+    fetchCount = 0;
+
+    // Intercept the API call before navigating so the initial chart load succeeds
+    // and does not fall back to the TradingView widget when Market Data Hub is offline.
     await page.route('**/api/v1/market-data/prices/*/history*', async (route) => {
       const url = new URL(route.request().url());
       if (url.searchParams.get('force_refresh') === 'true') {
@@ -56,10 +46,23 @@ test.describe('Chart Cache Refresh', () => {
       });
     });
 
+    // Navigate to a trade detail page where TradeChart is rendered
+    await page.goto('/dashboard/trades');
+
+    // Wait for trades to load and click the first trade symbol link
+    const firstTradeLink = page.locator('tbody tr a').first();
+    await firstTradeLink.waitFor({ state: 'visible' });
+    await firstTradeLink.click();
+
+    // Wait for the chart component to be visible
+    await page.waitForSelector('button[title="Refresh"]');
+  });
+
+  test('Refresh button triggers data reload', async ({ page }) => {
     const refreshButton = page.locator('button[title="Refresh"]');
     await refreshButton.click();
 
-    // Verify the button spins or we can just verify the API was called
-    expect(fetchCount).toBe(1);
+    // Verify the API was called with force_refresh=true
+    await expect.poll(() => fetchCount).toBe(1);
   });
 });

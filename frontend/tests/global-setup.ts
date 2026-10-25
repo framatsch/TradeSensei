@@ -181,6 +181,38 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     portfolioId = createBody.data.id;
   }
 
+  const seededPlaybookNames = new Set(SEED_PLAYBOOKS.map((p) => p.name));
+  const existingPlaybooksRes = await fetch(`${API_URL}/api/v1/playbooks`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (existingPlaybooksRes.ok) {
+    const existingPlaybooks = ((await existingPlaybooksRes.json()) as { data?: Array<{ id: string; name: string }> }).data ?? [];
+    for (const pb of existingPlaybooks) {
+      if (!seededPlaybookNames.has(pb.name)) {
+        await fetch(`${API_URL}/api/v1/playbooks/${pb.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    }
+  }
+
+  const seededTaxonomyNames = new Set(SEED_TAXONOMIES.map((t) => t.name));
+  const existingTaxonomiesRes = await fetch(`${API_URL}/api/v1/taxonomies?show_archived=true`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (existingTaxonomiesRes.ok) {
+    const existingTaxonomies = ((await existingTaxonomiesRes.json()) as { data?: Array<{ id: string; name: string }> }).data ?? [];
+    for (const tax of existingTaxonomies) {
+      if (!seededTaxonomyNames.has(tax.name)) {
+        await fetch(`${API_URL}/api/v1/taxonomies/${tax.id}?force=true`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    }
+  }
+
   for (const pb of SEED_PLAYBOOKS) await apiPost('/api/v1/playbooks', pb, token);
   for (const tax of SEED_TAXONOMIES) await apiPost('/api/v1/taxonomies', { name: tax.name, color_hex: tax.color, scope: tax.scope }, token);
   for (const ann of SEED_ANNOTATIONS) await apiPost('/api/v1/annotation-definitions', ann, token);
@@ -191,13 +223,54 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   const sAccRes = await apiPost(`/api/v1/portfolios/${portfolioId}/accounts`, SEED_SCHWAB_ACCOUNT, token);
   const schwabAccountId = sAccRes.ok ? ((await sAccRes.json()) as { data: { id: string } }).data.id : '';
 
+  // Dedicated accounts so import E2E tests do not rebuild/overwrite seeded manual trades or collide with each other
+  const seededAccRes = await apiPost(`/api/v1/portfolios/${portfolioId}/accounts`, {
+    name: 'E2E Seeded Trades Account',
+    type: 'ibkr',
+    currency: 'USD',
+    initial_balance: '50000.00',
+  }, token);
+  const seededTradesAccountId = seededAccRes.ok
+    ? ((await seededAccRes.json()) as { data: { id: string } }).data.id
+    : accountId;
+
+  const conflictAccRes = await apiPost(`/api/v1/portfolios/${portfolioId}/accounts`, {
+    name: 'E2E Conflict Account',
+    type: 'ibkr',
+    currency: 'USD',
+    initial_balance: '50000.00',
+  }, token);
+  const conflictAccountId = conflictAccRes.ok
+    ? ((await conflictAccRes.json()) as { data: { id: string } }).data.id
+    : accountId;
+
+  const manualLinkAccRes = await apiPost(`/api/v1/portfolios/${portfolioId}/accounts`, {
+    name: 'E2E Manual Link Account',
+    type: 'ibkr',
+    currency: 'USD',
+    initial_balance: '50000.00',
+  }, token);
+  const manualLinkAccountId = manualLinkAccRes.ok
+    ? ((await manualLinkAccRes.json()) as { data: { id: string } }).data.id
+    : accountId;
+
+  const reimportAccRes = await apiPost(`/api/v1/portfolios/${portfolioId}/accounts`, {
+    name: 'E2E Reimport Account',
+    type: 'ibkr',
+    currency: 'USD',
+    initial_balance: '50000.00',
+  }, token);
+  const reimportAccountId = reimportAccRes.ok
+    ? ((await reimportAccRes.json()) as { data: { id: string } }).data.id
+    : accountId;
+
   // Seed one imported fully-closed COMBO vertical for Open/Close-column E2E coverage.
   let comboImportedClosedTradeId = '';
   try {
     const comboFixturePath = path.resolve(__dirname, '..', '..', 'tests', 'test_data', 'ibkr', 'combo_positions.xml');
     const comboImportForm = new FormData();
     comboImportForm.append('broker', 'ibkr');
-    comboImportForm.append('account_id', accountId);
+    comboImportForm.append('account_id', seededTradesAccountId);
     comboImportForm.append(
       'file',
       new Blob([fs.readFileSync(comboFixturePath)], { type: 'application/xml' }),
@@ -213,7 +286,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       console.warn(`[global-setup] Combo import seed skipped: ${comboImportRes.status} ${comboImportRes.statusText} ${body}`);
     } else {
       const comboTradesRes = await apiGet(
-        `/api/v1/portfolios/${portfolioId}/trades?symbol=QQQ&limit=200&opened_at_from=2000-01-01`,
+        `/api/v1/portfolios/${portfolioId}/trades?symbol=QQQ&limit=200&opened_at_from=2000-01-01T00:00:00Z`,
         token,
       );
       if (comboTradesRes.ok) {
@@ -228,7 +301,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     console.warn(`[global-setup] Combo import seed skipped due to error: ${String(error)}`);
   }
 
-  for (const trade of SEED_TRADES) await apiPost(`/api/v1/portfolios/${portfolioId}/trades`, { ...trade, account_id: accountId }, token);
+  for (const trade of SEED_TRADES) await apiPost(`/api/v1/portfolios/${portfolioId}/trades`, { ...trade, account_id: seededTradesAccountId }, token);
 
   // ── Seed special test trades (execution / combo / merge / detach / option) ──
 
@@ -237,7 +310,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   ): Promise<string> {
     const res = await apiPost(
       `/api/v1/portfolios/${portfolioId}/trades`,
-      { ...tradeData, account_id: accountId },
+      { ...tradeData, account_id: seededTradesAccountId },
       token,
     );
     const body = (await res.json()) as { data: { id: string } };
@@ -248,11 +321,15 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     tradeId: string,
     execData: Record<string, unknown>,
   ): Promise<void> {
-    await apiPost(
-      `/api/v1/portfolios/${portfolioId}/trades/${tradeId}/executions`,
-      execData,
-      token,
-    );
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const res = await apiPost(
+        `/api/v1/portfolios/${portfolioId}/trades/${tradeId}/executions`,
+        execData,
+        token,
+      );
+      if (res.ok) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   }
 
   // 1. executionTradeId — AAPL with 2 legs (LONG + SHORT), VWAP $400, commission $3.00
@@ -361,6 +438,10 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     portfolioId,
     accountId,
     schwabAccountId,
+    seededTradesAccountId,
+    conflictAccountId,
+    manualLinkAccountId,
+    reimportAccountId,
     executionTradeId,
     addExecutionTestTradeId,
     detachTestTradeId,

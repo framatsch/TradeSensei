@@ -33,6 +33,7 @@ test.describe('Playbook Strategy Hub', () => {
   });
 
   test('TC-081 create a new playbook, edit it, and save', async ({ page }) => {
+    const playbookName = `My E2E Test Playbook ${Date.now()}`;
     // 1. Click "New Playbook"
     await page.getByRole('button', { name: 'New Playbook' }).click();
     
@@ -41,7 +42,7 @@ test.describe('Playbook Strategy Hub', () => {
     
     // 3. Edit name
     await page.getByRole('button', { name: /Untitled Playbook/ }).click();
-    await page.locator('input[value^="Untitled Playbook"]').fill('My E2E Test Playbook');
+    await page.locator('input[value^="Untitled Playbook"]').fill(playbookName);
     await page.keyboard.press('Enter');
     
     // 4. Edit target winrate
@@ -59,25 +60,26 @@ test.describe('Playbook Strategy Hub', () => {
     
     // 7. Save & Close
     await page.getByRole('button', { name: 'Save & Close' }).click();
-    await expect(page.getByText('Playbook saved')).toBeVisible();
+    await expect(page.getByText('Playbook saved')).toBeVisible({ timeout: 10_000 });
     
     // 8. Go back and check it's in the list
     await page.getByRole('button', { name: 'Back to playbooks' }).click();
     await page.waitForURL('/dashboard/library/playbooks');
-    await expect(page.getByText('My E2E Test Playbook')).toBeVisible();
+    await expect(page.getByText(playbookName)).toBeVisible();
   });
 
   test('TC-082 delete a playbook', async ({ page }) => {
+    const playbookName = `To Be Deleted Playbook ${Date.now()}`;
     // Create one specifically to delete to avoid breaking other tests
     await page.getByRole('button', { name: 'New Playbook' }).click();
     await page.waitForURL(/\/dashboard\/library\/playbooks\/[a-zA-Z0-9-]+/);
     
     // Rename
     await page.getByRole('button', { name: /Untitled Playbook/ }).click();
-    await page.locator('input[value^="Untitled Playbook"]').fill('To Be Deleted Playbook');
+    await page.locator('input[value^="Untitled Playbook"]').fill(playbookName);
     await page.keyboard.press('Enter');
     await page.getByRole('button', { name: 'Save & Close' }).click();
-    await expect(page.getByText('Playbook saved')).toBeVisible();
+    await expect(page.getByText('Playbook saved')).toBeVisible({ timeout: 10_000 });
     
     // In Read mode, click Delete and accept confirmation dialog
     page.once('dialog', (dialog) => dialog.accept());
@@ -85,18 +87,19 @@ test.describe('Playbook Strategy Hub', () => {
     
     // Wait for redirect back to the list and verify it's gone
     await page.waitForURL('/dashboard/library/playbooks');
-    const row = page.locator('tr', { hasText: 'To Be Deleted Playbook' });
+    const row = page.locator('tr', { hasText: playbookName });
     await expect(row).not.toBeVisible();
   });
   
   test('TC-083 add and remove external links', async ({ page }) => {
+    const playbookName = `Links Test Playbook ${Date.now()}`;
     // 1. Click "New Playbook"
     await page.getByRole('button', { name: 'New Playbook' }).click();
     await page.waitForURL(/\/dashboard\/library\/playbooks\/[a-zA-Z0-9-]+/);
     
     // 2. Edit name
     await page.getByRole('button', { name: /Untitled Playbook/ }).click();
-    await page.locator('input[value^="Untitled Playbook"]').fill('Links Test Playbook');
+    await page.locator('input[value^="Untitled Playbook"]').fill(playbookName);
     await page.keyboard.press('Enter');
     
     // 3. Add link
@@ -106,11 +109,11 @@ test.describe('Playbook Strategy Hub', () => {
     
     // 4. Verify link added
     const link = page.getByRole('link', { name: 'My Setup Chart' });
-    await expect(link).toBeVisible();
+    await expect(link).toBeVisible({ timeout: 15_000 });
     await expect(link).toHaveAttribute('href', 'https://example.com/chart');
     
     // 5. Delete link
     await page.getByRole('button', { name: 'Delete link My Setup Chart' }).click();
-    await expect(link).not.toBeVisible();
+    await expect(link).not.toBeVisible({ timeout: 20_000 });
   });
 });

@@ -27,17 +27,16 @@ test.describe('Tags (Taxonomies) Library', () => {
     await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible();
     await expect(page.getByText('Manage reusable metadata taxonomies')).toBeVisible();
     
-    // The list should be visible
-    await expect(page.getByRole('heading', { name: 'Bearish' })).toBeVisible();
+    // The list should be visible (seeded in global-setup.ts)
+    await expect(page.getByRole('heading', { name: 'high-conviction', exact: true })).toBeVisible();
   });
 
   test('TC-101 create a new tag', async ({ page }) => {
     // 1. Click "New Tag"
     await page.getByRole('button', { name: 'New Tag' }).click();
     
-    // 2. Fill form
-    await page.locator('input[name="name"], input[placeholder="Name"]').or(page.locator('input[type="text"]')).first().fill('E2E Test Tag');
-    await page.getByRole('combobox').selectOption('trades');
+    // 2. Fill form (Scope defaults to Trades)
+    await page.getByLabel('Tag name').fill('E2E Test Tag');
     await page.getByRole('textbox', { name: 'Tag description' }).fill('A tag created by E2E test');
     
     // Pick a color (second color button)
@@ -56,7 +55,7 @@ test.describe('Tags (Taxonomies) Library', () => {
     await page.getByRole('button', { name: 'Edit E2E Test Tag' }).click();
     
     // Modify
-    await page.locator('input[name="name"], input[placeholder="Name"]').or(page.locator('input[type="text"]')).first().fill('E2E Edited Tag');
+    await page.getByLabel('Tag name').fill('E2E Edited Tag');
     await page.getByRole('button', { name: 'Save' }).click();
     
     // Verify
@@ -68,10 +67,11 @@ test.describe('Tags (Taxonomies) Library', () => {
     // Click Delete icon
     await page.getByRole('button', { name: 'Delete E2E Edited Tag' }).click();
     
-    // Confirm delete
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    // Confirm delete in the inline confirmation banner after async assignment count loads
+    await expect(page.getByText(/Are you sure you want to delete tag/i)).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
     
     // Verify removal
-    await expect(page.getByRole('heading', { name: 'E2E Edited Tag' })).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Edited Tag' })).not.toBeVisible({ timeout: 10_000 });
   });
 });
