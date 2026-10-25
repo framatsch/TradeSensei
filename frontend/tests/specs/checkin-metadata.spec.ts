@@ -28,7 +28,7 @@ test.describe('Checkin Metadata', () => {
     await page.getByRole('link', { name: /Today's Check-in/i }).click();
     
     // Wait for form to load
-    await expect(page.getByRole('button', { name: /Create Check-in/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Verify sections are visible
     await expect(page.getByText('Tags', { exact: true })).toBeVisible();

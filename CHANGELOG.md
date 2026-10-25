@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Unified `Save` (persists changes and stays in edit mode, bound to `Cmd/Ctrl + S`) and `Save & Close` (persists changes, exits edit mode, and strips `?edit=true`) buttons in both Playbook and Market Check-in detail headers.
+- [frontend] Entry-based `< Previous Entry` and `Next Entry >` navigation buttons in the Market Check-in detail header to jump between existing check-in entries.
+- [frontend] Mobile segmented pane switcher (`Document` | `Details & Media`) on `< lg` viewports for both Playbook and Market Check-in detail views.
+- [frontend] Desktop `Split` (side-by-side Write + Preview) tab and auto-growing Markdown editor in Playbook and Market Check-in detail views.
+
+### Changed
+- [frontend] Redesigned Playbook detail/editor (`PlaybookEditorClient`) and Market Check-in detail/editor (`CheckinDateClient`, `CheckinForm`) into a unified full-width Document-First two-column layout (Left Main Pane for Markdown documentation; Right Side Pane for Tags/Annotations, 16:9 visual chart thumbnails, and External/News Links) with natural page scrolling.
+
+### Fixed
+- [frontend] Eliminated nested `overflow-hidden` scroll traps in the Playbook Markdown view/editor so long strategy documents scroll naturally with the page.
+- [frontend] Persisted buffered tags and annotations immediately after creating a new Market Check-in entry.
+
 ## [1.16.5] - 2026-10-18
 
 ### Fixed

@@ -14,9 +14,10 @@
  */
 
 /**
- * PlaybookEditorClient — full-width split-pane editor for a single playbook.
- * Left pane (35%): tags, images, external links.
- * Right pane (65%): markdown editor with write/preview toggle.
+ * PlaybookEditorClient — Unified full-width document-first detail & editor view for a playbook.
+ * Desktop (lg+): Header Card on top, Left Main Pane (flex-1) for Markdown documentation,
+ * Right Side Pane (w-[360px] xl:w-[420px]) for Tags, 16:9 Chart Images, and External Links.
+ * Mobile (< lg): Segmented switcher between "Document" and "Details & Media".
  */
 
 "use client";
@@ -26,7 +27,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
-import { ArrowLeft, X, Plus, ExternalLink, Trash2, Eye, Edit3 } from "lucide-react";
+import {
+  ArrowLeft,
+  X,
+  Plus,
+  ExternalLink,
+  Trash2,
+  Eye,
+  Edit3,
+  Columns,
+  FileText,
+  Paperclip,
+  Copy,
+  Check,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Spinner } from "@/components/ui/Spinner";
 import { usePlaybooks, useUpdatePlaybook, useDeletePlaybook } from "@/hooks/usePlaybooks";
@@ -107,20 +121,25 @@ export function PlaybookEditorClient({ id }: Props) {
   const { data: playbooks, isLoading: playbooksLoading } = usePlaybooks();
   const playbook = playbooks?.find((pb) => pb.id === id);
 
-  // ── Mode state ─────────────────────────────────────────────────────────────
+  // ── Mode & Mobile Pane state ───────────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(searchParams.get("edit") === "true");
   const isDraftSession = searchParams.get("draft") === "true";
+  const [mobilePane, setMobilePane] = useState<"document" | "details">("document");
 
-  // ── Toolbar state ──────────────────────────────────────────────────────────
+  // ── Header / Form state ────────────────────────────────────────────────────
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [targetWinrate, setTargetWinrate] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Document / Editor state ────────────────────────────────────────────────
+  const [contentMarkdown, setContentMarkdown] = useState("");
+  const [editorTab, setEditorTab] = useState<"write" | "preview" | "split">("write");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [copiedAttachmentId, setCopiedAttachmentId] = useState<string | null>(null);
+
   // Sync name/winrate/status from loaded playbook (only on first load)
-  // useRef instead of useState so React 18 Strict Mode double-mount doesn't
-  // reset the flag on remount, which would leave the editor blank.
   const initializedRef = useRef(false);
   useEffect(() => {
     if (playbook && !initializedRef.current) {
@@ -136,9 +155,13 @@ export function PlaybookEditorClient({ id }: Props) {
     }
   }, [playbook]);
 
-  // ── Right pane state ───────────────────────────────────────────────────────
-  const [contentMarkdown, setContentMarkdown] = useState("");
-  const [editorTab, setEditorTab] = useState<"write" | "preview">("write");
+  // Auto-grow textarea height in write/split mode so page scrolls naturally
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el || !isEditMode || editorTab === "preview") return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(480, el.scrollHeight)}px`;
+  }, [contentMarkdown, isEditMode, editorTab, mobilePane]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: updatePlaybook, isPending: isSaving } = useUpdatePlaybook();
@@ -151,9 +174,10 @@ export function PlaybookEditorClient({ id }: Props) {
   const { mutate: removeTaxonomy } = useRemovePlaybookTaxonomy();
 
   const availableTaxonomies = useMemo(
-    () => allTaxonomies.filter(
-      (t) => !t.is_archived && !assignedTaxonomies.some((a) => a.id === t.id)
-    ),
+    () =>
+      allTaxonomies.filter(
+        (t) => !t.is_archived && !assignedTaxonomies.some((a) => a.id === t.id)
+      ),
     [allTaxonomies, assignedTaxonomies]
   );
 
@@ -214,55 +238,74 @@ export function PlaybookEditorClient({ id }: Props) {
     }
   }, [deleteAttachment, id, pendingAttachmentIdsToDelete, pendingAttachmentsToAdd, registerAttachment]);
 
-  const handleSave = useCallback(() => {
-    const payload: {
-      name?: string;
-      description?: string | null;
-      target_winrate?: number | null;
-      is_active?: boolean;
-    } = {
-      name: name.trim() || playbook?.name,
-      description: contentMarkdown,
-      is_active: isActive,
-    };
-    if (targetWinrate.trim()) {
-      const parsed = parseFloat(targetWinrate);
-      if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-        payload.target_winrate = parsed / 100;
+  const handleSave = useCallback(
+    (closeAfterSave = false) => {
+      const payload: {
+        name?: string;
+        description?: string | null;
+        target_winrate?: number | null;
+        is_active?: boolean;
+      } = {
+        name: name.trim() || playbook?.name,
+        description: contentMarkdown,
+        is_active: isActive,
+      };
+      if (targetWinrate.trim()) {
+        const parsed = parseFloat(targetWinrate);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+          payload.target_winrate = parsed / 100;
+        }
+      } else {
+        payload.target_winrate = null;
       }
-    } else {
-      payload.target_winrate = null;
-    }
-    updatePlaybook(
-      { id, payload },
-      {
-        onSuccess: async () => {
-          try {
-            await syncAttachmentChanges();
-          } catch {
-            toast.error("Playbook saved, but image changes failed. Please save again.");
-            return;
-          }
-          router.replace(`/dashboard/library/playbooks/${id}?edit=true`);
-          setIsEditMode(false);
-          toast.success("Playbook saved");
-        },
-        onError: (err) => toast.error(err.message || "Failed to save playbook"),
-      }
-    );
-  }, [name, playbook?.name, contentMarkdown, targetWinrate, isActive, updatePlaybook, id, router, syncAttachmentChanges]);
+      updatePlaybook(
+        { id, payload },
+        {
+          onSuccess: async () => {
+            try {
+              await syncAttachmentChanges();
+            } catch {
+              toast.error("Playbook saved, but image changes failed. Please save again.");
+              return;
+            }
+            if (closeAfterSave) {
+              router.replace(`/dashboard/library/playbooks/${id}`);
+              setIsEditMode(false);
+            } else {
+              router.replace(`/dashboard/library/playbooks/${id}?edit=true`);
+            }
+            toast.success("Playbook saved");
+          },
+          onError: (err) => toast.error(err.message || "Failed to save playbook"),
+        }
+      );
+    },
+    [
+      name,
+      playbook?.name,
+      contentMarkdown,
+      targetWinrate,
+      isActive,
+      updatePlaybook,
+      id,
+      router,
+      syncAttachmentChanges,
+    ]
+  );
 
-  // Keyboard shortcut (Cmd/Ctrl + S)
+  // Keyboard shortcut (Cmd/Ctrl + S) — saves and stays in edit mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        handleSave();
+        if (isEditMode) {
+          handleSave(false);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
+  }, [handleSave, isEditMode]);
 
   // ── Links section ──────────────────────────────────────────────────────────
   const { data: links = [], isSuccess: linksLoaded } = usePlaybookLinks(id);
@@ -272,16 +315,17 @@ export function PlaybookEditorClient({ id }: Props) {
   const taxonomiesEverLoaded = useRef(false);
   const attachmentsEverLoaded = useRef(false);
   const linksEverLoaded = useRef(false);
-  useEffect(() => { if (taxonomiesLoaded) taxonomiesEverLoaded.current = true; }, [taxonomiesLoaded]);
-  useEffect(() => { if (attachmentsLoaded) attachmentsEverLoaded.current = true; }, [attachmentsLoaded]);
-  useEffect(() => { if (linksLoaded) linksEverLoaded.current = true; }, [linksLoaded]);
+  useEffect(() => {
+    if (taxonomiesLoaded) taxonomiesEverLoaded.current = true;
+  }, [taxonomiesLoaded]);
+  useEffect(() => {
+    if (attachmentsLoaded) attachmentsEverLoaded.current = true;
+  }, [attachmentsLoaded]);
+  useEffect(() => {
+    if (linksLoaded) linksEverLoaded.current = true;
+  }, [linksLoaded]);
 
   const handleBack = useCallback(async () => {
-    // Auto-cleanup if completely empty (draft abandoned).
-    // Guard 1: initializedRef — playbook data must have loaded at least once.
-    // Guard 2: all sibling queries (taxonomies, attachments, links) must be
-    //   loaded (isSuccess) — otherwise their data defaults to [] and we'd incorrectly
-    //   delete a non-empty playbook during the in-flight window.
     const allLoaded =
       (taxonomiesLoaded || taxonomiesEverLoaded.current) &&
       (attachmentsLoaded || attachmentsEverLoaded.current) &&
@@ -295,7 +339,17 @@ export function PlaybookEditorClient({ id }: Props) {
     const hasNoTags = assignedTaxonomies.length === 0;
     const hasNoLinks = links.length === 0;
 
-    if (isDraftSession && initializedRef.current && allLoaded && isAutoDraftName && isNameUnchanged && isContentEmpty && hasNoAttachments && hasNoTags && hasNoLinks) {
+    if (
+      isDraftSession &&
+      initializedRef.current &&
+      allLoaded &&
+      isAutoDraftName &&
+      isNameUnchanged &&
+      isContentEmpty &&
+      hasNoAttachments &&
+      hasNoTags &&
+      hasNoLinks
+    ) {
       try {
         await deletePlaybook(id);
       } catch {
@@ -309,6 +363,7 @@ export function PlaybookEditorClient({ id }: Props) {
     attachmentsLoaded,
     linksLoaded,
     name,
+    playbook?.name,
     contentMarkdown,
     visibleAttachments.length,
     assignedTaxonomies,
@@ -317,6 +372,29 @@ export function PlaybookEditorClient({ id }: Props) {
     id,
     router,
   ]);
+
+  const handleCancelEdit = useCallback(() => {
+    if (playbook) {
+      setName(playbook.name);
+      setIsActive(playbook.is_active);
+      setTargetWinrate(
+        playbook.target_winrate
+          ? (Number(playbook.target_winrate) * 100).toFixed(2).replace(/\.?0+$/, "")
+          : ""
+      );
+      setContentMarkdown(playbook.description ?? "");
+    }
+    setPendingAttachmentsToAdd((prev) => {
+      for (const pending of prev) {
+        URL.revokeObjectURL(pending.previewUrl);
+      }
+      return [];
+    });
+    setPendingAttachmentIdsToDelete([]);
+    setIsEditingName(false);
+    setIsEditMode(false);
+    router.replace(`/dashboard/library/playbooks/${id}`);
+  }, [playbook, router, id]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -330,7 +408,10 @@ export function PlaybookEditorClient({ id }: Props) {
     async (files: FileList | File[] | null) => {
       if (!files || files.length === 0) return;
       const validFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
-      if (validFiles.length === 0) return;
+      if (validFiles.length === 0) {
+        setUploadError("Only image files (PNG, JPG, GIF, WebP) are supported.");
+        return;
+      }
 
       setIsUploading(true);
       setUploadError(null);
@@ -378,6 +459,7 @@ export function PlaybookEditorClient({ id }: Props) {
 
   // Clipboard paste
   useEffect(() => {
+    if (!isEditMode) return;
     const handler = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -397,7 +479,7 @@ export function PlaybookEditorClient({ id }: Props) {
     };
     window.addEventListener("paste", handler);
     return () => window.removeEventListener("paste", handler);
-  }, [handleFiles]);
+  }, [handleFiles, isEditMode]);
 
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -410,7 +492,6 @@ export function PlaybookEditorClient({ id }: Props) {
       setLinkError("Both label and URL are required.");
       return;
     }
-    // Block non-http(s) URLs — prevents javascript: and data: XSS vectors.
     if (!/^https?:\/\//i.test(url)) {
       setLinkError("Only http:// and https:// URLs are allowed.");
       return;
@@ -428,8 +509,75 @@ export function PlaybookEditorClient({ id }: Props) {
     );
   };
 
-  // ── Ref resolver for markdown preview ─────────────────────────────────────
-  // Resolved inline in the img: component override — no separate string pass needed.
+  const handleInsertOrCopyImageRef = (attId: string, filename: string) => {
+    const markdownSnippet = `![${filename}](ref:${attId})`;
+    if (isEditMode) {
+      setContentMarkdown((prev) =>
+        prev.trim() ? `${prev}\n\n${markdownSnippet}` : markdownSnippet
+      );
+      toast.success("Image reference appended to Markdown");
+    } else if (navigator.clipboard) {
+      void navigator.clipboard.writeText(markdownSnippet);
+      toast.success("Markdown image ref copied");
+    }
+    setCopiedAttachmentId(attId);
+    setTimeout(() => setCopiedAttachmentId(null), 1500);
+  };
+
+  const detailsCount = assignedTaxonomies.length + visibleAttachments.length + links.length;
+
+  const renderMarkdownPreview = () => (
+    <div className="min-h-[240px]">
+      {contentMarkdown.trim() ? (
+        <div className="prose prose-sm sm:prose-base max-w-none text-foreground [&_a]:text-primary [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_pre]:bg-secondary [&_pre]:p-4 [&_pre]:rounded-lg [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_table]:w-full [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_th]:pb-2 [&_td]:border-b [&_td]:border-border [&_td]:py-2 [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:max-h-[480px] [&_img]:object-contain">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeSanitize]}
+            components={{
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              img: ({ src, alt, ...rest }: any) => {
+                const resolved = src?.startsWith("ref:")
+                  ? (() => {
+                      const uuid = src.slice(4);
+                      const found = visibleAttachments.find((a) => a.id === uuid);
+                      return found ? resolveStorageUrl(found.storage_url) : null;
+                    })()
+                  : src;
+                if (!resolved) {
+                  return (
+                    <span className="text-xs text-muted-foreground italic">
+                      [attachment deleted]
+                    </span>
+                  );
+                }
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={resolved}
+                    alt={alt ?? ""}
+                    className="cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => {
+                      setLightboxSrc(resolved);
+                      setLightboxAlt(alt ?? "");
+                    }}
+                    {...rest}
+                  />
+                );
+              },
+            }}
+          >
+            {contentMarkdown}
+          </ReactMarkdown>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground italic py-8">
+          {isEditMode
+            ? "Nothing to preview yet. Start writing your strategy rules in Markdown."
+            : "No strategy documentation written yet. Click Edit to add rules."}
+        </p>
+      )}
+    </div>
+  );
 
   // ── Loading / not found states ─────────────────────────────────────────────
   if (playbooksLoading) {
@@ -455,180 +603,370 @@ export function PlaybookEditorClient({ id }: Props) {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 h-full">
-      {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card shrink-0">
-        {/* Back button */}
-        <button
-          onClick={handleBack}
-          disabled={isDeleting}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
-          title="Back to playbooks"
-          aria-label="Back to playbooks"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-
-        {/* Inline name edit */}
-        <div className="flex-1 min-w-0">
-          {isEditMode && isEditingName ? (
-            <input
-              ref={nameInputRef}
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === "Escape") setIsEditingName(false);
-              }}
-              className="w-full max-w-md px-2 py-1 text-base font-semibold bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              autoFocus
-            />
-          ) : (
+    <div className="w-full space-y-4 pb-8">
+      {/* ── Header Card (2 Rows) ────────────────────────────────────────────── */}
+      <div className="solid-card p-4 sm:p-5 space-y-3">
+        {/* Row 1: Back, Title, Action Buttons */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <button
-              onClick={() => {
-                if (!isEditMode) return;
-                setIsEditingName(true);
-                setTimeout(() => nameInputRef.current?.select(), 0);
-              }}
-              className={`text-base font-semibold text-foreground truncate max-w-md text-left ${isEditMode ? "hover:text-primary transition-colors cursor-pointer" : "cursor-default"}`}
-              title={isEditMode ? "Click to edit name" : undefined}
-            >
-              {name || playbook.name}
-            </button>
-          )}
-        </div>
-
-        {/* Target win rate */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <label className="text-xs text-muted-foreground whitespace-nowrap">Target Win Rate</label>
-          {isEditMode ? (
-            <div className="relative">
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={targetWinrate}
-                onChange={(e) => setTargetWinrate(e.target.value)}
-                placeholder="—"
-                className="w-20 px-2 py-1 pr-5 text-sm font-mono bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-right"
-              />
-              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-                %
-              </span>
-            </div>
-          ) : (
-            <span className="text-sm font-mono text-foreground">{targetWinrate ? `${targetWinrate}%` : "—"}</span>
-          )}
-        </div>
-
-        {/* Active / Inactive Status */}
-        <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-border">
-          <label className="text-xs text-muted-foreground whitespace-nowrap">Status</label>
-          {isEditMode ? (
-            <button
-              type="button"
-              onClick={() => setIsActive((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                isActive
-                  ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
-                  : "bg-secondary text-muted-foreground border-border hover:bg-muted"
-              }`}
-              aria-label={`Toggle active status, currently ${isActive ? "Active" : "Inactive"}`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-success" : "bg-muted-foreground"}`} />
-              {isActive ? "Active" : "Inactive"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                const nextStatus = !playbook?.is_active;
-                updatePlaybook(
-                  { id, payload: { is_active: nextStatus } },
-                  {
-                    onSuccess: () => {
-                      setIsActive(nextStatus);
-                      toast.success(`Playbook marked as ${nextStatus ? "Active" : "Inactive"}`);
-                    },
-                    onError: (err) => toast.error(err.message || "Failed to update status"),
-                  }
-                );
-              }}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
-                playbook?.is_active
-                  ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
-                  : "bg-secondary text-muted-foreground border-border hover:bg-muted"
-              }`}
-              title="Click to toggle status"
-              aria-label={`Toggle active status, currently ${playbook?.is_active ? "Active" : "Inactive"}`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${playbook?.is_active ? "bg-success" : "bg-muted-foreground"}`} />
-              {playbook?.is_active ? "Active" : "Inactive"}
-            </button>
-          )}
-        </div>
-
-        {/* Actions */}
-        {isEditMode ? (
-          <button
-            onClick={() => {
-              handleSave();
-            }}
-            disabled={isSaving || isSyncingAttachments}
-            className="px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ml-2"
-          >
-            {isSaving || isSyncingAttachments ? "Saving…" : "Save"}
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 ml-2">
-            <button
-              onClick={() => {
-                if (confirm("Delete this playbook? This cannot be undone.")) {
-                  deletePlaybook(id, { onSuccess: () => router.push("/dashboard/library/playbooks") });
-                }
-              }}
+              onClick={() => void handleBack()}
               disabled={isDeleting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-border/60 transition-colors disabled:opacity-50 shrink-0"
+              title="Back to playbooks"
+              aria-label="Back to playbooks"
             >
-              <Trash2 className="w-4 h-4" />
-              Delete
+              <ArrowLeft className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => setIsEditMode(true)}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors shrink-0"
-            >
-              <Edit3 className="w-4 h-4" />
-              Edit
-            </button>
+
+            <div className="min-w-0 flex-1">
+              {isEditMode && isEditingName ? (
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === "Escape") setIsEditingName(false);
+                  }}
+                  className="w-full max-w-lg px-2.5 py-1 text-lg font-bold bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  autoFocus
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isEditMode) return;
+                    setIsEditingName(true);
+                    setTimeout(() => nameInputRef.current?.select(), 0);
+                  }}
+                  className={`text-lg sm:text-xl font-bold text-foreground truncate max-w-full text-left inline-flex items-center gap-2 ${
+                    isEditMode
+                      ? "hover:text-primary transition-colors cursor-pointer"
+                      : "cursor-default"
+                  }`}
+                  title={isEditMode ? "Click to edit name" : undefined}
+                >
+                  <span className="truncate">{name || playbook.name}</span>
+                  {isEditMode && <Edit3 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                </button>
+              )}
+            </div>
           </div>
-        )}
+
+          {/* Primary Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isEditMode ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={isSaving || isSyncingAttachments}
+                  className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary border border-border rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave(false)}
+                  disabled={isSaving || isSyncingAttachments}
+                  className="px-3.5 py-1.5 text-sm font-medium bg-secondary hover:bg-muted text-foreground border border-border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving || isSyncingAttachments ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave(true)}
+                  disabled={isSaving || isSyncingAttachments}
+                  className="px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving || isSyncingAttachments ? "Saving…" : "Save & Close"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Delete this playbook? This cannot be undone.")) {
+                      void deletePlaybook(id, {
+                        onSuccess: () => router.push("/dashboard/library/playbooks"),
+                      });
+                    }
+                  }}
+                  disabled={isDeleting}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 border border-destructive/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditMode(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Edit
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Compact Meta Bar (Status + Target Win Rate) */}
+        <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-border/60 text-sm">
+          {/* Status */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Status
+            </span>
+            {isEditMode ? (
+              <button
+                type="button"
+                onClick={() => setIsActive((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                  isActive
+                    ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
+                    : "bg-secondary text-muted-foreground border-border hover:bg-muted"
+                }`}
+                aria-label={`Toggle active status, currently ${isActive ? "Active" : "Inactive"}`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isActive ? "bg-success" : "bg-muted-foreground"
+                  }`}
+                />
+                {isActive ? "Active" : "Inactive"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const nextStatus = !playbook?.is_active;
+                  updatePlaybook(
+                    { id, payload: { is_active: nextStatus } },
+                    {
+                      onSuccess: () => {
+                        setIsActive(nextStatus);
+                        toast.success(`Playbook marked as ${nextStatus ? "Active" : "Inactive"}`);
+                      },
+                      onError: (err) => toast.error(err.message || "Failed to update status"),
+                    }
+                  );
+                }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+                  playbook?.is_active
+                    ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
+                    : "bg-secondary text-muted-foreground border-border hover:bg-muted"
+                }`}
+                title="Click to toggle status"
+                aria-label={`Toggle active status, currently ${
+                  playbook?.is_active ? "Active" : "Inactive"
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    playbook?.is_active ? "bg-success" : "bg-muted-foreground"
+                  }`}
+                />
+                {playbook?.is_active ? "Active" : "Inactive"}
+              </button>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-border hidden sm:block" />
+
+          {/* Target Win Rate */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+              Target Win Rate
+            </label>
+            {isEditMode ? (
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={targetWinrate}
+                  onChange={(e) => setTargetWinrate(e.target.value)}
+                  placeholder="—"
+                  className="w-24 px-2.5 py-1 pr-6 text-sm font-mono bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-right"
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                  %
+                </span>
+              </div>
+            ) : (
+              <span className="text-sm font-mono font-semibold text-foreground">
+                {targetWinrate ? `${targetWinrate}%` : "—"}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── Split pane ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
-        {/* ── Left pane ───────────────────────────────────────────────────── */}
-        <div
-          className="flex flex-col gap-5 overflow-y-auto p-4 border-b lg:border-b-0 lg:border-r border-border bg-card shrink-0 w-full lg:w-[35%]"
+      {/* ── Mobile Pane Switcher (< lg) ─────────────────────────────────────── */}
+      <div
+        className="flex lg:hidden p-1 rounded-xl bg-secondary border border-border"
+        role="tablist"
+        aria-label="Playbook view sections"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePane === "document"}
+          onClick={() => setMobilePane("document")}
+          className={`flex-1 inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            mobilePane === "document"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
         >
-          {/* ── Tags ──────────────────────────────────────────────────────── */}
-          <section>
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
-              Tags
+          <FileText className="w-4 h-4" />
+          Document
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePane === "details"}
+          onClick={() => setMobilePane("details")}
+          className={`flex-1 inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            mobilePane === "details"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Paperclip className="w-4 h-4" />
+          Details & Media
+          {detailsCount > 0 && (
+            <span className="px-1.5 py-0.5 text-[11px] rounded-full bg-primary/15 text-primary font-semibold">
+              {detailsCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ── Main 2-Column Body (Left: Markdown Main Pane, Right: Side Pane) ── */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* ── Left Main Pane: Strategy Documentation (flex-1) ───────────────── */}
+        <div
+          className={`flex-1 min-w-0 w-full ${
+            mobilePane === "document" ? "block" : "hidden lg:block"
+          }`}
+        >
+          <div className="solid-card overflow-hidden">
+            {/* Card Header */}
+            <div className="flex items-center justify-between gap-4 px-5 py-3.5 border-b border-border bg-muted/20">
+              <h2 className="text-sm font-semibold text-foreground">Strategy Rules</h2>
+
+              {isEditMode && (
+                <div className="flex items-center bg-secondary p-0.5 rounded-lg border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setEditorTab("write")}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      editorTab === "write"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    Write
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorTab("preview")}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      editorTab === "preview"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorTab("split")}
+                    className={`hidden lg:inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      editorTab === "split"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Columns className="w-3.5 h-3.5" />
+                    Split
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Card Body */}
+            <div className="p-5 sm:p-6">
+              {!isEditMode || editorTab === "preview" ? (
+                renderMarkdownPreview()
+              ) : editorTab === "split" ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                  <textarea
+                    ref={textareaRef}
+                    value={contentMarkdown}
+                    onChange={(e) => setContentMarkdown(e.target.value)}
+                    placeholder="Write your detailed strategy rules here using Markdown…"
+                    aria-label="Playbook content (Markdown)"
+                    className="w-full min-h-[480px] resize-y rounded-lg border border-border bg-background p-4 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary leading-relaxed"
+                    spellCheck={false}
+                  />
+                  <div className="rounded-lg border border-border bg-muted/10 p-4 min-h-[480px]">
+                    {renderMarkdownPreview()}
+                  </div>
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  value={contentMarkdown}
+                  onChange={(e) => setContentMarkdown(e.target.value)}
+                  placeholder="Write your detailed strategy rules here using Markdown…"
+                  aria-label="Playbook content (Markdown)"
+                  className="w-full min-h-[480px] resize-y rounded-lg border border-border bg-background p-4 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary leading-relaxed"
+                  spellCheck={false}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right Side Pane (Tags, Images, External Links) ────────────────── */}
+        <aside
+          className={`w-full lg:w-[360px] xl:w-[420px] shrink-0 flex-col gap-4 ${
+            mobilePane === "details" ? "flex" : "hidden lg:flex"
+          }`}
+        >
+          {/* 1. Tags Card */}
+          <section className="solid-card p-4">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center justify-between">
+              <span>Tags</span>
+              {assignedTaxonomies.length > 0 && (
+                <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">
+                  {assignedTaxonomies.length}
+                </span>
+              )}
             </h3>
 
-            {/* Assigned chips */}
             <div className="flex flex-wrap gap-1.5 mb-2">
               {assignedTaxonomies.map((t) => (
                 <span
                   key={t.id}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${contrastTextColor(t.color_hex)}`}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${contrastTextColor(
+                    t.color_hex
+                  )}`}
                   style={{ backgroundColor: t.color_hex }}
                 >
                   {t.name}
                   {isEditMode && (
                     <button
+                      type="button"
                       onClick={() => removeTaxonomy({ playbookId: id, taxonomyId: t.id })}
                       className="hover:opacity-70 transition-opacity"
                       aria-label={`Remove tag ${t.name}`}
@@ -643,7 +981,6 @@ export function PlaybookEditorClient({ id }: Props) {
               )}
             </div>
 
-            {/* Add tag dropdown */}
             {isEditMode && availableTaxonomies.length > 0 && (
               <select
                 value=""
@@ -653,7 +990,7 @@ export function PlaybookEditorClient({ id }: Props) {
                     e.target.value = "";
                   }
                 }}
-                className="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full mt-1 px-2.5 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">+ Add tag…</option>
                 {availableTaxonomies.map((t) => (
@@ -665,10 +1002,15 @@ export function PlaybookEditorClient({ id }: Props) {
             )}
           </section>
 
-          {/* ── Images ────────────────────────────────────────────────────── */}
-          <section>
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
-              Images
+          {/* 2. Images Card (16:9 Chart Thumbnails) */}
+          <section className="solid-card p-4">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center justify-between">
+              <span>Images</span>
+              {visibleAttachments.length > 0 && (
+                <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">
+                  {visibleAttachments.length}
+                </span>
+              )}
             </h3>
 
             {/* Upload zone */}
@@ -685,7 +1027,7 @@ export function PlaybookEditorClient({ id }: Props) {
                   void handleFiles(e.dataTransfer.files);
                 }}
                 onClick={() => fileInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 ${
+                className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 px-3 mb-3 text-center ${
                   isDragging || pasteHint
                     ? "border-primary bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]"
                     : "border-border hover:border-primary hover:bg-muted/50"
@@ -724,81 +1066,112 @@ export function PlaybookEditorClient({ id }: Props) {
                       </kbd>{" "}
                       to paste
                     </span>
-                    <span className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP · max 20 MB</span>
+                    <span className="text-xs text-muted-foreground">
+                      PNG, JPG, GIF, WebP · max 20 MB
+                    </span>
                   </>
                 )}
               </div>
             )}
-            {uploadError && (
-              <p className="mt-1.5 text-xs text-destructive">{uploadError}</p>
-            )}
+            {uploadError && <p className="mb-2 text-xs text-destructive">{uploadError}</p>}
 
-            {/* Attachment list */}
+            {/* Visual 16:9 Thumbnail Grid */}
             {visibleAttachments.length > 0 ? (
-              <ul className={isEditMode ? "mt-3 space-y-1.5" : "space-y-1.5"}>
-                {visibleAttachments.map((att) => (
-                  <li
-                    key={att.id}
-                    className="flex items-center gap-2 p-1.5 rounded-lg bg-secondary border border-border"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLightboxSrc(resolveStorageUrl(att.storage_url));
-                        setLightboxAlt(att.filename);
-                      }}
-                      className="shrink-0"
-                      aria-label={`View ${att.filename}`}
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {visibleAttachments.map((att) => {
+                  const resolvedUrl = resolveStorageUrl(att.storage_url);
+                  return (
+                    <li
+                      key={att.id}
+                      className="group flex flex-col rounded-lg bg-secondary/60 border border-border overflow-hidden"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={resolveStorageUrl(att.storage_url)}
-                        alt={att.filename}
-                        className="w-10 h-10 rounded object-cover border border-border"
-                      />
-                    </button>
-                    <span className="flex-1 text-xs text-foreground truncate" title={att.filename}>
-                      {att.filename}
-                    </span>
-                    {att.isPending && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-primary/30 text-primary bg-primary/10">
-                        Unsaved
-                      </span>
-                    )}
-                    {isEditMode && (
                       <button
+                        type="button"
                         onClick={() => {
-                          if (att.isPending) {
-                            setPendingAttachmentsToAdd((prev) => {
-                              const removed = prev.find((p) => p.tempId === att.id);
-                              if (removed) {
-                                URL.revokeObjectURL(removed.previewUrl);
-                              }
-                              return prev.filter((p) => p.tempId !== att.id);
-                            });
-                            return;
-                          }
-                          setPendingAttachmentIdsToDelete((prev) =>
-                            prev.includes(att.id) ? prev : [...prev, att.id]
-                          );
+                          setLightboxSrc(resolvedUrl);
+                          setLightboxAlt(att.filename);
                         }}
-                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                        aria-label={`Delete ${att.filename}`}
+                        className="relative aspect-video w-full bg-background overflow-hidden block"
+                        aria-label={`View ${att.filename}`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={resolvedUrl}
+                          alt={att.filename}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        {att.isPending && (
+                          <span className="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded border border-primary/30 text-primary bg-background/90 font-medium">
+                            Unsaved
+                          </span>
+                        )}
                       </button>
-                    )}
-                  </li>
-                ))}
+
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-t border-border">
+                        <span
+                          className="flex-1 text-xs text-foreground truncate"
+                          title={att.filename}
+                        >
+                          {att.filename}
+                        </span>
+
+                        {!att.isPending && (
+                          <button
+                            type="button"
+                            onClick={() => handleInsertOrCopyImageRef(att.id, att.filename)}
+                            className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                            title={
+                              isEditMode
+                                ? "Insert Markdown reference into document"
+                                : "Copy Markdown reference"
+                            }
+                            aria-label={`Copy reference for ${att.filename}`}
+                          >
+                            {copiedAttachmentId === att.id ? (
+                              <Check className="w-3.5 h-3.5 text-success" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (att.isPending) {
+                                setPendingAttachmentsToAdd((prev) => {
+                                  const removed = prev.find((p) => p.tempId === att.id);
+                                  if (removed) {
+                                    URL.revokeObjectURL(removed.previewUrl);
+                                  }
+                                  return prev.filter((p) => p.tempId !== att.id);
+                                });
+                                return;
+                              }
+                              setPendingAttachmentIdsToDelete((prev) =>
+                                prev.includes(att.id) ? prev : [...prev, att.id]
+                              );
+                            }}
+                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                            aria-label={`Delete ${att.filename}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
-            ) : !isEditMode && (
-              <span className="text-xs text-muted-foreground italic">No images</span>
+            ) : (
+              !isEditMode && <span className="text-xs text-muted-foreground italic">No images</span>
             )}
           </section>
 
-          {/* ── External Links ─────────────────────────────────────────────── */}
-          <section>
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center justify-between">
+          {/* 3. External Links Card */}
+          <section className="solid-card p-4">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center justify-between">
               <span>External Links</span>
               {links.length > 0 && (
                 <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">
@@ -807,13 +1180,12 @@ export function PlaybookEditorClient({ id }: Props) {
               )}
             </h3>
 
-            {/* Link list */}
             {links.length > 0 ? (
-              <ul className={isEditMode ? "space-y-1 mb-3" : "space-y-1"}>
+              <ul className={isEditMode ? "space-y-1.5 mb-3" : "space-y-1.5"}>
                 {links.map((link) => (
                   <li
                     key={link.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-secondary border border-border"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-secondary border border-border"
                   >
                     <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <a
@@ -827,6 +1199,7 @@ export function PlaybookEditorClient({ id }: Props) {
                     </a>
                     {isEditMode && (
                       <button
+                        type="button"
                         onClick={() => deleteLink({ playbookId: id, linkId: link.id })}
                         className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                         aria-label={`Delete link ${link.label}`}
@@ -837,20 +1210,19 @@ export function PlaybookEditorClient({ id }: Props) {
                   </li>
                 ))}
               </ul>
-            ) : !isEditMode && (
-              <span className="text-xs text-muted-foreground italic">No links</span>
+            ) : (
+              !isEditMode && <span className="text-xs text-muted-foreground italic">No links</span>
             )}
 
-            {/* Add link form */}
             {isEditMode && (
-              <div className="space-y-1.5 p-2 bg-secondary/50 rounded-lg border border-border/50">
-                <p className="text-[11px] font-medium text-muted-foreground mb-1">Add new link</p>
+              <div className="space-y-2 p-2.5 bg-secondary/50 rounded-lg border border-border/60">
+                <p className="text-[11px] font-medium text-muted-foreground">Add new link</p>
                 <input
                   type="text"
                   value={linkLabel}
                   onChange={(e) => setLinkLabel(e.target.value.slice(0, 200))}
                   placeholder="Label (e.g. TradingView chart)"
-                  className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-2.5 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <div className="flex gap-1.5">
                   <input
@@ -861,9 +1233,10 @@ export function PlaybookEditorClient({ id }: Props) {
                       if (e.key === "Enter") handleAddLink();
                     }}
                     placeholder="https://…"
-                    className="flex-1 px-2 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="flex-1 px-2.5 py-1.5 text-sm bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <button
+                    type="button"
                     onClick={handleAddLink}
                     disabled={isCreatingLink || !linkLabel.trim() || !linkUrl.trim()}
                     className="px-2.5 py-1.5 text-sm bg-primary hover:bg-primary/90 text-white rounded-md transition-colors disabled:opacity-50 shrink-0"
@@ -876,97 +1249,12 @@ export function PlaybookEditorClient({ id }: Props) {
               </div>
             )}
           </section>
-        </div>
-
-        {/* ── Right pane (65%) ─────────────────────────────────────────────── */}
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          {/* Tab bar */}
-          {isEditMode && (
-            <div className="flex items-center gap-1 px-4 pt-3 pb-0 border-b border-border bg-background shrink-0">
-              <button
-                onClick={() => setEditorTab("write")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-t-md transition-colors border-b-2 -mb-px ${
-                  editorTab === "write"
-                    ? "border-primary text-foreground font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                Write
-              </button>
-              <button
-                onClick={() => setEditorTab("preview")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-t-md transition-colors border-b-2 -mb-px ${
-                  editorTab === "preview"
-                    ? "border-primary text-foreground font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                Preview
-              </button>
-            </div>
-          )}
-
-          {/* Editor / Preview */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            {isEditMode && editorTab === "write" ? (
-              <textarea
-                value={contentMarkdown}
-                onChange={(e) => setContentMarkdown(e.target.value)}
-                placeholder="Write your detailed strategy rules here using Markdown…"
-                aria-label="Playbook content (Markdown)"
-                className="w-full h-full resize-none px-4 py-3 font-mono text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none"
-                spellCheck={false}
-              />
-            ) : (
-              <div className="h-full overflow-y-auto px-6 py-4">
-                {contentMarkdown ? (
-                  <div className="prose prose-sm max-w-none text-foreground [&_a]:text-primary [&_code]:bg-secondary [&_code]:px-1 [&_code]:rounded [&_pre]:bg-secondary [&_pre]:p-3 [&_pre]:rounded-lg [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_table]:w-full [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_th]:pb-1 [&_td]:border-b [&_td]:border-border [&_td]:py-1">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeSanitize]}
-                      components={{
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        img: ({ src, alt, ...rest }: any) => {
-                          const resolved = src?.startsWith("ref:")
-                            ? (() => {
-                                const uuid = src.slice(4);
-                                const found = attachments.find((a) => a.id === uuid);
-                                return found ? found.storage_url : null;
-                              })()
-                            : src;
-                          if (!resolved) {
-                            return (
-                              <span className="text-xs text-muted-foreground italic">
-                                [attachment deleted]
-                              </span>
-                            );
-                          }
-                          // eslint-disable-next-line @next/next/no-img-element
-                          return <img src={resolved} alt={alt ?? ""} {...rest} />;
-                        },
-                      }}
-                    >
-                      {contentMarkdown}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Nothing to preview.</p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        </aside>
       </div>
 
       {/* Lightbox */}
       {lightboxSrc && (
-        <Lightbox
-          src={lightboxSrc}
-          alt={lightboxAlt}
-          onClose={() => setLightboxSrc(null)}
-        />
+        <Lightbox src={lightboxSrc} alt={lightboxAlt} onClose={() => setLightboxSrc(null)} />
       )}
     </div>
   );

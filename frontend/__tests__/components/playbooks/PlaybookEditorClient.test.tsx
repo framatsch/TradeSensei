@@ -161,4 +161,40 @@ describe("PlaybookEditorClient", () => {
       expect.any(Object)
     );
   });
+
+  it("stays in edit mode on Save and exits edit mode on Save & Close", async () => {
+    const user = userEvent.setup();
+    mockUpdatePlaybook.mockImplementation((_vars, options) => {
+      options?.onSuccess?.();
+    });
+
+    render(<PlaybookEditorClient id="playbook-1" />);
+
+    // Clicking "Save" keeps edit mode active and URL with ?edit=true
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(mockReplace).toHaveBeenCalledWith("/dashboard/library/playbooks/playbook-1?edit=true");
+    expect(screen.getByLabelText("Playbook content (Markdown)")).toBeInTheDocument();
+
+    // Clicking "Save & Close" exits edit mode and strips ?edit=true
+    await user.click(screen.getByRole("button", { name: "Save & Close" }));
+    expect(mockReplace).toHaveBeenCalledWith("/dashboard/library/playbooks/playbook-1");
+    expect(screen.queryByLabelText("Playbook content (Markdown)")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("renders mobile pane switcher tabs (Document and Details & Media)", async () => {
+    const user = userEvent.setup();
+
+    render(<PlaybookEditorClient id="playbook-1" />);
+
+    const docTab = screen.getByRole("tab", { name: /Document/i });
+    const detailsTab = screen.getByRole("tab", { name: /Details & Media/i });
+
+    expect(docTab).toHaveAttribute("aria-selected", "true");
+    expect(detailsTab).toHaveAttribute("aria-selected", "false");
+
+    await user.click(detailsTab);
+    expect(docTab).toHaveAttribute("aria-selected", "false");
+    expect(detailsTab).toHaveAttribute("aria-selected", "true");
+  });
 });

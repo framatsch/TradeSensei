@@ -18,26 +18,6 @@ import { test, expect } from '@playwright/test';
 test.describe('Playbook Strategy Hub', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test.afterAll(async ({ browser }) => {
-    const context = await browser.newContext({
-      storageState: './frontend/tests/.auth/user.json',
-    });
-    const page = await context.newPage();
-    await page.goto('/dashboard/library/playbooks');
-    await page.waitForLoadState('networkidle');
-
-    for (const name of ['My E2E Test Playbook', 'Links Test Playbook']) {
-      const row = page.locator('tr', { hasText: name });
-      if (await row.isVisible()) {
-        await row.locator('button[title="Delete playbook"]').click();
-        await row.getByRole('button', { name: 'Yes' }).click();
-        await expect(row).not.toBeVisible();
-      }
-    }
-
-    await context.close();
-  });
-
   test.beforeEach(async ({ page }) => {
     await page.goto('/dashboard/library/playbooks');
     // Wait for the table or empty state to load
@@ -45,7 +25,7 @@ test.describe('Playbook Strategy Hub', () => {
   });
 
   test('TC-080 navigate to playbooks and see the list', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Playbooks' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Playbooks', level: 1 })).toBeVisible();
     await expect(page.getByText('Define and manage your trading strategies and setup types')).toBeVisible();
     
     // There should be at least the seeded playbooks, so table should be visible
@@ -60,8 +40,8 @@ test.describe('Playbook Strategy Hub', () => {
     await page.waitForURL(/\/dashboard\/library\/playbooks\/[a-zA-Z0-9-]+/);
     
     // 3. Edit name
-    await page.getByRole('button', { name: 'Untitled Playbook' }).click();
-    await page.locator('input[value="Untitled Playbook"]').fill('My E2E Test Playbook');
+    await page.getByRole('button', { name: /Untitled Playbook/ }).click();
+    await page.locator('input[value^="Untitled Playbook"]').fill('My E2E Test Playbook');
     await page.keyboard.press('Enter');
     
     // 4. Edit target winrate
@@ -77,8 +57,8 @@ test.describe('Playbook Strategy Hub', () => {
     await expect(page.locator('.prose')).toContainText('E2E Strategy');
     await expect(page.locator('.prose')).toContainText('This is a test strategy.');
     
-    // 7. Save
-    await page.getByRole('button', { name: 'Save' }).click();
+    // 7. Save & Close
+    await page.getByRole('button', { name: 'Save & Close' }).click();
     await expect(page.getByText('Playbook saved')).toBeVisible();
     
     // 8. Go back and check it's in the list
@@ -93,27 +73,19 @@ test.describe('Playbook Strategy Hub', () => {
     await page.waitForURL(/\/dashboard\/library\/playbooks\/[a-zA-Z0-9-]+/);
     
     // Rename
-    await page.getByRole('button', { name: 'Untitled Playbook' }).click();
-    await page.locator('input[value="Untitled Playbook"]').fill('To Be Deleted Playbook');
+    await page.getByRole('button', { name: /Untitled Playbook/ }).click();
+    await page.locator('input[value^="Untitled Playbook"]').fill('To Be Deleted Playbook');
     await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save & Close' }).click();
     await expect(page.getByText('Playbook saved')).toBeVisible();
     
-    // Go back
-    await page.getByRole('button', { name: 'Back to playbooks' }).click();
+    // In Read mode, click Delete and accept confirmation dialog
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    
+    // Wait for redirect back to the list and verify it's gone
     await page.waitForURL('/dashboard/library/playbooks');
-    
-    // Find the row and hover/click delete
     const row = page.locator('tr', { hasText: 'To Be Deleted Playbook' });
-    await expect(row).toBeVisible();
-    
-    // Click delete icon (it has title "Delete playbook")
-    await row.locator('button[title="Delete playbook"]').click();
-    
-    // Confirm delete
-    await row.getByRole('button', { name: 'Yes' }).click();
-    
-    // It should be removed from the list
     await expect(row).not.toBeVisible();
   });
   
@@ -123,8 +95,8 @@ test.describe('Playbook Strategy Hub', () => {
     await page.waitForURL(/\/dashboard\/library\/playbooks\/[a-zA-Z0-9-]+/);
     
     // 2. Edit name
-    await page.getByRole('button', { name: 'Untitled Playbook' }).click();
-    await page.locator('input[value="Untitled Playbook"]').fill('Links Test Playbook');
+    await page.getByRole('button', { name: /Untitled Playbook/ }).click();
+    await page.locator('input[value^="Untitled Playbook"]').fill('Links Test Playbook');
     await page.keyboard.press('Enter');
     
     // 3. Add link
