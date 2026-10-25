@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-10-25
+
 ### Added
 - [frontend] Unified `Save` (persists changes and stays in edit mode, bound to `Cmd/Ctrl + S`) and `Save & Close` (persists changes, exits edit mode, and strips `?edit=true`) buttons in both Playbook and Market Check-in detail headers.
 - [frontend] Entry-based `< Previous Entry` and `Next Entry >` navigation buttons in the Market Check-in detail header to jump between existing check-in entries.
@@ -775,6 +777,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.17.0]: https://github.com/scheffold/TradeSensei/compare/v1.16.5...v1.17.0
 [1.16.5]: https://github.com/scheffold/TradeSensei/compare/v1.16.4...v1.16.5
 [1.16.4]: https://github.com/scheffold/TradeSensei/compare/v1.16.3...v1.16.4
 [1.16.3]: https://github.com/scheffold/TradeSensei/compare/v1.16.2...v1.16.3
@@ -783,7 +786,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/scheffold/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/scheffold/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/scheffold/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.16.5...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.17.0...HEAD
 [1.13.0]: https://github.com/scheffold/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/scheffold/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...v1.11.0
