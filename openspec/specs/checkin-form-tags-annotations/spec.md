@@ -18,8 +18,8 @@ The system SHALL allow users to assign one or more Tags (Taxonomy with scope="ch
 - **THEN** the system calls `DELETE /{checkin_id}/taxonomies/{taxonomy_id}` and the tag is removed
 
 #### Scenario: User assigns tags while creating a new check-in
-- **WHEN** the user selects tags before saving a new check-in
-- **THEN** the tags are buffered locally and assigned via `POST /{checkin_id}/taxonomies` after the initial create call
+- **WHEN** the user selects tags before saving a new check-in and clicks `Save` or `Save & Close`
+- **THEN** the tags are buffered locally and assigned via `POST /{checkin_id}/taxonomies` immediately after the initial `POST /api/v1/checkins` create call succeeds
 
 ---
 
@@ -42,6 +42,10 @@ The system SHALL allow users to set typed annotation values on a daily check-in 
 #### Scenario: User clears an annotation value
 - **WHEN** the user clicks the clear/remove button on a set annotation
 - **THEN** the system calls `DELETE /{checkin_id}/annotations/{annotation_definition_id}`
+
+#### Scenario: User sets annotations while creating a new check-in
+- **WHEN** the user sets annotation values before saving a new check-in and clicks `Save` or `Save & Close`
+- **THEN** the buffered annotation values are persisted via `POST /{checkin_id}/annotations/{annotation_definition_id}` immediately after the initial `POST /api/v1/checkins` create call succeeds
 
 ---
 
