@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-10-31
+
 ### Added
 - [frontend] Added mobile trade detail tabs (`Overview`, `Journal`, `Executions`) with preserved chart and journal state, plus compact header KPIs for P&L, Realized R and Return %.
 - [frontend] Added mobile execution-leg cards with editing and action menus, touch-visible journal, screenshot and quick-note controls, and a fixed `Save`/`Cancel` bar for unsaved journal changes.
@@ -788,6 +790,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.18.0]: https://github.com/scheffold/TradeSensei/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/scheffold/TradeSensei/compare/v1.16.5...v1.17.0
 [1.16.5]: https://github.com/scheffold/TradeSensei/compare/v1.16.4...v1.16.5
 [1.16.4]: https://github.com/scheffold/TradeSensei/compare/v1.16.3...v1.16.4
@@ -797,7 +800,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/scheffold/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/scheffold/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/scheffold/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.17.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.18.0...HEAD
 [1.13.0]: https://github.com/scheffold/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/scheffold/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...v1.11.0
