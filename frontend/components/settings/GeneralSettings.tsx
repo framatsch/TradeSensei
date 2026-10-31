@@ -100,13 +100,9 @@ export function GeneralSettings() {
 
   useEffect(() => {
     if (settings) {
-      // @ts-ignore
       setCandlesBefore(String(settings.chart_candles_before ?? 20));
-      // @ts-ignore
       setCandlesAfter(String(settings.chart_candles_after ?? 10));
-      // @ts-ignore
       setShowPostExit(settings.chart_show_post_exit ?? false);
-      // @ts-ignore
       setHomeRoute(settings.home_route ?? "/dashboard");
       setChartIntervals(settings.chart_intervals ?? ["1h", "4h", "1d", "1w"]);
     }
@@ -134,13 +130,9 @@ export function GeneralSettings() {
     setIsSaving(true);
     try {
       await updateSettings({
-        // @ts-ignore
         chart_candles_before: before,
-        // @ts-ignore
         chart_candles_after: after,
-        // @ts-ignore
         chart_show_post_exit: showPostExit,
-        // @ts-ignore
         home_route: homeRoute,
         theme: theme as Theme,
         chart_intervals: chartIntervals,
@@ -284,7 +276,12 @@ export function GeneralSettings() {
           </label>
           <select
             value={homeRoute}
-            onChange={(e) => setHomeRoute(e.target.value as any)}
+            onChange={(e) => {
+              const route = e.target.value;
+              if (route === "/dashboard" || route === "/dashboard/trades" || route === "/dashboard/library" || route === "/dashboard/checkins") {
+                setHomeRoute(route);
+              }
+            }}
             className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="/dashboard">Portfolio Workspace</option>

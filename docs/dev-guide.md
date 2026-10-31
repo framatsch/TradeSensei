@@ -300,6 +300,32 @@ Exclude integration tests in environments without a database:
 uv run pytest -m "not integration"
 ```
 
+### Frontend validation
+
+Run the frontend validation gates from `frontend/`:
+
+```bash
+npm ci
+npm run lint
+npx tsc --noEmit --incremental false
+npm test -- --runInBand
+```
+
+The lint script uses ESLint flat configuration; Next.js 16 no longer provides `next lint`. Generated OpenAPI files matching `lib/api/**/*.gen.ts` are excluded from ESLint, but TypeScript still checks them. Regenerate those files rather than editing them by hand.
+
+### End-to-end tests
+
+Install frontend dependencies as described above, then run the following from the repository root with the local stack already running at `http://localhost:3000` (frontend) and `http://localhost:8000` (API). The root TypeScript configuration checks E2E files separately from the frontend application:
+
+```bash
+npm ci
+npx playwright install chromium --with-deps
+./frontend/node_modules/.bin/tsc --project tsconfig.playwright.json --noEmit --incremental false
+npm run test:e2e -- --retries=0
+```
+
+`playwright.config.ts` loads `tsconfig.playwright.json`, which resolves every `@playwright/test` import to the root test runtime. Separate root and frontend Playwright versions work without dependency symlinks or version alignment; normal frontend builds keep their own configuration. Runs are headless by default, the HTML report does not open automatically, and the JSON report is written to `test-results/results.json`. Use `npm run test:e2e:report` to open the HTML report when needed.
+
 ---
 
 ## Linting and type checking

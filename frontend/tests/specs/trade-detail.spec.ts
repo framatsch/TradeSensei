@@ -16,6 +16,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import { tradeMobileTest, expectNoTradeOverflow as expectNoHorizontalOverflow } from '../fixtures/trade-mobile-layout';
 
 const SEED_STATE_FILE = path.join(__dirname, '../.auth/seed-state.json');
 
@@ -30,28 +31,31 @@ test.describe('Trade Detail Redesign', () => {
     const seedState = getSeedState();
     // We use the seeded execution trade ID which is guaranteed to exist
     await page.goto(`/dashboard/trades/${seedState.executionTradeId}`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Performance', exact: true })).toBeVisible();
   });
 
   test('TC-120 page layout and widgets render correctly', async ({ page }) => {
     // 1. Verify Header
-    await expect(page.locator('h1')).toBeVisible(); // Symbol
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible(); // Symbol
     await expect(page.getByText('Final P&L')).toBeVisible();
     await expect(page.getByText('Opened:')).toBeVisible();
-    
+
     // 2. Verify Performance Panel
-    await expect(page.getByRole('heading', { name: 'Performance' })).toBeVisible();
-    await expect(page.getByText('Stop Loss').first()).toBeVisible();
-    await expect(page.getByText('Take Profit').first()).toBeVisible();
-    await expect(page.getByText('Realized R').first()).toBeVisible();
-    await expect(page.getByText('Return %').first()).toBeVisible();
-    
+    const overview = page.locator('#trade-overview-pane');
+    const performance = overview.getByRole('heading', { name: 'Performance' }).locator('..');
+    await expect(performance).toBeVisible();
+    await expect(performance.getByText('Stop Loss', { exact: true })).toBeVisible();
+    await expect(performance.getByText('Take Profit', { exact: true })).toBeVisible();
+    await expect(performance.getByText('Realized R', { exact: true })).toBeVisible();
+    await expect(performance.getByText('Return %', { exact: true })).toBeVisible();
+
     // 3. Verify Qualitative Metadata Panel
-    await expect(page.getByRole('heading', { name: 'Qualitative Analysis & Metadata' })).toBeVisible();
-    await expect(page.getByText('Tags (Taxonomies)')).toBeVisible();
-    await expect(page.getByText('Playbook', { exact: true })).toBeVisible();
-    await expect(page.getByText('Journal', { exact: true })).toBeVisible();
-    
+    const journal = page.locator('#trade-journal-pane');
+    await expect(journal.getByRole('heading', { name: 'Qualitative Analysis & Metadata' })).toBeVisible();
+    await expect(journal.getByText('Tags (Taxonomies)')).toBeVisible();
+    await expect(journal.getByText('Playbook', { exact: true })).toBeVisible();
+    await expect(journal.getByText('Journal', { exact: true })).toBeVisible();
+
     // 4. Verify Execution Legs
     await expect(page.getByRole('button', { name: /Execution Legs/ })).toBeVisible();
   });
@@ -59,19 +63,19 @@ test.describe('Trade Detail Redesign', () => {
   test('TC-121 inline edit stop loss and take profit', async ({ page }) => {
     // Edit Stop Loss
     await page.getByTitle('Click to edit Stop Loss').click();
-    const slInput = page.locator('input[type="number"]').first();
+    const slInput = page.getByRole('spinbutton', { name: 'Stop Loss', exact: true });
     await slInput.fill('100.5');
     await slInput.press('Enter');
-    
+
     // Verify updated value (the button title changes or we can just look for the text)
     await expect(page.getByTitle('Click to edit Stop Loss')).toContainText('$100.50');
-    
+
     // Edit Take Profit
     await page.getByTitle('Click to edit Take Profit').click();
-    const tpInput = page.locator('input[type="number"]').first();
+    const tpInput = page.getByRole('spinbutton', { name: 'Take Profit', exact: true });
     await tpInput.fill('200.75');
     await tpInput.press('Enter');
-    
+
     // Verify updated value
     await expect(page.getByTitle('Click to edit Take Profit')).toContainText('$200.75');
   });
@@ -79,18 +83,104 @@ test.describe('Trade Detail Redesign', () => {
   test.skip('TC-122 star a trade (Model Book Cross Entity)', async ({ page }) => {
     // Look for the star button in the header actions
     const starButton = page.locator('button[aria-label="Star"], button[aria-label="Unstar"]');
-    
+
     // It might be unstarrred or starred already, let's toggle it
     await starButton.click();
-    
+
     // Should show some indication of loading/success
     await page.waitForTimeout(1000); // Give it a sec instead of networkidle
-    
+
     // Toggle back
     await starButton.click();
     await page.waitForTimeout(1000);
-    
+
     // Verify it's functional
     await expect(starButton).toBeVisible();
+  });
+});
+
+// spec: openspec/changes/trade-mobile-layout/specs/trade-detail-mobile-ui/spec.md
+// Data: isolated live-API fixture; no shared E2E trades are edited.
+tradeMobileTest.describe('@trade-mobile-layout detail', () => {
+  tradeMobileTest.use({ viewport: { width: 375, height: 812 }, storageState: { cookies: [], origins: [] } });
+  tradeMobileTest.setTimeout(60_000);
+
+  tradeMobileTest('mobile tabs preserve an unsaved journal draft without horizontal overflow', async ({ page, tradeMobile }) => {
+    // 1. At 375×812 open the seeded execution trade and verify Overview default, hidden inactive panes and no document/main overflow.
+    await page.goto(`/dashboard/trades/${tradeMobile.trades[0].id}`);
+    await expect(page.getByRole('tab', { name: 'Overview', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('heading', { name: 'Performance', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Execution Summary' })).toBeVisible();
+    await expect(page.locator('#trade-journal-pane')).toBeHidden();
+    await expect(page.locator('#trade-executions-pane')).toBeHidden();
+    await expectNoHorizontalOverflow(page);
+
+    // 2. Open Journal, edit a markdown draft and verify fixed Save/Cancel and the unsaved dot.
+    await page.getByRole('tab', { name: /^Journal/ }).click();
+    await page.getByRole('button', { name: 'Edit journal' }).click();
+    const journal = page.getByPlaceholder(/Write your post-trade summary/);
+    const draft = '## Mobile review: keep this unsaved draft while switching tabs.';
+    await journal.fill(draft);
+    await expect(page.getByRole('img', { name: 'Unsaved journal changes' })).toBeVisible();
+    const saveBar = page.locator('#trade-journal-pane .fixed');
+    await expect(saveBar).toHaveCSS('position', 'fixed');
+    await expect(saveBar.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+    await expect(saveBar.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
+    const barBox = await saveBar.boundingBox();
+    if (!barBox) throw new Error('Journal save bar is not rendered.');
+    expect(barBox.y + barBox.height).toBeCloseTo(812, 0);
+    await expectNoHorizontalOverflow(page);
+
+    // 3. Switch Overview → Executions and verify two active leg cards, the count, hidden table and no overflow.
+    await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+    await expect(journal).toBeHidden();
+    await page.getByRole('tab', { name: 'Executions (2)', exact: true }).click();
+    await expect(page.getByTestId('execution-leg-card')).toHaveCount(2);
+    await expect(page.getByTestId('execution-leg-card').first()).toBeVisible();
+    await expect(page.locator('#executions-table table')).toBeHidden();
+    await expectNoHorizontalOverflow(page);
+
+    // 4. Return to Journal, verify exact unsaved draft preserved, then Cancel and verify dirty state clears.
+    await page.getByRole('tab', { name: /^Journal/ }).click();
+    await expect(journal).toHaveValue(draft);
+    await expect(page.getByRole('img', { name: 'Unsaved journal changes' })).toBeVisible();
+    await saveBar.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(saveBar).toBeHidden();
+    await expect(page.getByRole('img', { name: 'Unsaved journal changes' })).toHaveCount(0);
+
+    // 5. At 768×1024, visit every pane and verify no horizontal overflow.
+    await page.setViewportSize({ width: 768, height: 1024 });
+    for (const name of ['Overview', 'Journal', 'Executions (2)']) {
+      await page.getByRole('tab', { name, exact: true }).click();
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+
+  tradeMobileTest('mobile leg card menu edits and persists its price', async ({ page, tradeMobile }) => {
+    const trade = tradeMobile.trades[0];
+    await page.goto(`/dashboard/trades/${trade.id}`);
+    await page.getByRole('tab', { name: 'Executions (2)', exact: true }).click();
+    const card = page.getByTestId('execution-leg-card').first();
+    await expect(card).toBeVisible();
+    await card.getByRole('button', { name: 'Leg actions' }).click();
+    for (const name of ['Edit', 'Move to...', 'Detach as new Trade', 'Delete']) {
+      await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
+    }
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    const form = card.getByRole('form', { name: 'Edit execution' });
+    for (const name of ['Executed at date and time', 'Quantity', 'Price', 'Commission', 'P&L']) {
+      await expect(form.getByLabel(name, { exact: true })).toBeVisible();
+    }
+    await expectNoHorizontalOverflow(page);
+    await form.getByLabel('Price', { exact: true }).fill('112.25');
+    const update = page.waitForResponse(response => response.request().method() === 'PATCH' && response.url().includes('/executions/'));
+    await form.getByRole('button', { name: 'Save', exact: true }).click();
+    expect((await update).ok()).toBeTruthy();
+    await expect(form).toBeHidden();
+    await expect(card).toContainText('100 @ $112.25');
+    await page.reload();
+    await page.getByRole('tab', { name: 'Executions (2)', exact: true }).click();
+    await expect(card).toContainText('100 @ $112.25');
+    await expectNoHorizontalOverflow(page);
   });
 });

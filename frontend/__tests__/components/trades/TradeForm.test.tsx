@@ -77,6 +77,8 @@ describe("TradeForm", () => {
     await waitFor(() => {
       expect(openedAtInput.value).toBeTruthy();
     });
+    expect(openedAtInput).toBeDisabled();
+    expect(closedAtInput).toBeDisabled();
 
     jest.useRealTimers();
   });

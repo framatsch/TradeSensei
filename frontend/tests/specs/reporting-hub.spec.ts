@@ -46,7 +46,7 @@ test.describe('Reporting Hub', () => {
   });
 
   test('renders global filter bar', async ({ page }) => {
-    await expect(page.getByText('Filters')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /^Filters(?:\s+\d+)?$/ })).toBeVisible({ timeout: 10_000 });
   });
 
   test('renders the widget grid with metric cards', async ({ page }) => {

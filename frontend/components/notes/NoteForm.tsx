@@ -20,10 +20,9 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { TradeNoteCreate } from "@/lib/types";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { useSettings } from "@/hooks/useSettings";
 
 const NOTE_MAX_LENGTH = 5_000;
 const NOTE_WARN_LENGTH = 4_500;
@@ -52,16 +51,6 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
   const [emotion, setEmotion] = useState("");
   const [contentError, setContentError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("edit");
-  const { data: settings } = useSettings();
-
-  useEffect(() => {
-    // @ts-ignore
-    if (settings?.default_markdown_mode === "preview" && content.trim().length > 0) {
-      setActiveTab("preview");
-    }
-    // @ts-ignore
-  }, [settings?.default_markdown_mode]);
-
   const charCount = content.length;
   const isOverLimit = charCount > NOTE_MAX_LENGTH;
   const isNearLimit = charCount >= NOTE_WARN_LENGTH && !isOverLimit;

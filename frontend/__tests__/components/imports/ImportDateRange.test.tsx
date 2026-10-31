@@ -28,7 +28,7 @@ describe("ImportDateRange", () => {
     jest.useRealTimers();
   });
 
-  it("renders unified fill-bar control and emits from_date-compatible value for IBKR", () => {
+  it("renders the preset selector and emits a from_date-compatible custom value for IBKR", () => {
     const onPresetChange = jest.fn();
     const onCustomFromDateChange = jest.fn();
     const capability: BrokerImportCapability = {
@@ -46,9 +46,11 @@ describe("ImportDateRange", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /YTD/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Custom date/i }));
+    expect(screen.getByRole("combobox")).toHaveValue("ytd");
+    expect(screen.getByRole("option", { name: "Year to date" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "custom" } });
     expect(onPresetChange).toHaveBeenCalledWith("custom");
+    expect(onCustomFromDateChange).toHaveBeenCalledWith("20260101");
   });
 
   it("renders with Schwab capability and keeps unified date-range controls", () => {
@@ -69,9 +71,11 @@ describe("ImportDateRange", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /YTD/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Custom date/i })).toBeInTheDocument();
-    expect(screen.getByText(/Max\. 365 days/i)).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toHaveValue("ytd");
+    expect(screen.getByRole("option", { name: "Year to date" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Custom date..." })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("2026-01-01")).toBeInTheDocument();
+    expect(screen.getByText(/Broker API limit: 365 days/i)).toBeInTheDocument();
     expect(onPresetChange).not.toHaveBeenCalled();
     expect(onCustomFromDateChange).not.toHaveBeenCalled();
   });
@@ -94,9 +98,14 @@ describe("ImportDateRange", () => {
       />,
     );
 
-    const dateInput = screen.getByDisplayValue("2024-01-01") as HTMLInputElement;
-    expect(dateInput.min).toBe("2025-07-18");
-    expect(dateInput.max).toBe("2026-07-18");
-    expect(screen.getByText(/Max\. 365 days/i)).toBeInTheDocument();
+    const dateInput = screen.getByDisplayValue("2025-07-18");
+    expect(dateInput).toHaveAttribute("min", "2025-07-18");
+    expect(dateInput).toHaveAttribute("max", "2026-07-18");
+    expect(screen.getByText(/Selected: 365 days/i)).toBeInTheDocument();
+    expect(screen.getByText(/Broker API limit: 365 days/i)).toBeInTheDocument();
+
+    fireEvent.change(dateInput, { target: { value: "2026-06-15" } });
+    expect(onPresetChange).toHaveBeenCalledWith("custom");
+    expect(onCustomFromDateChange).toHaveBeenCalledWith("20260615");
   });
 });

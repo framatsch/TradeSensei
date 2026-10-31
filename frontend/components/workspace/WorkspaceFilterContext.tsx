@@ -68,23 +68,14 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
   }, [searchParams, enforceClosedStatus]);
 
   const [filter, setFilter] = useState<FilterConfig>(initialState);
+  const [syncedInitialState, setSyncedInitialState] = useState(initialState);
 
-  // Sync URL changes to internal state (e.g. clicking a saved view in the sidebar)
-  useEffect(() => {
+  // Apply URL/settings changes before rendering children, retaining local annotations.
+  if (initialState !== syncedInitialState) {
+    setSyncedInitialState(initialState);
     setFilter((prev) => {
       const newState: FilterConfig = {
-        date_from: searchParams.get("date_from") || null,
-        date_to: searchParams.get("date_to") || null,
-        playbook_ids: searchParams.get("playbook_ids") ? searchParams.get("playbook_ids")!.split(",") : [],
-        taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : [],
-        account_ids: searchParams.get("accountIds") ? searchParams.get("accountIds")!.split(",") : [],
-        symbols: searchParams.get("symbols") ? searchParams.get("symbols")!.split(",") : [],
-        excluded_symbols: searchParams.get("excluded_symbols") ? searchParams.get("excluded_symbols")!.split(",") : [],
-        asset_classes: searchParams.get("asset_classes") ? (searchParams.get("asset_classes")!.split(",") as AssetClass[]) : [],
-        status: enforceClosedStatus
-          ? "closed"
-          : (searchParams.get("status") as "open" | "closed" | null) || null,
-        viewId: searchParams.get("view_id") || null,
+        ...initialState,
         annotation_filters: prev.annotation_filters ?? [],
       };
 
@@ -94,7 +85,7 @@ export function WorkspaceFilterProvider({ children }: { children: React.ReactNod
       }
       return prev;
     });
-  }, [searchParams, enforceClosedStatus]);
+  }
 
   const debouncedFilter = useDebounce(filter, 300);
 

@@ -29,6 +29,7 @@ import { useTradeExecutions, useReassignExecution, useDetachExecution } from "@/
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { formatSplitRatio } from "@/lib/formatSplitRatio";
 import { ExecutionRow } from "./ExecutionRow";
+import { ExecutionLegCard } from "./ExecutionLegCard";
 import { AddExecutionModal } from "./AddExecutionModal";
 import { TradePickerModal } from "./TradePickerModal";
 import { SplitExecutionModal } from "./SplitExecutionModal";
@@ -38,6 +39,38 @@ import type { LogicalExecution, Trade } from "@/lib/types";
 interface Props {
   tradeId: string;
   trade: Trade;
+}
+
+type SortKey = 'executed_at' | 'direction' | 'open_close' | 'symbol' | 'asset_class' | 'strike' | 'option_type' | 'expiry' | 'quantity' | 'multiplier' | 'price' | 'commission' | 'pnl' | 'parent_id' | 'origin';
+interface SortConfig {
+  key: SortKey;
+  direction: 'asc' | 'desc';
+}
+
+interface SortableHeaderProps {
+  label: string;
+  sortKey: SortKey;
+  align?: 'left' | 'right';
+  sortConfig: SortConfig | null;
+  onSort: (key: SortKey) => void;
+}
+
+function SortableHeader({ label, sortKey, align = 'left', sortConfig, onSort }: SortableHeaderProps) {
+  return (
+    <th
+      className={`px-3 py-2 text-${align} text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none`}
+      onClick={() => onSort(sortKey)}
+    >
+      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+        {label}
+        {sortConfig?.key === sortKey ? (
+          sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+        ) : (
+          <ArrowUpDown size={12} className="opacity-30" />
+        )}
+      </div>
+    </th>
+  );
 }
 
 export function ExecutionLegsTable({ tradeId, trade }: Props) {
@@ -69,8 +102,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   const hasSplitExecutions = executions?.some((e: LogicalExecution) => e.origin === "split") ?? false;
   const hasOptionLeg = executions?.some((ex: LogicalExecution) => ex.option_type !== null) ?? false;
 
-  type SortKey = 'executed_at' | 'direction' | 'open_close' | 'symbol' | 'asset_class' | 'strike' | 'option_type' | 'expiry' | 'quantity' | 'multiplier' | 'price' | 'commission' | 'pnl' | 'parent_id' | 'origin';
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const handleSort = (key: SortKey) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -105,12 +137,12 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
           return dateA.localeCompare(dateB);
         }
 
-        let aVal: any = a.data[sortConfig.key as keyof LogicalExecution];
-        let bVal: any = b.data[sortConfig.key as keyof LogicalExecution];
+        let aVal: string | number = a.data[sortConfig.key] ?? '';
+        let bVal: string | number = b.data[sortConfig.key] ?? '';
 
         if (['quantity', 'price', 'pnl', 'commission', 'multiplier', 'strike'].includes(sortConfig.key)) {
-          aVal = parseFloat(aVal || '0');
-          bVal = parseFloat(bVal || '0');
+          aVal = parseFloat(String(aVal || '0'));
+          bVal = parseFloat(String(bVal || '0'));
         } else if (['executed_at', 'expiry'].includes(sortConfig.key)) {
           aVal = aVal ? new Date(aVal).getTime() : 0;
           bVal = bVal ? new Date(bVal).getTime() : 0;
@@ -133,22 +165,6 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
 
     return items;
   }, [executions, trade.corporate_action_impact, sortConfig, isClosedBeforeSplit]);
-
-  const SortableHeader = ({ label, sortKey, align = 'left' }: { label: string; sortKey: SortKey; align?: 'left' | 'right' }) => (
-    <th 
-      className={`px-3 py-2 text-${align} text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none`}
-      onClick={() => handleSort(sortKey)}
-    >
-      <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
-        {label}
-        {sortConfig?.key === sortKey ? (
-          sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
-        ) : (
-          <ArrowUpDown size={12} className="opacity-30" />
-        )}
-      </div>
-    </th>
-  );
 
   // Compute duplicate pairs for task 11.2
   const conflictLegIds = new Set<string>();
@@ -192,11 +208,12 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
   return (
     <div className="solid-card">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap lg:gap-0 px-4 py-3 border-b border-border">
+        <div className="flex min-w-0 flex-wrap items-center gap-3 lg:flex-nowrap">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary transition-colors"
+            aria-expanded={!collapsed}
+            className="hidden lg:flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary transition-colors"
           >
             {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
             Execution Legs
@@ -204,6 +221,10 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
               <span className="text-xs font-normal text-muted-foreground">({activeCount})</span>
             )}
           </button>
+
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground lg:hidden">
+            Execution Legs <span className="font-mono text-xs font-normal text-muted-foreground">({activeCount})</span>
+          </h2>
 
           {trade.position_id && (
             <span
@@ -221,24 +242,22 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Show deleted toggle — only visible when there are deleted executions */}
-          {(deletedCount > 0 || showDeleted) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Mobile must offer the toggle before deleted executions are fetched. */}
             <button
               onClick={() => setShowDeleted(!showDeleted)}
-              className={`text-xs px-2 py-1 rounded border transition-colors ${
+              className={`min-h-10 lg:min-h-0 text-xs px-2 py-1 rounded border transition-colors ${deletedCount > 0 || showDeleted ? "" : "lg:hidden"} ${
                 showDeleted
                   ? "bg-muted text-foreground border-border"
                   : "text-muted-foreground border-border hover:bg-[color-mix(in_srgb,var(--muted)_50%,transparent)]"
               }`}
             >
-              {showDeleted ? `Hide deleted (${deletedCount})` : `Show deleted (${deletedCount})`}
+              {showDeleted ? `Hide deleted (${deletedCount})` : deletedCount > 0 ? `Show deleted (${deletedCount})` : "Show deleted"}
             </button>
-          )}
 
           <button
             onClick={() => setAddModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-opacity"
+            className="inline-flex min-h-10 lg:min-h-0 items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           >
             <Plus size={13} />
             Add Execution
@@ -247,8 +266,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
       </div>
 
       {/* Table body */}
-      {!collapsed && (
-        <div className="overflow-x-auto">
+        <div className={`overflow-x-auto ${collapsed ? "lg:hidden" : ""}`}>
           {isLoading && (
             <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
               <Loader2 size={16} className="animate-spin" />
@@ -277,32 +295,33 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
             </div>
           )}
           {!isLoading && !isError && totalCount > 0 && (
-            <table className="w-full text-sm">
+            <>
+            <table className="hidden lg:table w-full text-sm">
               <thead>
                  <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">
-                  <SortableHeader label="Date" sortKey="executed_at" />
-                  <SortableHeader label="Side" sortKey="direction" />
+                   <SortableHeader label="Date" sortKey="executed_at" sortConfig={sortConfig} onSort={handleSort} />
+                   <SortableHeader label="Side" sortKey="direction" sortConfig={sortConfig} onSort={handleSort} />
                   {trade.is_combo && (
                     <>
-                      <SortableHeader label="Open/Close" sortKey="open_close" />
-                      <SortableHeader label="Symbol" sortKey="symbol" />
-                      <SortableHeader label="Asset Class" sortKey="asset_class" />
+                       <SortableHeader label="Open/Close" sortKey="open_close" sortConfig={sortConfig} onSort={handleSort} />
+                       <SortableHeader label="Symbol" sortKey="symbol" sortConfig={sortConfig} onSort={handleSort} />
+                       <SortableHeader label="Asset Class" sortKey="asset_class" sortConfig={sortConfig} onSort={handleSort} />
                     </>
                   )}
                   {hasOptionLeg && (
                     <>
-                      <SortableHeader label="Strike" sortKey="strike" align="right" />
-                      <SortableHeader label="Type" sortKey="option_type" />
-                      <SortableHeader label="Expiry" sortKey="expiry" />
+                       <SortableHeader label="Strike" sortKey="strike" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                       <SortableHeader label="Type" sortKey="option_type" sortConfig={sortConfig} onSort={handleSort} />
+                       <SortableHeader label="Expiry" sortKey="expiry" sortConfig={sortConfig} onSort={handleSort} />
                     </>
                   )}
-                  <SortableHeader label="Qty" sortKey="quantity" align="right" />
-                  <SortableHeader label="Mult." sortKey="multiplier" align="right" />
-                  <SortableHeader label="Price" sortKey="price" align="right" />
-                  <SortableHeader label="Commission" sortKey="commission" align="right" />
-                  <SortableHeader label="P&L" sortKey="pnl" align="right" />
-                  <SortableHeader label="Lineage" sortKey="parent_id" />
-                  <SortableHeader label="Status" sortKey="origin" />
+                   <SortableHeader label="Qty" sortKey="quantity" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                   <SortableHeader label="Mult." sortKey="multiplier" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                   <SortableHeader label="Price" sortKey="price" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                   <SortableHeader label="Commission" sortKey="commission" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                   <SortableHeader label="P&L" sortKey="pnl" align="right" sortConfig={sortConfig} onSort={handleSort} />
+                   <SortableHeader label="Lineage" sortKey="parent_id" sortConfig={sortConfig} onSort={handleSort} />
+                   <SortableHeader label="Status" sortKey="origin" sortConfig={sortConfig} onSort={handleSort} />
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -342,9 +361,33 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
                 )}
               </tbody>
             </table>
+            <div className="space-y-3 p-3 lg:hidden" data-testid="execution-leg-card-list">
+              {timelineItems.map((item) => item.type === "corporate_action" ? (
+                <div key={`ca-${item.data.id}`} className="flex items-center gap-2 border-y border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                  <Split className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 break-words font-mono">
+                    Split {formatSplitRatio(item.data.ratio)} on {item.data.date}
+                    {item.data.old_conid && item.data.new_conid && item.data.old_conid !== item.data.new_conid ? " (Symbol changed)" : ""}
+                  </span>
+                </div>
+              ) : (
+                <ExecutionLegCard
+                  key={item.data.id}
+                  execution={item.data}
+                  trade={trade}
+                  tradeId={tradeId}
+                  onMoveToTrade={handleMoveToTrade}
+                  onDetach={handleDetach}
+                  onSplit={setSplitExecution}
+                  onLinkBroker={setLinkExecution}
+                  hasOptionLeg={hasOptionLeg}
+                  isConflict={conflictLegIds.has(item.data.id)}
+                />
+              ))}
+            </div>
+            </>
           )}
         </div>
-      )}
 
       {addModalOpen && (
         <AddExecutionModal
@@ -374,7 +417,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
 
       {detachExecutionId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm solid-card p-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Detach Execution" className="w-full max-w-sm solid-card p-5 shadow-2xl">
             <h3 className="text-sm font-semibold text-foreground">Detach Execution</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Detach this execution into a new trade? The execution will be removed from this trade.

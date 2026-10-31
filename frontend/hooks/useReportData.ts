@@ -29,7 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { client } from "@/lib/api/client.gen";
 import { usePortfolioStore } from "@/stores/portfolioStore";
 import { useShowOpenTrades } from "@/hooks/useShowOpenTrades";
-import type { Trade, CursorPage } from "@/lib/types";
+import type { Trade, CursorPage, ResponseEnvelope } from "@/lib/types";
 import type { PerformanceDataPoint } from "@/components/analytics/PerformanceAnalysisDashboard";
 import type { DailyTradeData } from "@/components/calendar/types";
 
@@ -133,10 +133,11 @@ async function fetchAllTrades(
     const url = portfolioId
       ? `/api/v1/portfolios/${portfolioId}/trades`
       : "/api/v1/trades";
-    const response = await client.get({ url, query, signal } as any);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pageData = ((response as any).data?.data ??
-      (response as any).data) as CursorPage<Trade>;
+    const { data, error } = await client.get<{
+      200: ResponseEnvelope<CursorPage<Trade>> | CursorPage<Trade>;
+    }>({ url, query, signal });
+    if (error || !data) throw error ?? new Error("Request failed: no data returned");
+    const pageData = "data" in data ? data.data : data;
     allItems.push(...pageData.items);
     cursor = pageData.next_cursor ?? null;
   } while (cursor !== null);
@@ -153,7 +154,6 @@ export function useReportData(
   );
   const showOpenTrades = useShowOpenTrades();
   const portfolioId = portfolioIdParam || storePortfolioId;
-  const accountIds = filterConfig?.account_ids || [];
 
   const {
     data: allTrades,
@@ -176,6 +176,7 @@ export function useReportData(
   const trades = useMemo(() => {
     if (!allTrades) return undefined;
     let filtered = allTrades;
+    const accountIds = filterConfig?.account_ids;
 
     if (accountIds && accountIds.length > 0) {
       filtered = filtered.filter(
@@ -242,7 +243,7 @@ export function useReportData(
       );
     }
 
-    const status = showOpenTrades ? (filterConfig as any)?.status : "closed";
+    const status = showOpenTrades ? filterConfig?.status : "closed";
     if (status === "closed") {
       filtered = filtered.filter(
         (t) => t.closed_at !== null && t.closed_at !== undefined,
@@ -256,15 +257,7 @@ export function useReportData(
     return filtered;
   }, [
     allTrades,
-    accountIds.join(","),
-    filterConfig?.date_from,
-    filterConfig?.date_to,
-    filterConfig?.playbook_ids?.join(","),
-    filterConfig?.taxonomy_ids?.join(","),
-    filterConfig?.symbols?.join(","),
-    filterConfig?.excluded_symbols?.join(","),
-    filterConfig?.asset_classes?.join(","),
-    (filterConfig as any)?.status,
+    filterConfig,
     showOpenTrades,
   ]);
 
@@ -328,7 +321,7 @@ export function useReportData(
         shares += parseFloat(t.quantity || "0");
         commissions += tradeCommission;
         mistakes += t.tags
-          ? t.tags.filter((tag: any) =>
+          ? t.tags.filter((tag) =>
               tag.name.toLowerCase().includes("mistake"),
             ).length
           : 0;

@@ -20,7 +20,7 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteForm } from "@/components/notes/NoteForm";
 
@@ -50,7 +50,7 @@ describe("NoteForm", () => {
     render(<NoteForm onSubmit={mockSubmit} />);
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Preview" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/What happened in this trade/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
   it("shows the character counter at 0/5000 initially", () => {
@@ -61,7 +61,7 @@ describe("NoteForm", () => {
   it("updates the character counter as the user types", async () => {
     const user = userEvent.setup();
     render(<NoteForm onSubmit={mockSubmit} />);
-    const textarea = screen.getByPlaceholderText(/What happened in this trade/i);
+    const textarea = screen.getByRole("textbox");
     await user.type(textarea, "Hello");
     expect(screen.getByText(`5/${NOTE_MAX_LENGTH}`)).toBeInTheDocument();
   });
@@ -74,7 +74,7 @@ describe("NoteForm", () => {
 
   it("counter turns amber when content length is >= 4500", async () => {
     render(<NoteForm onSubmit={mockSubmit} />);
-    const textarea = screen.getByPlaceholderText(/What happened in this trade/i);
+    const textarea = screen.getByRole("textbox");
     // Set value directly for performance
     fireEvent.change(textarea, {
       target: { value: "a".repeat(NOTE_WARN_LENGTH) },
@@ -85,7 +85,7 @@ describe("NoteForm", () => {
 
   it("counter turns red and Save button is disabled when over 5000 chars", () => {
     render(<NoteForm onSubmit={mockSubmit} />);
-    const textarea = screen.getByPlaceholderText(/What happened in this trade/i);
+    const textarea = screen.getByRole("textbox");
     fireEvent.change(textarea, {
       target: { value: "a".repeat(NOTE_MAX_LENGTH + 1) },
     });
@@ -97,7 +97,7 @@ describe("NoteForm", () => {
   it("Save button is enabled when content is within limit", async () => {
     const user = userEvent.setup();
     render(<NoteForm onSubmit={mockSubmit} />);
-    const textarea = screen.getByPlaceholderText(/What happened in this trade/i);
+    const textarea = screen.getByRole("textbox");
     await user.type(textarea, "A short note");
     expect(screen.getByRole("button", { name: "Add Note" })).not.toBeDisabled();
   });
@@ -113,7 +113,7 @@ describe("NoteForm", () => {
   it("calls onSubmit with trimmed content and clears form on success", async () => {
     const user = userEvent.setup();
     render(<NoteForm onSubmit={mockSubmit} />);
-    const textarea = screen.getByPlaceholderText(/What happened in this trade/i);
+    const textarea = screen.getByRole("textbox");
     await user.type(textarea, "  My trade note  ");
     await user.click(screen.getByRole("button", { name: "Add Note" }));
     expect(mockSubmit).toHaveBeenCalledWith({ content: "My trade note" });
@@ -124,8 +124,8 @@ describe("NoteForm", () => {
   it("includes emotion in payload when provided", async () => {
     const user = userEvent.setup();
     render(<NoteForm onSubmit={mockSubmit} />);
-    const textarea = screen.getByPlaceholderText(/What happened in this trade/i);
-    const emotionInput = screen.getByPlaceholderText(/e.g. Confident/i);
+    const textarea = screen.getByRole("textbox");
+    const emotionInput = screen.getByRole("combobox", { name: "Emotion (optional)" });
     await user.type(textarea, "Good trade");
     await user.type(emotionInput, "Confident");
     await user.click(screen.getByRole("button", { name: "Add Note" }));
@@ -139,7 +139,7 @@ describe("NoteForm", () => {
     it("shows textarea in Edit tab", () => {
       render(<NoteForm onSubmit={mockSubmit} />);
       expect(
-        screen.getByPlaceholderText(/What happened in this trade/i)
+        screen.getByRole("textbox")
       ).toBeInTheDocument();
       expect(screen.queryByTestId("markdown-preview")).not.toBeInTheDocument();
     });
@@ -147,10 +147,10 @@ describe("NoteForm", () => {
     it("shows preview area when Preview tab is clicked", async () => {
       const user = userEvent.setup();
       render(<NoteForm onSubmit={mockSubmit} />);
-      const textarea = screen.getByPlaceholderText(/What happened in this trade/i);
+      const textarea = screen.getByRole("textbox");
       await user.type(textarea, "**bold**");
       await user.click(screen.getByRole("button", { name: "Preview" }));
-      expect(screen.queryByPlaceholderText(/What happened in this trade/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
       expect(screen.getByTestId("markdown-preview")).toHaveTextContent("**bold**");
     });
 
@@ -167,7 +167,7 @@ describe("NoteForm", () => {
       await user.click(screen.getByRole("button", { name: "Preview" }));
       await user.click(screen.getByRole("button", { name: "Edit" }));
       expect(
-        screen.getByPlaceholderText(/What happened in this trade/i)
+        screen.getByRole("textbox")
       ).toBeInTheDocument();
     });
   });

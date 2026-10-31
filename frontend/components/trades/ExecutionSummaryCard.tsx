@@ -76,8 +76,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
   const activeExecutions = useMemo(() => executions.filter((execution) => !execution.deleted), [executions]);
   const isMult = trade.multiplier > 1;
 
-  if (trade.is_combo) {
-    const { rows, totalCommission, totalPnl, hasBrokerPnl } = useMemo(() => {
+  const { rows, totalCommission, totalPnl, hasBrokerPnl } = useMemo(() => {
       const grouped = new Map<
         string,
         {
@@ -170,8 +169,9 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
       );
 
       return { rows, totalCommission, totalPnl, hasBrokerPnl };
-    }, [activeExecutions]);
+  }, [activeExecutions]);
 
+  if (trade.is_combo) {
     return (
       <div className="solid-card p-4">
         <div className="flex items-center justify-between mb-3">

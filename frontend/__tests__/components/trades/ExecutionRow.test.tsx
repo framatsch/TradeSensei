@@ -14,10 +14,9 @@
  */
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ExecutionRow } from "@/components/trades/ExecutionRow";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
-import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
 import type { LogicalExecution, Trade } from "@/lib/types";
 
 jest.mock("@/hooks/useActivePortfolio", () => ({
@@ -113,19 +112,12 @@ describe("ExecutionRow", () => {
 
   it("does not mutate when activePortfolioId is null", () => {
     (useActivePortfolio as jest.Mock).mockReturnValue({ activePortfolioId: null });
-    render(<table><tbody><ExecutionRow execution={splitExecution} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
-
-    // For example, clicking delete and confirm
-    const overflowButton = screen.getByRole("button", { name: "Row actions" }); // or find by icon
-    // Wait, the action button depends on the state. It's better to just test that the functions like handleSave or handleRestore won't mutate.
-    // Actually, it's easier to verify that the disabled state or early return works.
-    // Let's just simulate a restore on a deleted row
     const deletedExecution = { ...splitExecution, deleted: true };
     render(<table><tbody><ExecutionRow execution={deletedExecution} trade={baseTrade} tradeId="trade-1" /></tbody></table>);
     
     // There is a Restore button
     const restoreBtn = screen.getByRole("button", { name: /restore/i });
-    restoreBtn.click();
+    fireEvent.click(restoreBtn);
     
     // Should NOT have called mutate
     expect(mockMutateRestore).not.toHaveBeenCalled();

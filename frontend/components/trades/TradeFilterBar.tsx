@@ -19,8 +19,8 @@
 
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw } from "lucide-react";
+import { Fragment, useEffect, useId, useRef, useState, useCallback, type ReactNode } from "react";
+import { ChevronDown, ChevronRight, X, Save, Trash2, Edit2, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
@@ -31,6 +31,8 @@ import type { TradeFilters } from "@/hooks/useTrades";
 import type { Account, SavedTradeFilterRead } from "@/lib/types";
 import { AnnotationFilterRows, type AnnotationFilterRow } from "@/components/ui/AnnotationFilterRows";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
+import { countActiveFilters, DESKTOP_FILTER_FIELDS, type FilterFieldKey } from "@/lib/tradeFilterFields";
+import { TradeFilterSheet } from "./TradeFilterSheet";
 
 export type { TradeFilters };
 
@@ -58,30 +60,6 @@ const EXECUTION_STATES = [
   { value: "edited", label: "Edited" },
   { value: "imported", label: "Imported" },
 ] as const;
-
-/** Count how many filter fields are non-empty. */
-function countActiveFilters(filters: TradeFilters): number {
-  let count = 0;
-  if (filters.symbols?.length) count++;
-  if (filters.excluded_symbols?.length) count++;
-  if (filters.direction) count++;
-  if (filters.asset_classes?.length) count++;
-  if (filters.opened_at_from) count++;
-  if (filters.opened_at_to) count++;
-  if (filters.closed_at_from) count++;
-  if (filters.closed_at_to) count++;
-  if (filters.taxonomy_ids?.length) count++;
-  if (filters.account_ids?.length) count++;
-  if (filters.playbook_id) count++;
-  if (filters.pnl_positive !== null && filters.pnl_positive !== undefined) count++;
-  if (filters.status) count++;
-  if (filters.hour_of_day !== undefined && filters.hour_of_day !== null) count++;
-  if (filters.day_of_week !== undefined && filters.day_of_week !== null) count++;
-  if (filters.annotation_filters?.length) count++;
-  if (filters.execution_state?.length) count++;
-  if (filters.has_unlinked_executions !== undefined) count++;
-  return count;
-}
 
 const EMPTY_FILTERS: TradeFilters = {
   symbols: [],
@@ -117,23 +95,31 @@ function toDateInputValue(value: string | undefined): string {
 }
 
 const INPUT_CLASS =
-  "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
+  "w-full min-w-0 px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
+const DATE_LABELS = {
+  opened_at_from: "Opened From",
+  opened_at_to: "Opened To",
+  closed_at_from: "Closed From",
+  closed_at_to: "Closed To",
+};
 
 interface AccountMultiSelectProps {
   accounts: Account[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   isLoading?: boolean;
+  variant?: "popover" | "inline";
 }
 
-function AccountMultiSelect({ accounts, selectedIds, onChange, isLoading = false }: AccountMultiSelectProps) {
+function AccountMultiSelect({ accounts, selectedIds, onChange, isLoading = false, variant = "popover" }: AccountMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (e.target instanceof Node && ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
       }
     }
@@ -153,11 +139,13 @@ function AccountMultiSelect({ accounts, selectedIds, onChange, isLoading = false
 
   return (
     <div className="relative" ref={ref}>
-      <label className={LABEL_CLASS}>Account</label>
+      <label htmlFor={id} className={LABEL_CLASS}>Account</label>
       <button
+        id={id}
         type="button"
         onClick={() => setOpen((value) => !value)}
         disabled={isLoading}
+        aria-expanded={open}
         className={`${INPUT_CLASS} flex items-center justify-between gap-2 text-left disabled:opacity-60`}
       >
         <span className={selectedIds.length === 0 ? "text-muted-foreground" : ""}>
@@ -171,7 +159,7 @@ function AccountMultiSelect({ accounts, selectedIds, onChange, isLoading = false
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+        <div className={`${variant === "inline" ? "relative" : "absolute z-50"} mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-border bg-popover shadow-lg`}>
           {accounts.length === 0 ? (
             <p className="px-3 py-2 text-sm text-muted-foreground">
               {isLoading ? "Loading accounts…" : "No accounts available"}
@@ -235,6 +223,8 @@ function AccountMultiSelect({ accounts, selectedIds, onChange, isLoading = false
 
 export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activeView, onSaveView, onRenameView, onUpdateView, onDeleteView, isUpdating }: Props) {
   const [open, setOpen] = useState(() => countActiveFilters(filters) > 0);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const fieldId = useId();
   const activeCount = countActiveFilters(filters);
 
   const { activePortfolioId, isLoading: isPortfolioLoading } = useActivePortfolio();
@@ -267,22 +257,6 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
   };
 
 
-
-  const handleDateFrom = (value: string) => {
-    onChange({ ...filters, opened_at_from: value || undefined });
-  };
-
-  const handleDateTo = (value: string) => {
-    onChange({ ...filters, opened_at_to: value || undefined });
-  };
-
-  const handleClosedDateFrom = (value: string) => {
-    onChange({ ...filters, closed_at_from: value || undefined });
-  };
-
-  const handleClosedDateTo = (value: string) => {
-    onChange({ ...filters, closed_at_to: value || undefined });
-  };
 
   const handleTaxonomyToggle = (taxonomyId: string) => {
     const current = filters.taxonomy_ids ?? [];
@@ -329,12 +303,162 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
       ? "true"
       : filters.pnl_positive === false
       ? "false"
-      : "";
+       : "";
+
+  const renderField = (key: FilterFieldKey, variant: "popover" | "inline" = "popover"): ReactNode => {
+    const id = `${fieldId}-${variant}-${key}`;
+    switch (key) {
+      case "symbols":
+        return (
+          <div>
+            <label htmlFor={id} className={LABEL_CLASS}>Symbol</label>
+            <SymbolTagInput
+              id={id}
+              included={filters.symbols ?? []}
+              excluded={filters.excluded_symbols ?? []}
+              onChange={(included, excluded) => onChange({ ...filters, symbols: included.length ? included : undefined, excluded_symbols: excluded.length ? excluded : undefined })}
+            />
+          </div>
+        );
+      case "direction":
+        return (
+          <div>
+            <label htmlFor={id} className={LABEL_CLASS}>Direction</label>
+            <select id={id} value={filters.direction ?? ""} onChange={(event) => handleDirectionChange(event.target.value)} className={INPUT_CLASS}>
+              <option value="">All</option><option value="LONG">LONG</option><option value="SHORT">SHORT</option>
+            </select>
+          </div>
+        );
+      case "status":
+        return showOpenTrades ? (
+          <div>
+            <label htmlFor={id} className={LABEL_CLASS}>Status</label>
+            <select id={id} value={filters.status ?? ""} onChange={(event) => handleStatusChange(event.target.value)} className={INPUT_CLASS}>
+              <option value="">All</option><option value="open">Open</option><option value="closed">Closed</option>
+            </select>
+          </div>
+        ) : null;
+      case "opened_at_from":
+      case "opened_at_to":
+      case "closed_at_from":
+      case "closed_at_to":
+        return (
+          <div>
+            <label htmlFor={id} className={LABEL_CLASS}>{DATE_LABELS[key]}</label>
+            <input id={id} type="date" value={toDateInputValue(filters[key])} onChange={(event) => onChange({ ...filters, [key]: event.target.value || undefined })} className={`${INPUT_CLASS} font-mono lg:font-sans`} />
+          </div>
+        );
+      case "hour_of_day":
+        return (
+          <div>
+            <label htmlFor={id} className={LABEL_CLASS}>Hour of Day</label>
+            <select id={id} value={filters.hour_of_day ?? ""} onChange={(event) => onChange({ ...filters, hour_of_day: event.target.value !== "" ? Number(event.target.value) : undefined })} className={`${INPUT_CLASS} font-mono lg:font-sans`}>
+              <option value="">All hours</option>
+              {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{formatHour(hour)}</option>)}
+            </select>
+          </div>
+        );
+      case "day_of_week":
+        return (
+          <div>
+            <label htmlFor={id} className={LABEL_CLASS}>Day of Week</label>
+            <select id={id} value={filters.day_of_week ?? ""} onChange={(event) => onChange({ ...filters, day_of_week: event.target.value !== "" ? Number(event.target.value) : undefined })} className={INPUT_CLASS}>
+              <option value="">All days</option>
+              {WEEKDAY_NAMES.map((day, index) => <option key={day} value={index}>{day}</option>)}
+            </select>
+          </div>
+        );
+      case "account_ids":
+        return <AccountMultiSelect accounts={accounts} selectedIds={filters.account_ids ?? []} onChange={handleAccountChange} isLoading={isLoadingAccountOptions} variant={variant} />;
+      case "playbook_id":
+        return (
+          <div>
+            <label htmlFor={id} className={LABEL_CLASS}>Playbook</label>
+            <select id={id} value={filters.playbook_id ?? ""} onChange={(event) => handlePlaybookChange(event.target.value)} className={INPUT_CLASS}>
+              <option value="">All</option>
+              {(playbooks ?? []).map((playbook) => <option key={playbook.id} value={playbook.id}>{playbook.name}</option>)}
+            </select>
+          </div>
+        );
+      case "pnl_positive":
+        return (
+          <div>
+            <span id={id} className={LABEL_CLASS}>Result</span>
+            <div className="flex gap-3 mt-2" role="radiogroup" aria-labelledby={id}>
+              {[{ value: "", label: "All" }, { value: "true", label: "Winners" }, { value: "false", label: "Losers" }].map((option) => (
+                <label key={option.value} className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="radio" name={id} value={option.value} checked={pnlPositiveValue === option.value} onChange={(event) => handlePnlPositiveChange(event.target.value)} className="accent-primary" />
+                  <span className="text-xs text-muted-foreground">{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      case "asset_classes":
+        return (
+          <div className={variant === "inline" ? undefined : "sm:col-span-2"}>
+            <span className={LABEL_CLASS}>Asset Class</span>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {ASSET_CLASSES.map((assetClass) => (
+                <button key={assetClass} type="button" onClick={() => handleAssetClassToggle(assetClass)} aria-pressed={!!filters.asset_classes?.includes(assetClass)} className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${filters.asset_classes?.includes(assetClass) ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
+                  {assetClass}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case "execution_state":
+        return (
+          <div className={variant === "inline" ? undefined : "sm:col-span-2"}>
+            <span className={LABEL_CLASS}>Execution State</span>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {EXECUTION_STATES.map((state) => (
+                <button key={state.value} type="button" onClick={() => handleExecutionStateToggle(state.value)} aria-pressed={!!filters.execution_state?.includes(state.value)} className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${filters.execution_state?.includes(state.value) ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
+                  {state.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case "has_unlinked_executions":
+        return (
+          <div>
+            <span className={LABEL_CLASS}>Needs linking</span>
+            <div className="mt-2">
+              <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={filters.has_unlinked_executions === true} onChange={(event) => onChange({ ...filters, has_unlinked_executions: event.target.checked ? true : undefined })} className="accent-primary" />
+                Show only trades with unresolved execution linking
+              </label>
+            </div>
+          </div>
+        );
+      case "taxonomy_ids":
+        return taxonomies && taxonomies.length > 0 ? (
+          <div className={variant === "inline" ? undefined : "sm:col-span-2"}>
+            <span className={LABEL_CLASS}>Taxonomies</span>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {taxonomies.map((taxonomy) => (
+                <button key={taxonomy.id} type="button" onClick={() => handleTaxonomyToggle(taxonomy.id)} aria-pressed={!!filters.taxonomy_ids?.includes(taxonomy.id)} className={`transition-opacity ${filters.taxonomy_ids?.includes(taxonomy.id) ? "opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background rounded-full" : "opacity-60 hover:opacity-90"}`}>
+                  <TaxonomyBadge taxonomy={taxonomy} />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null;
+      case "annotation_filters":
+        return tradeAnnotationDefs.length > 0 ? (
+          <div className={variant === "inline" ? "[&>div>div]:max-w-full [&>div>div]:flex-wrap" : "mt-4 pt-4 border-t"}>
+            <span className={`${LABEL_CLASS} mb-1.5`}>Annotation Filters</span>
+            <AnnotationFilterRows rows={filters.annotation_filters ?? []} definitions={tradeAnnotationDefs} onChange={handleAnnotationFiltersChange} />
+          </div>
+        ) : null;
+    }
+  };
 
   return (
     <div className="solid-card shadow-sm mb-4">
       {/* Toggle row */}
-      <div className="flex items-center justify-between p-3">
+      <div className="hidden items-center justify-between p-3 lg:flex" data-testid="trade-desktop-filter-toolbar">
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -424,280 +548,36 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
 
       {/* Collapsible panel */}
       {open && (
-        <div className="p-4 border-t border-border">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">          {/* Symbol */}
-          <div>
-            <label className={LABEL_CLASS}>Symbol</label>
-            <SymbolTagInput
-              included={filters.symbols ?? []}
-              excluded={filters.excluded_symbols ?? []}
-              onChange={(included, excluded) => {
-                onChange({
-                  ...filters,
-                  symbols: included.length > 0 ? included : undefined,
-                  excluded_symbols: excluded.length > 0 ? excluded : undefined,
-                });
-              }}
-            />
+        <div className="hidden p-4 border-t border-border lg:block" data-testid="trade-desktop-filters">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {DESKTOP_FILTER_FIELDS.filter((key) => key !== "annotation_filters").map((key) => <Fragment key={key}>{renderField(key)}</Fragment>)}
           </div>
-
-          {/* Direction */}
-          <div>
-            <label className={LABEL_CLASS}>Direction</label>
-            <select
-              value={filters.direction ?? ""}
-              onChange={(e) => handleDirectionChange(e.target.value)}
-              className={INPUT_CLASS}
-            >
-              <option value="">All</option>
-              <option value="LONG">LONG</option>
-              <option value="SHORT">SHORT</option>
-            </select>
-          </div>
-
-          {/* Status */}
-          {showOpenTrades && (
-            <div>
-              <label className={LABEL_CLASS}>Status</label>
-              <select
-                value={filters.status ?? ""}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                className={INPUT_CLASS}
-              >
-                <option value="">All</option>
-                <option value="open">Open</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-          )}
-
-          {/* Date range (Opened) */}
-          <div>
-            <label className={LABEL_CLASS}>Opened From</label>
-            <input
-              type="date"
-              value={toDateInputValue(filters.opened_at_from)}
-              onChange={(e) => handleDateFrom(e.target.value)}
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div>
-            <label className={LABEL_CLASS}>Opened To</label>
-            <input
-              type="date"
-              value={toDateInputValue(filters.opened_at_to)}
-              onChange={(e) => handleDateTo(e.target.value)}
-              className={INPUT_CLASS}
-            />
-          </div>
-
-          {/* Date range (Closed) */}
-          <div>
-            <label className={LABEL_CLASS}>Closed From</label>
-            <input
-              type="date"
-              value={toDateInputValue(filters.closed_at_from)}
-              onChange={(e) => handleClosedDateFrom(e.target.value)}
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div>
-            <label className={LABEL_CLASS}>Closed To</label>
-            <input
-              type="date"
-              value={toDateInputValue(filters.closed_at_to)}
-              onChange={(e) => handleClosedDateTo(e.target.value)}
-              className={INPUT_CLASS}
-            />
-          </div>
-
-          {/* Hour of Day */}
-          <div>
-            <label className={LABEL_CLASS}>Hour of Day</label>
-            <select
-              value={filters.hour_of_day !== undefined && filters.hour_of_day !== null ? String(filters.hour_of_day) : ""}
-              onChange={(e) => onChange({ ...filters, hour_of_day: e.target.value !== "" ? parseInt(e.target.value, 10) : undefined })}
-              className={INPUT_CLASS}
-            >
-              <option value="">All hours</option>
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>{formatHour(i)}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Day of Week */}
-          <div>
-            <label className={LABEL_CLASS}>Day of Week</label>
-            <select
-              value={filters.day_of_week !== undefined && filters.day_of_week !== null ? String(filters.day_of_week) : ""}
-              onChange={(e) => onChange({ ...filters, day_of_week: e.target.value !== "" ? parseInt(e.target.value, 10) : undefined })}
-              className={INPUT_CLASS}
-            >
-              <option value="">All days</option>
-              {WEEKDAY_NAMES.map((name, i) => (
-                <option key={i} value={i}>{name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Account */}
-          <AccountMultiSelect
-            accounts={accounts}
-            selectedIds={filters.account_ids ?? []}
-            onChange={handleAccountChange}
-            isLoading={isLoadingAccountOptions}
-          />
-
-          {/* Playbook */}
-          <div>
-            <label className={LABEL_CLASS}>Playbook</label>
-            <select
-              value={filters.playbook_id ?? ""}
-              onChange={(e) => handlePlaybookChange(e.target.value)}
-              className={INPUT_CLASS}
-            >
-              <option value="">All</option>
-              {(playbooks ?? []).map((pb) => (
-                <option key={pb.id} value={pb.id}>
-                  {pb.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-
-          {/* PnL positive */}
-          <div>
-            <label className={LABEL_CLASS}>Result</label>
-            <div className="flex gap-3 mt-2">
-              {[
-                { value: "", label: "All" },
-                { value: "true", label: "Winners" },
-                { value: "false", label: "Losers" },
-              ].map((opt) => (
-                <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="pnl_positive"
-                    value={opt.value}
-                    checked={pnlPositiveValue === opt.value}
-                    onChange={(e) => handlePnlPositiveChange(e.target.value)}
-                    className="accent-primary"
-                  />
-                  <span className="text-xs text-muted-foreground">{opt.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Asset classes */}
-          <div className="sm:col-span-2">
-            <label className={LABEL_CLASS}>Asset Class</label>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {ASSET_CLASSES.map((ac) => {
-                const selected = !!filters.asset_classes?.includes(ac);
-                return (
-                  <button
-                    key={ac}
-                    type="button"
-                    onClick={() => handleAssetClassToggle(ac)}
-                    aria-pressed={selected}
-                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                      selected
-                        ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary"
-                        : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
-                    }`}
-                  >
-                    {ac}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Execution state */}
-          <div className="sm:col-span-2">
-            <label className={LABEL_CLASS}>Execution State</label>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {EXECUTION_STATES.map((state) => {
-                const selected = !!filters.execution_state?.includes(state.value);
-                return (
-                  <button
-                    key={state.value}
-                    type="button"
-                    onClick={() => handleExecutionStateToggle(state.value)}
-                    aria-pressed={selected}
-                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                      selected
-                        ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary"
-                        : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
-                    }`}
-                  >
-                    {state.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label className={LABEL_CLASS}>Needs linking</label>
-            <div className="mt-2">
-              <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.has_unlinked_executions === true}
-                  onChange={(e) =>
-                    onChange({
-                      ...filters,
-                      has_unlinked_executions: e.target.checked ? true : undefined,
-                    })
-                  }
-                  className="accent-primary"
-                />
-                Show only trades with unresolved execution linking
-              </label>
-            </div>
-          </div>
-
-          {/* Taxonomies */}
-          {taxonomies && taxonomies.length > 0 && (
-            <div className="sm:col-span-2">
-              <label className={LABEL_CLASS}>Taxonomies</label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {taxonomies.map((taxonomy) => {
-                  const selected = filters.taxonomy_ids?.includes(taxonomy.id);
-                  return (
-                    <button
-                      key={taxonomy.id}
-                      type="button"
-                      onClick={() => handleTaxonomyToggle(taxonomy.id)}
-                      className={`transition-opacity ${selected ? "opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background rounded-full" : "opacity-60 hover:opacity-90"}`}
-                    >
-                      <TaxonomyBadge taxonomy={taxonomy} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          </div>
-
-          {/* Annotation Filters — full width below grid */}
-          {tradeAnnotationDefs.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <label className={`${LABEL_CLASS} mb-1.5`}>Annotation Filters</label>
-              <AnnotationFilterRows
-                rows={filters.annotation_filters ?? []}
-                definitions={tradeAnnotationDefs}
-                onChange={handleAnnotationFiltersChange}
-              />
-            </div>
-          )}
+          {renderField("annotation_filters")}
         </div>
       )}
+      <div className="flex min-w-0 items-center gap-2 p-3 lg:hidden" data-testid="trade-mobile-filter-toolbar">
+        <TradeFilterSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          filters={filters}
+          renderField={(key) => renderField(key, "inline")}
+          onClear={handleClearAll}
+          activeView={activeView}
+          onSaveView={onSaveView}
+          onUpdateView={onUpdateView}
+          onRenameView={onRenameView}
+          onDeleteView={onDeleteView}
+          isUpdating={isUpdating}
+          trigger={(
+            <button type="button" className="btn-ghost min-h-10 shrink-0 gap-1.5 px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              Filter{activeCount > 0 && <span className="font-mono">({activeCount})</span>}
+            </button>
+          )}
+        />
+        {activeView && <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={`View: ${activeView.name}`}>View: <span className="font-medium text-foreground">{activeView.name}</span></span>}
+        {activeCount > 0 && <button type="button" onClick={handleClearAll} className="ml-auto min-h-10 shrink-0 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Clear</button>}
+      </div>
     </div>
   );
 }

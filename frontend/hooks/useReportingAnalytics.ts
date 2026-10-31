@@ -42,8 +42,6 @@ import type {
 } from "@/lib/api/types.gen";
 import type {
   Trade,
-  EquityCurvePoint,
-  DrawdownPoint,
   ReturnDistribution,
 } from "@/lib/types";
 import type { ScatterPoint } from "@/components/reporting/Widgets";
@@ -81,7 +79,7 @@ export function useAnalyticsSummary(
           path: { portfolio_id: portfolioId },
           body,
           signal,
-        } as any);
+        });
 
       if (error || !data) {
         throw error ?? new Error("Request failed: no data returned");
@@ -126,7 +124,7 @@ export function useMarketPhaseCorrelation(
             path: { portfolio_id: portfolioId },
             body,
             signal,
-          } as any
+          }
         );
 
       if (error || !data) {
@@ -174,7 +172,7 @@ export function useReturnDistribution(
             path: { portfolio_id: portfolioId },
             body,
             signal,
-          } as any
+          }
         );
 
       if (error || !data) {

@@ -320,7 +320,12 @@ test.describe('UserBadge', () => {
       page.getByRole('button', { name: 'Sign Out' })
     ).click();
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
-    expect(token).toBeNull();
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
+    // Logout and the auth guard can both navigate; retry only the read assertion.
+    await expect(async () => {
+      await expect(page).toHaveURL(/\/login/);
+      const token = await page.evaluate(() => localStorage.getItem('access_token'));
+      expect(token).toBeNull();
+    }).toPass({ timeout: 10_000 });
   });
 });

@@ -49,27 +49,6 @@ import type { DefaultDateRange, SavedTradeFilterRead, Trade } from "@/lib/types"
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 
 
-const EMPTY_FILTERS: TradeFilters = {
-  symbols: [],
-  excluded_symbols: [],
-  direction: "",
-  asset_classes: [],
-  opened_at_from: "",
-  opened_at_to: "",
-  closed_at_from: "",
-  closed_at_to: "",
-  taxonomy_ids: [],
-  account_ids: [],
-  playbook_id: "",
-  pnl_positive: null,
-  status: null,
-  hour_of_day: undefined,
-  day_of_week: undefined,
-  annotation_filters: [],
-  execution_state: [],
-  has_unlinked_executions: undefined,
-};
-
 // ─── Date range helpers ───────────────────────────────────────────────────────
 
 function dateRangeToFrom(range: DefaultDateRange): string | undefined {
@@ -406,7 +385,7 @@ export function TradesPageClient() {
   const [limit, setLimit] = useState<number>(() => {
     const raw = searchParams.get("limit");
     const parsed = raw ? parseInt(raw, 10) : NaN;
-    return [10, 20, 50, 100].includes(parsed) ? parsed : 20;
+    return [10, 20, 25, 50, 100].includes(parsed) ? parsed : 20;
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedTrades, setSelectedTrades] = useState<Trade[]>([]);
@@ -554,15 +533,15 @@ export function TradesPageClient() {
   };
 
   return (
-    <div className="space-y-4 max-w-[1600px] mx-auto pb-12">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className={`trade-mobile-contrast space-y-4 max-w-[1600px] mx-auto ${selectedIds.size > 0 ? "pb-40 lg:pb-12" : "pb-12"}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Trades</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="hidden text-sm text-muted-foreground mt-1 lg:block">
             Manage, filter, and review your trading history.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <Link
             href="/dashboard/trades/new"
             className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
@@ -598,7 +577,7 @@ export function TradesPageClient() {
       {!showOpenTrades && openStatusBlockedHint && !bannerDismissed && (
         <div className="flex items-start justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <span>
-            Open trades are currently hidden, and the status filter is forced to closed. Enable 'Show Open Trades' in Settings and then open Features to show them.
+            Open trades are currently hidden, and the status filter is forced to closed. Enable &apos;Show Open Trades&apos; in Settings and then open Features to show them.
           </span>
           <button
             type="button"
@@ -621,6 +600,8 @@ export function TradesPageClient() {
         onSelectedTradesChange={setSelectedTrades}
         limit={limit}
         onLimitChange={handleLimitChange}
+        listQuery={filtersToParams({ ...filters, status: enforcedStatus }, sort, limit, activeViewId).toString()}
+        viewName={activeView?.name ?? null}
       />
 
       {showTaxonomyPicker && (

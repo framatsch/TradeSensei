@@ -605,14 +605,14 @@ export type FilterScope = "SYSTEM" | "USER";
 
 export interface SavedTradeFilterBase {
   name: string;
-  definition: Record<string, any>;
+  definition: Record<string, unknown>;
 }
 
-export interface SavedTradeFilterCreate extends SavedTradeFilterBase {}
+export type SavedTradeFilterCreate = SavedTradeFilterBase;
 
 export interface SavedTradeFilterUpdate {
   name?: string;
-  definition?: Record<string, any>;
+  definition?: Record<string, unknown>;
 }
 
 export interface SavedTradeFilterRead extends SavedTradeFilterBase {

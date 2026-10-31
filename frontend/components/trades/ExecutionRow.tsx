@@ -24,14 +24,11 @@
 
 "use client";
 
-import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { MoreHorizontal, ArrowUp, ArrowDown, Check, X, Undo2, Split } from "lucide-react";
 import type { LogicalExecution, Trade } from "@/lib/types";
 import { ExecutionStatusBadge } from "./ExecutionStatusBadge";
-import { useUpdateExecution, useDeleteExecution, useRestoreExecution } from "@/hooks/useExecutions";
-import { useActivePortfolio } from "@/hooks/useActivePortfolio";
-import { extractApiError } from "@/lib/apiErrors";
+import { useExecutionLegEditor } from "@/hooks/useExecutionLegEditor";
 
 
 interface Props {
@@ -124,94 +121,13 @@ function DualValueWithIcon({
 }
 
 export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetach, onSplit, onLinkBroker, hasOptionLeg, colSpan, isConflict }: Props) {
-  const { activePortfolioId } = useActivePortfolio();
-  const [isEditing, setIsEditing] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [editPrice, setEditPrice] = useState(execution.raw_price);
-  const [editQty, setEditQty] = useState(execution.raw_quantity);
-  const [editCommission, setEditCommission] = useState(execution.commission);
-  const [editDirection, setEditDirection] = useState(execution.direction);
-  const [editExecutedAt, setEditExecutedAt] = useState(() => {
-    // format to datetime-local: YYYY-MM-DDTHH:mm
-    if (!execution.executed_at) return "";
-    const d = new Date(execution.executed_at);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  });
-  const [editPnl, setEditPnl] = useState(execution.pnl ?? "");
-
-  const updateExecution = useUpdateExecution();
-  const deleteExecution = useDeleteExecution();
-  const restoreExecution = useRestoreExecution();
-
-  const isLong = execution.direction === "LONG";
-  const isDeleted = execution.deleted === true;
-
-  const canSplit = !isDeleted && (execution.origin === "imported" || execution.origin === "manual");
-  // Only unlinked manual legs can be linked to a broker transaction
-  const canLinkBroker = !isDeleted && execution.origin === "manual" && !execution.source_id;
-
-  function handleSave() {
-    if (!activePortfolioId) return;
-    setErrorMsg(null);
-    updateExecution.mutate(
-      {
-        executionId: execution.id,
-        tradeId,
-        portfolioId: activePortfolioId,
-        data: {
-          direction: editDirection,
-          executed_at: new Date(editExecutedAt).toISOString(),
-          price: editPrice,
-          quantity: editQty,
-          commission: editCommission,
-          pnl: editPnl === "" ? null : editPnl,
-        },
-      },
-      {
-        onSuccess: () => setIsEditing(false),
-        onError: (err) => setErrorMsg(extractApiError(err, "Failed to save execution.")),
-      }
-    );
-  }
-
-  function handleCancel() {
-    setEditDirection(execution.direction);
-    if (execution.executed_at) {
-      const d = new Date(execution.executed_at);
-      setEditExecutedAt(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
-    } else {
-      setEditExecutedAt("");
-    }
-    setEditPrice(execution.raw_price);
-    setEditQty(execution.raw_quantity);
-    setEditCommission(execution.commission);
-    setEditPnl(execution.pnl ?? "");
-    setErrorMsg(null);
-    setIsEditing(false);
-  }
-
-  function handleDelete() {
-    setShowDeleteConfirm(true);
-  }
-
-  function confirmDelete() {
-    if (!activePortfolioId) return;
-    setErrorMsg(null);
-    deleteExecution.mutate(
-      { executionId: execution.id, tradeId, portfolioId: activePortfolioId },
-      {
-        onSettled: () => setShowDeleteConfirm(false),
-        onError: (err) => setErrorMsg(extractApiError(err, "Failed to delete execution.")),
-      }
-    );
-  }
-
-  function handleRestore() {
-    if (!activePortfolioId) return;
-    restoreExecution.mutate({ executionId: execution.id, tradeId, portfolioId: activePortfolioId });
-  }
+  const {
+    activePortfolioId, isEditing, setIsEditing, showDeleteConfirm, setShowDeleteConfirm, errorMsg,
+    editPrice, setEditPrice, editQty, setEditQty, editCommission, setEditCommission,
+    editDirection, setEditDirection, editExecutedAt, setEditExecutedAt, editPnl, setEditPnl,
+    updateExecution, deleteExecution, restoreExecution, isLong, isDeleted, canSplit, canLinkBroker,
+    handleSave, handleCancel, handleDelete, confirmDelete, handleRestore,
+  } = useExecutionLegEditor(execution, tradeId);
 
   // Direction badge classes using semantic tokens
   const longBadgeCls = "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-success border border-[color-mix(in_srgb,var(--success)_30%,transparent)]";

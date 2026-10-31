@@ -73,7 +73,7 @@ export function ScatterWithRegressionChart({
 
     let slope = 0;
     let intercept = meanY;
-    let hasVariance = varianceX > 0;
+    const hasVariance = varianceX > 0;
 
     if (hasVariance) {
       slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);

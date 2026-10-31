@@ -204,7 +204,7 @@ export function EquityCurveWidget({
             </defs>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
-              dataKey={(d: any) => d.date || d.timestamp || ""}
+              dataKey={(d: EquityCurvePoint) => d.date || d.timestamp || ""}
               tick={{ fontSize: 11 }}
               tickFormatter={(d: string) =>
                 d ? new Date(d).toLocaleDateString("en-US", {
@@ -267,7 +267,7 @@ export function DrawdownWidget({
             </defs>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
-              dataKey={(d: any) => d.date || d.timestamp || ""}
+              dataKey={(d: DrawdownPoint) => d.date || d.timestamp || ""}
               tick={{ fontSize: 11 }}
               tickFormatter={(d: string) =>
                 d ? new Date(d).toLocaleDateString("en-US", {

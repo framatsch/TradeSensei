@@ -69,21 +69,15 @@ export function CheckinFilterProvider({ children }: { children: React.ReactNode 
   }, [searchParams]);
 
   const [filter, setFilter] = useState<CheckinFilterState>(computeInitialState);
+  const [syncedSearchParams, setSyncedSearchParams] = useState(searchParams);
 
-  // Sync URL changes to internal state
-  useEffect(() => {
+  // Apply URL changes before rendering children, while retaining local annotation filters.
+  if (searchParams !== syncedSearchParams) {
+    setSyncedSearchParams(searchParams);
     setFilter((prev) => {
       const newState: CheckinFilterState = {
-        from_date: searchParams.get("from_date") || null,
-        to_date: searchParams.get("to_date") || null,
-        target_indices: searchParams.get("target_indices") ? searchParams.get("target_indices")!.split(",") : null,
-        taxonomy_ids: searchParams.get("taxonomy_ids") ? searchParams.get("taxonomy_ids")!.split(",") : null,
-        viewId: searchParams.get("view_id") || null,
+        ...computeInitialState(),
         annotation_filters: prev.annotation_filters ?? [],
-        view: searchParams.get("view") || "timeline",
-        month: searchParams.get("month") || new Date().toISOString().slice(0, 7),
-        page: searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1,
-        perPage: searchParams.get("per_page") ? parseInt(searchParams.get("per_page")!, 10) : 12,
       };
 
       if (JSON.stringify(prev) !== JSON.stringify(newState)) {
@@ -91,7 +85,7 @@ export function CheckinFilterProvider({ children }: { children: React.ReactNode 
       }
       return prev;
     });
-  }, [searchParams]);
+  }
 
   const debouncedFilter = useDebounce(filter, 300);
 

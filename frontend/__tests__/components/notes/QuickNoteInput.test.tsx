@@ -20,16 +20,17 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QuickNoteInput } from "@/components/notes/QuickNoteInput";
 
 // Mock the entire useNotes module
 const mockMutate = jest.fn();
+let mockIsPending = false;
 jest.mock("@/hooks/useNotes", () => ({
   useAddNote: () => ({
     mutate: mockMutate,
-    isPending: false,
+    isPending: mockIsPending,
   }),
 }));
 
@@ -38,14 +39,15 @@ describe("QuickNoteInput", () => {
   const tradeId = "trade-123";
 
   beforeEach(() => {
-    mockMutate.mockClear();
+    mockMutate.mockReset();
+    mockIsPending = false;
     mockOnClose.mockClear();
   });
 
   it("renders the textarea and Save/Cancel buttons", () => {
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
     expect(
-      screen.getByPlaceholderText(/Quick note/i)
+      screen.getByPlaceholderText(/Live observation/i)
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
@@ -59,14 +61,14 @@ describe("QuickNoteInput", () => {
   it("Save button is disabled when textarea contains only whitespace", async () => {
     const user = userEvent.setup();
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
-    await user.type(screen.getByPlaceholderText(/Quick note/i), "   ");
+    await user.type(screen.getByPlaceholderText(/Live observation/i), "   ");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("Save button is enabled when textarea has non-empty content", async () => {
     const user = userEvent.setup();
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
-    await user.type(screen.getByPlaceholderText(/Quick note/i), "A note");
+    await user.type(screen.getByPlaceholderText(/Live observation/i), "A note");
     expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
   });
 
@@ -74,7 +76,7 @@ describe("QuickNoteInput", () => {
     const user = userEvent.setup();
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
     await user.type(
-      screen.getByPlaceholderText(/Quick note/i),
+      screen.getByPlaceholderText(/Live observation/i),
       "  My quick note  "
     );
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -95,7 +97,7 @@ describe("QuickNoteInput", () => {
   it("calls onClose when Escape key is pressed in the textarea", async () => {
     const user = userEvent.setup();
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
-    const textarea = screen.getByPlaceholderText(/Quick note/i);
+    const textarea = screen.getByPlaceholderText(/Live observation/i);
     await user.click(textarea);
     await user.keyboard("{Escape}");
     expect(mockOnClose).toHaveBeenCalledTimes(1);
@@ -104,7 +106,7 @@ describe("QuickNoteInput", () => {
   it("calls addNote when Ctrl+Enter is pressed", async () => {
     const user = userEvent.setup();
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
-    const textarea = screen.getByPlaceholderText(/Quick note/i);
+    const textarea = screen.getByPlaceholderText(/Live observation/i);
     await user.type(textarea, "Ctrl+Enter note");
     await user.keyboard("{Control>}{Enter}{/Control}");
     expect(mockMutate).toHaveBeenCalledWith(
@@ -116,7 +118,7 @@ describe("QuickNoteInput", () => {
   it("does NOT call addNote when Ctrl+Enter is pressed with empty content", async () => {
     const user = userEvent.setup();
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
-    const textarea = screen.getByPlaceholderText(/Quick note/i);
+    const textarea = screen.getByPlaceholderText(/Live observation/i);
     await user.click(textarea);
     await user.keyboard("{Control>}{Enter}{/Control}");
     expect(mockMutate).not.toHaveBeenCalled();
@@ -128,28 +130,25 @@ describe("QuickNoteInput", () => {
     });
     const user = userEvent.setup();
     render(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
-    await user.type(screen.getByPlaceholderText(/Quick note/i), "A note");
+    await user.type(screen.getByPlaceholderText(/Live observation/i), "A note");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it("shows 'Saving…' on the button when isPending=true", () => {
-    jest.resetModules();
-    // Re-mock with isPending: true for this test
-    jest.doMock("@/hooks/useNotes", () => ({
-      useAddNote: () => ({
-        mutate: mockMutate,
-        isPending: true,
-      }),
-    }));
-    // For this specific case, use fireEvent to simulate pending state directly
+  it("shows 'Saving…' and disables saving non-empty content while pending", async () => {
+    const user = userEvent.setup();
     const { rerender } = render(
       <QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />
     );
-    // The button shows "Save" by default; checking disabled state suffices
-    // since isPending mock above isn't applied in the same module scope.
-    // We verify the component's disabled logic by checking the disabled attr
-    // when content is empty.
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.type(screen.getByPlaceholderText(/Live observation/i), "Pending note");
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+    mockIsPending = true;
+    rerender(<QuickNoteInput tradeId={tradeId} onClose={mockOnClose} />);
+
+    const saveButton = screen.getByRole("button", { name: "Saving…" });
+    expect(saveButton).toBeDisabled();
+    await user.click(saveButton);
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 });

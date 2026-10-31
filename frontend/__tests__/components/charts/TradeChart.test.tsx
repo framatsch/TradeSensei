@@ -1,34 +1,41 @@
-
-process.env.NEXT_PUBLIC_MARKET_DATA_HUB_URL = "http://localhost";
-global.fetch = jest.fn(() => Promise.resolve({ 
-  ok: true, 
-  json: () => Promise.resolve([
-    { start: "2024-01-01T12:00:00Z", open: 100, high: 101, low: 99, close: 100 }
-  ]) 
-})) as jest.Mock;
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries } from "lightweight-charts";
 import { formatPriceLabel } from "@/lib/executionPriceLabel";
 import { TradeChart } from "@/components/charts/TradeChart";
 import type { Trade, LogicalExecution } from "@/lib/types";
+
+const mockFetch = jest.fn().mockResolvedValue({
+  ok: true,
+  json: async () => [
+    { start: "2024-01-01T12:00:00Z", open: 100, high: 101, low: 99, close: 100, volume: 500 },
+  ],
+});
+global.fetch = mockFetch;
 
 jest.mock("lightweight-charts", () => ({
   createChart: jest.fn(() => ({
     addSeries: jest.fn(() => ({
       setData: jest.fn(),
       createPriceLine: jest.fn(),
+      removePriceLine: jest.fn(),
       applyOptions: jest.fn(),
+      priceScale: jest.fn(() => ({ applyOptions: jest.fn() })),
     })),
     timeScale: jest.fn(() => ({
       fitContent: jest.fn(),
       setVisibleRange: jest.fn(),
     })),
     subscribeCrosshairMove: jest.fn(),
+    applyOptions: jest.fn(),
     remove: jest.fn(),
   })),
-  createSeriesMarkers: jest.fn(),
+  createSeriesMarkers: jest.fn(() => ({ setMarkers: jest.fn() })),
   CandlestickSeries: jest.fn(),
+  HistogramSeries: jest.fn(),
   ColorType: { Solid: "solid" },
+  CrosshairMode: { Normal: 0, Hidden: 2 },
+  LineStyle: { Dashed: 2 },
 }), { virtual: true });
 
 // Mock useSettings
@@ -122,12 +129,12 @@ describe("TradeChart", () => {
     updated_at: "2024-01-01T12:00:00Z",
   };
 
-  it("does not render option overlay controls for option trades (details page only, not chart)", () => {
+  it("does not render option overlay controls for option trades (details page only, not chart)", async () => {
     // Per option-leg-contract-details spec: strike/expiry/type are shown on
     // the trade detail page (execution legs table / summary card), not as a
     // chart overlay. The chart renders the plain underlying candlestick chart
     // with no "Chart layers" popover, strike lines, or option chips.
-    const tradeWithOptions = { ...baseTrade, asset_class: "OPTION", symbol: "QQQ   251003C00712000" } as Trade;
+    const tradeWithOptions: Trade = { ...baseTrade, asset_class: "OPTION", symbol: "QQQ   251003C00712000" };
 
     const optionExec: LogicalExecution = {
       ...baseExecution,
@@ -140,6 +147,19 @@ describe("TradeChart", () => {
 
     render(<TradeChart trade={tradeWithOptions} executions={[optionExec]} />);
 
+    await waitFor(() => expect(createSeriesMarkers).toHaveBeenCalled());
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(
+      "/api/proxy/api/v1/market-data/prices/QQQ/history?",
+    ));
+    const chart = jest.mocked(createChart).mock.results[0].value;
+    expect(chart.addSeries).toHaveBeenCalledWith(CandlestickSeries, expect.any(Object));
+    expect(chart.addSeries).toHaveBeenCalledWith(HistogramSeries, expect.any(Object));
+    const candleSeries = jest.mocked(chart.addSeries).mock.results[0].value;
+    expect(candleSeries.setData).toHaveBeenCalledWith([
+      { time: 1704110400, open: 100, high: 101, low: 99, close: 100, volume: 500 },
+    ]);
+    expect(candleSeries.createPriceLine).not.toHaveBeenCalled();
+    expect(screen.getByTitle("Refresh")).toBeEnabled();
     expect(screen.queryByTitle("Chart layers")).not.toBeInTheDocument();
     expect(screen.queryByText(/Call|Put/)).not.toBeInTheDocument();
     expect(screen.queryByText("712")).not.toBeInTheDocument();

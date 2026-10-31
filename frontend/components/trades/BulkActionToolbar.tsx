@@ -20,7 +20,7 @@
 "use client";
 
 import { Spinner } from "@/components/ui/Spinner";
-import { GitMerge } from "lucide-react";
+import { BookOpen, GitMerge, Tags, Trash2 } from "lucide-react";
 
 interface Props {
   selectedCount: number;
@@ -42,7 +42,8 @@ export function BulkActionToolbar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 bg-secondary border border-border dark:border-border rounded-xl shadow-lg">
+    <>
+    <div className="sticky top-0 z-20 hidden items-center gap-3 px-4 py-3 bg-secondary border border-border rounded-xl shadow-lg lg:flex">
       <span className="text-sm font-medium text-foreground mr-auto">
         {selectedCount} {selectedCount === 1 ? "trade" : "trades"} selected
       </span>
@@ -84,5 +85,29 @@ export function BulkActionToolbar({
         Delete
       </button>
     </div>
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card px-3 pt-2 pb-[env(safe-area-inset-bottom)] shadow-lg lg:hidden" role="toolbar" aria-label="Selected trade actions">
+      <p className="mb-1 text-xs text-foreground"><span className="font-mono font-medium">{selectedCount}</span> selected</p>
+      <div className="flex items-center gap-2 pb-2">
+        {onMerge && selectedCount >= 2 && (
+          <button type="button" onClick={onMerge} className="btn-primary min-h-11 min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <GitMerge className="h-4 w-4" aria-hidden="true" />
+            Merge
+          </button>
+        )}
+        <button type="button" onClick={onAssignPlaybook} className="btn-ghost min-h-11 min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <BookOpen className="h-4 w-4" aria-hidden="true" />
+          Playbook
+        </button>
+        <button type="button" onClick={onAssignTaxonomy} className="btn-ghost min-h-11 min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Tags className="h-4 w-4" aria-hidden="true" />
+          Tags
+        </button>
+        <button type="button" onClick={onDelete} disabled={isDeleting} className="btn-ghost min-h-11 min-w-0 flex-1 flex-col gap-1 px-2 py-2 text-[11px] text-danger disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {isDeleting ? <Spinner size="sm" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
+          Delete
+        </button>
+      </div>
+    </div>
+    </>
   );
 }

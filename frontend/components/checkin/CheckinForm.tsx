@@ -118,21 +118,19 @@ export function CheckinForm({
   const [bufferedAnnotations, setBufferedAnnotations] = useState<Record<string, unknown>>({});
   const [bufferedTagIds, setBufferedTagIds] = useState<string[]>([]);
 
-  // Sync when entry loads asynchronously
-  const initializedEntryIdRef = useRef<string | null>(entry?.id ?? null);
-  useEffect(() => {
-    if (entry && entry.id !== initializedEntryIdRef.current) {
-      initializedEntryIdRef.current = entry.id;
-      setTargetIndexIds(entry.target_indices?.map((idx) => idx.id) ?? []);
-      setNotes(entry.notes ?? "");
-      setNewsLinks(entry.news_links ?? []);
-      setScreenshotKeys(entry.screenshot_keys ?? []);
-      setScreenshotPreviews(entry.screenshot_urls ?? []);
-      if (searchParams.get("edit") !== "true") {
-        setIsEditMode(false);
-      }
+  // Initialize asynchronously loaded entries without resetting drafts on same-ID refetches.
+  const [initializedEntryId, setInitializedEntryId] = useState(entry?.id ?? null);
+  if (entry && entry.id !== initializedEntryId) {
+    setInitializedEntryId(entry.id);
+    setTargetIndexIds(entry.target_indices?.map((idx) => idx.id) ?? []);
+    setNotes(entry.notes ?? "");
+    setNewsLinks(entry.news_links ?? []);
+    setScreenshotKeys(entry.screenshot_keys ?? []);
+    setScreenshotPreviews(entry.screenshot_urls ?? []);
+    if (searchParams.get("edit") !== "true") {
+      setIsEditMode(false);
     }
-  }, [entry, searchParams]);
+  }
 
   // ── Editor state ───────────────────────────────────────────────────────────
   const [notesTab, setNotesTab] = useState<"write" | "preview" | "split">("write");

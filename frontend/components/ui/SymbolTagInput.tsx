@@ -20,6 +20,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { HelpCircle, X } from "lucide-react";
 
 interface SymbolTagInputProps {
+  id?: string;
   included: string[];
   excluded: string[];
   onChange: (included: string[], excluded: string[]) => void;
@@ -28,6 +29,7 @@ interface SymbolTagInputProps {
 }
 
 export function SymbolTagInput({
+  id,
   included,
   excluded,
   onChange,
@@ -149,6 +151,7 @@ export function SymbolTagInput({
           </span>
         ))}
         <input
+          id={id}
           ref={inputRef}
           type="text"
           value={inputValue}

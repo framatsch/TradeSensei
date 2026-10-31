@@ -34,6 +34,12 @@ import { test, expect, type Page } from '@playwright/test';
 
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000';
 
+interface PortfolioSummary {
+  id: string;
+  name: string;
+  base_currency: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getToken(page: Page): Promise<string> {
@@ -55,13 +61,13 @@ async function deletePortfolioViaApi(page: Page, portfolioId: string): Promise<v
 }
 
 /** List all portfolios for the current user. */
-async function listPortfoliosViaApi(page: Page): Promise<{ id: string; name: string }[]> {
+async function listPortfoliosViaApi(page: Page): Promise<PortfolioSummary[]> {
   const token = await getToken(page);
   const res = await page.request.fetch(`${API_URL}/api/v1/portfolios`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(res.ok()).toBeTruthy();
-  const body = await res.json() as { data: { id: string; name: string }[] };
+  const body: { data: PortfolioSummary[] } = await res.json();
   return body.data ?? [];
 }
 
@@ -495,10 +501,10 @@ test.describe('base_currency immutability', () => {
     await page.route(`**/api/v1/portfolios`, async (route) => {
       if (route.request().method() === 'GET') {
         const originalRes = await route.fetch();
-        const body = await originalRes.json() as { data: any[] };
+        const body: { data: Array<{ id: string } & Record<string, unknown>> } = await originalRes.json();
         const updated = {
           ...body,
-          data: body.data.map((p: any) => p.id === portfolios[0].id ? { ...p, has_trades: true } : p),
+          data: body.data.map((portfolio) => portfolio.id === portfolios[0].id ? { ...portfolio, has_trades: true } : portfolio),
         };
         await route.fulfill({
           status: 200,

@@ -21,6 +21,7 @@ import { Plus, Download, Upload, TrendingUp, Lock, Filter } from "lucide-react";
 import { useSavedTradeFilters } from "@/hooks/useSavedTradeFilters";
 import { definitionToSearchParams } from "@/lib/tradeFilterUtils";
 import { useSidebarStore } from "@/stores/sidebarStore";
+import type { SavedTradeFilterRead } from "@/lib/types";
 
 export function TradingLogSidebar() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export function TradingLogSidebar() {
 
   const { data: views, isLoading } = useSavedTradeFilters();
 
-  const handleViewClick = (viewId: string, definition?: any) => {
+  const handleViewClick = (viewId: string, definition?: SavedTradeFilterRead["definition"]) => {
     setMobileOpen(false);
     if (!definition) {
       // Clear filters (All Trades)
@@ -51,9 +52,8 @@ export function TradingLogSidebar() {
 
   const SECTION_HEADER_CLASS = "px-4 pt-4 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-slate-500 select-none";
   const NAV_ITEM_CLASS = "w-full flex items-center gap-3 px-4 py-2 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all duration-150 text-left";
-  const NAV_ITEM_ACTIVE = "w-full flex items-center gap-3 px-4 py-2 text-sm font-medium nav-active transition-all duration-150 text-left";
 
-  const renderViewItem = (id: string, name: string, definition?: any, isSystem = false) => {
+  const renderViewItem = (id: string, name: string, definition?: SavedTradeFilterRead["definition"], isSystem = false) => {
     const isActive = activeViewId === id;
     return (
       <button

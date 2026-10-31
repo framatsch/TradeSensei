@@ -18,6 +18,7 @@
 import { useState, useId } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { createPortfolioApiV1PortfoliosPost } from "@/lib/api/index";
+import type { PortfolioCreate } from "@/lib/api/types.gen";
 import { extractApiError } from "@/lib/apiErrors";
 import { THEME_COLORS } from "@/lib/constants/colors";
 import { X, AlertTriangle } from "lucide-react";
@@ -32,14 +33,14 @@ interface Props {
 export function PortfolioCreateModal({ onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState<PortfolioCreate["base_currency"]>("USD");
   const [color, setColor] = useState(THEME_COLORS[0]);
   const [error, setError] = useState<string | null>(null);
   const uid = useId();
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; base_currency: "USD" | "EUR" | "GBP" | "CHF" | "JPY" | "AUD" | "CAD"; color_hex: string }) => {
-      const res = await createPortfolioApiV1PortfoliosPost({ body: data as any });
+    mutationFn: async (data: PortfolioCreate) => {
+      const res = await createPortfolioApiV1PortfoliosPost({ body: data });
       if (res.error) {
         throw new Error(extractApiError(res.error, "Failed to create portfolio"));
       }
@@ -61,7 +62,7 @@ export function PortfolioCreateModal({ onClose }: Props) {
     setError(null);
     createMutation.mutate({
       name: name.trim(),
-      base_currency: currency as any,
+      base_currency: currency,
       color_hex: color,
     });
   };
@@ -105,7 +106,12 @@ export function PortfolioCreateModal({ onClose }: Props) {
             <select
               id={`${uid}-currency`}
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              onChange={(e) => {
+                const selectedCurrency = e.target.value;
+                if (selectedCurrency === "USD" || selectedCurrency === "EUR" || selectedCurrency === "GBP" || selectedCurrency === "CHF" || selectedCurrency === "JPY" || selectedCurrency === "AUD" || selectedCurrency === "CAD") {
+                  setCurrency(selectedCurrency);
+                }
+              }}
               className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
               data-testid="currency-select"
             >

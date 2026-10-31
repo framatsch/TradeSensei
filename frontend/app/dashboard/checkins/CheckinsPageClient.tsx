@@ -41,7 +41,7 @@ export function CheckinsPageClient() {
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary)_90%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             <PlusCircle className="w-4 h-4" />
-            Today's Check-in
+            Today&apos;s Check-in
           </Link>
         </div>
         

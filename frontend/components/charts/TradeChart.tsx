@@ -315,14 +315,6 @@ function ChartSkeleton() {
 
 // ── Execution marker helpers ───────────────────────────────────────────────────
 
-interface MarkerGroup {
-  time: Time;
-  position: "belowBar" | "aboveBar";
-  color: string;
-  shape: "arrowUp" | "arrowDown";
-  text: string;
-}
-
 /** Marker style for an entry execution: cyan arrow ↑ below the bar. */
 const ENTRY_STYLE = {
   position: "belowBar" as const,
@@ -524,10 +516,10 @@ export interface TradeChartProps {
 export function TradeChart({ trade, executions }: TradeChartProps) {
   const { data: settings } = useSettings();
 
-  const allowedIntervals = useMemo(() => {
+  const allowedIntervals = useMemo<Interval[]>(() => {
     return settings?.chart_intervals && settings.chart_intervals.length > 0 
-      ? settings.chart_intervals as Interval[] 
-      : (["1h", "1d", "1w"] as Interval[]);
+      ? settings.chart_intervals
+      : ["1h", "1d", "1w"];
   }, [settings?.chart_intervals]);
 
   const occ = parseOccSymbol(trade.symbol);
@@ -537,8 +529,8 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   const assetClass = trade.asset_class ?? "EQUITY";
   const isOptionsTrade = occ.isOption || assetClass === "OPTION" || (executions?.some(e => e.asset_class === "OPTION") ?? false);
 
-  const entryDate = new Date(trade.opened_at);
-  const exitDate = trade.closed_at ? new Date(trade.closed_at) : null;
+  const entryDate = useMemo(() => new Date(trade.opened_at), [trade.opened_at]);
+  const exitDate = useMemo(() => trade.closed_at ? new Date(trade.closed_at) : null, [trade.closed_at]);
   const lineEntryPrice = trade.chart_entry_price ?? trade.entry_price;
   const lineExitPrice = trade.chart_exit_price ?? trade.exit_price;
 
@@ -547,11 +539,9 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   );
 
   // Sync interval if allowedIntervals changes and the current one is not allowed
-  useEffect(() => {
-    if (!allowedIntervals.includes(interval)) {
-      setInterval(smartDefaultInterval(entryDate, exitDate, allowedIntervals));
-    }
-  }, [allowedIntervals, interval, entryDate, exitDate]);
+  if (!allowedIntervals.includes(interval)) {
+    setInterval(smartDefaultInterval(entryDate, exitDate, allowedIntervals));
+  }
   const [chartMode, setChartMode] = useState<"full" | "to-exit" | "to-entry">(
     "full",
   );
@@ -636,14 +626,6 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             );
             entryCutoffTs = Math.floor(maxEntryMs / 1000);
           }
-
-          // Use activeExecutions instead of executions for marker timestamps
-          const markerTimestamps: number[] =
-            activeExecutions && activeExecutions.length > 0
-              ? activeExecutions.map((e) =>
-                  Math.floor(new Date(e.executed_at).getTime() / 1000),
-                )
-              : [entryCutoffTs, ...(activeExitTs !== null ? [activeExitTs] : [])];
 
           // For 1d charts, normalise timestamps to midnight UTC so they align
           // with daily bars (LSEG bars always open at 00:00 UTC).
@@ -757,13 +739,6 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
 
           markersDataRef.current = finalMarkers;
 
-          // Spacing and overall marker styling
-          seriesRef.current.applyOptions({
-            markers: {
-              offset: 20, // Even more space to clear the wicks
-            },
-          } as any);
-
           if (markersRef.current) {
             markersRef.current.setMarkers(showMarkersRef.current ? finalMarkers : []);
           } else if (seriesRef.current) {
@@ -789,7 +764,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         }
 
         setUseFallback(false);
-      } catch (e: any) {
+      } catch (e) {
         // HTTP 503 is the expected signal from the backend that the Market Data Hub
         // is not configured. We fall back to TradingView silently.
         if (e instanceof Error && e.message.includes("HTTP 503")) {
@@ -808,19 +783,19 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         setLoading(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       chartSymbol,
       assetClass,
-      trade.opened_at,
-      trade.closed_at,
+      entryDate,
+      exitDate,
       trade.direction,
-      trade.entry_price,
-      trade.exit_price,
-      trade.chart_entry_price,
-      trade.chart_exit_price,
+      trade.corporate_action_impact,
+      lineEntryPrice,
+      lineExitPrice,
+      isOptionsTrade,
       executions,
       chartMode,
+      interval,
     ],
   );
 
@@ -1021,8 +996,8 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
   return (
     <div className="w-full h-full flex flex-col relative">
       {/* Interval toolbar */}
-      <div className="shrink-0 flex items-center gap-1.5 px-3 pt-3 pb-2">
-        <div className="flex p-0.5 rounded-full bg-secondary border border-border backdrop-blur-md shadow-inner">
+      <div className="relative lg:static shrink-0 flex flex-wrap lg:flex-nowrap items-center gap-1.5 px-3 pt-3 pb-2">
+        <div className="flex max-w-full flex-wrap lg:max-w-none lg:flex-nowrap p-0.5 rounded-full bg-secondary border border-border backdrop-blur-md shadow-inner">
           {allowedIntervals.map((iv) => (
             <button
               key={iv}
@@ -1044,7 +1019,10 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         <div className="relative">
           <select
             value={chartMode}
-            onChange={(e) => setChartMode(e.target.value as any)}
+            onChange={(e) => {
+              const mode = e.target.value;
+              if (mode === "full" || mode === "to-exit" || mode === "to-entry") setChartMode(mode);
+            }}
             className="appearance-none px-3 pr-7 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80 outline-none cursor-pointer shadow-inner"
             title="Chart Data Range"
           >
@@ -1083,10 +1061,11 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           </button>
         </div>
 
-        <div className="relative">
+        <div className="static lg:relative">
           <button
             onClick={() => setIsOptionsOpen(!isOptionsOpen)}
             title="Chart Display Options"
+            aria-expanded={isOptionsOpen}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border shadow-inner ${
               isOptionsOpen
                 ? "bg-primary/20 text-primary border-primary/30"
@@ -1103,7 +1082,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           {isOptionsOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsOptionsOpen(false)} />
-              <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-48 bg-card border border-border rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1">
+              <div role="dialog" aria-label="Chart display options" className="absolute left-3 lg:left-0 top-full mt-2 w-48 bg-card border border-border rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1">
                 <label className="flex items-center gap-2.5 p-2 hover:bg-secondary/50 rounded-lg cursor-pointer text-sm">
                   <input type="checkbox" checked={showTradeLines} onChange={handleToggleTradeLines} className="w-4 h-4 rounded border-border text-primary focus:ring-primary/30" />
                   <span className="text-foreground">Price Lines</span>

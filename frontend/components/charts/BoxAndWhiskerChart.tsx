@@ -46,8 +46,16 @@ interface BoxAndWhiskerChartProps {
   yAxisLabel?: string;
 }
 
-const CustomBox = (props: any) => {
-  const { x, y, width, height, q1, median, q3, payload } = props;
+interface CustomBoxProps {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  payload: Pick<BoxPlotData, "count">;
+}
+
+const CustomBox = (props: CustomBoxProps) => {
+  const { x, y, width, height, payload } = props;
 
   if (payload.count < 3) return null; // handled by dot plot
 

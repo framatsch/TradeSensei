@@ -127,6 +127,8 @@ docker compose up -d
 3. Go to **Settings → Accounts & Integrations** and create a broker account (`IBKR`, `Schwab`, or `Manual`)
 4. Sync trades directly via the broker API, upload a broker export file (`.xml` for IBKR, `.json` for Schwab), or add your first trade manually from the dashboard
 
+For trade review, keyboard navigation, and mobile controls, see the [user guide](docs/user-guide.md).
+
 ---
 
 ## Manual setup (without Docker)

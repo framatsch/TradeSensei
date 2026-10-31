@@ -14,11 +14,10 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrokerAccountEditModal } from "@/components/settings/modals/BrokerAccountEditModal";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
-import * as clientGen from "@/lib/api/client.gen";
 import * as api from "@/lib/api/index";
 import type { Account } from "@/lib/types";
 import "@testing-library/jest-dom";
@@ -70,62 +69,81 @@ describe("BrokerAccountEditModal", () => {
     queryClient = new QueryClient();
     onClose = jest.fn();
     jest.clearAllMocks();
+    (api.getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet as jest.Mock)
+      .mockResolvedValue({ data: { data: { properties: {} } }, error: null });
   });
 
-  function renderComponent(account = mockAccount) {
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <BrokerAccountEditModal account={account} onClose={onClose} />
-      </QueryClientProvider>
-    );
+  async function renderComponent(account = mockAccount) {
+    await act(async () => {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <BrokerAccountEditModal account={account} onClose={onClose} />
+        </QueryClientProvider>
+      );
+    });
   }
 
-  it("renders with pre-filled name", () => {
-    renderComponent();
+  it("renders with pre-filled name", async () => {
+    await renderComponent();
 
     const nameInput = screen.getByTestId("edit-account-name-input") as HTMLInputElement;
     expect(nameInput.value).toBe("IBKR Main");
   });
 
-  it("broker type is shown as immutable badge, not a select", () => {
-    renderComponent();
+  it("broker type is shown as immutable badge, not a select", async () => {
+    await renderComponent();
 
     expect(screen.getByTestId("immutable-broker-type")).toHaveTextContent("IBKR");
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
-  it("credential fields are rendered as password inputs with empty values", () => {
-    renderComponent();
+  it("credential fields are masked and empty when no stored credentials are returned", async () => {
+    await renderComponent();
 
-    const tokenInput = screen.getByTestId("credential-IBKR_FLEX_TOKEN") as HTMLInputElement;
-    const queryInput = screen.getByTestId("credential-IBKR_FLEX_QUERY_ID") as HTMLInputElement;
+    const tokenInput = screen.getByLabelText("Flex Token");
+    const queryInput = screen.getByLabelText("Flex Query ID");
 
-    expect(tokenInput.type).toBe("password");
-    expect(tokenInput.value).toBe("");
-    expect(queryInput.type).toBe("password");
-    expect(queryInput.value).toBe("");
+    expect(tokenInput).toHaveAttribute("type", "password");
+    expect(tokenInput).toHaveValue("");
+    expect(queryInput).toHaveAttribute("type", "password");
+    expect(queryInput).toHaveValue("");
+    expect(api.getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet)
+      .toHaveBeenCalledWith({ path: { portfolio_id: "port-1", account_id: "acct-1" } });
   });
 
-  it("shows hint text to leave blank to keep existing credentials", () => {
-    renderComponent();
+  it("loads stored credentials for review and masks them until explicitly revealed", async () => {
+    (api.getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet as jest.Mock)
+      .mockResolvedValue({
+        data: { data: { properties: { IBKR_FLEX_TOKEN: "stored-token", IBKR_FLEX_QUERY_ID: "stored-query" } } },
+        error: null,
+      });
+    await renderComponent();
 
-    expect(screen.getByText("Leave blank to keep existing credentials")).toBeInTheDocument();
+    expect(screen.getByText("Stored credentials are loaded for review and can be edited.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Flex Token")).toHaveValue("stored-token");
+    expect(screen.getByLabelText("Flex Query ID")).toHaveValue("stored-query");
+    expect(screen.getByLabelText("Flex Token")).toHaveAttribute("type", "password");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show Flex Token" }));
+    expect(screen.getByLabelText("Flex Token")).toHaveAttribute("type", "text");
+    fireEvent.click(screen.getByRole("button", { name: "Hide Flex Token" }));
+    expect(screen.getByLabelText("Flex Token")).toHaveAttribute("type", "password");
   });
 
-  it("shows test connection button", () => {
-    renderComponent();
+  it("shows test connection button", async () => {
+    await renderComponent();
 
     expect(screen.getByTestId("edit-test-connection-button")).toBeInTheDocument();
   });
 
-  it("shows Deactivate Account button when account is active", () => {
-    renderComponent();
+  it("shows Deactivate Account button when account is active", async () => {
+    await renderComponent();
 
     expect(screen.getByTestId("deactivate-button")).toHaveTextContent("Deactivate Account");
   });
 
-  it("shows Reactivate Account button when account is inactive", () => {
-    renderComponent(mockInactiveAccount);
+  it("shows Reactivate Account button when account is inactive", async () => {
+    await renderComponent(mockInactiveAccount);
 
     expect(screen.getByTestId("reactivate-button")).toHaveTextContent("Reactivate Account");
   });
@@ -133,7 +151,7 @@ describe("BrokerAccountEditModal", () => {
   it("deactivate button toggles is_active to false", async () => {
     (api.updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch as jest.Mock).mockResolvedValue({ data: {}, error: null });
 
-    renderComponent();
+    await renderComponent();
 
     fireEvent.click(screen.getByTestId("deactivate-button"));
 
@@ -154,7 +172,7 @@ describe("BrokerAccountEditModal", () => {
   it("reactivate button toggles is_active to true", async () => {
     (api.updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch as jest.Mock).mockResolvedValue({ data: {}, error: null });
 
-    renderComponent(mockInactiveAccount);
+    await renderComponent(mockInactiveAccount);
 
     fireEvent.click(screen.getByTestId("reactivate-button"));
 
@@ -174,7 +192,7 @@ describe("BrokerAccountEditModal", () => {
   it("save submits name only when no credentials entered", async () => {
     (api.updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch as jest.Mock).mockResolvedValue({ data: {}, error: null });
 
-    renderComponent();
+    await renderComponent();
 
     fireEvent.change(screen.getByTestId("edit-account-name-input"), {
       target: { value: "Updated Name" },
@@ -197,16 +215,20 @@ describe("BrokerAccountEditModal", () => {
     });
   });
 
-  it("no delete button exists in the modal", () => {
-    renderComponent();
+  it("keeps delete actions hidden until the danger zone is expanded and confirmed", async () => {
+    await renderComponent();
 
-    expect(screen.queryByText(/delete/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Account" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show Danger Zone" }));
+    expect(screen.getByRole("button", { name: "Delete Account" })).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText("IBKR Main"), { target: { value: "IBKR Main" } });
+    expect(screen.getByRole("button", { name: "Delete Account" })).toBeEnabled();
   });
 
   it("does not propagate credentials if left empty on save", async () => {
     (api.updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch as jest.Mock).mockResolvedValue({ data: {}, error: null });
 
-    renderComponent();
+    await renderComponent();
 
     fireEvent.click(screen.getByTestId("save-edit-account"));
 

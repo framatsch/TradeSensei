@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 
 interface Props {
@@ -31,11 +31,21 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
-  // Reset scale and position when index changes
-  useEffect(() => {
+  // Reset the viewport only when navigation actually changes the image.
+  const [previousIndex, setPreviousIndex] = useState(currentIndex);
+  if (currentIndex !== previousIndex) {
+    setPreviousIndex(currentIndex);
     setScale(1);
     setPosition({ x: 0, y: 0 });
-  }, [currentIndex]);
+  }
+
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : urls.length - 1));
+  }, [urls.length]);
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev < urls.length - 1 ? prev + 1 : 0));
+  }, [urls.length]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -45,15 +55,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, urls.length, onClose]);
-
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : urls.length - 1));
-  };
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev < urls.length - 1 ? prev + 1 : 0));
-  };
+  }, [handlePrev, handleNext, onClose]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (scale > 1) {

@@ -83,6 +83,17 @@ function getDisplayScope(scopeStr: string): string {
   return scopeLabel(scopeStr);
 }
 
+function getMutationError(error: unknown): { detail?: string; message?: string } {
+  if (typeof error !== "object" || error === null) return {};
+  const response = "response" in error ? error.response : undefined;
+  const data = typeof response === "object" && response !== null && "data" in response ? response.data : undefined;
+  const detail = typeof data === "object" && data !== null && "detail" in data ? data.detail : undefined;
+  return {
+    detail: typeof detail === "string" ? detail : undefined,
+    message: "message" in error && typeof error.message === "string" ? error.message : undefined,
+  };
+}
+
 export function AnnotationManager() {
   const [showArchived, setShowArchived] = useState(false);
   const { data: rawAnnotations, isLoading, error } = useGetAnnotationDefinitions(undefined, showArchived);
@@ -263,7 +274,7 @@ export function AnnotationManager() {
           name: name.trim(),
           scope: scopePayload as AnnotationDefinitionResponse["scope"],
           description: description.trim() || null,
-          scale_labels: scaleLabels as any,
+          scale_labels: scaleLabels,
           icon_identifier: iconIdentifier.trim() || null,
         };
         setSelectedAnnotation(updatedAnnotation);
@@ -280,9 +291,10 @@ export function AnnotationManager() {
       }
       setIsEditing(false);
       setIsViewing(selectedAnnotation !== null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      const errMsg = err?.response?.data?.detail || err?.message || "Failed to save metric. Please try again.";
+      const error = getMutationError(err);
+      const errMsg = error.detail || error.message || "Failed to save metric. Please try again.";
       toast.error(errMsg);
     }
   };
@@ -296,8 +308,9 @@ export function AnnotationManager() {
         const updated = await archiveMutation.mutateAsync({ definitionId: annotation.id });
         setSelectedAnnotation(updated);
       }
-    } catch (err: any) {
-      const errMsg = err?.response?.data?.detail || err?.message || "Failed to update archive status.";
+    } catch (err: unknown) {
+      const error = getMutationError(err);
+      const errMsg = error.detail || error.message || "Failed to update archive status.";
       toast.error(errMsg);
     }
   };
@@ -330,12 +343,12 @@ export function AnnotationManager() {
       if (selectedAnnotation?.id === annotation.id) {
         handleCloseDetails();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setConfirmDeleteId(null);
       setAssignmentCounts(null);
       setConfirmNameInput("");
-      const errMsg = err?.response?.data?.detail || "Could not delete metric.";
+      const errMsg = getMutationError(err).detail || "Could not delete metric.";
       toast.error(errMsg);
     }
   };

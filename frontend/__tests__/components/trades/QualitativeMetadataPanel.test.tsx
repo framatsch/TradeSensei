@@ -14,9 +14,10 @@
  */
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QualitativeMetadataPanel } from "@/components/trades/QualitativeMetadataPanel";
-import useFeatureFlag from "@/hooks/useFeatureFlag";
+import type { AnnotationDefinitionResponse, Trade } from "@/lib/types";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import {
@@ -61,7 +62,7 @@ jest.mock("@/components/notes/MarkdownRenderer", () => ({
   ),
 }));
 
-const convictionDef: any = {
+const convictionDef: AnnotationDefinitionResponse = {
   id: "def-1",
   name: "Conviction",
   type: "int",
@@ -74,16 +75,45 @@ const convictionDef: any = {
   icon_identifier: null,
 };
 
-function buildTrade(overrides: Record<string, unknown> = {}): any {
+function buildTrade(overrides: Partial<Trade> = {}): Trade {
   return {
     id: "trade-1",
+    position_id: null,
+    symbol: "AAPL",
+    direction: "LONG",
+    asset_class: "EQUITY",
+    is_combo: false,
+    multiplier: 1,
+    quantity: "10",
+    entry_price: "100",
+    exit_price: null,
+    stop_loss: null,
+    take_profit: null,
+    opened_at: "2024-01-01T00:00:00Z",
+    closed_at: null,
+    pnl: null,
+    net_pnl: null,
+    commission: "0",
     journal: null,
+    user_rating: null,
+    currency: "USD",
+    pnl_eur: null,
+    net_pnl_eur: null,
+    tradingview_link: null,
+    image_urls: [],
     playbook_id: null,
+    playbook_name: null,
+    account_id: "account-1",
+    account_name: "Main",
+    account_type: "ibkr",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    is_manually_edited: false,
+    tags: [],
     taxonomies: [],
     trade_notes: [],
     annotations: [
       {
-        trade_id: "trade-1",
         annotation_definition_id: "def-1",
         name: "Conviction",
         type: "int",
@@ -94,6 +124,11 @@ function buildTrade(overrides: Record<string, unknown> = {}): any {
     ],
     ...overrides,
   };
+}
+
+function getMobileSaveBar() {
+  return screen.getAllByText("Unsaved changes")
+    .map((label) => label.closest(".fixed")).find(Boolean) as HTMLElement;
 }
 
 describe("QualitativeMetadataPanel", () => {
@@ -133,7 +168,6 @@ describe("QualitativeMetadataPanel", () => {
       id: "trade-2",
       annotations: [
         {
-          trade_id: "trade-2",
           annotation_definition_id: "def-1",
           name: "Conviction",
           type: "int",
@@ -176,5 +210,88 @@ describe("QualitativeMetadataPanel", () => {
     expect(
       screen.getByRole("option", { name: "Retired Strategy (Inactive)" })
     ).toBeInTheDocument();
+  });
+
+  it.each(["journal", "playbook", "taxonomy", "annotation"] as const)(
+    "reports dirty %s changes and offers scoped desktop and mobile controls",
+    async (field) => {
+      const user = userEvent.setup();
+      const onDirtyChange = jest.fn();
+      (usePlaybooks as jest.Mock).mockReturnValue({ data: [{ id: "pb-1", name: "Breakout", is_active: true }] });
+      (useGetTaxonomies as jest.Mock).mockReturnValue({ data: [{ id: "tax-1", name: "Patient", is_archived: false }] });
+      render(<QualitativeMetadataPanel trade={buildTrade()} onDirtyChange={onDirtyChange} />);
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+      if (field === "journal") {
+        await user.click(screen.getByRole("button", { name: "Edit journal" }));
+        await user.type(screen.getByRole("textbox"), "Waited for confirmation.");
+      } else if (field === "playbook") {
+        await user.selectOptions(screen.getByRole("combobox"), "pb-1");
+      } else if (field === "taxonomy") {
+        await user.click(screen.getByRole("button", { name: "Patient" }));
+      } else {
+        await user.clear(screen.getByRole("spinbutton"));
+        await user.type(screen.getByRole("spinbutton"), "5");
+      }
+
+      expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+      const header = screen.getByRole("heading", { name: "Qualitative Analysis & Metadata" }).parentElement!;
+      const desktopControls = within(header).getByText("Unsaved changes").parentElement!;
+      expect(desktopControls).toHaveClass("hidden", "lg:flex");
+      expect(within(desktopControls).getByRole("button", { name: "Save" })).toBeEnabled();
+      const mobileBar = getMobileSaveBar();
+      expect(mobileBar).toHaveClass("fixed", "bottom-0", "lg:hidden", "pb-[env(safe-area-inset-bottom)]");
+      expect(within(mobileBar).getByRole("button", { name: "Save" })).toBeEnabled();
+
+      await user.click(within(mobileBar).getByRole("button", { name: "Cancel" }));
+
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+      expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
+      expect(screen.getByRole("combobox")).toHaveValue("");
+      expect(screen.getByRole("spinbutton")).toHaveValue(4);
+      if (field === "journal") expect(screen.getByRole("textbox")).toHaveValue("");
+    },
+  );
+
+  it("saves from the mobile bar, disables both control variants while saving, and clears dirty state after refresh", async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = jest.fn();
+    let resolveSave!: () => void;
+    const pending = new Promise<void>((resolve) => { resolveSave = resolve; });
+    const mutateAsync = jest.fn(() => pending);
+    (useUpdateTrade as jest.Mock).mockReturnValue({ mutateAsync });
+    const trade = buildTrade();
+    const { rerender } = render(<QualitativeMetadataPanel trade={trade} onDirtyChange={onDirtyChange} />);
+    await user.click(screen.getByRole("button", { name: "Edit journal" }));
+    await user.type(screen.getByRole("textbox"), "Saved reflection.");
+    const mobileBar = getMobileSaveBar();
+    await user.click(within(mobileBar).getByRole("button", { name: "Save" }));
+
+    expect(mutateAsync).toHaveBeenCalledWith({ journal: "Saved reflection.", playbook_id: null });
+    const header = screen.getByRole("heading", { name: "Qualitative Analysis & Metadata" }).parentElement!;
+    expect(within(header).getByRole("button", { name: "Saving..." })).toBeDisabled();
+    expect(within(mobileBar).getByRole("button", { name: "Saving..." })).toBeDisabled();
+    expect(within(mobileBar).getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(screen.getByRole("textbox")).toBeDisabled();
+    await act(async () => { resolveSave(); });
+    // The successful mutation refreshes the persisted trade in the query cache.
+    rerender(<QualitativeMetadataPanel trade={{ ...trade, journal: "Saved reflection." }} onDirtyChange={onDirtyChange} />);
+
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+    expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toHaveValue("Saved reflection.");
+  });
+
+  it("clears the dirty notification when a dirty panel unmounts", async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = jest.fn();
+    const { unmount } = render(<QualitativeMetadataPanel trade={buildTrade()} onDirtyChange={onDirtyChange} />);
+    await user.click(screen.getByRole("button", { name: "Edit journal" }));
+    await user.type(screen.getByRole("textbox"), "Draft");
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    unmount();
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
 });

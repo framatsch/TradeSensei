@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Added mobile trade detail tabs (`Overview`, `Journal`, `Executions`) with preserved chart and journal state, plus compact header KPIs for P&L, Realized R and Return %.
+- [frontend] Added mobile execution-leg cards with editing and action menus, touch-visible journal, screenshot and quick-note controls, and a fixed `Save`/`Cancel` bar for unsaved journal changes.
+- [frontend] Added a mobile trade card list with sorting, selection mode, a fixed bulk-action bar, compact pagination, and a tabbed filter sheet with live filtering and saved-view actions.
+- [frontend] Added `Previous`/`Next` navigation through filtered, sorted trade lists across pages on all viewports, with position indicators, `←`/`→` shortcuts, unsaved-journal confirmation, and `Back to Trades` restoring filters, sort and saved views.
+
+### Fixed
+- [frontend] Fixed legacy lint and TypeScript errors by stabilizing hooks, synchronizing form drafts safely, and correcting DTO types.
+- [tests] Fixed stale unit-test contracts, navigation-sensitive Logout assertions, ambiguous Reporting filter selectors, and root Playwright SDK resolution so standard E2E runs no longer require temporary runtime aliases.
+- [frontend] Fixed `npm run lint` compatibility with Next.js 16 by replacing `next lint` with the ESLint CLI and flat configuration.
+
 ## [1.17.0] - 2026-10-25
 
 ### Added

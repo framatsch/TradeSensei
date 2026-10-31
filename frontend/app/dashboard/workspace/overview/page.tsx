@@ -17,7 +17,7 @@
 
 import { useWorkspaceFilter, useActivePortfolioId } from "@/components/workspace/WorkspaceFilterContext";
 import { useAnalyticsSummary } from "@/hooks/useReportingAnalytics";
-import { MetricCard, PayoffRatio, UncategorizedBanner } from "@/components/reporting/Widgets";
+import { MetricCard, PayoffRatio } from "@/components/reporting/Widgets";
 import { MetricsSkeleton } from "@/components/reporting/ReportingSkeletons";
 import dynamic from "next/dynamic";
 

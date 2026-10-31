@@ -43,8 +43,7 @@ export const useActivePortfolio = () => {
     if (!currentPortfolioExists) {
       let nextId = portfolios[0].id;
       
-      // The settings type might not have default_portfolio_id typed in some versions, so we use any casting safely or check property
-      const defaultPortfolioId = (settings as any)?.default_portfolio_id;
+      const defaultPortfolioId = settings?.default_portfolio_id;
       
       if (defaultPortfolioId) {
         const defaultExists = portfolios.some((p: PortfolioRead) => p.id === defaultPortfolioId);

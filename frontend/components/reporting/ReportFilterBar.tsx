@@ -443,7 +443,7 @@ export function ReportFilterBar() {
                 <option value="" disabled>
                   Select portfolio...
                 </option>
-                {portfolios.map((p: any) => (
+                {portfolios.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>

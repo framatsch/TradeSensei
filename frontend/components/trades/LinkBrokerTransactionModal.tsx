@@ -87,7 +87,7 @@ export function LinkBrokerTransactionModal({ execution, tradeId, onClose }: Prop
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl solid-card p-5 shadow-2xl flex flex-col max-h-[80vh]">
+      <div role="dialog" aria-modal="true" aria-label="Link broker transaction" className="w-full max-w-2xl solid-card p-5 shadow-2xl flex flex-col max-h-[80vh]">
         <h3 className="text-sm font-semibold text-foreground">Link broker transaction</h3>
         <p className="mt-1 text-xs text-muted-foreground">
           Link this manual leg to the broker fill it replaces. The broker fill will be

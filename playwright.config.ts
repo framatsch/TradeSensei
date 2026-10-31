@@ -25,6 +25,8 @@ import { defineConfig, devices } from '@playwright/test';
  * globalTeardown deletes the test user (cascade-deletes all owned data) after.
  */
 export default defineConfig({
+  /* Keep test imports on the root runtime when frontend dependencies are installed. */
+  tsconfig: './tsconfig.playwright.json',
   testDir: './frontend/tests',
   /* Only run spec files inside the specs/ subdirectory */
   testMatch: '**/specs/**/*.spec.ts',
@@ -37,7 +39,7 @@ export default defineConfig({
   /* Limit parallelism locally to avoid overloading the Docker stack */
   workers: process.env.CI ? 1 : 4,
   /* Reporter */
-  reporter: [['html'], ['list']],
+  reporter: [['html', { open: 'never' }], ['list'], ['json', { outputFile: 'test-results/results.json' }]],
 
   /* Global setup / teardown — seed and clean test data */
   globalSetup: './frontend/tests/global-setup.ts',
@@ -46,6 +48,7 @@ export default defineConfig({
   use: {
     /* Base URL — local dev stack */
     baseURL: 'http://localhost:3000',
+    headless: true,
 
     /* Reuse authenticated browser state seeded in globalSetup */
     storageState: './frontend/tests/.auth/user.json',

@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray, useWatch, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass, LogicalExecutionCreate } from "@/lib/types";
+import type { Trade, TradeCreate, TradeUpdate, Direction, AssetClass } from "@/lib/types";
 import { useCreateTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useAccounts } from "@/hooks/useAccounts";
 import { Spinner } from "@/components/ui/Spinner";
@@ -133,7 +133,6 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   const [annotationValues, setAnnotationValues] = useState<Record<string, string | number | boolean>>({});
   const [imageUrls, setImageUrls] = useState<string[]>(trade?.image_urls ?? []);
   const [isUploadingImages] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [isAssigningMetadata, setIsAssigningMetadata] = useState(false);
 
@@ -212,8 +211,6 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         return;
       }
       
-      let totalQty = 0;
-      let totalValue = 0;
       let totalComm = 0;
       
       // Calculate based on first execution as entry
@@ -311,7 +308,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
       );
 
       const annotationPromises = Object.entries(annotationValues)
-        .filter(([_, value]) => value !== "" && value !== null && value !== undefined)
+        .filter(([, value]) => value !== "" && value !== null && value !== undefined)
         .map(([defId, value]) =>
           assignTradeAnnotationApiV1TradesTradeIdAnnotationsAnnotationDefinitionIdPost({
             path: { trade_id: tradeId, annotation_definition_id: defId },
@@ -326,7 +323,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         return false;
       }
       return true;
-    } catch (err) {
+    } catch {
       setAssignmentError("Trade saved, but failed to assign metadata. You can update it later on the trade detail page.");
       return false;
     } finally {

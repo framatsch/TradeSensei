@@ -58,16 +58,16 @@ export function ApiTokensSettings() {
           <div className="space-y-2 border-t border-border px-3 py-3 text-xs text-muted-foreground">
             <ul className="list-disc space-y-1 pl-4">
               <li>
-                Performance discovery: "Show me all losing trades from last week where my Mood annotation was below 5."
+                Performance discovery: &quot;Show me all losing trades from last week where my Mood annotation was below 5.&quot;
               </li>
               <li>
-                Automated enrichment: "Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a note."
+                Automated enrichment: &quot;Tag my trades from May 6th 2026 afternoon with Macro Volatility and add a note.&quot;
               </li>
               <li>
-                Strategy creation: "Create a Breakout Momentum playbook from these rules: ..."
+                Strategy creation: &quot;Create a Breakout Momentum playbook from these rules: ...&quot;
               </li>
               <li>
-                Pattern analysis: "What is my win rate on LONG EQUITY trades in the first hour of the day?"
+                Pattern analysis: &quot;What is my win rate on LONG EQUITY trades in the first hour of the day?&quot;
               </li>
             </ul>
             <a

@@ -27,6 +27,7 @@ import {
 } from "@/lib/api/index";
 import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType } from "@/lib/types";
+import type { AccountUpdate } from "@/lib/api/types.gen";
 import { SchwabConnectSection } from "./SchwabConnectSection";
 import { useClearAccountTrades } from "@/hooks/useAccounts";
 import { AccountClearTradesModal } from "../../accounts/AccountClearTradesModal";
@@ -126,7 +127,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
       const filledCredentials = Object.fromEntries(
         Object.entries(credentials).filter(([, v]) => v.trim() !== "")
       );
-      const payload: any = {
+      const payload: AccountUpdate = {
         name: name.trim(),
         account_number: accountNumber.trim() || null,
       };
@@ -151,7 +152,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
       toast.success("Account updated");
       onClose();
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       setError(extractApiError(err, "Failed to update account"));
     },
   });
@@ -165,7 +166,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
 
     updateAccountApiV1PortfoliosPortfolioIdAccountsAccountIdPatch({
       path: { portfolio_id: portfolioId, account_id: account.id },
-      body: { is_active: !isActive } as any,
+      body: { is_active: !isActive },
     })
       .then(({ error: patchErr }) => {
         if (patchErr) throw patchErr;
@@ -205,7 +206,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
       });
 
       if (testErr) {
-        const status = (testErr as any)?.status;
+        const status = typeof testErr === "object" && "status" in testErr ? testErr.status : undefined;
         if (status === 404 || status === 405) {
           setTestResult("error");
           setTestMessage("Connection test unavailable");
@@ -254,7 +255,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
       toast.success("Account deleted");
       onClose();
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       setDeleteError(extractApiError(err, "Failed to delete account"));
     },
   });
@@ -550,7 +551,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
                 );
                 onClose();
               },
-              onError: (err: any) => {
+              onError: (err: unknown) => {
                 toast.error(extractApiError(err, "Failed to clear trades"));
               }
             });

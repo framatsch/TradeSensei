@@ -22,15 +22,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
-import { useLogout } from "@/hooks/useAuth";
-import { Logo } from "@/components/ui/Logo";
-import { AboutModal } from "@/components/ui/AboutModal";
-import { AppConfig } from "@/lib/appConfig";
-import { useSettings } from "@/hooks/useSettings";
-import { useSavedViews } from "@/hooks/useReportingViews";
-import type { SavedDashboardViewRead } from "@/lib/api/types.gen";
 import { TopBar } from "@/components/layout/TopBar";
 import { useAppContext } from "@/hooks/useAppContext";
 import type { AppContext } from "@/stores/appContextStore";
@@ -38,8 +31,6 @@ import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { useAccounts } from "@/hooks/useAccounts";
 import { EmptyPortfolioGate } from "@/components/layout/EmptyPortfolioGate";
 import { useSidebarStore } from "@/stores/sidebarStore";
-
-import { PanelLeftClose, PanelLeftOpen, Filter } from "lucide-react";
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
@@ -219,9 +210,6 @@ const SECTION_HEADER_CLASS =
 const L1_INACTIVE =
   "rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60";
 
-const L2_INACTIVE =
-  "rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60";
-
 // ─── Reporting Hub sub-tabs ──────────────────────────────────────────────────
 
 function NavLeafItem({
@@ -368,11 +356,6 @@ export default function DashboardLayout({ children }: Props) {
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname, setMobileOpen]);
-
-  const { data: settings } = useSettings();
-  const features = (settings?.features ?? {}) as Record<string, boolean>;
-  const showRisk = features["risk_analytics"] ?? false;
-  const showReporting = features["reporting_hub"] ?? false;
 
   useEffect(() => {
     hydrate();

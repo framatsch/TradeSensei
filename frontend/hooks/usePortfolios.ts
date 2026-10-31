@@ -14,7 +14,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { listPortfoliosApiV1PortfoliosGet, PortfolioRead } from '@/lib/api/index';
+import { listPortfoliosApiV1PortfoliosGet } from '@/lib/api/index';
 
 export const usePortfolios = () => {
   const { data, isLoading, isError } = useQuery({

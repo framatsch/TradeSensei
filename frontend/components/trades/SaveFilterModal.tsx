@@ -34,7 +34,7 @@ export function SaveFilterModal({ isOpen, onClose, currentFilters }: Props) {
 
     // Filter out empty values to keep the definition clean
     const definition = Object.fromEntries(
-      Object.entries(currentFilters).filter(([_, value]) => {
+      Object.entries(currentFilters).filter(([, value]) => {
         if (Array.isArray(value)) return value.length > 0;
         return value !== "" && value !== null && value !== undefined;
       })

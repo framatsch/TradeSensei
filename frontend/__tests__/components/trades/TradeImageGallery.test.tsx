@@ -33,8 +33,8 @@ describe("TradeImageGallery", () => {
 
     const imgs = screen.getAllByRole("img", { name: "Trade image" });
     expect(imgs).toHaveLength(2);
-    expect(imgs[0]).toHaveAttribute("src", urls[0]);
-    expect(imgs[1]).toHaveAttribute("src", urls[1]);
+    expect(imgs[0]).toHaveAttribute("src", `/api/storage-proxy?url=${encodeURIComponent(urls[0])}`);
+    expect(imgs[1]).toHaveAttribute("src", `/api/storage-proxy?url=${encodeURIComponent(urls[1])}`);
   });
 
   it("opens lightbox when a thumbnail button is clicked", () => {
@@ -50,6 +50,10 @@ describe("TradeImageGallery", () => {
 
     // Now there should be 2 img elements: thumbnail + lightbox
     expect(screen.getAllByRole("img", { name: "Trade image" })).toHaveLength(2);
+    expect(screen.getAllByRole("img", { name: "Trade image" })[1]).toHaveAttribute(
+      "src",
+      `/api/storage-proxy?url=${encodeURIComponent(urls[0])}`,
+    );
   });
 
   it("closes lightbox when Escape key is pressed (second test variant)", () => {

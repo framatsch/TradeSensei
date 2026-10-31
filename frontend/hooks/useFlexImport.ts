@@ -22,7 +22,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { flexImportApiV1PortfoliosPortfolioIdImportsFlexPost } from "@/lib/api/index";
 import { usePortfolioStore } from "@/stores/portfolioStore";
-import type { ImportResult } from "@/lib/types";
+import type { ImportResult } from "@/lib/api/types.gen";
 
 interface FlexImportPayload {
   query_id: string;
@@ -48,8 +48,7 @@ export function useFlexImport() {
         throw error ?? new Error("Flex import failed");
       }
 
-      // Die SDK-Funktion gibt bei uns ResponseEnvelope zurück, also data.data
-      return (data as any).data as ImportResult;
+      return data.data;
     },
   });
 }

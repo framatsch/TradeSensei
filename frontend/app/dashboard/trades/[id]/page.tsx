@@ -34,7 +34,13 @@ import { TradePickerModal } from "@/components/trades/TradePickerModal";
 import { MergePreviewModal } from "@/components/trades/MergePreviewModal";
 import { QualitativeMetadataPanel } from "@/components/trades/QualitativeMetadataPanel";
 import { ConflictBanner } from "@/components/trades/ConflictBanner";
+import { TradeMobileHeader } from "@/components/trades/TradeMobileHeader";
+import { TradeNavControls, TradePositionIndicator } from "@/components/trades/TradeNavControls";
+import { useTradeNavigation } from "@/hooks/useTradeNavigation";
 import { formatSplitRatio } from "@/lib/formatSplitRatio";
+
+type MobileTab = "overview" | "journal" | "executions";
+const MOBILE_TABS: MobileTab[] = ["overview", "journal", "executions"];
 
 function formatDate(value: string | null): string {
   if (value === null) return "—";
@@ -84,11 +90,10 @@ function InlineNumberField({ label, value, onSave, helpAnchor }: InlineNumberFie
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editing) {
-      setDraft(value ?? "");
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [editing, value]);
+    if (!editing) return;
+    const timer = setTimeout(() => inputRef.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [editing]);
 
   const handleSave = () => {
     const trimmed = draft.trim();
@@ -103,17 +108,18 @@ function InlineNumberField({ label, value, onSave, helpAnchor }: InlineNumberFie
 
   if (editing) {
     return (
-      <div className="flex justify-between items-center">
+      <div className="flex min-w-0 flex-col items-start gap-1 lg:flex-row lg:justify-between lg:items-center lg:gap-0">
         <span className="text-sm text-muted-foreground flex items-center gap-1.5">
           {label}
           {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex w-full min-w-0 items-center gap-1 lg:w-auto">
           <input
             ref={inputRef}
             type="number"
             step="any"
-            className="w-24 rounded border border-border bg-secondary px-2 py-0.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-right"
+            className="w-full min-w-0 lg:w-24 rounded border border-border bg-secondary px-2 py-0.5 font-mono lg:font-sans text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-right"
+            aria-label={label}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -122,14 +128,16 @@ function InlineNumberField({ label, value, onSave, helpAnchor }: InlineNumberFie
           <button
             type="button"
             onClick={handleSave}
-            className="p-0.5 rounded text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+            aria-label={`Save ${label}`}
+            className="min-h-8 min-w-8 lg:min-h-0 lg:min-w-0 p-0.5 rounded text-success hover:bg-[color-mix(in_srgb,var(--success)_15%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Check size={14} />
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="p-0.5 rounded text-muted-foreground hover:bg-secondary"
+            aria-label={`Cancel ${label} edit`}
+            className="min-h-8 min-w-8 lg:min-h-0 lg:min-w-0 p-0.5 rounded text-muted-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X size={14} />
           </button>
@@ -139,15 +147,18 @@ function InlineNumberField({ label, value, onSave, helpAnchor }: InlineNumberFie
   }
 
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex min-w-0 flex-col items-start gap-1 lg:flex-row lg:justify-between lg:items-center lg:gap-0">
       <span className="text-sm text-muted-foreground flex items-center gap-1.5">
         {label}
         {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </span>
       <button
         type="button"
-        onClick={() => setEditing(true)}
-        className="group flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors text-sm border-b border-dashed border-muted-foreground/50 hover:border-primary pb-[1px]"
+        onClick={() => {
+          setDraft(value ?? "");
+          setEditing(true);
+        }}
+        className="group flex items-center gap-1.5 font-mono lg:font-sans font-medium text-foreground hover:text-primary transition-colors text-sm border-b border-dashed border-[color-mix(in_srgb,var(--muted-foreground)_50%,transparent)] hover:border-primary pb-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title={`Click to edit ${label}`}
       >
         {value !== null ? `$${parseFloat(value).toFixed(2)}` : <span className="text-muted-foreground/70 italic">Add...</span>}
@@ -172,7 +183,17 @@ export default function TradeDetailPage() {
   const [tradePickerOpen, setTradePickerOpen] = useState(false);
   const [mergeTargets, setMergeTargets] = useState<import("@/lib/types").Trade[]>([]);
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("overview");
+  const [journalDirty, setJournalDirty] = useState(false);
+  const [mobileTradeId, setMobileTradeId] = useState(tradeId);
   const overflowRef = useRef<HTMLDivElement>(null);
+  const navigation = useTradeNavigation(tradeId, { isDirty: journalDirty });
+
+  if (mobileTradeId !== tradeId) {
+    setMobileTradeId(tradeId);
+    setMobileTab("overview");
+    setJournalDirty(false);
+  }
 
   useEffect(() => {
     if (!overflowOpen) return;
@@ -184,6 +205,26 @@ export default function TradeDetailPage() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [overflowOpen]);
+
+  useEffect(() => {
+    function handleTradeArrow(event: KeyboardEvent) {
+      if (!navigation.available || isLoading || event.defaultPrevented ||
+          event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+          correctModalOpen || tradePickerOpen || mergePreviewOpen || overflowOpen) return;
+      const target = event.target instanceof Element ? event.target : document.activeElement;
+      if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+      if (document.querySelector('[role="dialog"], [role="menu"], [aria-modal="true"]')) return;
+      if (event.key === "ArrowLeft" && navigation.canGoPrev && !navigation.isLoadingNext) {
+        event.preventDefault();
+        navigation.goPrev();
+      } else if (event.key === "ArrowRight" && navigation.canGoNext && !navigation.isLoadingNext) {
+        event.preventDefault();
+        void navigation.goNext();
+      }
+    }
+    window.addEventListener("keydown", handleTradeArrow);
+    return () => window.removeEventListener("keydown", handleTradeArrow);
+  }, [navigation, isLoading, correctModalOpen, tradePickerOpen, mergePreviewOpen, overflowOpen]);
 
   if (isLoading) {
     return (
@@ -203,7 +244,7 @@ export default function TradeDetailPage() {
           <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
         )}
         <Link
-          href="/dashboard/trades"
+          href={navigation.backHref}
           className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
         >
           Back to Trades
@@ -273,11 +314,11 @@ export default function TradeDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="trade-mobile-contrast flex flex-col gap-6">
       {/* Back link */}
-      <div>
+      <div className="hidden lg:flex items-center justify-between gap-4">
         <Link
-          href="/dashboard/trades"
+          href={navigation.backHref}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <svg
@@ -291,10 +332,23 @@ export default function TradeDetailPage() {
           </svg>
           Back to Trades
         </Link>
+        <TradeNavControls navigation={navigation} />
       </div>
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 solid-card p-5 shadow-sm overflow-visible">
+      <TradeMobileHeader
+        trade={trade}
+        realizedR={realizedR}
+        returnPct={returnPct}
+        holdingPeriod={formatHoldingPeriod(trade.opened_at, trade.closed_at)}
+        onCorrectTrade={() => setCorrectModalOpen(true)}
+        onMerge={() => setTradePickerOpen(true)}
+        backHref={navigation.backHref}
+        navigationControls={<TradeNavControls navigation={navigation} variant="compact" />}
+        positionIndicator={navigation.available ? <TradePositionIndicator navigation={navigation} /> : undefined}
+      />
+
+      {/* Desktop header */}
+      <div className="hidden lg:flex flex-col md:flex-row md:items-center justify-between gap-4 solid-card p-5 shadow-sm overflow-visible">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -408,7 +462,10 @@ export default function TradeDetailPage() {
       {trade.has_conflict && (
         <ConflictBanner
           onReview={() => {
-            document.getElementById("executions-table")?.scrollIntoView({ behavior: "smooth" });
+            setMobileTab("executions");
+            requestAnimationFrame(() => {
+              document.getElementById("executions-table")?.scrollIntoView({ behavior: "smooth" });
+            });
           }}
         />
       )}
@@ -420,11 +477,37 @@ export default function TradeDetailPage() {
       )}
 
 
+      <div className="sticky -top-4 -mt-4 pt-4 sm:-top-6 sm:-mt-6 sm:pt-6 z-10 bg-background lg:hidden">
+        <div className="flex rounded-xl border border-border bg-secondary p-1" role="tablist" aria-label="Trade view sections">
+          {MOBILE_TABS.map((tab) => (
+            <button
+              key={tab}
+              id={`trade-${tab}-tab`}
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === tab}
+              aria-controls={`trade-${tab}-pane`}
+              onClick={() => setMobileTab(tab)}
+              className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm ${mobileTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {tab === "overview" ? "Overview" : tab === "journal" ? "Journal" : <>Executions <span className="font-mono">({executions.filter((execution) => !execution.deleted).length})</span></>}
+              {tab === "journal" && journalDirty && <span role="img" aria-label="Unsaved journal changes" className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div
+        id="trade-overview-pane"
+        role="tabpanel"
+        aria-labelledby="trade-overview-tab"
+        className={`space-y-6 ${mobileTab === "overview" ? "block" : "hidden lg:block"}`}
+      >
       {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Media & Charts */}
         <div className="lg:col-span-2">
-          <MediaChartsCard trade={trade} executions={executions} className="h-full min-h-[400px] lg:min-h-[520px]" />
+          <MediaChartsCard trade={trade} executions={executions} className="h-full min-h-[360px] lg:min-h-[520px]" />
         </div>
 
         {/* Right Column: Performance Metrics */}
@@ -433,7 +516,7 @@ export default function TradeDetailPage() {
             <h2 className="text-base font-semibold text-foreground mb-4">
               Performance
             </h2>
-            <div className="space-y-3 flex-1">
+            <div className="grid grid-cols-2 gap-3 lg:block lg:space-y-3 flex-1">
               <InlineNumberField
                 label="Stop Loss"
                 value={trade.stop_loss}
@@ -448,8 +531,8 @@ export default function TradeDetailPage() {
               />
 
               {/* Divider */}
-              <div className="border-t border-border pt-3 space-y-3">
-                <div className="flex justify-between items-center">
+              <div className="contents lg:block lg:border-t lg:border-border lg:pt-3 lg:space-y-3">
+                <div className="hidden lg:flex justify-between items-center">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Realized R <MetricHelpLink anchor="realized-r" />
                   </span>
@@ -468,25 +551,25 @@ export default function TradeDetailPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
+                <div className="order-2 flex min-w-0 flex-col items-start gap-1 lg:order-none lg:flex-row lg:justify-between lg:items-center lg:gap-0">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Planned RRR <MetricHelpLink anchor="planned-rrr" />
                   </span>
-                  <span className="font-medium text-foreground">
+                  <span className="font-mono lg:font-sans font-medium text-foreground">
                     {plannedRrr !== null ? `1 : ${plannedRrr.toFixed(2)}` : "—"}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
+                <div className="order-1 flex min-w-0 flex-col items-start gap-1 lg:order-none lg:flex-row lg:justify-between lg:items-center lg:gap-0">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Initial Risk <MetricHelpLink anchor="initial-risk" />
                   </span>
-                  <span className="font-medium text-foreground">
+                  <span className="font-mono lg:font-sans font-medium text-foreground">
                     {initialRisk !== null ? `$${initialRisk.toFixed(2)}` : "—"}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
+                <div className="hidden lg:flex justify-between items-center">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Return % <MetricHelpLink anchor="return-pct" />
                   </span>
@@ -505,17 +588,17 @@ export default function TradeDetailPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
+                <div className="order-3 flex min-w-0 flex-col items-start gap-1 lg:order-none lg:flex-row lg:justify-between lg:items-center lg:gap-0">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Gross P&L <MetricHelpLink anchor="gross-pnl-trade" />
                   </span>
                   <span
-                    className={`font-medium ${
+                    className={`font-mono lg:font-sans font-medium ${
                       grossPnl === null
-                        ? "text-zinc-400"
+                        ? "text-muted-foreground"
                         : grossPnl >= 0
-                        ? "text-emerald-500 dark:text-emerald-400"
-                        : "text-red-500 dark:text-red-400"
+                        ? "text-success"
+                        : "text-danger"
                     }`}
                   >
                     {grossPnl !== null
@@ -524,17 +607,17 @@ export default function TradeDetailPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
+                <div className="order-4 flex min-w-0 flex-col items-start gap-1 lg:order-none lg:flex-row lg:justify-between lg:items-center lg:gap-0">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Net P&L <MetricHelpLink anchor="net-pnl-trade" />
                   </span>
                   <span
-                    className={`font-medium ${
+                    className={`font-mono lg:font-sans font-medium ${
                       netPnl === null
-                        ? "text-zinc-400"
+                        ? "text-muted-foreground"
                         : netPnl >= 0
-                        ? "text-emerald-500 dark:text-emerald-400"
-                        : "text-red-500 dark:text-red-400"
+                        ? "text-success"
+                        : "text-danger"
                     }`}
                   >
                     {netPnl !== null
@@ -543,7 +626,7 @@ export default function TradeDetailPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
+                <div className="hidden lg:flex justify-between items-center">
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Holding Period <MetricHelpLink anchor="holding-period" />
                   </span>
@@ -561,10 +644,17 @@ export default function TradeDetailPage() {
       <section className="w-full">
         <ExecutionSummaryCard trade={trade} executions={executions} />
       </section>
+      </div>
 
+      <div
+        id="trade-journal-pane"
+        role="tabpanel"
+        aria-labelledby="trade-journal-tab"
+        className={`space-y-6 ${mobileTab === "journal" ? "block" : "hidden lg:block"} ${journalDirty ? "pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0" : ""}`}
+      >
       {/* Qualitative Analysis & Metadata */}
       <section className="w-full">
-        <QualitativeMetadataPanel trade={trade} portfolioId={activePortfolioId ?? ""} />
+        <QualitativeMetadataPanel key={trade.id} trade={trade} portfolioId={activePortfolioId ?? ""} onDirtyChange={setJournalDirty} />
       </section>
 
       {/* Quick Notes */}
@@ -573,10 +663,18 @@ export default function TradeDetailPage() {
           <NoteList tradeId={trade.id} />
         </section>
       )}
+      </div>
 
       {/* Execution Legs Table */}
-      <section className="w-full" id="executions-table">
-        <ExecutionLegsTable tradeId={trade.id} trade={trade} />
+      <section
+        id="trade-executions-pane"
+        role="tabpanel"
+        aria-labelledby="trade-executions-tab"
+        className={`w-full ${mobileTab === "executions" ? "block" : "hidden lg:block"}`}
+      >
+        <div id="executions-table">
+          <ExecutionLegsTable tradeId={trade.id} trade={trade} />
+        </div>
       </section>
 
       {/* Correct Trade Modal */}

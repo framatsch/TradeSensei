@@ -19,7 +19,7 @@ import { MaeMfeScatterWidget, DurationVsPnlScatterWidget } from '@/components/re
 
 // Mock Recharts to avoid DOM measurement issues in Jest
 jest.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ScatterChart: () => <div data-testid="scatter-chart">ScatterChart</div>,
   Scatter: () => null,
   XAxis: () => null,

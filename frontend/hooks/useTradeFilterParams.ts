@@ -80,7 +80,7 @@ export function useTradeFilterParams() {
 
   const filters = readFiltersFromParams(searchParams);
 
-  const setFilter = useCallback((key: keyof TradeFilters, value: any) => {
+  const setFilter = useCallback(<K extends keyof TradeFilters>(key: K, value: TradeFilters[K]) => {
     const params = new URLSearchParams(searchParams.toString());
     
     if (value === undefined || value === null || value === "") {

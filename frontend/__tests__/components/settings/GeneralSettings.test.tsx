@@ -22,6 +22,9 @@ import { toast } from "react-hot-toast";
 import "@testing-library/jest-dom";
 
 jest.mock("@/hooks/useSettings");
+jest.mock("next-themes", () => ({
+  useTheme: () => ({ theme: "system", setTheme: jest.fn() }),
+}));
 jest.mock("react-hot-toast", () => ({
   toast: {
     success: jest.fn(),
@@ -44,6 +47,7 @@ describe("GeneralSettings", () => {
         chart_candles_before: 15,
         chart_candles_after: 5,
         chart_show_post_exit: true,
+        chart_intervals: ["1h", "1d"],
         home_route: "/dashboard/trades",
       },
       isLoading: false,
@@ -99,7 +103,9 @@ describe("GeneralSettings", () => {
         chart_candles_before: 30,
         chart_candles_after: 5,
         chart_show_post_exit: true,
+        chart_intervals: ["1h", "1d"],
         home_route: "/dashboard/trades",
+        theme: "system",
       });
       expect(toast.success).toHaveBeenCalledWith("Settings saved successfully");
     });

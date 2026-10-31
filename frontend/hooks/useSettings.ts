@@ -76,10 +76,9 @@ export function useSettings() {
 export function useUpdateSettings() {
   const qc = useQueryClient();
 
-  return useMutation<UserSettings, Error, UserSettingsUpdate>({
+  return useMutation<UserSettings, Error, UserSettingsUpdate, { previous: UserSettings | undefined }>({
     mutationFn: async (update: UserSettingsUpdate) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await updateSettingsApiV1UsersMeSettingsPut({ body: update as any });
+      const { data, error } = await updateSettingsApiV1UsersMeSettingsPut({ body: update });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return data.data as UserSettings;
     },
@@ -87,19 +86,19 @@ export function useUpdateSettings() {
       await qc.cancelQueries({ queryKey: SETTINGS_KEY });
       const previous = qc.getQueryData<UserSettings>(SETTINGS_KEY);
       qc.setQueryData<UserSettings>(SETTINGS_KEY, (old) => {
-        const base = (old ?? DEFAULT_SETTINGS) as UserSettings;
+        const base = old ?? DEFAULT_SETTINGS;
         return {
           ...base,
-          ...(update as Partial<UserSettings>),
-          features: (update as any)?.features ?? base.features,
-        } as UserSettings;
+          ...update,
+          features: update.features ?? base.features,
+          chart_intervals: update.chart_intervals ?? base.chart_intervals,
+        };
       });
       return { previous };
     },
     onError: (_err, _update, context) => {
-      const ctx = context as { previous?: UserSettings } | undefined;
-      if (ctx?.previous) {
-        qc.setQueryData(SETTINGS_KEY, ctx.previous);
+      if (context?.previous) {
+        qc.setQueryData(SETTINGS_KEY, context.previous);
       }
     },
     onSuccess: (data) => {

@@ -81,13 +81,13 @@ describe("CheckinSettings", () => {
 
     expect(screen.getByPlaceholderText("Symbol (e.g. SPX)")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Name")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("TradingView URL")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("External Link URL (e.g. TradingView)")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Add Market Index" }));
 
     expect(screen.getByPlaceholderText("Symbol (e.g. SPX)")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Name")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("TradingView URL")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("External Link URL (e.g. TradingView)")).toBeInTheDocument();
   });
 
   it("deleting market index calls delete hook", () => {

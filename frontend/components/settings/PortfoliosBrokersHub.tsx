@@ -153,14 +153,12 @@ export function PortfoliosBrokersHub() {
 
   const defaultPortfolioId = settings?.default_portfolio_id;
 
-  useEffect(() => {
-    if (!initialized && portfolios && portfolios.length === 1) {
+  if (!initialized && portfolios) {
+    if (portfolios.length === 1) {
       setExpandedPortfolioIds(new Set([portfolios[0].id]));
-      setInitialized(true);
-    } else if (!initialized && portfolios && portfolios.length !== 1) {
-      setInitialized(true);
     }
-  }, [portfolios, initialized]);
+    setInitialized(true);
+  }
 
   useEffect(() => {
     const cb = searchParams.get("schwab_callback");

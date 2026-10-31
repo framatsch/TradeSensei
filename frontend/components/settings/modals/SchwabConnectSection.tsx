@@ -48,8 +48,8 @@ export function SchwabConnectSection({ account }: Props) {
       return data.data;
     },
     refetchInterval: (query) => {
-      const isConnected = (query.state.data as any)?.connected;
-      const oauthMode = (query.state.data as any)?.schwab_oauth_mode;
+      const isConnected = query.state.data?.connected;
+      const oauthMode = query.state.data?.schwab_oauth_mode;
       return (!isConnected && isAuthorizing && oauthMode === "callback") ? 5000 : false;
     },
   });
@@ -205,7 +205,7 @@ export function SchwabConnectSection({ account }: Props) {
           </button>
           
           <p className="text-xs text-muted-foreground mt-3">
-            Note: Schwab refresh tokens expire every 7 days. You will need to click 'Connect Schwab' again when syncing fails with a "reconnect required" message.
+            Note: Schwab refresh tokens expire every 7 days. You will need to click &apos;Connect Schwab&apos; again when syncing fails with a &quot;reconnect required&quot; message.
           </p>
         </div>
       )}

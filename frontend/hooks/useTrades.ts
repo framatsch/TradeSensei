@@ -67,6 +67,8 @@ export interface UseTradesOptions {
   limit?: number;
   filters?: TradeFilters;
   sort?: TradeSortConfig;
+  /** Disable automatic fetching for on-demand detail navigation. */
+  enabled?: boolean;
 }
 
 // ─── Bulk operation payload types ────────────────────────────────────────────
@@ -112,6 +114,7 @@ export function useTrades({
   limit = 20,
   filters,
   sort,
+  enabled = true,
 }: UseTradesOptions = {}) {
   return useQuery<CursorPage<Trade>, Error>({
     queryKey: ["trades", portfolioId, cursor, limit, filters, sort],
@@ -143,7 +146,11 @@ export function useTrades({
           sort_dir: sort?.sort_dir ?? undefined,
           annotation_filters:
             filters?.annotation_filters && filters.annotation_filters.length > 0
-              ? JSON.stringify(filters.annotation_filters.map(({ _key: _, ...rest }) => rest))
+              ? JSON.stringify(filters.annotation_filters.map((row) => {
+                  const filter = { ...row };
+                  delete filter._key;
+                  return filter;
+                }))
               : undefined,
           execution_state: filters?.execution_state?.length ? filters.execution_state : undefined,
           has_unlinked_executions: filters?.has_unlinked_executions ?? undefined,
@@ -152,7 +159,7 @@ export function useTrades({
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
       return (data as unknown as ResponseEnvelope<CursorPage<Trade>>).data;
     },
-    enabled: !!portfolioId,
+    enabled: !!portfolioId && enabled,
     staleTime: 30 * 1000,
   });
 }

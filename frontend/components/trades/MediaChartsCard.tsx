@@ -59,6 +59,9 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Screenshot viewer"
       onClick={onClose}
     >
       {/* Top bar */}
@@ -249,11 +252,9 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
   const screenshots = trade.image_urls ?? [];
 
   // Close lightbox if the currently viewed image is deleted
-  useEffect(() => {
-    if (lightboxSrc && !screenshots.includes(lightboxSrc)) {
-      setLightboxSrc(null);
-    }
-  }, [screenshots, lightboxSrc]);
+  if (lightboxSrc && !screenshots.includes(lightboxSrc)) {
+    setLightboxSrc(null);
+  }
 
   return (
     <>
@@ -329,7 +330,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
                     }
                   }}
                   disabled={deleting}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md bg-black/60 text-white hover:bg-red-600/80 transition-all"
+                  className="absolute top-2 right-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 p-1.5 rounded-md bg-black/60 text-white hover:bg-red-600/80 transition-all"
                   title="Delete screenshot"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -338,7 +339,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
                   </svg>
                 </button>
                 {/* Expand hint */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity pointer-events-none">
                   <div className="bg-black/40 rounded-full p-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-5 h-5">
                       <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />

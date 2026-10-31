@@ -24,6 +24,8 @@
 import { test, expect, chromium } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import { z } from 'zod';
+import { tradeMobileTest, expectNoTradeOverflow } from '../fixtures/trade-mobile-layout';
 
 const SEED_STATE_FILE = path.join(__dirname, '../.auth/seed-state.json');
 const seedState = new Proxy(
@@ -153,7 +155,7 @@ test.describe('Trade Detail', () => {
     await expect(page.locator('main')).toBeVisible();
     // Assert at least one direction badge (LONG or SHORT) is visible
     await expect(
-      page.getByText('LONG').or(page.getByText('SHORT')).first()
+      page.getByText('LONG').or(page.getByText('SHORT')).filter({ visible: true }).first()
     ).toBeVisible();
   });
 
@@ -246,7 +248,7 @@ test.describe('Trade Detail', () => {
     // Assert all four labels visible
     await expect(page.getByText('Gross P&L')).toBeVisible();
     await expect(page.getByText('Net P&L')).toBeVisible();
-    await expect(page.getByText('Return %')).toBeVisible();
+    await expect(page.locator('#trade-overview-pane').getByText('Return %', { exact: true })).toBeVisible();
     await expect(page.getByText('Holding Period')).toBeVisible();
   });
 
@@ -314,7 +316,7 @@ test.describe('Add Execution Modal', () => {
     // Wait for execution table to load
     await page.waitForSelector('table tbody tr', { timeout: 15_000 });
 
-    let tbodyRows = page.locator('table tbody tr');
+    const tbodyRows = page.locator('table tbody tr');
     // Assert we have exactly 3 rows: 1 auto-created + 2 manual from seeding
     await expect(tbodyRows).toHaveCount(3, { timeout: 15_000 });
     const initialCount = 3;
@@ -570,10 +572,10 @@ test.describe('Execution Context Menu', () => {
     await page.waitForTimeout(300); // Allow dropdown animation
 
     // Assert dropdown shows all options - look for them anywhere on the page
-    await expect(page.getByText('Edit').first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Move to...')).toBeVisible();
-    await expect(page.getByText('Detach as new Trade')).toBeVisible();
-    await expect(page.getByText('Delete').first()).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Edit', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('menuitem', { name: 'Move to...', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Detach as new Trade', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Delete', exact: true })).toBeVisible();
   });
 
   // ── TC-086: Detach execution decreases table row count ──
@@ -694,7 +696,7 @@ test.describe('Trades List — Empty State', () => {
 
   test('TC-058 empty state message is shown when user has no trades', async () => {
     await expect(
-      sharedPage.getByText('No trades found. Import trades to get started.')
+      sharedPage.getByText('No trades found. Import trades to get started.').filter({ visible: true })
     ).toBeVisible({ timeout: 15_000 });
   });
 
@@ -706,3 +708,142 @@ test.describe('Trades List — Empty State', () => {
     await expect(nextBtn).toBeHidden({ timeout: 10_000 });
   });
 });
+
+tradeMobileTest.describe('@trade-mobile-layout mobile list', () => {
+  tradeMobileTest.use({ viewport: { width: 375, height: 812 }, storageState: { cookies: [], origins: [] } });
+  tradeMobileTest.setTimeout(90_000);
+
+  tradeMobileTest('cards support sort, selection, live filter sheet and detail navigation', async ({ page, tradeMobile }) => {
+    for (let index = 0; index < 9; index++) await tradeMobile.createTrade(`NAV${String(index).padStart(2, '0')}`);
+    await page.goto('/dashboard/trades?opened_at_from=2000-01-01&limit=10&sort_by=symbol&sort_dir=asc');
+    const cards = page.getByTestId('trade-card-list');
+    await expect(cards.locator('article')).toHaveCount(10);
+    await expect(page.locator('table')).toBeHidden();
+    const sort = page.getByRole('combobox', { name: 'Sort trades' });
+    await expect(sort).toHaveValue('symbol:asc');
+    await expect(sort.locator('option')).toHaveCount(8);
+    await expectNoTradeOverflow(page);
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await expectNoTradeOverflow(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+
+    await page.getByRole('button', { name: 'Next ›', exact: true }).click();
+    await expect(page.getByText('Page 2', { exact: true }).filter({ visible: true })).toBeVisible();
+    const sortedResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.includes('/api/v1/portfolios/') && url.pathname.endsWith('/trades') &&
+        url.searchParams.get('sort_by') === 'pnl' && url.searchParams.get('sort_dir') === 'desc' && !url.searchParams.has('cursor');
+    });
+    await sort.selectOption({ label: 'P&L: highest' });
+    const response = await sortedResponse;
+    expect(response.ok()).toBeTruthy();
+    const sorted = z.object({ data: z.object({ items: z.array(z.object({ id: z.string(), pnl: z.string().nullable() })) }) }).parse(await response.json()).data.items;
+    const pnls = sorted.flatMap((trade) => trade.pnl === null ? [] : [Number(trade.pnl)]);
+    expect(pnls).toEqual([...pnls].sort((a, b) => b - a));
+    await expect.poll(() => cards.getByRole('link').evaluateAll((links) => links.map((link) => link.getAttribute('href'))))
+      .toEqual(sorted.map((trade) => `/dashboard/trades/${trade.id}`));
+    await expect(page).toHaveURL(/sort_by=pnl&sort_dir=desc/);
+    await expect(page.getByText('Page 1', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '‹ Prev', exact: true })).toBeDisabled();
+
+    const listUrl = page.url();
+    await page.getByRole('button', { name: 'Select', exact: true }).click();
+    await cards.getByRole('link').nth(0).click();
+    const bar = page.getByRole('toolbar', { name: 'Selected trade actions' });
+    await expect(bar.locator('p')).toHaveText('1 selected');
+    await expect(bar.getByRole('button', { name: 'Merge', exact: true })).toHaveCount(0);
+    await cards.getByRole('link').nth(1).click();
+    await expect(bar.locator('p')).toHaveText('2 selected');
+    for (const name of ['Merge', 'Playbook', 'Tags', 'Delete']) await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
+    await expect(page).toHaveURL(listUrl);
+    const box = await bar.boundingBox();
+    if (!box) throw new Error('Mobile bulk bar is not rendered.');
+    expect(box.y + box.height).toBeCloseTo(812, 0);
+    expect(box.width).toBeCloseTo(375, 0);
+    await bar.getByRole('button', { name: 'Playbook', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Assign Playbook', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(bar).toBeHidden();
+    await expect(cards.getByRole('checkbox')).toHaveCount(0);
+
+    await page.getByTestId('trade-mobile-filter-toolbar').getByRole('button', { name: /^Filter/ }).click();
+    const sheet = page.getByRole('dialog', { name: 'Filters', exact: true });
+    await sheet.getByRole('radio', { name: 'Winners', exact: true }).check();
+    await expect(page).toHaveURL(/pnl_positive=true/);
+    await expect(sheet.getByRole('tab', { name: 'Trade 1', exact: true })).toBeVisible();
+    await sheet.getByRole('tab', { name: /^Time/ }).click();
+    await expect(sheet.getByLabel('Opened From', { exact: true })).toHaveValue('2000-01-01');
+    await sheet.getByRole('tab', { name: 'Journal', exact: true }).click();
+    await expect(sheet.getByRole('combobox', { name: 'Playbook', exact: true })).toBeVisible();
+    await sheet.getByRole('tab', { name: 'Account', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Account', exact: true }).click();
+    await expect(sheet.getByRole('button', { name: 'Browser IBKR', exact: true })).toBeInViewport();
+    await expectNoTradeOverflow(page);
+    await sheet.getByRole('button', { name: 'Clear all', exact: true }).press('Enter');
+    for (const name of ['Trade', 'Time', 'Journal', 'Account']) await expect(sheet.getByRole('tab', { name, exact: true })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Save View', exact: true })).toBeVisible();
+    await expect(page).not.toHaveURL(/pnl_positive=|opened_at_from=/);
+    await sheet.getByRole('button', { name: 'Show results', exact: true }).click();
+    await expect(sheet).toBeHidden();
+    const href = await cards.getByRole('link').first().getAttribute('href');
+    if (!href) throw new Error('Mobile card has no detail link.');
+    await cards.locator('article').first().click();
+    await expect(page).toHaveURL(href);
+    await expect(page.getByRole('button', { name: 'Next trade', exact: true })).toBeVisible();
+    await expectNoTradeOverflow(page);
+  });
+});
+
+for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 }]) {
+  tradeMobileTest.describe(`@trade-mobile-layout navigation at ${viewport.width}px`, () => {
+    tradeMobileTest.use({ viewport, storageState: { cookies: [], origins: [] } });
+    tradeMobileTest.setTimeout(90_000);
+
+    tradeMobileTest('crosses a page boundary and restores the filtered list', async ({ page, tradeMobile }) => {
+      const trades = [...tradeMobile.trades];
+      for (let index = 0; index < 9; index++) trades.push(await tradeMobile.createTrade(`NAV${String(index).padStart(2, '0')}`));
+      const ordered = trades.sort((a, b) => a.symbol.localeCompare(b.symbol));
+      const query = 'direction=LONG&sort_by=symbol&sort_dir=asc&limit=10';
+      await page.goto(`/dashboard/trades?${query}`);
+      const list = viewport.width < 1024 ? page.getByTestId('trade-card-list') : page.locator('table');
+      await list.getByRole('link', { name: ordered[9].symbol, exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Next trade', exact: true })).toBeEnabled();
+      const context: unknown = await page.evaluate(() => JSON.parse(sessionStorage.getItem('tradesensei.tradeListContext') ?? 'null'));
+      const cursor = z.object({ pages: z.array(z.object({ nextCursor: z.string().nullable() })) }).parse(context).pages.at(-1)?.nextCursor;
+      if (!cursor) throw new Error('Stored list context has no next-page cursor.');
+      const boundaryRequest = page.waitForRequest((request) => {
+        const url = new URL(request.url());
+        return request.method() === 'GET' && url.pathname.includes('/api/v1/portfolios/') && url.pathname.endsWith('/trades');
+      });
+      if (viewport.width < 1024) await page.getByRole('button', { name: 'Next trade', exact: true }).click();
+      else await page.keyboard.press('ArrowRight');
+      const params = new URL((await boundaryRequest).url()).searchParams;
+      expect(Object.fromEntries(['direction', 'sort_by', 'sort_dir', 'limit', 'cursor'].map((key) => [key, params.get(key)])))
+        .toEqual({ direction: 'LONG', sort_by: 'symbol', sort_dir: 'asc', limit: '10', cursor });
+      await expect(page).toHaveURL(`/dashboard/trades/${ordered[10].id}`);
+      await expect(page.getByRole('heading', { name: ordered[10].symbol, exact: true })).toBeVisible();
+      await expect(page.getByTitle(/^Position in your filtered trade list/).filter({ visible: true })).toHaveText(/^11 \/ /);
+      let previousPageRequests = 0;
+      page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (url.pathname.includes('/api/v1/portfolios/') && url.pathname.endsWith('/trades')) previousPageRequests++;
+      });
+      await page.getByRole('button', { name: 'Previous trade', exact: true }).click();
+      await expect(page).toHaveURL(`/dashboard/trades/${ordered[9].id}`);
+      await expect(page.getByRole('heading', { name: ordered[9].symbol, exact: true })).toBeVisible();
+      expect(previousPageRequests).toBe(0);
+      await page.getByRole('link', { name: 'Back to Trades', exact: true }).click();
+      await expect.poll(() => new URL(page.url()).searchParams.get('direction')).toBe('LONG');
+      await expect.poll(() => new URL(page.url()).searchParams.get('sort_by')).toBe('symbol');
+      await expect.poll(() => new URL(page.url()).searchParams.get('limit')).toBe('10');
+      await expect(list.getByRole('link', { name: ordered[0].symbol, exact: true })).toBeVisible();
+
+      await page.addInitScript(() => sessionStorage.removeItem('tradesensei.tradeListContext'));
+      await page.goto(`/dashboard/trades/${ordered[0].id}`);
+      await expect(page.getByRole('heading', { name: ordered[0].symbol, exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Next trade', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Previous trade', exact: true })).toHaveCount(0);
+    });
+  });
+}

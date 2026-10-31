@@ -24,6 +24,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
 import { useMetrics } from "@/hooks/useMetrics";
 import { useDailyPnl } from "@/hooks/useDailyPnl";
@@ -72,9 +73,9 @@ export default function DashboardPage() {
           <p className="text-lg font-medium mb-2">No trades yet</p>
           <p className="text-sm">
             Import your first trades from the{" "}
-            <a href="/dashboard/trades/import" className="text-primary hover:underline">
+            <Link href="/dashboard/trades/import" className="text-primary hover:underline">
               Import
-            </a>{" "}
+            </Link>{" "}
             page.
           </p>
         </div>

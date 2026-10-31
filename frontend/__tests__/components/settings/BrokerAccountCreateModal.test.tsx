@@ -93,8 +93,8 @@ describe("BrokerAccountCreateModal", () => {
   it("shows IBKR credential fields when type is IBKR", () => {
     renderComponent();
 
-    expect(screen.getByTestId("credential-IBKR_FLEX_TOKEN")).toBeInTheDocument();
-    expect(screen.getByTestId("credential-IBKR_FLEX_QUERY_ID")).toBeInTheDocument();
+    expect(screen.getByLabelText("Flex Token")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Flex Query ID")).toHaveAttribute("type", "password");
   });
 
   it("shows Schwab credential fields when type is changed to Schwab", () => {
@@ -104,8 +104,9 @@ describe("BrokerAccountCreateModal", () => {
       target: { value: "schwab" },
     });
 
-    expect(screen.getByTestId("credential-SCHWAB_APP_KEY")).toBeInTheDocument();
-    expect(screen.getByTestId("credential-SCHWAB_APP_SECRET")).toBeInTheDocument();
+    expect(screen.getByLabelText("App Key")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("App Secret")).toHaveAttribute("type", "password");
+    expect(screen.queryByLabelText("Flex Token")).not.toBeInTheDocument();
   });
 
   it("hides credential section when type is Manual", () => {
@@ -115,7 +116,7 @@ describe("BrokerAccountCreateModal", () => {
       target: { value: "manual" },
     });
 
-    expect(screen.queryByTestId("credential-IBKR_FLEX_TOKEN")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Flex Token")).not.toBeInTheDocument();
     expect(screen.getByText("No credentials required for manual accounts")).toBeInTheDocument();
   });
 
@@ -133,18 +134,24 @@ describe("BrokerAccountCreateModal", () => {
 
     renderComponent();
 
+    fireEvent.change(screen.getByLabelText("Flex Token"), { target: { value: "test-token" } });
+    fireEvent.change(screen.getByLabelText("Flex Query ID"), { target: { value: "test-query" } });
     fireEvent.click(screen.getByTestId("test-connection-button"));
 
     await waitFor(() => {
       expect(clientGen.client.post).toHaveBeenCalledWith(
-        expect.objectContaining({
-          url: "/api/v1/accounts/test-connection",
-        })
+        {
+          url: "/api/v1/portfolios/port-1/accounts/test-connection",
+          body: {
+            type: "ibkr",
+            properties: { ibkr_flex_token: "test-token", ibkr_flex_query_id: "test-query" },
+          },
+        }
       );
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("test-connection-success")).toBeInTheDocument();
+      expect(screen.getByText("Connection successful")).toBeInTheDocument();
     });
   });
 
@@ -180,17 +187,29 @@ describe("BrokerAccountCreateModal", () => {
     fireEvent.change(screen.getByTestId("account-name-input"), {
       target: { value: "Test Account" },
     });
+    fireEvent.change(screen.getByLabelText("Flex Token"), { target: { value: "test-token" } });
+    fireEvent.change(screen.getByLabelText("Flex Query ID"), { target: { value: "test-query" } });
+    fireEvent.change(screen.getByLabelText("Sync Start Date"), { target: { value: "2026-01-05" } });
 
     fireEvent.click(screen.getByTestId("submit-create-account"));
 
     await waitFor(() => {
       expect(api.createAccountApiV1PortfoliosPortfolioIdAccountsPost).toHaveBeenCalledWith(
-        expect.objectContaining({
+        {
           path: { portfolio_id: "port-1" },
-          body: expect.objectContaining({
+          body: {
             name: "Test Account",
-          }),
-        })
+            account_number: undefined,
+            type: "ibkr",
+            properties: { ibkr_flex_token: "test-token", ibkr_flex_query_id: "test-query" },
+            portfolio_id: "port-1",
+            settings: {
+              sync_days: 30,
+              flex_from_date_preset: "ytd",
+              flex_custom_from_date: "20260105",
+            },
+          },
+        }
       );
     });
 

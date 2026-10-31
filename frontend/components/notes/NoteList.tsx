@@ -173,7 +173,7 @@ export function NoteList({ tradeId }: Props) {
                 className="group relative bg-zinc-50 dark:bg-zinc-900/60 border border-border rounded-xl p-4"
               >
                 {/* Action buttons */}
-                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-3 right-3 flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity">
                   <button
                     onClick={() => startEdit(note.id, note.content, note.emotion)}
                     className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-blue-900/20 transition-colors"

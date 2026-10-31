@@ -17,6 +17,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ImportForm } from "@/components/imports/ImportForm";
+import { syncAccountApiV1BrokerSyncAccountIdPost } from "@/lib/api";
 import { client } from "@/lib/api/client.gen";
 import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
 import type { Account } from "@/lib/types";
@@ -33,23 +34,26 @@ jest.mock("@/stores/portfolioStore", () => ({
 
 jest.mock("@/lib/api/client.gen", () => ({
   client: {
-    post: jest.fn().mockResolvedValue({
-      data: {
-        data: {
-          imported_count: 0,
-          skipped_count: 0,
-          errors: [],
-        },
-      },
-      error: null,
-    }),
     getConfig: jest.fn().mockReturnValue({ baseUrl: "" }),
   },
 }));
 
+jest.mock("@/lib/api", () => ({
+  syncAccountApiV1BrokerSyncAccountIdPost: jest.fn().mockResolvedValue({
+    data: {
+      data: {
+        imported_count: 0,
+        skipped_count: 0,
+        errors: [],
+      },
+    },
+    error: null,
+  }),
+}));
+
 const mockUseAccounts = useAccounts as jest.Mock;
 const mockUseUpdateAccount = useUpdateAccount as jest.Mock;
-const mockClientPost = client.post as jest.Mock;
+const mockSyncAccount = jest.mocked(syncAccountApiV1BrokerSyncAccountIdPost);
 
 function makeAccount(overrides: Partial<Account>): Account {
   return {
@@ -105,13 +109,15 @@ describe("ImportForm sync parameter mapping", () => {
 
     renderForm();
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "ibkr-account" } });
+    expect(screen.getByDisplayValue("IBKR Main (IBKR)")).toHaveValue("ibkr-account");
     fireEvent.click(screen.getByRole("button", { name: "Sync IBKR Trades" }));
 
-    await waitFor(() => expect(mockClientPost).toHaveBeenCalled());
-    const call = mockClientPost.mock.calls[0][0] as { url: string };
-    expect(call.url).toContain("/api/v1/broker/sync/ibkr-account?days=");
-    expect(call.url).toContain("&from_date=20260101");
+    await waitFor(() => expect(mockSyncAccount).toHaveBeenCalledWith({
+      client,
+      path: { account_id: "ibkr-account" },
+      query: { days: 199, from_date: "20260101" },
+    }));
+    expect(await screen.findByRole("button", { name: "Start new sync" })).toBeInTheDocument();
   });
 
   it("sends days only for Schwab sync", async () => {
@@ -123,12 +129,14 @@ describe("ImportForm sync parameter mapping", () => {
 
     renderForm();
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "schwab-account" } });
+    expect(screen.getByDisplayValue("Schwab IRA (Schwab)")).toHaveValue("schwab-account");
     fireEvent.click(screen.getByRole("button", { name: "Sync Schwab Trades" }));
 
-    await waitFor(() => expect(mockClientPost).toHaveBeenCalled());
-    const call = mockClientPost.mock.calls[0][0] as { url: string };
-    expect(call.url).toContain("/api/v1/broker/sync/schwab-account?days=");
-    expect(call.url).not.toContain("from_date=");
+    await waitFor(() => expect(mockSyncAccount).toHaveBeenCalledWith({
+      client,
+      path: { account_id: "schwab-account" },
+      query: { days: 199 },
+    }));
+    expect(await screen.findByRole("button", { name: "Start new sync" })).toBeInTheDocument();
   });
 });

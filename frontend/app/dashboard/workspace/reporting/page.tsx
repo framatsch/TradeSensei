@@ -134,7 +134,6 @@ export default function WorkspaceReportingPage() {
     [returnDistribution],
   );
 
-  const isLoading = summaryLoading;
   const isInitialLoading = summaryLoading && !summary;
 
   return (

@@ -22,20 +22,20 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { mergeTradesApiV1PortfoliosPortfolioIdTradesMergePost } from "@/lib/api/index";
 import { usePortfolioStore } from "@/stores/portfolioStore";
-import type { MergeTradesRequest, Trade } from "@/lib/types";
+import type { MergeTradesRequest, TradeRead } from "@/lib/api/types.gen";
 
 /** Merge two or more trades into a single surviving trade. */
 export function useMergeTrades() {
   const qc = useQueryClient();
   const portfolioId = usePortfolioStore((state) => state.activePortfolioId);
-  return useMutation<Trade, Error, MergeTradesRequest>({
+  return useMutation<TradeRead, Error, MergeTradesRequest>({
     mutationFn: async (payload) => {
       const { data, error } = await mergeTradesApiV1PortfoliosPortfolioIdTradesMergePost({
         path: { portfolio_id: portfolioId! },
         body: payload,
       });
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
-      return (data as any).data as Trade;
+      return data.data;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["trades"] });

@@ -44,7 +44,7 @@ test.describe('Trade Creation - Advanced Legs', () => {
     // Should redirect to trades list or trade details
     // Check for success indicator like the symbol appearing or "Trade details" text
     await expect(page).toHaveURL(/\/dashboard\/trades/);
-    await expect(page.getByText('AAPL')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'AAPL', level: 1, exact: true })).toBeVisible({ timeout: 10000 });
   });
 
   // 5.2 Add Playwright test to verify "Advanced" mode toggle makes main fields read-only and displays the dynamic legs list.
@@ -134,22 +134,17 @@ test.describe('Trade Creation - Advanced Legs', () => {
     // Submit form
     await page.click('button[type="submit"]');
 
-    // Should redirect to trades list
-    await expect(page).toHaveURL(/\/dashboard\/trades/);
-    
-    // Wait for trade list and click the trade
-    await page.getByText('MSFT').first().click();
-    
-    // Wait for detail view
+    // Creation opens the detail view directly.
     await expect(page).toHaveURL(/\/dashboard\/trades\/[a-zA-Z0-9-]+/);
+    await expect(page.getByRole('heading', { name: 'MSFT', level: 1, exact: true })).toBeVisible();
     
     // Verify legs in execution table (should be 2 rows + perhaps an empty one)
-    const rows = page.locator('table tbody tr');
+    const rows = page.locator('#executions-table table tbody tr');
     // Ensure we have at least the two legs we added
     await expect(rows).toHaveCount(2);
     
-    await expect(page.getByText('300').first()).toBeVisible();
-    await expect(page.getByText('310').first()).toBeVisible();
+    await expect(rows.getByRole('cell', { name: '$300.00', exact: true })).toBeVisible();
+    await expect(rows.getByRole('cell', { name: '$310.00', exact: true })).toBeVisible();
   });
 
 });

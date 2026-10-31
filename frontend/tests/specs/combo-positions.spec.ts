@@ -33,7 +33,7 @@ test.describe('Combo Positions', () => {
     await page.goto(`/dashboard/trades/${seedState.comboTestTradeId}`);
     await expect(page.getByRole('heading', { name: 'AAPL' })).toBeVisible();
 
-    const header = page.locator('h1').first().locator('../..');
+    const header = page.getByRole('heading', { name: 'AAPL', level: 1, exact: true }).locator('../..');
     await expect(header.getByText('COMBO').first()).toBeVisible();
     await expect(header.getByText('LONG')).toHaveCount(0);
     await expect(header.getByText('SHORT')).toHaveCount(0);
@@ -112,7 +112,8 @@ test.describe('Combo Positions', () => {
     await page.getByRole('button', { name: 'Create Trade' }).click();
 
     await expect(page).toHaveURL(/\/dashboard\/trades\/[0-9a-f-]{36}/i, { timeout: 15000 });
-    await expect(page.getByText('COMBO').first()).toBeVisible();
+    const header = page.getByRole('heading', { name: 'MSFT', level: 1, exact: true }).locator('../..');
+    await expect(header.getByText('COMBO', { exact: true })).toBeVisible();
   });
 
   test('TC-107 — imported closed vertical shows open/close legs and two summary rows', async ({ page }) => {
@@ -122,7 +123,7 @@ test.describe('Combo Positions', () => {
     await page.goto(`/dashboard/trades/${seedState.comboImportedClosedTradeId}`);
     await expect(page.getByRole('heading', { name: 'QQQ' })).toBeVisible();
 
-    const header = page.locator('h1').first().locator('../..');
+    const header = page.getByRole('heading', { name: 'QQQ', level: 1, exact: true }).locator('../..');
     await expect(header.getByText('COMBO').first()).toBeVisible();
 
     await expect(page.getByRole('columnheader', { name: 'Open/Close' })).toBeVisible();

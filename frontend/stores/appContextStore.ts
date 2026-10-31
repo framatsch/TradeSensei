@@ -24,8 +24,8 @@ export interface AppContextState {
   hydrate: () => void;
 }
 
-const isValidContext = (ctx: any): ctx is AppContext => {
-  return ['portfolio', 'library', 'checkin', 'none'].includes(ctx);
+const isValidContext = (ctx: unknown): ctx is AppContext => {
+  return typeof ctx === 'string' && ['portfolio', 'library', 'checkin', 'none'].includes(ctx);
 };
 
 export const useAppContextStore = create<AppContextState>((set) => ({

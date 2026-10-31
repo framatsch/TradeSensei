@@ -15,11 +15,10 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Edit2 } from "lucide-react";
 import { MarkdownRenderer } from "../notes/MarkdownRenderer";
 import useFeatureFlag from "@/hooks/useFeatureFlag";
-import { useSettings } from "@/hooks/useSettings";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
 import { useGetAnnotationDefinitions } from "@/hooks/useAnnotationDefinitions";
 import {
@@ -35,11 +34,11 @@ import { usePlaybooks } from "@/hooks/usePlaybooks";
 import type { AnnotationType, Trade } from "@/lib/types";
 import { TaxonomySelector } from "./TaxonomySelector";
 import { AnnotationInputs } from "./AnnotationInputs";
-import Link from "next/link";
 
 interface QualitativeMetadataPanelProps {
   trade: Trade;
   portfolioId?: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -52,11 +51,12 @@ function normalizeAnnotationValue(
   value: unknown,
   type: AnnotationType
 ): string | number | boolean | null | undefined {
-  if (value === null || value === undefined) return value as null | undefined;
+  if (value === null || value === undefined) return value;
   if (typeof value === "string" && (type === "float" || type === "int")) {
     return Number(value);
   }
-  return value as string | number | boolean;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
+  return undefined;
 }
 
 /** Maps a trade's persisted annotation assignments into the draft-state shape keyed by definition id. */
@@ -70,7 +70,7 @@ function buildAnnotationDraft(trade: Trade): Record<string, string | number | bo
   return draft;
 }
 
-export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMetadataPanelProps) {
+export function QualitativeMetadataPanel({ trade, portfolioId, onDirtyChange }: QualitativeMetadataPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
   const quickNotesEnabled = useFeatureFlag("enable_quick_notes");
 
@@ -86,19 +86,11 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
   const updateAnnotation = useUpdateTradeAnnotation();
 
   // Draft state
+  const [draftTradeId, setDraftTradeId] = useState(trade.id);
   const [draftJournal, setDraftJournal] = useState(trade.journal ?? "");
   const [journalTab, setJournalTab] = useState<"write" | "preview">("preview");
   // IDs of Quick Notes captured at import time — deleted on Save.
   const [importedNoteIds, setImportedNoteIds] = useState<string[]>([]);
-  useEffect(() => {
-    setDraftJournal(trade.journal ?? "");
-    setJournalTab("preview");
-    setDraftPlaybookId(trade.playbook_id);
-    setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
-    setDraftAnnotations(buildAnnotationDraft(trade));
-    setImportedNoteIds([]);
-  }, [trade.id]);
-
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
     trade.taxonomies?.map((t) => t.id) ?? []
   );
@@ -106,6 +98,17 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     () => buildAnnotationDraft(trade)
   );
   const [draftPlaybookId, setDraftPlaybookId] = useState<string | null>(trade.playbook_id);
+
+  // Reset only for a different trade; refetching this trade must preserve its draft.
+  if (draftTradeId !== trade.id) {
+    setDraftTradeId(trade.id);
+    setDraftJournal(trade.journal ?? "");
+    setJournalTab("preview");
+    setDraftPlaybookId(trade.playbook_id);
+    setDraftTaxonomyIds(trade.taxonomies?.map((t) => t.id) ?? []);
+    setDraftAnnotations(buildAnnotationDraft(trade));
+    setImportedNoteIds([]);
+  }
 
   const selectablePlaybooks = useMemo(() => {
     return playbooks.filter((pb) => pb.is_active || pb.id === draftPlaybookId);
@@ -169,9 +172,9 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
 
         if (draftVal !== undefined && draftVal !== originalVal) {
           if (originalVal === undefined) {
-            await assignAnnotation.mutateAsync({ tradeId: trade.id, annotationDefinitionId: def.id, value: draftVal as any, portfolioId });
+            await assignAnnotation.mutateAsync({ tradeId: trade.id, annotationDefinitionId: def.id, value: draftVal, portfolioId });
           } else {
-            await updateAnnotation.mutateAsync({ tradeId: trade.id, annotationDefinitionId: def.id, value: draftVal as any, portfolioId });
+            await updateAnnotation.mutateAsync({ tradeId: trade.id, annotationDefinitionId: def.id, value: draftVal, portfolioId });
           }
         } else if (draftVal === undefined && originalVal !== undefined && originalVal !== null) {
           // Note: ideally we would remove it here using useRemoveTradeAnnotation
@@ -209,7 +212,12 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
     }
   }
 
-  const isDirty = taxChanged || journalChanged || playbookChanged || notesImported || annotationsChanged;
+  const isDirty = draftTradeId === trade.id && (taxChanged || journalChanged || playbookChanged || notesImported || annotationsChanged);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+    return () => onDirtyChange?.(false);
+  }, [isDirty, onDirtyChange]);
 
   const activeTaxonomies = taxonomies.filter(t => !t.is_archived || draftTaxonomyIds.includes(t.id));
 
@@ -218,7 +226,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
       <div className="flex items-center justify-between p-5 border-b border-border">
         <h2 className="text-base font-semibold text-foreground">Qualitative Analysis &amp; Metadata</h2>
         {isDirty && (
-          <div className="flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
             <div className="flex items-center gap-2">
               <button
@@ -305,7 +313,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
           </div>
           {journalTab === "preview" ? (
             <div className="group relative bg-secondary border border-border rounded-xl p-4 min-h-[100px]">
-              <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-3 right-3 flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity">
                 <button
                   type="button"
                   onClick={() => setJournalTab("write")}
@@ -346,6 +354,22 @@ export function QualitativeMetadataPanel({ trade, portfolioId }: QualitativeMeta
           )}
         </div>
       </div>
+
+      {isDirty && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-xs font-medium text-warning">Unsaved changes</span>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleCancel} disabled={isSaving} className="btn-ghost px-3 py-2 text-sm disabled:opacity-50">
+                Cancel
+              </button>
+              <button type="button" onClick={handleSave} disabled={isSaving} className="btn-primary px-4 py-2 text-sm disabled:opacity-50">
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

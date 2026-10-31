@@ -50,7 +50,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
 
   let days = [];
   let day = startDate;
-  let formattedDate = '';
+  const formattedDate = '';
 
   while (day <= endDate) {
     for (let i = 0; i < 7; i++) {

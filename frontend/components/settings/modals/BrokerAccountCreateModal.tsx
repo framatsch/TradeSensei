@@ -23,6 +23,7 @@ import { client } from "@/lib/api/client.gen";
 import { createAccountApiV1PortfoliosPortfolioIdAccountsPost } from "@/lib/api/index";
 import { extractApiError } from "@/lib/apiErrors";
 import type { Account, AccountType } from "@/lib/types";
+import type { AccountCreate } from "@/lib/api/types.gen";
 
 const BROKER_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
   { value: "manual", label: "Manual" },
@@ -72,7 +73,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
       );
       const properties = Object.keys(filledCredentials).length > 0 ? filledCredentials : null;
 
-      const payload: any = {
+      const payload: AccountCreate = {
         name: name.trim(),
         account_number: accountNumber.trim() || undefined,
         type,
@@ -98,7 +99,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
       toast.success("Account created");
       onClose();
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       setError(extractApiError(err, "Failed to create account"));
     },
   });
@@ -128,7 +129,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
       });
 
       if (testErr) {
-        const status = (testErr as any)?.status;
+        const status = typeof testErr === "object" && "status" in testErr ? testErr.status : undefined;
         if (status === 404 || status === 405) {
           setTestResult("error");
           setTestMessage("Connection test unavailable");

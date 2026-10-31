@@ -52,7 +52,7 @@ export function PortfolioSwitcher() {
           align="center"
           className="z-50 w-64 p-1 bg-popover border border-border rounded-md shadow-md outline-none animate-in data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
         >
-          {portfolios.map((portfolio: any) => (
+          {portfolios.map((portfolio) => (
             <DropdownMenu.Item
               key={portfolio.id}
               onClick={() => setActivePortfolio(portfolio.id)}

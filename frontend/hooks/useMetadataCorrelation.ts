@@ -19,14 +19,15 @@ import { useQuery } from "@tanstack/react-query";
 import { getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMetadataPost } from "@/lib/api/index";
 import type {
   MetadataCorrelationResponse,
+  MetadataCorrelationRequest,
   DashboardFilterConfig,
 } from "@/lib/api/types.gen";
 
 type MetadataCorrelationParams = {
   portfolioId: string;
-  x_axis_type: any;
+  x_axis_type: MetadataCorrelationRequest["x_axis_type"] | undefined;
   x_axis_id: string;
-  y_axis_type: any;
+  y_axis_type: MetadataCorrelationRequest["y_axis_type"] | undefined;
   y_axis_id: string;
   base_asset?: string;
   filter_config?: DashboardFilterConfig;
@@ -41,7 +42,10 @@ export function useMetadataCorrelation(params: MetadataCorrelationParams) {
   return useQuery<MetadataCorrelationResponse, Error>({
     queryKey: [...QUERY_KEY, portfolioId, query],
     queryFn: async () => {
-      const body: any = {
+      if (!query.x_axis_type || !query.y_axis_type) {
+        throw new Error("Select both metadata axes.");
+      }
+      const body: MetadataCorrelationRequest = {
         x_axis_type: query.x_axis_type,
         x_axis_id: query.x_axis_id,
         y_axis_type: query.y_axis_type,
@@ -58,13 +62,13 @@ export function useMetadataCorrelation(params: MetadataCorrelationParams) {
       const { data, error } =
         await getMetadataCorrelationApiV1PortfoliosPortfolioIdAnalyticsCorrelationsMetadataPost({
           path: { portfolio_id: portfolioId },
-          body: body as any,
+          body,
         });
 
       if (error || !data) throw error ?? new Error("Request failed: no data returned");
-      return data.data as MetadataCorrelationResponse;
+      return data.data;
     },
-    enabled: !!(query.x_axis_id && query.y_axis_id),
+    enabled: !!(query.x_axis_type && query.x_axis_id && query.y_axis_type && query.y_axis_id),
     staleTime: 60_000, // 1 minute
   });
 }

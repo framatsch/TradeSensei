@@ -19,7 +19,7 @@ import { PlaybookPhaseHeatmapWidget, UncategorizedBanner } from '@/components/re
 
 // Mock Recharts
 jest.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   BarChart: () => <div>BarChart</div>,
   Bar: () => null,
   XAxis: () => null,

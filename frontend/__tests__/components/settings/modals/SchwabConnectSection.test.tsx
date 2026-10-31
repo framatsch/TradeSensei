@@ -18,6 +18,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SchwabConnectSection } from "@/components/settings/modals/SchwabConnectSection";
 import * as api from "@/lib/api/index";
+import type { Account } from "@/lib/types";
 
 jest.mock("@/lib/api/index");
 
@@ -29,6 +30,20 @@ jest.mock("react-hot-toast", () => ({
   },
 }));
 import { toast } from "react-hot-toast";
+
+const mockAccount: Account = {
+  id: "acc-123",
+  user_id: "user-1",
+  portfolio_id: "portfolio-1",
+  name: "Schwab Main",
+  account_number: "12345678",
+  type: "schwab",
+  currency: "USD",
+  is_active: true,
+  has_api_keys: true,
+  settings: { sync_days: 30, flex_from_date_preset: "ytd", flex_custom_from_date: null },
+  created_at: "2024-01-01T00:00:00Z",
+};
 
 describe("SchwabConnectSection", () => {
   let queryClient: QueryClient;
@@ -43,10 +58,10 @@ describe("SchwabConnectSection", () => {
     jest.spyOn(window, "open").mockImplementation(() => null);
   });
 
-  const renderComponent = (account = { id: "acc-123" }) => {
+  const renderComponent = (account = mockAccount) => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <SchwabConnectSection account={account as any} />
+        <SchwabConnectSection account={account} />
       </QueryClientProvider>
     );
   };

@@ -41,7 +41,7 @@ import { syncAccountApiV1BrokerSyncAccountIdPost } from "@/lib/api";
 import { extractApiError } from "@/lib/apiErrors";
 
 /** Multipart upload via raw fetch — bypasses the JSON body serializer of the SDK client. */
-async function multipartPost(path: string, formData: FormData): Promise<any> {
+async function multipartPost(path: string, formData: FormData): Promise<ResponseEnvelope<ImportResult>> {
   const token = localStorage.getItem("access_token");
   const baseUrl = client.getConfig().baseUrl ?? "";
   const res = await fetch(`${baseUrl}${path}`, {

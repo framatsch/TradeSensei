@@ -23,7 +23,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CorporateActionsSettings } from "@/components/settings/CorporateActionsSettings";
 import FeaturesSettings from "@/components/settings/FeaturesSettings";
@@ -50,21 +50,23 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "checkin", label: "Check-in" },
 ];
 
+function readTab(value: string | null): Tab | undefined {
+  if (value === "portfolios" || value === "integrations") return "portfolios-brokers";
+  return TABS.find((tab) => tab.id === value)?.id;
+}
+
 export function SettingsPageClient() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>("general");
+  const query = searchParams.toString();
+  const [activeTab, setActiveTab] = useState<Tab>(() => readTab(searchParams.get("tab")) ?? "general");
+  const [previousQuery, setPreviousQuery] = useState(query);
 
   // Allow linking to a specific tab via ?tab=integrations, ?tab=features, etc.
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "api-tokens") setActiveTab("api-tokens");
-    else if (tabParam === "corporate-actions") setActiveTab("corporate-actions");
-    else if (tabParam === "features") setActiveTab("features");
-    else if (tabParam === "portfolios" || tabParam === "integrations") setActiveTab("portfolios-brokers");
-    else if (tabParam === "portfolios-brokers") setActiveTab("portfolios-brokers");
-    else if (tabParam === "checkin") setActiveTab("checkin");
-    else if (tabParam === "general") setActiveTab("general");
-  }, [searchParams]);
+  if (previousQuery !== query) {
+    setPreviousQuery(query);
+    const tab = readTab(searchParams.get("tab"));
+    if (tab) setActiveTab(tab);
+  }
 
   return (
     <div className="w-full min-h-full p-6 md:p-12 flex justify-center items-start">

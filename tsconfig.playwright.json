@@ -1,0 +1,13 @@
+{
+  "extends": "./frontend/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "incremental": false,
+    "paths": {
+      "@/*": ["./frontend/*"],
+      "@playwright/test": ["./node_modules/@playwright/test"]
+    }
+  },
+  "include": ["playwright.config.ts", "frontend/tests/**/*.ts"],
+  "exclude": ["node_modules", "frontend/node_modules"]
+}

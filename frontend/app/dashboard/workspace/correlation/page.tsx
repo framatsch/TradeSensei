@@ -23,11 +23,17 @@ import { useMetadataCorrelation } from "@/hooks/useMetadataCorrelation";
 import { CorrelationChartRouter } from "@/components/charts/CorrelationChartRouter";
 import { useAccounts } from "@/hooks/useAccounts";
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
+import type { MetadataCorrelationRequest } from "@/lib/api/types.gen";
 
 const INPUT_CLASS =
   "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary";
 
 const LABEL_CLASS = "block text-xs font-medium text-muted-foreground mb-1";
+
+function parseAxisType(value: string): MetadataCorrelationRequest["x_axis_type"] | undefined {
+  return value === "checkin_annotation" || value === "checkin_taxonomy" ||
+    value === "trade_annotation" || value === "trade_taxonomy" ? value : undefined;
+}
 
 export default function CorrelationPage() {
   const { filter, setFilter } = useWorkspaceFilter();
@@ -50,11 +56,11 @@ export default function CorrelationPage() {
 
   // Parse selected axes
   const xParts = xAxisRaw.split("|");
-  const xType = xParts[0] as any;
+  const xType = parseAxisType(xParts[0]);
   const xId = xParts[1] || "";
 
   const yParts = yAxisRaw.split("|");
-  const yType = yParts[0] as any;
+  const yType = parseAxisType(yParts[0]);
   const yId = yParts[1] || "";
 
   const hasAxes = !!(xId && yId);

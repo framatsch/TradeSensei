@@ -14,7 +14,7 @@
  */
 
 import React from 'react';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { WorkspaceFilterProvider, useWorkspaceFilter } from '@/components/workspace/WorkspaceFilterContext';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 

@@ -16,6 +16,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AnnotationEditor } from '@/components/checkin/AnnotationEditor';
+import type { AnnotationDefinitionResponse, CheckinAnnotationResponse } from '@/lib/api/types.gen';
 import { 
   useAssignCheckinAnnotation, 
   useUpdateCheckinAnnotation, 
@@ -28,7 +29,7 @@ jest.mock('@/hooks/useCheckinMetadata', () => ({
   useRemoveCheckinAnnotation: jest.fn(),
 }));
 
-const mockDefinitions: any = [
+const mockDefinitions: AnnotationDefinitionResponse[] = [
   { 
     id: 'def-1', 
     name: 'Mood', 
@@ -102,7 +103,7 @@ describe('AnnotationEditor', () => {
     const mutateAsync = jest.fn();
     (useUpdateCheckinAnnotation as jest.Mock).mockReturnValue({ mutateAsync });
     
-    const assigned: any = [{
+    const assigned: CheckinAnnotationResponse[] = [{
       annotation_definition_id: 'def-1',
       name: 'Mood',
       type: 'string_enum',

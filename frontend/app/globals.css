@@ -327,6 +327,25 @@ body {
   border-color: color-mix(in srgb, var(--success) 20%, transparent);
 }
 
+/* Opt-in trade-view text contrast; preserve the desktop palette and layout. */
+@media (width < 1024px) {
+  .trade-mobile-contrast .text-success {
+    color: color-mix(in srgb, var(--success) 50%, var(--foreground));
+  }
+  .trade-mobile-contrast .text-danger {
+    color: color-mix(in srgb, var(--danger) 50%, var(--foreground));
+  }
+  .trade-mobile-contrast .text-warning {
+    color: color-mix(in srgb, var(--warning) 50%, var(--foreground));
+  }
+  .trade-mobile-contrast .text-primary {
+    color: color-mix(in srgb, var(--primary) 50%, var(--foreground));
+  }
+  .trade-mobile-contrast .text-muted-foreground {
+    color: var(--secondary-foreground);
+  }
+}
+
 /* ─── Radiant Table ─────────────────────────────────────────────────────────── */
 
 .radiant-table tbody tr {

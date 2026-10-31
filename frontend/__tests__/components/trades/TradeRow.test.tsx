@@ -1,19 +1,20 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { TradeRow } from "@/components/trades/TradeRow";
+import { TradeCard } from "@/components/trades/TradeCard";
 import type { Trade } from "@/lib/types";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false } },
-});
+jest.mock("@/hooks/useFeatureFlag", () => ({ __esModule: true, default: () => false }));
+jest.mock("@/hooks/useNotes", () => ({ useAddNote: jest.fn() }));
 
-const renderWithClient = (ui: React.ReactElement) => {
-  return render(
-    <QueryClientProvider client={queryClient}>
-      {ui}
-    </QueryClientProvider>
+const renderTradeVariants = (trade: Trade) => {
+  render(
+    <>
+      <table><tbody><TradeRow trade={trade} /></tbody></table>
+      <div data-testid="trade-card-list"><TradeCard trade={trade} /></div>
+    </>
   );
+  return within(screen.getByRole("table"));
 };
 
 const baseTrade = {
@@ -58,16 +59,30 @@ describe("TradeRow", () => {
         }
       ]
     };
-    renderWithClient(<table><tbody><TradeRow trade={tradeWithCa} /></tbody></table>);
-    const indicator = screen.getByTitle(/Values may differ across the table/);
+    const table = renderTradeVariants(tradeWithCa);
+    const indicator = table.getByLabelText("Affected by a corporate action");
     expect(indicator).toBeInTheDocument();
     expect(indicator.getAttribute("title")).toContain("Split 1:4 on 2023-08-30");
     expect(indicator.getAttribute("title")).not.toMatch(/historical|original/i);
+    expect(within(screen.getByTestId("trade-card-list")).getByLabelText("Affected by a corporate action")).toHaveAttribute("title", "Split 1:4 on 2023-08-30");
   });
 
   it("does not render a split indicator when corporate_action_impact is empty", () => {
-    renderWithClient(<table><tbody><TradeRow trade={{ ...baseTrade, corporate_action_impact: [] }} /></tbody></table>);
-    const indicator = screen.queryByTitle(/Values may differ/);
+    const table = renderTradeVariants({ ...baseTrade, corporate_action_impact: [] });
+    const indicator = table.queryByLabelText("Affected by a corporate action");
     expect(indicator).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("trade-card-list")).queryByLabelText("Affected by a corporate action")).not.toBeInTheDocument();
+  });
+
+  it("keeps desktop and mobile symbol links and combo badges consistent", () => {
+    const table = renderTradeVariants({ ...baseTrade, is_combo: true, asset_class: "OPTION" });
+    const cards = within(screen.getByTestId("trade-card-list"));
+
+    for (const variant of [table, cards]) {
+      expect(variant.getByRole("link", { name: "AAPL" })).toHaveAttribute("href", "/dashboard/trades/trade-1");
+      expect(variant.getByText("COMBO")).toBeInTheDocument();
+      expect(variant.queryByText("LONG")).not.toBeInTheDocument();
+      expect(variant.queryByText("OPTION")).not.toBeInTheDocument();
+    }
   });
 });

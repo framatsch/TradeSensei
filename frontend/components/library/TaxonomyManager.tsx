@@ -38,6 +38,17 @@ function getDisplayScope(scopeStr: string): string {
   return scopeLabel(scopeStr);
 }
 
+function getMutationError(error: unknown): { detail?: string; message?: string } {
+  if (typeof error !== "object" || error === null) return {};
+  const response = "response" in error ? error.response : undefined;
+  const data = typeof response === "object" && response !== null && "data" in response ? response.data : undefined;
+  const detail = typeof data === "object" && data !== null && "detail" in data ? data.detail : undefined;
+  return {
+    detail: typeof detail === "string" ? detail : undefined,
+    message: "message" in error && typeof error.message === "string" ? error.message : undefined,
+  };
+}
+
 export function TaxonomyManager() {
   const [showArchived, setShowArchived] = useState(false);
   const { data: rawTaxonomies, isLoading, error } = useGetTaxonomies(undefined, showArchived);
@@ -212,9 +223,10 @@ export function TaxonomyManager() {
       }
       setIsEditing(false);
       setIsViewing(selectedTaxonomy !== null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      const errMsg = err?.response?.data?.detail || err?.message || "Failed to save tag. Please try again.";
+      const error = getMutationError(err);
+      const errMsg = error.detail || error.message || "Failed to save tag. Please try again.";
       toast.error(errMsg);
     }
   };
@@ -228,8 +240,9 @@ export function TaxonomyManager() {
         const updated = await archiveMutation.mutateAsync({ taxonomyId: taxonomy.id });
         setSelectedTaxonomy(updated);
       }
-    } catch (err: any) {
-      const errMsg = err?.response?.data?.detail || err?.message || "Failed to update archive status.";
+    } catch (err: unknown) {
+      const error = getMutationError(err);
+      const errMsg = error.detail || error.message || "Failed to update archive status.";
       toast.error(errMsg);
     }
   };
@@ -263,12 +276,12 @@ export function TaxonomyManager() {
       if (selectedTaxonomy?.id === taxonomy.id) {
         handleCloseDetails();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setConfirmDeleteId(null);
       setAssignmentCounts(null);
       setConfirmNameInput("");
-      const errMsg = err?.response?.data?.detail || "Could not delete tag.";
+      const errMsg = getMutationError(err).detail || "Could not delete tag.";
       toast.error(errMsg);
     }
   };
