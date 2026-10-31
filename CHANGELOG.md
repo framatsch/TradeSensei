@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-10-31
+
+### Added
+- [frontend] Added collapsible panels across Trade Detail cards (Performance, Execution Summary, Qualitative Metadata, Journal, and Quick Notes) with preserved state and metadata summary when collapsed.
+- [frontend] Added mobile chart maximize overlay with inline restore control, body scroll locking, and keyboard trade navigation suppression.
+
 ## [1.18.0] - 2026-10-31
 
 ### Added
@@ -790,6 +796,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.18.1]: https://github.com/scheffold/TradeSensei/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/scheffold/TradeSensei/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/scheffold/TradeSensei/compare/v1.16.5...v1.17.0
 [1.16.5]: https://github.com/scheffold/TradeSensei/compare/v1.16.4...v1.16.5
@@ -800,7 +807,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/scheffold/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/scheffold/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/scheffold/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.18.0...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.18.1...HEAD
 [1.13.0]: https://github.com/scheffold/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/scheffold/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...v1.11.0
