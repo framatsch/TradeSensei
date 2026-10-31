@@ -15,6 +15,7 @@
 
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { ExecutionSummaryCard } from "@/components/trades/ExecutionSummaryCard";
 import type { LogicalExecution, Trade } from "@/lib/types";
@@ -164,5 +165,27 @@ describe("ExecutionSummaryCard", () => {
 
     render(<ExecutionSummaryCard trade={standardTrade} executions={optionLegs} />);
     expect(screen.getByText(/QQQ 712 Call · Oct 3, 2025/)).toBeInTheDocument();
+  });
+
+  it("starts expanded by default and toggles collapsed state when clicking the header", async () => {
+    const user = userEvent.setup();
+    const standardTrade: Trade = {
+      ...comboTrade,
+      is_combo: false,
+      symbol: "QQQ",
+    };
+
+    render(<ExecutionSummaryCard trade={standardTrade} executions={[makeLeg({ id: "l1" })]} />);
+    const toggle = screen.getByRole("button", { name: "Execution Summary" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Total Quantity").closest(".hidden")).toBeNull();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Total Quantity").closest(".hidden")).not.toBeNull();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Total Quantity").closest(".hidden")).toBeNull();
   });
 });

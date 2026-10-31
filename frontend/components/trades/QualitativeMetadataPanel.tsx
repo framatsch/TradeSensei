@@ -16,7 +16,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Edit2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Edit2 } from "lucide-react";
 import { MarkdownRenderer } from "../notes/MarkdownRenderer";
 import useFeatureFlag from "@/hooks/useFeatureFlag";
 import { useGetTaxonomies } from "@/hooks/useTaxonomies";
@@ -89,6 +89,8 @@ export function QualitativeMetadataPanel({ trade, portfolioId, onDirtyChange }: 
   const [draftTradeId, setDraftTradeId] = useState(trade.id);
   const [draftJournal, setDraftJournal] = useState(trade.journal ?? "");
   const [journalTab, setJournalTab] = useState<"write" | "preview">("preview");
+  const [metadataCollapsed, setMetadataCollapsed] = useState(false);
+  const [journalCollapsed, setJournalCollapsed] = useState(false);
   // IDs of Quick Notes captured at import time — deleted on Save.
   const [importedNoteIds, setImportedNoteIds] = useState<string[]>([]);
   const [draftTaxonomyIds, setDraftTaxonomyIds] = useState<string[]>(
@@ -220,97 +222,146 @@ export function QualitativeMetadataPanel({ trade, portfolioId, onDirtyChange }: 
   }, [isDirty, onDirtyChange]);
 
   const activeTaxonomies = taxonomies.filter(t => !t.is_archived || draftTaxonomyIds.includes(t.id));
+  const selectedPlaybookName =
+    selectablePlaybooks.find((pb) => pb.id === draftPlaybookId)?.name ??
+    (draftPlaybookId ? trade.playbook_name : null);
+  const assignedAnnotationCount = Object.values(draftAnnotations).filter(
+    (v) => v !== "" && v !== undefined && v !== null
+  ).length;
 
   return (
-    <div className="solid-card shadow-sm w-full">
-      <div className="flex items-center justify-between p-5 border-b border-border">
-        <h2 className="text-base font-semibold text-foreground">Qualitative Analysis &amp; Metadata</h2>
-        {isDirty && (
-          <div className="hidden lg:flex items-center gap-3">
-            <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCancel}
-                disabled={isSaving}
-                className="px-3 py-1.5 text-sm rounded hover:bg-secondary text-muted-foreground transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {isSaving ? "Saving..." : "Save"}
-              </button>
+    <div className="space-y-6 w-full">
+      {/* Qualitative Analysis & Metadata Card */}
+      <div className="solid-card shadow-sm w-full">
+        <div className={`flex flex-wrap items-center justify-between gap-2 p-5 ${metadataCollapsed ? "" : "border-b border-border"}`}>
+          <h2 className="text-base font-semibold text-foreground">
+            <button
+              type="button"
+              aria-expanded={!metadataCollapsed}
+              onClick={() => setMetadataCollapsed((c) => !c)}
+              className="flex items-center gap-2 text-left hover:text-primary transition-colors"
+            >
+              {metadataCollapsed ? (
+                <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
+              )}
+              <span>Qualitative Analysis &amp; Metadata</span>
+            </button>
+          </h2>
+          {metadataCollapsed && (
+            <span data-testid="metadata-collapsed-summary" className="text-xs text-muted-foreground">
+              {[
+                selectedPlaybookName ? `Playbook: ${selectedPlaybookName}` : "No playbook",
+                `${draftTaxonomyIds.length} ${draftTaxonomyIds.length === 1 ? "Tag" : "Tags"}`,
+                `${assignedAnnotationCount} ${assignedAnnotationCount === 1 ? "Annotation" : "Annotations"}`,
+              ].join(" · ")}
+            </span>
+          )}
+          {isDirty && (
+            <div className="hidden lg:flex items-center gap-3">
+              <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-sm rounded hover:bg-secondary text-muted-foreground transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
             </div>
+          )}
+        </div>
+
+        <div className={metadataCollapsed ? "hidden" : "p-5 space-y-6"}>
+          {/* Playbook */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Playbook</label>
+            <select
+              value={draftPlaybookId || ""}
+              onChange={(e) => setDraftPlaybookId(e.target.value === "" ? null : e.target.value)}
+              disabled={isSaving}
+              className="w-full rounded border border-border bg-secondary px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors appearance-none"
+            >
+              <option value="">{selectablePlaybooks.length ? "Select a playbook..." : "No playbooks"}</option>
+              {selectablePlaybooks.map((pb) => (
+                <option key={pb.id} value={pb.id}>
+                  {pb.name}{!pb.is_active ? " (Inactive)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+
+          {/* Taxonomies */}
+          <div>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-sm font-medium text-foreground">Tags (Taxonomies)</label>
+            </div>
+            <TaxonomySelector
+              taxonomies={activeTaxonomies}
+              selectedIds={draftTaxonomyIds}
+              onChange={setDraftTaxonomyIds}
+              disabled={isSaving}
+            />
+          </div>
+
+          {/* Dynamic Annotations */}
+          <div>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-sm font-medium text-foreground">Annotations</label>
+            </div>
+            <AnnotationInputs
+              definitions={annotationDefs}
+              values={draftAnnotations}
+              onChange={setDraftAnnotations}
+              disabled={isSaving}
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="p-5 space-y-6">
-        {/* Playbook */}
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Playbook</label>
-          <select
-            value={draftPlaybookId || ""}
-            onChange={(e) => setDraftPlaybookId(e.target.value === "" ? null : e.target.value)}
-            disabled={isSaving}
-            className="w-full rounded border border-border bg-secondary px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors appearance-none"
-          >
-            <option value="">{selectablePlaybooks.length ? "Select a playbook..." : "No playbooks"}</option>
-            {selectablePlaybooks.map((pb) => (
-              <option key={pb.id} value={pb.id}>
-                {pb.name}{!pb.is_active ? " (Inactive)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Taxonomies */}
-        <div>
-          <div className="flex justify-between items-center mb-1.5">
-            <label className="block text-sm font-medium text-foreground">Tags (Taxonomies)</label>
-          </div>
-          <TaxonomySelector
-            taxonomies={activeTaxonomies}
-            selectedIds={draftTaxonomyIds}
-            onChange={setDraftTaxonomyIds}
-            disabled={isSaving}
-          />
-        </div>
-
-        {/* Dynamic Annotations */}
-        <div>
-          <div className="flex justify-between items-center mb-1.5">
-            <label className="block text-sm font-medium text-foreground">Annotations</label>
-          </div>
-          <AnnotationInputs
-            definitions={annotationDefs}
-            values={draftAnnotations}
-            onChange={setDraftAnnotations}
-            disabled={isSaving}
-          />
-        </div>
-
-        {/* Journal */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-sm font-medium text-foreground">Journal</label>
-            <div className="flex items-center gap-2">
-              {quickNotesEnabled && quickNotes.length > 0 && journalTab === "write" && (
-                <button
-                  type="button"
-                  onClick={handleImportQuickNotes}
-                  disabled={importedNoteIds.length > 0 || isSaving}
-                  title={importedNoteIds.length > 0 ? "Quick Notes imported — save to delete them" : "Append Quick Notes to the journal"}
-                  className="px-2.5 py-1 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Import Quick Notes
-                </button>
+      {/* Journal Card */}
+      <div className="solid-card shadow-sm w-full">
+        <div className={`flex items-center justify-between gap-2 p-5 ${journalCollapsed ? "" : "border-b border-border"}`}>
+          <h2 className="text-base font-semibold text-foreground">
+            <button
+              type="button"
+              aria-expanded={!journalCollapsed}
+              onClick={() => setJournalCollapsed((c) => !c)}
+              className="flex items-center gap-2 text-left hover:text-primary transition-colors"
+            >
+              {journalCollapsed ? (
+                <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
               )}
-            </div>
+              <span>Journal</span>
+            </button>
+          </h2>
+          <div className="flex items-center gap-2">
+            {!journalCollapsed && quickNotesEnabled && quickNotes.length > 0 && journalTab === "write" && (
+              <button
+                type="button"
+                onClick={handleImportQuickNotes}
+                disabled={importedNoteIds.length > 0 || isSaving}
+                title={importedNoteIds.length > 0 ? "Quick Notes imported — save to delete them" : "Append Quick Notes to the journal"}
+                className="px-2.5 py-1 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Import Quick Notes
+              </button>
+            )}
           </div>
+        </div>
+
+        <div className={journalCollapsed ? "hidden" : "p-5"}>
           {journalTab === "preview" ? (
             <div className="group relative bg-secondary border border-border rounded-xl p-4 min-h-[100px]">
               <div className="absolute top-3 right-3 flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity">

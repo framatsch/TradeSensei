@@ -115,8 +115,24 @@ tradeMobileTest.describe('@trade-mobile-layout detail', () => {
     await expect(page.locator('#trade-executions-pane')).toBeHidden();
     await expectNoHorizontalOverflow(page);
 
-    // 2. Open Journal, edit a markdown draft and verify fixed Save/Cancel and the unsaved dot.
+    // 1b. Maximize chart on mobile and restore it back to normal inline view.
+    const maximizeBtn = page.getByRole('button', { name: 'Maximize chart' });
+    await expect(maximizeBtn).toBeVisible();
+    await maximizeBtn.click();
+    const chartDialog = page.getByRole('dialog', { name: 'Maximized trade chart' });
+    await expect(chartDialog).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Restore chart' })).toBeVisible();
+    await page.getByRole('button', { name: 'Restore chart' }).click();
+    await expect(chartDialog).toBeHidden();
+    await expect(maximizeBtn).toBeVisible();
+
+    // 2. Open Journal, collapse Qualitative Analysis & Metadata to bring Journal up, edit a markdown draft and verify fixed Save/Cancel and the unsaved dot.
     await page.getByRole('tab', { name: /^Journal/ }).click();
+    const metadataToggle = page.getByRole('button', { name: 'Qualitative Analysis & Metadata' });
+    await expect(metadataToggle).toHaveAttribute('aria-expanded', 'true');
+    await metadataToggle.click();
+    await expect(metadataToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('metadata-collapsed-summary')).toBeVisible();
     await page.getByRole('button', { name: 'Edit journal' }).click();
     const journal = page.getByPlaceholder(/Write your post-trade summary/);
     const draft = '## Mobile review: keep this unsaved draft while switching tabs.';

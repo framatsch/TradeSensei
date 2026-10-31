@@ -18,7 +18,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Check, X, MoreHorizontal, Split, Pencil } from "lucide-react";
+import { Check, X, MoreHorizontal, Split, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { useTrade, useUpdateTrade } from "@/hooks/useTrade";
 import { useTradeExecutions } from "@/hooks/useExecutions";
 import { useActivePortfolio } from "@/hooks/useActivePortfolio";
@@ -184,6 +184,7 @@ export default function TradeDetailPage() {
   const [mergeTargets, setMergeTargets] = useState<import("@/lib/types").Trade[]>([]);
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("overview");
+  const [performanceCollapsed, setPerformanceCollapsed] = useState(false);
   const [journalDirty, setJournalDirty] = useState(false);
   const [mobileTradeId, setMobileTradeId] = useState(tradeId);
   const overflowRef = useRef<HTMLDivElement>(null);
@@ -513,10 +514,22 @@ export default function TradeDetailPage() {
         {/* Right Column: Performance Metrics */}
         <div className="lg:col-span-1">
           <div className="solid-card p-5 shadow-sm h-full flex flex-col">
-            <h2 className="text-base font-semibold text-foreground mb-4">
-              Performance
+            <h2 className={`text-base font-semibold text-foreground ${performanceCollapsed ? "" : "mb-4"}`}>
+              <button
+                type="button"
+                aria-expanded={!performanceCollapsed}
+                onClick={() => setPerformanceCollapsed((c) => !c)}
+                className="flex items-center gap-2 text-left hover:text-primary transition-colors"
+              >
+                {performanceCollapsed ? (
+                  <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
+                )}
+                <span>Performance</span>
+              </button>
             </h2>
-            <div className="grid grid-cols-2 gap-3 lg:block lg:space-y-3 flex-1">
+            <div className={performanceCollapsed ? "hidden" : "grid grid-cols-2 gap-3 lg:block lg:space-y-3 flex-1"}>
               <InlineNumberField
                 label="Stop Loss"
                 value={trade.stop_loss}

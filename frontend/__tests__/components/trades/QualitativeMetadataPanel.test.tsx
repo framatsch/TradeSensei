@@ -294,4 +294,54 @@ describe("QualitativeMetadataPanel", () => {
 
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
+
+  it("renders Qualitative Analysis & Metadata and Journal as separate collapsible cards and preserves draft state when collapsed", async () => {
+    const user = userEvent.setup();
+    (usePlaybooks as jest.Mock).mockReturnValue({
+      data: [{ id: "pb-1", name: "Breakout", is_active: true }],
+    });
+    (useGetTaxonomies as jest.Mock).mockReturnValue({
+      data: [{ id: "tax-1", name: "Patient", is_archived: false }],
+    });
+
+    render(
+      <QualitativeMetadataPanel
+        trade={buildTrade({
+          playbook_id: "pb-1",
+          taxonomies: [{ id: "tax-1", name: "Patient", description: null, color_hex: "#3b82f6", icon_identifier: null, scope: "trades", is_archived: false, created_at: "2024-01-01", updated_at: "2024-01-01" }],
+        })}
+      />
+    );
+
+    const metadataToggle = screen.getByRole("button", { name: "Qualitative Analysis & Metadata" });
+    const journalToggle = screen.getByRole("button", { name: "Journal" });
+    expect(metadataToggle).toHaveAttribute("aria-expanded", "true");
+    expect(journalToggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByTestId("metadata-collapsed-summary")).not.toBeInTheDocument();
+
+    // Edit journal draft
+    await user.click(screen.getByRole("button", { name: "Edit journal" }));
+    const textarea = screen.getByRole("textbox");
+    await user.type(textarea, "Draft preserved across collapse");
+
+    // Collapse metadata card -> compact summary appears, body gets .hidden, journal remains expanded
+    await user.click(metadataToggle);
+    expect(metadataToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("metadata-collapsed-summary")).toHaveTextContent(
+      "Playbook: Breakout · 1 Tag · 1 Annotation"
+    );
+    expect(screen.getByRole("combobox").closest(".hidden")).not.toBeNull();
+    expect(textarea.closest(".hidden")).toBeNull();
+
+    // Collapse journal card -> body gets .hidden, unsaved draft and save bar remain intact
+    await user.click(journalToggle);
+    expect(journalToggle).toHaveAttribute("aria-expanded", "false");
+    expect(textarea.closest(".hidden")).not.toBeNull();
+    expect(getMobileSaveBar()).toBeInTheDocument();
+
+    // Re-expand journal card -> draft text is still there
+    await user.click(journalToggle);
+    expect(journalToggle).toHaveAttribute("aria-expanded", "true");
+    expect(textarea).toHaveValue("Draft preserved across collapse");
+  });
 });

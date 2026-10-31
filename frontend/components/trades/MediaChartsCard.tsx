@@ -26,6 +26,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { useUploadScreenshot, useDeleteScreenshot } from "@/hooks/useScreenshots";
 import { useUpdateTrade } from "@/hooks/useTrade";
 import type { Trade, LogicalExecution } from "@/lib/types";
@@ -363,18 +364,45 @@ type Tab = "tradingview" | "screenshots";
 
 export function MediaChartsCard({ trade, executions, className }: { trade: Trade; executions?: LogicalExecution[]; className?: string }) {
   const [activeTab, setActiveTab] = useState<Tab>("tradingview");
+  const [isMaximized, setIsMaximized] = useState(false);
   const screenshotCount = trade.image_urls?.length ?? 0;
+
+  useEffect(() => {
+    if (!isMaximized) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsMaximized(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMaximized]);
 
   return (
     <div
-      className={`solid-card flex flex-col ${className ?? "h-[520px]"}`}
+      role={isMaximized ? "dialog" : undefined}
+      aria-modal={isMaximized ? "true" : undefined}
+      aria-label={isMaximized ? "Maximized trade chart" : undefined}
+      className={
+        isMaximized
+          ? "fixed inset-0 z-50 flex flex-col bg-card w-screen h-[100dvh] pb-[env(safe-area-inset-bottom)]"
+          : `solid-card flex flex-col ${className ?? "h-[520px]"}`
+      }
     >
       {/* Tab bar */}
-      <div className="flex border-b border-border shrink-0">
+      <div className="flex items-center border-b border-border shrink-0">
         {(["tradingview", "screenshots"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setActiveTab(tab);
+              if (tab !== "tradingview") setIsMaximized(false);
+            }}
             className={`relative px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === tab
                 ? "border-b-2 border-primary text-primary dark:text-primary"
@@ -394,10 +422,21 @@ export function MediaChartsCard({ trade, executions, className }: { trade: Trade
             )}
           </button>
         ))}
+        {activeTab === "tradingview" && (
+          <button
+            type="button"
+            onClick={() => setIsMaximized((prev) => !prev)}
+            aria-label={isMaximized ? "Restore chart" : "Maximize chart"}
+            title={isMaximized ? "Restore chart" : "Maximize chart"}
+            className="lg:hidden ml-auto mr-2 inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+        )}
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden rounded-b-xl">
+      <div className={`flex-1 overflow-hidden ${isMaximized ? "" : "rounded-b-xl"}`}>
         {activeTab === "tradingview" && <TradingViewTab trade={trade} executions={executions} />}
         {activeTab === "screenshots" && <ScreenshotsTab trade={trade} />}
       </div>

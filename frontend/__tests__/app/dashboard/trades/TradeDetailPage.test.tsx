@@ -329,6 +329,24 @@ describe("TradeDetailPage responsive sections", () => {
     const desktopNav = screen.getByText("Back to Trades").parentElement!;
     expect(within(desktopNav).getByRole("link", { name: "Back to Trades" })).toHaveAttribute("href", navigation.backHref);
   });
+
+  it("collapses and re-expands the Performance card without unmounting its fields", async () => {
+    const user = userEvent.setup();
+    render(<TradeDetailPage />);
+
+    const overview = getPane("Overview");
+    const perfToggle = within(overview).getByRole("button", { name: "Performance" });
+    expect(perfToggle).toHaveAttribute("aria-expanded", "true");
+    expect(within(overview).getByText("Stop Loss").closest(".hidden")).toBeNull();
+
+    await user.click(perfToggle);
+    expect(perfToggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(overview).getByText("Stop Loss").closest(".hidden")).not.toBeNull();
+
+    await user.click(perfToggle);
+    expect(perfToggle).toHaveAttribute("aria-expanded", "true");
+    expect(within(overview).getByText("Stop Loss").closest(".hidden")).toBeNull();
+  });
 });
 
 describe("TradeDetailPage keyboard navigation", () => {

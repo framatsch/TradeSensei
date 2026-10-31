@@ -19,7 +19,8 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type { LogicalExecution, Trade } from "@/lib/types";
 
 interface Props {
@@ -72,6 +73,7 @@ function formatCompactContractLabel(type: string | null, strike: string | null):
 }
 
 export function ExecutionSummaryCard({ trade, executions }: Props) {
+  const [collapsed, setCollapsed] = useState(false);
   const count = executions.length;
   const activeExecutions = useMemo(() => executions.filter((execution) => !execution.deleted), [executions]);
   const isMult = trade.multiplier > 1;
@@ -174,22 +176,38 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
   if (trade.is_combo) {
     return (
       <div className="solid-card p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className={`flex items-center justify-between ${collapsed ? "" : "mb-3"}`}>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Execution Summary</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              <button
+                type="button"
+                aria-expanded={!collapsed}
+                onClick={() => setCollapsed((c) => !c)}
+                className="flex items-center gap-2 text-left hover:text-primary transition-colors"
+              >
+                {collapsed ? (
+                  <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
+                )}
+                <span>Execution Summary</span>
+              </button>
+            </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               COMBO breakdown from {activeExecutions.length} execution leg{activeExecutions.length !== 1 ? "s" : ""}
             </p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Uses raw execution values (chart markers may show split-adjusted prices).
-            </p>
+            {!collapsed && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Uses raw execution values (chart markers may show split-adjusted prices).
+              </p>
+            )}
           </div>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border uppercase tracking-wider">
             Computed
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className={collapsed ? "hidden" : "overflow-x-auto"}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-[color-mix(in_srgb,var(--muted)_40%,transparent)]">
@@ -285,9 +303,23 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
 
   return (
     <div className="solid-card p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className={`flex items-center justify-between ${collapsed ? "" : "mb-3"}`}>
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Execution Summary</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            <button
+              type="button"
+              aria-expanded={!collapsed}
+              onClick={() => setCollapsed((c) => !c)}
+              className="flex items-center gap-2 text-left hover:text-primary transition-colors"
+            >
+              {collapsed ? (
+                <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
+              )}
+              <span>Execution Summary</span>
+            </button>
+          </h3>
           {contractLabel && (
             <p className="text-sm font-medium text-foreground mt-1">{contractLabel}</p>
           )}
@@ -300,7 +332,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+      <div className={collapsed ? "hidden" : "grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3"}>
         {isMult && (
           <div>
             <dt className="text-xs text-muted-foreground mb-0.5">Multiplier</dt>
