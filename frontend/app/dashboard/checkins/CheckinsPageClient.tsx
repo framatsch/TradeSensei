@@ -32,15 +32,15 @@ export function CheckinsPageClient() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Check-ins
           </h1>
           <Link 
             href={`/dashboard/checkins/${today()}`}
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary)_90%,transparent)] px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap h-9 px-3 sm:px-4 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary)_90%,transparent)] rounded-lg text-xs sm:text-sm font-medium transition-colors"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-4 h-4 shrink-0" />
             Today&apos;s Check-in
           </Link>
         </div>

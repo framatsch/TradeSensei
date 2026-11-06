@@ -23,10 +23,7 @@ export const metadata = {
 export default function MetricsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Metrics"
-        subtitle="Manage reusable annotation definitions for trades and check-ins"
-      />
+      <PageHeader title="Metrics" />
       <AnnotationManager />
     </div>
   );

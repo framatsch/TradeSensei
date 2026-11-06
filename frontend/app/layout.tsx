@@ -13,10 +13,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import { Providers } from "./providers";
+import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
 import { Toaster } from "react-hot-toast";
 
 import "./globals.css";
@@ -30,9 +31,29 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#131317",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "Trade Sensei",
   description: "Advanced statistical analysis for your trades",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Trade Sensei",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
@@ -45,6 +66,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-[100dvh] bg-background text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Providers>
+            <PwaRegistrar />
             {children}
             <Toaster position="bottom-right" />
           </Providers>

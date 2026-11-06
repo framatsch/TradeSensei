@@ -24,7 +24,7 @@ export function PortfolioSwitcher() {
 
   if (isLoading) {
     return (
-      <div className="h-8 w-48 rounded-md bg-muted animate-pulse flex items-center px-3" />
+      <div className="h-8 w-32 sm:w-48 max-w-full rounded-md bg-muted animate-pulse flex items-center px-3" />
     );
   }
 
@@ -33,17 +33,17 @@ export function PortfolioSwitcher() {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button data-testid="portfolio-switcher" className="flex items-center gap-2 h-8 px-2 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button data-testid="portfolio-switcher" className="flex items-center gap-1.5 sm:gap-2 h-8 px-2 max-w-full min-w-0 rounded-md hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div
             className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ backgroundColor: activePortfolio.color_hex || "#6b7280" }}
           />
-          <span className="font-medium text-sm truncate max-w-[150px]">
+          <span className="font-medium text-sm truncate max-w-[96px] sm:max-w-[150px] md:max-w-[220px]">
             {activePortfolio.name}
           </span>
-          <span className="text-xs text-muted-foreground">{activePortfolio.base_currency}</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground shrink-0">{activePortfolio.base_currency}</span>
           
-          <ChevronDown className="w-4 h-4 text-muted-foreground opacity-50 ml-1" />
+          <ChevronDown className="w-4 h-4 text-muted-foreground opacity-50 ml-0.5 sm:ml-1 shrink-0" />
         </button>
       </DropdownMenu.Trigger>
 

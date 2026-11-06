@@ -73,12 +73,12 @@ export function PlaybookFilterBar({ filters, onChange, totalCounts }: Props) {
   return (
     <div className="solid-card shadow-sm mb-4">
       {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 p-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 min-w-0">
           <button
             type="button"
             onClick={() => setOpen((prev) => !prev)}
-            className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors text-foreground"
+            className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors text-foreground shrink-0"
             aria-expanded={open}
             aria-label="Toggle filter panel"
           >
@@ -92,11 +92,11 @@ export function PlaybookFilterBar({ filters, onChange, totalCounts }: Props) {
           </button>
 
           {/* Quick status tabs */}
-          <div className="flex items-center gap-1 bg-secondary/60 p-0.5 rounded-lg border border-border">
+          <div className="flex flex-wrap items-center gap-1 bg-secondary/60 p-0.5 rounded-lg border border-border max-w-full">
             <button
               type="button"
               onClick={() => handleStatusChange("active")}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-2 sm:px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                 filters.status === "active"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -107,7 +107,7 @@ export function PlaybookFilterBar({ filters, onChange, totalCounts }: Props) {
             <button
               type="button"
               onClick={() => handleStatusChange("inactive")}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-2 sm:px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                 filters.status === "inactive"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -118,7 +118,7 @@ export function PlaybookFilterBar({ filters, onChange, totalCounts }: Props) {
             <button
               type="button"
               onClick={() => handleStatusChange("all")}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-2 sm:px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                 filters.status === "all"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"

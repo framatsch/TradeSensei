@@ -398,7 +398,7 @@ export function WorkspaceFilterBar() {
   return (
     <div className="w-full bg-card border border-border rounded-md shadow-sm">
       {/* Header bar with toggle */}
-      <div className="flex items-center justify-between p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3">
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -439,7 +439,7 @@ export function WorkspaceFilterBar() {
         </div>
 
         {/* Save Controls in Header */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => {

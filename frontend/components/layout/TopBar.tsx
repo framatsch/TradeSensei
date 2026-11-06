@@ -58,7 +58,7 @@ export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobile
   return (
     <header className="sticky top-0 h-[var(--topbar-height,3.5rem)] w-full border-b border-border bg-sidebar z-40 flex items-center justify-between px-4 lg:px-6">
       {/* Left section */}
-      <div className="flex items-center w-1/3">
+      <div className="flex items-center shrink-0">
         <div className="flex items-center gap-1">
           <button
             onClick={onToggleMobileSidebar}
@@ -77,7 +77,7 @@ export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobile
           
           <Link
             href={homeRoute}
-            className="hidden sm:flex p-2 rounded-md hover:bg-muted text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex p-2 rounded-md hover:bg-muted text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Home"
           >
             <Home className="w-5 h-5" />
@@ -86,18 +86,18 @@ export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobile
           <BentoMenu />
         </div>
 
-        <span className="text-sm font-semibold tracking-wide text-foreground whitespace-nowrap ml-6 hidden sm:block border-l border-border/50 pl-6">
+        <span className="text-sm font-semibold tracking-wide text-foreground whitespace-nowrap ml-6 hidden md:block border-l border-border/50 pl-6">
           {contextLabel}
         </span>
       </div>
 
       {/* Center section */}
-      <div className="flex items-center justify-center w-1/3">
+      <div className="flex items-center justify-center min-w-0 flex-1 px-1 sm:px-2">
         {activeContext === "portfolio" && <PortfolioSwitcher />}
       </div>
 
       {/* Right section */}
-      <div className="flex items-center justify-end w-1/3">
+      <div className="flex items-center justify-end shrink-0">
         <UserBadge />
       </div>
     </header>

@@ -79,31 +79,35 @@ describe("PlaybookList", () => {
     jest.clearAllMocks();
   });
 
-  it("renders active playbooks by default and does NOT render a delete button in rows", () => {
+  it("renders active playbooks by default in both mobile card list and desktop table and does NOT render a delete button", () => {
     render(<PlaybookList />);
 
-    // Default filter is "Active", so Alpha Breakout should be visible
-    expect(screen.getByText("Alpha Breakout")).toBeInTheDocument();
+    // Single unified heading
+    expect(screen.getByRole("heading", { name: "Playbooks", level: 1 })).toBeInTheDocument();
+
+    // Default filter is "Active", so Alpha Breakout should be present in both mobile card list and desktop table
+    expect(screen.getAllByText("Alpha Breakout").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByTestId("playbook-card-list")).toHaveTextContent("Alpha Breakout");
     // Inactive playbook should not be visible in default Active view
     expect(screen.queryByText("Zeta Scalp")).not.toBeInTheDocument();
 
-    // Verify Edit button is present
-    expect(screen.getByRole("button", { name: "Edit Alpha Breakout" })).toBeInTheDocument();
+    // Verify Edit button is present in both mobile card and desktop row
+    expect(screen.getAllByRole("button", { name: "Edit Alpha Breakout" })).toHaveLength(2);
 
-    // Verify NO Delete button is present in the table
+    // Verify NO Delete button is present in the overview
     expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
   });
 
-  it("toggles status when clicking the status button in the table row", async () => {
+  it("toggles status when clicking the status button in the table row or mobile card", async () => {
     const user = userEvent.setup();
     render(<PlaybookList />);
 
-    const statusBtn = screen.getByRole("button", {
+    const statusBtns = screen.getAllByRole("button", {
       name: "Toggle status for Alpha Breakout, currently Active",
     });
-    expect(statusBtn).toBeInTheDocument();
+    expect(statusBtns).toHaveLength(2);
 
-    await user.click(statusBtn);
+    await user.click(statusBtns[0]);
 
     expect(mockUpdatePlaybook).toHaveBeenCalledWith({
       id: "pb-1",
@@ -119,7 +123,7 @@ describe("PlaybookList", () => {
     await user.click(inactiveTab);
 
     // Now Zeta Scalp should be visible, Alpha Breakout hidden
-    expect(screen.getByText("Zeta Scalp")).toBeInTheDocument();
+    expect(screen.getAllByText("Zeta Scalp").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Alpha Breakout")).not.toBeInTheDocument();
   });
 
@@ -130,11 +134,11 @@ describe("PlaybookList", () => {
     const allTab = screen.getByRole("button", { name: "All (2)" });
     await user.click(allTab);
 
-    expect(screen.getByText("Alpha Breakout")).toBeInTheDocument();
-    expect(screen.getByText("Zeta Scalp")).toBeInTheDocument();
+    expect(screen.getAllByText("Alpha Breakout").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Zeta Scalp").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("sorts by column header clicking", async () => {
+  it("sorts by column header clicking and mobile sort dropdown", async () => {
     const user = userEvent.setup();
     render(<PlaybookList />);
 
@@ -149,5 +153,13 @@ describe("PlaybookList", () => {
     // After header row, first row should now be Zeta Scalp (descending Z -> A)
     expect(rows[1]).toHaveTextContent("Zeta Scalp");
     expect(rows[2]).toHaveTextContent("Alpha Breakout");
+
+    // Sort via mobile sort select back to Name: A -> Z
+    const sortSelect = screen.getByLabelText("Sort playbooks");
+    await user.selectOptions(sortSelect, "name:asc");
+
+    const updatedRows = screen.getAllByRole("row");
+    expect(updatedRows[1]).toHaveTextContent("Alpha Breakout");
+    expect(updatedRows[2]).toHaveTextContent("Zeta Scalp");
   });
 });

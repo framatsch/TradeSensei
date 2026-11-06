@@ -356,7 +356,7 @@ export function AnnotationManager() {
   return (
     <div className="space-y-6">
       {!isEditing && !isViewing && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <div
               role="switch"
@@ -378,9 +378,9 @@ export function AnnotationManager() {
           </label>
           <button
             onClick={handleCreate}
-            className="btn-primary"
+            className="btn-primary shrink-0 whitespace-nowrap h-9 px-3 sm:px-4 text-xs sm:text-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             New Metric
           </button>
         </div>
@@ -389,23 +389,23 @@ export function AnnotationManager() {
       {isViewing && selectedAnnotation && !isEditing ? (
         /* Read-Only Details View modeled after Playbooks */
         <div className="solid-card p-6 space-y-6">
-          <div className="flex items-center justify-between border-b border-border pb-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={handleCloseDetails}
-                className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground shrink-0"
                 aria-label="Back to list"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="w-1.5 h-6 bg-muted-foreground/30 rounded-full flex-shrink-0" />
               {selectedAnnotation.icon_identifier && (
-                <DynamicIcon name={selectedAnnotation.icon_identifier} className="w-5 h-5 text-muted-foreground" />
+                <DynamicIcon name={selectedAnnotation.icon_identifier} className="w-5 h-5 text-muted-foreground shrink-0" />
               )}
-              <h3 className="text-xl font-semibold text-foreground">{selectedAnnotation.name}</h3>
+              <h3 className="text-xl font-semibold text-foreground break-words min-w-0">{selectedAnnotation.name}</h3>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => handleEdit(selectedAnnotation)}
                 className="btn-primary shrink-0"
@@ -902,7 +902,7 @@ export function AnnotationManager() {
                   <h3 className="font-medium truncate">{ann.name}</h3>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                     <button
                       aria-label={`Edit ${ann.name}`}
                       onClick={() => handleEdit(ann)}

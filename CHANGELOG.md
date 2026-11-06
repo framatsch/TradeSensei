@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [frontend] Added installable Progressive Web App support: Web App Manifest, multi-resolution and maskable icons, `apple-touch-icon`, viewport/Apple web-app metadata, and a minimal service worker (`PwaRegistrar`) that bypasses `/api/*` so trading data is never stale-cached.
+- [frontend] Added a mobile card list and sort dropdown for the Playbooks library below `md`, with the desktop table now wrapped in `overflow-x-auto`.
+
+### Changed
+- [frontend] Made the TopBar responsive: Home button visible on all viewports and a flexible layout with truncating `PortfolioSwitcher` so all controls fit on 375px screens.
+- [frontend] Simplified Playbooks, Tags and Metrics library headers into a single compact row and let filter bars wrap on narrow viewports.
+
+### Fixed
+- [frontend] Fixed Tags and Metrics library Edit/Delete actions being unreachable on touch devices (hover-only visibility).
+- [frontend] Removed the duplicate page header on the Playbooks library page.
+
 ## [1.18.1] - 2026-10-31
 
 ### Added

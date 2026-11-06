@@ -26,10 +26,42 @@ test.describe('Playbook Strategy Hub', () => {
 
   test('TC-080 navigate to playbooks and see the list', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Playbooks', level: 1 })).toBeVisible();
-    await expect(page.getByText('Define and manage your trading strategies and setup types')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Playbook' })).toBeVisible();
     
-    // There should be at least the seeded playbooks, so table should be visible
+    // There should be at least the seeded playbooks, so table should be visible on desktop
     await expect(page.locator('table')).toBeVisible();
+  });
+
+  test('TC-080b mobile (375x812) and tablet (768x1024) playbook overview, Home button, and PWA manifest', async ({ page }) => {
+    // 1. Mobile viewport (375x812)
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/dashboard/library/playbooks');
+    await page.waitForLoadState('networkidle');
+
+    // Home button is visible in TopBar on mobile
+    await expect(page.getByRole('link', { name: 'Home' })).toBeVisible();
+
+    // Single Playbooks heading and New Playbook button
+    await expect(page.getByRole('heading', { name: 'Playbooks', level: 1 })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Playbook' })).toBeVisible();
+
+    // Mobile card list and mobile sort select are visible; desktop table is hidden
+    await expect(page.getByTestId('playbook-card-list')).toBeVisible();
+    await expect(page.getByLabel('Sort playbooks')).toBeVisible();
+    await expect(page.locator('table')).toBeHidden();
+
+    // 2. Tablet viewport (768x1024)
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await expect(page.getByRole('link', { name: 'Home' })).toBeVisible();
+    await expect(page.locator('table')).toBeVisible();
+    await expect(page.getByTestId('playbook-card-list')).toBeHidden();
+
+    // 3. Web App Manifest availability
+    const manifestRes = await page.request.get('/manifest.webmanifest');
+    expect(manifestRes.ok()).toBeTruthy();
+    const manifestJson = await manifestRes.json();
+    expect(manifestJson.display).toBe('standalone');
+    expect(manifestJson.start_url).toBe('/dashboard');
   });
 
   test('TC-081 create a new playbook, edit it, and save', async ({ page }) => {

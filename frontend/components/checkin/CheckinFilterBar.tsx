@@ -194,7 +194,7 @@ export function CheckinFilterBar() {
   return (
     <div className="w-full solid-card rounded-md mb-6">
       {/* Header bar with toggle */}
-      <div className="flex items-center justify-between p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3">
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -233,7 +233,7 @@ export function CheckinFilterBar() {
         </div>
 
         {/* Save Controls in Header */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => {

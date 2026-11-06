@@ -289,7 +289,7 @@ export function TaxonomyManager() {
   return (
     <div className="space-y-6">
       {!isEditing && !isViewing && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <div
               role="switch"
@@ -311,9 +311,9 @@ export function TaxonomyManager() {
           </label>
           <button
             onClick={handleCreate}
-            className="btn-primary"
+            className="btn-primary shrink-0 whitespace-nowrap h-9 px-3 sm:px-4 text-xs sm:text-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             New Tag
           </button>
         </div>
@@ -322,11 +322,11 @@ export function TaxonomyManager() {
       {isViewing && selectedTaxonomy && !isEditing ? (
         /* Read-Only Details View modeled after Playbooks */
         <div className="solid-card p-6 space-y-6">
-          <div className="flex items-center justify-between border-b border-border pb-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={handleCloseDetails}
-                className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground shrink-0"
                 aria-label="Back to list"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -336,12 +336,12 @@ export function TaxonomyManager() {
                 style={{ backgroundColor: selectedTaxonomy.color_hex }}
               />
               {selectedTaxonomy.icon_identifier && (
-                <DynamicIcon name={selectedTaxonomy.icon_identifier} className="w-5 h-5 text-muted-foreground" />
+                <DynamicIcon name={selectedTaxonomy.icon_identifier} className="w-5 h-5 text-muted-foreground shrink-0" />
               )}
-              <h3 className="text-xl font-semibold text-foreground">{selectedTaxonomy.name}</h3>
+              <h3 className="text-xl font-semibold text-foreground break-words min-w-0">{selectedTaxonomy.name}</h3>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => handleEdit(selectedTaxonomy)}
                 className="btn-primary shrink-0"
@@ -746,7 +746,7 @@ export function TaxonomyManager() {
                   <h3 className="font-medium truncate">{tax.name}</h3>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                  <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                     <button
                       aria-label={`Edit ${tax.name}`}
                       onClick={() => handleEdit(tax)}

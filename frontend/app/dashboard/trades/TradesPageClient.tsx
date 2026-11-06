@@ -537,16 +537,13 @@ export function TradesPageClient() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Trades</h1>
-          <p className="hidden text-sm text-muted-foreground mt-1 lg:block">
-            Manage, filter, and review your trading history.
-          </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <Link
             href="/dashboard/trades/new"
-            className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+            className="inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-3 sm:px-4"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4 shrink-0" />
             New Trade
           </Link>
         </div>

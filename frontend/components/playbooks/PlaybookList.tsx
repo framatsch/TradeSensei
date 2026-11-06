@@ -37,6 +37,15 @@ import {
 type SortKey = "name" | "created_at" | "is_active";
 type SortDirection = "asc" | "desc";
 
+const MOBILE_SORT_OPTIONS: { label: string; sortKey: SortKey; sortDir: SortDirection }[] = [
+  { label: "Name: A → Z", sortKey: "name", sortDir: "asc" },
+  { label: "Name: Z → A", sortKey: "name", sortDir: "desc" },
+  { label: "Created: newest", sortKey: "created_at", sortDir: "desc" },
+  { label: "Created: oldest", sortKey: "created_at", sortDir: "asc" },
+  { label: "Status: Active first", sortKey: "is_active", sortDir: "desc" },
+  { label: "Status: Inactive first", sortKey: "is_active", sortDir: "asc" },
+];
+
 export function PlaybookList() {
   const router = useRouter();
   const { data: playbooks, isLoading, isError, error, refetch } = usePlaybooks();
@@ -171,17 +180,12 @@ export function PlaybookList() {
   return (
     <div className="space-y-4">
       {/* Header action */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Playbooks</h2>
-          <p className="text-xs text-muted-foreground">
-            Manage your strategy setups, active status, and tags.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Playbooks</h1>
         <button
           onClick={handleCreate}
           disabled={creating}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap h-9 px-3 sm:px-4 text-xs sm:text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50"
         >
           {creating ? (
             <Spinner size="sm" />
@@ -191,7 +195,7 @@ export function PlaybookList() {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="w-4 h-4"
+              className="w-4 h-4 shrink-0"
             >
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -210,7 +214,7 @@ export function PlaybookList() {
         />
       )}
 
-      {/* Table */}
+      {/* List / Table */}
       <div className="solid-card">
         {rawPlaybooks.length === 0 ? (
           <div className="px-4 py-16 text-center text-muted-foreground">
@@ -234,84 +238,90 @@ export function PlaybookList() {
             </button>
           </div>
         ) : (
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("name")}
-                    className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
+          <>
+            {/* Mobile Sort Toolbar (< md) */}
+            <div className="flex items-center justify-between gap-2 border-b border-border p-3 md:hidden">
+              <span className="text-xs font-medium text-muted-foreground shrink-0">Sort by</span>
+              <select
+                aria-label="Sort playbooks"
+                value={`${sortKey}:${sortDir}`}
+                onChange={(event) => {
+                  const option = MOBILE_SORT_OPTIONS.find(
+                    (opt) => `${opt.sortKey}:${opt.sortDir}` === event.target.value
+                  );
+                  if (option) {
+                    setSortKey(option.sortKey);
+                    setSortDir(option.sortDir);
+                  }
+                }}
+                className="min-h-9 min-w-0 flex-1 rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {MOBILE_SORT_OPTIONS.map((option) => (
+                  <option key={option.label} value={`${option.sortKey}:${option.sortDir}`}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Mobile Card List (< md) */}
+            <div className="divide-y divide-border md:hidden" data-testid="playbook-card-list">
+              {filteredAndSorted.map((pb) => {
+                const formattedDate = new Date(pb.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
+                return (
+                  <div
+                    key={pb.id}
+                    onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}`)}
+                    className="flex flex-col gap-2.5 p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
                   >
-                    Name
-                    {sortKey === "name" ? (
-                      sortDir === "asc" ? (
-                        <ArrowUp className="w-3 h-3 text-primary" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3 text-primary" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-40" />
-                    )}
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                  Tags
-                </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("is_active")}
-                    className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
-                  >
-                    Status
-                    {sortKey === "is_active" ? (
-                      sortDir === "asc" ? (
-                        <ArrowUp className="w-3 h-3 text-primary" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3 text-primary" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-40" />
-                    )}
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("created_at")}
-                    className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
-                  >
-                    Created
-                    {sortKey === "created_at" ? (
-                      sortDir === "asc" ? (
-                        <ArrowUp className="w-3 h-3 text-primary" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3 text-primary" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-40" />
-                    )}
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAndSorted.map((pb) => (
-                <tr
-                  key={pb.id}
-                  onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}`)}
-                  className="border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-foreground">
-                    {pb.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    {pb.taxonomies && pb.taxonomies.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-semibold text-foreground break-words min-w-0">
+                        {pb.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleStatus(pb.id, pb.is_active);
+                        }}
+                        className={`inline-flex items-center shrink-0 px-2.5 py-0.5 rounded text-xs font-medium transition-all ${
+                          pb.is_active
+                            ? "bg-success/10 text-success border border-success/30 hover:bg-success/20"
+                            : "bg-secondary text-muted-foreground border border-border hover:bg-muted"
+                        }`}
+                        title={pb.is_active ? "Click to deactivate" : "Click to activate"}
+                        aria-label={`Toggle status for ${pb.name}, currently ${pb.is_active ? "Active" : "Inactive"}`}
+                      >
+                        {pb.is_active ? "Active" : "Inactive"}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>Created {formattedDate}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/dashboard/library/playbooks/${pb.id}?edit=true`);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="Edit playbook"
+                        aria-label={`Edit ${pb.name}`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                          <path d="M12 20h9"></path>
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                        Edit
+                      </button>
+                    </div>
+
+                    {pb.taxonomies && pb.taxonomies.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
                         {pb.taxonomies.map((tag) => (
                           <span
                             key={tag.id}
@@ -326,55 +336,157 @@ export function PlaybookList() {
                           </span>
                         ))}
                       </div>
-                    ) : (
-                      <span className="italic text-muted-foreground text-sm">—</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleStatus(pb.id, pb.is_active);
-                      }}
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium transition-all ${
-                        pb.is_active
-                          ? "bg-success/10 text-success border border-success/30 hover:bg-success/20"
-                          : "bg-secondary text-muted-foreground border border-border hover:bg-muted"
-                      }`}
-                      title={pb.is_active ? "Click to deactivate" : "Click to activate"}
-                      aria-label={`Toggle status for ${pb.name}, currently ${pb.is_active ? "Active" : "Inactive"}`}
-                    >
-                      {pb.is_active ? "Active" : "Inactive"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                    {new Date(pb.created_at).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Tablet & Desktop Table (md+) */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
                       <button
                         type="button"
-                        onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}?edit=true`)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        title="Edit playbook"
-                        aria-label={`Edit ${pb.name}`}
+                        onClick={() => handleSort("name")}
+                        className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                          <path d="M12 20h9"></path>
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
+                        Name
+                        {sortKey === "name" ? (
+                          sortDir === "asc" ? (
+                            <ArrowUp className="w-3 h-3 text-primary" />
+                          ) : (
+                            <ArrowDown className="w-3 h-3 text-primary" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-40" />
+                        )}
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                      Tags
+                    </th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleSort("is_active")}
+                        className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
+                      >
+                        Status
+                        {sortKey === "is_active" ? (
+                          sortDir === "asc" ? (
+                            <ArrowUp className="w-3 h-3 text-primary" />
+                          ) : (
+                            <ArrowDown className="w-3 h-3 text-primary" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-40" />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleSort("created_at")}
+                        className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors uppercase"
+                      >
+                        Created
+                        {sortKey === "created_at" ? (
+                          sortDir === "asc" ? (
+                            <ArrowUp className="w-3 h-3 text-primary" />
+                          ) : (
+                            <ArrowDown className="w-3 h-3 text-primary" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-40" />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAndSorted.map((pb) => (
+                    <tr
+                      key={pb.id}
+                      onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}`)}
+                      className="border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">
+                        {pb.name}
+                      </td>
+                      <td className="px-4 py-3">
+                        {pb.taxonomies && pb.taxonomies.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {pb.taxonomies.map((tag) => (
+                              <span
+                                key={tag.id}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border"
+                                style={{
+                                  backgroundColor: (tag.color_hex ?? "#888") + "20",
+                                  borderColor: (tag.color_hex ?? "#888") + "50",
+                                  color: tag.color_hex ?? "#888",
+                                }}
+                              >
+                                {tag.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="italic text-muted-foreground text-sm">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleStatus(pb.id, pb.is_active);
+                          }}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium transition-all ${
+                            pb.is_active
+                              ? "bg-success/10 text-success border border-success/30 hover:bg-success/20"
+                              : "bg-secondary text-muted-foreground border border-border hover:bg-muted"
+                          }`}
+                          title={pb.is_active ? "Click to deactivate" : "Click to activate"}
+                          aria-label={`Toggle status for ${pb.name}, currently ${pb.is_active ? "Active" : "Inactive"}`}
+                        >
+                          {pb.is_active ? "Active" : "Inactive"}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                        {new Date(pb.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}?edit=true`)}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="Edit playbook"
+                            aria-label={`Edit ${pb.name}`}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                              <path d="M12 20h9"></path>
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

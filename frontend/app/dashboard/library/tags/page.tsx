@@ -23,10 +23,7 @@ export const metadata = {
 export default function TagsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Tags"
-        subtitle="Manage reusable metadata taxonomies for trades and check-ins"
-      />
+      <PageHeader title="Tags" />
       <TaxonomyManager />
     </div>
   );

@@ -13,7 +13,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { PageHeader } from "@/components/ui/PageHeader";
 import { PlaybookList } from "@/components/playbooks/PlaybookList";
 
 export const metadata = {
@@ -23,10 +22,6 @@ export const metadata = {
 export default function PlaybooksPage() {
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Playbooks"
-        subtitle="Define and manage your trading strategies and setup types"
-      />
       <PlaybookList />
     </div>
   );
