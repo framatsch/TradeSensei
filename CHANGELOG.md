@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- [frontend] Fixed the installed PWA / Chrome app always opening the Portfolio Workspace instead of the configured start page: the manifest `start_url` is now `/` so the root page resolves the user's `home_route`.
+
 ## [1.19.0] - 2026-11-06
 
 ### Added

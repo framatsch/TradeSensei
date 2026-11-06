@@ -20,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Trade Sensei",
     short_name: "Trade Sensei",
     description: "Advanced statistical analysis and journaling for your trades",
-    start_url: "/dashboard",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     background_color: "#0a0a14",
