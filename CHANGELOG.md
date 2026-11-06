@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-11-06
+
 ### Added
 - [frontend] Added installable Progressive Web App support: Web App Manifest, multi-resolution and maskable icons, `apple-touch-icon`, viewport/Apple web-app metadata, and a minimal service worker (`PwaRegistrar`) that bypasses `/api/*` so trading data is never stale-cached.
 - [frontend] Added a mobile card list and sort dropdown for the Playbooks library below `md`, with the desktop table now wrapped in `overflow-x-auto`.
@@ -808,6 +810,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.19.0]: https://github.com/scheffold/TradeSensei/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/scheffold/TradeSensei/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/scheffold/TradeSensei/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/scheffold/TradeSensei/compare/v1.16.5...v1.17.0
@@ -819,7 +822,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/scheffold/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/scheffold/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/scheffold/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.18.1...HEAD
+[unreleased]: https://github.com/scheffold/TradeSensei/compare/v1.19.0...HEAD
 [1.13.0]: https://github.com/scheffold/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/scheffold/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/scheffold/TradeSensei/compare/v1.10.0...v1.11.0
