@@ -56,7 +56,7 @@ export function AboutModal({
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">License</span>
             <a
-              href="https://github.com/scheffold/TradeSensei/blob/main/LICENSE"
+              href="https://github.com/framatsch/TradeSensei/blob/main/LICENSE"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-primary hover:underline"
@@ -79,7 +79,7 @@ export function AboutModal({
           <span>&copy; {new Date().getFullYear()} {appName}</span>
           <span className="flex items-center">
             <a
-              href="https://github.com/scheffold/TradeSensei"
+              href="https://github.com/framatsch/TradeSensei"
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted-foreground hover:text-foreground transition-colors"

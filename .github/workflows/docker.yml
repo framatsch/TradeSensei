@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      BACKEND_IMAGE: ghcr.io/scheffold/tradesensei-backend
-      FRONTEND_IMAGE: ghcr.io/scheffold/tradesensei-frontend
+      BACKEND_IMAGE: ghcr.io/framatsch/tradesensei-backend
+      FRONTEND_IMAGE: ghcr.io/framatsch/tradesensei-frontend
     permissions:
       contents: write
       packages: write
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      FRONTEND_IMAGE: ghcr.io/scheffold/tradesensei-frontend
+      FRONTEND_IMAGE: ghcr.io/framatsch/tradesensei-frontend
     permissions:
       contents: read
       packages: write

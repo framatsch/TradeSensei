@@ -19,7 +19,7 @@ services:
       - internal
 
   backend:
-    image: ghcr.io/scheffold/tradesensei-backend:{{IMAGE_TAG}}
+    image: ghcr.io/framatsch/tradesensei-backend:{{IMAGE_TAG}}
     restart: always
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -42,7 +42,7 @@ services:
       - internal
 
   frontend:
-    image: ghcr.io/scheffold/tradesensei-frontend:{{IMAGE_TAG}}
+    image: ghcr.io/framatsch/tradesensei-frontend:{{IMAGE_TAG}}
     restart: always
     environment:
       API_URL: ${API_URL:-http://localhost:8000}

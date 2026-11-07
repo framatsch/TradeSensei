@@ -62,8 +62,8 @@ When the user asks to "create release version <X.Y.Z>":
    - If empty, add entries under `## [Unreleased]` grouped by `### Added`, `### Fixed`, `### Changed`
    - Also ensure compare links at the bottom of CHANGELOG.md are up to date:
      ```
-     [unreleased]: https://github.com/scheffold/TradeSensei/compare/v<X.Y.Z>...HEAD
-     [<X.Y.Z>]: https://github.com/scheffold/TradeSensei/compare/v<prev>...v<X.Y.Z>
+     [unreleased]: https://github.com/framatsch/TradeSensei/compare/v<X.Y.Z>...HEAD
+     [<X.Y.Z>]: https://github.com/framatsch/TradeSensei/compare/v<prev>...v<X.Y.Z>
      ```
    - Commit the CHANGELOG update before bumping:
      ```bash

@@ -16,16 +16,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/scheffold/OpenTradeJournal.git"
+    "url": "git+https://github.com/framatsch/OpenTradeJournal.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/scheffold/OpenTradeJournal/issues"
+    "url": "https://github.com/framatsch/OpenTradeJournal/issues"
   },
-  "homepage": "https://github.com/scheffold/OpenTradeJournal#readme",
+  "homepage": "https://github.com/framatsch/OpenTradeJournal#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0"
