@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.2] - 2026-11-08
+
 ### Changed
 - [config] Consolidated repository documentation and updated all GitHub and GHCR image references to `framatsch`.
 
@@ -821,6 +823,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.19.2]: https://github.com/framatsch/TradeSensei/compare/v1.19.1...v1.19.2
 [1.19.1]: https://github.com/framatsch/TradeSensei/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/framatsch/TradeSensei/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/framatsch/TradeSensei/compare/v1.18.0...v1.18.1
@@ -834,7 +837,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/framatsch/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/framatsch/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/framatsch/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.19.1...HEAD
+[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.19.2...HEAD
 [1.13.0]: https://github.com/framatsch/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/framatsch/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/framatsch/TradeSensei/compare/v1.10.0...v1.11.0
