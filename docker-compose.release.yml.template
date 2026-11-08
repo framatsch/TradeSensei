@@ -1,7 +1,7 @@
 # Production TradeSensei stack
 #
 # Usage:
-# 1. cp .env.example .env
+# 1. cp env.example .env
 # 2. Edit .env (at least set DB_PASSWORD, SECRET_KEY)
 # 3. docker compose -f docker-compose.release.yml up -d
 
