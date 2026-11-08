@@ -31,6 +31,10 @@ services:
       ENVIRONMENT: production
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      MCP_ENABLED: ${MCP_ENABLED:-true}
+      BROKER_ENCRYPTION_KEY: ${BROKER_ENCRYPTION_KEY:-}
+      MARKET_DATA_HUB_URL: ${MARKET_DATA_HUB_URL:-http://localhost:9000}
+      MARKET_DATA_HUB_PROVIDER: ${MARKET_DATA_HUB_PROVIDER:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # Storage configuration (bundled SeaweedFS by default)
@@ -41,6 +45,10 @@ services:
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-any}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-any}
       STORAGE_ENDPOINT_URL: ${STORAGE_ENDPOINT_URL:-http://seaweedfs:8333}
+    ports:
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

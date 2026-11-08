@@ -178,7 +178,9 @@ class Settings(BaseSettings):
 
     # Market Data Hub
     market_data_hub_url: str | None = None
-    """Base URL of the Market Data Hub (LSEG provider), e.g. https://market-data-hub.example.com"""
+    """Base URL of the Market Data Hub, e.g. https://market-data-hub.example.com"""
+    market_data_hub_provider: str | None = None
+    """Optional provider override for the Market Data Hub (e.g. 'lseg'). When unset, the Hub's default provider is used."""
 
     # Object Storage
     storage_backend: str | None = None

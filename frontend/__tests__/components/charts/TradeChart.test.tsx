@@ -151,6 +151,7 @@ describe("TradeChart", () => {
     expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(
       "/api/proxy/api/v1/market-data/prices/QQQ/history?",
     ));
+    expect(mockFetch).toHaveBeenCalledWith(expect.not.stringContaining("provider="));
     const chart = jest.mocked(createChart).mock.results[0].value;
     expect(chart.addSeries).toHaveBeenCalledWith(CandlestickSeries, expect.any(Object));
     expect(chart.addSeries).toHaveBeenCalledWith(HistogramSeries, expect.any(Object));

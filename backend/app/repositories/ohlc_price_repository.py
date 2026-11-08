@@ -42,7 +42,7 @@ class OhlcPriceRepository:
         self,
         symbol: str,
         interval: str,
-        provider: str,
+        provider: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
     ) -> list[OhlcPrice]:
@@ -51,7 +51,7 @@ class OhlcPriceRepository:
         Args:
             symbol: Ticker symbol to load.
             interval: Candle interval (for example ``"1d"``).
-            provider: Market data provider identifier.
+            provider: Optional market data provider identifier.
             start: Inclusive lower bound for bar start timestamps.
             end: Inclusive upper bound for bar start timestamps.
 
@@ -61,8 +61,9 @@ class OhlcPriceRepository:
         stmt = select(OhlcPrice).where(
             OhlcPrice.symbol == symbol,
             OhlcPrice.interval == interval,
-            OhlcPrice.provider == provider,
         )
+        if provider is not None:
+            stmt = stmt.where(OhlcPrice.provider == provider)
         if start is not None:
             stmt = stmt.where(OhlcPrice.start >= start)
         if end is not None:

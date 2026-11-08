@@ -82,7 +82,7 @@ async def get_price_history(
     symbol: str,
     request: Request,
     service: Annotated[MarketDataService, Depends(_get_service)],
-    provider: str = Query(default="lseg"),
+    provider: str | None = Query(default=None),
     interval: str = Query(default="1d"),
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
@@ -98,7 +98,8 @@ async def get_price_history(
         symbol: Ticker symbol, e.g. ``AAPL`` or ``SPX``.
         request: Incoming FastAPI request.
         service: Market data service for DB access.
-        provider: Data provider identifier passed to the Hub.
+        provider: Optional data provider identifier passed to the Hub. Falls back
+            to ``MARKET_DATA_HUB_PROVIDER`` if configured, or the Hub's default.
         interval: Candlestick interval, e.g. ``"1h"``, ``"4h"``, ``"1d"``.
         start: ISO-8601 start datetime for the requested range (inclusive).
         end: ISO-8601 end datetime for the requested range (inclusive).
@@ -107,6 +108,8 @@ async def get_price_history(
     Returns:
         The JSON body with OHLC data.
     """
+    effective_provider = (provider or settings.market_data_hub_provider or "").strip() or None
+
     # 1. Check local cache
     # ─────────────────────────────────────────────
     start_dt = datetime.fromisoformat(start.replace("Z", "+00:00")) if start else None
@@ -115,7 +118,9 @@ async def get_price_history(
     # Try to serve from cache if we have the full range
     cached_bars = None
     if not force_refresh:
-        cached_bars = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
+        cached_bars = await service.get_cached_prices(
+            symbol, interval, effective_provider, start_dt, end_dt
+        )
 
     # Simplified coverage check: if we have bars and the first/last match
     # our requested range (with some tolerance for weekend/market hours),
@@ -129,7 +134,9 @@ async def get_price_history(
     # ─────────────────────────────────────────────
     base = _hub_base()
 
-    params: dict[str, str] = {"provider": provider, "interval": interval}
+    params: dict[str, str] = {"interval": interval}
+    if effective_provider is not None:
+        params["provider"] = effective_provider
     if start is not None:
         params["start"] = start
     if end is not None:
@@ -144,7 +151,9 @@ async def get_price_history(
         upstream = await client.get(target_url, params=params)
     except httpx.RequestError as exc:
         # On Hub failure, serve from cache as fallback
-        cached = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
+        cached = await service.get_cached_prices(
+            symbol, interval, effective_provider, start_dt, end_dt
+        )
         if cached:
             return OHLCResponse.model_validate({"data": service.format_bars(cached)})
         raise HTTPException(
@@ -154,7 +163,9 @@ async def get_price_history(
 
     if not upstream.is_success:
         # Same here: if Hub fails, maybe we have cached data?
-        cached = await service.get_cached_prices(symbol, interval, provider, start_dt, end_dt)
+        cached = await service.get_cached_prices(
+            symbol, interval, effective_provider, start_dt, end_dt
+        )
         if cached:
             return OHLCResponse.model_validate({"data": service.format_bars(cached)})
         raise HTTPException(
@@ -171,7 +182,7 @@ async def get_price_history(
         # Ensure bars have interval/provider info for caching
         for b in bars:
             b["interval"] = interval
-            b["provider"] = provider
+            b["provider"] = effective_provider or b.get("provider") or "default"
         await service.cache_prices(bars)
 
     return OHLCResponse.model_validate(response_json)

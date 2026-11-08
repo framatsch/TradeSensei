@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [config] Made the Market Data Hub provider configurable via `MARKET_DATA_HUB_PROVIDER` (and optional `NEXT_PUBLIC_MARKET_DATA_HUB_PROVIDER`), omitting the `provider` parameter by default so Market Data Hub uses its own default provider instead of hardcoding `lseg`.
+
 ## [1.19.2] - 2026-11-08
 
 ### Changed

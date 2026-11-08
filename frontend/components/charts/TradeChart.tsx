@@ -18,7 +18,7 @@
  *
  * Data flow:
  *   1. If NEXT_PUBLIC_MARKET_DATA_HUB_URL is not set → TradingView fallback.
- *   2. If set → fetch /prices/{symbol}/history?provider=lseg from the hub.
+ *   2. If set → fetch /prices/{symbol}/history from the hub (using MARKET_DATA_HUB_PROVIDER if configured, otherwise hub default).
  *   3. Any API error → silent switch to TradingView fallback.
  *
  * Execution markers:
@@ -146,10 +146,14 @@ function buildApiUrl(
   // Lightweight-charts will just render the extra bars, but our `setVisibleRange`
   // will keep the view focused correctly around the trade.
   const params = new URLSearchParams({
-    provider: "lseg",
     interval,
     start,
   });
+
+  const configuredProvider = process.env.NEXT_PUBLIC_MARKET_DATA_HUB_PROVIDER?.trim();
+  if (configuredProvider) {
+    params.set("provider", configuredProvider);
+  }
 
   if (isIndexSymbol(symbol, assetClass)) {
     params.set("sec_type", "index");

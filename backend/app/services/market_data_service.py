@@ -37,7 +37,7 @@ class MarketDataService:
         self,
         symbol: str,
         interval: str,
-        provider: str,
+        provider: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
     ) -> list[OhlcPrice]:
@@ -46,7 +46,7 @@ class MarketDataService:
         Args:
             symbol: Ticker symbol.
             interval: Bar interval (1h, 1d, etc.).
-            provider: Data source name.
+            provider: Optional data source name.
             start: Optional start timestamp filter.
             end: Optional end timestamp filter.
 

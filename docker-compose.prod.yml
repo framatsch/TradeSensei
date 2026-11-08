@@ -45,6 +45,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://tradesensei.example.com}
+      MCP_ENABLED: "${MCP_ENABLED:-true}"
+      BROKER_ENCRYPTION_KEY: "${BROKER_ENCRYPTION_KEY:-}"
+      MARKET_DATA_HUB_URL: "${MARKET_DATA_HUB_URL:-http://localhost:9000}"
+      MARKET_DATA_HUB_PROVIDER: "${MARKET_DATA_HUB_PROVIDER:-}"
       # Object storage for screenshots and trade images.
       # Supports any S3-compatible provider (AWS S3, Cloudflare R2, Hetzner, Backblaze B2,
       # or bundled SeaweedFS via --profile storage). See docs/dev-guide.md for setup.
@@ -58,6 +62,10 @@ services:
       STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-}"
       STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-}"
       STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-}"
+    ports:
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
