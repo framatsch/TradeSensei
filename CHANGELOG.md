@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.3] - 2026-11-08
+
 ### Changed
 - [config] Made the Market Data Hub provider configurable via `MARKET_DATA_HUB_PROVIDER` (and optional `NEXT_PUBLIC_MARKET_DATA_HUB_PROVIDER`), omitting the `provider` parameter by default so Market Data Hub uses its own default provider instead of hardcoding `lseg`.
 
@@ -826,6 +828,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.19.3]: https://github.com/framatsch/TradeSensei/compare/v1.19.2...v1.19.3
 [1.19.2]: https://github.com/framatsch/TradeSensei/compare/v1.19.1...v1.19.2
 [1.19.1]: https://github.com/framatsch/TradeSensei/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/framatsch/TradeSensei/compare/v1.18.1...v1.19.0
@@ -840,7 +843,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/framatsch/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/framatsch/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/framatsch/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.19.2...HEAD
+[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.19.3...HEAD
 [1.13.0]: https://github.com/framatsch/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/framatsch/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/framatsch/TradeSensei/compare/v1.10.0...v1.11.0
