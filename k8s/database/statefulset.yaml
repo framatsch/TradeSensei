@@ -50,7 +50,7 @@ spec:
             failureThreshold: 10
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
           resources:
             requests:
               cpu: "250m"
