@@ -1,7 +1,7 @@
 # Production TradeSensei stack
 #
 # Usage:
-# 1. cp env.example .env
+# 1. cp .env.example .env
 # 2. Edit .env (at least set DB_PASSWORD, SECRET_KEY)
 # 3. docker compose -f docker-compose.release.yml up -d
 
@@ -15,6 +15,11 @@ services:
       POSTGRES_DB: ${DB_NAME:-tradesensei}
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-tradesensei} -d ${DB_NAME:-tradesensei}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - internal
 
@@ -28,16 +33,21 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      # Storage configuration (Required for image uploads)
+      # Storage configuration (bundled SeaweedFS by default)
       STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
-      STORAGE_BUCKET: ${STORAGE_BUCKET:?STORAGE_BUCKET is required}
-      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:?STORAGE_PUBLIC_URL is required}
-      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?STORAGE_ACCESS_KEY is required}
-      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?STORAGE_SECRET_KEY is required}
-      STORAGE_ENDPOINT_URL: ${STORAGE_ENDPOINT_URL:-}
-      # ... (rest of configuration)
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-tradesensei}
+      STORAGE_PROXY_URL: ${STORAGE_PROXY_URL:-http://seaweedfs:8333}
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-any}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-any}
+      STORAGE_ENDPOINT_URL: ${STORAGE_ENDPOINT_URL:-http://seaweedfs:8333}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
     networks:
       - internal
 
@@ -45,13 +55,58 @@ services:
     image: ghcr.io/framatsch/tradesensei-frontend:{{IMAGE_TAG}}
     restart: always
     environment:
-      API_URL: ${API_URL:-http://localhost:8000}
+      API_URL: ${API_URL:-http://backend:8000}
+      NEXT_PUBLIC_STORAGE_ACCESS_MODE: ${NEXT_PUBLIC_STORAGE_ACCESS_MODE:-proxy}
     depends_on:
       - backend
+      - seaweedfs
     networks:
       - internal
     ports:
       - "3000:3000"
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.23
+    restart: always
+    environment:
+      - WEED_JWT_FILER_SIGNING_KEY=${WEED_JWT_FILER_SIGNING_KEY:-7a8f9c1b2d3e4f5a6b7c8d9e0f1a2b3c}
+    command: server -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/security.json -dir=/data
+    expose:
+      - "8333"
+      - "8888"
+      - "9333"
+    volumes:
+      - seaweedfs_data:/data
+      - ./security.json:/etc/seaweedfs/security.json
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9333/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - internal
+
+  storage-init:
+    image: amazon/aws-cli:latest
+    restart: on-failure
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY:-any}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_KEY:-any}
+      AWS_EC2_METADATA_DISABLED: "true"
+    entrypoint: >
+      /bin/sh -c "
+        until aws --endpoint-url http://seaweedfs:8333 s3 ls > /dev/null 2>&1; do
+          echo 'Waiting for SeaweedFS S3 API...';
+          sleep 2;
+        done;
+        aws --endpoint-url http://seaweedfs:8333 s3 ls s3://${STORAGE_BUCKET:-tradesensei} > /dev/null 2>&1 || aws --endpoint-url http://seaweedfs:8333 s3 mb s3://${STORAGE_BUCKET:-tradesensei} --region us-east-1;
+      "
+    networks:
+      - internal
 
 networks:
   internal:
@@ -59,3 +114,4 @@ networks:
 
 volumes:
   db_data:
+  seaweedfs_data:

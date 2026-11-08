@@ -80,9 +80,11 @@ jobs:
             ## Docker Images
             - `${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.version }}`
             - `${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.version }}`
+            - `chrislusf/seaweedfs:4.23`
           files: |
             docker-compose.release.yml
-            env.example
+            .env.example
+            security.json
             README.md
 
   build-push-frontend:

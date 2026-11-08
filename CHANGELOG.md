@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [config] Consolidated repository documentation and updated all GitHub and GHCR image references to `framatsch`.
+
+### Fixed
+- [infra] Added the bundled `seaweedfs` (`chrislusf/seaweedfs:4.23`) and `storage-init` services to `docker-compose.release.yml.template` and included `.env.example`, `security.json`, and the SeaweedFS image reference in GitHub release artifacts.
+
 ## [1.19.1] - 2026-11-06
 
 ### Fixed
