@@ -81,6 +81,10 @@ services:
       STORAGE_ACCESS_KEY: "${STORAGE_ACCESS_KEY:-any}"
       STORAGE_SECRET_KEY: "${STORAGE_SECRET_KEY:-any}"
       STORAGE_ENDPOINT_URL: "${STORAGE_ENDPOINT_URL:-http://seaweedfs:8333}"
+    # Lets the backend reach services published on the host (e.g. Market Data Hub)
+    # via host.docker.internal. Needed for native Docker Engine on Linux/WSL2.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     volumes:
