@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "Account type MANUAL does not support API sync.",
+  "type": "ConfigurationError"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}

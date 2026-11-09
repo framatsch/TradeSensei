@@ -19,7 +19,7 @@ import pytest
 from app.api.v1.imports import _validate_account_import
 from app.core.exceptions import AccountNotFoundError, ImportNotAllowedError
 from app.models.account import Account, AccountType
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
 
 
 @pytest.mark.asyncio

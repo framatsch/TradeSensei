@@ -117,9 +117,40 @@ Rules
 - Pass the fetched payload through unchanged. Do not introduce a broker-specific
   intermediate representation — that becomes a third format to keep in sync.
 
-Reference implementation
-- `BrokerService._sync_schwab` (`backend/app/services/broker_service.py`) — fetches
-  from the Schwab API, wraps the payload, delegates to `ImportService.import_trades()`.
+Broker adapter contract (`backend/app/services/brokers/`)
+- Each broker is exactly one `BrokerAdapter` (`contracts.py`) registered in
+  `registry.py`: a `BrokerType` key, the `AccountType` it serves, an `ImportPolicy`,
+  and optional capability slots — `file_import`, `account_binding`, `remote_sync`,
+  `connection`. A `None` slot means "not supported" and is rejected at the call site.
+- `ImportService.import_trades()` consumes only the adapter's `CanonicalImportBatch`
+  (executions as `BrokerRawTransactionCreate`, corporate actions, warnings) and must
+  never branch on a broker — enforced by `tests/unit/test_import_service_broker_agnostic.py`.
+  Broker-specific behavior goes into a capability or an `ImportPolicy` flag.
+- Combo grouping, net cash and position flips read the broker-neutral
+  `broker_raw_transactions.order_id` / `net_cash` / `is_mixed_execution` columns,
+  never broker keys in `raw_data`.
+- `BrokerService.sync_account` resolves the adapter, lets `remote_sync.fetch()` return
+  the unchanged payload, then calls `ImportService.import_trades()` with the adapter key.
+  Reference: `IBKRRemoteSync` / `SchwabRemoteSync`.
+- Pure parsing stays in `app/utils/parsers/` (no DB, no HTTP); adapters live in
+  `services/` because binding, sync and auth need the session or HTTP.
+
+How to add a broker
+1. Add a parser in `app/utils/parsers/` whose `parse_raw()` returns
+   `BrokerRawTransactionCreate` rows with `order_id`, `net_cash` and
+   `is_mixed_execution` populated (or explicitly `None`/`False`).
+2. Add `app/services/brokers/<broker>/adapter.py` with the capabilities the broker
+   supports and a `BrokerAdapter` constant; add the key to `BrokerType` and the
+   adapter to `_ADAPTERS` in `registry.py` (plus the `AccountType` value).
+3. Do not touch `ImportService`, `BrokerService` or the upload route — extensions,
+   sync and connection-test dispatch come from the registry.
+4. Add fixtures under `backend/tests/fixtures/<broker>/` and golden-master cases in
+   `tests/integration/test_import_golden_master.py`.
+
+Golden master
+- `tests/integration/test_import_golden_master.py` snapshots the persisted import state
+  for every fixture and ingestion path. A diff is a behavior change to investigate,
+  not to re-snapshot; regenerate deliberately with `UPDATE_GOLDEN=1`.
 
 Why this rule exists
 - A parallel ingestion implementation silently misses every protection, invariant,

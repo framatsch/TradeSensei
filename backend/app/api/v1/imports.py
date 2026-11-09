@@ -47,9 +47,10 @@ from app.repositories.account_repository import AccountRepository
 from app.schemas.broker_raw_transaction import BrokerRawTransactionRead
 from app.schemas.common import ResponseEnvelope
 from app.schemas.imports import FlexImportRequest, FreshStartResult, ImportResult
+from app.services.brokers.contracts import BrokerType
+from app.services.brokers.registry import adapter_for_account_type
 from app.services.flex_import_service import FlexImportService, is_transient_send_request_error
 from app.services.import_service import ImportService
-from app.utils.parsers.factory import BrokerType
 
 router = APIRouter(
     prefix="/portfolios/{portfolio_id}/imports",
@@ -59,18 +60,6 @@ router = APIRouter(
 
 # 1 MB in bytes.
 _BYTES_PER_MB: int = 1024 * 1024
-
-# Allowed file extensions per broker type.
-_BROKER_ALLOWED_EXTENSIONS: dict[BrokerType, frozenset[str]] = {
-    BrokerType.IBKR: frozenset({"xml"}),
-    BrokerType.SCHWAB: frozenset({"json"}),
-}
-
-# Allowed broker types per account type (manual accounts cannot import files).
-_ACCOUNT_TYPE_BROKER: dict[AccountType, BrokerType] = {
-    AccountType.IBKR: BrokerType.IBKR,
-    AccountType.SCHWAB: BrokerType.SCHWAB,
-}
 
 
 def _get_service(
@@ -115,7 +104,11 @@ async def _validate_account_import(
     extension: str,
     session: AsyncSession,
 ) -> BrokerType:
-    """Verify the account exists, is not manual, and the file extension matches.
+    """Verify the account supports file import and the file extension matches.
+
+    The broker adapter registered for the account type defines the accepted
+    extensions; account types without a file-import adapter (``MANUAL``) are
+    rejected.
 
     Args:
         account_id: UUID of the target account.
@@ -124,11 +117,12 @@ async def _validate_account_import(
         session: Database session for the account lookup.
 
     Returns:
-        The :class:`BrokerType` to use for parsing.
+        The :class:`BrokerType` key of the adapter to import with.
 
     Raises:
-        ImportNotAllowedError: If the account is manual, or the file extension
-            does not match the expected format for the account type.
+        ImportNotAllowedError: If the account type has no file import, or the
+            file extension does not match the expected format for the account
+            type.
         AccountNotFoundError: If the account does not exist or is not owned by
             the user.
     """
@@ -139,17 +133,19 @@ async def _validate_account_import(
     )
     if account is None:
         raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
-    broker = _ACCOUNT_TYPE_BROKER.get(account.type)
-    if broker is None:
-        raise ImportNotAllowedError("File import is not supported for manual accounts")
-    allowed = _BROKER_ALLOWED_EXTENSIONS[broker]
+    adapter = adapter_for_account_type(account.type)
+    file_import = adapter.file_import if adapter is not None else None
+    if adapter is None or file_import is None:
+        raise ImportNotAllowedError(f"File import is not supported for {AccountType(account.type).value} accounts")
+    allowed = file_import.accepted_extensions
     if extension not in allowed:
-        if account.type == AccountType.SCHWAB and extension == "csv":
-            raise ImportNotAllowedError("Schwab accounts require JSON format (.json). CSV import is no longer supported.")
+        broker_message = file_import.rejected_extension_message(extension)
+        if broker_message is not None:
+            raise ImportNotAllowedError(broker_message)
         raise ImportNotAllowedError(
             f"Account '{account.name}' ({account.type.upper()}) only accepts {', '.join(f'.{e}' for e in sorted(allowed))} files. Received: .{extension}"
         )
-    return broker
+    return adapter.key
 
 
 @router.post(

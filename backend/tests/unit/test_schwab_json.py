@@ -36,10 +36,6 @@ def test_decode_schwab_wrapped_payload():
     with pytest.raises(ImportParseError, match="must include an 'accounts' array"):
         decode_schwab_wrapped_payload(b"{}")
 
-def test_parse_not_implemented():
-    with pytest.raises(NotImplementedError):
-        SchwabJSONParser().parse(b"", "test.json")
-
 def test_account_errors():
     parser = SchwabJSONParser()
     with pytest.raises(ImportParseError, match="expected object entry"):
@@ -148,3 +144,32 @@ def test_extract_commission():
         {"feeType": "COMMISSION", "instrument": {"assetType": "CURRENCY"}, "cost": "bad"},
         {"feeType": "COMMISSION", "instrument": {"assetType": "CURRENCY"}, "cost": "-1.5"}
     ]}) == Decimal("1.5")
+
+
+def test_parse_raw_sets_broker_neutral_fields_explicitly():
+    payload = {
+        "accounts": [
+            {
+                "accountNumber": "1",
+                "transactions": [
+                    {
+                        "activityId": 1,
+                        "type": "TRADE",
+                        "status": "VALID",
+                        "time": "2026-01-01T10:00:00+0000",
+                        "orderId": 77,
+                        "netAmount": -100,
+                        "brokerageOrderID": "must-be-ignored",
+                        "netCash": "-1",
+                        "openCloseIndicator": "C;O",
+                        "transferItems": [
+                            {"instrument": {"assetType": "EQUITY", "symbol": "AAPL"}, "amount": 1, "cost": -100, "price": 100, "positionEffect": "OPENING"}
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+    raw, _ = SchwabJSONParser().parse_raw(json.dumps(payload).encode(), "s.json")
+    assert len(raw) == 1
+    assert (raw[0].order_id, raw[0].net_cash, raw[0].is_mixed_execution) == (None, None, False)

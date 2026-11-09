@@ -18,7 +18,6 @@ account.  No HTTP concepts appear in this layer.
 """
 
 import asyncio
-import json
 import logging
 import tracemalloc
 import uuid
@@ -45,8 +44,8 @@ from app.core.exceptions import (
     AccountNotFoundError,
     ExecutionNotFoundError,
     ExecutionValidationError,
-    ImportParseError,
     TradeNotFoundError,
+    UnsupportedBrokerError,
 )
 from app.models.logical_execution import (
     EXECUTION_ORIGIN_IMPORTED,
@@ -67,7 +66,8 @@ from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.imports import FreshStartResult, ImportResult
 from app.schemas.trade import TradeCreate
-from app.services.audit_service import AuditEventService, generate_request_id
+from app.services.brokers.contracts import BrokerType
+from app.services.brokers.registry import get_adapter
 from app.services.logical_execution_service import LogicalExecutionService
 from app.utils.conflict_detection import detect_duplicate_pairs
 from app.utils.parsers.aggregator import (
@@ -79,10 +79,6 @@ from app.utils.parsers.aggregator import (
     build_combo_positions,
     logical_executions_to_trade_creates,
 )
-from app.utils.parsers.base import BrokerParser
-from app.utils.parsers.factory import BrokerType, get_parser
-from app.utils.parsers.schwab_json import decode_schwab_wrapped_payload
-from app.utils.schwab_account_resolution import resolve_schwab_account_entry
 
 logger = logging.getLogger(__name__)
 
@@ -135,24 +131,20 @@ class ProtectedExecutionSnapshot:
 class ImportService:
     """Service layer for importing broker trade files.
 
-    Validates account ownership, delegates to the appropriate broker
-    parser, and bulk-creates the parsed trades.
+    Validates account ownership, obtains a
+    :class:`~app.services.brokers.contracts.CanonicalImportBatch` from the
+    broker adapter, and bulk-creates the resulting trades. Broker-specific
+    behavior is expressed only through adapter capabilities and policy flags.
 
-    When the parser supports the raw-data layer
-    (:meth:`~app.utils.parsers.base.BrokerParser.parse_raw`),
-    the import follows a four-step pipeline:
+    The import follows a four-step pipeline:
 
-    1. Parse raw executions →
+    1. Adapter parses raw executions →
        :class:`~app.schemas.broker_raw_transaction.BrokerRawTransactionCreate`
     2. Upsert raw records into ``broker_raw_transactions`` (idempotent).
     3. Create :class:`~app.models.logical_execution.LogicalExecution` records
        (1:1 with newly inserted raw rows).
     4. Convert logical executions → :class:`~app.schemas.trade.TradeCreate` and
        run FIFO aggregation → persist :class:`~app.models.trade.Trade` rows.
-
-    Parsers that do not yet implement ``parse_raw`` fall back to the legacy
-    path (``parse()`` returns aggregated :class:`~app.schemas.trade.TradeCreate`
-    objects directly).
 
     Args:
         session: An open :class:`~sqlalchemy.ext.asyncio.AsyncSession`
@@ -174,7 +166,6 @@ class ImportService:
         self._raw_repo = BrokerRawTransactionRepository(session)
         self._logical_svc = LogicalExecutionService(session)
         self._exec_repo = ExecutionRepository(session)
-        self._audit = AuditEventService()
 
     async def set_statement_timeout(self, timeout_seconds: int) -> None:
         """Set the PostgreSQL ``statement_timeout`` for the current transaction.
@@ -205,13 +196,10 @@ class ImportService:
         The method first verifies that the target account belongs to the
         requesting user (if ``account_id`` is provided).  It then loads all
         :class:`~app.models.corporate_action.CorporateAction` records and all
-        existing **open** trades for the user, handing both — together with the
-        raw bytes — to the appropriate broker parser.
-
-        When the parser supports :meth:`parse_raw`, the raw-data pipeline is
-        used (persist raw → create logical → aggregate → persist trades).
-        Otherwise, the legacy ``parse()`` path is used (aggregate inside parser
-        → persist trades).
+        existing **open** trades for the user. The broker adapter resolved for
+        ``broker`` binds the payload to the account (when it declares account
+        binding) and parses it; the raw-data pipeline then persists raw →
+        creates logical executions → aggregates → persists trades.
 
         Trades that have ``is_manually_edited = True`` are skipped during
         re-import (matched by ``broker_conid`` + ``opened_at``) unless
@@ -225,7 +213,7 @@ class ImportService:
             filename: Source label supplied by the caller. For uploaded files
                 this is the original filename; for API-driven imports it may
                 be synthetic (for example ``flex_query_{query_id}.xml``).
-            broker: The broker type that identifies which parser to use.
+            broker: The broker key that identifies which adapter to use.
             account_id: Optional UUID of the account to associate trades
                 with.  When ``None`` trades are created without an account
                 association.
@@ -243,6 +231,7 @@ class ImportService:
         Raises:
             AccountNotFoundError: If ``account_id`` is provided but the
                 account does not exist or does not belong to ``user_id``.
+            UnsupportedBrokerError: If the adapter has no file import.
         """
         # Verify the account belongs to the requesting user (only if provided).
         portfolio_base_currency: str | None = None
@@ -303,35 +292,18 @@ class ImportService:
             portfolio_id,
         )
 
-        parser: BrokerParser = get_parser(broker)
+        adapter = get_adapter(broker)
+        file_import = adapter.file_import
+        if file_import is None:
+            raise UnsupportedBrokerError(f"Broker {broker!r} does not support file import.")
 
-        if broker == BrokerType.SCHWAB and account is not None:
-            payload = self._decode_schwab_payload(content)
-            accounts = payload.get("accounts")
-            assert isinstance(accounts, list)
-            if accounts:
-                selected_account, selected_account_number = self._select_schwab_account_entry(
-                    payload,
-                    account_number=account.account_number,
-                )
-                if account.account_number is None and selected_account_number is not None:
-                    account.account_number = selected_account_number
-                    self._session.add(account)
-                    await self._session.flush()
-                    self._emit_account_number_bound_audit(
-                        user_id=user_id,
-                        account_id=account.id,
-                        portfolio_id=portfolio_id,
-                    )
-                payload["accounts"] = [selected_account]
-            content = json.dumps(payload).encode("utf-8")
+        if adapter.account_binding is not None and account is not None:
+            content = (await adapter.account_binding.bind(content, account, self._session)).content
 
         ca_for_parser: Sequence[CorporateActionLike] | None = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
 
         parser_warnings: list[str] = []
         suppressed_count: int = 0
-        raw_records: list[BrokerRawTransactionCreate] = []
-        parsed_corporate_actions: list[CorporateActionCreateRequest] = []
         inserted_raw_ids: set[str] = set()
         released_raw_ids: set[str] = set()
         pending_protected_close: bool = False
@@ -350,265 +322,243 @@ class ImportService:
             trade_by_execution_id={},
         )
 
-        # ── Raw-data pipeline (preferred) ────────────────────────────────────
-        # Use parse_raw() when the parser supports it.  This persists each
-        # execution as a BrokerRawTransaction and creates a 1:1 LogicalExecution
-        # before running FIFO aggregation.
-        try:
-            raw_parse_result = parser.parse_raw(content, filename)
-        except NotImplementedError:
-            use_raw_pipeline = False
-        else:
-            if (
-                isinstance(raw_parse_result, tuple)
-                and len(raw_parse_result) == 2
-                and isinstance(raw_parse_result[0], list)
-                and isinstance(raw_parse_result[1], list)
-            ):
-                raw_records, parsed_corporate_actions = raw_parse_result
-                use_raw_pipeline = True
+        # ── Raw-data pipeline ────────────────────────────────────────────────
+        # Persist each execution as a BrokerRawTransaction and create a 1:1
+        # LogicalExecution before running FIFO aggregation.
+        batch = file_import.parse(content, filename)
+        raw_records: list[BrokerRawTransactionCreate] = batch.executions
+        parsed_corporate_actions: list[CorporateActionCreateRequest] = batch.corporate_actions
+
+        if account_id is not None:
+            open_combo_positions = await self._trade_repo.list_open_combo_positions_by_user(
+                user_id=user_id,
+                portfolio_id=portfolio_id,
+                account_id=account_id,
+            )
+            has_open_combo_seed_positions = bool(open_combo_positions)
+
+        for ca in parsed_corporate_actions:
+            existing = await self._ca_repo.find_by_user_symbol_date(
+                user_id=user_id,
+                symbol=ca.symbol,
+                action_date=ca.date,
+            )
+            if existing is None:
+                await self._ca_repo.create(ca.to_corporate_action_create(user_id))
             else:
-                use_raw_pipeline = False
+                existing.ratio = ca.ratio
+                existing.old_conid = ca.old_conid
+                existing.new_conid = ca.new_conid
+                await self._session.flush()
 
-        if use_raw_pipeline:
-            if account_id is not None:
-                open_combo_positions = await self._trade_repo.list_open_combo_positions_by_user(
-                    user_id=user_id,
-                    portfolio_id=portfolio_id,
-                    account_id=account_id,
+        # Reload corporate actions after adding new ones from the file
+        corporate_actions = await self._ca_repo.list_by_user(user_id)
+        ca_for_parser = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
+
+        # Stamp user_id / account_id onto each raw record.
+        stamped_raw: list[BrokerRawTransactionCreate] = []
+        for rec in raw_records:
+            # Prepend user_id to ensure the execution ID is globally unique
+            # across all users (idempotent per user).
+            new_id = rec.id if rec.id.startswith(f"{user_id}:") else f"{user_id}:{rec.id}"
+            stamped_raw.append(
+                rec.model_copy(
+                    update={
+                        "id": new_id,
+                        "user_id": user_id,
+                        "account_id": account_id,
+                    }
                 )
-                has_open_combo_seed_positions = bool(open_combo_positions)
+            )
 
-            for ca in parsed_corporate_actions:
-                existing = await self._ca_repo.find_by_user_symbol_date(
-                    user_id=user_id,
-                    symbol=ca.symbol,
-                    action_date=ca.date,
-                )
-                if existing is None:
-                    await self._ca_repo.create(ca.to_corporate_action_create(user_id))
-                else:
-                    existing.ratio = ca.ratio
-                    existing.old_conid = ca.old_conid
-                    existing.new_conid = ca.new_conid
-                    await self._session.flush()
+        # Upsert raw records — already-existing rows are silently skipped.
+        inserted_raw_ids = set(await self._raw_repo.bulk_upsert(stamped_raw))
 
-            # Reload corporate actions after adding new ones from the file
-            corporate_actions = await self._ca_repo.list_by_user(user_id)
-            ca_for_parser = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
+        # For each newly inserted raw record, fetch the ORM object and create
+        # a 1:1 LogicalExecution.
+        newly_inserted_raw = [r for r in stamped_raw if r.id in inserted_raw_ids]
+        new_orm_raws = []
+        for rec in newly_inserted_raw:
+            orm_raw = await self._raw_repo.get_by_id(rec.id)
+            if orm_raw is not None:
+                new_orm_raws.append(orm_raw)
 
-            # Stamp user_id / account_id onto each raw record.
-            stamped_raw: list[BrokerRawTransactionCreate] = []
-            for rec in raw_records:
-                # Prepend user_id to ensure the execution ID is globally unique
-                # across all users (idempotent per user).
-                new_id = rec.id if rec.id.startswith(f"{user_id}:") else f"{user_id}:{rec.id}"
-                stamped_raw.append(
-                    rec.model_copy(
-                        update={
-                            "id": new_id,
-                            "user_id": user_id,
-                            "account_id": account_id,
-                        }
-                    )
-                )
+        # D11 fix: a raw row already present in the DB is never reported
+        # as "newly inserted" (ON CONFLICT DO NOTHING), so a row released
+        # by "reset to broker state" (suppressed cleared, execution
+        # physically deleted) would otherwise never get a fresh
+        # LogicalExecution on a plain re-import. Find such released rows
+        # among the file's already-existing IDs and materialise them too.
+        existing_raw_ids = [r.id for r in stamped_raw if r.id not in inserted_raw_ids]
+        released_raws = await self._raw_repo.list_released_without_execution(existing_raw_ids)
+        new_orm_raws.extend(released_raws)
+        released_raw_ids = {r.id for r in released_raws}
 
-            # Upsert raw records — already-existing rows are silently skipped.
-            inserted_raw_ids = set(await self._raw_repo.bulk_upsert(stamped_raw))
+        _, suppressed_count = await self._logical_svc.bulk_create_from_raw(new_orm_raws)
+        await self._session.flush()
 
-            # For each newly inserted raw record, fetch the ORM object and create
-            # a 1:1 LogicalExecution.
-            newly_inserted_raw = [r for r in stamped_raw if r.id in inserted_raw_ids]
-            new_orm_raws = []
-            for rec in newly_inserted_raw:
-                orm_raw = await self._raw_repo.get_by_id(rec.id)
-                if orm_raw is not None:
-                    new_orm_raws.append(orm_raw)
-
-            # D11 fix: a raw row already present in the DB is never reported
-            # as "newly inserted" (ON CONFLICT DO NOTHING), so a row released
-            # by "reset to broker state" (suppressed cleared, execution
-            # physically deleted) would otherwise never get a fresh
-            # LogicalExecution on a plain re-import. Find such released rows
-            # among the file's already-existing IDs and materialise them too.
-            existing_raw_ids = [r.id for r in stamped_raw if r.id not in inserted_raw_ids]
-            released_raws = await self._raw_repo.list_released_without_execution(existing_raw_ids)
-            new_orm_raws.extend(released_raws)
-            released_raw_ids = {r.id for r in released_raws}
-
-            _, suppressed_count = await self._logical_svc.bulk_create_from_raw(new_orm_raws)
-            await self._session.flush()
-
-            # A zero-insert re-import normally short-circuits. One state must
-            # still rebuild: an open metadata-protected trade whose closing leg
-            # already sits in `logical_executions` but was never linked. That is
-            # the residue of every import that ran before open protected trades
-            # became closeable — without this trigger the position stays open
-            # forever, because the closing raw row is neither newly inserted nor
-            # "released". The condition clears itself once the position closes.
-            pending_protected_close = False
-            if broker == BrokerType.SCHWAB and account_id is not None and not (inserted_raw_ids or released_raw_ids or overwrite_manually_edited):
-                pending_protected_close = await self._exec_repo.has_absorbable_unlinked_execution_for_open_protected_trades(
-                    user_id=user_id,
-                    account_id=account_id,
-                )
-                if pending_protected_close:
-                    logger.info(
-                        "import_rebuild_for_pending_protected_close user=%s account=%s",
-                        user_id,
-                        account_id,
-                    )
-
-            should_rebuild_projection = bool(inserted_raw_ids) or bool(released_raw_ids) or overwrite_manually_edited or pending_protected_close
-
-            if not should_rebuild_projection:
-                # Zero-insert re-import without override: skip projection rebuild
-                # entirely and return a no-op import result.
-                await parser.enrich_pnl_eur([], self._session)
-                parser_warnings += getattr(parser, "warnings", [])
-                return ImportResult(
-                    broker=str(broker),
-                    filename=filename,
-                    trades_parsed=0,
-                    trades_created=0,
-                    trades_skipped=0,
-                    raw_transactions_created=len(inserted_raw_ids),
-                    raw_suppressed_skipped=suppressed_count,
-                    raw_deleted_skipped=0,
-                    warnings=parser_warnings,
-                    activity_log=[],
+        # A zero-insert re-import normally short-circuits. One state must
+        # still rebuild: an open metadata-protected trade whose closing leg
+        # already sits in `logical_executions` but was never linked. That is
+        # the residue of every import that ran before open protected trades
+        # became closeable — without this trigger the position stays open
+        # forever, because the closing raw row is neither newly inserted nor
+        # "released". The condition clears itself once the position closes.
+        pending_protected_close = False
+        if (
+            adapter.policy.self_heal_pending_protected_close
+            and account_id is not None
+            and not (inserted_raw_ids or released_raw_ids or overwrite_manually_edited)
+        ):
+            pending_protected_close = await self._exec_repo.has_absorbable_unlinked_execution_for_open_protected_trades(
+                user_id=user_id,
+                account_id=account_id,
+            )
+            if pending_protected_close:
+                logger.info(
+                    "import_rebuild_for_pending_protected_close user=%s account=%s",
+                    user_id,
+                    account_id,
                 )
 
-            # Purge split-child executions and restore their soft-deleted parents
-            # before re-aggregation.
-            #
-            # During backfill, an ``imported`` execution that maps to N>1 trades
-            # is soft-deleted (deleted=True) and replaced by N ``split`` children.
-            # On a subsequent import those split children must be removed and the
-            # original ``imported`` parents restored so the FIFO pass operates on
-            # the complete, non-duplicated base-execution layer.
-            if account_id is not None and should_rebuild_projection:
-                deleted_split = await self._exec_repo.delete_split_children_for_account(
+        should_rebuild_projection = bool(inserted_raw_ids) or bool(released_raw_ids) or overwrite_manually_edited or pending_protected_close
+
+        if not should_rebuild_projection:
+            # Zero-insert re-import without override: skip projection rebuild
+            # entirely and return a no-op import result.
+            parser_warnings += batch.warnings
+            return ImportResult(
+                broker=str(broker),
+                filename=filename,
+                trades_parsed=0,
+                trades_created=0,
+                trades_skipped=0,
+                raw_transactions_created=len(inserted_raw_ids),
+                raw_suppressed_skipped=suppressed_count,
+                raw_deleted_skipped=0,
+                warnings=parser_warnings,
+                activity_log=[],
+            )
+
+        # Purge split-child executions and restore their soft-deleted parents
+        # before re-aggregation.
+        #
+        # During backfill, an ``imported`` execution that maps to N>1 trades
+        # is soft-deleted (deleted=True) and replaced by N ``split`` children.
+        # On a subsequent import those split children must be removed and the
+        # original ``imported`` parents restored so the FIFO pass operates on
+        # the complete, non-duplicated base-execution layer.
+        if account_id is not None and should_rebuild_projection:
+            deleted_split = await self._exec_repo.delete_split_children_for_account(
+                user_id=user_id,
+                account_id=account_id,
+                override=overwrite_manually_edited,
+            )
+            if deleted_split:
+                restored_parents = await self._exec_repo.restore_split_parents_for_account(
                     user_id=user_id,
                     account_id=account_id,
                     override=overwrite_manually_edited,
                 )
-                if deleted_split:
-                    restored_parents = await self._exec_repo.restore_split_parents_for_account(
-                        user_id=user_id,
-                        account_id=account_id,
-                        override=overwrite_manually_edited,
-                    )
-                    logger.debug(
-                        "import_split_cleanup account=%s deleted_split=%d restored_parents=%d",
-                        account_id,
-                        deleted_split,
-                        restored_parents,
-                    )
-                await self._session.flush()
-
-            # Rebuild the trade projection from scratch on every raw-pipeline
-            # import, EXCEPT for trades backing still-open combo positions
-            # (these are carried forward as seeds — see
-            # _build_seed_combo_execution_trades — and must not be deleted out
-            # from under themselves). Scoping the exclusion to just those
-            # specific trades (rather than skipping the rebuild for the whole
-            # account whenever ANY combo is open) prevents fragmented/split
-            # single-instrument trades elsewhere in the account from being
-            # duplicated on every subsequent import.
-            #
-            # This MUST run before `_collect_trade_creates_from_logical_batches`
-            # below, which reads each execution's *current* `trade_id` into
-            # `db_trade_id` — deleting trades afterwards would leave those
-            # in-memory `db_trade_id` values pointing at rows that no longer
-            # exist, causing the trade-creation loop to skip re-creating them
-            # entirely (it treats "db_trade_id is not None" as "already
-            # exists", regardless of whether that trade was just deleted).
-            existing_trades_by_key = {}
-            existing_trades_by_id = {}
-            # D10 snapshot: each metadata-protected trade's non-deleted leg
-            # IDs in chronological order, taken BEFORE this rebuild's linking
-            # runs, so a later pass can tell whether the trade's original
-            # anchor execution moved to a different trade during rebuild.
-            # Only needed for the reset-to-broker-state path
-            # (`overwrite_manually_edited=True`), where protected trades are
-            # actually eligible for deletion by `delete_by_user_account`.
-            protected_ordered_legs = {}
-            if account_id is not None and should_rebuild_projection:
-                preserved_trade_ids = [trade.id for trade in open_combo_positions]
-                existing_trades = await self._trade_repo.list_by_user_account(user_id, account_id)
-                existing_trades_by_key = {(t.broker_conid, t.opened_at): t for t in existing_trades}
-                existing_trades_by_id = {t.id: t for t in existing_trades}
-                protected_snapshot = await self._resolve_protected_execution_snapshot(
-                    user_id=user_id,
-                    account_id=account_id,
+                logger.debug(
+                    "import_split_cleanup account=%s deleted_split=%d restored_parents=%d",
+                    account_id,
+                    deleted_split,
+                    restored_parents,
                 )
-                manual_standin_trade_contract_refs = await self._exec_repo.list_manual_standin_contract_refs_by_user_account(
-                    user_id=user_id,
-                    account_id=account_id,
-                )
-                preserved_trade_ids.extend(protected_snapshot.open_trade_ids)
-                if overwrite_manually_edited:
-                    protected_trade_ids = [t.id for t in existing_trades if t.is_manually_edited]
-                    protected_ordered_legs = await self._exec_repo.list_ordered_execution_ids_by_trade_ids(protected_trade_ids)
+            await self._session.flush()
 
-            # Load logical executions in batches to cap peak memory during import.
-            parsed_trades = await self._collect_trade_creates_from_logical_batches(
+        # Rebuild the trade projection from scratch on every raw-pipeline
+        # import, EXCEPT for trades backing still-open combo positions
+        # (these are carried forward as seeds — see
+        # _build_seed_combo_execution_trades — and must not be deleted out
+        # from under themselves). Scoping the exclusion to just those
+        # specific trades (rather than skipping the rebuild for the whole
+        # account whenever ANY combo is open) prevents fragmented/split
+        # single-instrument trades elsewhere in the account from being
+        # duplicated on every subsequent import.
+        #
+        # This MUST run before `_collect_trade_creates_from_logical_batches`
+        # below, which reads each execution's *current* `trade_id` into
+        # `db_trade_id` — deleting trades afterwards would leave those
+        # in-memory `db_trade_id` values pointing at rows that no longer
+        # exist, causing the trade-creation loop to skip re-creating them
+        # entirely (it treats "db_trade_id is not None" as "already
+        # exists", regardless of whether that trade was just deleted).
+        existing_trades_by_key = {}
+        existing_trades_by_id = {}
+        # D10 snapshot: each metadata-protected trade's non-deleted leg
+        # IDs in chronological order, taken BEFORE this rebuild's linking
+        # runs, so a later pass can tell whether the trade's original
+        # anchor execution moved to a different trade during rebuild.
+        # Only needed for the reset-to-broker-state path
+        # (`overwrite_manually_edited=True`), where protected trades are
+        # actually eligible for deletion by `delete_by_user_account`.
+        protected_ordered_legs = {}
+        if account_id is not None and should_rebuild_projection:
+            preserved_trade_ids = [trade.id for trade in open_combo_positions]
+            existing_trades = await self._trade_repo.list_by_user_account(user_id, account_id)
+            existing_trades_by_key = {(t.broker_conid, t.opened_at): t for t in existing_trades}
+            existing_trades_by_id = {t.id: t for t in existing_trades}
+            protected_snapshot = await self._resolve_protected_execution_snapshot(
                 user_id=user_id,
                 account_id=account_id,
-                include_existing_trade_ids=(has_open_combo_seed_positions and should_rebuild_projection),
-                excluded_execution_ids=protected_snapshot.closed_execution_ids,
             )
-
-            # Run FIFO aggregation from the logical layer only.
-            # Do not seed with existing trades in DB; for raw-pipeline imports we
-            # rebuild the trade projection from logical executions.
-            # Partition combo-eligible executions before FIFO so combo legs are not
-            # collapsed into single-instrument round-trips.
-            seed_combo_trades = await self._build_seed_combo_execution_trades(
+            manual_standin_trade_contract_refs = await self._exec_repo.list_manual_standin_contract_refs_by_user_account(
                 user_id=user_id,
-                portfolio_id=portfolio_id,
                 account_id=account_id,
-                existing_source_ids={row.source_execution_id for row in parsed_trades if row.source_execution_id is not None},
-                excluded_trade_ids=(protected_snapshot.open_trade_ids | protected_snapshot.closed_trade_ids),
             )
-            seed_open_protected_trades = await self._build_seed_execution_trades_for_open_protected_trades(
-                trade_ids=protected_snapshot.open_trade_ids,
-                existing_source_ids={row.source_execution_id for row in parsed_trades if row.source_execution_id is not None},
-            )
-            combo_build_result = build_combo_positions(
-                [*seed_combo_trades, *parsed_trades],
-                protected_contracts=protected_snapshot.closed_contracts,
-            )
-            # Use the enhanced aggregation to track source executions
-            # for split-aware linking.
-            fifo_trades_with_sources = aggregate_executions_fifo_with_sources(
-                [*seed_open_protected_trades, *combo_build_result.fifo_executions],
-                corporate_actions=ca_for_parser,
-                protected_contracts=(protected_snapshot.closed_contracts | {(ref.symbol, ref.conid) for ref in manual_standin_trade_contract_refs}),
-            )
-            trades_with_sources = sorted(
-                [*combo_build_result.combo_trades, *fifo_trades_with_sources],
-                key=lambda tws: tws.trade_create.opened_at,
-            )
-            parser_warnings += combo_build_result.warnings
+            preserved_trade_ids.extend(protected_snapshot.open_trade_ids)
+            if overwrite_manually_edited:
+                protected_trade_ids = [t.id for t in existing_trades if t.is_manually_edited]
+                protected_ordered_legs = await self._exec_repo.list_ordered_execution_ids_by_trade_ids(protected_trade_ids)
 
-            # Extract plain TradeCreate objects for the existing trade processing logic
-            parsed_trades = [tws.trade_create for tws in trades_with_sources]
+        # Load logical executions in batches to cap peak memory during import.
+        parsed_trades = await self._collect_trade_creates_from_logical_batches(
+            user_id=user_id,
+            account_id=account_id,
+            include_existing_trade_ids=(has_open_combo_seed_positions and should_rebuild_projection),
+            excluded_execution_ids=protected_snapshot.closed_execution_ids,
+        )
 
-        else:
-            # ── Legacy pipeline (fallback) ────────────────────────────────────
-            parsed_trades, _ = parser.parse(
-                content,
-                filename,
-                corporate_actions=ca_for_parser,
-            )
+        # Run FIFO aggregation from the logical layer only.
+        # Do not seed with existing trades in DB; for raw-pipeline imports we
+        # rebuild the trade projection from logical executions.
+        # Partition combo-eligible executions before FIFO so combo legs are not
+        # collapsed into single-instrument round-trips.
+        seed_combo_trades = await self._build_seed_combo_execution_trades(
+            user_id=user_id,
+            portfolio_id=portfolio_id,
+            account_id=account_id,
+            existing_source_ids={row.source_execution_id for row in parsed_trades if row.source_execution_id is not None},
+            excluded_trade_ids=(protected_snapshot.open_trade_ids | protected_snapshot.closed_trade_ids),
+        )
+        seed_open_protected_trades = await self._build_seed_execution_trades_for_open_protected_trades(
+            trade_ids=protected_snapshot.open_trade_ids,
+            existing_source_ids={row.source_execution_id for row in parsed_trades if row.source_execution_id is not None},
+        )
+        combo_build_result = build_combo_positions(
+            [*seed_combo_trades, *parsed_trades],
+            protected_contracts=protected_snapshot.closed_contracts,
+        )
+        # Use the enhanced aggregation to track source executions
+        # for split-aware linking.
+        fifo_trades_with_sources = aggregate_executions_fifo_with_sources(
+            [*seed_open_protected_trades, *combo_build_result.fifo_executions],
+            corporate_actions=ca_for_parser,
+            protected_contracts=(protected_snapshot.closed_contracts | {(ref.symbol, ref.conid) for ref in manual_standin_trade_contract_refs}),
+        )
+        trades_with_sources = sorted(
+            [*combo_build_result.combo_trades, *fifo_trades_with_sources],
+            key=lambda tws: tws.trade_create.opened_at,
+        )
+        parser_warnings += combo_build_result.warnings
 
-        # Enrich pnl_eur — base class provides a no-op default so this is always safe.
-        await parser.enrich_pnl_eur(parsed_trades, self._session)
+        # Extract plain TradeCreate objects for the existing trade processing logic
+        parsed_trades = [tws.trade_create for tws in trades_with_sources]
 
-        # Collect parser warnings (IBKRXMLParser / SchwabParser expose .warnings).
-        parser_warnings += getattr(parser, "warnings", [])
+        # Parser warnings follow the combo-builder warnings.
+        parser_warnings += batch.warnings
 
         trades_created = 0
         trades_updated = 0
@@ -619,10 +569,8 @@ class ImportService:
         unlinked_executions = 0
         create_warnings: list[str] = []
         activity_log: list[str] = []
-        raw_projection_rebuild = (
-            use_raw_pipeline
-            and account_id is not None
-            and (bool(inserted_raw_ids) or bool(released_raw_ids) or overwrite_manually_edited or pending_protected_close)
+        raw_projection_rebuild = account_id is not None and (
+            bool(inserted_raw_ids) or bool(released_raw_ids) or overwrite_manually_edited or pending_protected_close
         )
 
         # Track db_trade_ids that have already been updated once.  If the same
@@ -632,7 +580,7 @@ class ImportService:
         already_updated_ids: set[uuid.UUID] = set()
 
         # For raw pipeline with source tracking, store created trades for backfilling
-        if raw_projection_rebuild and use_raw_pipeline:
+        if raw_projection_rebuild:
             anchor_trade_id_by_index = await self._resolve_anchor_trade_ids(trades_with_sources, user_id)
 
             for i, trade_data in enumerate(parsed_trades):
@@ -703,141 +651,116 @@ class ImportService:
                     create_warnings.append(msg)
 
             # Backfill trade_id in logical executions using split-aware linking
-            if use_raw_pipeline:
-                await self._backfill_execution_trade_links(
-                    trades_with_sources,
-                    user_id,
-                    protected_execution_ids=(protected_snapshot.closed_execution_ids | protected_snapshot.open_execution_ids),
-                )
-                for trade_source in trades_with_sources:
-                    trade_create = trade_source.trade_create
-                    created_trade = trade_source.created_trade
-                    if (
-                        created_trade is not None
-                        and created_trade.id in protected_snapshot.open_trade_ids
-                        and trade_create.closed_at is not None
-                        and trade_create.closing_execution_id is not None
-                    ):
-                        protected_positions_closed += 1
-                await self._assign_position_ids_from_sources(
-                    trades_with_sources=trades_with_sources,
-                    user_id=user_id,
-                )
-                # Execution-overwrite-protection: authoritative recompute of the
-                # unlinked-duplicate conflict flag for every rebuilt trade.
-                # Always set (never merged) so a cleared duplicate flips the
-                # flag back to false on the same import.
-                for tws in trades_with_sources:
-                    trade = tws.created_trade
-                    if trade is None:
-                        continue
-                    legs = await self._exec_repo.list_by_trade_id(trade.id, include_deleted=False)
-                    trade.has_conflict = detect_duplicate_pairs(cast(Any, legs))
-                    trade.has_unlinked_executions = await self._exec_repo.has_unlinked_for_trade_contracts(trade.id)
+            await self._backfill_execution_trade_links(
+                trades_with_sources,
+                user_id,
+                protected_execution_ids=(protected_snapshot.closed_execution_ids | protected_snapshot.open_execution_ids),
+            )
+            for trade_source in trades_with_sources:
+                trade_create = trade_source.trade_create
+                created_trade = trade_source.created_trade
+                if (
+                    created_trade is not None
+                    and created_trade.id in protected_snapshot.open_trade_ids
+                    and trade_create.closed_at is not None
+                    and trade_create.closing_execution_id is not None
+                ):
+                    protected_positions_closed += 1
+            await self._assign_position_ids_from_sources(
+                trades_with_sources=trades_with_sources,
+                user_id=user_id,
+            )
+            # Execution-overwrite-protection: authoritative recompute of the
+            # unlinked-duplicate conflict flag for every rebuilt trade.
+            # Always set (never merged) so a cleared duplicate flips the
+            # flag back to false on the same import.
+            for tws in trades_with_sources:
+                trade = tws.created_trade
+                if trade is None:
+                    continue
+                legs = await self._exec_repo.list_by_trade_id(trade.id, include_deleted=False)
+                trade.has_conflict = detect_duplicate_pairs(cast(Any, legs))
+                trade.has_unlinked_executions = await self._exec_repo.has_unlinked_for_trade_contracts(trade.id)
 
-                changed_source_ids = list(inserted_raw_ids | released_raw_ids)
-                contract_to_trade_ids: dict[tuple[str, str | None], set[uuid.UUID]] = {}
-                protected_refs = await self._exec_repo.list_active_execution_contract_refs_by_trade_ids(list(protected_snapshot.closed_trade_ids))
-                for ref in protected_refs:
-                    contract_to_trade_ids.setdefault((ref.symbol, ref.conid), set()).add(ref.trade_id)
+            changed_source_ids = list(inserted_raw_ids | released_raw_ids)
+            contract_to_trade_ids: dict[tuple[str, str | None], set[uuid.UUID]] = {}
+            protected_refs = await self._exec_repo.list_active_execution_contract_refs_by_trade_ids(list(protected_snapshot.closed_trade_ids))
+            for ref in protected_refs:
+                contract_to_trade_ids.setdefault((ref.symbol, ref.conid), set()).add(ref.trade_id)
 
-                unlinked_due_to_protection = await self._exec_repo.list_unlinked_by_source_ids_for_contracts(
-                    source_ids=changed_source_ids,
-                    contracts=protected_snapshot.closed_contracts,
-                )
-                manual_standin_contracts = {(ref.symbol, ref.conid) for ref in manual_standin_trade_contract_refs}
-                unlinked_due_to_manual_standin = await self._exec_repo.list_unlinked_by_source_ids_for_contracts(
-                    source_ids=changed_source_ids,
-                    contracts=manual_standin_contracts,
-                )
-                unlinked_seen_ids = {execution.id for execution in unlinked_due_to_protection}
-                for execution in unlinked_due_to_manual_standin:
-                    unlinked_seen_ids.add(execution.id)
-                unlinked_executions = len(unlinked_seen_ids)
-                flagged_trade_ids: set[uuid.UUID] = set()
-                for execution in unlinked_due_to_protection:
-                    warning_msg = f"protected_unlinked_execution: symbol={execution.symbol} executed_at={execution.executed_at.isoformat()}"
-                    create_warnings.append(warning_msg)
-                    logger.warning(warning_msg)
-                    for trade_id in contract_to_trade_ids.get((execution.symbol, execution.conid), set()):
-                        flagged_trade_ids.add(trade_id)
+            unlinked_due_to_protection = await self._exec_repo.list_unlinked_by_source_ids_for_contracts(
+                source_ids=changed_source_ids,
+                contracts=protected_snapshot.closed_contracts,
+            )
+            manual_standin_contracts = {(ref.symbol, ref.conid) for ref in manual_standin_trade_contract_refs}
+            unlinked_due_to_manual_standin = await self._exec_repo.list_unlinked_by_source_ids_for_contracts(
+                source_ids=changed_source_ids,
+                contracts=manual_standin_contracts,
+            )
+            unlinked_seen_ids = {execution.id for execution in unlinked_due_to_protection}
+            for execution in unlinked_due_to_manual_standin:
+                unlinked_seen_ids.add(execution.id)
+            unlinked_executions = len(unlinked_seen_ids)
+            flagged_trade_ids: set[uuid.UUID] = set()
+            for execution in unlinked_due_to_protection:
+                warning_msg = f"protected_unlinked_execution: symbol={execution.symbol} executed_at={execution.executed_at.isoformat()}"
+                create_warnings.append(warning_msg)
+                logger.warning(warning_msg)
+                for trade_id in contract_to_trade_ids.get((execution.symbol, execution.conid), set()):
+                    flagged_trade_ids.add(trade_id)
 
-                standin_contract_to_trade_ids: dict[tuple[str, str | None], set[uuid.UUID]] = {}
-                for standin_ref in manual_standin_trade_contract_refs:
-                    standin_contract_to_trade_ids.setdefault((standin_ref.symbol, standin_ref.conid), set()).add(standin_ref.trade_id)
-                protected_unlinked_ids = {execution.id for execution in unlinked_due_to_protection}
-                for execution in unlinked_due_to_manual_standin:
-                    if execution.id in protected_unlinked_ids:
-                        continue
-                    warning_msg = f"manual_standin_unlinked_execution: symbol={execution.symbol} executed_at={execution.executed_at.isoformat()}"
-                    create_warnings.append(warning_msg)
-                    logger.warning(warning_msg)
-                    for trade_id in standin_contract_to_trade_ids.get((execution.symbol, execution.conid), set()):
-                        flagged_trade_ids.add(trade_id)
+            standin_contract_to_trade_ids: dict[tuple[str, str | None], set[uuid.UUID]] = {}
+            for standin_ref in manual_standin_trade_contract_refs:
+                standin_contract_to_trade_ids.setdefault((standin_ref.symbol, standin_ref.conid), set()).add(standin_ref.trade_id)
+            protected_unlinked_ids = {execution.id for execution in unlinked_due_to_protection}
+            for execution in unlinked_due_to_manual_standin:
+                if execution.id in protected_unlinked_ids:
+                    continue
+                warning_msg = f"manual_standin_unlinked_execution: symbol={execution.symbol} executed_at={execution.executed_at.isoformat()}"
+                create_warnings.append(warning_msg)
+                logger.warning(warning_msg)
+                for trade_id in standin_contract_to_trade_ids.get((execution.symbol, execution.conid), set()):
+                    flagged_trade_ids.add(trade_id)
 
-                for trade_id in flagged_trade_ids:
-                    protected_trade = existing_trades_by_id.get(trade_id)
-                    if protected_trade is None:
-                        protected_trade = await self._trade_repo.get_by_id(trade_id, user_id)
-                    if protected_trade is not None:
-                        protected_trade.has_unlinked_executions = True
-                        self._session.add(protected_trade)
+            for trade_id in flagged_trade_ids:
+                protected_trade = existing_trades_by_id.get(trade_id)
+                if protected_trade is None:
+                    protected_trade = await self._trade_repo.get_by_id(trade_id, user_id)
+                if protected_trade is not None:
+                    protected_trade.has_unlinked_executions = True
+                    self._session.add(protected_trade)
 
-                # D10: any metadata-protected trade left un-reconciled above is
-                # about to be deleted below (only possible when
-                # `overwrite_manually_edited=True` — otherwise
-                # `delete_by_user_account` unconditionally preserves
-                # `is_manually_edited=True` rows). If its original anchor
-                # execution moved to a different rebuilt trade, carry its
-                # metadata forward before the delete so nothing is lost.
-                if overwrite_manually_edited and protected_ordered_legs:
-                    leftover_protected = [t for t in existing_trades_by_id.values() if t.is_manually_edited and t.id not in preserved_trade_ids]
-                    if leftover_protected:
-                        await self._carry_forward_orphaned_protected_metadata(
-                            leftover_protected=leftover_protected,
-                            protected_ordered_legs=protected_ordered_legs,
-                            trades_with_sources=trades_with_sources,
-                            user_id=user_id,
-                        )
-
-                valid_trade_ids = [tws.created_trade.id for tws in trades_with_sources if tws.created_trade is not None]
-                exclude_ids = list(
-                    set(valid_trade_ids + preserved_trade_ids + list(protected_snapshot.open_trade_ids) + list(protected_snapshot.closed_trade_ids))
-                )
-                if account_id is not None:
-                    await self._trade_repo.delete_by_user_account(
+            # D10: any metadata-protected trade left un-reconciled above is
+            # about to be deleted below (only possible when
+            # `overwrite_manually_edited=True` — otherwise
+            # `delete_by_user_account` unconditionally preserves
+            # `is_manually_edited=True` rows). If its original anchor
+            # execution moved to a different rebuilt trade, carry its
+            # metadata forward before the delete so nothing is lost.
+            if overwrite_manually_edited and protected_ordered_legs:
+                leftover_protected = [t for t in existing_trades_by_id.values() if t.is_manually_edited and t.id not in preserved_trade_ids]
+                if leftover_protected:
+                    await self._carry_forward_orphaned_protected_metadata(
+                        leftover_protected=leftover_protected,
+                        protected_ordered_legs=protected_ordered_legs,
+                        trades_with_sources=trades_with_sources,
                         user_id=user_id,
-                        account_id=account_id,
-                        include_manually_edited=overwrite_manually_edited,
-                        exclude_trade_ids=exclude_ids,
                     )
-                await self._session.flush()
+
+            valid_trade_ids = [tws.created_trade.id for tws in trades_with_sources if tws.created_trade is not None]
+            exclude_ids = list(set(valid_trade_ids + preserved_trade_ids + list(protected_snapshot.open_trade_ids) + list(protected_snapshot.closed_trade_ids)))
+            if account_id is not None:
+                await self._trade_repo.delete_by_user_account(
+                    user_id=user_id,
+                    account_id=account_id,
+                    include_manually_edited=overwrite_manually_edited,
+                    exclude_trade_ids=exclude_ids,
+                )
+            await self._session.flush()
 
         for trade_data in parsed_trades:
-            if raw_projection_rebuild and use_raw_pipeline:
+            if raw_projection_rebuild:
                 # Already processed above in the source-tracking path
-                continue
-            elif raw_projection_rebuild:
-                match_key = (trade_data.broker_conid, trade_data.opened_at)
-                if match_key in manually_edited_keys:
-                    trades_skipped_manually_edited += 1
-                    continue
-
-                trade_with_owner = trade_data.model_copy(
-                    update={
-                        "account_id": account_id,
-                        "user_id": user_id,
-                        "db_trade_id": None,
-                    }
-                )
-                try:
-                    await self._trade_repo.create(trade_with_owner)
-                    trades_created += 1
-                    activity_log.append(f"created: trade {trade_data.symbol} opened {trade_data.opened_at}")
-                except Exception as exc:  # noqa: BLE001
-                    msg = f"Failed to persist trade {trade_data.symbol} opened at {trade_data.opened_at}: {exc}"
-                    logger.warning(msg)
-                    create_warnings.append(msg)
                 continue
 
             db_trade_id = trade_data.db_trade_id
@@ -848,19 +771,11 @@ class ImportService:
                 is_orphan = db_trade_id in orphaned_lot_ids
                 # Check for manual-edit protection on the original open lot.
                 #
-                # D8 investigation (task 9.5): this legacy/non-raw pipeline is
-                # NOT vulnerable to the raw-pipeline orphaned-execution defect.
-                # Unlike the raw pipeline, it never persists an execution row
-                # independently before the trade decision (no `parse_raw` /
-                # `bulk_create_from_raw` layer) and never bulk-deletes existing
-                # trades (`delete_by_user_account` is only called from the
-                # raw-pipeline branch above). Skipping here simply discards
-                # the incoming closing execution for this manually-edited lot
-                # — no `trade_id IS NULL` orphan is ever created. This is the
-                # pre-existing, intentional protection behaviour from
-                # `execution-overwrite-protection` (task 5.2), not a
-                # regression. Both current parsers (IBKR, Schwab) implement
-                # `parse_raw`, so this path is a fallback only.
+                # This loop body only runs for imports without an account
+                # (no projection rebuild, so `delete_by_user_account` never
+                # runs). Skipping here discards the incoming closing execution
+                # for this manually-edited lot — the pre-existing protection
+                # behaviour from `execution-overwrite-protection` (task 5.2).
                 match_key = (trade_data.broker_conid, trade_data.opened_at)
                 if match_key in manually_edited_keys:
                     logger.debug(
@@ -1168,7 +1083,7 @@ class ImportService:
             trades_parsed=new_trades_parsed,
             trades_created=trades_created,
             trades_skipped=trades_skipped,
-            raw_transactions_created=len(inserted_raw_ids) if use_raw_pipeline else 0,
+            raw_transactions_created=len(inserted_raw_ids),
             raw_suppressed_skipped=suppressed_count,
             raw_deleted_skipped=0,
             trades_protected_reconciled=trades_protected_reconciled,
@@ -1897,8 +1812,8 @@ class ImportService:
                 if source_id:
                     combo_meta = combo_meta_by_raw_id.get(source_id)
                     if combo_meta is not None:
-                        trade_row.broker_order_id = cast(str | None, combo_meta.get("brokerageOrderID"))
-                        trade_row.net_cash = cast(Decimal | None, combo_meta.get("netCash"))
+                        trade_row.broker_order_id = cast(str | None, combo_meta.get("order_id"))
+                        trade_row.net_cash = cast(Decimal | None, combo_meta.get("net_cash"))
                 trade_row.open_close = logical_row.open_close
                 if include_existing_trade_ids:
                     trade_row.db_trade_id = logical_row.trade_id
@@ -1989,53 +1904,6 @@ class ImportService:
             seed_rows.append(row)
 
         return seed_rows
-
-    def _decode_schwab_payload(self, content: bytes) -> dict[str, object]:
-        return decode_schwab_wrapped_payload(content)
-
-    def _emit_account_number_bound_audit(
-        self,
-        *,
-        user_id: uuid.UUID,
-        account_id: uuid.UUID,
-        portfolio_id: uuid.UUID,
-    ) -> None:
-        """Emit manual audit event when account_number is auto-bound during import."""
-        self._audit.create_audit_event(
-            action="account.account_number_bound",
-            user_id=user_id,
-            email=None,
-            resource_type="account",
-            resource_id=account_id,
-            parent_resource_type="portfolio",
-            parent_resource_id=portfolio_id,
-            ip_address=None,
-            user_agent=None,
-            request_id=generate_request_id(),
-            status_code=200,
-            method="SYSTEM",
-            path="import_service.import_trades",
-            metadata={
-                "reason": "schwab_single_account_auto_bind",
-            },
-        )
-
-    def _select_schwab_account_entry(
-        self,
-        payload: dict[str, object],
-        account_number: str | None,
-    ) -> tuple[dict[str, object], str | None]:
-        accounts_obj = payload.get("accounts")
-        assert isinstance(accounts_obj, list)
-        file_accounts: list[dict[str, object]] = [entry for entry in accounts_obj if isinstance(entry, dict)]
-        if len(file_accounts) != len(accounts_obj):
-            raise ImportParseError("Schwab JSON payload contains invalid account entries; each accounts item must be an object.")
-
-        return resolve_schwab_account_entry(
-            accounts=file_accounts,
-            configured_account_number=account_number,
-            context="import",
-        )
 
     @staticmethod
     @lru_cache(maxsize=16)

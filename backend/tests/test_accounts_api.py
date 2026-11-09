@@ -38,7 +38,8 @@ from app.repositories.broker_raw_transaction_repository import (
     BrokerRawTransactionRepository,
 )
 from app.services.audit_service import AuditEventService
-from app.services.broker_service import BrokerService
+from app.services.brokers.ibkr.adapter import IBKRConnection
+from app.services.brokers.schwab.adapter import SchwabConnection
 
 # ---------------------------------------------------------------------------
 # URL constants
@@ -418,17 +419,16 @@ class TestAccountConnectionTest:
         )
 
         async def _fake_test_ibkr(
-            self: BrokerService,
+            self: IBKRConnection,
             provided: dict[str, str],
             account: object,
-            user_id: uuid.UUID,
-            portfolio_id: uuid.UUID,
+            session: object,
         ) -> None:
-            del self, account, user_id, portfolio_id
+            del self, account, session
             assert provided["ibkr_flex_token"] == "dummy-token"
             assert provided["ibkr_flex_query_id"] == "dummy-query"
 
-        monkeypatch.setattr(BrokerService, "_test_ibkr", _fake_test_ibkr)
+        monkeypatch.setattr(IBKRConnection, "test", _fake_test_ibkr)
 
         resp = await client.post(
             f"{_accounts_url(portfolio_id)}/test-connection",
@@ -507,15 +507,16 @@ class TestGetAccountCredentials:
         )
 
         async def _fake_test_schwab(
-            self: BrokerService,
+            self: SchwabConnection,
             provided: dict[str, str],
             account: object,
+            session: object,
         ) -> None:
-            del self, account
+            del self, account, session
             assert provided["schwab_app_key"] == "dummy-key"
             assert provided["schwab_app_secret"] == "dummy-secret"
 
-        monkeypatch.setattr(BrokerService, "_test_schwab", _fake_test_schwab)
+        monkeypatch.setattr(SchwabConnection, "test", _fake_test_schwab)
 
         resp = await client.post(
             f"{_accounts_url(portfolio_id)}/test-connection",

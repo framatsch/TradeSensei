@@ -1,0 +1,13 @@
+{
+ "body": {
+  "detail": "Schwab accounts require JSON format (.json). CSV import is no longer supported."
+ },
+ "state": {
+  "account_number": "10000001",
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ },
+ "status_code": 422
+}

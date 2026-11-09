@@ -96,36 +96,30 @@ def test_parse_execution_element_raw_skipped():
     raw, _ = parser.parse_raw(xml, "test.xml")
     assert len(parser.warnings) > 0
 
-def test_parse_trade_element_legacy():
+def test_parse_raw_populates_broker_neutral_fields():
     xml = b"""
     <FlexQueryResponse>
-        <Trade assetCategory="STK" />
-        <Trade assetCategory="STK" symbol="AAPL" />
-        <Trade assetCategory="STK" symbol="AAPL" tradeDate="20230101" quantity="0" />
-        <Trade assetCategory="STK" symbol="AAPL" tradeDate="20230101" quantity="10" tradePrice="-1" />
-        <Trade assetCategory="STK" symbol="AAPL" tradeDate="bad" quantity="10" tradePrice="1" />
-        <Trade assetCategory="STK" symbol="AAPL" tradeDate="20230101" quantity="10" tradePrice="0" transactionType="Trade" tradeMoney="-100" />
-        <Trade assetCategory="STK" symbol="AAPL" tradeDate="20230101" quantity="10" tradePrice="0" transactionType="Trade" cost="-100" />
-        <Trade assetCategory="OPT" symbol="AAPL  230120C00150000" tradeDate="20230101" quantity="10" tradePrice="1" />
+        <Trade assetCategory="STK" symbol="AAPL" conid="1" tradeDate="20230101" dateTime="20230101;100000"
+               quantity="-20" tradePrice="25.6" brokerageOrderID="123" netCash="-512.30"
+               openCloseIndicator="C;O" transactionID="t1" />
+        <Trade assetCategory="STK" symbol="AAPL" conid="1" tradeDate="20230102" dateTime="20230102;100000"
+               quantity="10" tradePrice="25" brokerageOrderID="" openCloseIndicator="o;c" transactionID="t2" />
+        <Trade assetCategory="STK" symbol="AAPL" conid="1" tradeDate="20230103" dateTime="20230103;100000"
+               quantity="10" tradePrice="25" netCash="n/a" openCloseIndicator="O" transactionID="t3" />
+        <Execution assetCategory="STK" symbol="MSFT" conid="2" execDate="20230104" execTime="100000"
+                   quantity="1" price="300" brokerageOrderID="ord-9" netCash="-300"
+                   openCloseIndicator="C;O" transactionID="e1" />
     </FlexQueryResponse>
     """
-    parser = IBKRXMLParser()
-    trades, _ = parser.parse(xml, "test.xml")
-    assert len(trades) > 0
+    raw, _ = IBKRXMLParser().parse_raw(xml, "test.xml")
+    by_id = {r.id: r for r in raw}
 
-def test_parse_execution_element_legacy():
-    xml = b"""
-    <FlexQueryResponse>
-        <Execution assetCategory="STK" />
-        <Execution assetCategory="STK" symbol="AAPL" />
-        <Execution assetCategory="STK" symbol="AAPL" execDate="20230101" quantity="0" />
-        <Execution assetCategory="STK" symbol="AAPL" execDate="20230101" quantity="10" price="-1" />
-        <Execution assetCategory="STK" symbol="AAPL" execDate="bad" quantity="10" price="1" />
-        <Execution assetCategory="OPT" symbol="AAPL  230120C00150000" execDate="20230101" quantity="10" price="1" />
-    </FlexQueryResponse>
-    """
-    parser = IBKRXMLParser()
-    trades, _ = parser.parse(xml, "test.xml")
-    assert len(trades) > 0
+    flip = by_id["ibkr:t1"]
+    assert (flip.order_id, flip.net_cash, flip.is_mixed_execution) == ("123", Decimal("-512.30"), True)
+    # Empty order id is preserved (it is persisted as trades.broker_order_id).
+    assert (by_id["ibkr:t2"].order_id, by_id["ibkr:t2"].net_cash, by_id["ibkr:t2"].is_mixed_execution) == ("", None, True)
+    assert (by_id["ibkr:t3"].order_id, by_id["ibkr:t3"].net_cash, by_id["ibkr:t3"].is_mixed_execution) == (None, None, False)
+    execution = by_id["ibkr:e1"]
+    assert (execution.order_id, execution.net_cash, execution.is_mixed_execution) == ("ord-9", Decimal("-300"), True)
 
 

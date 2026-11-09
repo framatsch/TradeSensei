@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- [backend] Introduced an internal broker adapter architecture (`app/services/brokers/`): each broker (IBKR, Schwab) is one registered adapter with file-import, account-binding, remote-sync and connection capabilities plus an import policy. `ImportService` no longer branches on the broker, `BrokerService` dispatches sync and connection tests through the registry, and the upload endpoint derives accepted file extensions from it. No user-facing change: API paths, OpenAPI schemas and import results are unchanged (verified by a new golden-master import suite).
+- [db] Added broker-neutral `order_id`, `net_cash` and `is_mixed_execution` columns to `broker_raw_transactions` (backfilled from `raw_data`); combo grouping and position-flip detection now read these columns instead of IBKR-specific JSON keys.
+
+### Fixed
+- [backend] An IBKR row with an empty or non-numeric `netCash` attribute no longer fails the whole import; its net cash is treated as unknown.
+
+### Removed
+- [backend] Removed the unreachable legacy `parse()` import fallback, the unused `enrich_pnl_eur` parser hook and the parser factory (`app/utils/parsers/factory.py`).
+
 ## [1.19.3] - 2026-11-08
 
 ### Changed

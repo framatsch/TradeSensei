@@ -42,7 +42,7 @@ async def test_get_combo_order_meta_by_raw_ids_returns_empty_for_empty_input(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_get_combo_order_meta_by_raw_ids_extracts_order_id_and_net_cash(
+async def test_get_combo_order_meta_by_raw_ids_reads_neutral_columns(
     db_session: AsyncSession,
 ) -> None:
     user = User(
@@ -70,7 +70,9 @@ async def test_get_combo_order_meta_by_raw_ids_extracts_order_id_and_net_cash(
         currency="USD",
         multiplier=100,
         open_close="O",
-        raw_data={"brokerageOrderID": "combo-open-1", "netCash": "-123.45"},
+        order_id="combo-open-1",
+        net_cash=Decimal("-123.45"),
+        raw_data={},
         suppressed=False,
     )
     row_b = BrokerRawTransaction(
@@ -90,7 +92,9 @@ async def test_get_combo_order_meta_by_raw_ids_extracts_order_id_and_net_cash(
         currency="USD",
         multiplier=100,
         open_close="O",
-        raw_data={"brokerageOrderID": "combo-open-1", "netCash": "80.00"},
+        order_id="combo-open-1",
+        net_cash=Decimal("80.00"),
+        raw_data={"brokerageOrderID": "ignored-raw-key", "netCash": "999"},
         suppressed=False,
     )
     db_session.add_all([row_a, row_b])
@@ -100,7 +104,7 @@ async def test_get_combo_order_meta_by_raw_ids_extracts_order_id_and_net_cash(
     result = await repo.get_combo_order_meta_by_raw_ids([row_a.id, row_b.id, "missing-id"])
 
     assert set(result.keys()) == {row_a.id, row_b.id}
-    assert result[row_a.id]["brokerageOrderID"] == "combo-open-1"
-    assert result[row_b.id]["brokerageOrderID"] == "combo-open-1"
-    assert result[row_a.id]["netCash"] == Decimal("-123.45")
-    assert result[row_b.id]["netCash"] == Decimal("80.00")
+    assert result[row_a.id]["order_id"] == "combo-open-1"
+    assert result[row_b.id]["order_id"] == "combo-open-1"
+    assert result[row_a.id]["net_cash"] == Decimal("-123.45")
+    assert result[row_b.id]["net_cash"] == Decimal("80.00")

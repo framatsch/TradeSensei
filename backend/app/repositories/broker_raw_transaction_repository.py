@@ -21,7 +21,7 @@ import uuid
 from collections.abc import Sequence
 from decimal import Decimal
 
-from sqlalchemy import Numeric, cast, delete, exists, select, update
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -229,15 +229,14 @@ class BrokerRawTransactionRepository:
     ) -> dict[str, dict[str, str | Decimal | None]]:
         """Return combo order metadata for raw transaction IDs.
 
-        The result is keyed by raw transaction ID and contains:
-        - ``brokerageOrderID`` extracted from JSONB ``raw_data``
-        - ``netCash`` extracted from JSONB and cast to ``Decimal``
+        The result is keyed by raw transaction ID and contains the
+        broker-neutral ``order_id`` and ``net_cash`` columns.
 
         Args:
             raw_ids: Raw transaction IDs to look up.
 
         Returns:
-            Mapping ``raw_id -> {"brokerageOrderID": str|None, "netCash": Decimal|None}``.
+            Mapping ``raw_id -> {"order_id": str|None, "net_cash": Decimal|None}``.
             Returns ``{}`` when ``raw_ids`` is empty.
         """
         if not raw_ids:
@@ -245,19 +244,16 @@ class BrokerRawTransactionRepository:
 
         stmt = select(
             BrokerRawTransaction.id,
-            BrokerRawTransaction.raw_data["brokerageOrderID"].astext.label("brokerage_order_id"),
-            cast(
-                BrokerRawTransaction.raw_data["netCash"].astext,
-                Numeric,
-            ).label("net_cash"),
+            BrokerRawTransaction.order_id,
+            BrokerRawTransaction.net_cash,
         ).where(BrokerRawTransaction.id.in_(list(raw_ids)))
 
         result = await self._session.execute(stmt)
         meta: dict[str, dict[str, str | Decimal | None]] = {}
         for row in result:
             meta[row.id] = {
-                "brokerageOrderID": row.brokerage_order_id,
-                "netCash": row.net_cash,
+                "order_id": row.order_id,
+                "net_cash": row.net_cash,
             }
         return meta
 

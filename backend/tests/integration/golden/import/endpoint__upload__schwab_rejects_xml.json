@@ -1,0 +1,13 @@
+{
+ "body": {
+  "detail": "Account 'Golden Account' (SCHWAB) only accepts .json files. Received: .xml"
+ },
+ "state": {
+  "account_number": "10000001",
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ },
+ "status_code": 422
+}

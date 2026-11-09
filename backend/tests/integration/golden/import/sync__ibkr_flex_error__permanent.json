@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "IBKR Flex API error: Flex SendRequest failed: Invalid token",
+  "type": "ConfigurationError"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexQueryResponse>
+  <FlexStatements>
+    <FlexStatement>
+      <Trades>
+        <!-- Open vertical that is never closed -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="EDGO  261218C00100000" conid="700001" multiplier="100" tradeDate="20260901" dateTime="20260901;140000" quantity="1" tradePrice="5" ibCommission="-0.65" netCash="-500.65" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000001" brokerageOrderID="edge-open-1" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="EDGO  261218C00110000" conid="700002" multiplier="100" tradeDate="20260901" dateTime="20260901;140000" quantity="-1" tradePrice="2" ibCommission="-0.65" netCash="199.35" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000002" brokerageOrderID="edge-open-1" />
+
+        <!-- Scaled into the same vertical with two 1-lot orders, closed by one 2-lot order -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="SCAL  261218C00100000" conid="700011" multiplier="100" tradeDate="20260902" dateTime="20260902;140000" quantity="1" tradePrice="4" ibCommission="-0.65" netCash="-400.65" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000011" brokerageOrderID="edge-scal-open-1" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="SCAL  261218C00110000" conid="700012" multiplier="100" tradeDate="20260902" dateTime="20260902;140000" quantity="-1" tradePrice="1.5" ibCommission="-0.65" netCash="149.35" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000012" brokerageOrderID="edge-scal-open-1" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="SCAL  261218C00100000" conid="700011" multiplier="100" tradeDate="20260903" dateTime="20260903;140000" quantity="1" tradePrice="4.2" ibCommission="-0.65" netCash="-420.65" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000013" brokerageOrderID="edge-scal-open-2" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="SCAL  261218C00110000" conid="700012" multiplier="100" tradeDate="20260903" dateTime="20260903;140000" quantity="-1" tradePrice="1.6" ibCommission="-0.65" netCash="159.35" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000014" brokerageOrderID="edge-scal-open-2" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="SCAL  261218C00100000" conid="700011" multiplier="100" tradeDate="20260910" dateTime="20260910;150000" quantity="-2" tradePrice="6" ibCommission="-1.3" netCash="1198.7" openCloseIndicator="C" fifoPnlRealized="380" transactionID="910000015" brokerageOrderID="edge-scal-close-1" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="SCAL  261218C00110000" conid="700012" multiplier="100" tradeDate="20260910" dateTime="20260910;150000" quantity="2" tradePrice="2.5" ibCommission="-1.3" netCash="-501.3" openCloseIndicator="C" fifoPnlRealized="-190" transactionID="910000016" brokerageOrderID="edge-scal-close-1" />
+
+        <!-- Combo order with mixed open/close markers -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="MIXD  261218C00100000" conid="700021" multiplier="100" tradeDate="20260904" dateTime="20260904;140000" quantity="1" tradePrice="3" ibCommission="-0.65" netCash="-300.65" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000021" brokerageOrderID="edge-mixed-1" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="MIXD  261218C00110000" conid="700022" multiplier="100" tradeDate="20260904" dateTime="20260904;140000" quantity="-1" tradePrice="1" ibCommission="-0.65" netCash="99.35" openCloseIndicator="C" fifoPnlRealized="5" transactionID="910000022" brokerageOrderID="edge-mixed-1" />
+
+        <!-- Combo close without a matching open -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="UNMT  261218C00100000" conid="700031" multiplier="100" tradeDate="20260911" dateTime="20260911;140000" quantity="-1" tradePrice="3" ibCommission="-0.65" netCash="299.35" openCloseIndicator="C" fifoPnlRealized="50" transactionID="910000031" brokerageOrderID="edge-orphan-close-1" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="OPT" symbol="UNMT  261218C00110000" conid="700032" multiplier="100" tradeDate="20260911" dateTime="20260911;140000" quantity="1" tradePrice="1" ibCommission="-0.65" netCash="-100.65" openCloseIndicator="C" fifoPnlRealized="-20" transactionID="910000032" brokerageOrderID="edge-orphan-close-1" />
+
+        <!-- Position flip (C;O) on a single stock -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="FLIP" conid="700041" multiplier="1" tradeDate="20260905" dateTime="20260905;140000" quantity="10" tradePrice="20" ibCommission="-1" netCash="-201" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000041" brokerageOrderID="edge-flip-1" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="FLIP" conid="700041" multiplier="1" tradeDate="20260906" dateTime="20260906;140000" quantity="-20" tradePrice="22" ibCommission="-1" netCash="439" openCloseIndicator="C;O" fifoPnlRealized="20" transactionID="910000042" brokerageOrderID="edge-flip-2" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="FLIP" conid="700041" multiplier="1" tradeDate="20260908" dateTime="20260908;140000" quantity="10" tradePrice="21" ibCommission="-1" netCash="-211" openCloseIndicator="C" fifoPnlRealized="10" transactionID="910000043" brokerageOrderID="edge-flip-3" />
+
+        <!-- Lower-case reversed flip indicator -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="FLPL" conid="700042" multiplier="1" tradeDate="20260905" dateTime="20260905;150000" quantity="-5" tradePrice="30" ibCommission="-1" netCash="149" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000044" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="FLPL" conid="700042" multiplier="1" tradeDate="20260907" dateTime="20260907;150000" quantity="10" tradePrice="28" ibCommission="-1" netCash="-281" openCloseIndicator="o;c" fifoPnlRealized="10" transactionID="910000045" />
+
+        <!-- Empty brokerageOrderID and empty netCash attributes -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="EMPT" conid="700051" multiplier="1" tradeDate="20260909" dateTime="20260909;140000" quantity="5" tradePrice="10" ibCommission="-1" netCash="-51" openCloseIndicator="O" fifoPnlRealized="0" transactionID="910000051" brokerageOrderID="" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="EMPT" conid="700051" multiplier="1" tradeDate="20260912" dateTime="20260912;140000" quantity="-5" tradePrice="11" ibCommission="-1" openCloseIndicator="C" fifoPnlRealized="4" transactionID="910000052" brokerageOrderID="" />
+
+        <!-- Rows that must be skipped with a parser warning -->
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="" conid="700061" multiplier="1" tradeDate="20260913" dateTime="20260913;140000" quantity="1" tradePrice="10" transactionID="910000061" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="ZERO" conid="700062" multiplier="1" tradeDate="20260913" dateTime="20260913;140000" quantity="0" tradePrice="10" transactionID="910000062" />
+        <Trade accountId="U00000000" currency="USD" assetCategory="STK" symbol="NODT" conid="700063" multiplier="1" quantity="1" tradePrice="10" transactionID="910000063" />
+      </Trades>
+      <TradeConfirms>
+        <Execution accountId="U00000000" currency="USD" assetCategory="STK" symbol="CONF" conid="700071" execDate="20260914" execTime="100000" quantity="3" price="40" ibCommission="-1" netCash="-121" openCloseIndicator="O" transactionID="910000071" brokerageOrderID="edge-conf-1" />
+      </TradeConfirms>
+    </FlexStatement>
+  </FlexStatements>
+</FlexQueryResponse>

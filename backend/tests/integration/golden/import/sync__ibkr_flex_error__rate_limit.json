@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "IBKR API rate limit reached: Too many requests. Please try again in 10 minutes",
+  "type": "UpstreamServiceUnavailableError"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}

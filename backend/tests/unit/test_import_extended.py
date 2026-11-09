@@ -23,7 +23,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.exceptions import AccountNotFoundError
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
+from tests.utils.broker_adapters import adapter_from_mock_parser
 
 pytestmark = pytest.mark.asyncio
 
@@ -49,7 +50,6 @@ def _make_service():
     svc._raw_repo = AsyncMock()
     svc._logical_svc = AsyncMock()
     svc._exec_repo = AsyncMock()
-    svc._audit = MagicMock()
     return svc
 
 
@@ -93,6 +93,38 @@ def _make_mock_trade_create(
     return t
 
 
+def _accountless_raw_pipeline(svc, trades):
+    """Prime ``svc`` so an account-less import aggregates exactly ``trades``.
+
+    One raw row is newly inserted, so the pipeline proceeds past the
+    zero-insert short-circuit; FIFO aggregation is replaced by ``trades``.
+    Without an account there is no projection rebuild, so the trades flow
+    through the per-trade create/skip loop.
+    """
+    from app.utils.parsers.aggregator import TradeCreateWithSources
+
+    raw_record = MagicMock()
+    raw_record.id = "ibkr:raw-1"
+    raw_record.model_copy = MagicMock(return_value=raw_record)
+
+    mock_parser = MagicMock()
+    mock_parser.parse_raw = MagicMock(return_value=([raw_record], []))
+    mock_parser.warnings = []
+
+    svc._raw_repo.bulk_upsert = AsyncMock(return_value=[raw_record.id])
+    svc._raw_repo.list_released_without_execution = AsyncMock(return_value=[])
+    svc._logical_svc.bulk_create_from_raw = AsyncMock(return_value=([], 0))
+    svc._collect_trade_creates_from_logical_batches = AsyncMock(return_value=[])
+    svc._build_seed_combo_execution_trades = AsyncMock(return_value=[])
+    return (
+        patch("app.services.import_service.get_adapter", return_value=adapter_from_mock_parser(mock_parser)),
+        patch(
+            "app.services.import_service.aggregate_executions_fifo_with_sources",
+            return_value=[TradeCreateWithSources(trade_create=t, source_executions=[]) for t in trades],
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # import_trades - account not found
 # ---------------------------------------------------------------------------
@@ -126,13 +158,8 @@ async def test_import_trades_adds_currency_mismatch_warning():
 
     trade = _make_mock_trade_create(currency="EUR")  # EUR != USD
 
-    mock_parser = MagicMock()
-    mock_parser.parse_raw = MagicMock(side_effect=NotImplementedError)
-    mock_parser.parse = MagicMock(return_value=([trade], []))
-    mock_parser.warnings = []
-    mock_parser.enrich_pnl_eur = AsyncMock()
-
-    with patch("app.services.import_service.get_parser", return_value=mock_parser):
+    adapter_patch, fifo_patch = _accountless_raw_pipeline(svc, [trade])
+    with adapter_patch, fifo_patch:
         result = await svc.import_trades(
             content=b"data",
             filename="file.csv",
@@ -155,13 +182,8 @@ async def test_import_trades_no_account_id_skips_account_lookup():
     svc._trade_repo.list_existing_entry_keys = AsyncMock(return_value=set())
     svc._trade_repo.list_existing_close_keys = AsyncMock(return_value=set())
 
-    mock_parser = MagicMock()
-    mock_parser.parse_raw = MagicMock(side_effect=NotImplementedError)
-    mock_parser.parse = MagicMock(return_value=([], []))
-    mock_parser.warnings = []
-    mock_parser.enrich_pnl_eur = AsyncMock()
-
-    with patch("app.services.import_service.get_parser", return_value=mock_parser):
+    adapter_patch, fifo_patch = _accountless_raw_pipeline(svc, [])
+    with adapter_patch, fifo_patch:
         result = await svc.import_trades(
             content=b"data",
             filename="file.csv",
@@ -188,13 +210,8 @@ async def test_import_trades_skips_manually_edited_trades():
     svc._trade_repo.list_existing_entry_keys = AsyncMock(return_value=set())
     svc._trade_repo.list_existing_close_keys = AsyncMock(return_value=set())
 
-    mock_parser = MagicMock()
-    mock_parser.parse_raw = MagicMock(side_effect=NotImplementedError)
-    mock_parser.parse = MagicMock(return_value=([trade], []))
-    mock_parser.warnings = []
-    mock_parser.enrich_pnl_eur = AsyncMock()
-
-    with patch("app.services.import_service.get_parser", return_value=mock_parser):
+    adapter_patch, fifo_patch = _accountless_raw_pipeline(svc, [trade])
+    with adapter_patch, fifo_patch:
         result = await svc.import_trades(
             content=b"data",
             filename="file.csv",
@@ -205,6 +222,84 @@ async def test_import_trades_skips_manually_edited_trades():
         )
 
     assert result.trades_created == 0
+    svc._trade_repo.create.assert_not_awaited()
+
+
+async def test_import_trades_accountless_failed_create_counted_as_skipped():
+    svc = _make_service()
+    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
+    svc._ca_repo.list_by_user = AsyncMock(return_value=[])
+    svc._trade_repo.list_open_lots_by_user = AsyncMock(return_value=[])
+    svc._trade_repo.list_orphaned_lots_by_user = AsyncMock(return_value=[])
+    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value=set())
+    svc._trade_repo.list_existing_entry_keys = AsyncMock(return_value=set())
+    svc._trade_repo.list_existing_close_keys = AsyncMock(return_value=set())
+    svc._trade_repo.create = AsyncMock(side_effect=[MagicMock(), RuntimeError("DB error")])
+
+    trades = [_make_mock_trade_create(symbol="AAPL"), _make_mock_trade_create(symbol="MSFT")]
+    adapter_patch, fifo_patch = _accountless_raw_pipeline(svc, trades)
+    with adapter_patch, fifo_patch:
+        result = await svc.import_trades(
+            content=b"data",
+            filename="file.xml",
+            broker=BrokerType.IBKR,
+            portfolio_id=_PORTFOLIO_ID,
+            account_id=None,
+            user_id=_USER_ID,
+        )
+
+    assert result.trades_parsed == 2
+    assert result.trades_created == 1
+    assert result.trades_skipped == 1
+    assert any(w.startswith("Failed to persist trade MSFT") for w in result.warnings)
+
+
+@pytest.mark.parametrize(
+    ("broker", "content", "self_heal_expected"),
+    [
+        (BrokerType.SCHWAB, b'{"accounts": []}', True),
+        (BrokerType.IBKR, b"<FlexQueryResponse />", False),
+    ],
+)
+async def test_zero_insert_self_heal_query_follows_adapter_policy(broker, content, self_heal_expected):
+    """Only adapters with ``self_heal_pending_protected_close`` run the self-heal query."""
+    svc = _make_service()
+    svc._account_repo.get_by_id = AsyncMock(return_value=_make_mock_account())
+    svc._portfolio_repo.get_by_id = AsyncMock(return_value=_make_mock_portfolio())
+    svc._ca_repo.list_by_user = AsyncMock(return_value=[])
+    svc._trade_repo.list_open_lots_by_user = AsyncMock(return_value=[])
+    svc._trade_repo.list_orphaned_lots_by_user = AsyncMock(return_value=[])
+    svc._trade_repo.list_manually_edited_keys = AsyncMock(return_value=set())
+    svc._trade_repo.list_existing_entry_keys = AsyncMock(return_value=set())
+    svc._trade_repo.list_existing_close_keys = AsyncMock(return_value=set())
+    svc._trade_repo.list_open_combo_positions_by_user = AsyncMock(return_value=[])
+    svc._raw_repo.bulk_upsert = AsyncMock(return_value=[])
+    svc._raw_repo.list_released_without_execution = AsyncMock(return_value=[])
+    svc._logical_svc.bulk_create_from_raw = AsyncMock(return_value=([], 0))
+    svc._exec_repo.has_absorbable_unlinked_execution_for_open_protected_trades = AsyncMock(return_value=False)
+
+    mock_parser = MagicMock()
+    mock_parser.parse_raw = MagicMock(return_value=([], []))
+    mock_parser.warnings = []
+
+    with patch("app.services.import_service.get_adapter", return_value=adapter_from_mock_parser(mock_parser, broker)):
+        result = await svc.import_trades(
+            content=content,
+            filename="file",
+            broker=broker,
+            portfolio_id=_PORTFOLIO_ID,
+            account_id=_ACCOUNT_ID,
+            user_id=_USER_ID,
+        )
+
+    self_heal = svc._exec_repo.has_absorbable_unlinked_execution_for_open_protected_trades
+    if self_heal_expected:
+        self_heal.assert_awaited_once_with(user_id=_USER_ID, account_id=_ACCOUNT_ID)
+    else:
+        self_heal.assert_not_awaited()
+    assert result.raw_transactions_created == 0
+    assert result.trades_created == 0
+    svc._exec_repo.delete_split_children_for_account.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

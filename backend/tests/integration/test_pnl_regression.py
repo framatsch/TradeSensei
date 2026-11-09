@@ -23,7 +23,7 @@ from app.models.corporate_action import CorporateAction
 from app.models.logical_execution import LogicalExecution
 from app.models.trade import Trade
 from app.services.import_service import ImportService
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
 from tests.test_import_ground_truth import _create_account, _register_and_login
 
 pytestmark = pytest.mark.asyncio

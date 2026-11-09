@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "Schwab account is not connected via OAuth. Please connect via OAuth first.",
+  "type": "ConfigurationError"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}

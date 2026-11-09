@@ -28,37 +28,17 @@ from app.core.exceptions import AccountNotFoundError, ImportParseError
 from app.models.trade import Trade
 from app.models.trade import AssetClass, Direction
 from app.schemas.corporate_action import CorporateActionCreateRequest
-from app.schemas.imports import ImportResult
 from app.schemas.trade import TradeCreate
 from app.services.import_service import IMPORT_UPDATABLE_TRADE_FIELDS, ImportService
 from app.utils.parsers.aggregator import TradeCreateWithSources
-from app.utils.parsers.factory import BrokerType, get_parser
-from app.utils.parsers.ibkr_xml import IBKRXMLParser
+from app.services.brokers.contracts import BrokerType
+from tests.utils.broker_adapters import adapter_from_mock_parser
 
 TEST_PORTFOLIO_ID = uuid.uuid4()
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-
-
-# ─── Factory unit tests ───────────────────────────────────────────────────────
-
-
-class TestGetParser:
-    """Unit tests for the parser factory."""
-
-    @pytest.mark.unit
-    def test_returns_ibkr_xml_parser(self) -> None:
-        """get_parser(IBKR) should return an IBKRXMLParser instance."""
-        parser = get_parser(BrokerType.IBKR)
-        assert isinstance(parser, IBKRXMLParser)
-
-    @pytest.mark.unit
-    def test_returns_schwab_parser(self) -> None:
-        """get_parser(SCHWAB) should return the Schwab JSON parser."""
-        parser = get_parser(BrokerType.SCHWAB)
-        assert type(parser).__name__ == "SchwabJSONParser"
 
 
 # ─── ImportService unit tests ─────────────────────────────────────────────────
@@ -128,82 +108,6 @@ class TestImportService:
             )
 
     @pytest.mark.unit
-    async def test_returns_import_result_on_success(
-        self,
-        import_service: ImportService,
-    ) -> None:
-        """import_trades should return an ImportResult with correct counts."""
-        fake_account = MagicMock()
-        parsed_trades = [_make_trade_create(symbol="AAPL")]
-
-        mock_parser = MagicMock()
-        mock_parser.parse.return_value = (parsed_trades, [])
-        mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
-
-        with (
-            patch(
-                "app.services.import_service.AccountRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=fake_account,
-            ),
-            patch(
-                "app.services.import_service.CorporateActionRepository.list_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_open_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_open_combo_positions_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_manually_edited_keys",
-                new_callable=AsyncMock,
-                return_value=set(),
-            ),
-            patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.create",
-                new_callable=AsyncMock,
-                return_value=MagicMock(),
-            ),
-            patch(
-                "app.services.import_service.PortfolioRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
-        ):
-            result = await import_service.import_trades(
-                content=b"csv content",
-                filename="activity.csv",
-                broker=BrokerType.IBKR,
-                portfolio_id=TEST_PORTFOLIO_ID,
-                account_id=uuid.uuid4(),
-                user_id=uuid.uuid4(),
-            )
-
-        assert isinstance(result, ImportResult)
-        assert result.trades_parsed == 1
-        assert result.trades_created == 1
-        assert result.trades_skipped == 0
-        assert result.broker == "ibkr"
-        assert result.filename == "activity.csv"
-
-    @pytest.mark.unit
     def test_import_updatable_trade_fields_cover_all_trade_columns(self) -> None:
         metadata_fields = {
             "journal",
@@ -245,7 +149,6 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse_raw.return_value = ([raw_record], [])
         mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with (
             patch(
@@ -304,8 +207,8 @@ class TestImportService:
                 return_value=[],
             ),
             patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
+                "app.services.import_service.get_adapter",
+                return_value=adapter_from_mock_parser(mock_parser),
             ),
             patch(
                 "app.services.import_service.ExecutionRepository.delete_split_children_for_account",
@@ -356,7 +259,6 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse_raw.return_value = ([raw_record], [])
         mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with (
             patch(
@@ -430,8 +332,8 @@ class TestImportService:
                 return_value=None,
             ),
             patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
+                "app.services.import_service.get_adapter",
+                return_value=adapter_from_mock_parser(mock_parser),
             ),
             patch(
                 "app.services.import_service.ExecutionRepository.delete_split_children_for_account",
@@ -491,7 +393,6 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse_raw.return_value = ([raw_record], [])
         mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with (
             patch(
@@ -565,8 +466,8 @@ class TestImportService:
                 return_value=None,
             ),
             patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
+                "app.services.import_service.get_adapter",
+                return_value=adapter_from_mock_parser(mock_parser),
             ),
             patch(
                 "app.services.import_service.ExecutionRepository.delete_split_children_for_account",
@@ -639,7 +540,6 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse_raw.return_value = ([raw_record], [ca])
         mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with (
             patch(
@@ -707,8 +607,8 @@ class TestImportService:
                 return_value=[],
             ),
             patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
+                "app.services.import_service.get_adapter",
+                return_value=adapter_from_mock_parser(mock_parser),
             ),
             patch(
                 "app.services.import_service.ExecutionRepository.delete_split_children_for_account",
@@ -799,7 +699,6 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse_raw.return_value = ([raw_record], [])
         mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         manually_edited = {(incoming_skipped.broker_conid, incoming_skipped.opened_at)}
 
@@ -929,8 +828,8 @@ class TestImportService:
             )
             stack.enter_context(
                 patch(
-                    "app.services.import_service.get_parser",
-                    return_value=mock_parser,
+                    "app.services.import_service.get_adapter",
+                    return_value=adapter_from_mock_parser(mock_parser),
                 )
             )
 
@@ -994,7 +893,6 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse_raw.return_value = ([raw_record], [])
         mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with ExitStack() as stack:
             common_async_patches = [
@@ -1094,8 +992,8 @@ class TestImportService:
             )
             stack.enter_context(
                 patch(
-                    "app.services.import_service.get_parser",
-                    return_value=mock_parser,
+                    "app.services.import_service.get_adapter",
+                    return_value=adapter_from_mock_parser(mock_parser),
                 )
             )
 
@@ -1144,7 +1042,6 @@ class TestImportService:
         mock_parser = MagicMock()
         mock_parser.parse_raw.return_value = ([raw_record], [])
         mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with ExitStack() as stack:
             common_async_patches = [
@@ -1197,8 +1094,8 @@ class TestImportService:
             )
             stack.enter_context(
                 patch(
-                    "app.services.import_service.get_parser",
-                    return_value=mock_parser,
+                    "app.services.import_service.get_adapter",
+                    return_value=adapter_from_mock_parser(mock_parser),
                 )
             )
 
@@ -1217,96 +1114,16 @@ class TestImportService:
         assert not any("protected_unlinked_execution" in warning for warning in result.warnings)
 
     @pytest.mark.unit
-    async def test_failed_trade_create_counted_as_skipped(
-        self,
-        import_service: ImportService,
-    ) -> None:
-        """Trades that fail to persist should be counted as skipped with warnings."""
-        fake_account = MagicMock()
-        parsed_trades = [
-            _make_trade_create(symbol="AAPL"),
-            _make_trade_create(symbol="MSFT"),
-        ]
-
-        mock_parser = MagicMock()
-        mock_parser.parse.return_value = (parsed_trades, [])
-        mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
-
-        call_count = 0
-
-        async def create_side_effect(self_arg: object, trade: TradeCreate) -> MagicMock:
-            nonlocal call_count
-            call_count += 1
-            if call_count == 2:
-                raise RuntimeError("DB error")
-            return MagicMock()
-
-        with (
-            patch(
-                "app.services.import_service.AccountRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=fake_account,
-            ),
-            patch(
-                "app.services.import_service.CorporateActionRepository.list_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_open_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_manually_edited_keys",
-                new_callable=AsyncMock,
-                return_value=set(),
-            ),
-            patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.create",
-                new=create_side_effect,
-            ),
-            patch(
-                "app.services.import_service.PortfolioRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
-        ):
-            result = await import_service.import_trades(
-                content=b"csv content",
-                filename="activity.csv",
-                broker=BrokerType.IBKR,
-                portfolio_id=TEST_PORTFOLIO_ID,
-                account_id=uuid.uuid4(),
-                user_id=uuid.uuid4(),
-            )
-
-        assert result.trades_created == 1
-        assert result.trades_skipped == 1
-        assert len(result.warnings) == 1
-
-    @pytest.mark.unit
     async def test_parser_warnings_included_in_result(
         self,
         import_service: ImportService,
     ) -> None:
-        """Warnings from the parser should be included in the ImportResult."""
+        """Warnings from the adapter batch are reported even on a zero-insert import."""
         fake_account = MagicMock()
 
         mock_parser = MagicMock()
-        mock_parser.parse.return_value = ([], [])
+        mock_parser.parse_raw.return_value = ([], [])
         mock_parser.warnings = ["IBKR row 3: skipped — bad data"]
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
 
         with (
             patch(
@@ -1330,13 +1147,18 @@ class TestImportService:
                 return_value=[],
             ),
             patch(
+                "app.services.import_service.TradeRepository.list_open_combo_positions_by_user",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
                 "app.services.import_service.TradeRepository.list_manually_edited_keys",
                 new_callable=AsyncMock,
                 return_value=set(),
             ),
             patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
+                "app.services.import_service.get_adapter",
+                return_value=adapter_from_mock_parser(mock_parser),
             ),
             patch(
                 "app.services.import_service.PortfolioRepository.get_by_id",
@@ -1357,80 +1179,6 @@ class TestImportService:
         assert result.trades_parsed == 0
         assert result.trades_created == 0
         assert result.trades_skipped == 0
-
-    @pytest.mark.unit
-    async def test_account_id_stamped_on_trade(
-        self,
-        import_service: ImportService,
-    ) -> None:
-        """The account_id should be set on each trade before persisting."""
-        fake_account = MagicMock()
-        target_account_id = uuid.uuid4()
-        parsed_trades = [_make_trade_create(symbol="AAPL")]
-
-        mock_parser = MagicMock()
-        mock_parser.parse.return_value = (parsed_trades, [])
-        mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
-
-        created_trades: list[TradeCreate] = []
-
-        async def capture_create(self_arg: object, trade: TradeCreate) -> MagicMock:
-            created_trades.append(trade)
-            return MagicMock()
-
-        with (
-            patch(
-                "app.services.import_service.AccountRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=fake_account,
-            ),
-            patch(
-                "app.services.import_service.CorporateActionRepository.list_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_open_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_manually_edited_keys",
-                new_callable=AsyncMock,
-                return_value=set(),
-            ),
-            patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.create",
-                new=capture_create,
-            ),
-            patch(
-                "app.services.import_service.PortfolioRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
-        ):
-            await import_service.import_trades(
-                content=b"csv content",
-                filename="activity.csv",
-                broker=BrokerType.IBKR,
-                portfolio_id=TEST_PORTFOLIO_ID,
-                account_id=target_account_id,
-                user_id=uuid.uuid4(),
-            )
-
-        assert len(created_trades) == 1
-        assert created_trades[0].account_id == target_account_id
-
 
 # ─── IBKRXMLParser helpers ────────────────────────────────────────────────────
 
@@ -1464,7 +1212,7 @@ class TestIBKRXMLParserCashTradeFiltering:
 
     @pytest.mark.unit
     def test_cash_trade_filtered_out_as_trade(self) -> None:
-        """A <Trade assetCategory='CASH'> must NOT appear in the trades list."""
+        """A <Trade assetCategory='CASH'> must NOT produce a raw transaction."""
         from app.utils.parsers.ibkr_xml import IBKRXMLParser
 
         # A currency-conversion trade (EUR.USD)
@@ -1475,9 +1223,9 @@ class TestIBKRXMLParserCashTradeFiltering:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
         parser = IBKRXMLParser()
-        trades, _ = parser.parse(xml_bytes, "flex.xml")
+        raw, _ = parser.parse_raw(xml_bytes, "flex.xml")
 
-        assert len(trades) == 0, "CASH assetCategory must not produce a Trade record"
+        assert len(raw) == 0, "CASH assetCategory must not produce a raw transaction"
 
     @pytest.mark.unit
     def test_normal_trade_still_parsed_alongside_cash_trade(self) -> None:
@@ -1496,10 +1244,10 @@ class TestIBKRXMLParserCashTradeFiltering:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=normal_trade + cash_trade)
         parser = IBKRXMLParser()
-        trades, _ = parser.parse(xml_bytes, "flex.xml")
+        raw, _ = parser.parse_raw(xml_bytes, "flex.xml")
 
-        assert len(trades) == 1
-        assert trades[0].symbol == "AAPL"
+        assert len(raw) == 1
+        assert raw[0].symbol == "AAPL"
 
 
 # ─── Corporate action stub ─────────────────────────────────────────────────────
@@ -1727,175 +1475,6 @@ class TestImportWithSplit:
 
     # ── ImportService: skip_manually_edited ───────────────────────────────────
 
-    @pytest.mark.unit
-    async def test_import_service_skips_manually_edited_trade(
-        self,
-        import_service: ImportService,
-    ) -> None:
-        """import_trades must skip trades whose (broker_conid, opened_at) key is in
-        the manually-edited set, and count them in trades_skipped (not created).
-
-        Scenario:
-        - Parser produces two trades.
-        - One trade's key is in the manually-edited set.
-        - Only the other trade should be persisted (trades_created = 1).
-        - The skipped trade should NOT appear in trades_created or trades_skipped
-          (error-skipped); the result's trades_skipped counter reflects the
-          difference between parsed and created + manually-edited.
-        """
-        fake_account = MagicMock()
-        now = datetime.now(tz=UTC)
-
-        # Two trades; the second will be in the manually-edited set.
-        trade_a = _make_trade_create(
-            symbol="AAPL",
-            opened_at=now,
-            broker_conid="111111111",
-        )
-        trade_b = _make_trade_create(
-            symbol="OTLK",
-            opened_at=now,
-            broker_conid="357194941",
-        )
-
-        # The key for trade_b is in the manually-edited set.
-        manually_edited: set[tuple[str | None, datetime]] = {
-            ("357194941", now),
-        }
-
-        mock_parser = MagicMock()
-        mock_parser.parse.return_value = ([trade_a, trade_b], [])
-        mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
-
-        with (
-            patch(
-                "app.services.import_service.AccountRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=fake_account,
-            ),
-            patch(
-                "app.services.import_service.CorporateActionRepository.list_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_open_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_manually_edited_keys",
-                new_callable=AsyncMock,
-                return_value=manually_edited,
-            ),
-            patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.create",
-                new_callable=AsyncMock,
-                return_value=MagicMock(),
-            ),
-            patch(
-                "app.services.import_service.PortfolioRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
-        ):
-            result = await import_service.import_trades(
-                content=b"csv content",
-                filename="activity.csv",
-                broker=BrokerType.IBKR,
-                portfolio_id=TEST_PORTFOLIO_ID,
-                account_id=uuid.uuid4(),
-                user_id=uuid.uuid4(),
-            )
-
-        # trade_a is persisted; trade_b is silently skipped (manually edited)
-        assert result.trades_parsed == 2
-        assert result.trades_created == 1
-        # trades_skipped = parsed - created - manually_edited_skipped = 2 - 1 - 1 = 0
-        assert result.trades_skipped == 0
-
-    @pytest.mark.unit
-    async def test_import_service_creates_all_when_no_manually_edited(
-        self,
-        import_service: ImportService,
-    ) -> None:
-        """All parsed trades should be created when the manually-edited set is empty."""
-        fake_account = MagicMock()
-        parsed_trades = [
-            _make_trade_create(symbol="AAPL", broker_conid="111111111"),
-            _make_trade_create(symbol="MSFT", broker_conid="222222222"),
-        ]
-
-        mock_parser = MagicMock()
-        mock_parser.parse.return_value = (parsed_trades, [])
-        mock_parser.warnings = []
-        mock_parser.enrich_pnl_eur = AsyncMock(return_value=None)
-
-        with (
-            patch(
-                "app.services.import_service.AccountRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=fake_account,
-            ),
-            patch(
-                "app.services.import_service.CorporateActionRepository.list_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_open_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_orphaned_lots_by_user",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.list_manually_edited_keys",
-                new_callable=AsyncMock,
-                return_value=set(),
-            ),
-            patch(
-                "app.services.import_service.get_parser",
-                return_value=mock_parser,
-            ),
-            patch(
-                "app.services.import_service.TradeRepository.create",
-                new_callable=AsyncMock,
-                return_value=MagicMock(),
-            ),
-            patch(
-                "app.services.import_service.PortfolioRepository.get_by_id",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
-        ):
-            result = await import_service.import_trades(
-                content=b"csv content",
-                filename="activity.csv",
-                broker=BrokerType.IBKR,
-                portfolio_id=TEST_PORTFOLIO_ID,
-                account_id=uuid.uuid4(),
-                user_id=uuid.uuid4(),
-            )
-
-        assert result.trades_parsed == 2
-        assert result.trades_created == 2
-        assert result.trades_skipped == 0
-
-
 class TestIBKRXMLParserCommission:
     """Unit tests for IBKRXMLParser commission parsing."""
 
@@ -1912,10 +1491,10 @@ class TestIBKRXMLParserCommission:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
         parser = IBKRXMLParser()
-        trades, _ = parser.parse(xml_bytes, "flex.xml")
+        raw, _ = parser.parse_raw(xml_bytes, "flex.xml")
 
-        assert len(trades) == 1
-        assert trades[0].commission == Decimal("1.50")
+        assert len(raw) == 1
+        assert raw[0].commission == Decimal("1.50")
 
     @pytest.mark.unit
     def test_commission_zero_ib_and_nonzero_gen(self) -> None:
@@ -1930,7 +1509,7 @@ class TestIBKRXMLParserCommission:
         )
         xml_bytes = _make_ibkr_xml(trades_xml=trade_xml)
         parser = IBKRXMLParser()
-        trades, _ = parser.parse(xml_bytes, "flex.xml")
+        raw, _ = parser.parse_raw(xml_bytes, "flex.xml")
 
-        assert len(trades) == 1
-        assert trades[0].commission == Decimal("2.50")
+        assert len(raw) == 1
+        assert raw[0].commission == Decimal("2.50")

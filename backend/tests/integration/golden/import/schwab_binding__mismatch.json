@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "Schwab account mismatch: configured account number '99999999' does not match any broker account in the file. Available broker accounts: 10000001, 10000002.",
+  "type": "ImportAccountMismatchError"
+ },
+ "state": {
+  "account_number": "99999999",
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}
