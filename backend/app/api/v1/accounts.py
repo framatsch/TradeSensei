@@ -312,6 +312,8 @@ async def update_account(
         )
     except AccountNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.") from exc
+    except ConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return ResponseEnvelope[AccountRead](data=account)
 
 

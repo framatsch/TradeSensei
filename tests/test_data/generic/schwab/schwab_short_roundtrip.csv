@@ -1,0 +1,3 @@
+external_id,executed_at,symbol,asset_class,side,position_effect,quantity,price,commission,currency,multiplier,order_id,contract_id,option_strike,option_expiry,option_right,realized_pnl
+222001,2026-07-11T14:00:00+00:00,TSHORT,EQUITY,SELL,OPEN,10.0,100.0,0,USD,1,,,,,,
+222002,2026-07-12T14:00:00+00:00,TSHORT,EQUITY,BUY,CLOSE,10.0,90.0,0,USD,1,,,,,,0

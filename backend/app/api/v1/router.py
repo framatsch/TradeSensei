@@ -30,6 +30,7 @@ from app.api.v1 import (
     corporate_actions,
     deprecated,
     executions,
+    import_formats,
     imports,
     market_data,
     market_indexes,
@@ -65,6 +66,7 @@ router.include_router(metrics.router)
 router.include_router(views.router)
 router.include_router(analytics.router)
 router.include_router(imports.router)
+router.include_router(import_formats.router)
 router.include_router(timeseries.router)
 router.include_router(playbooks.router)
 router.include_router(playbook_taxonomies.router)

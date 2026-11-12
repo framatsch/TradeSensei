@@ -79,7 +79,7 @@ def _filter_sensitive(value: Any) -> Any:
     if isinstance(value, dict):
         filtered: dict[str, Any] = {}
         for key, item in value.items():
-            if key.lower() in _SENSITIVE_KEYS:
+            if key.lower() in _SENSITIVE_KEYS and not (key == "strategy" and item in ("external_id", "fingerprint")):
                 continue
             filtered[key] = _filter_sensitive(item)
         return filtered

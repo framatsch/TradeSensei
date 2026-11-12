@@ -257,3 +257,13 @@ PROTECTED_METADATA_COLUMNS: frozenset[str] = frozenset({"journal", "user_rating"
 signals user-authored metadata edit (marks the trade protected). The import
 reconcile path must never write these columns — see
 `ImportService.import_trades`'s reconcile-before-skip branch."""
+GENERIC_FORMAT = "tradesensei.executions"
+GENERIC_VERSION = "1.0"
+GENERIC_ERROR_LIMIT = 200
+GENERIC_FUTURE_HOURS = 24
+GENERIC_ID_MAX_LENGTH = 100
+GENERIC_CONTRACT_MAX_LENGTH = 50
+GENERIC_ID_STRATEGY_KEY = "generic_id_strategy"
+IMPORT_BYTES_PER_MB = 1024 * 1024
+GENERIC_SCHEMA_PREFIX = "/imports/formats/generic"
+AUDIT_SUCCESS_STATUS = 200

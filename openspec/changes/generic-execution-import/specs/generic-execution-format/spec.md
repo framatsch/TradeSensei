@@ -95,3 +95,9 @@ The format SHALL be published as: an OpenAPI component (generated from the Pydan
 #### Scenario: Docs cannot drift
 - **WHEN** the test suite runs
 - **THEN** the JSON example and CSV template from the docs SHALL be validated against the models and SHALL pass
+
+#### Scenario: Downloadable manual-test CSV fixtures
+- **WHEN** a developer wants to test generic imports manually or through the integration suite
+- **THEN** `tests/test_data/generic/` SHALL provide CSV files that are 1:1 conversions of the existing IBKR and Schwab sample data in `tests/test_data/`, with no invented executions
+- **THEN** its README SHALL document each source file, a manual test procedure and the automated checks
+- **THEN** automated tests SHALL require each CSV to equal a fresh conversion of its source and SHALL require the generic import to produce the same economic result as the native import, with a no-op re-import

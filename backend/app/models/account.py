@@ -51,6 +51,7 @@ class AccountType(StrEnum):
     MANUAL = "manual"
     SCHWAB = "schwab"
     IBKR = "ibkr"
+    GENERIC = "generic"
 
 
 class Account(Base):

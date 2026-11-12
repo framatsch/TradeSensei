@@ -42,6 +42,7 @@ class BrokerType(StrEnum):
 
     IBKR = "ibkr"
     SCHWAB = "schwab"
+    GENERIC = "generic"
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +59,7 @@ class CanonicalImportBatch:
     executions: list[BrokerRawTransactionCreate]
     corporate_actions: list[CorporateActionCreateRequest]
     warnings: list[str]
+    id_strategy: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +73,9 @@ class ImportPolicy:
     """
 
     self_heal_pending_protected_close: bool = False
+    corporate_actions_overwrite: bool = True
+    account_scoped_identity: bool = False
+    id_strategy_property: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

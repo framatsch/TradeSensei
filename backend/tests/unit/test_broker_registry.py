@@ -24,6 +24,7 @@ from app.services.brokers.contracts import BrokerType, CanonicalImportBatch
 from app.services.brokers.registry import adapter_for_account_type, get_adapter, registered_adapters
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
 from app.utils.parsers.schwab_json import SchwabJSONParser
+from tests.utils.generic_import import ibkr_fixture_to_generic
 
 pytestmark = pytest.mark.unit
 
@@ -43,7 +44,7 @@ def test_get_adapter_unknown_key_raises_unsupported_broker() -> None:
 
 @pytest.mark.parametrize(
     ("account_type", "expected"),
-    [(AccountType.IBKR, BrokerType.IBKR), (AccountType.SCHWAB, BrokerType.SCHWAB)],
+    [(AccountType.IBKR, BrokerType.IBKR), (AccountType.SCHWAB, BrokerType.SCHWAB), (AccountType.GENERIC, BrokerType.GENERIC)],
 )
 def test_adapter_for_account_type(account_type: AccountType, expected: BrokerType) -> None:
     adapter = adapter_for_account_type(account_type)
@@ -58,7 +59,7 @@ def test_account_type_without_adapter_returns_none() -> None:
 
 @pytest.mark.parametrize(
     ("key", "extensions"),
-    [(BrokerType.IBKR, frozenset({"xml"})), (BrokerType.SCHWAB, frozenset({"json"}))],
+    [(BrokerType.IBKR, frozenset({"xml"})), (BrokerType.SCHWAB, frozenset({"json"})), (BrokerType.GENERIC, frozenset({"json", "csv"}))],
 )
 def test_file_import_extension_sets(key: BrokerType, extensions: frozenset[str]) -> None:
     file_import = get_adapter(key).file_import
@@ -85,10 +86,12 @@ def test_every_registered_file_adapter_returns_a_batch() -> None:
     samples = {
         BrokerType.IBKR: (_FIXTURES / "ibkr" / "combo_flip_edge_cases.xml").read_bytes(),
         BrokerType.SCHWAB: (_FIXTURES / "schwab" / "schwab_golden_multi_account.json").read_bytes(),
+        BrokerType.GENERIC: ibkr_fixture_to_generic((_FIXTURES / "ibkr" / "combo_flip_edge_cases.xml").read_bytes(), "fixture.xml"),
     }
     for adapter in registered_adapters():
         assert adapter.file_import is not None, adapter.key
-        batch = adapter.file_import.parse(samples[adapter.key], "sample")
+        extension = "xml" if adapter.key == BrokerType.IBKR else "json"
+        batch = adapter.file_import.parse(samples[adapter.key], f"sample.{extension}")
         assert isinstance(batch, CanonicalImportBatch)
         assert batch.executions
 

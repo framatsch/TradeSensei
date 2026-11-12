@@ -66,8 +66,9 @@ from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
 from app.schemas.imports import FreshStartResult, ImportResult
 from app.schemas.trade import TradeCreate
-from app.services.brokers.contracts import BrokerType
+from app.services.brokers.contracts import BrokerType, CanonicalImportBatch
 from app.services.brokers.registry import get_adapter
+from app.services.import_account_service import ImportAccountService
 from app.services.logical_execution_service import LogicalExecutionService
 from app.utils.conflict_detection import detect_duplicate_pairs
 from app.utils.parsers.aggregator import (
@@ -79,6 +80,7 @@ from app.utils.parsers.aggregator import (
     build_combo_positions,
     logical_executions_to_trade_creates,
 )
+from app.utils.raw_identity import stamped_raw_id
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +192,40 @@ class ImportService:
         account_id: uuid.UUID | None,
         user_id: uuid.UUID,
         overwrite_manually_edited: bool = False,
+    ) -> ImportResult:
+        """Run the single import pipeline and lock policy-defined account identity.
+
+        Validation precedes persistence. Strategy changes are serialized using
+        the account row lock and recorded only after the pipeline succeeds.
+        The caller's session dependency owns commit/rollback.
+        """
+        adapter = get_adapter(broker)
+        key = adapter.policy.id_strategy_property
+        batch: CanonicalImportBatch | None = None
+        account = None
+        account_service = ImportAccountService(self._session)
+        if key is not None:
+            if adapter.file_import is None:
+                raise UnsupportedBrokerError("File import is unsupported")
+            batch = adapter.file_import.parse(content, filename)
+            if batch.id_strategy is None:
+                raise RuntimeError("Account identity policy requires a batch strategy")
+            account = await account_service.lock_strategy(account_id, portfolio_id, user_id, adapter, batch.id_strategy)
+        result = await self._import_trades(content, filename, broker, portfolio_id, account_id, user_id, overwrite_manually_edited, batch)
+        if account is not None and key is not None and batch is not None and batch.id_strategy is not None:
+            await account_service.record_strategy(account, user_id, key, batch.id_strategy)
+        return result
+
+    async def _import_trades(
+        self,
+        content: bytes,
+        filename: str,
+        broker: BrokerType,
+        portfolio_id: uuid.UUID,
+        account_id: uuid.UUID | None,
+        user_id: uuid.UUID,
+        overwrite_manually_edited: bool = False,
+        parsed_batch: CanonicalImportBatch | None = None,
     ) -> ImportResult:
         """Parse broker payload content and bulk-create trades for an account.
 
@@ -325,7 +361,7 @@ class ImportService:
         # ── Raw-data pipeline ────────────────────────────────────────────────
         # Persist each execution as a BrokerRawTransaction and create a 1:1
         # LogicalExecution before running FIFO aggregation.
-        batch = file_import.parse(content, filename)
+        batch = parsed_batch if parsed_batch is not None else file_import.parse(content, filename)
         raw_records: list[BrokerRawTransactionCreate] = batch.executions
         parsed_corporate_actions: list[CorporateActionCreateRequest] = batch.corporate_actions
 
@@ -345,11 +381,13 @@ class ImportService:
             )
             if existing is None:
                 await self._ca_repo.create(ca.to_corporate_action_create(user_id))
-            else:
+            elif adapter.policy.corporate_actions_overwrite:
                 existing.ratio = ca.ratio
                 existing.old_conid = ca.old_conid
                 existing.new_conid = ca.new_conid
                 await self._session.flush()
+            elif existing.ratio != ca.ratio:
+                parser_warnings.append("split_conflict: existing split ratio preserved")
 
         # Reload corporate actions after adding new ones from the file
         corporate_actions = await self._ca_repo.list_by_user(user_id)
@@ -360,7 +398,7 @@ class ImportService:
         for rec in raw_records:
             # Prepend user_id to ensure the execution ID is globally unique
             # across all users (idempotent per user).
-            new_id = rec.id if rec.id.startswith(f"{user_id}:") else f"{user_id}:{rec.id}"
+            new_id = stamped_raw_id(rec.id, str(user_id), str(account_id) if account_id else None, adapter.policy.account_scoped_identity)
             stamped_raw.append(
                 rec.model_copy(
                     update={

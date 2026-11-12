@@ -122,6 +122,13 @@ Broker adapter contract (`backend/app/services/brokers/`)
   `registry.py`: a `BrokerType` key, the `AccountType` it serves, an `ImportPolicy`,
   and optional capability slots — `file_import`, `account_binding`, `remote_sync`,
   `connection`. A `None` slot means "not supported" and is rejected at the call site.
+- Registered adapters: `IBKR_ADAPTER`, `SCHWAB_ADAPTER` and `GENERIC_ADAPTER`
+  (`registry.py`). The `generic` adapter serves `AccountType.GENERIC` ("Other
+  broker") with file import (`json`, `csv`) only — no sync, connection or account
+  binding — and validates the Trade Sensei Execution Format v1 defined in
+  `app/schemas/generic_import.py`. Generic splits are insert-only and each
+  account's ID strategy (`external_id` or `fingerprint`) is locked on first
+  import; see `docs/import-generic-format.md`.
 - `ImportService.import_trades()` consumes only the adapter's `CanonicalImportBatch`
   (executions as `BrokerRawTransactionCreate`, corporate actions, warnings) and must
   never branch on a broker — enforced by `tests/unit/test_import_service_broker_agnostic.py`.

@@ -57,7 +57,7 @@ JSON is parsed with `json.loads(..., parse_float=Decimal, parse_int=...)` to kee
 The generic adapter marks its batch's corporate actions as `insert_only`; the pipeline's corporate-action upsert honours a batch-level policy (`ImportPolicy.corporate_actions_overwrite: bool`, `True` for IBKR to preserve behavior, `False` for generic). Conflicts become warnings.
 
 ### D9 — Publication
-- OpenAPI: `GenericExecutionDocumentV1` registered as response model of `GET /imports/formats/generic` (returns `model_json_schema()`), so it appears in components and the generated TS client.
+- OpenAPI: `GET /imports/formats/generic` returns `GenericExecutionDocumentV1.model_json_schema()` with a schema-shaped response model, not an execution-document response model. Register the execution document and its nested models separately in OpenAPI components so they appear in the generated TS client without invalidating the schema endpoint's response.
 - `GET /imports/formats/generic/template.csv`: static content generated from model field order; tested to parse.
 - `docs/import-generic-format.md`: field table, JSON + CSV examples, ID-strategy explanation, limitations, conversion tips (spreadsheet, script, LLM prompt).
 - Help: new section "Import from other brokers" in `frontend/lib/help-content` linking the template and schema.
@@ -66,6 +66,7 @@ The generic adapter marks its batch's corporate actions as `insert_only`; the pi
 ## Risks / Trade-offs
 
 - [Fingerprint ordinal divergence across overlapping files] → preview counts + documented guidance ("export non-overlapping ranges or use external IDs").
+- [Simultaneous fills without IDs] → the FIFO tie-breaker for equal `executed_at` is the raw ID (`source_id`); in fingerprint mode that is a hash, so file order is not preserved and lot matching can differ from the broker's. Accepted and documented (decision during implementation); a persisted import sequence column was rejected as it changes shared ordering for all brokers.
 - [User supplies wrong `position_effect`] → FIFO still runs; open/close mismatches surface as orphan lots/warnings exactly as with brokers. Documented as "omit if unsure".
 - [Netcash sign mismatch breaks combo direction] → equivalence test against IBKR fixtures covers combos.
 - [Enum migration not reversible in PostgreSQL] → downgrade is a documented no-op; the value is harmless when unused.

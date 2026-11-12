@@ -545,6 +545,41 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
     ],
   },
+  // ── Import from other brokers ─────────────────────────────────────────────
+  {
+    heading: "Import from other brokers",
+    entries: [
+      {
+        id: "import-from-other-brokers",
+        label: "Import from other brokers",
+        summary: "Convert another broker's individual fills to the Trade Sensei Execution Format v1.",
+        detail:
+          "Create an **Other broker (generic file)** account in your Portfolio, then select it in the import dialog and choose a converted JSON or CSV file. Generic accounts accept only the Trade Sensei Execution Format; they do not need API credentials and do not support remote sync. Upload individual executions, not already aggregated trades. Imports use the same FIFO matching, option combination, split adjustment, and journal protection pipeline as native broker exports.\n\nStart with the [format reference](/help#generic-execution-format), then review [execution identity and safe re-imports](/help#generic-import-identity) and [preview and confirmation](/help#generic-import-preview).",
+      },
+      {
+        id: "generic-execution-format",
+        label: "Trade Sensei Execution Format v1",
+        summary: "JSON supports executions and splits; CSV supports executions only.",
+        detail:
+          "**Published format resources:** [JSON Schema](/api/v1/imports/formats/generic) and [CSV template](/api/v1/imports/formats/generic/template.csv). These endpoints require API authentication. The import dialog provides the template download for signed-in users.\n\n**JSON:** include `format: \"tradesensei.executions\"`, `version: \"1.0\"`, and a non-empty `executions` array. The optional `source` label is informational and never used for identity. Only major version 1 is supported.\n\n**CSV:** use UTF-8, a comma delimiter, and a header row. Empty cells mean absent values. Use a decimal point without thousands separators or currency symbols. Unknown fields or columns are rejected in both formats.\n\nEach fill requires `executed_at`, `symbol`, `asset_class`, `side`, `quantity`, `price`, and `currency`:\n- Timestamps must include `Z` or an explicit UTC offset; timestamps more than 24 hours in the future are rejected.\n- Asset classes are `EQUITY`, `OPTION`, `FUTURE`, `FOREX`, or `CRYPTO`; side is `BUY` or `SELL`. Quantity is positive and absolute, price is non-negative, and currency is a three-letter uppercase ISO 4217 code.\n- Optional `commission` is the non-negative total fee for one fill, defaulting to zero. JSON decimals may be numbers or strings; decimal strings help preserve precision during conversion.\n- Options require the underlying symbol, `multiplier`, and an `option` object with `strike`, `expiry`, and `right` (`C` or `P`). CSV uses `option_strike`, `option_expiry`, and `option_right`. The option object is forbidden for other asset classes.\n- Futures also require `multiplier`. Supply `contract_id` when available; without it, a futures symbol must include the contract month.\n- Optional `position_effect` is `OPEN`, `CLOSE`, or `CLOSE_OPEN`; omit it if uncertain.\n\nJSON can include `corporate_actions` with `type: \"SPLIT\"`, `symbol`, `date`, and a positive `ratio` (shares after / shares before). Generic splits never overwrite an existing split with a different ratio; conflicts are reported as warnings. Cash movements, dividends, interest, and transfers are not supported in v1.",
+      },
+      {
+        id: "generic-import-identity",
+        label: "Execution identity and safe re-imports",
+        summary: "Prefer stable broker fill IDs; the first successful import locks the account's ID strategy.",
+        detail:
+          "If your broker provides stable per-fill IDs, put them in `external_id` on **every execution**. Each partial fill needs its own ID; fills from the same order may share an `order_id`. Duplicate external IDs within a file reject the whole file. IDs are scoped to the account, and re-uploading an existing ID does not replace its original execution.\n\nIf stable fill IDs are unavailable, omit `external_id` from **every execution**. Trade Sensei uses a deterministic fingerprint and an occurrence number for otherwise identical partial fills. Do not invent IDs from spreadsheet row numbers. Re-importing the same file is safe, but overlapping exports with different numbers of identical fills can produce unexpected new-execution counts. Prefer non-overlapping ranges and check the preview carefully.\n\nThe first successful import records either `external_id` or `fingerprint` as the account's strategy. Preview does not set it. Switching strategies is rejected with `id_strategy_mismatch`. Use another generic account for a separate history, or clear all trades to reset the strategy. Clearing trades is destructive and removes history and journal metadata; do not use it merely to bypass a warning.",
+        bad: "Never mix executions with and without external IDs in one file or reuse an order ID as a per-fill ID.",
+      },
+      {
+        id: "generic-import-preview",
+        label: "Preview and confirmation",
+        summary: "Validate the whole file and review counts before explicitly confirming the import.",
+        detail:
+          "Select a generic account and a `.json` or `.csv` file, then preview it. Preview writes no executions, trades, splits, or account properties. Review the detected and recorded ID strategies, total/new/already-imported/suppressed execution counts, split conflicts, and warnings. Import only after explicit confirmation; confirmation is disabled for validation errors or an ID-strategy conflict.\n\nValidation is all-or-nothing. Errors identify `row`, `field`, `code`, and `message`, without echoing prices, quantities, or P&L. CSV rows start at 1 for the first data row (excluding the header); JSON execution indexes start at 0. At most 200 errors are returned. Fix the file and preview again.\n\nWhen converting with a spreadsheet, script, or AI assistant, preserve exact decimals, timezone offsets, contract identity, and order grouping. Remove sensitive account information before sharing exports externally, never invent IDs or missing data, and verify the converted fills against the original export. Include opening fills so FIFO can correctly match closing executions.",
+      },
+    ],
+  },
   {
     heading: "AI & MCP Integration",
     entries: [

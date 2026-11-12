@@ -46,7 +46,8 @@ const ACCOUNT_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
   { value: "ibkr", label: "Interactive Brokers (IBKR)" },
 ];
 
-const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[]> = {
+const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[] | null> = {
+  generic: null,
   schwab: [
     { key: "SCHWAB_APP_KEY", label: "App Key" },
     { key: "SCHWAB_APP_SECRET", label: "App Secret" },
@@ -68,7 +69,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
   const [credentials, setCredentials] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!account || account.type === "manual") return;
+    if (!account || account.type === "manual" || account.type === "generic") return;
     const portfolioId = account.portfolio_id;
     if (!portfolioId) return;
 
@@ -327,4 +328,3 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
     </form>
   );
 }
-

@@ -21,10 +21,11 @@ pick it up without changes.
 from app.core.exceptions import UnsupportedBrokerError
 from app.models.account import AccountType
 from app.services.brokers.contracts import BrokerAdapter, BrokerType
+from app.services.brokers.generic.adapter import GENERIC_ADAPTER
 from app.services.brokers.ibkr.adapter import IBKR_ADAPTER
 from app.services.brokers.schwab.adapter import SCHWAB_ADAPTER
 
-_ADAPTERS: tuple[BrokerAdapter, ...] = (IBKR_ADAPTER, SCHWAB_ADAPTER)
+_ADAPTERS: tuple[BrokerAdapter, ...] = (IBKR_ADAPTER, SCHWAB_ADAPTER, GENERIC_ADAPTER)
 
 _BY_KEY: dict[BrokerType, BrokerAdapter] = {adapter.key: adapter for adapter in _ADAPTERS}
 _BY_ACCOUNT_TYPE: dict[AccountType, BrokerAdapter] = {adapter.account_type: adapter for adapter in _ADAPTERS}

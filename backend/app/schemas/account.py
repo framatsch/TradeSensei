@@ -17,12 +17,13 @@ import uuid
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.constants import (
     ACCOUNT_NAME_MAX_LENGTH,
     ACCOUNT_NAME_MIN_LENGTH,
     ACCOUNT_NUMBER_MAX_LENGTH,
+    GENERIC_ID_STRATEGY_KEY,
 )
 from app.models.account import AccountType
 
@@ -130,6 +131,13 @@ class AccountCreate(BaseModel):
         description="UUID of the portfolio this account belongs to.",
     )
 
+    @model_validator(mode="after")
+    def _validate_properties(self) -> "AccountCreate":
+        """Reject credentials for generic accounts and system-owned properties."""
+        if self.properties and (self.type == AccountType.GENERIC or GENERIC_ID_STRATEGY_KEY in self.properties):
+            raise ValueError("Credentials or system-owned properties are not allowed")
+        return self
+
 
 class AccountUpdate(BaseModel):
     """Request schema for partially updating a trading account.
@@ -185,6 +193,13 @@ class AccountUpdate(BaseModel):
         default=None,
         description="Optional updated import/sync settings. Omit to leave unchanged.",
     )
+
+    @model_validator(mode="after")
+    def _validate_properties(self) -> "AccountUpdate":
+        """Reject system property injection and explicit generic credentials."""
+        if self.properties and (self.type == AccountType.GENERIC or GENERIC_ID_STRATEGY_KEY in self.properties):
+            raise ValueError("Credentials or system-owned properties are not allowed")
+        return self
 
 
 class AccountRead(BaseModel):

@@ -31,6 +31,7 @@ from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
 from app.core.logging import configure_uvicorn_logging
 from app.core.migrations import run_migrations_on_startup
+from app.core.openapi import register_execution_format_components
 from app.schemas.common import ResponseEnvelope
 
 
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+    register_execution_format_components(application)
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     application.add_middleware(

@@ -21,7 +21,8 @@ import uuid
 from collections.abc import Sequence
 from decimal import Decimal
 
-from sqlalchemy import delete, exists, select, update
+from sqlalchemy import String, any_, bindparam, delete, exists, select, update
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -320,3 +321,14 @@ class BrokerRawTransactionRepository:
         deleted = list(all_items)
         await self._session.flush()
         return len(deleted)
+
+    async def list_existing_ids(self, ids: list[str], user_id: uuid.UUID, account_id: uuid.UUID) -> list[BrokerRawTransaction]:
+        """Read account-scoped raw rows by IDs without changing their state."""
+        result = await self._session.execute(
+            select(BrokerRawTransaction).where(
+                BrokerRawTransaction.id == any_(bindparam("raw_ids", ids, type_=ARRAY(String()))),
+                BrokerRawTransaction.user_id == user_id,
+                BrokerRawTransaction.account_id == account_id,
+            )
+        )
+        return list(result.scalars().all())

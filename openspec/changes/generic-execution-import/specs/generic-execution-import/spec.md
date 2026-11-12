@@ -52,6 +52,11 @@ When executions carry no `external_id`, the fingerprint SHALL be the SHA-256 of 
 - **WHEN** a file contains two fills with identical time, contract, side, quantity and price
 - **THEN** both SHALL be imported as distinct raw transactions (ordinals 1 and 2)
 
+#### Scenario: Simultaneous fills without IDs (documented limitation)
+- **WHEN** a file without `external_id` contains two or more fills on the same contract with the same `executed_at`
+- **THEN** every fill SHALL be imported, but their relative FIFO order is determined by the fingerprint, not by file order, and lot matching MAY differ from the broker's
+- **THEN** the format guide SHALL tell users to supply `external_id` or distinct timestamps when this matters
+
 ### Requirement: ID strategy is fixed per account
 The first non-dry-run generic import into an account SHALL record the account's ID strategy (`external_id` or `fingerprint`) as an account property. Subsequent imports with the other strategy SHALL be rejected with HTTP 422 and an explanatory message. Clearing all trades of the account (Danger Zone) SHALL reset the recorded strategy.
 

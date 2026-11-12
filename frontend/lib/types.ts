@@ -85,7 +85,7 @@ export interface UserCreate {
 
 // ─── Account ──────────────────────────────────────────────────────────────────
 
-export type AccountType = "manual" | "schwab" | "ibkr";
+export type AccountType = "manual" | "schwab" | "ibkr" | "generic";
 
 export type FlexFromDatePreset = "7d" | "30d" | "90d" | "180d" | "360d" | "mtd" | "ytd" | "custom";
 

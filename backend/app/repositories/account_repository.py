@@ -99,16 +99,24 @@ class AccountRepository:
         user_id: uuid.UUID,
         portfolio_id: uuid.UUID | None = None,
     ) -> Account | None:
-        """Retrieve an account by ID with eagerly loaded properties.
-
-        Args:
-            account_id: UUID of the account to fetch.
-            user_id: UUID of the requesting user.
-
-        Returns:
-            Matching account or ``None``.
-        """
+        """Retrieve an owned account with its properties eagerly loaded."""
         return await self.get_by_id(account_id, user_id, portfolio_id)
+
+    async def lock_by_id(
+        self,
+        account_id: uuid.UUID,
+        user_id: uuid.UUID,
+        portfolio_id: uuid.UUID | None,
+    ) -> Account | None:
+        """Lock an owned account until transaction end and reload its properties."""
+        stmt = select(Account).where(Account.id == account_id, Account.user_id == user_id)
+        if portfolio_id is not None:
+            stmt = stmt.where(Account.portfolio_id == portfolio_id)
+        result = await self._session.execute(stmt.with_for_update())
+        if result.scalar_one_or_none() is None:
+            return None
+        refreshed = await self._session.execute(stmt.options(selectinload(Account.properties)).execution_options(populate_existing=True))
+        return refreshed.scalar_one_or_none()
 
     async def list_by_user(
         self,

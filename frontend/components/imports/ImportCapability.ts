@@ -17,13 +17,14 @@ import type { AccountType } from "@/lib/types";
 
 export type BrokerImportCapability = {
   maxWindowDays: number;
-  syncParam: { kind: "fromDate" } | { kind: "days" };
+  syncParam: { kind: "fromDate" } | { kind: "days" } | { kind: "none" };
 };
 
 const CAPABILITY_MAP: Record<AccountType, BrokerImportCapability> = {
   ibkr: { maxWindowDays: 365, syncParam: { kind: "fromDate" } },
   schwab: { maxWindowDays: 365, syncParam: { kind: "days" } },
   manual: { maxWindowDays: 0, syncParam: { kind: "days" } },
+  generic: { maxWindowDays: 0, syncParam: { kind: "none" } },
 };
 
 export function capabilityFor(accountType: AccountType): BrokerImportCapability {
