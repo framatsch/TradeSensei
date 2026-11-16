@@ -27,16 +27,16 @@ async def test_validate_account_import_success(mock_session):
     account_id = uuid.uuid4()
     portfolio_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    
+
     mock_account = Account(id=account_id, type=AccountType.IBKR)
-    
+
     with patch("app.services.import_account_service.AccountRepository") as MockRepo:
         mock_repo_instance = MockRepo.return_value
         mock_repo_instance.get_by_id = AsyncMock(return_value=mock_account)
-        
+
         broker = await _validate_account_import(account_id, portfolio_id, user_id, "xml", mock_session)
         assert broker == BrokerType.IBKR
-        
+
         # Test not found
         mock_repo_instance.get_by_id.return_value = None
         with pytest.raises(AccountNotFoundError):
