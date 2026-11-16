@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - [backend] An IBKR row with an empty or non-numeric `netCash` attribute no longer fails the whole import; its net cash is treated as unknown.
+- [backend] Fresh-start re-import of a `GENERIC` account now releases the recorded ID strategy (the file may switch between `external_id` and fingerprint identity), reports row-level validation errors as HTTP 422, and a zero-insert generic re-import no longer locks the ID strategy.
 
 ### Removed
 - [backend] Removed the unreachable legacy `parse()` import fallback, the unused `enrich_pnl_eur` parser hook and the parser factory (`app/utils/parsers/factory.py`).

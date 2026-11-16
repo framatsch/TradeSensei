@@ -79,20 +79,6 @@ class ImportPolicy:
 
 
 @dataclass(frozen=True, slots=True)
-class BindingResult:
-    """Outcome of :meth:`AccountBindingCapability.bind`.
-
-    Attributes:
-        content: Payload reduced to the part belonging to the target account.
-        bound_account_number: Broker account number that was newly bound to
-            the account during this call, or ``None``.
-    """
-
-    content: bytes
-    bound_account_number: str | None
-
-
-@dataclass(frozen=True, slots=True)
 class SyncWindow:
     """Requested history window for a remote sync.
 
@@ -144,8 +130,11 @@ class FileImportCapability(Protocol):
 class AccountBindingCapability(Protocol):
     """Selects the payload part for an account and may bind its number."""
 
-    async def bind(self, content: bytes, account: Account, session: AsyncSession) -> BindingResult:
+    async def bind(self, content: bytes, account: Account, session: AsyncSession) -> bytes:
         """Reduce ``content`` to ``account`` and bind an unset account number.
+
+        Returns:
+            The payload reduced to the part belonging to ``account``.
 
         Raises:
             ImportParseError: If the payload is malformed.

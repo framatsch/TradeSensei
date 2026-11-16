@@ -52,8 +52,8 @@ from app.schemas.common import ResponseEnvelope
 from app.schemas.generic_import import ImportPreviewResult
 from app.schemas.imports import FlexImportRequest, FreshStartResult, ImportResult
 from app.services.brokers.contracts import BrokerType
-from app.services.brokers.registry import adapter_for_account_type
 from app.services.flex_import_service import FlexImportService, is_transient_send_request_error
+from app.services.import_account_service import ImportAccountService
 from app.services.import_preview_service import ImportPreviewService
 from app.services.import_service import ImportService
 
@@ -150,12 +150,13 @@ async def _validate_account_import(
 ) -> BrokerType:
     """Verify the account supports file import and the file extension matches.
 
-    The broker adapter registered for the account type defines the accepted
-    extensions; account types without a file-import adapter (``MANUAL``) are
-    rejected.
+    Thin HTTP-layer wrapper around
+    :meth:`~app.services.import_account_service.ImportAccountService.validate_file`,
+    which owns the single implementation shared with the preview endpoint.
 
     Args:
         account_id: UUID of the target account.
+        portfolio_id: UUID of the portfolio owning the account.
         user_id: UUID of the authenticated user.
         extension: Lowercase file extension (without leading dot).
         session: Database session for the account lookup.
@@ -170,25 +171,7 @@ async def _validate_account_import(
         AccountNotFoundError: If the account does not exist or is not owned by
             the user.
     """
-    account = await AccountRepository(session).get_by_id(
-        account_id,
-        user_id,
-        portfolio_id,
-    )
-    if account is None:
-        raise AccountNotFoundError(f"Account {account_id} not found for user {user_id}.")
-    adapter = adapter_for_account_type(account.type)
-    file_import = adapter.file_import if adapter is not None else None
-    if adapter is None or file_import is None:
-        raise ImportNotAllowedError(f"File import is not supported for {AccountType(account.type).value} accounts")
-    allowed = file_import.accepted_extensions
-    if extension not in allowed:
-        broker_message = file_import.rejected_extension_message(extension)
-        if broker_message is not None:
-            raise ImportNotAllowedError(broker_message)
-        extensions = ", ".join(f".{e}" for e in sorted(allowed))
-        raise ImportNotAllowedError(f"Account '{account.name}' ({account.type.upper()}) only accepts {extensions} files. Received: .{extension}")
-    return adapter.key
+    return await ImportAccountService(session).validate_file(account_id, portfolio_id, user_id, extension)
 
 
 @router.post(
@@ -480,14 +463,16 @@ async def preview_import(
     status_code=status.HTTP_200_OK,
     summary="Fresh-start: reset account and re-import from scratch",
     description=(
-        "Destructive operation — deletes ALL ``LogicalExecution`` and ``Trade`` rows "
-        "for the specified account, then processes the uploaded file. "
-        "BrokerRawTransactions are never deleted. "
-        "Suppressed BRTs remain suppressed and are skipped during re-import. "
+        "Destructive operation — deletes ALL ``LogicalExecution``, ``Trade`` and "
+        "``BrokerRawTransaction`` rows for the specified account, then processes the "
+        "uploaded file. "
         "The entire operation runs in a single DB transaction — any error rolls "
         "back all changes. "
         "The accepted file format is determined by the account type: IBKR accepts "
-        "XML (Flex Query), Schwab accepts JSON."
+        "XML (Flex Query), Schwab accepts JSON, GENERIC accepts Trade Sensei Execution "
+        "Format v1 JSON or CSV. Because the account is emptied, a recorded generic ID "
+        "strategy is released as well, so the uploaded file may switch between "
+        "external_id and fingerprint identity."
     ),
     responses={
         200: {"description": "Fresh-start completed. Check import_result for details."},
@@ -495,7 +480,7 @@ async def preview_import(
         401: {"description": "Authentication required."},
         404: {"description": "Account not found or not owned by the current user."},
         413: {"description": "File exceeds the maximum allowed size."},
-        422: {"description": "File type not allowed for this account type."},
+        422: _FILE_VALIDATION_RESPONSE,
     },
 )
 async def fresh_start_import(
@@ -513,8 +498,11 @@ async def fresh_start_import(
     """Reset an account and re-import all trades from a broker file.
 
     The broker parser is determined automatically from the account type.
+    Emptying the account also releases a recorded generic ID strategy, so the
+    uploaded file may use either identity strategy.
 
     Args:
+        portfolio_id: UUID of the portfolio owning the account.
         account_id: UUID of the account to reset.
         service: Injected import service.
         session: Database session used for the account type lookup.
@@ -529,7 +517,8 @@ async def fresh_start_import(
         HTTPException: 400 if ``acknowledged`` is False or the file cannot be parsed.
         HTTPException: 404 if the account is not found.
         HTTPException: 413 if the file is too large.
-        HTTPException: 422 if the file type does not match the account type.
+        HTTPException: 422 if the file type does not match the account type,
+            or generic rows fail validation.
     """
     if not acknowledged:
         raise HTTPException(
@@ -587,17 +576,17 @@ async def fresh_start_import(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
+    except GenericFormatValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=exc.errors) from exc
+    except (ImportNotAllowedError, ImportAccountMismatchError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except (ImportParseError, UnsupportedBrokerError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
     except Exception as exc:
-        import logging
-
-        logging.getLogger(__name__).exception("Unhandled exception during import_trades")
-        from pydantic import ValidationError
-
+        logging.getLogger(__name__).exception("Unhandled exception during fresh_start_import")
         if isinstance(exc, ValidationError):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

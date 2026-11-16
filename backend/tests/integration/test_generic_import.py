@@ -236,6 +236,36 @@ async def test_strategy_switch_rejected_without_writes_then_reset_by_clear_all(c
     assert preview.json()["data"]["recorded_strategy"] == "external_id"
 
 
+async def test_fresh_start_reports_row_issues_and_releases_the_strategy_lock(client: AsyncClient, db_session: AsyncSession) -> None:
+    ctx = await _new_user(client)
+    account_id = await ctx.account()
+    fingerprint_file = _document([_execution(position_effect="OPEN")])
+
+    async def fresh_start(filename: str, content: bytes) -> Any:
+        return await client.post(
+            f"/api/v1/portfolios/{ctx.portfolio_id}/imports/{account_id}/fresh-start",
+            headers=ctx.headers,
+            data={"acknowledged": "true"},
+            files={"file": (filename, content, "application/octet-stream")},
+        )
+
+    first = await ctx.post_file("upload", account_id, "a.json", _document([_OPEN]))
+    assert first.status_code == 200, first.text
+
+    # Fresh-start empties the account, so the other ID strategy is accepted
+    # instead of being rejected against the strategy recorded above.
+    switched = await fresh_start("b.json", fingerprint_file)
+    assert switched.status_code == 200, switched.text
+    preview = await ctx.post_file("preview", account_id, "b.json", fingerprint_file)
+    assert preview.json()["data"]["recorded_strategy"] == "fingerprint"
+    assert (await _counts(db_session, ctx.user_id, account_id))["properties"] == 1
+
+    # An invalid generic file yields row-level issues, not an opaque 400.
+    invalid = await fresh_start("bad.json", _document([_execution(external_id="F-9", quantity="0")]))
+    assert invalid.status_code == 422, invalid.text
+    assert [(issue["row"], issue["field"]) for issue in invalid.json()["detail"]] == [(0, "quantity")]
+
+
 # ─── API (4.1, 4.2, 4.3) ─────────────────────────────────────────────────────
 
 

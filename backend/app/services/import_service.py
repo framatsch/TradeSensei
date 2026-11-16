@@ -196,8 +196,10 @@ class ImportService:
         """Run the single import pipeline and lock policy-defined account identity.
 
         Validation precedes persistence. Strategy changes are serialized using
-        the account row lock and recorded only after the pipeline succeeds.
-        The caller's session dependency owns commit/rollback.
+        the account row lock and recorded only after the pipeline succeeded and
+        actually wrote a projection — a zero-insert re-import never locks an
+        account that has no data under that strategy. The caller's session
+        dependency owns commit/rollback.
         """
         adapter = get_adapter(broker)
         key = adapter.policy.id_strategy_property
@@ -211,8 +213,8 @@ class ImportService:
             if batch.id_strategy is None:
                 raise RuntimeError("Account identity policy requires a batch strategy")
             account = await account_service.lock_strategy(account_id, portfolio_id, user_id, adapter, batch.id_strategy)
-        result = await self._import_trades(content, filename, broker, portfolio_id, account_id, user_id, overwrite_manually_edited, batch)
-        if account is not None and key is not None and batch is not None and batch.id_strategy is not None:
+        result, projection_rebuilt = await self._import_trades(content, filename, broker, portfolio_id, account_id, user_id, overwrite_manually_edited, batch)
+        if projection_rebuilt and account is not None and key is not None and batch is not None and batch.id_strategy is not None:
             await account_service.record_strategy(account, user_id, key, batch.id_strategy)
         return result
 
@@ -226,7 +228,7 @@ class ImportService:
         user_id: uuid.UUID,
         overwrite_manually_edited: bool = False,
         parsed_batch: CanonicalImportBatch | None = None,
-    ) -> ImportResult:
+    ) -> tuple[ImportResult, bool]:
         """Parse broker payload content and bulk-create trades for an account.
 
         The method first verifies that the target account belongs to the
@@ -261,8 +263,9 @@ class ImportService:
                 ``False``.
 
         Returns:
-            An :class:`~app.schemas.imports.ImportResult` summarising the
-            outcome of the import.
+            A tuple of the :class:`~app.schemas.imports.ImportResult`
+            summarising the outcome and a flag that is ``False`` when the
+            import short-circuited without rebuilding the trade projection.
 
         Raises:
             AccountNotFoundError: If ``account_id`` is provided but the
@@ -334,7 +337,7 @@ class ImportService:
             raise UnsupportedBrokerError(f"Broker {broker!r} does not support file import.")
 
         if adapter.account_binding is not None and account is not None:
-            content = (await adapter.account_binding.bind(content, account, self._session)).content
+            content = await adapter.account_binding.bind(content, account, self._session)
 
         ca_for_parser: Sequence[CorporateActionLike] | None = cast(Sequence[CorporateActionLike], corporate_actions) if corporate_actions else None
 
@@ -465,17 +468,20 @@ class ImportService:
             # Zero-insert re-import without override: skip projection rebuild
             # entirely and return a no-op import result.
             parser_warnings += batch.warnings
-            return ImportResult(
-                broker=str(broker),
-                filename=filename,
-                trades_parsed=0,
-                trades_created=0,
-                trades_skipped=0,
-                raw_transactions_created=len(inserted_raw_ids),
-                raw_suppressed_skipped=suppressed_count,
-                raw_deleted_skipped=0,
-                warnings=parser_warnings,
-                activity_log=[],
+            return (
+                ImportResult(
+                    broker=str(broker),
+                    filename=filename,
+                    trades_parsed=0,
+                    trades_created=0,
+                    trades_skipped=0,
+                    raw_transactions_created=len(inserted_raw_ids),
+                    raw_suppressed_skipped=suppressed_count,
+                    raw_deleted_skipped=0,
+                    warnings=parser_warnings,
+                    activity_log=[],
+                ),
+                False,
             )
 
         # Purge split-child executions and restore their soft-deleted parents
@@ -1115,21 +1121,24 @@ class ImportService:
             new_trades_parsed - trades_created - trades_skipped_manually_edited,
         )
 
-        return ImportResult(
-            broker=str(broker),
-            filename=filename,
-            trades_parsed=new_trades_parsed,
-            trades_created=trades_created,
-            trades_skipped=trades_skipped,
-            raw_transactions_created=len(inserted_raw_ids),
-            raw_suppressed_skipped=suppressed_count,
-            raw_deleted_skipped=0,
-            trades_protected_reconciled=trades_protected_reconciled,
-            trades_protected_skipped=trades_protected_skipped,
-            protected_positions_closed=protected_positions_closed,
-            unlinked_executions=unlinked_executions,
-            warnings=all_warnings,
-            activity_log=activity_log,
+        return (
+            ImportResult(
+                broker=str(broker),
+                filename=filename,
+                trades_parsed=new_trades_parsed,
+                trades_created=trades_created,
+                trades_skipped=trades_skipped,
+                raw_transactions_created=len(inserted_raw_ids),
+                raw_suppressed_skipped=suppressed_count,
+                raw_deleted_skipped=0,
+                trades_protected_reconciled=trades_protected_reconciled,
+                trades_protected_skipped=trades_protected_skipped,
+                protected_positions_closed=protected_positions_closed,
+                unlinked_executions=unlinked_executions,
+                warnings=all_warnings,
+                activity_log=activity_log,
+            ),
+            True,
         )
 
     async def fresh_start_import(
@@ -1149,9 +1158,12 @@ class ImportService:
         3. Process the uploaded import file normally.
         4. Commit — or roll back entirely on any error.
 
-        BRTs are never touched — only their linked logical executions are removed.
-        Suppressed BRTs remain suppressed and will still be skipped during the
-        re-import.
+        Because the account is left empty, a recorded identity strategy
+        (:attr:`~app.services.brokers.contracts.ImportPolicy.id_strategy_property`)
+        is released as well — mirroring
+        :meth:`~app.services.account_service.AccountService.clear_account_trades`
+        — so the uploaded file may use either strategy. The import re-locks it
+        from the uploaded file.
 
         Args:
             content: Raw file bytes from the upload.
@@ -1192,6 +1204,15 @@ class ImportService:
             account_id=account_id,
             include_manually_edited=True,
         )
+
+        # Step 2.5: Release the recorded identity strategy — the account now
+        # holds no data under it, so the next import must be free to pick one.
+        strategy_key = get_adapter(broker).policy.id_strategy_property
+        if strategy_key is not None:
+            await self._account_repo.delete_property(account_id, user_id, strategy_key)
+            # Property deletion does not update an eagerly loaded relationship.
+            # Expire it so the strategy lock taken by import_trades sees the reset.
+            self._session.expire(account, ["properties"])
 
         logger.info(
             "fresh_start_import: deleted %d raw transactions, %d executions and %d trades for account %s",

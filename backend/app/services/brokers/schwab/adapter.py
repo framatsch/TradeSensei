@@ -23,7 +23,6 @@ from app.core.exceptions import ConfigurationError, ImportAccountMismatchError, 
 from app.models.account import Account, AccountType
 from app.services.audit_service import AuditEventService, generate_request_id
 from app.services.brokers.contracts import (
-    BindingResult,
     BrokerAdapter,
     BrokerType,
     CanonicalImportBatch,
@@ -106,12 +105,11 @@ class SchwabAccountBinding:
     :class:`~app.core.exceptions.ImportAccountMismatchError`.
     """
 
-    async def bind(self, content: bytes, account: Account, session: AsyncSession) -> BindingResult:
+    async def bind(self, content: bytes, account: Account, session: AsyncSession) -> bytes:
         """Reduce the payload to the account's entry, binding an unset number."""
         payload = decode_schwab_wrapped_payload(content)
         accounts = payload.get("accounts")
         assert isinstance(accounts, list)
-        bound_account_number: str | None = None
         if accounts:
             selected_account, selected_account_number = _select_account_entry(
                 payload,
@@ -127,9 +125,8 @@ class SchwabAccountBinding:
                     portfolio_id=account.portfolio_id,
                     path="import_service.import_trades",
                 )
-                bound_account_number = selected_account_number
             payload["accounts"] = [selected_account]
-        return BindingResult(content=json.dumps(payload).encode("utf-8"), bound_account_number=bound_account_number)
+        return json.dumps(payload).encode("utf-8")
 
 
 def _select_account_entry(
