@@ -58,5 +58,5 @@
 - [x] 7.2 Docs test validating the guide's JSON example and the CSV template against the models
 - [x] 7.3 Help section "Import from other brokers" in `frontend/lib/help-content`
 - [x] 7.4 Update `docs/api-usage.md`, `docs/user-guide.md`, AGENTS.md (adapter list), CHANGELOG `[Unreleased]`
-- [ ] 7.5 code-reviewer pass (audit coverage, sensitive data in errors, layering)
+- [x] 7.5 code-reviewer pass (audit coverage, sensitive data in errors, layering)
 - [x] 7.6 Add ready-to-upload CSV fixtures under `tests/test_data/generic/` as 1:1 conversions of the existing IBKR/Schwab samples in `tests/test_data/`, document the manual test, and verify native-vs-generic equivalence with unit/API integration tests
