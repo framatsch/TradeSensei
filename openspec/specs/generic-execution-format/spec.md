@@ -1,7 +1,10 @@
 # generic-execution-format Specification
 
 ## Purpose
-TBD - created by archiving change generic-execution-import. Update Purpose after archive.
+Define the broker-neutral Trade Sensei Execution Format v1 (JSON envelope and CSV
+variant): execution and split record fields, file-level consistency rules, and how the
+format is published (JSON Schema, CSV template, documentation).
+
 ## Requirements
 ### Requirement: Trade Sensei Execution Format v1 — JSON envelope
 The system SHALL accept a JSON document with the root fields `format` (required, constant `"tradesensei.executions"`), `version` (required, `"1.x"`; any other major version SHALL be rejected), `source` (optional string ≤ 100 characters, informational only, never used for identity), `executions` (required, non-empty array of execution objects) and `corporate_actions` (optional array of split objects). Unknown root fields SHALL be rejected.

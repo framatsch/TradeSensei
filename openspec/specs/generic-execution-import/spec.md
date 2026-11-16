@@ -1,7 +1,11 @@
 # generic-execution-import Specification
 
 ## Purpose
-TBD - created by archiving change generic-execution-import. Update Purpose after archive.
+Define how files in the Trade Sensei Execution Format are imported into `GENERIC`
+accounts through the single import pipeline: mapping to canonical raw executions,
+account-scoped identity, ID-strategy locking, dry-run preview, insert-only splits, the
+import UI, and audit logging.
+
 ## Requirements
 ### Requirement: Generic files import only into GENERIC accounts
 The `generic` adapter SHALL be registered for `AccountType.GENERIC` with file-import capability only (extensions `json`, `csv`), no remote sync, no connection capability and no account binding. Generic imports SHALL terminate in `ImportService.import_trades()`.
