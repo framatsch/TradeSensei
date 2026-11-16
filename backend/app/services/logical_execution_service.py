@@ -94,12 +94,6 @@ class LogicalExecutionService:
             )
             return None
 
-        # Derive is_mixed_execution from the raw broker data stored in raw_data.
-        # IBKR signals position flips via openCloseIndicator="C;O" or "O;C".
-        raw_data = raw.raw_data if isinstance(raw.raw_data, dict) else {}
-        open_close_indicator = str(raw_data.get("openCloseIndicator", "")).upper()
-        is_mixed = "C;O" in open_close_indicator or "O;C" in open_close_indicator
-
         logical = LogicalExecution(
             user_id=raw.user_id,
             account_id=raw.account_id,
@@ -115,7 +109,7 @@ class LogicalExecutionService:
             currency=raw.currency,
             origin=EXECUTION_ORIGIN_IMPORTED,
             multiplier=raw.multiplier,
-            is_mixed_execution=is_mixed,
+            is_mixed_execution=raw.is_mixed_execution,
             open_close=raw.open_close,
             strike=raw.strike,
             expiry=raw.expiry,

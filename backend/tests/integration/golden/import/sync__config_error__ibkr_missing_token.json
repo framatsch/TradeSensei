@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "Missing account property: ibkr_flex_token",
+  "type": "ConfigurationError"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}

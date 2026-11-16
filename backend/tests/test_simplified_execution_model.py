@@ -390,7 +390,7 @@ async def test_fresh_start_deletes_and_reimports(mock_session: AsyncMock) -> Non
     )
     svc.import_trades = AsyncMock(return_value=import_result)  # type: ignore[method-assign]
 
-    from app.utils.parsers.factory import BrokerType
+    from app.services.brokers.contracts import BrokerType
 
     result = await svc.fresh_start_import(
         content=b"test",
@@ -431,7 +431,7 @@ async def test_fresh_start_rollback_on_import_error(mock_session: AsyncMock) -> 
     causes the surrounding context manager to roll back.
     """
     from app.services.import_service import ImportService
-    from app.utils.parsers.factory import BrokerType
+    from app.services.brokers.contracts import BrokerType
 
     svc = ImportService(mock_session)
 

@@ -93,3 +93,24 @@ When Quick Notes are enabled, tapping a card's notes badge opens the note input 
 - **No Previous/Next controls:** Open the trade from the Trades list in the same tab and portfolio. Missing, invalid, or unavailable browser session storage also prevents restoring navigation context.
 - **Next cannot load more trades:** The page shows **Could not load the next trades. Please try again.** Stay on the current trade and retry **Next** after checking your connection.
 - **A reviewed trade no longer opens:** It may have been deleted or merged since the list loaded. Use **Back to Trades** to refresh the review set.
+
+## Import from other brokers
+
+Trade Sensei imports executions from any broker through the **Trade Sensei
+Execution Format v1**. Convert a broker export to JSON or CSV, create an **Other
+broker (generic file)** account in your portfolio, and upload it from the import
+dialog.
+
+1. In your portfolio, add an account of type **Other broker (generic file)**.
+   Generic accounts need no credentials and have no remote sync.
+2. Open **Import** and select the generic account, then choose a `.json` or
+   `.csv` file.
+3. Preview the file first: it validates the whole file and shows the ID
+   strategy, new/already-imported execution counts, and split conflicts — without
+   writing anything.
+4. Confirm to import. The dialog disables confirmation on validation errors or
+   an ID-strategy conflict.
+
+See [`docs/import-generic-format.md`](import-generic-format.md) for the field
+reference, JSON and CSV examples, ID-strategy and fingerprint rules, limitations,
+and conversion tips.

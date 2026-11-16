@@ -126,6 +126,32 @@ describe("BrokerAccountCreateModal", () => {
     expect(screen.getByTestId("test-connection-button")).toBeInTheDocument();
   });
 
+  it("creates a generic account without credentials or sync settings", async () => {
+    renderComponent();
+    fireEvent.change(screen.getByLabelText("Flex Token"), { target: { value: "unused-token" } });
+    fireEvent.change(screen.getByTestId("broker-type-select"), { target: { value: "generic" } });
+
+    expect(screen.getByRole("option", { name: "Other broker (generic file)" })).toBeInTheDocument();
+    expect(screen.queryByText("API Credentials")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("test-connection-button")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Sync Start Date")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("account-name-input"), { target: { value: "Other Broker" } });
+    fireEvent.click(screen.getByTestId("submit-create-account"));
+
+    await waitFor(() => expect(api.createAccountApiV1PortfoliosPortfolioIdAccountsPost).toHaveBeenCalledWith({
+      path: { portfolio_id: "port-1" },
+      body: {
+        name: "Other Broker",
+        account_number: undefined,
+        type: "generic",
+        properties: null,
+        portfolio_id: "port-1",
+        settings: undefined,
+      },
+    }));
+    expect(clientGen.client.post).not.toHaveBeenCalled();
+  });
+
   it("test connection button calls test-connection endpoint and shows result", async () => {
     (clientGen.client.post as jest.Mock).mockResolvedValueOnce({
       data: {},

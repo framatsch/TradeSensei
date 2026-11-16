@@ -136,6 +136,15 @@ describe("BrokerAccountEditModal", () => {
     expect(screen.getByTestId("edit-test-connection-button")).toBeInTheDocument();
   });
 
+  it("shows generic account type without requesting or displaying credentials", async () => {
+    await renderComponent({ ...mockAccount, type: "generic", has_api_keys: false });
+
+    expect(screen.getByTestId("immutable-broker-type")).toHaveTextContent("Other broker (generic file)");
+    expect(screen.queryByText("API Credentials")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("edit-test-connection-button")).not.toBeInTheDocument();
+    expect(api.getAccountCredentialsApiV1PortfoliosPortfolioIdAccountsAccountIdCredentialsGet).not.toHaveBeenCalled();
+  });
+
   it("shows Deactivate Account button when account is active", async () => {
     await renderComponent();
 

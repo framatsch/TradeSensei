@@ -14,6 +14,6 @@
 """Broker file parser utilities.
 
 Each sub-module implements a concrete :class:`BrokerParser` for a specific
-broker's export format.  The :mod:`factory` module maps broker identifiers
-to parser instances.
+broker's export format. Broker adapters in :mod:`app.services.brokers` wrap
+the parsers; the adapter registry maps broker keys to adapters.
 """

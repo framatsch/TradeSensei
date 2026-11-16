@@ -26,7 +26,7 @@ from app.core.deps import get_session_with_rls
 from app.core.exceptions import AccountNotFoundError, ImportNotAllowedError
 from app.models.account import Account, AccountType
 from app.schemas.imports import FreshStartResult, ImportResult
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
 
 pytestmark = pytest.mark.asyncio
 
@@ -286,7 +286,7 @@ async def test_validate_account_import_success(mock_session):
 
     mock_account = Account(id=account_id, type=AccountType.IBKR)
 
-    with patch("app.api.v1.imports.AccountRepository") as MockRepo:
+    with patch("app.services.import_account_service.AccountRepository") as MockRepo:
         mock_repo_instance = MockRepo.return_value
         mock_repo_instance.get_by_id = AsyncMock(return_value=mock_account)
 
@@ -534,7 +534,7 @@ async def test_upload_import_errors_extra(client: AsyncClient, primary_user: dic
     from unittest.mock import patch
 
     from app.core.exceptions import ImportParseError, UnsupportedBrokerError
-    from app.utils.parsers.factory import BrokerType
+    from app.services.brokers.contracts import BrokerType
     portfolio_id = uuid.uuid4()
     account_id = uuid.uuid4()
     

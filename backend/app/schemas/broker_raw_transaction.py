@@ -29,6 +29,7 @@ from app.models.trade import AssetClass, Direction
 _BROKER_TYPE_MAX_LENGTH: int = 50
 _EXEC_ID_MAX_LENGTH: int = 200
 _CONID_MAX_LENGTH: int = 50
+_ORDER_ID_MAX_LENGTH: int = 100
 
 
 class BrokerRawTransactionCreate(BaseModel):
@@ -60,6 +61,10 @@ class BrokerRawTransactionCreate(BaseModel):
             opening legs).
         currency: ISO-4217 currency code (e.g. ``"USD"``).
         multiplier: Contract multiplier (default 1 for equities).
+        order_id: Broker order-level grouping key (combo detection), or
+            ``None`` when the broker supplies none.
+        net_cash: Signed cash effect of the execution, or ``None``.
+        is_mixed_execution: ``True`` for a position flip (closes and opens).
         raw_data: Full dict of raw XML/CSV attributes as provided by the broker
             source.
     """
@@ -146,6 +151,19 @@ class BrokerRawTransactionCreate(BaseModel):
         default=None,
         description="Option type derived from OCC symbol: 'C', 'P', or None.",
     )
+    order_id: str | None = Field(
+        default=None,
+        max_length=_ORDER_ID_MAX_LENGTH,
+        description=("Broker order-level grouping key used for combo detection, or None when the broker supplies no order grouping."),
+    )
+    net_cash: Decimal | None = Field(
+        default=None,
+        description="Signed cash effect of the execution as reported or derived by the broker adapter.",
+    )
+    is_mixed_execution: bool = Field(
+        default=False,
+        description="True when one execution both closes and opens a position (position flip).",
+    )
     raw_data: dict[str, object] = Field(
         default_factory=dict,
         description="Full raw attribute dictionary from the broker source file.",
@@ -166,12 +184,6 @@ class BrokerRawTransactionCreate(BaseModel):
         if value is not None and value not in ("C", "P"):
             raise ValueError("option_type must be 'C', 'P', or None.")
         return value
-
-    @property
-    def is_mixed_execution(self) -> bool:
-        """Check if this raw execution was a mixed execution (position flip)."""
-        raw_ind = self.raw_data.get("openCloseIndicator", "")
-        return isinstance(raw_ind, str) and ("C;O" in raw_ind or "O;C" in raw_ind)
 
 
 class BrokerRawTransactionRead(BaseModel):

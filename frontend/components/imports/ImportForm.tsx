@@ -34,6 +34,7 @@ import { FileQueue, FileQueueSummary } from "@/components/imports/FileQueue";
 import { ImportLogLine } from "@/components/imports/ImportLogLine";
 import { ImportDateRange } from "@/components/imports/ImportDateRange";
 import { capabilityFor } from "@/components/imports/ImportCapability";
+import { GenericImportCard } from "@/components/imports/GenericImportCard";
 import type { QueuedFile } from "@/components/imports/FileQueue";
 import type { ImportResult, BrokerSyncResult, ResponseEnvelope, AccountType, FlexFromDatePreset } from "@/lib/types";
 import { client } from "@/lib/api/client.gen";
@@ -61,6 +62,7 @@ const TYPE_LABEL: Record<AccountType, string> = {
   manual: "Manual",
   schwab: "Schwab",
   ibkr: "IBKR",
+  generic: "Other broker (generic file)",
 };
 
 // Accepted file extensions per account type
@@ -68,6 +70,7 @@ const ACCOUNT_ACCEPT: Record<AccountType, string> = {
   ibkr: ".xml",
   schwab: ".json",
   manual: "",
+  generic: ".json,.csv",
 };
 
 // Human-readable format hint per account type
@@ -75,6 +78,7 @@ const ACCOUNT_FORMAT_HINT: Record<AccountType, string> = {
   ibkr: "XML (IBKR Flex Query)",
   schwab: "JSON files (Schwab Transactions)",
   manual: "",
+  generic: "JSON or CSV (Trade Sensei Execution Format)",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -348,20 +352,26 @@ export function ImportForm() {
             <Spinner size="sm" /> Loading accounts…
           </div>
         ) : (
-          <select
-            value={accountId}
-            onChange={(e) => handleAccountChange(e.target.value)}
-            className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">— Select an account —</option>
-            {(accounts ?? [])
-              .filter((a) => a.is_active)
-              .map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({TYPE_LABEL[acc.type]})
-                </option>
-              ))}
-          </select>
+          <div className="space-y-1.5">
+            <label htmlFor="import-account-select" className="block text-xs font-medium text-foreground">
+              Trading account
+            </label>
+            <select
+              id="import-account-select"
+              value={accountId}
+              onChange={(e) => handleAccountChange(e.target.value)}
+              className="w-full max-w-full truncate px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">— Select an account —</option>
+              {(accounts ?? [])
+                .filter((a) => a.is_active)
+                .map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({TYPE_LABEL[acc.type]})
+                  </option>
+                ))}
+            </select>
+          </div>
         )}
       </div>
 
@@ -532,6 +542,8 @@ export function ImportForm() {
                 handleReset={handleReset}
               />
             </div>
+          ) : accountType === "generic" && portfolioId ? (
+            <GenericImportCard key={accountId} portfolioId={portfolioId} accountId={accountId} />
           ) : null}
         </div>
       )}

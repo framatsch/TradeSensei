@@ -36,15 +36,18 @@ const BROKER_TYPE_LABELS: Record<string, string> = {
   ibkr: "IBKR",
   schwab: "Schwab",
   manual: "Manual",
+  generic: "Other broker (generic file)",
 };
 
 const BROKER_TYPE_BADGES: Record<string, string> = {
   ibkr: "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]",
   schwab: "bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_20%,transparent)]",
   manual: "bg-secondary text-muted-foreground border border-border",
+  generic: "bg-secondary text-muted-foreground border border-border",
 };
 
-const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[]> = {
+const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[] | null> = {
+  generic: null,
   schwab: [
     { key: "schwab_app_key", label: "App Key" },
     { key: "schwab_app_secret", label: "App Secret" },
@@ -90,7 +93,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!portfolioId || account.type === "manual") {
+    if (!portfolioId || account.type === "manual" || account.type === "generic") {
       setCredentials({});
       return;
     }
@@ -131,7 +134,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
         name: name.trim(),
         account_number: accountNumber.trim() || null,
       };
-      if (Object.keys(filledCredentials).length > 0) {
+      if (account.type !== "generic" && Object.keys(filledCredentials).length > 0) {
         payload.properties = filledCredentials;
       }
 
@@ -399,6 +402,12 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
           )}
 
           {account.type === "schwab" && <SchwabConnectSection account={account} />}
+
+          {account.type === "generic" && (
+            <p className="text-xs text-muted-foreground">
+              Import Trade Sensei execution files in JSON or CSV format. No credentials or API sync required.
+            </p>
+          )}
 
           <div className="border-t border-border pt-4 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground">Status</p>

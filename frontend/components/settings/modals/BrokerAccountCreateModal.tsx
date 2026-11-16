@@ -22,16 +22,18 @@ import { toast } from "react-hot-toast";
 import { client } from "@/lib/api/client.gen";
 import { createAccountApiV1PortfoliosPortfolioIdAccountsPost } from "@/lib/api/index";
 import { extractApiError } from "@/lib/apiErrors";
-import type { Account, AccountType } from "@/lib/types";
+import type { AccountType } from "@/lib/types";
 import type { AccountCreate } from "@/lib/api/types.gen";
 
 const BROKER_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
   { value: "manual", label: "Manual" },
   { value: "schwab", label: "Charles Schwab" },
   { value: "ibkr", label: "Interactive Brokers (IBKR)" },
+  { value: "generic", label: "Other broker (generic file)" },
 ];
 
-const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[]> = {
+const CREDENTIAL_FIELDS: Record<Exclude<AccountType, "manual">, { key: string; label: string }[] | null> = {
+  generic: null,
   schwab: [
     { key: "schwab_app_key", label: "App Key" },
     { key: "schwab_app_secret", label: "App Secret" },
@@ -77,9 +79,9 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
         name: name.trim(),
         account_number: accountNumber.trim() || undefined,
         type,
-        properties,
+        properties: type === "generic" ? null : properties,
         portfolio_id: portfolioId,
-        settings: {
+        settings: type === "generic" ? undefined : {
           sync_days: 30,
           flex_from_date_preset: "ytd" as const,
           flex_custom_from_date: syncStartDate.replace(/-/g, ""),
@@ -203,7 +205,9 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
               id={`${uid}-type`}
               value={type}
               onChange={(e) => {
-                setType(e.target.value as AccountType);
+                const option = BROKER_TYPE_OPTIONS.find((item) => item.value === e.target.value);
+                if (!option) return;
+                setType(option.value);
                 setCredentials({});
               }}
               className={INPUT_CLASS}
@@ -309,22 +313,32 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
             </div>
           )}
 
-          <div className="border border-border rounded-lg p-4 space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground">Import Settings</p>
-            <div>
-              <label htmlFor={`${uid}-sync-date`} className={LABEL_CLASS}>
-                Sync Start Date
-              </label>
-              <input
-                id={`${uid}-sync-date`}
-                type="date"
-                value={syncStartDate}
-                onChange={(e) => setSyncStartDate(e.target.value)}
-                className={INPUT_CLASS}
-                data-testid="sync-start-date"
-              />
+          {type === "generic" && (
+            <div className="border border-border rounded-lg p-4">
+              <p className="text-xs text-muted-foreground">
+                Import Trade Sensei execution files in JSON or CSV format. No credentials or API sync required.
+              </p>
             </div>
-          </div>
+          )}
+
+          {type !== "generic" && (
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground">Import Settings</p>
+              <div>
+                <label htmlFor={`${uid}-sync-date`} className={LABEL_CLASS}>
+                  Sync Start Date
+                </label>
+                <input
+                  id={`${uid}-sync-date`}
+                  type="date"
+                  value={syncStartDate}
+                  onChange={(e) => setSyncStartDate(e.target.value)}
+                  className={INPUT_CLASS}
+                  data-testid="sync-start-date"
+                />
+              </div>
+            </div>
+          )}
 
           {error && (
             <p className="text-sm text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2" data-testid="create-account-error">

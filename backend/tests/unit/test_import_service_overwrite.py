@@ -17,7 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.import_service import ImportService
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
+from tests.utils.broker_adapters import adapter_from_mock_parser
 
 
 @pytest.fixture
@@ -54,10 +55,9 @@ async def test_import_trades_with_overwrite_manually_edited(import_service):
     
     mock_parser = MagicMock()
     mock_parser.parse_raw.return_value = ([], [])
-    mock_parser.enrich_pnl_eur = AsyncMock()
     mock_parser.warnings = []
 
-    with patch("app.services.import_service.get_parser", return_value=mock_parser):
+    with patch("app.services.import_service.get_adapter", return_value=adapter_from_mock_parser(mock_parser)):
         await import_service.import_trades(
             content=b"<dummy />",
             filename="dummy.xml",
@@ -93,10 +93,9 @@ async def test_import_trades_without_overwrite_manually_edited(import_service):
     
     mock_parser = MagicMock()
     mock_parser.parse_raw.return_value = ([], [])
-    mock_parser.enrich_pnl_eur = AsyncMock()
     mock_parser.warnings = []
 
-    with patch("app.services.import_service.get_parser", return_value=mock_parser):
+    with patch("app.services.import_service.get_adapter", return_value=adapter_from_mock_parser(mock_parser)):
         await import_service.import_trades(
             content=b"<dummy />",
             filename="dummy.xml",

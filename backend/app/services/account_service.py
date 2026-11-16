@@ -21,7 +21,9 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import AccountNotFoundError
+from app.core.constants import GENERIC_ID_STRATEGY_KEY
+from app.core.exceptions import AccountNotFoundError, ConfigurationError
+from app.models.account import AccountType
 from app.repositories.account_repository import AccountRepository
 from app.repositories.broker_raw_transaction_repository import (
     BrokerRawTransactionRepository,
@@ -62,7 +64,7 @@ def _build_account_read(account: object, has_props: bool) -> AccountRead:
         item.settings = AccountSettings.model_validate(raw_settings)
     else:
         item.settings = AccountSettings()
-    item.has_api_keys = has_props
+    item.has_api_keys = has_props and item.type != AccountType.GENERIC
     portfolio = getattr(account, "portfolio", None)
     if portfolio is not None:
         item.portfolio_name = getattr(portfolio, "name", None)
@@ -174,6 +176,8 @@ class AccountService:
 
         properties: dict[str, str] = {}
         for prop in account.properties:
+            if prop.key == GENERIC_ID_STRATEGY_KEY:
+                continue
             properties[prop.key] = decrypt_token(prop.value)
         return AccountCredentialsRead(properties=properties)
 
@@ -246,6 +250,10 @@ class AccountService:
         account = await self._repo.get_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
+        target_type = data.type if data.type is not None else account.type
+        credential_properties = [prop for prop in account.properties if prop.key != GENERIC_ID_STRATEGY_KEY]
+        if target_type == AccountType.GENERIC and (data.properties or credential_properties):
+            raise ConfigurationError("Generic accounts do not accept credentials; remove stored credentials before changing the account type")
         updated = await self._repo.update(account, data)
         if data.properties:
             for key, value in data.properties.items():
@@ -309,7 +317,7 @@ class AccountService:
         Raises:
             AccountNotFoundError: If no account with that ID exists for user.
         """
-        account = await self._repo.get_by_id(account_id, user_id, portfolio_id)
+        account = await self._repo.lock_by_id(account_id, user_id, portfolio_id)
         if account is None:
             raise AccountNotFoundError(f"Account {account_id} not found.")
 
@@ -327,6 +335,11 @@ class AccountService:
                 user_id=user_id,
                 account_id=account_id,
             )
+            await self._repo.delete_property(account_id, user_id, GENERIC_ID_STRATEGY_KEY)
+
+        # Property deletion does not update an eagerly loaded relationship.
+        # Expire it so read-only previews in the same session see the reset.
+        self._session.expire(account, ["properties"])
 
         self._audit.create_audit_event(
             action="account.trades_cleared",

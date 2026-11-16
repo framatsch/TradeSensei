@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "Schwab account is not configured and the file is ambiguous. Available broker accounts: 10000001, 10000002.",
+  "type": "ImportAccountMismatchError"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}

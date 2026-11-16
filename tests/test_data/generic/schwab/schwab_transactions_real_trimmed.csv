@@ -1,0 +1,6 @@
+external_id,executed_at,symbol,asset_class,side,position_effect,quantity,price,commission,currency,multiplier,order_id,contract_id,option_strike,option_expiry,option_right,realized_pnl
+124780687237,2026-07-10T19:15:35+00:00,AMZN,EQUITY,BUY,OPEN,10.0,245.46,0.0,USD,1,,,,,,
+124694896745,2026-07-10T14:32:58+00:00,LOGI,EQUITY,BUY,OPEN,10.0,101.8,0.0,USD,1,,,,,,
+123987433325,2026-07-02T17:35:33+00:00,MRVL,EQUITY,SELL,CLOSE,10.0,242.01,0.05,USD,1,,,,,,0
+123835463029,2026-07-01T17:55:58+00:00,NOW,EQUITY,BUY,OPEN,10.0,106.3899,0.0,USD,1,,,,,,
+123689628930,2026-06-30T18:42:11+00:00,MRVL,EQUITY,BUY,OPEN,10.0,297.26,0.0,USD,1,,,,,,

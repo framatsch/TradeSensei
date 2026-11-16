@@ -19,6 +19,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ImportForm } from "@/components/imports/ImportForm";
 import { syncAccountApiV1BrokerSyncAccountIdPost } from "@/lib/api";
 import { client } from "@/lib/api/client.gen";
+import { capabilityFor } from "@/components/imports/ImportCapability";
 import { useAccounts, useUpdateAccount } from "@/hooks/useAccounts";
 import type { Account } from "@/lib/types";
 
@@ -138,5 +139,21 @@ describe("ImportForm sync parameter mapping", () => {
       query: { days: 199 },
     }));
     expect(await screen.findByRole("button", { name: "Start new sync" })).toBeInTheDocument();
+  });
+
+  it("accepts JSON and CSV for generic accounts without sync controls or credential warnings", () => {
+    mockUseAccounts.mockReturnValue({
+      data: [makeAccount({ type: "generic", has_api_keys: false })],
+      isLoading: false,
+      isError: false,
+    });
+    const { container } = renderForm();
+
+    expect(container.querySelector('input[type="file"]')).toHaveAttribute("accept", ".json,.csv");
+    expect(screen.getByText(/JSON or CSV in the Trade Sensei Execution Format/)).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Sync via API" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/No API credentials stored/)).not.toBeInTheDocument();
+    expect(capabilityFor("generic")).toEqual({ maxWindowDays: 0, syncParam: { kind: "none" } });
+    expect(mockSyncAccount).not.toHaveBeenCalled();
   });
 });

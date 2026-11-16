@@ -51,6 +51,9 @@ EXEC_ID_MAX_LENGTH: int = 200
 CONID_MAX_LENGTH: int = 50
 """Maximum length for a broker contract identifier (conid)."""
 
+ORDER_ID_MAX_LENGTH: int = 100
+"""Maximum length for a broker order-level grouping key (matches ``trades.broker_order_id``)."""
+
 
 class BrokerRawTransaction(Base):
     """Immutable record of a single broker execution as received from the source.
@@ -82,6 +85,11 @@ class BrokerRawTransaction(Base):
             opening legs).
         currency: ISO-4217 currency code (e.g. ``"USD"``).
         multiplier: Contract multiplier (default 1 for equities).
+        order_id: Broker order-level grouping key used for combo detection,
+            or ``None`` when the broker supplies none.
+        net_cash: Signed cash effect of the execution, or ``None``.
+        is_mixed_execution: ``True`` when the execution both closes and opens
+            a position (position flip).
         raw_data: Full dict of raw XML/CSV attributes as a JSONB blob.
         suppressed: When ``True``, this raw transaction is permanently excluded
             from all future imports (including fresh-start imports).
@@ -191,6 +199,22 @@ class BrokerRawTransaction(Base):
         String(1),
         nullable=True,
         comment="Option type derived from OCC symbol: 'C' or 'P'.",
+    )
+    order_id: Mapped[str | None] = mapped_column(
+        String(ORDER_ID_MAX_LENGTH),
+        nullable=True,
+        comment="Broker order-level grouping key used for combo detection (IBKR brokerageOrderID).",
+    )
+    net_cash: Mapped[Decimal | None] = mapped_column(
+        Numeric(NUMERIC_PRECISION, NUMERIC_SCALE),
+        nullable=True,
+        comment="Signed cash effect of the execution as reported or derived by the broker adapter.",
+    )
+    is_mixed_execution: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        server_default="false",
+        comment="True when one execution both closes and opens a position (position flip).",
     )
     raw_data: Mapped[dict[str, object]] = mapped_column(
         JSONB,

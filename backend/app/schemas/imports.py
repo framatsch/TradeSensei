@@ -100,8 +100,8 @@ class ImportResult(BaseModel):
 
     broker: str = Field(
         ...,
-        description=("Broker identifier used for this import (e.g. 'ibkr', 'schwab')."),
-        examples=["ibkr", "schwab"],
+        description=("Broker adapter identifier used for this import: ibkr, schwab or generic."),
+        examples=["ibkr", "schwab", "generic"],
     )
     filename: str = Field(
         ...,
@@ -112,6 +112,8 @@ class ImportResult(BaseModel):
             "`schwab_transactions_sync.json`."
         ),
         examples=[
+            "executions.json",
+            "executions.csv",
             "activity_statement.csv",
             "flex_query_123456.xml",
             "schwab_transactions_sync.json",
@@ -189,8 +191,12 @@ class ImportResult(BaseModel):
     )
     warnings: list[str] = Field(
         default_factory=list,
-        description=("Human-readable descriptions of rows that were skipped during import. Empty when all rows were imported successfully."),
+        description=(
+            "Nonfatal import warnings, including skipped rows and generic split conflicts where the existing ratio is preserved. Generic invalid rows instead "
+            "reject the entire upload with HTTP 422."
+        ),
         examples=[
+            ["split_conflict: existing split ratio preserved"],
             ["IBKR row 3: skipped — Row has only 5 columns; expected at least 16."],
             [],
         ],

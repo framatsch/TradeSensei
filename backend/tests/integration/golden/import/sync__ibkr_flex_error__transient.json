@@ -1,0 +1,14 @@
+{
+ "audit": [],
+ "error": {
+  "message": "IBKR Flex API temporarily unavailable: Flex SendRequest failed: Statement could not be generated at this time. Please try again shortly.",
+  "type": "UpstreamServiceUnavailableError"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ }
+}

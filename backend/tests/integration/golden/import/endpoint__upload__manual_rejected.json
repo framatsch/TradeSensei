@@ -1,0 +1,13 @@
+{
+ "body": {
+  "detail": "File import is not supported for manual accounts"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ },
+ "status_code": 422
+}

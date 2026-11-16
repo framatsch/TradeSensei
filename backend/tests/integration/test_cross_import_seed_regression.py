@@ -29,7 +29,7 @@ from app.utils.parsers.aggregator import (
     aggregate_executions_fifo,
     logical_executions_to_trade_creates,
 )
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
 from tests.test_import_ground_truth import _create_account, _register_and_login
 

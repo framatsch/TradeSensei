@@ -34,7 +34,7 @@ from app.utils.parsers.aggregator import (
     aggregate_executions_fifo,
     logical_executions_to_trade_creates,
 )
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
 from app.utils.parsers.ibkr_xml import IBKRXMLParser
 from app.utils.parsers.schwab_json import SchwabJSONParser
 

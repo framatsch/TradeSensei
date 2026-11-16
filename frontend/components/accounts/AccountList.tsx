@@ -30,6 +30,10 @@ import type { Account, AccountType } from "@/lib/types";
 // ── Type badge ─────────────────────────────────────────────────────────────────
 
 const TYPE_BADGE: Record<AccountType, { label: string; className: string }> = {
+  generic: {
+    label: "Other broker (generic file)",
+    className: "bg-secondary text-muted-foreground border border-border",
+  },
   manual: {
     label: "Manual",
     className:

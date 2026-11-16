@@ -54,6 +54,61 @@ As a result, both ingestion paths are behaviorally identical:
 - both build trades from the same projection logic,
 - both return the same import counters/protection fields.
 
+## Generic Execution Import (Other Brokers)
+
+The **Trade Sensei Execution Format v1** imports executions from any broker into
+an account of type `GENERIC` ("Other broker"). Generic accounts accept only this
+format and have no credentials or remote sync. See
+[`docs/import-generic-format.md`](import-generic-format.md) for the field
+reference, JSON/CSV examples, ID-strategy rules, and conversion tips.
+
+### Upload
+
+`POST /api/v1/portfolios/{portfolio_id}/imports/upload` accepts `.json` and
+`.csv` for `GENERIC` accounts (multipart form: `file`, `account_id`, optional
+`overwrite_manually_edited`). The account type selects the parser — a generic
+file uploaded to an IBKR/Schwab account, or an IBKR/Schwab file uploaded to a
+generic account, is rejected with HTTP 422.
+
+Behavior:
+
+- Validation is strict and all-or-nothing: unknown fields/columns, duplicate
+  `external_id`, mixed ID presence, or an ID-strategy mismatch reject the whole
+  file with HTTP 422 and a `detail` array of `{row, field, code, message}` items
+  (capped at 200, never echoing prices, quantities, or P&L).
+- `row` is a zero-based JSON array index, a one-based CSV data row (excluding the
+  header), or `null` for document/account-level errors.
+- The first successful import locks the account's ID strategy (`external_id` or
+  `fingerprint`). A later file using the other strategy is rejected with
+  `id_strategy_mismatch`; the clear-all-trades action resets the lock.
+- Splits in generic files are insert-only: an existing split with a different
+  ratio is preserved and reported as a warning, never overwritten.
+
+### Preview (dry run)
+
+`POST /api/v1/portfolios/{portfolio_id}/imports/preview` validates a generic file
+and reports what an upload would do, without writing executions, trades, splits,
+or account properties. It uses the same multipart form as `/upload`.
+
+`ImportPreviewResult` returns:
+
+- `detected_strategy`, `recorded_strategy`, and `strategy_conflict`
+- execution counts `total`, `new`, `already_imported`, `suppressed`
+- split counts `new_splits`, `conflicting_splits`, plus `warnings` and `errors`
+
+A strategy conflict is reported in a successful HTTP 200 response (not an error);
+the corresponding `/upload` rejects that file with HTTP 422. An invalid file
+returns HTTP 422 with the row-level `detail` array rather than an envelope.
+
+### Format publication
+
+- `GET /api/v1/imports/formats/generic` — the format's JSON Schema
+  (`application/schema+json`, not wrapped in an envelope).
+- `GET /api/v1/imports/formats/generic/template.csv` — a model-derived CSV header
+  plus two example executions (`text/csv`).
+
+Both endpoints require authentication.
+
 ## Execution Leg Shape (Options)
 
 For option trades (where `asset_class` is `"OPTION"` or when part of a COMBO trade), `LogicalExecution` objects in API responses (e.g. `GET /api/v1/trades/{id}`) will include strongly-typed option instrument fields:

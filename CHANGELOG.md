@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [backend] Added the broker-neutral Trade Sensei Execution Format v1 (`tradesensei.executions`, JSON + CSV) and a `generic` broker adapter (file import only) so executions from any broker can be imported into a new `GENERIC` ("Other broker") account through the same import pipeline — FIFO matching, option combos, split adjustments and protected-trade isolation. Validation is strict and all-or-nothing (unknown fields/columns, duplicate or mixed `external_id`, and ID-strategy mismatches reject the whole file with a `{row, field, code, message}` error list).
+- [backend] Added `POST /portfolios/{portfolio_id}/imports/preview` (dry-run, no writes) reporting execution identity novelty, detected vs. recorded ID strategy and split conflicts, plus `GET /imports/formats/generic` (JSON Schema) and `GET /imports/formats/generic/template.csv` (CSV template).
+- [backend] Added account-scoped generic identity: raw IDs namespaced per account (`{user_id}:generic:{account_id}:x:{external_id}` / `...:f:{fingerprint}:{ordinal}`), with the ID strategy (`external_id` or deterministic fingerprint) locked on the first import and rejected on switch (`id_strategy_mismatch`) until all account trades are cleared.
+- [db] Added `GENERIC` to the `accounttype` PostgreSQL enum.
+- [frontend] Added the "Other broker (generic file)" account type and a preview-then-confirm import flow for `.json`/`.csv` files with a format help link and CSV template download.
+- [docs] Added `docs/import-generic-format.md` (field reference, JSON/CSV examples, ID-strategy rules, limitations, conversion tips) and a "Import from other brokers" help section.
+
+### Changed
+- [backend] Introduced an internal broker adapter architecture (`app/services/brokers/`): each broker (IBKR, Schwab, generic) is one registered adapter with file-import, account-binding, remote-sync and connection capabilities plus an import policy. `ImportService` no longer branches on the broker, `BrokerService` dispatches sync and connection tests through the registry, and the upload endpoint derives accepted file extensions from it. No user-facing change: API paths, OpenAPI schemas and import results are unchanged (verified by a new golden-master import suite).
+- [db] Added broker-neutral `order_id`, `net_cash` and `is_mixed_execution` columns to `broker_raw_transactions` (backfilled from `raw_data`); combo grouping and position-flip detection now read these columns instead of IBKR-specific JSON keys.
+
+### Fixed
+- [backend] An IBKR row with an empty or non-numeric `netCash` attribute no longer fails the whole import; its net cash is treated as unknown.
+- [backend] Fresh-start re-import of a `GENERIC` account now releases the recorded ID strategy (the file may switch between `external_id` and fingerprint identity), reports row-level validation errors as HTTP 422, and a zero-insert generic re-import no longer locks the ID strategy.
+
+### Removed
+- [backend] Removed the unreachable legacy `parse()` import fallback, the unused `enrich_pnl_eur` parser hook and the parser factory (`app/utils/parsers/factory.py`).
+
 ## [1.19.3] - 2026-11-08
 
 ### Changed

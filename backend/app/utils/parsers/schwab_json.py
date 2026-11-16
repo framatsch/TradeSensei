@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -23,9 +22,7 @@ from app.core.exceptions import ImportParseError
 from app.models.trade import AssetClass, Direction
 from app.schemas.broker_raw_transaction import BrokerRawTransactionCreate
 from app.schemas.corporate_action import CorporateActionCreateRequest
-from app.schemas.trade import TradeCreate
 from app.utils.occ import parse_occ_option
-from app.utils.parsers.aggregator import CorporateActionLike
 from app.utils.parsers.base import BrokerParser
 
 logger = logging.getLogger(__name__)
@@ -87,15 +84,6 @@ class SchwabJSONParser(BrokerParser):
 
     def __init__(self) -> None:
         self.warnings: list[str] = []
-
-    def parse(
-        self,
-        content: bytes,
-        filename: str,
-        corporate_actions: Sequence[CorporateActionLike] | None = None,
-    ) -> tuple[list[TradeCreate], list[object]]:
-        del content, filename, corporate_actions
-        raise NotImplementedError("SchwabJSONParser only supports parse_raw().")
 
     def parse_raw(
         self,
@@ -200,6 +188,9 @@ class SchwabJSONParser(BrokerParser):
                             strike=strike,
                             expiry=expiry,
                             option_type=option_type,
+                            order_id=None,
+                            net_cash=None,
+                            is_mixed_execution=False,
                             raw_data=txn,
                         )
                     )

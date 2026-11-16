@@ -23,7 +23,7 @@ from app.api.v1.imports import _get_service
 from app.core.dependencies import require_portfolio_owner
 from app.core.deps import get_session_with_rls
 from app.schemas.imports import FreshStartResult, ImportResult
-from app.utils.parsers.factory import BrokerType
+from app.services.brokers.contracts import BrokerType
 
 pytestmark = pytest.mark.asyncio
 

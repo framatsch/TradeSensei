@@ -243,3 +243,12 @@ class PlaybookAttachmentNotFoundError(Exception):
 
 class PlaybookLinkNotFoundError(Exception):
     """Raised when a playbook link is not found."""
+
+
+class GenericFormatValidationError(ValueError):
+    """All-or-nothing generic validation failure containing safe issues only."""
+
+    def __init__(self, errors: list[dict[str, object]]) -> None:
+        """Retain safe structured issues for the HTTP boundary."""
+        super().__init__("Generic execution file validation failed")
+        self.errors = errors

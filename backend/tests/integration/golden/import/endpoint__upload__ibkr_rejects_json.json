@@ -1,0 +1,13 @@
+{
+ "body": {
+  "detail": "Account 'Golden Account' (IBKR) only accepts .xml files. Received: .json"
+ },
+ "state": {
+  "account_number": null,
+  "corporate_actions": [],
+  "logical_executions": [],
+  "raw_transactions": [],
+  "trades": []
+ },
+ "status_code": 422
+}

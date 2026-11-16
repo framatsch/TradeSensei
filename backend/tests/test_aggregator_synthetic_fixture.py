@@ -430,7 +430,7 @@ async def test_sequential_import_matches_ground_truth_synthetic(
 
     from app.models.trade import Trade
     from app.services.import_service import ImportService
-    from app.utils.parsers.factory import BrokerType
+    from app.services.brokers.contracts import BrokerType
 
     _REGISTER_URL = "/api/v1/auth/register"
     _TOKEN_URL = "/api/v1/auth/token"
