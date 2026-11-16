@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-16
+
 ### Added
 - [backend] Added the broker-neutral Trade Sensei Execution Format v1 (`tradesensei.executions`, JSON + CSV) and a `generic` broker adapter (file import only) so executions from any broker can be imported into a new `GENERIC` ("Other broker") account through the same import pipeline — FIFO matching, option combos, split adjustments and protected-trade isolation. Validation is strict and all-or-nothing (unknown fields/columns, duplicate or mixed `external_id`, and ID-strategy mismatches reject the whole file with a `{row, field, code, message}` error list).
 - [backend] Added `POST /portfolios/{portfolio_id}/imports/preview` (dry-run, no writes) reporting execution identity novelty, detected vs. recorded ID strategy and split conflicts, plus `GET /imports/formats/generic` (JSON Schema) and `GET /imports/formats/generic/template.csv` (CSV template).
@@ -847,6 +849,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.20.0]: https://github.com/framatsch/TradeSensei/compare/v1.19.3...v1.20.0
 [1.19.3]: https://github.com/framatsch/TradeSensei/compare/v1.19.2...v1.19.3
 [1.19.2]: https://github.com/framatsch/TradeSensei/compare/v1.19.1...v1.19.2
 [1.19.1]: https://github.com/framatsch/TradeSensei/compare/v1.19.0...v1.19.1
@@ -862,7 +865,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/framatsch/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/framatsch/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/framatsch/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.19.3...HEAD
+[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.20.0...HEAD
 [1.13.0]: https://github.com/framatsch/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/framatsch/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/framatsch/TradeSensei/compare/v1.10.0...v1.11.0
