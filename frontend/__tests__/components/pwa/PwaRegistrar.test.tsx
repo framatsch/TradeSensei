@@ -24,7 +24,7 @@ describe("PWA Manifest and Service Worker Registrar", () => {
     expect(data.name).toBe("Trade Sensei");
     expect(data.short_name).toBe("Trade Sensei");
     expect(data.display).toBe("standalone");
-    expect(data.start_url).toBe("/dashboard");
+    expect(data.start_url).toBe("/");
     expect(data.background_color).toBe("#0a0a14");
     expect(data.theme_color).toBe("#131317");
     expect(data.icons).toEqual(
