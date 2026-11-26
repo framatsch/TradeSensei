@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-26
+
 ### Security
 - [backend] Replaced the unmaintained `python-jose` with `PyJWT` for access, refresh, one-time and password-reset tokens (and the audit middleware); `python-jose` had an unpatched algorithm-confusion advisory and pulled in the vulnerable `ecdsa` package. Token format (`HS256`, claims) is unchanged, so existing tokens stay valid. `ecdsa`, `rsa` and `pyasn1` are no longer dependencies.
 - [backend] Upgraded locked dependencies to fixed versions for open Dependabot advisories: `authlib` 1.9.10, `cryptography` 50.0.2, `urllib3` 2.8.0, `starlette` 1.10.0, `python-multipart` 0.0.34, `certifi` 2026.11.20, `anyio` 4.14.2, `dnspython` 2.9.2, `joserfc` 1.8.0, `idna` 3.20, `mako` 1.4.3 and `pydantic-settings` 2.16.3.
@@ -875,6 +877,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.22.0]: https://github.com/framatsch/TradeSensei/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/framatsch/TradeSensei/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/framatsch/TradeSensei/compare/v1.19.3...v1.20.0
 [1.19.3]: https://github.com/framatsch/TradeSensei/compare/v1.19.2...v1.19.3
@@ -892,7 +895,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/framatsch/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/framatsch/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/framatsch/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.21.0...HEAD
+[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.22.0...HEAD
 [1.13.0]: https://github.com/framatsch/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/framatsch/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/framatsch/TradeSensei/compare/v1.10.0...v1.11.0
