@@ -312,7 +312,7 @@ export function AccountForm({ account, onSave, onCancel }: Props) {
         <button
           type="submit"
           disabled={isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white rounded-md text-sm transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground rounded-md text-sm transition-colors"
         >
           {isPending && <Spinner size="sm" />}
           {isPending ? "Saving…" : isEditing ? "Save Changes" : "Create Account"}

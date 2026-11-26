@@ -162,8 +162,8 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
   const canSubmit = name.trim().length > 0 && !createMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div className="panel-float max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-foreground">Create Broker Account</h3>
           <button
@@ -294,7 +294,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
                   Test Connection
                 </button>
                 {testResult === "success" && (
-                  <p className="mt-2 text-xs text-emerald-400" data-testid="test-connection-success">
+                  <p className="mt-2 text-xs text-success" data-testid="test-connection-success">
                     {testMessage}
                   </p>
                 )}
@@ -358,7 +358,7 @@ export function BrokerAccountCreateModal({ portfolioId, portfolioName, onClose }
             <button
               type="submit"
               disabled={!canSubmit}
-              className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
               data-testid="submit-create-account"
             >
               {createMutation.isPending ? "Creating..." : "Create Account"}

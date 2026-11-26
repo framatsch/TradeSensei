@@ -28,7 +28,7 @@ export default function TradesLayout({
   return (
     <div className="flex h-full w-full relative">
       <div
-        className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 border-r border-border bg-sidebar flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
+        className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 border-r border-border bg-sidebar flex-shrink-0 transition-[width,transform] duration-300 ease-in-out overflow-hidden ${
           mobileSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 lg:translate-x-0"
         } ${
           desktopSidebarOpen ? "lg:w-64" : "lg:w-0 lg:border-r-0"

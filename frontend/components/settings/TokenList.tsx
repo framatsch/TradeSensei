@@ -80,19 +80,19 @@ export function TokenList() {
           {tokens.map((token) => {
             const status = getStatus(token);
             return (
-              <tr key={token.id}>
+              <tr key={token.id} className="wl-row">
                 <td className="px-3 py-2 text-foreground">{token.name}</td>
-                <td className="px-3 py-2 text-muted-foreground">{formatDate(token.created_at)}</td>
-                <td className="px-3 py-2 text-muted-foreground">{formatDate(token.expires_at)}</td>
-                <td className="px-3 py-2 text-muted-foreground">{formatDate(token.last_used_at)}</td>
+                <td className="px-3 py-2 text-muted-foreground font-mono">{formatDate(token.created_at)}</td>
+                <td className="px-3 py-2 text-muted-foreground font-mono">{formatDate(token.expires_at)}</td>
+                <td className="px-3 py-2 text-muted-foreground font-mono">{formatDate(token.last_used_at)}</td>
                 <td className="px-3 py-2">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       status === "Active"
-                        ? "bg-emerald-500/15 text-emerald-500"
+                        ? "badge-positive"
                         : status === "Expired"
-                          ? "bg-amber-500/15 text-amber-500"
-                          : "bg-muted text-muted-foreground"
+                          ? "badge-caution"
+                          : "badge-neutral"
                     }`}
                   >
                     {status}

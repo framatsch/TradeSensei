@@ -31,6 +31,7 @@ import {
 } from "recharts";
 import type { PnlByAssetClass } from "@/lib/types";
 import { ChartShell } from "./ChartShell";
+import { CHART_COLORS } from "@/lib/constants";
 
 interface Props {
   data: PnlByAssetClass[];
@@ -74,28 +75,28 @@ export function PnlByAssetClassChart({ data }: Props) {
           layout="vertical"
           margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} horizontal={false} />
           <XAxis
             type="number"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             tickFormatter={formatCurrency}
           />
           <YAxis
             type="category"
             dataKey="asset_class"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             width={70}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#0f172a",
-              border: "1px solid #334155",
+              backgroundColor: CHART_COLORS.tooltip.bg,
+              border: `1px solid ${CHART_COLORS.tooltip.border}`,
               borderRadius: "8px",
-              color: "#f1f5f9",
+              color: CHART_COLORS.tooltip.text,
             }}
             formatter={(value, _name, props) => {
               const num = typeof value === "number" ? value : parseFloat(String(value));
@@ -105,13 +106,13 @@ export function PnlByAssetClassChart({ data }: Props) {
                 "PnL",
               ];
             }}
-            labelStyle={{ color: "#94a3b8" }}
+            labelStyle={{ color: CHART_COLORS.tooltip.label }}
           />
           <Bar dataKey="pnl" radius={[0, 3, 3, 0]}>
             {chartData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={entry.pnl >= 0 ? "#22c55e" : "#ef4444"}
+                fill={entry.pnl >= 0 ? CHART_COLORS.success : CHART_COLORS.danger}
                 fillOpacity={0.85}
               />
             ))}

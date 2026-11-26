@@ -33,14 +33,14 @@ export function TokenDisplayModal({ token, name, onClose }: TokenDisplayModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-lg border border-border bg-background p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl panel-float p-6">
         <div className="space-y-2">
           <h3 className="text-lg font-semibold text-foreground">Token Created</h3>
           <p className="text-sm text-muted-foreground">
             Save this token now. You will not be able to see it again.
           </p>
-          <p className="text-xs text-amber-500">
+          <p className="text-xs text-warning">
             Token name: <span className="font-medium text-foreground">{name}</span>
           </p>
         </div>

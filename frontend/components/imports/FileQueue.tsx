@@ -48,7 +48,7 @@ const STATUS_ICON: Record<FileStatus, React.ReactNode> = {
   ),
   uploading: (
     <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-      <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+      <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </span>
   ),
   done: (
@@ -88,7 +88,7 @@ export function FileQueue({ files, currentIndex }: FileQueueProps) {
         </div>
         <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-500 rounded-full transition-all duration-300"
+            className="h-full bg-primary rounded-full transition-colors duration-300"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -243,7 +243,7 @@ function FileQueueItem({ qf }: { qf: QueuedFile }) {
         <div id={logsPanelId} className="relative mt-2 border border-border p-3 rounded bg-[color-mix(in_srgb,var(--foreground)_5%,transparent)]">
           <button
             onClick={handleCopyLogs}
-            className="absolute top-2 right-2 p-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all flex items-center gap-1 text-[10px]"
+            className="absolute top-2 right-2 p-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-[10px]"
             title="Copy to clipboard"
           >
             {copied ? <CheckCircle2 size={12} className="text-success" /> : <Copy size={12} />}

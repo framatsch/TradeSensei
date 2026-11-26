@@ -14,7 +14,7 @@
  */
 
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Providers } from "./providers";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
@@ -22,17 +22,24 @@ import { Toaster } from "react-hot-toast";
 
 import "./globals.css";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
+  display: "swap",
 });
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono",
+  display: "swap",
 });
 
 export const viewport: Viewport = {
-  themeColor: "#131317",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F8F9FB" },
+    { media: "(prefers-color-scheme: dark)", color: "#11141B" },
+  ],
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -48,10 +55,7 @@ export const metadata: Metadata = {
     title: "Trade Sensei",
   },
   icons: {
-    icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
-    ],
+    icon: "/logo.svg",
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
@@ -62,13 +66,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-[100dvh] bg-background text-foreground`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${inter.variable} ${ibmPlexMono.variable} antialiased min-h-[100dvh] bg-background text-foreground relative`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <Providers>
             <PwaRegistrar />
-            {children}
-            <Toaster position="bottom-right" />
+            <div className="relative z-10">{children}</div>
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                className:
+                  "panel-float !bg-[var(--bg-panel)] !text-foreground !border !border-[var(--border-panel)]",
+              }}
+            />
           </Providers>
         </ThemeProvider>
       </body>

@@ -38,8 +38,8 @@ function StatCard({ label, value, sub, positive, helpAnchor }: StatCardProps) {
     positive === null || positive === undefined
       ? "text-foreground"
       : positive
-        ? "text-emerald-500 dark:text-emerald-400"
-        : "text-rose-500 dark:text-rose-400";
+        ? "text-success"
+        : "text-danger";
 
   return (
     <div className="bg-card rounded-xl p-5 border border-border shadow-sm hover:shadow-md transition-shadow">
@@ -47,8 +47,8 @@ function StatCard({ label, value, sub, positive, helpAnchor }: StatCardProps) {
         {label}
         {helpAnchor && <MetricHelpLink anchor={helpAnchor} />}
       </p>
-      <p className={`text-2xl font-semibold tracking-tight ${valueColor}`}>{value}</p>
-      {sub && <p className="text-[11px] text-muted-foreground mt-1.5 font-medium">{sub}</p>}
+      <p className={`text-2xl font-semibold tracking-tight font-mono ${valueColor}`}>{value}</p>
+      {sub && <p className="text-[11px] text-muted-foreground mt-1.5 font-medium font-mono">{sub}</p>}
     </div>
   );
 }

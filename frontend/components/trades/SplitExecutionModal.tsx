@@ -24,7 +24,7 @@
  * Preview table shows both resulting rows before confirmation.
  * Confirm → POST /executions/{id}/split
  *
- * Design rules: no `dark:` modifier, semantic tokens only.
+ * Design rules: no dark-mode prefix modifier, semantic tokens only.
  */
 
 "use client";
@@ -115,7 +115,7 @@ export function SplitExecutionModal({ execution, tradeId, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div role="dialog" aria-modal="true" aria-label="Split Execution" className="w-full max-w-lg solid-card shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="Split Execution" className="w-full max-w-lg panel-float">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Split Execution</h2>

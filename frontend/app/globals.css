@@ -1,285 +1,441 @@
+/*
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Dual-Theme Design System (Obsidian / Radiant) ────────────────────────── */
-/*
- * Semantic tokens that flip automatically between light and dark.
- * All components MUST reference these tokens — never hardcode colors.
- *
- * Theme tokens:
- *   --background        Page / main content area
- *   --sidebar           Sidebar surface (slightly distinct from background)
- *   --foreground        Primary text
- *   --card              Card / panel surface
- *   --card-foreground   Text inside cards
- *   --popover           Floating elements (tooltips, dropdowns)
- *   --primary           Indigo accent (#6366f1)
- *   --secondary         Subtle fills for inputs, secondary surfaces
- *   --muted             Muted backgrounds
- *   --muted-foreground  Muted / secondary text
- *   --border            Border + divider color
- *   --success           Emerald-400
- *   --danger            Rose-400
- */
-
-/* ─── Light Mode ────────────────────────────────────────────────────────────── */
+/* ─── Light Mode (Pure White — Performance-First UI System v2.0) ─────────── */
 :root {
   color-scheme: light;
-  --background:          #e9e9e9;
-  --sidebar:             #f3f3f3;
-  --foreground:          #18181b;   /* zinc-900 */
-  --card:                #f3f3f3;
-  --card-foreground:     #18181b;
-  --popover:             #ffffff;
-  --popover-foreground:  #18181b;
-  --primary:             #5153ba;
-  --primary-foreground:  #ffffff;
-  --secondary:           #f1f5f9;
-  --secondary-foreground:#0f172a;
-  --muted:               #f1f5f9;
-  --muted-foreground:    #52525b;   /* zinc-600 */
-  --accent:              #6366f1;
-  --accent-foreground:   #ffffff;
-  --destructive:         #fb7185;
-  --destructive-foreground: #ffffff;
-  --warning:             #f59e0b;   /* amber-500 */
-  --warning-foreground:  #ffffff;
-  --success:             #10b981;   /* emerald-500 — more readable on light bg */
-  --danger:              #f43f5e;   /* rose-500 */
-  --code-fg:             #1d4ed8;   /* blue-700 — inline code in light mode */
-  --border:              #e4e4e7;   /* zinc-200 */
-  --input:               #e4e4e7;
-  --ring:                #6366f1;
-  --radius:              0.75rem;
+  /* 1:1 docs/DESIGN.md section 6 — Surfaces (100% Opaque Tonal Layering) */
+  --bg-canvas: #F8F9FB;
+  --bg-panel: #FFFFFF;
+  --bg-sub: #F3F5F9;
+  --border-panel: #DCE2EC;
+  --border-sub: #E4E9F2;
+  --top-edge: none;
+
+  /* Typography */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+
+  /* Primary CTA (Solid Amber) */
+  --cta-bg: #D97706;
+  --cta-hover: #F59E0B;
+  --cta-border: #B45309;
+  --cta-text: #0F172A;
+
+  /* Secondary Controls */
+  --btn-sec-bg: #FFFFFF;
+  --btn-sec-hover: #F3F5F9;
+  --btn-sec-border: #C8D1DF;
+  --btn-sec-hover-border: #94A3B8;
+  --btn-sec-text: #1E293B;
+
+  /* Selection & Active State (Soft-Orange — NO Butter-Yellow) */
+  --sel-bg: #FFF4ED;
+  --sel-border: #EA580C;
+  --sel-text: #9A3412;
+  --amber: #D97706;
+
+  /* Market Signals (Vivid Emerald & Stress Rose) */
+  --emerald: #059669;
+  --emerald-chart: #10B981;
+  --emerald-bg: #D1FAE5;
+  --emerald-border: #34D399;
+
+  --rose: #BE123C;
+  --rose-bg: #FFF1F2;
+  --rose-border: #FECDD3;
+
+  --caution-bg: #FFF7ED;
+  --caution-border: #D97706;
+  --caution-text: #9A3412;
+
+  /* Charts (Neutral Slate Cones) */
+  --chart-grid: #E2E8F0;
+  --cone-outer: rgba(100, 116, 139, 0.11);
+  --cone-inner: rgba(100, 116, 139, 0.18);
+  --cone-stroke: rgba(100, 116, 139, 0.38);
+  --path-win: rgba(16, 185, 129, 0.34);
+  --path-loss: rgba(100, 116, 139, 0.34);
+  --median-line: #0F172A;
+
+  /* Single-layer float shadow (popovers, dialogs, toasts only) */
+  --float-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+
+  /* Semantic Tailwind & Chart Bridge Tokens (hex literals = DESIGN.md values) */
+  --background: #F8F9FB;
+  --sidebar: #FFFFFF;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #D97706;
+  --primary-foreground: #0F172A;
+  --secondary: #F3F5F9;
+  --secondary-foreground: #475569;
+  --surface-muted: #F3F5F9;
+  --muted: #64748B;
+  --muted-foreground: #475569;
+  --accent: #D97706;
+  --accent-foreground: #0F172A;
+  --destructive: #BE123C;
+  --destructive-foreground: #FFFFFF;
+  --warning: #9A3412;
+  --warning-foreground: #FFFFFF;
+  --success: #059669;
+  --danger: #BE123C;
+  --border: #DCE2EC;
+  --input: #C8D1DF;
+  --ring: #D97706;
+  --radius: 0.375rem;
+  --brand: #00ffff;
+  --chart-canvas: #F3F5F9;
+  --overlay: rgba(15, 23, 42, 0.56);
+  --topbar-height: 3.5rem;
 }
 
-/* ─── Dark Mode ─────────────────────────────────────────────────────────────── */
-.dark {
+/* ─── Dark Mode (Layered Anthracite — Performance-First UI System v2.0) ──── */
+html.dark {
   color-scheme: dark;
-  --background:          #171719;
-  --sidebar:             #131317;
-  --foreground:          #fafafa;
-  --card:                #131317;
-  --card-foreground:     #fafafa;
-  --popover:             #111113;
-  --popover-foreground:  #fafafa;
-  --primary:             #4f52b7;
-  --primary-foreground:  #ffffff;
-  --secondary:           #18181b;
-  --secondary-foreground:#a1a1aa;
-  --muted:               #18181b;
-  --muted-foreground:    #71717a;   /* zinc-500 */
-  --accent:              #6366f1;
-  --accent-foreground:   #ffffff;
-  --destructive:         #fb7185;
-  --destructive-foreground: #ffffff;
-  --warning:             #f59e0b;   /* amber-500 */
-  --warning-foreground:  #ffffff;
-  --success:             #34d399;   /* emerald-400 */
-  --danger:              #fb7185;   /* rose-400 */
-  --code-fg:             #fbbf24;   /* amber-400 — inline code in dark mode */
-  --border:              #27272a;   /* zinc-800/50 feel */
-  --input:               #27272a;
-  --ring:                #6366f1;
+  /* 1:1 docs/DESIGN.md section 6 — Surfaces (Layered Anthracite — NO Pure Black) */
+  --bg-canvas: #11141B;
+  --bg-panel: #191E28;
+  --bg-sub: #222936;
+  --border-panel: #2A3242;
+  --border-sub: #2D3647;
+  --top-edge: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* Typography */
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  /* Primary CTA (Solid Amber) */
+  --cta-bg: #F59E0B;
+  --cta-hover: #FBBF24;
+  --cta-border: #D97706;
+  --cta-text: #11141B;
+
+  /* Secondary Controls */
+  --btn-sec-bg: #222936;
+  --btn-sec-hover: #2A3343;
+  --btn-sec-border: #334155;
+  --btn-sec-hover-border: #475569;
+  --btn-sec-text: #E2E8F0;
+
+  /* Selection & Active State */
+  --sel-bg: rgba(245, 158, 11, 0.14);
+  --sel-border: #F59E0B;
+  --sel-text: #FDE68A;
+  --amber: #F59E0B;
+
+  /* Market Signals (Vivid Neon-Emerald & Stress Rose) */
+  --emerald: #1CE88C;
+  --emerald-chart: #1CE88C;
+  --emerald-bg: rgba(28, 232, 140, 0.16);
+  --emerald-border: rgba(28, 232, 140, 0.42);
+
+  --rose: #FB7185;
+  --rose-bg: rgba(251, 113, 133, 0.14);
+  --rose-border: rgba(251, 113, 133, 0.32);
+
+  --caution-bg: rgba(245, 158, 11, 0.09);
+  --caution-border: #F59E0B;
+  --caution-text: #FBBF24;
+
+  /* Charts (Neutral Slate Cones) */
+  --chart-grid: #252D3C;
+  --cone-outer: rgba(148, 163, 184, 0.09);
+  --cone-inner: rgba(148, 163, 184, 0.16);
+  --cone-stroke: rgba(148, 163, 184, 0.30);
+  --path-win: rgba(28, 232, 140, 0.34);
+  --path-loss: rgba(148, 163, 184, 0.28);
+  --median-line: #F1F5F9;
+
+  /* Single-layer float shadow (popovers, dialogs, toasts only) */
+  --float-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+
+  /* Semantic Tailwind & Chart Bridge Tokens (hex literals = DESIGN.md values) */
+  --background: #11141B;
+  --sidebar: #191E28;
+  --foreground: #F1F5F9;
+  --card: #191E28;
+  --card-foreground: #F1F5F9;
+  --popover: #191E28;
+  --popover-foreground: #F1F5F9;
+  --primary: #F59E0B;
+  --primary-foreground: #11141B;
+  --secondary: #222936;
+  --secondary-foreground: #94A3B8;
+  --surface-muted: #222936;
+  --muted: #64748B;
+  --muted-foreground: #94A3B8;
+  --accent: #F59E0B;
+  --accent-foreground: #11141B;
+  --destructive: #FB7185;
+  --destructive-foreground: #11141B;
+  --warning: #FBBF24;
+  --warning-foreground: #11141B;
+  --success: #1CE88C;
+  --danger: #FB7185;
+  --border: #2A3242;
+  --input: #334155;
+  --ring: #F59E0B;
+  --chart-canvas: #222936;
+  --overlay: rgba(0, 0, 0, 0.64);
 }
 
-/* ─── Base ──────────────────────────────────────────────────────────────────── */
-
-body {
-  color: var(--foreground);
-  background-color: var(--background);
-  background-image: radial-gradient(
-    circle at 20% 20%,
-    rgba(99, 102, 241, 0.06) 0%,
-    transparent 50%
-  );
-  background-attachment: fixed;
-  font-family: var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-feature-settings: "rlig" 1, "calt" 1;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  body {
+    color: var(--text-primary);
+    background-color: var(--bg-canvas);
+    font-family: var(--font-sans), "Inter", system-ui, -apple-system,
+      "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+  select option { background: var(--popover); color: var(--popover-foreground); }
+  .font-mono, .tnum {
+    font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
 }
-
-/* ─── Component Utilities ───────────────────────────────────────────────────── */
 
 @layer components {
-
-  /*
-   * .radiant-card — Signature glass-morphism card.
-   * Dark:  bg-card/60 + backdrop-blur-xl + white/5 border + white/15 top edge
-   * Light: bg-white/80 + backdrop-blur-xl + zinc-200 border + white/30 top edge
-   */
-  .radiant-card {
-    @apply relative backdrop-blur-xl rounded-xl overflow-hidden;
-    background-color: var(--card);
-    border: 1px solid var(--border);
-    border-top-color: rgba(255, 255, 255, 0.15);
-    box-shadow:
-      0 8px 30px rgba(0, 0, 0, 0.10),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  .tnum {
+    font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
   }
-
-  /* Light-mode override: stronger top edge, softer shadow */
-  :root .radiant-card {
-    border-top-color: rgba(255, 255, 255, 0.35);
-    box-shadow:
-      0 4px 20px rgba(0, 0, 0, 0.06),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  .unit-muted,
+  .unit-dim {
+    color: var(--text-muted);
+    opacity: 0.75;
   }
-
-  /*
-   * .card-glossy — utility alias used by the prompt spec.
-   * Same as .radiant-card, applied on top of bg-card.
-   */
+  /* Structural chrome (TopBar, SubTabBar, Sidebar): opaque Level 1 */
+  .surface-chrome {
+    background-color: var(--bg-panel);
+    border-color: var(--border-panel);
+    box-shadow: var(--top-edge);
+  }
+  /* Level-1 panels and cards (8px radius) */
+  .solid-card,
+  .radiant-card,
   .card-glossy {
-    @apply relative rounded-xl overflow-hidden;
-    border: 1px solid var(--border);
-    border-top-color: rgba(255, 255, 255, 0.15);
-    box-shadow:
-      0 8px 30px rgba(0, 0, 0, 0.10),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    @apply relative overflow-hidden text-card-foreground;
+    border-radius: 8px;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-panel);
+    box-shadow: var(--top-edge);
   }
-  :root .card-glossy {
-    border-top-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  /* Level-2 sub-cards: KPI tiles, chart boxes, nested tiles (6px radius) */
+  .panel-sub {
+    border-radius: 6px;
+    background-color: var(--bg-sub);
+    border: 1px solid var(--border-sub);
   }
-
-  /* Solid card — no translucency */
-  .solid-card {
-    @apply relative bg-card rounded-xl border border-border overflow-hidden;
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
-      0 1px 3px rgba(0, 0, 0, 0.4);
+  /* Floating dialogs, popovers and toasts (8px radius, single-layer shadow) */
+  .panel-float {
+    border-radius: 8px;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-panel);
+    box-shadow: var(--float-shadow);
   }
-
-  /* Ghost button */
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border bg-transparent text-foreground text-sm font-medium transition-all duration-200;
+  .field {
+    @apply mt-1 block w-full min-w-0 px-3 py-2 text-sm text-foreground;
+    border-radius: 6px;
+    background-color: var(--btn-sec-bg);
+    border: 1px solid var(--btn-sec-border);
+    transition: border-color 100ms ease;
   }
-  .btn-ghost:hover {
-    background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
-    border-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+  .field:hover { border-color: var(--btn-sec-hover-border); }
+  .field::placeholder { @apply text-muted-foreground; }
+  .field-label { @apply block text-sm font-medium; }
+  /* Buttons (6px radius, color-only transitions) */
+  .btn-ghost, .btn-secondary, .btn-solid, .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium;
+    border-radius: 6px;
+    transition: background-color 100ms ease, border-color 100ms ease, color 100ms ease;
   }
-
-  /* Solid button */
-  .btn-solid {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium transition-all duration-200;
+  /* Primary CTA: Solid Amber */
+  .btn-primary, .btn-solid {
+    @apply font-semibold;
+    background-color: var(--cta-bg);
+    color: var(--cta-text);
+    border: 1.5px solid var(--cta-border);
   }
-  .btn-solid:hover {
-    background-color: color-mix(in srgb, var(--foreground) 88%, transparent);
+  .btn-primary:hover:not(:disabled), .btn-solid:hover:not(:disabled) {
+    background-color: var(--cta-hover);
   }
-
-  /* Primary accent button (indigo) */
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-all duration-200;
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
-      0 4px 12px rgba(99, 102, 241, 0.3);
+  /* Secondary actions */
+  .btn-secondary, .btn-ghost {
+    background-color: var(--btn-sec-bg);
+    color: var(--btn-sec-text);
+    border: 1px solid var(--btn-sec-border);
   }
-  .btn-primary:hover {
-    background-color: color-mix(in srgb, var(--primary) 88%, transparent);
+  .btn-secondary:hover:not(:disabled), .btn-ghost:hover:not(:disabled) {
+    background-color: var(--btn-sec-hover);
+    border-color: var(--btn-sec-hover-border);
   }
-
-  /*
-   * .nav-active — active sidebar nav item.
-   * Dark:  bg-white/5 + border-white/5 + text-white
-   * Light: bg-zinc-100 + border-zinc-200 + text-zinc-900
-   * Both:  2px left indigo accent line with glow
-   */
+  .btn-selected,
+  .pill-active {
+    @apply font-semibold;
+    background-color: var(--sel-bg);
+    color: var(--sel-text);
+    border: 1.5px solid var(--sel-border);
+    border-radius: 9999px;
+  }
+  .sel-pill {
+    @apply inline-flex items-center rounded-full px-1.5 py-0.5 font-mono text-[10px] font-semibold;
+    font-variant-numeric: tabular-nums;
+    background-color: var(--sel-bg);
+    color: var(--sel-text);
+    border: 1px solid var(--sel-border);
+  }
+  /* Sidebar navigation items (6px radius) */
+  .sidebar-item {
+    border-radius: 6px;
+    transition: background-color 100ms ease, color 100ms ease;
+  }
+  .sidebar-item:hover:not(:disabled):not([aria-current="page"]) {
+    background-color: var(--bg-sub);
+    color: var(--foreground);
+  }
+  .sidebar-item[aria-current="page"],
   .nav-active {
-    @apply relative rounded-lg;
-    color: var(--foreground);
-    background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
-    border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+    position: relative;
+    border-radius: 6px;
+    background-color: var(--sel-bg);
+    color: var(--sel-text);
+    box-shadow: inset 2px 0 0 var(--amber);
   }
-  .nav-active::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 2px;
-    height: 60%;
-    background-color: #6366f1;
-    border-radius: 0 2px 2px 0;
-    box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
+  /* Numeric price pills and correlation cells (6px radius) */
+  .price-pill {
+    @apply inline-flex items-center px-1.5 py-0.5 font-mono text-xs;
+    border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+    background-color: var(--bg-sub);
+    border: 1px solid var(--border-sub);
   }
-
-  /*
-   * .metric-toggle-bar — glass segment control for P&L / Trades / etc.
-   * The "glass strip" container:
-   *   Dark:  bg-zinc-900/40
-   *   Light: bg-zinc-100
-   */
+  .corr-cell {
+    border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Row hover, selection and regime dimming (opaque colors, opacity-only dimming) */
+  .wl-row, .radiant-table tbody tr {
+    border-bottom: 1px solid var(--border-sub);
+    transition: background-color 100ms ease, opacity 100ms ease;
+  }
+  .wl-row:hover, .radiant-table tbody tr:hover {
+    background-color: var(--bg-sub);
+  }
+  .wl-row.selected, .wl-row.selected:hover,
+  .radiant-table tbody tr[aria-selected="true"], .radiant-table tbody tr[aria-selected="true"]:hover {
+    background-color: var(--sel-bg);
+    box-shadow: inset 2px 0 0 var(--amber);
+  }
+  tr.wl-row.selected > td:first-child {
+    box-shadow: inset 2px 0 0 var(--amber);
+  }
+  .wl-row.selected .wl-ticker {
+    color: var(--sel-text);
+  }
+  .wl-focus-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background-color: var(--amber);
+  }
+  .wl-row.dimmed {
+    opacity: 0.7;
+  }
+  .wl-row.dimmed:hover {
+    opacity: 1;
+  }
+  /* Segmented funnel and filter track (pill radius) */
   .metric-toggle-bar {
-    @apply inline-flex items-center gap-1 p-1 rounded-lg;
-    background-color: color-mix(in srgb, var(--foreground) 5%, transparent);
-    border: 1px solid var(--border);
+    @apply inline-flex items-center gap-1 p-1;
+    border-radius: 9999px;
+    border: 1px solid var(--border-sub);
+    background-color: var(--bg-sub);
   }
-
-  /* Active segment inside .metric-toggle-bar */
+  .metric-toggle-active, .metric-toggle-inactive {
+    @apply px-2.5 py-1 text-xs font-medium;
+    border-radius: 9999px;
+    border: 1.5px solid transparent;
+    transition: background-color 100ms ease, border-color 100ms ease, color 100ms ease;
+  }
   .metric-toggle-active {
-    @apply relative rounded-md text-sm font-medium px-3 py-1.5 transition-all duration-200;
-    color: var(--foreground);
-    background-color: color-mix(in srgb, var(--card) 80%, transparent);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+    @apply font-semibold;
+    background-color: var(--sel-bg);
+    color: var(--sel-text);
+    border-color: var(--sel-border);
   }
-
-  /* Inactive segment inside .metric-toggle-bar */
-  .metric-toggle-inactive {
-    @apply relative rounded-md text-sm font-medium px-3 py-1.5 transition-all duration-200;
-    color: var(--muted-foreground);
+  .metric-toggle-inactive { @apply text-muted-foreground; }
+  .metric-toggle-inactive:hover { @apply text-foreground; background-color: var(--btn-sec-hover); }
+  /* Market signal surfaces & badges (strictly separated from UI selection) */
+  .surface-success,
+  .badge-positive {
+    background-color: var(--emerald-bg);
+    color: var(--emerald);
+    border: 1px solid var(--emerald-border);
   }
-  .metric-toggle-inactive:hover {
-    color: var(--foreground);
-    background-color: color-mix(in srgb, var(--foreground) 4%, transparent);
+  .surface-danger,
+  .badge-negative {
+    background-color: var(--rose-bg);
+    color: var(--rose);
+    border: 1px solid var(--rose-border);
   }
+  .surface-danger-strong {
+    background-color: color-mix(in srgb, var(--destructive) 20%, transparent);
+    border-color: color-mix(in srgb, var(--destructive) 30%, transparent);
+  }
+  /* Caution / event: always 1px dashed so it never collides with solid selection borders */
+  .surface-warning,
+  .surface-caution,
+  .badge-caution {
+    background-color: var(--caution-bg);
+    color: var(--caution-text);
+    border-width: 1px;
+    border-style: dashed;
+    border-color: var(--caution-border);
+  }
+  .badge-neutral {
+    background-color: var(--bg-sub);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-sub);
+  }
+  .surface-primary {
+    background-color: var(--sel-bg);
+    border-color: var(--sel-border);
+  }
+  .radiant-table tbody tr:last-child { border-bottom: none; }
 }
-
-/* ─── Utility Overrides ─────────────────────────────────────────────────────── */
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
-
-  .glow-primary  { box-shadow: 0 0 40px rgba(99, 102, 241, 0.15); }
-  .glow-success  { box-shadow: 0 0 20px rgba(52, 211, 153, 0.20); }
-  .glow-danger   { box-shadow: 0 0 20px rgba(251, 113, 133, 0.20); }
-
-  /* Subtle noise texture overlay */
-  .noise-overlay::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none;
-    border-radius: inherit;
-    mix-blend-mode: overlay;
-  }
-
-  /* Glass morphism variant */
-  .glass-card {
-    @apply backdrop-blur-md border border-border;
-    background-color: color-mix(in srgb, var(--card) 50%, transparent);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-  }
-
-  /* Hair-thin top-lit border */
-  .light-edge::before {
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.14) 50%, transparent 100%);
-    pointer-events: none;
-  }
 }
 
 /* ─── Prose dark-mode typography ────────────────────────────────────────────── */
-/* Overrides @tailwindcss/typography CSS variables so markdown previews render  */
-/* correctly in the dark theme without using the prohibited dark: modifier.     */
-
 .dark .prose {
   --tw-prose-body: var(--foreground);
   --tw-prose-headings: var(--foreground);
@@ -302,30 +458,10 @@ body {
 }
 
 /* ─── Custom Scrollbar ──────────────────────────────────────────────────────── */
-
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background-color: var(--border); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--muted-foreground); }
-
-/* ─── Semantic opacity surfaces (color-mix — Tailwind /N modifiers don't work with hex CSS vars) ── */
-
-.surface-danger {
-  background-color: color-mix(in srgb, var(--destructive) 10%, transparent);
-  border-color: color-mix(in srgb, var(--destructive) 20%, transparent);
-}
-.surface-danger-strong {
-  background-color: color-mix(in srgb, var(--destructive) 20%, transparent);
-  border-color: color-mix(in srgb, var(--destructive) 30%, transparent);
-}
-.surface-warning {
-  background-color: color-mix(in srgb, var(--warning) 10%, transparent);
-  border-color: color-mix(in srgb, var(--warning) 20%, transparent);
-}
-.surface-success {
-  background-color: color-mix(in srgb, var(--success) 10%, transparent);
-  border-color: color-mix(in srgb, var(--success) 20%, transparent);
-}
 
 /* Opt-in trade-view text contrast; preserve the desktop palette and layout. */
 @media (width < 1024px) {
@@ -346,37 +482,19 @@ body {
   }
 }
 
-/* ─── Radiant Table ─────────────────────────────────────────────────────────── */
-
-.radiant-table tbody tr {
-  border-bottom: 1px solid var(--border);
-  transition: background-color 0.12s ease;
-}
-.radiant-table tbody tr:hover {
-  background-color: color-mix(in srgb, var(--foreground) 3%, transparent);
-}
-.radiant-table tbody tr:last-child { border-bottom: none; }
-
-/* ─── Native select option theming ─────────────────────────────────────────── */
-/* Browsers render <option> elements natively and ignore most CSS properties.   */
-/* Setting background + color explicitly here ensures they follow the theme.    */
-
-.dark select option {
-  background-color: var(--popover);
-  color: var(--popover-foreground);
-}
-
 /* ─── Recharts ──────────────────────────────────────────────────────────────── */
-
+.recharts-cartesian-grid line,
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
-  stroke: var(--border);
-  stroke-opacity: 0.4;
+  stroke: var(--chart-grid);
+  stroke-opacity: 1;
+  stroke-dasharray: 3 3;
 }
 
+.recharts-default-tooltip,
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: var(--popover) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 0.5rem !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+  background: var(--bg-panel) !important;
+  border: 1px solid var(--border-panel) !important;
+  border-radius: 6px !important;
+  box-shadow: var(--float-shadow) !important;
 }

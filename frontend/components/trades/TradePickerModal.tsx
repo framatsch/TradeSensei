@@ -99,7 +99,7 @@ export function TradePickerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div role="dialog" aria-modal="true" aria-label={singleSelect ? "Select Trade" : "Select Trades"} className="w-full max-w-lg solid-card shadow-2xl flex flex-col max-h-[80vh]">
+      <div role="dialog" aria-modal="true" aria-label={singleSelect ? "Select Trade" : "Select Trades"} className="w-full max-w-lg panel-float flex flex-col max-h-[80vh]">
         {/* Header */}
         <div className="px-5 py-4 border-b border-border">
           <h2 className="text-base font-bold text-foreground mb-3">
@@ -139,22 +139,22 @@ export function TradePickerModal({
                 key={trade.id}
                 type="button"
                 onClick={() => toggle(trade)}
-                className={`w-full flex items-center gap-3 px-5 py-3 text-left border-b border-border hover:bg-secondary transition-colors ${
-                  isSelected ? "bg-[#6063dd]/5" : ""
+                className={`w-full flex items-center gap-3 px-5 py-3 text-left wl-row ${
+                  isSelected ? "selected" : ""
                 }`}
               >
                 {/* Checkbox / radio */}
                 <span
                   className={`flex h-4 w-4 items-center justify-center rounded${singleSelect ? "-full" : ""} border flex-shrink-0 transition-colors ${
                     isSelected
-                      ? "bg-[#6063dd] border-[#6063dd]"
+                      ? "bg-primary border-primary text-primary-foreground"
                       : "border-border"
                   }`}
                 >
                   {isSelected && (
-                    <svg viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" className="w-2.5 h-2.5">
+                    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-2.5 h-2.5">
                       {singleSelect ? (
-                        <circle cx="6" cy="6" r="3" fill="white" stroke="none" />
+                        <circle cx="6" cy="6" r="3" fill="currentColor" stroke="none" />
                       ) : (
                         <polyline points="2,6 5,9 10,3" />
                       )}
@@ -165,21 +165,21 @@ export function TradePickerModal({
                 {/* Trade info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground text-sm">{trade.symbol}</span>
+                    <span className="wl-ticker font-medium text-foreground text-sm">{trade.symbol}</span>
                     <span
                       className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
                         trade.is_combo
                           ? "bg-muted text-foreground border border-border"
                           : trade.direction === "LONG"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                          : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                          ? "badge-positive"
+                          : "badge-negative"
                       }`}
                     >
                       {trade.is_combo ? "COMBO" : trade.direction}
                     </span>
                     <span className="text-xs text-muted-foreground">{trade.is_combo ? "COMBO" : (trade.asset_class ?? "—")}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
+                  <div className="text-xs text-muted-foreground mt-0.5 font-mono">
                     Qty: {trade.quantity === null ? "—" : parseFloat(trade.quantity).toLocaleString()} · Opened: {fmtDate(trade.opened_at)}
                     {trade.account_name && ` · ${trade.account_name}`}
                   </div>
@@ -187,12 +187,12 @@ export function TradePickerModal({
 
                 {/* P&L */}
                 <span
-                  className={`text-sm font-medium flex-shrink-0 ${
+                  className={`text-sm font-medium font-mono flex-shrink-0 ${
                     pnlNum === null
-                      ? "text-amber-500"
+                      ? "text-warning"
                       : pnlNum >= 0
-                      ? "text-emerald-500 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
+                      ? "text-success"
+                      : "text-danger"
                   }`}
                 >
                   {fmt(trade.pnl)}
@@ -221,7 +221,7 @@ export function TradePickerModal({
               type="button"
               onClick={handleConfirm}
               disabled={selected.size === 0}
-              className="rounded-md bg-[#6063dd] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+              className="btn-primary disabled:opacity-50"
             >
               {confirmLabel}
             </button>

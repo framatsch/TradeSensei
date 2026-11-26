@@ -56,7 +56,7 @@ export function TopBar({ onToggleMobileSidebar, onToggleDesktopSidebar, isMobile
   }
 
   return (
-    <header className="sticky top-0 h-[var(--topbar-height,3.5rem)] w-full border-b border-border bg-sidebar z-40 flex items-center justify-between px-4 lg:px-6">
+    <header className="sticky top-0 h-[var(--topbar-height,3.5rem)] w-full border-b surface-chrome z-40 flex items-center justify-between px-4 lg:px-6">
       {/* Left section */}
       <div className="flex items-center shrink-0">
         <div className="flex items-center gap-1">

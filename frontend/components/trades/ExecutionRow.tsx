@@ -133,10 +133,10 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
   const longBadgeCls = "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-success border border-[color-mix(in_srgb,var(--success)_30%,transparent)]";
   const shortBadgeCls = "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-danger border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]";
 
-  // Deleted rows: 50% opacity, Restore button only
+  // Deleted rows: dimmed via .wl-row.dimmed (DESIGN.md), Restore button only
   if (isDeleted) {
     return (
-      <tr className="border-b border-border opacity-50">
+      <tr className="wl-row dimmed">
         {/* Date */}
         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
           {fmtDate(execution.executed_at)}
@@ -226,8 +226,8 @@ export function ExecutionRow({ execution, trade, tradeId, onMoveToTrade, onDetac
 
   return (
     <>
-      <tr className={`border-b border-border transition-colors ${
-        isConflict ? "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-l-[3px] border-l-warning hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]" : "hover:bg-[color-mix(in_srgb,var(--muted)_30%,transparent)]"
+      <tr className={`wl-row ${
+        isConflict ? "surface-caution border-l-[3px] border-l-warning" : ""
       }`}>
         {/* Date */}
         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">

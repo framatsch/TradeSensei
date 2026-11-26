@@ -31,7 +31,7 @@ export function OIDCSignInButton() {
     <button
       type="button"
       onClick={handleClick}
-      className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-medium rounded-md border border-gray-300 transition-colors shadow-sm"
+      className="btn-secondary w-full py-2.5 gap-3"
     >
       Continue with {config.oidc.provider_name}
     </button>

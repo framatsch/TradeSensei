@@ -364,7 +364,7 @@ export function CheckinFilterBar() {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="w-56 solid-card !rounded-lg shadow-lg p-2 z-50 max-h-60 overflow-y-auto"
+                      className="w-56 panel-float !rounded-lg p-2 z-50 max-h-60 overflow-y-auto"
                       sideOffset={4}
                       align="start"
                     >
@@ -410,7 +410,7 @@ export function CheckinFilterBar() {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content
-                    className="w-56 rounded-lg bg-card border border-border shadow-lg p-2 z-50 max-h-60 overflow-y-auto"
+                    className="w-56 panel-float !rounded-lg p-2 z-50 max-h-60 overflow-y-auto"
                     sideOffset={4}
                     align="start"
                   >
@@ -463,8 +463,8 @@ export function CheckinFilterBar() {
         if (!open) setSaveViewName("");
       }}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] solid-card p-6 shadow-2xl">
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] panel-float p-6">
             <Dialog.Title className="mb-4 text-base font-semibold text-foreground">Save Current View</Dialog.Title>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">View Name</label>
             <input
@@ -503,8 +503,8 @@ export function CheckinFilterBar() {
       {/* Rename View Modal */}
       <Dialog.Root open={showRenameModal} onOpenChange={(open) => { setShowRenameModal(open); if (!open) { setSelectedViewIdToRename(null); setRenameViewName(""); } }}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] solid-card p-6 shadow-2xl">
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] panel-float p-6">
             <Dialog.Title className="mb-4 text-base font-semibold text-foreground">Rename View</Dialog.Title>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">New Name</label>
             <input

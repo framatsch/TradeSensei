@@ -38,8 +38,8 @@ export function AccountDeleteModal({ account, onClose, onDelete, isDeleting }: P
   const canDelete = confirmName.trim() === account.name && !isDeleting;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div className="panel-float max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-foreground">Delete Account</h3>
           <button
@@ -89,7 +89,7 @@ export function AccountDeleteModal({ account, onClose, onDelete, isDeleting }: P
               <button
                 onClick={handleDelete}
                 disabled={!canDelete}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-destructive-foreground rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
                 data-testid="delete-account-button"
               >
                 <Trash2 className="h-4 w-4" />

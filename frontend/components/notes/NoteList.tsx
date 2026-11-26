@@ -33,21 +33,21 @@ interface Props {
 }
 
 const EMOTION_COLORS: Record<string, string> = {
-  confident: "bg-emerald-900/50 text-emerald-400 border-emerald-800",
-  disciplined: "bg-blue-900/50 text-primary border-blue-800",
-  calm: "bg-sky-900/50 text-sky-400 border-sky-800",
-  anxious: "bg-yellow-900/50 text-yellow-400 border-yellow-800",
-  fearful: "bg-orange-900/50 text-orange-400 border-orange-800",
-  greedy: "bg-purple-900/50 text-purple-400 border-purple-800",
-  excited: "bg-indigo-900/50 text-indigo-400 border-indigo-800",
-  frustrated: "bg-red-900/50 text-red-400 border-red-800",
-  regretful: "bg-pink-900/50 text-pink-400 border-pink-800",
+  confident: "badge-positive",
+  disciplined: "badge-positive",
+  calm: "badge-positive",
+  anxious: "badge-caution",
+  fearful: "badge-negative",
+  greedy: "badge-negative",
+  excited: "badge-caution",
+  frustrated: "badge-negative",
+  regretful: "badge-negative",
 };
 
 function getEmotionClass(emotion: string): string {
   return (
     EMOTION_COLORS[emotion.toLowerCase()] ??
-    "bg-secondary text-muted-foreground border-border dark:border-border"
+    "badge-neutral"
   );
 }
 
@@ -147,7 +147,7 @@ export function NoteList({ tradeId }: Props) {
           </div>
         ) : isError ? (
           <div className="py-8 text-center">
-            <p className="text-red-400 text-sm">{error.message}</p>
+            <p className="text-danger text-sm">{error.message}</p>
           </div>
         ) : notes && notes.length > 0 ? (
           <div className="space-y-3">
@@ -156,18 +156,18 @@ export function NoteList({ tradeId }: Props) {
                 /* ── Inline edit mode ── */
                 <div
                   key={note.id}
-                  className="bg-zinc-50 dark:bg-zinc-900/60 border border-blue-400 dark:border-blue-600 rounded-xl p-4 space-y-3"
+                  className="panel-sub border-primary/50 p-4 space-y-3"
                 >
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
                     rows={4}
-                    className="w-full rounded-lg border border-border dark:border-border bg-white dark:bg-background text-sm text-zinc-800 dark:text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    className="w-full rounded-lg border border-border bg-secondary text-sm text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                   />
                   <select
                     value={editEmotion}
                     onChange={(e) => setEditEmotion(e.target.value)}
-                    className="rounded-lg border border-border dark:border-border bg-white dark:bg-background text-sm text-zinc-800 dark:text-foreground px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="rounded-lg border border-border bg-secondary text-sm text-foreground px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">No emotion</option>
                     {EMOTIONS.map((e) => (
@@ -180,13 +180,13 @@ export function NoteList({ tradeId }: Props) {
                     <button
                       onClick={() => saveEdit(note.id)}
                       disabled={!editContent.trim()}
-                      className="px-3 py-1.5 text-xs font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-md transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-md transition-colors"
                     >
                       Save
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-secondary hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium text-muted-foreground bg-secondary hover:text-foreground hover:bg-muted rounded-md transition-colors"
                     >
                       Cancel
                     </button>
@@ -196,13 +196,13 @@ export function NoteList({ tradeId }: Props) {
                 /* ── Read mode ── */
                 <div
                   key={note.id}
-                  className="group relative bg-zinc-50 dark:bg-zinc-900/60 border border-border rounded-xl p-4"
+                  className="group relative panel-sub p-4"
                 >
                   {/* Action buttons */}
                   <div className="absolute top-3 right-3 flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity">
                     <button
                       onClick={() => startEdit(note.id, note.content, note.emotion)}
-                      className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-blue-900/20 transition-colors"
+                      className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                       title="Edit note"
                       aria-label="Edit note"
                     >
@@ -213,7 +213,7 @@ export function NoteList({ tradeId }: Props) {
                     </button>
                     <button
                       onClick={() => handleDelete(note.id)}
-                      className="p-1 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                      className="p-1 rounded-md text-muted-foreground hover:text-danger hover:bg-danger/10 transition-colors"
                       title="Delete note"
                       aria-label="Delete note"
                     >

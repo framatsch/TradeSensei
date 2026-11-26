@@ -486,7 +486,7 @@ export function WorkspaceFilterBar() {
                   type="button"
                   onClick={() => handleDeleteView(activeView.id)}
                   disabled={deleteViewMutation.isPending}
-                  className="px-2 py-0.5 bg-destructive text-white rounded hover:bg-destructive/90 transition-colors"
+                  className="px-2 py-0.5 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 transition-colors"
                 >
                   Yes
                 </button>
@@ -669,7 +669,7 @@ export function WorkspaceFilterBar() {
                       key={ac}
                       type="button"
                       onClick={() => handleAssetClassToggle(ac)}
-                      className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${
+                      className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors duration-200 ${
                         selected
                           ? "bg-primary/15 border-primary/40 text-primary"
                           : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
@@ -691,8 +691,8 @@ export function WorkspaceFilterBar() {
         if (!open) setSaveViewName("");
       }}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-xl bg-card border border-border p-6 shadow-2xl">
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] panel-float p-6">
             <Dialog.Title className="mb-4 text-base font-semibold text-foreground">Save Current View</Dialog.Title>
             <label className="mb-2 block text-sm font-medium text-[color-mix(in_srgb,var(--muted-foreground)_100%,transparent)]">View Name</label>
             <input
@@ -719,7 +719,7 @@ export function WorkspaceFilterBar() {
                 type="button"
                 disabled={!saveViewName.trim() || saveViewMutation.isPending}
                 onClick={handleSaveView}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
                 {saveViewMutation.isPending ? "Saving…" : "Save View"}
               </button>
@@ -734,8 +734,8 @@ export function WorkspaceFilterBar() {
         if (!open) setSaveViewName("");
       }}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-xl bg-card border border-border p-6 shadow-2xl">
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] panel-float p-6">
             <Dialog.Title className="mb-4 text-base font-semibold text-foreground">Rename View</Dialog.Title>
             <input
               type="text"
@@ -760,7 +760,7 @@ export function WorkspaceFilterBar() {
                 type="button"
                 disabled={!saveViewName.trim() || updateViewMutation.isPending}
                 onClick={handleRenameView}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
                 {updateViewMutation.isPending ? "Saving…" : "Save"}
               </button>

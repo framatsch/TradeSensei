@@ -125,7 +125,7 @@ export function DateRangeVisualizer({
         <span className="text-xs font-medium text-muted-foreground shrink-0">
           From:
         </span>
-        <div className="flex rounded-md overflow-hidden border border-border dark:border-border text-xs">
+        <div className="flex rounded-md overflow-hidden border border-border text-xs">
           <button
             type="button"
             disabled={disabled}
@@ -133,8 +133,8 @@ export function DateRangeVisualizer({
             className={[
               "px-3 py-1.5 font-medium transition-colors",
               preset === "ytd"
-                ? "bg-primary text-white"
-                : "bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600",
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >
@@ -151,10 +151,10 @@ export function DateRangeVisualizer({
               }
             }}
             className={[
-              "px-3 py-1.5 font-medium transition-colors border-l border-border dark:border-border",
+              "px-3 py-1.5 font-medium transition-colors border-l border-border",
               preset === "custom"
-                ? "bg-primary text-white"
-                : "bg-zinc-50 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600",
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted",
               disabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >
@@ -171,7 +171,7 @@ export function DateRangeVisualizer({
             max={maxInputDate}
             disabled={disabled}
             onChange={(e) => onCustomFromDateChange(fromInputDate(e.target.value))}
-            className="px-2 py-1 text-xs bg-secondary border border-border dark:border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            className="px-2 py-1 text-xs bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           />
         )}
       </div>
@@ -180,17 +180,17 @@ export function DateRangeVisualizer({
       <div className="space-y-1">
         <div className="relative h-6 bg-secondary rounded-full overflow-hidden">
           <div
-            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300"
+            className="absolute left-0 top-0 h-full rounded-full bg-primary transition-colors duration-300"
             style={{ width: `${fillPct}%` }}
           />
           {/* Today marker */}
-          <div className="absolute right-0 top-0 h-full w-0.5 bg-zinc-400 dark:bg-zinc-500" />
+          <div className="absolute right-0 top-0 h-full w-0.5 bg-muted-foreground" />
         </div>
 
         {/* Labels */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground dark:text-zinc-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
           <span>{formatDisplay(effectiveStart)}</span>
-          <span className="text-zinc-400 dark:text-muted-foreground text-center">
+          <span className="text-muted-foreground text-center">
             {daysCovered} day{daysCovered !== 1 ? "s" : ""}
           </span>
           <span>Today ({formatDisplay(today)})</span>
@@ -198,13 +198,13 @@ export function DateRangeVisualizer({
       </div>
 
       {/* Limit badge */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground dark:text-zinc-400">
-        <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1 badge-caution px-2 py-0.5 rounded-full font-medium">
           <span>⚠</span>
           IBKR Flex: max. 1 year
         </span>
         {fillPct >= 95 && (
-          <span className="text-amber-500 dark:text-amber-400">
+          <span className="text-warning">
             — You are near the {MAX_DAYS}-day limit.
           </span>
         )}

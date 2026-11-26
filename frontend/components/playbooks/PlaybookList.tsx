@@ -165,11 +165,11 @@ export function PlaybookList() {
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-red-400 font-medium mb-2">Failed to load playbooks.</p>
+        <p className="text-danger font-medium mb-2">Failed to load playbooks.</p>
         <p className="text-muted-foreground text-sm mb-4">{error.message}</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-sm transition-colors"
         >
           Retry
         </button>
@@ -185,7 +185,7 @@ export function PlaybookList() {
         <button
           onClick={handleCreate}
           disabled={creating}
-          className="inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap h-9 px-3 sm:px-4 text-xs sm:text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 shrink-0 whitespace-nowrap h-9 px-3 sm:px-4 text-xs sm:text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50"
         >
           {creating ? (
             <Spinner size="sm" />
@@ -288,7 +288,7 @@ export function PlaybookList() {
                           e.stopPropagation();
                           handleToggleStatus(pb.id, pb.is_active);
                         }}
-                        className={`inline-flex items-center shrink-0 px-2.5 py-0.5 rounded text-xs font-medium transition-all ${
+                        className={`inline-flex items-center shrink-0 px-2.5 py-0.5 rounded text-xs font-medium transition-colors ${
                           pb.is_active
                             ? "bg-success/10 text-success border border-success/30 hover:bg-success/20"
                             : "bg-secondary text-muted-foreground border border-border hover:bg-muted"
@@ -414,7 +414,7 @@ export function PlaybookList() {
                     <tr
                       key={pb.id}
                       onClick={() => router.push(`/dashboard/library/playbooks/${pb.id}`)}
-                      className="border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
+                      className="wl-row cursor-pointer"
                     >
                       <td className="px-4 py-3 text-sm font-medium text-foreground">
                         {pb.name}
@@ -447,7 +447,7 @@ export function PlaybookList() {
                             e.stopPropagation();
                             handleToggleStatus(pb.id, pb.is_active);
                           }}
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium transition-all ${
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium transition-colors ${
                             pb.is_active
                               ? "bg-success/10 text-success border border-success/30 hover:bg-success/20"
                               : "bg-secondary text-muted-foreground border border-border hover:bg-muted"

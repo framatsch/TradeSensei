@@ -38,9 +38,9 @@ export function AccountClearTradesModal({ account, onClose, onClearTrades, isCle
   const canClear = confirmName.trim() === account.name && !isClearing;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
       <div 
-        className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200"
+        className="panel-float max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${uid}-title`}
@@ -94,7 +94,7 @@ export function AccountClearTradesModal({ account, onClose, onClearTrades, isCle
               <button
                 onClick={handleClear}
                 disabled={!canClear}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-destructive-foreground rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
                 {isClearing ? "Clearing..." : "Clear All Trades"}

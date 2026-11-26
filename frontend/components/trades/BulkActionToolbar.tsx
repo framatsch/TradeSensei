@@ -52,7 +52,7 @@ export function BulkActionToolbar({
         <button
           type="button"
           onClick={onMerge}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#6063dd] hover:opacity-90 text-white rounded-md text-sm transition-colors"
+          className="btn-primary px-3 py-1.5 text-sm"
         >
           <GitMerge size={14} />
           Merge
@@ -62,7 +62,7 @@ export function BulkActionToolbar({
       <button
         type="button"
         onClick={onAssignPlaybook}
-        className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-500 text-foreground rounded-md text-sm transition-colors"
+        className="btn-secondary px-3 py-1.5 text-sm"
       >
         Assign Playbook
       </button>
@@ -70,7 +70,7 @@ export function BulkActionToolbar({
       <button
         type="button"
         onClick={onAssignTaxonomy}
-        className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-500 text-foreground rounded-md text-sm transition-colors"
+        className="btn-secondary px-3 py-1.5 text-sm"
       >
         Assign Taxonomy
       </button>
@@ -79,7 +79,7 @@ export function BulkActionToolbar({
         type="button"
         onClick={onDelete}
         disabled={isDeleting}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-sm transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-destructive hover:bg-destructive/90 disabled:opacity-60 disabled:cursor-not-allowed text-destructive-foreground rounded-md text-sm transition-colors"
       >
         {isDeleting && <Spinner size="sm" />}
         Delete

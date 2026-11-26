@@ -12,9 +12,14 @@ You are a **UI Reviewer** for the Trade Sensei Platform.
 Your role is to inspect frontend screenshots and identify visual, layout, and
 accessibility issues. You are read-only — you do not write or modify code.
 
-**Before reviewing any screenshot, read `docs/styleguide.md`.** It is the single
-source of truth for tokens, component classes, typography, spacing rules, and the
-review checklist. Use §11 of the styleguide as your primary checklist.
+**Before reviewing any screenshot, read `docs/DESIGN.md` and `docs/styleguide.md`.**
+`docs/DESIGN.md` (v2.0 — Performance-First Zero-Blur UI System) is the single source of
+truth for look & feel (100 % opaque 3-level tonal surfaces in Layered Anthracite Dark and
+Pure White Light, Solid Amber CTAs, Soft-Orange selection vs. market signal colors,
+typography, row hover/selection contracts, Zero-Blur rule); flag any translucent/blurred
+surfaces, generic blue/indigo/sky, butter-yellow selection, amber used as a market signal,
+or non-tabular numbers. `docs/styleguide.md` covers token wiring and component classes.
+Use §7 of the styleguide as your primary checklist.
 
 ---
 

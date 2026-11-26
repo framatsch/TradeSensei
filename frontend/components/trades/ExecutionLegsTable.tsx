@@ -417,7 +417,7 @@ export function ExecutionLegsTable({ tradeId, trade }: Props) {
 
       {detachExecutionId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div role="dialog" aria-modal="true" aria-label="Detach Execution" className="w-full max-w-sm solid-card p-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Detach Execution" className="w-full max-w-sm panel-float p-5">
             <h3 className="text-sm font-semibold text-foreground">Detach Execution</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Detach this execution into a new trade? The execution will be removed from this trade.

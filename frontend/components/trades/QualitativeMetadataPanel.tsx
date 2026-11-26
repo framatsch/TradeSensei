@@ -260,7 +260,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId, onDirtyChange }: 
           )}
           {isDirty && (
             <div className="hidden lg:flex items-center gap-3">
-              <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
+              <span className="text-xs text-warning font-medium">Unsaved changes</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleCancel}
@@ -396,7 +396,7 @@ export function QualitativeMetadataPanel({ trade, portfolioId, onDirtyChange }: 
                 <button
                   type="button"
                   onClick={() => setJournalTab("preview")}
-                  className="px-3 py-1.5 text-xs font-medium bg-primary hover:bg-primary/90 text-white rounded-md transition-colors"
+                  className="px-3 py-1.5 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-md transition-colors"
                 >
                   Done Editing
                 </button>

@@ -60,6 +60,7 @@ OpenSpec command wrappers: `.opencode/command/opsx-{propose,explore,apply,archiv
 - **Migrations:** Alembic only — never alter schema by hand.
 - **Packages:** `uv add` only — never `pip install`.
 - **Frontend:** No `dark:` modifier — use semantic tokens (`bg-background`, `text-foreground`, …). Theme switches automatically.
+- **UI & Design:** **`docs/DESIGN.md` (v2.0 — Performance-First Zero-Blur UI System) is mandatory for every UI change** (single source of truth for look & feel). Layered Anthracite Dark (default, `#11141B` canvas / `#191E28` panels) and Pure White Light (`#F8F9FB` canvas / `#FFFFFF` panels) with 100 % opaque surfaces; no `blue-*`/`indigo-*`/`sky-*`; Solid Amber CTAs and Soft-Orange selection = UI interaction only, `success`/`danger`/`warning` = market signals only (caution always `1px dashed`); `font-mono` + `tabular-nums` on all numbers; **Zero-Blur**: never use `backdrop-filter`, `backdrop-blur-*`, ambient orbs or `.glass-*`. See `AGENTS.md` § UI & Design System.
 - **Commits:** Only when the user explicitly asks.
 
 <!-- OCR:START -->

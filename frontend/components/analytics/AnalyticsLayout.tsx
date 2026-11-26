@@ -97,7 +97,7 @@ export function AnalyticsLayout({
       <div className="flex min-h-[560px] pt-4">
         {/* Left vertical navigation rail — fixed width, full-height bg */}
         <nav
-          className="flex flex-col w-[196px] shrink-0 border-r border-border bg-muted/20 -ml-1 pl-1 pr-3 pt-1"
+          className="flex flex-col w-[196px] shrink-0 border-r border-border bg-transparent -ml-1 pl-1 pr-3 pt-1"
           aria-label="Analytics sections"
         >
           {tabs.map((tab) => {
@@ -110,10 +110,10 @@ export function AnalyticsLayout({
                 aria-selected={isActive}
                 title={tab.description}
                 className={[
-                  "flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-medium rounded-md transition-all text-left",
+                  "flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-medium rounded-md transition-colors text-left",
                   isActive
-                    ? "bg-primary/20 text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    ? "nav-active font-medium"
+                    : "sidebar-item text-muted-foreground",
                 ].join(" ")}
               >
                 <span

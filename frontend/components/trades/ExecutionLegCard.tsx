@@ -71,7 +71,7 @@ export function ExecutionLegCard({ execution, trade, tradeId, onMoveToTrade, onD
   return (
     <article
       data-testid="execution-leg-card"
-      className={`solid-card min-w-0 p-4 ${isDeleted ? "opacity-50" : isConflict ? "border-l-[3px] border-l-warning bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]" : ""}`}
+      className={`panel-sub min-w-0 p-4 ${isDeleted ? "opacity-50" : isConflict ? "border-l-[3px] border-l-warning bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]" : ""}`}
     >
       {editor.isEditing && !isDeleted ? (
         <form onSubmit={editor.handleSave} noValidate aria-label="Edit execution" aria-busy={editor.updateExecution.isPending} className="space-y-3">

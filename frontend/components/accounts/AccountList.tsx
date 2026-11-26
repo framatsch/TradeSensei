@@ -63,7 +63,7 @@ function TypeBadge({ type, hasApiKeys }: { type: AccountType; hasApiKeys: boolea
       {hasApiKeys && (
         <span
           title="API credentials stored"
-          className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-900/40 border border-emerald-700 text-emerald-400 text-xs leading-none"
+          className="inline-flex items-center justify-center w-4 h-4 rounded-full badge-positive text-xs leading-none"
         >
           🔑
         </span>
@@ -124,7 +124,7 @@ export function AccountList({ accounts }: Props) {
             setShowNewForm(true);
             setEditingId(null);
           }}
-          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-sm transition-colors"
         >
           + New Account
         </button>
@@ -167,7 +167,7 @@ export function AccountList({ accounts }: Props) {
               {accounts.map((account) => (
                 <React.Fragment key={account.id}>
                   <tr
-                    className="border-b border-border/50 hover:bg-secondary/30 transition-colors"
+                    className="wl-row"
                   >
                     <td className="px-4 py-3 text-sm font-medium text-foreground">
                       {account.name}

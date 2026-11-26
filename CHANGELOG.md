@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [docs] Added `docs/DESIGN.md` v2.0 (Performance-First UI System) as the mandatory single source of truth for look & feel, anchored in `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, the frontend/UI-reviewer agent files and `docs/styleguide.md`.
+- [frontend] Added guard tests `globals-theme-parity.test.ts` (every design token defined for Light and Dark) and `zero-blur-guard.test.ts` (no `backdrop-filter`, `backdrop-blur-*`, ambient orbs or `.glass-*`).
+
+### Changed
+- [frontend] Simplified the whole UI to opaque solid colors for smooth 60 FPS rendering (no blur, glass or ambient-orb effects): Layered Anthracite Dark (now the default theme, `#11141B` canvas / `#191E28` panels) and Pure White Light (`#F8F9FB` / `#FFFFFF`) with 100 % opaque surfaces, Solid Amber primary CTAs, Soft-Orange selection and opaque `.panel-float` modals and dropdowns. Layout, routing and behavior are unchanged.
+- [frontend] Switched typography from Geist to `Inter` + `IBM Plex Mono` with tabular numerals on all numbers (`.font-mono`, `.tnum`).
+- [frontend] Unified table and list row interactions (`.wl-row`): opaque hover, amber left edge and focus dot on selection, and `.dimmed` rows at 70 % opacity that snap back on hover.
+- [frontend] Strictly separated UI focus (amber) from market signals (`success`/`danger`/`warning`); caution banners and badges now use a `1px dashed` border.
+- [frontend] Charts (monthly P&L/win rate, return distribution, P&L by symbol/asset class, rolling win rate, performance analysis, dashboard equity header) now use theme tokens instead of hardcoded dark-only colors, so tooltips, grids, axes and P&L colors adapt to Light mode.
+- [frontend] Replaced the app logo, favicon (`app/icon.svg`), Apple touch icon and PWA icons with the new amber hexagon logo; the maskable PWA icon now keeps the logo inside the 80 % safe zone.
+
+### Fixed
+- [frontend] Fixed unreadable white text on amber and rose buttons (`bg-primary`/`bg-destructive` with `text-white`) by using the semantic `*-foreground` tokens.
+- [frontend] Fixed Tailwind opacity modifiers (`bg-primary/10`, `border-border/50`, …) being dropped on CSS-variable colors by wrapping semantic colors in `color-mix`.
+- [frontend] Fixed error and warning boxes in login, registration, password reset, trade form and import form being hard to read in Light mode (hardcoded dark-only red/amber classes replaced with `surface-danger` / `surface-caution`).
+- [frontend] Fixed the trade row notes button ignoring its hover highlight because of hardcoded inline colors.
+- [frontend] Removed the duplicate `ThemeProvider` from `app/providers.tsx`.
+
 ## [1.20.0] - 2026-11-16
 
 ### Added

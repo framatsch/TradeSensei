@@ -46,7 +46,7 @@ export function AnnotationInputs({ definitions, values, onChange, disabled }: Pr
     onChange(newValues);
   };
 
-  const inputCls = `w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed ${disabled ? 'appearance-none' : ''}`;
+  const inputCls = `w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed ${disabled ? 'appearance-none' : ''}`;
   const labelCls = "block text-xs font-medium text-muted-foreground mb-1.5";
 
   return (
@@ -79,7 +79,7 @@ export function AnnotationInputs({ definitions, values, onChange, disabled }: Pr
                   disabled={disabled}
                   onChange={(e) => handleChange(def.id, e.target.checked)}
                 />
-                <div className="w-11 h-6 bg-secondary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <div className="w-11 h-6 bg-secondary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#f4f4f5] after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-primary"></div>
               </label>
             )}
             

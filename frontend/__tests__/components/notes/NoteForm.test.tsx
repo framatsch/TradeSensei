@@ -80,7 +80,7 @@ describe("NoteForm", () => {
       target: { value: "a".repeat(NOTE_WARN_LENGTH) },
     });
     const counter = screen.getByText(`${NOTE_WARN_LENGTH}/${NOTE_MAX_LENGTH}`);
-    expect(counter.className).toContain("text-amber-500");
+    expect(counter.className).toContain("text-warning");
   });
 
   it("counter turns red and Save button is disabled when over 5000 chars", () => {
@@ -90,7 +90,7 @@ describe("NoteForm", () => {
       target: { value: "a".repeat(NOTE_MAX_LENGTH + 1) },
     });
     const counter = screen.getByText(`${NOTE_MAX_LENGTH + 1}/${NOTE_MAX_LENGTH}`);
-    expect(counter.className).toContain("text-red-500");
+    expect(counter.className).toContain("text-danger");
     expect(screen.getByRole("button", { name: "Add Note" })).toBeDisabled();
   });
 

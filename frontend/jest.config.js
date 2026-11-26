@@ -21,6 +21,7 @@ const config = {
     "^.+\\.(js|jsx|ts|tsx)$": ["babel-jest", { configFile: "./babel.jest.config.js" }],
   },
   moduleNameMapper: {
+    "^next/font/google$": "<rootDir>/__mocks__/nextFontGoogleMock.js",
     "^@/(.*)$": "<rootDir>/$1",
     "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
     "^.+\\.(png|jpg|jpeg|gif|svg|ico|webp)$": "<rootDir>/__mocks__/fileMock.js",

@@ -157,7 +157,7 @@ export function TradeScreenshotUploader({ onUploaded, disabled = false }: Props)
             <span className="text-xs text-muted-foreground">
               <span className="text-primary font-medium">Click</span> or drag & drop
               <span className="mx-1 text-muted-foreground/40">·</span>
-              <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border dark:border-border rounded">⌘V</kbd> to paste
+              <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border rounded">⌘V</kbd> to paste
             </span>
             <span className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP · max 20 MB</span>
           </>

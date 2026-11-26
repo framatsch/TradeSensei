@@ -50,8 +50,8 @@ export function TradingLogSidebar() {
     window.open(`/api/v1/trades/export?${currentQuery}`, "_blank");
   };
 
-  const SECTION_HEADER_CLASS = "px-4 pt-4 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-slate-500 select-none";
-  const NAV_ITEM_CLASS = "w-full flex items-center gap-3 px-4 py-2 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all duration-150 text-left";
+  const SECTION_HEADER_CLASS = "px-4 pt-4 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-muted-foreground select-none";
+  const NAV_ITEM_CLASS = "w-full flex items-center gap-3 px-4 py-2 text-sm font-normal text-muted-foreground sidebar-item transition-colors duration-150 text-left";
 
   const renderViewItem = (id: string, name: string, definition?: SavedTradeFilterRead["definition"], isSystem = false) => {
     const isActive = activeViewId === id;
@@ -64,9 +64,9 @@ export function TradingLogSidebar() {
         }}
         className={`w-full flex items-center gap-2.5 py-1.5 pr-4 pl-3 text-sm font-normal rounded-md ${
           isActive
-            ? "text-foreground font-medium bg-muted/40"
-            : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
-        } transition-all duration-150 text-left`}
+            ? "nav-active font-medium"
+            : "sidebar-item text-muted-foreground"
+        } transition-colors duration-150 text-left`}
       >
         <span className={`shrink-0 ${isActive ? "text-primary" : "opacity-50"}`}>
           {isSystem ? <Lock className="w-3.5 h-3.5" /> : <Filter className="w-3.5 h-3.5" />}
@@ -82,7 +82,7 @@ export function TradingLogSidebar() {
   const isAllTradesActive = !activeViewId || activeViewId === "all";
 
   return (
-    <div className="w-64 h-full flex flex-col bg-sidebar overflow-y-auto pb-6">
+    <div className="w-64 h-full flex flex-col surface-chrome overflow-y-auto pb-6">
       <div className={SECTION_HEADER_CLASS}>Actions</div>
       <div className="space-y-0.5">
         <Link href="/dashboard/trades/new" className={NAV_ITEM_CLASS}>
@@ -103,7 +103,7 @@ export function TradingLogSidebar() {
       <div className="relative">
         <button
           onClick={() => handleViewClick("all")}
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-all duration-150 text-left ${
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-150 text-left ${
             isAllTradesActive
               ? "font-medium text-foreground bg-muted/20"
               : "font-normal text-muted-foreground hover:text-foreground hover:bg-muted/20"

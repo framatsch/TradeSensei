@@ -924,7 +924,7 @@ export function AnnotationManager() {
                   </div>
                   <div
                     title={(ann.usage_count ?? 0) > 0 ? `Used ${ann.usage_count} time${ann.usage_count === 1 ? "" : "s"}` : "Not in use"}
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${(ann.usage_count ?? 0) > 0 ? "bg-green-500" : "bg-muted-foreground/30"}`}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${(ann.usage_count ?? 0) > 0 ? "bg-success" : "bg-muted-foreground/30"}`}
                   />
                 </div>
               </div>

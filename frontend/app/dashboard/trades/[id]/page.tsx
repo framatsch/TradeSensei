@@ -64,10 +64,10 @@ function PnlDisplay({
   const num = parseFloat(value);
   const color =
     num >= 0
-      ? "text-emerald-500 dark:text-emerald-400"
-      : "text-red-500 dark:text-red-400";
+      ? "text-success"
+      : "text-danger";
   const prefix = num >= 0 ? "+" : "";
-  const sizeClasses = size === "large" ? "text-xl font-bold" : "font-semibold";
+  const sizeClasses = size === "large" ? "text-xl font-bold font-mono" : "font-semibold font-mono";
   return (
     <span className={`${sizeClasses} ${color}`}>
       {prefix}${Math.abs(num).toFixed(2)}
@@ -238,7 +238,7 @@ export default function TradeDetailPage() {
   if (isError || !trade) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
-        <p className="text-red-400 font-medium mb-2">
+        <p className="text-danger font-medium mb-2">
           {isError ? "Failed to load trade." : "Trade not found."}
         </p>
         {isError && (
@@ -246,7 +246,7 @@ export default function TradeDetailPage() {
         )}
         <Link
           href={navigation.backHref}
-          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-sm transition-colors"
         >
           Back to Trades
         </Link>
@@ -382,8 +382,8 @@ export default function TradeDetailPage() {
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium ${
                   isLong
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
-                    : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-800"
+                    ? "badge-positive"
+                    : "badge-negative"
                 }`}
               >
                 {trade.direction}
@@ -409,15 +409,15 @@ export default function TradeDetailPage() {
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-1.5">
               {trade.is_manually_edited && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-caution">
                   Manually Edited
                 </span>
               )}
               <span
                 className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wide ${
                   isOpen
-                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 border border-border"
+                    ? "badge-caution"
+                    : "badge-neutral"
                 }`}
               >
                 {isOpen ? "Open" : "Closed"}
@@ -472,7 +472,7 @@ export default function TradeDetailPage() {
       )}
 
       {trade.has_unlinked_executions && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-md surface-caution px-4 py-3 text-sm">
           This protected trade has unlinked executions from import. Review execution legs and attach outstanding broker legs if needed.
         </div>
       )}
@@ -550,12 +550,12 @@ export default function TradeDetailPage() {
                     Realized R <MetricHelpLink anchor="realized-r" />
                   </span>
                   <span
-                    className={`font-semibold ${
+                    className={`font-semibold font-mono ${
                       realizedR === null
-                        ? "text-zinc-400"
+                        ? "text-muted-foreground"
                         : realizedR >= 0
-                        ? "text-emerald-500 dark:text-emerald-400"
-                        : "text-red-500 dark:text-red-400"
+                        ? "text-success"
+                        : "text-danger"
                     }`}
                   >
                     {realizedR !== null
@@ -568,7 +568,7 @@ export default function TradeDetailPage() {
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Planned RRR <MetricHelpLink anchor="planned-rrr" />
                   </span>
-                  <span className="font-mono lg:font-sans font-medium text-foreground">
+                  <span className="font-mono font-medium text-foreground">
                     {plannedRrr !== null ? `1 : ${plannedRrr.toFixed(2)}` : "—"}
                   </span>
                 </div>
@@ -577,7 +577,7 @@ export default function TradeDetailPage() {
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     Initial Risk <MetricHelpLink anchor="initial-risk" />
                   </span>
-                  <span className="font-mono lg:font-sans font-medium text-foreground">
+                  <span className="font-mono font-medium text-foreground">
                     {initialRisk !== null ? `$${initialRisk.toFixed(2)}` : "—"}
                   </span>
                 </div>
@@ -587,12 +587,12 @@ export default function TradeDetailPage() {
                     Return % <MetricHelpLink anchor="return-pct" />
                   </span>
                   <span
-                    className={`font-medium ${
+                    className={`font-medium font-mono ${
                       returnPct === null
-                        ? "text-zinc-400"
+                        ? "text-muted-foreground"
                         : returnPct >= 0
-                        ? "text-emerald-500 dark:text-emerald-400"
-                        : "text-red-500 dark:text-red-400"
+                        ? "text-success"
+                        : "text-danger"
                     }`}
                   >
                     {returnPct !== null

@@ -19,21 +19,21 @@
 
 /**
  * Common colors used in Recharts components.
- * These should ideally match the CSS variables in globals.css.
+ * Aligned with docs/DESIGN.md v2.0 CSS variables in globals.css.
  */
 export const CHART_COLORS = {
-  grid: "var(--border)",
+  grid: "var(--chart-grid)",
   tick: "var(--muted-foreground)",
   axis: "var(--border)",
   tooltip: {
-    bg: "var(--card)",
-    border: "var(--border)",
+    bg: "var(--bg-panel)",
+    border: "var(--border-panel)",
     text: "var(--foreground)",
     label: "var(--muted-foreground)",
   },
   // Data colors
-  primary: "#8b5cf6", // Violet 500 (Obsidian style)
-  success: "#10b981", // emerald-500
-  danger: "#f43f5e",  // rose-500
-  warning: "#f59e0b", // amber-500
+  primary: "var(--amber)",
+  success: "var(--emerald-chart)",
+  danger: "var(--rose)",
+  warning: "var(--caution-border)",
 };

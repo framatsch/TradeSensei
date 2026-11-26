@@ -70,32 +70,32 @@ export function CorrectTradeModal({ trade, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm solid-card p-6 shadow-2xl">
+      <div className="w-full max-w-sm panel-float p-6">
         <h2 className="mb-1 text-lg font-bold text-foreground">Correct Trade</h2>
         <p className="mb-5 text-xs text-muted-foreground">
           These fields affect trade identity. Only change them to fix import errors.
         </p>
 
         {/* Warning banner */}
-        <div className="mb-5 flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
+        <div className="mb-5 flex items-start gap-2 rounded-md surface-caution px-3 py-2.5">
           <svg
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"
+            className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
           >
             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <line x1="12" y1="9" x2="12" y2="13" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
-          <span className="text-xs text-amber-700 dark:text-amber-400">
+          <span className="text-xs text-warning">
             Saving will mark this trade as manually edited and may affect aggregation.
           </span>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
+          <div className="mb-4 rounded-md surface-danger border p-3 text-sm text-danger">
             {errorMsg}
           </div>
         )}
@@ -153,7 +153,7 @@ export function CorrectTradeModal({ trade, onClose }: Props) {
             <button
               type="submit"
               disabled={updateTrade.isPending}
-              className="rounded-md bg-[#6063dd] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+              className="btn-primary disabled:opacity-50"
             >
               {updateTrade.isPending ? "Saving…" : "Save Correction"}
             </button>

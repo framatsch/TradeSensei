@@ -282,7 +282,7 @@ function TradingViewFallback({ symbol }: { symbol: string }) {
           href={`https://www.tradingview.com/chart/?symbol=${cleanSymbol}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-primary transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
         >
           <svg
             viewBox="0 0 24 24"
@@ -308,11 +308,11 @@ function ChartSkeleton() {
   return (
     <div className="w-full h-full flex flex-col gap-2 p-3 animate-pulse">
       <div className="flex gap-2 items-center">
-        <div className="h-6 w-24 rounded bg-zinc-700/50" />
-        <div className="h-6 w-16 rounded bg-zinc-700/30" />
-        <div className="h-6 w-16 rounded bg-zinc-700/30" />
+        <div className="h-6 w-24 rounded bg-muted/60" />
+        <div className="h-6 w-16 rounded bg-muted/40" />
+        <div className="h-6 w-16 rounded bg-muted/40" />
       </div>
-      <div className="flex-1 rounded-lg bg-zinc-800/40" />
+      <div className="flex-1 rounded-lg bg-secondary" />
     </div>
   );
 }
@@ -1001,12 +1001,12 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
     <div className="w-full h-full flex flex-col relative">
       {/* Interval toolbar */}
       <div className="relative lg:static shrink-0 flex flex-wrap lg:flex-nowrap items-center gap-1.5 px-3 pt-3 pb-2">
-        <div className="flex max-w-full flex-wrap lg:max-w-none lg:flex-nowrap p-0.5 rounded-full bg-secondary border border-border backdrop-blur-md shadow-inner">
+        <div className="flex max-w-full flex-wrap lg:max-w-none lg:flex-nowrap p-0.5 rounded-full bg-secondary border border-border shadow-inner">
           {allowedIntervals.map((iv) => (
             <button
               key={iv}
               onClick={() => handleIntervalChange(iv)}
-              className={`relative px-3.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 ${
+              className={`relative px-3.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-colors duration-300 ${
                 interval === iv
                   ? "bg-primary text-primary-foreground border border-primary/80"
                   : "text-muted-foreground hover:text-foreground hover:bg-foreground/5 border border-transparent"
@@ -1014,7 +1014,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             >
               {iv}
               {interval === iv && (
-                <span className="hidden dark:block absolute inset-0 rounded-full bg-primary/10 blur-[2px] animate-pulse" />
+                <span className="block absolute inset-0 rounded-full bg-primary/10 blur-[2px] animate-pulse" />
               )}
             </button>
           ))}
@@ -1027,7 +1027,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
               const mode = e.target.value;
               if (mode === "full" || mode === "to-exit" || mode === "to-entry") setChartMode(mode);
             }}
-            className="appearance-none px-3 pr-7 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80 outline-none cursor-pointer shadow-inner"
+            className="appearance-none px-3 pr-7 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-colors duration-300 border bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80 outline-none cursor-pointer shadow-inner"
             title="Chart Data Range"
           >
             <option value="full">Full Chart</option>
@@ -1052,7 +1052,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             onClick={() => fetchAndRender(interval, true)}
             title="Refresh"
             disabled={loading}
-            className={`flex items-center justify-center p-1.5 rounded-full transition-all duration-300 border shadow-inner ${
+            className={`flex items-center justify-center p-1.5 rounded-full transition-colors duration-300 border shadow-inner ${
               loading
                 ? "bg-secondary border-border text-muted-foreground opacity-50 cursor-not-allowed"
                 : "bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80"
@@ -1070,7 +1070,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
             onClick={() => setIsOptionsOpen(!isOptionsOpen)}
             title="Chart Display Options"
             aria-expanded={isOptionsOpen}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all duration-300 border shadow-inner ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-colors duration-300 border shadow-inner ${
               isOptionsOpen
                 ? "bg-primary/20 text-primary border-primary/30"
                 : "bg-secondary text-muted-foreground border-border hover:text-foreground hover:bg-secondary/80"
@@ -1115,7 +1115,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
           target="_blank"
           rel="noopener noreferrer"
           title="Open in TradingView"
-          className="group inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold bg-primary text-primary-foreground hover:opacity-90 border border-primary/80 transition-all duration-300 shadow-sm"
+          className="group inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold bg-primary text-primary-foreground hover:opacity-90 border border-primary/80 transition-colors duration-300 shadow-sm"
         >
           <svg
             viewBox="0 0 24 24"
@@ -1141,7 +1141,7 @@ export function TradeChart({ trade, executions }: TradeChartProps) {
         )}
         {noData && !loading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4">
-            <div className="bg-secondary/40 border border-border/50 px-6 py-5 rounded-2xl flex flex-col items-center gap-3 max-w-sm text-center backdrop-blur-sm shadow-sm">
+            <div className="bg-secondary/40 border border-border/50 px-6 py-5 rounded-2xl flex flex-col items-center gap-3 max-w-sm text-center shadow-sm">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-muted-foreground/60">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />

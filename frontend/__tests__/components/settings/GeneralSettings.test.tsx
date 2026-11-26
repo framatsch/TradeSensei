@@ -21,9 +21,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import "@testing-library/jest-dom";
 
+const mockSetTheme = jest.fn();
 jest.mock("@/hooks/useSettings");
 jest.mock("next-themes", () => ({
-  useTheme: () => ({ theme: "system", setTheme: jest.fn() }),
+  useTheme: () => ({ theme: "system", setTheme: mockSetTheme }),
 }));
 jest.mock("react-hot-toast", () => ({
   toast: {
@@ -107,7 +108,29 @@ describe("GeneralSettings", () => {
         home_route: "/dashboard/trades",
         theme: "system",
       });
+      expect(mockSetTheme).toHaveBeenCalledWith("system");
       expect(toast.success).toHaveBeenCalledWith("Settings saved successfully");
+    });
+  });
+
+  it("defers theme switch and persistence until Save Settings is clicked", async () => {
+    renderComponent();
+
+    const lightButton = screen.getByRole("button", { name: "Light" });
+    fireEvent.click(lightButton);
+
+    // Selecting a theme option must not immediately apply or persist it
+    expect(mockSetTheme).not.toHaveBeenCalled();
+    expect(mockMutateAsync).not.toHaveBeenCalled();
+
+    const saveButton = screen.getByRole("button", { name: "Save Settings" });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "light" })
+      );
+      expect(mockSetTheme).toHaveBeenCalledWith("light");
     });
   });
 });

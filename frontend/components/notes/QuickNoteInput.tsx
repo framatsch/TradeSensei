@@ -68,7 +68,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
   };
 
   return (
-    <div className="mt-1 p-3 bg-zinc-50/80 dark:bg-zinc-900/80 border border-border dark:border-border rounded-lg">
+    <div className="mt-1 p-3 panel-sub">
       <textarea
         autoFocus
         value={content}
@@ -76,7 +76,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
         onKeyDown={handleKeyDown}
         placeholder="Live observation (e.g. 'Entering scaling out 50%')… (Ctrl+Enter to save)"
         rows={2}
-        className="w-full px-2 py-1.5 rounded bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary text-xs resize-none"
+        className="w-full px-2 py-1.5 rounded bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary text-xs resize-none"
       />
       <div className="mt-2 flex justify-between items-center gap-2">
         <input
@@ -85,7 +85,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
           onChange={(e) => setEmotion(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Emotion (optional)"
-          className="w-40 px-2 py-1 text-xs rounded bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-40 px-2 py-1 text-xs rounded bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
         <div className="flex gap-2">
           <button
@@ -99,7 +99,7 @@ export function QuickNoteInput({ tradeId, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!content.trim() || isPending}
-            className="px-3 py-1 text-xs font-medium bg-primary hover:bg-primary/90 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? "Saving…" : "Save"}
           </button>

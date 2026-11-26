@@ -223,7 +223,7 @@ export function ExecutionSummaryCard({ trade, executions }: Props) {
               {rows.map((row) => {
                 const label = formatCompactContractLabel(row.optionType, row.strike);
                 return (
-                  <tr key={`${row.symbol}-${row.assetClass}-${row.optionType ?? "none"}-${row.strike ?? "none"}-${row.expiry ?? "none"}-${row.conid ?? "none"}`} className="border-b border-[color-mix(in_srgb,var(--border)_60%,transparent)] last:border-b-0">
+                  <tr key={`${row.symbol}-${row.assetClass}-${row.optionType ?? "none"}-${row.strike ?? "none"}-${row.expiry ?? "none"}-${row.conid ?? "none"}`} className="wl-row border-b border-[color-mix(in_srgb,var(--border)_60%,transparent)] last:border-b-0">
                     <td className="px-3 py-2">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-muted text-foreground border border-border">
                         {row.direction}

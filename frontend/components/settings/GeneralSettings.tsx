@@ -76,6 +76,7 @@ export function GeneralSettings() {
   const [chartIntervals, setChartIntervals] = useState<Array<"1h" | "4h" | "1d" | "1w">>(["1h", "4h", "1d", "1w"]);
 
   const { theme, setTheme } = useTheme();
+  const [selectedTheme, setSelectedTheme] = useState<Theme>((theme as Theme) || "dark");
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +106,9 @@ export function GeneralSettings() {
       setShowPostExit(settings.chart_show_post_exit ?? false);
       setHomeRoute(settings.home_route ?? "/dashboard");
       setChartIntervals(settings.chart_intervals ?? ["1h", "4h", "1d", "1w"]);
+      if (settings.theme) {
+        setSelectedTheme(settings.theme);
+      }
     }
   }, [settings]);
 
@@ -134,9 +138,10 @@ export function GeneralSettings() {
         chart_candles_after: after,
         chart_show_post_exit: showPostExit,
         home_route: homeRoute,
-        theme: theme as Theme,
+        theme: selectedTheme,
         chart_intervals: chartIntervals,
       });
+      setTheme(selectedTheme);
       toast.success("Settings saved successfully");
       queryClient.invalidateQueries({ queryKey: ["users", "me", "settings"] });
     } catch (err) {
@@ -148,7 +153,7 @@ export function GeneralSettings() {
         setShowPostExit(settings.chart_show_post_exit ?? false);
         setHomeRoute(settings.home_route ?? "/dashboard");
         setChartIntervals(settings.chart_intervals ?? ["1h", "4h", "1d", "1w"]);
-        setTheme(settings.theme ?? "system");
+        setSelectedTheme(settings.theme ?? ((theme as Theme) || "dark"));
       }
     } finally {
       setIsSaving(false);
@@ -156,8 +161,7 @@ export function GeneralSettings() {
   };
 
   const handleThemeChange = (value: Theme) => {
-    setTheme(value);
-    updateSettings({ theme: value });
+    setSelectedTheme(value);
   };
 
   const handleIntervalToggle = (interval: "1h" | "4h" | "1d" | "1w") => {
@@ -205,8 +209,8 @@ export function GeneralSettings() {
                 key={opt.value}
                 type="button"
                 onClick={() => handleThemeChange(opt.value)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                  theme === opt.value
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors duration-200 ${
+                  selectedTheme === opt.value
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-card text-muted-foreground border-border hover:bg-muted"
                 }`}
@@ -260,7 +264,7 @@ export function GeneralSettings() {
           >
             <span
               aria-hidden="true"
-              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[#f4f4f5] shadow ring-0 transition duration-200 ease-in-out ${
                 showPostExit ? "translate-x-4" : "translate-x-0"
               }`}
             />
@@ -354,8 +358,8 @@ export function GeneralSettings() {
       </div>
 
       {showClearCacheConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border p-6 rounded-lg max-w-sm w-full shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="panel-float p-6 max-w-sm w-full">
             <h3 className="text-lg font-medium text-destructive flex items-center gap-2 mb-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
               Clear Global Chart Cache?

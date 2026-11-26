@@ -570,7 +570,7 @@ export function ReportFilterBar() {
       {/* Save View Modal */}
       {showSaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-2xl">
+          <div className="w-full max-w-md panel-float p-6">
             <h2 className="mb-4 text-base font-semibold text-foreground">Save Current View</h2>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">View Name</label>
             <input
@@ -597,7 +597,7 @@ export function ReportFilterBar() {
                 type="button"
                 disabled={!saveViewName.trim() || saveViewMutation.isPending}
                 onClick={handleSaveView}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
                 {saveViewMutation.isPending ? "Saving…" : "Save View"}
               </button>
@@ -609,7 +609,7 @@ export function ReportFilterBar() {
       {/* Rename View Modal */}
       {showRenameModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-2xl">
+          <div className="w-full max-w-md panel-float p-6">
             <h2 className="mb-4 text-base font-semibold text-foreground">Rename View</h2>
             <input
               type="text"
@@ -634,7 +634,7 @@ export function ReportFilterBar() {
                 type="button"
                 disabled={!saveViewName.trim() || updateViewMutation.isPending}
                 onClick={handleRenameView}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
                 {updateViewMutation.isPending ? "Saving…" : "Save"}
               </button>

@@ -86,7 +86,7 @@ export function SettingsPageClient() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"

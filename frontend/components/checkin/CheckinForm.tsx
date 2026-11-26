@@ -810,7 +810,7 @@ export function CheckinForm({
                             prev.filter((_, idx) => idx !== i)
                           );
                         }}
-                        className="absolute top-1.5 right-1.5 bg-background/85 hover:bg-destructive hover:text-destructive-foreground text-foreground p-1 rounded-md opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                        className="absolute top-1.5 right-1.5 bg-background/85 hover:bg-destructive hover:text-destructive-foreground text-foreground p-1 rounded-md opacity-0 group-hover:opacity-100 transition-colors shadow-sm"
                         aria-label="Remove screenshot"
                       >
                         <X className="w-3.5 h-3.5" />
