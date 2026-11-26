@@ -139,8 +139,8 @@ function CorporateActionModal({
       : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card rounded-xl border border-border shadow-xl p-6 w-full max-w-md mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="panel-float p-6 w-full max-w-md mx-4">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <button
@@ -159,7 +159,7 @@ function CorporateActionModal({
           {/* Symbol */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Symbol <span className="text-red-500">*</span>
+              Symbol <span className="text-danger">*</span>
             </label>
             <input
               type="text"
@@ -173,7 +173,7 @@ function CorporateActionModal({
           {/* Date */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Split Date <span className="text-red-500">*</span>
+              Split Date <span className="text-danger">*</span>
             </label>
             <input
               type="date"
@@ -186,7 +186,7 @@ function CorporateActionModal({
           {/* Ratio */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Split Ratio <span className="text-red-500">*</span>
+              Split Ratio <span className="text-danger">*</span>
             </label>
             <div className="flex items-center gap-2">
               <div className="flex-1">
@@ -202,7 +202,7 @@ function CorporateActionModal({
                 />
               </div>
               <div className="flex items-end pb-2">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-zinc-400 mt-5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-muted-foreground mt-5">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
                 </svg>
@@ -231,7 +231,7 @@ function CorporateActionModal({
           {/* Old Conid */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              Old Conid <span className="text-zinc-400 font-normal">(optional — IBKR)</span>
+              Old Conid <span className="text-muted-foreground font-normal">(optional — IBKR)</span>
             </label>
             <input
               type="text"
@@ -245,7 +245,7 @@ function CorporateActionModal({
           {/* New Conid */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">
-              New Conid <span className="text-zinc-400 font-normal">(optional — IBKR)</span>
+              New Conid <span className="text-muted-foreground font-normal">(optional — IBKR)</span>
             </label>
             <input
               type="text"
@@ -258,7 +258,7 @@ function CorporateActionModal({
         </div>
 
         {submitError && (
-          <p className="mt-3 text-sm text-red-500">{submitError}</p>
+          <p className="mt-3 text-sm text-danger">{submitError}</p>
         )}
 
         <div className="flex justify-end gap-3 mt-6">
@@ -273,7 +273,7 @@ function CorporateActionModal({
             type="button"
             onClick={onSubmit}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground transition-colors"
           >
             {isSubmitting ? "Saving..." : submitLabel}
           </button>
@@ -294,8 +294,8 @@ interface DeleteDialogProps {
 
 function DeleteConfirmDialog({ ca, onConfirm, onCancel, isDeleting }: DeleteDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card rounded-xl border border-border shadow-xl p-6 w-full max-w-sm mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="panel-float p-6 w-full max-w-sm mx-4">
         <h2 className="text-base font-semibold text-foreground mb-2">Delete Corporate Action</h2>
         <p className="text-sm text-muted-foreground mb-5">
           Are you sure you want to delete the{" "}
@@ -315,7 +315,7 @@ function DeleteConfirmDialog({ ca, onConfirm, onCancel, isDeleting }: DeleteDial
             type="button"
             onClick={onConfirm}
             disabled={isDeleting}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-destructive hover:bg-destructive/90 disabled:opacity-50 text-destructive-foreground transition-colors"
           >
             {isDeleting ? "Deleting..." : "Delete"}
           </button>
@@ -434,7 +434,7 @@ export function CorporateActionsSettings() {
         <button
           type="button"
           onClick={openAddModal}
-          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-white transition-colors"
+          className="shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -448,7 +448,7 @@ export function CorporateActionsSettings() {
       {isLoading ? (
         <div className="py-10 text-center text-sm text-muted-foreground">Loading...</div>
       ) : isError ? (
-        <div className="py-10 text-center text-sm text-red-500">Failed to load corporate actions.</div>
+        <div className="py-10 text-center text-sm text-danger">Failed to load corporate actions.</div>
       ) : !corporateActions || corporateActions.length === 0 ? (
         <div className="py-10 text-center rounded-xl border border-dashed border-border text-muted-foreground text-sm">
           No corporate actions defined yet.{" "}
@@ -475,9 +475,9 @@ export function CorporateActionsSettings() {
             </thead>
             <tbody className="divide-y divide-[color-mix(in_srgb,var(--border)_50%,transparent)]">
               {corporateActions.map((ca) => (
-                <tr key={ca.id} className="bg-card hover:bg-muted/50 transition-colors">
+                <tr key={ca.id} className="wl-row">
                   <td className="px-4 py-3 font-medium text-foreground">{ca.symbol}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{ca.date}</td>
+                  <td className="px-4 py-3 text-muted-foreground font-mono">{ca.date}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-warning border border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
                       {ratioToDisplay(ca.ratio)}

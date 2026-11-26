@@ -190,7 +190,7 @@ export function PlaybookFilterBar({ filters, onChange, totalCounts }: Props) {
                       key={tag.id}
                       type="button"
                       onClick={() => handleTagToggle(tag.id)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                         isSelected
                           ? "ring-2 ring-primary ring-offset-1 ring-offset-background font-semibold"
                           : "opacity-80 hover:opacity-100"

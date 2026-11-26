@@ -55,10 +55,10 @@ function formatQuantity(value: string | number | null): string {
 function formatPnl(value: string | null): React.ReactElement {
   if (value === null) return <span className="text-muted-foreground">—</span>;
   const num = parseFloat(value);
-  const color = num >= 0 ? "text-emerald-400" : "text-red-400";
+  const color = num >= 0 ? "text-success" : "text-danger";
   const prefix = num >= 0 ? "+" : "";
   return (
-    <span className={`font-medium ${color}`}>
+    <span className={`font-medium font-mono ${color}`}>
       {prefix}${Math.abs(num).toFixed(2)}
     </span>
   );
@@ -78,9 +78,7 @@ function DirectionBadge({ direction }: { direction: string }) {
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-        isLong
-          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
-          : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800"
+        isLong ? "badge-positive" : "badge-negative"
       }`}
     >
       {isLong ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />}
@@ -97,22 +95,23 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
 
   return (
     <>
-    <tr className="border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer">
+    <tr className={`wl-row cursor-pointer ${isSelected ? "selected" : ""}`}>
       <td className="px-3 py-3">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelect?.(trade.id, e.target.checked)}
           onClick={(e) => e.stopPropagation()}
-          className="w-4 h-4 rounded border-border dark:border-border accent-primary cursor-pointer"
+          className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
           aria-label={`Select trade ${trade.symbol}`}
         />
       </td>
       <td className="px-4 py-3 text-sm font-medium text-foreground">
         <div className="inline-flex items-center gap-1.5">
+          {isSelected && <span className="wl-focus-dot shrink-0" aria-hidden="true" />}
           <Link
             href={`/dashboard/trades/${trade.id}`}
-            className="hover:text-primary transition-colors"
+            className="wl-ticker hover:text-primary transition-colors"
             title={trade.id}
           >
             {trade.symbol}
@@ -150,23 +149,23 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       <td className="px-4 py-3 text-sm text-muted-foreground">
         {trade.is_combo ? "COMBO" : trade.asset_class}
       </td>
-      <td className="px-4 py-3 text-sm text-muted-foreground">
+      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
         {formatQuantity(trade.quantity)}
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">
         {trade.account_name ?? <span className="text-muted-foreground">—</span>}
       </td>
-      <td className="px-4 py-3 text-sm text-muted-foreground">
+      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
         {formatPrice(trade.entry_price)}
       </td>
-      <td className="px-4 py-3 text-sm text-muted-foreground">
+      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
         {formatPrice(trade.exit_price)}
       </td>
-      <td className="px-4 py-3 text-sm">{formatPnl(trade.pnl)}</td>
-      <td className="px-4 py-3 text-sm text-muted-foreground">
+      <td className="px-4 py-3 text-sm font-mono">{formatPnl(trade.pnl)}</td>
+      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
         {formatDate(trade.opened_at)}
       </td>
-      <td className="px-4 py-3 text-sm text-muted-foreground">
+      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
         {formatDate(trade.closed_at)}
       </td>
       <td className="px-4 py-3">
@@ -186,11 +185,11 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
             }}
             title={hasNotes ? `${notesCount} note${notesCount !== 1 ? "s" : ""} — click to add` : "Add note"}
             aria-label={hasNotes ? `${notesCount} notes` : "Add note"}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border hover:border-primary hover:text-primary hover:bg-blue-900/20"
-            style={hasNotes
-              ? { background: "rgba(30,41,59,0.5)", color: "#94a3b8", borderColor: "#475569" }
-              : { background: "transparent", color: "#475569", borderColor: "#334155" }
-            }
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-mono transition-colors border hover:border-primary hover:text-primary hover:bg-primary/10 ${
+              hasNotes
+                ? "bg-secondary text-muted-foreground border-border"
+                : "bg-transparent text-muted-foreground/70 border-border/60"
+            }`}
           >
             <svg
               viewBox="0 0 24 24"
@@ -207,7 +206,7 @@ export function TradeRow({ trade, isSelected = false, onSelect }: Props) {
       )}
     </tr>
     {quickNotesEnabled && showQuickNote && (
-      <tr className="border-b border-border bg-zinc-50/30 dark:bg-zinc-900/30">
+      <tr className="border-b border-border bg-secondary">
         <td colSpan={12} className="px-4 py-2">
           <QuickNoteInput
             tradeId={trade.id}

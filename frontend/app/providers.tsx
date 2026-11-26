@@ -16,7 +16,6 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
 import { useState, useEffect } from "react";
 import { useAppContextStore } from "@/stores/appContextStore";
 import { usePortfolioStore } from "@/stores/portfolioStore";
@@ -51,9 +50,5 @@ export function Providers({ children }: Props) {
     usePortfolioStore.getState().hydrate();
   }, []);
 
-  return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ThemeProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

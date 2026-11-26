@@ -31,6 +31,7 @@ import {
 } from "recharts";
 import type { ReturnDistribution } from "@/lib/types";
 import { ChartShell } from "./ChartShell";
+import { CHART_COLORS } from "@/lib/constants";
 
 interface Props {
   data: ReturnDistribution[];
@@ -76,38 +77,38 @@ export function ReturnDistributionChart({ data }: Props) {
           data={chartData}
           margin={{ top: 4, right: 16, left: 8, bottom: 36 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 10 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             angle={-35}
             textAnchor="end"
             interval={0}
           />
           <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             allowDecimals={false}
             width={36}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#0f172a",
-              border: "1px solid #334155",
+              backgroundColor: CHART_COLORS.tooltip.bg,
+              border: `1px solid ${CHART_COLORS.tooltip.border}`,
               borderRadius: "8px",
-              color: "#f1f5f9",
+              color: CHART_COLORS.tooltip.text,
             }}
             formatter={(value) => [value, "Trades"]}
-            labelStyle={{ color: "#94a3b8" }}
+            labelStyle={{ color: CHART_COLORS.tooltip.label }}
           />
           <Bar dataKey="count" radius={[3, 3, 0, 0]}>
             {chartData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={entry.isPositive ? "#22c55e" : "#ef4444"}
+                fill={entry.isPositive ? CHART_COLORS.success : CHART_COLORS.danger}
                 fillOpacity={0.8}
               />
             ))}

@@ -25,25 +25,22 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
+    <main className="mx-auto flex min-h-screen max-w-lg items-center p-4">
+      <section className="solid-card w-full space-y-4 p-6">
         <LoginHeader />
 
-        {/* Form card */}
-        <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
-          {/* Password reset success notice */}
-          <Suspense>
-            <PasswordResetSuccessBanner />
-          </Suspense>
+        {/* Password reset success notice */}
+        <Suspense>
+          <PasswordResetSuccessBanner />
+        </Suspense>
 
-          {/* OAuth error banner — shown when redirected back from a failed OAuth flow */}
-          <Suspense>
-            <OAuthErrorBanner />
-          </Suspense>
+        {/* OAuth error banner — shown when redirected back from a failed OAuth flow */}
+        <Suspense>
+          <OAuthErrorBanner />
+        </Suspense>
 
-          <LoginForm />
-        </div>
-      </div>
+        <LoginForm />
+      </section>
     </main>
   );
 }

@@ -47,7 +47,7 @@ function StatusToggle({ enabled, onChange }: { enabled: boolean; onChange: (v: b
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-150 ${
+        className={`inline-block h-4 w-4 transform rounded-full bg-[#f4f4f5] shadow transition-transform duration-150 ${
           enabled ? "translate-x-6" : "translate-x-1"
         }`}
       />
@@ -171,7 +171,7 @@ function MarketIndexesSection() {
             </thead>
             <tbody className="divide-y divide-border">
               {(indexes ?? []).map((index) => (
-                <tr key={index.id} className="bg-card hover:bg-muted/50 transition-colors">
+                <tr key={index.id} className="wl-row">
                   <td className="px-4 py-3 font-mono text-sm text-muted-foreground">
                     {editingId === index.id ? (
                       <input

@@ -56,7 +56,7 @@ export function TradeFilterSheet({ open, onOpenChange, trigger, filters, renderF
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-[color-mix(in_srgb,var(--background)_70%,transparent)] lg:hidden" />
-        <Dialog.Content className="trade-mobile-contrast fixed inset-x-0 bottom-0 z-50 flex h-[90dvh] max-h-[90dvh] flex-col overflow-hidden rounded-t-2xl border border-border bg-card text-foreground shadow-2xl focus:outline-none lg:hidden">
+        <Dialog.Content className="trade-mobile-contrast fixed inset-x-0 bottom-0 z-50 flex h-[90dvh] max-h-[90dvh] flex-col overflow-hidden rounded-t-2xl border border-border bg-card text-foreground shadow-lg focus:outline-none lg:hidden">
           <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
             <Dialog.Title className="text-base font-semibold">Filters</Dialog.Title>
             <Dialog.Description className="sr-only">Filters apply immediately. Show results returns to the trade list.</Dialog.Description>

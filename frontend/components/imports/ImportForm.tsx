@@ -464,7 +464,7 @@ export function ImportForm() {
                           checked={overwriteManuallyEdited}
                           onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
                           disabled={isSyncing}
-                          className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
+                          className="w-4 h-4 rounded border-border accent-primary"
                         />
                         <span className="text-xs text-muted-foreground">
                           Overwrite user modifications
@@ -477,7 +477,7 @@ export function ImportForm() {
                   )}
 
                   {syncErrorMsg && (
-                    <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+                    <p className="text-sm text-danger surface-danger border rounded-md px-3 py-2">
                       {syncErrorMsg}
                     </p>
                   )}
@@ -489,7 +489,7 @@ export function ImportForm() {
                       type="button"
                       disabled={isSyncing}
                       onClick={() => syncAccount()}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-medium rounded-md text-sm transition-colors"
                     >
                       {isSyncing && <Spinner size="sm" />}
                       {isSyncing ? "Syncing…" : `Sync ${TYPE_LABEL[accountType]} Trades`}
@@ -519,8 +519,8 @@ export function ImportForm() {
           ) : (accountType === "ibkr" || accountType === "schwab") ? (
             /* Broker account without API keys — only show upload */
             <div className="solid-card p-6 space-y-4">
-              <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md px-4 py-3">
-                <span className="text-amber-600 text-sm leading-relaxed">
+              <div className="flex items-start gap-2 surface-caution rounded-md px-4 py-3">
+                <span className="text-warning text-sm leading-relaxed">
                   ⚠ No API credentials stored for this {TYPE_LABEL[accountType]} account. Add them in Settings → Accounts to enable API sync, or upload files below.
                 </span>
               </div>
@@ -629,7 +629,7 @@ function FileUploadCard({
         <button
           type="button"
           onClick={handleAbort}
-          className="text-xs text-red-400 hover:text-red-300 underline"
+          className="text-xs text-danger hover:text-danger/80 underline"
         >
           Cancel remaining files
         </button>
@@ -658,7 +658,7 @@ function FileUploadCard({
               type="checkbox"
               checked={overwriteManuallyEdited}
               onChange={(e) => setOverwriteManuallyEdited(e.target.checked)}
-              className="w-4 h-4 rounded border-zinc-400 accent-amber-500"
+              className="w-4 h-4 rounded border-border accent-primary"
             />
             <span className="text-xs text-muted-foreground">
               Overwrite user modifications
@@ -670,7 +670,7 @@ function FileUploadCard({
           <button
             type="button"
             onClick={handleStartUpload}
-            className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md text-sm transition-colors"
+            className="btn-primary px-5 py-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Import {queuedFiles.length} file{queuedFiles.length !== 1 ? "s" : ""}
           </button>
@@ -744,7 +744,7 @@ function SyncResultPanel({
             {/* Copy Button */}
             <button
               onClick={handleCopyLogs}
-              className="absolute top-3 right-3 p-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all flex items-center gap-1 text-xs"
+              className="absolute top-3 right-3 p-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-xs"
               title="Copy to clipboard"
             >
               {copied ? <CheckCircle2 size={14} className="text-success" /> : <Copy size={14} />}

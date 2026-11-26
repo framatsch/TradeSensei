@@ -594,7 +594,7 @@ export function PlaybookEditorClient({ id }: Props) {
         <p className="text-muted-foreground">Playbook not found.</p>
         <button
           onClick={() => router.push("/dashboard/library/playbooks")}
-          className="px-4 py-2 text-sm bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+          className="px-4 py-2 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
         >
           Back to Playbooks
         </button>
@@ -679,7 +679,7 @@ export function PlaybookEditorClient({ id }: Props) {
                   type="button"
                   onClick={() => handleSave(true)}
                   disabled={isSaving || isSyncingAttachments}
-                  className="px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving || isSyncingAttachments ? "Saving…" : "Save & Close"}
                 </button>
@@ -704,7 +704,7 @@ export function PlaybookEditorClient({ id }: Props) {
                 <button
                   type="button"
                   onClick={() => setIsEditMode(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
                 >
                   <Edit3 className="w-4 h-4" />
                   Edit
@@ -1239,7 +1239,7 @@ export function PlaybookEditorClient({ id }: Props) {
                     type="button"
                     onClick={handleAddLink}
                     disabled={isCreatingLink || !linkLabel.trim() || !linkUrl.trim()}
-                    className="px-2.5 py-1.5 text-sm bg-primary hover:bg-primary/90 text-white rounded-md transition-colors disabled:opacity-50 shrink-0"
+                    className="px-2.5 py-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-md transition-colors disabled:opacity-50 shrink-0"
                     aria-label="Add link"
                   >
                     {isCreatingLink ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}

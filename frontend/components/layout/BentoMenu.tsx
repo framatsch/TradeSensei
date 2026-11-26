@@ -51,7 +51,7 @@ export function BentoMenu() {
 
       <Popover.Portal>
         <Popover.Content
-          className="z-50 w-64 p-2 bg-popover border border-border rounded-md shadow-md text-popover-foreground outline-none animate-in fade-in-80 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+          className="z-50 w-64 p-2 panel-float text-popover-foreground outline-none animate-in fade-in-80 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
           align="start"
           sideOffset={8}
         >

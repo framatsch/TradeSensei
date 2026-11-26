@@ -103,8 +103,8 @@ export function PortfolioEditModal({ portfolio, onClose }: Props) {
   const canSave = name.trim().length > 0 && !updateMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div className="panel-float max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-foreground">Edit Portfolio</h3>
           <button
@@ -152,7 +152,7 @@ export function PortfolioEditModal({ portfolio, onClose }: Props) {
                   aria-label={`color ${c}`}
                   aria-pressed={color === c}
                   onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-full transition-all ${
+                  className={`w-6 h-6 rounded-full transition-colors ${
                     color === c
                       ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
                       : "hover:scale-110 opacity-80"
@@ -181,7 +181,7 @@ export function PortfolioEditModal({ portfolio, onClose }: Props) {
             <button
               type="submit"
               disabled={!canSave}
-              className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
               data-testid="save-edit-portfolio"
             >
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
@@ -228,7 +228,7 @@ export function PortfolioEditModal({ portfolio, onClose }: Props) {
               <button
                 onClick={handleDelete}
                 disabled={!canDelete}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-destructive-foreground rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
                 data-testid="delete-portfolio-button"
               >
                 <Trash2 className="h-4 w-4" />

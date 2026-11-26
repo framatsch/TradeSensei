@@ -49,13 +49,13 @@ function MetricCard({ entry }: { entry: MetricEntry }) {
         <div className="mt-1 flex flex-col gap-1.5 text-xs">
           {entry.good && (
             <p className="flex gap-2">
-              <span className="text-emerald-500 font-bold shrink-0">Good:</span>
+              <span className="text-success font-bold shrink-0">Good:</span>
               <span className="text-foreground/70">{entry.good}</span>
             </p>
           )}
           {entry.bad && (
             <p className="flex gap-2">
-              <span className="text-rose-500 font-bold shrink-0">Watch out:</span>
+              <span className="text-danger font-bold shrink-0">Watch out:</span>
               <span className="text-foreground/70">{entry.bad}</span>
             </p>
           )}

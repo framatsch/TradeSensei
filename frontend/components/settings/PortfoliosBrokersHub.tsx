@@ -37,9 +37,9 @@ const BROKER_TYPE_LABELS: Record<string, string> = {
 };
 
 const BROKER_TYPE_BADGES: Record<string, string> = {
-  ibkr: "bg-indigo-900/30 text-indigo-400 border border-indigo-800",
-  schwab: "bg-blue-900/30 text-blue-400 border border-blue-800",
-  manual: "bg-secondary text-muted-foreground border border-border",
+  ibkr: "badge-neutral",
+  schwab: "badge-neutral",
+  manual: "badge-neutral",
 };
 
 interface AccountRowProps {
@@ -50,10 +50,10 @@ interface AccountRowProps {
 
 function AccountRow({ account, portfolio, onEdit }: AccountRowProps) {
   const statusBadge = !account.is_active
-    ? { label: "Inactive", className: "bg-secondary text-muted-foreground border border-border" }
+    ? { label: "Inactive", className: "badge-neutral" }
     : account.has_api_keys
-      ? { label: "Connected", className: "bg-emerald-900/50 text-emerald-400 border border-emerald-800" }
-      : { label: "Manual", className: "bg-amber-900/30 text-amber-400 border border-amber-800" };
+      ? { label: "Connected", className: "badge-positive" }
+      : { label: "Manual", className: "badge-caution" };
 
   const brokerBadge = BROKER_TYPE_BADGES[account.type] || BROKER_TYPE_BADGES.manual;
 
@@ -222,7 +222,7 @@ export function PortfoliosBrokersHub() {
         </div>
         <button
           onClick={() => setCreateModalOpen(true)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" /> Create New Portfolio
         </button>
@@ -270,7 +270,7 @@ export function PortfoliosBrokersHub() {
                     >
                       <Star
                         className={`h-5 w-5 ${
-                          defaultPortfolioId === portfolio.id ? "fill-[#eab308] text-[#eab308]" : ""
+                          defaultPortfolioId === portfolio.id ? "fill-primary text-primary" : ""
                         }`}
                       />
                     </button>

@@ -42,7 +42,7 @@ export function OAuthErrorBanner() {
     "An unexpected sign-in error occurred. Please try again.";
 
   return (
-    <div className="mb-4 text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+    <div className="mb-4 text-sm text-danger surface-danger border rounded-md px-3 py-2">
       {message}
     </div>
   );

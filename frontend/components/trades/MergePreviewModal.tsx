@@ -42,8 +42,8 @@ function fmt(v: string | null, prefix = "$"): string {
 function pnlColor(v: string | null): string {
   if (v === null) return "text-muted-foreground";
   return parseFloat(v) >= 0
-    ? "text-emerald-500 dark:text-emerald-400"
-    : "text-red-500 dark:text-red-400";
+    ? "text-success"
+    : "text-danger";
 }
 
 function TradeCard({ trade }: { trade: Trade }) {
@@ -54,20 +54,20 @@ function TradeCard({ trade }: { trade: Trade }) {
         <span
           className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
             trade.direction === "LONG"
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-              : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+              ? "badge-positive"
+              : "badge-negative"
           }`}
         >
           {trade.direction}
         </span>
       </div>
       <div className="text-xs text-muted-foreground">
-        Qty: <span className="text-foreground">{trade.quantity === null ? "—" : parseFloat(trade.quantity).toLocaleString()}</span>
+        Qty: <span className="text-foreground font-mono">{trade.quantity === null ? "—" : parseFloat(trade.quantity).toLocaleString()}</span>
       </div>
       <div className="text-xs text-muted-foreground">
-        Executions: <span className="text-foreground">{trade.trade_notes?.length ?? "—"}</span>
+        Executions: <span className="text-foreground font-mono">{trade.trade_notes?.length ?? "—"}</span>
       </div>
-      <div className={`text-xs font-medium ${pnlColor(trade.pnl)}`}>
+      <div className={`text-xs font-medium font-mono ${pnlColor(trade.pnl)}`}>
         {trade.pnl !== null
           ? `${parseFloat(trade.pnl) >= 0 ? "+" : ""}${fmt(trade.pnl)}`
           : "Open"}
@@ -105,22 +105,22 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg solid-card shadow-2xl p-6">
+      <div className="w-full max-w-lg panel-float p-6">
         <h2 className="text-lg font-bold text-foreground mb-1">Merge Trades</h2>
         <p className="text-sm text-muted-foreground mb-5">
           All execution legs will be moved to the oldest trade. This action cannot be undone.
         </p>
 
         {/* Warning */}
-        <div className="flex items-start gap-2 mb-5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
-          <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <span className="text-xs text-amber-700 dark:text-amber-400">
+        <div className="flex items-start gap-2 mb-5 rounded-md surface-caution px-3 py-2.5">
+          <AlertTriangle size={16} className="text-warning flex-shrink-0 mt-0.5" />
+          <span className="text-xs text-warning">
             Merging is irreversible. The non-surviving trades will be permanently deleted.
           </span>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
+          <div className="mb-4 rounded-md surface-danger border p-3 text-sm text-danger">
             {errorMsg}
           </div>
         )}
@@ -138,8 +138,8 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
         </div>
 
         {/* Result preview */}
-        <div className="rounded-lg border border-[#6063dd]/30 bg-[#6063dd]/5 p-3 mb-6 text-sm space-y-1.5">
-          <div className="text-xs font-semibold text-[#6063dd] uppercase tracking-wide mb-2">
+        <div className="panel-sub p-3 mb-6 text-sm space-y-1.5">
+          <div className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">
             Merged Result
           </div>
           <div className="flex justify-between text-sm">
@@ -148,11 +148,11 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Combined Qty</span>
-            <span className="font-medium text-foreground">{totalQty.toLocaleString()}</span>
+            <span className="font-medium font-mono text-foreground">{totalQty.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Combined P&L</span>
-            <span className={`font-medium ${hasPnl ? pnlColor(totalPnl >= 0 ? "1" : "-1") : "text-muted-foreground"}`}>
+            <span className={`font-medium font-mono ${hasPnl ? pnlColor(totalPnl >= 0 ? "1" : "-1") : "text-muted-foreground"}`}>
               {hasPnl
                 ? `${totalPnl >= 0 ? "+" : ""}$${Math.abs(totalPnl).toFixed(2)}`
                 : "—"}
@@ -160,7 +160,7 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Execution legs</span>
-            <span className="font-medium text-foreground">{trades.length} trades → 1</span>
+            <span className="font-medium font-mono text-foreground">{trades.length} trades → 1</span>
           </div>
         </div>
 
@@ -176,7 +176,7 @@ export function MergePreviewModal({ trades, onClose, onSuccess }: Props) {
             type="button"
             onClick={handleMerge}
             disabled={mergeTrades.isPending}
-            className="inline-flex items-center gap-2 rounded-md bg-[#6063dd] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+            className="btn-primary disabled:opacity-50"
           >
             {mergeTrades.isPending && <Loader2 size={14} className="animate-spin" />}
             Merge Trades

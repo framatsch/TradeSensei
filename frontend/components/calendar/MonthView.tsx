@@ -77,11 +77,11 @@ export const MonthView: React.FC<MonthViewProps> = ({
     }
     
     if (pnl > 0) {
-      return 'bg-teal-500/10 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 border border-teal-500/30'; // Positive P&L
+      return 'bg-success/12 text-success border border-success/30'; // Positive P&L
     }
     
     if (pnl < 0) {
-      return 'bg-red-500/10 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'; // Negative P&L
+      return 'bg-danger/12 text-danger border border-danger/30'; // Negative P&L
     }
 
     return 'bg-card text-foreground'; // Break-even or other
@@ -134,11 +134,11 @@ export const MonthView: React.FC<MonthViewProps> = ({
                       ${isClickable ? 'cursor-pointer hover:brightness-125 hover:ring-1 hover:ring-inset hover:ring-white/20' : ''}`}
                   >
                     <div className="flex justify-between items-start">
-                      <span className={`text-sm font-medium ${isSameDay(day, new Date()) ? 'bg-accent text-white px-1.5 rounded-sm' : ''}`}>
+                      <span className={`text-sm font-medium ${isSameDay(day, new Date()) ? 'bg-accent text-accent-foreground px-1.5 rounded-sm' : ''}`}>
                         {format(day, dateFormat)}
                       </span>
                       {dayData.tradeCount > 0 && isSameMonth(day, monthStart) && (
-                        <span className="text-[10px] bg-zinc-100/50 dark:bg-zinc-900/50 px-1 rounded text-muted-foreground">
+                        <span className="text-[10px] bg-secondary font-mono px-1 rounded text-muted-foreground">
                           {dayData.tradeCount} trades
                         </span>
                       )}
@@ -146,7 +146,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                     
                     {dayData.tradeCount > 0 && isSameMonth(day, monthStart) && (
                       <div className="mt-auto pt-2 flex justify-end">
-                        <span className="font-bold text-sm">
+                        <span className="font-bold text-sm font-mono">
                           {dayData.pnl > 0 ? '+' : ''}{currencySymbol}{Math.abs(dayData.pnl).toFixed(2)}
                         </span>
                       </div>
@@ -157,14 +157,14 @@ export const MonthView: React.FC<MonthViewProps> = ({
               
               {/* Week Summary Column */}
               <div className={`min-h-[100px] p-2 flex flex-col justify-center items-end border-l-2 border-border/50
-                ${weekTrades === 0 ? 'bg-muted/10' : weekPnL > 0 ? 'bg-teal-500/10 text-teal-700 dark:text-teal-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`
+                ${weekTrades === 0 ? 'bg-muted/10' : weekPnL > 0 ? 'bg-success/12 text-success' : 'bg-danger/12 text-danger'}`
               }>
                 {weekTrades > 0 ? (
                   <>
-                    <span className="text-xs text-muted-foreground mb-1">
+                    <span className="text-xs text-muted-foreground font-mono mb-1">
                       {weekTrades} trades
                     </span>
-                    <span className="font-bold">
+                    <span className="font-bold font-mono">
                       {weekPnL > 0 ? '+' : ''}{currencySymbol}{Math.abs(weekPnL).toFixed(2)}
                     </span>
                   </>

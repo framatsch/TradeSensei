@@ -402,19 +402,19 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
   };
 
   const inputCls =
-    "w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed";
+    "w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed";
   const labelCls = "block text-xs font-medium text-muted-foreground mb-1";
-  const errorCls = "text-xs text-red-400 mt-0.5";
+  const errorCls = "text-xs text-danger mt-0.5";
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {serverError && (
-        <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+        <p className="text-sm text-danger surface-danger border rounded-md px-3 py-2">
           {serverError}
         </p>
       )}
       {assignmentError && (
-        <p className="text-sm text-amber-400 bg-amber-900/20 border border-amber-800 rounded-md px-3 py-2">
+        <p className="text-sm surface-caution rounded-md px-3 py-2">
           {assignmentError}
         </p>
       )}
@@ -512,7 +512,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             {...register("isAdvancedMode")}
             disabled={isCombo}
           />
-          <div className="w-11 h-6 bg-secondary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          <div className="w-11 h-6 bg-secondary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#f4f4f5] after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-primary"></div>
         </label>
       </div>
 
@@ -621,7 +621,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
                     <button
                       type="button"
                       onClick={() => remove(index)}
-                      className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
+                      className="p-2 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
                       title="Remove leg"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -865,7 +865,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
             type="button"
             onClick={onCancel}
             disabled={formIsBusy}
-            className="px-4 py-2 text-sm text-muted-foreground bg-secondary hover:bg-zinc-200 dark:bg-zinc-600 disabled:opacity-50 rounded-md transition-colors"
+            className="btn-secondary disabled:opacity-50"
           >
             Cancel
           </button>
@@ -873,7 +873,7 @@ export function TradeForm({ trade, onSuccess, onCancel }: Props) {
         <button
           type="submit"
           disabled={formIsBusy}
-          className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-md transition-colors font-medium"
+          className="flex items-center gap-2 px-5 py-2 text-sm text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-md transition-colors font-medium"
         >
           {formIsBusy && <Spinner size="sm" />}
           {formIsBusy

@@ -69,7 +69,7 @@ export function TaxonomySelector({ taxonomies, selectedIds, onChange, disabled }
                   }
             }
             className={`
-              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all
+              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors
               border focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
               ${
                 isSelected

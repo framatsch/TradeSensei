@@ -100,9 +100,9 @@ const InnerHeatmap = ({
                 y={padding.top + j * cellHeight}
                 width={cellWidth - 2}
                 height={cellHeight - 2}
-                fill={`rgba(59, 130, 246, ${opacity * 0.8 + 0.05})`}
-                rx={4}
-                className="transition-colors hover:fill-blue-500"
+                fill={`color-mix(in srgb, var(--amber) ${Math.round((opacity * 0.78 + 0.06) * 100)}%, transparent)`}
+                rx={7}
+                className="transition-opacity hover:opacity-90"
               >
                 <title>{`${y} / ${x}: ${val} trades`}</title>
               </rect>

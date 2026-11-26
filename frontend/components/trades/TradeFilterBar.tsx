@@ -400,7 +400,7 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
             <span className={LABEL_CLASS}>Asset Class</span>
             <div className="flex flex-wrap gap-2 mt-1">
               {ASSET_CLASSES.map((assetClass) => (
-                <button key={assetClass} type="button" onClick={() => handleAssetClassToggle(assetClass)} aria-pressed={!!filters.asset_classes?.includes(assetClass)} className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${filters.asset_classes?.includes(assetClass) ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
+                <button key={assetClass} type="button" onClick={() => handleAssetClassToggle(assetClass)} aria-pressed={!!filters.asset_classes?.includes(assetClass)} className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${filters.asset_classes?.includes(assetClass) ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
                   {assetClass}
                 </button>
               ))}
@@ -413,7 +413,7 @@ export function TradeFilterBar({ filters, onChange, showOpenTrades = true, activ
             <span className={LABEL_CLASS}>Execution State</span>
             <div className="flex flex-wrap gap-2 mt-1">
               {EXECUTION_STATES.map((state) => (
-                <button key={state.value} type="button" onClick={() => handleExecutionStateToggle(state.value)} aria-pressed={!!filters.execution_state?.includes(state.value)} className={`px-3 py-1 rounded-md text-xs font-medium border transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${filters.execution_state?.includes(state.value) ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
+                <button key={state.value} type="button" onClick={() => handleExecutionStateToggle(state.value)} aria-pressed={!!filters.execution_state?.includes(state.value)} className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${filters.execution_state?.includes(state.value) ? "bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border-[color-mix(in_srgb,var(--primary)_40%,transparent)] text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
                   {state.label}
                 </button>
               ))}

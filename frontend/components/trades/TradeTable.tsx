@@ -108,7 +108,7 @@ function SortIcon({ column, sort }: { column: string; sort?: TradeSortConfig }) 
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
-        className="w-3 h-3 text-zinc-600 ml-1 inline"
+        className="w-3 h-3 text-muted-foreground ml-1 inline"
       >
         <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
       </svg>

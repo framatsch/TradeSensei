@@ -50,7 +50,7 @@ export function PortfolioSwitcher() {
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="center"
-          className="z-50 w-64 p-1 bg-popover border border-border rounded-md shadow-md outline-none animate-in data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
+          className="z-50 w-64 p-1 panel-float outline-none animate-in data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
         >
           {portfolios.map((portfolio) => (
             <DropdownMenu.Item

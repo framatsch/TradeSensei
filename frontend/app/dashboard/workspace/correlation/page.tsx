@@ -268,8 +268,8 @@ export default function CorrelationPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {correlationData.data_points.map((dp, idx) => (
-                  <tr key={`${dp.trade_id}-${idx}`} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-4 py-2 whitespace-nowrap">{new Date(dp.date).toLocaleDateString()}</td>
+                  <tr key={`${dp.trade_id}-${idx}`} className="wl-row">
+                    <td className="px-4 py-2 font-mono whitespace-nowrap">{new Date(dp.date).toLocaleDateString()}</td>
                     <td className="px-4 py-2 font-mono whitespace-nowrap">{dp.trade_symbol}</td>
                     <td className={`px-4 py-2 text-right font-mono whitespace-nowrap ${Number(dp.trade_pnl) >= 0 ? "text-success" : "text-danger"}`}>
                       ${Number(dp.trade_pnl).toFixed(2)}

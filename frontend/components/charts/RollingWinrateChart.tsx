@@ -34,6 +34,7 @@ import {
 import { useRollingWinrate } from "@/hooks/useRollingWinrate";
 import { Spinner } from "@/components/ui/Spinner";
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
+import { CHART_COLORS } from "@/lib/constants";
 
 const WINDOW_OPTIONS = [10, 20, 50] as const;
 type WindowOption = (typeof WINDOW_OPTIONS)[number];
@@ -91,8 +92,8 @@ export function RollingWinrateChart() {
               onClick={() => setWindow(w)}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 window === w
-                  ? "bg-primary text-white"
-                  : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:bg-zinc-600"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
               {w}
@@ -115,36 +116,36 @@ export function RollingWinrateChart() {
             data={data}
             margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
             <XAxis
               dataKey="trade_index"
-              tick={{ fill: "#94a3b8", fontSize: 11 }}
+              tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: "#334155" }}
+              axisLine={{ stroke: CHART_COLORS.axis }}
               label={{
                 value: "Trade #",
                 position: "insideBottomRight",
                 offset: -4,
-                fill: "#64748b",
+                fill: CHART_COLORS.tick,
                 fontSize: 10,
               }}
             />
             <YAxis
               domain={[0, 1]}
               tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-              tick={{ fill: "#94a3b8", fontSize: 11 }}
+              tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: "#334155" }}
+              axisLine={{ stroke: CHART_COLORS.axis }}
               width={44}
             />
             <ReferenceLine
               y={0.5}
-              stroke="#64748b"
+              stroke={CHART_COLORS.tick}
               strokeDasharray="4 4"
               label={{
                 value: "50%",
                 position: "right",
-                fill: "#64748b",
+                fill: CHART_COLORS.tick,
                 fontSize: 10,
               }}
             />
@@ -152,10 +153,10 @@ export function RollingWinrateChart() {
             <Line
               type="monotone"
               dataKey="rolling_winrate"
-              stroke="#3b82f6"
+              stroke="var(--accent)"
               strokeWidth={2}
               dot={false}
-              activeDot={{ r: 4, fill: "#3b82f6" }}
+              activeDot={{ r: 4, fill: "var(--accent)" }}
             />
           </LineChart>
         </ResponsiveContainer>

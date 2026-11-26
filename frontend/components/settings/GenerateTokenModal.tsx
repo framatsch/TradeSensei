@@ -62,8 +62,8 @@ export function GenerateTokenModal({ onClose, onCreated }: GenerateTokenModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md panel-float p-6">
         <h3 className="text-lg font-semibold text-foreground">Generate New Token</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           Create a personal access token for MCP clients.

@@ -1,266 +1,129 @@
 # Trade Sensei — Frontend Style Guide
 
-Single source of truth for UI implementation and visual review.
-Covers the Dual-Theme Design System (Obsidian / Radiant).
+> **Design System Single Source of Truth:** [`docs/DESIGN.md`](./DESIGN.md) (*Performance-First UI System v2.0 — Zero-Blur · 60 FPS*) defines the authoritative color palette, CSS custom properties (`:root` and `html.dark`), 100 % opaque three-level tonal surfaces, `IBM Plex Mono` tabular typography, Solid-Amber CTAs, Soft-Orange selection, dashed caution badges and chart colors. Whenever visual tokens or surface rules in this document differ from `docs/DESIGN.md`, **`docs/DESIGN.md` takes precedence**.
 
 **Source files:**
+- Design System Spec: `docs/DESIGN.md` (Version 2.0)
 - Tokens & component classes: `frontend/app/globals.css`
 - Tailwind color mapping: `frontend/tailwind.config.ts`
+- Chart token constants: `frontend/lib/constants.ts`
 
 ---
 
-## 1. Themes
+## 1. Themes & 3-Level Opaque Tonal Hierarchy
 
-Two themes are supported: **Light (Radiant)** and **Dark (Obsidian)**.
-Theme is applied via a `.dark` class on `<html>`. CSS variables flip automatically.
+Two independently calibrated 100 % opaque themes are supported:
+- **Dark (Layered Anthracite, Default)** — `.dark` / `html.dark` on `<html>`:
+  - Level 0 Canvas (`--bg-canvas` / `background`): `#11141B` (Deep Slate-Navy — **no pure black**)
+  - Level 1 Panels & Chrome (`--bg-panel` / `card`, `sidebar`): `#191E28` (`1px solid #2A3242`, `--top-edge: inset 0 1px 0 rgba(255, 255, 255, 0.04)`)
+  - Level 2 Sub-Cards, Sticky Headers & Row Hover (`--bg-sub` / `secondary`): `#222936` (`1px solid #2D3647`)
+- **Light (Pure White)** — `:root`:
+  - Level 0 Canvas (`--bg-canvas` / `background`): `#F8F9FB` (Cool Alabaster)
+  - Level 1 Panels & Chrome (`--bg-panel` / `card`, `sidebar`): `#FFFFFF` (100 % opaque Pure White, `1px solid #DCE2EC`)
+  - Level 2 Sub-Cards, Sticky Headers & Row Hover (`--bg-sub` / `secondary`): `#F3F5F9` (`1px solid #E4E9F2`)
 
-**Rule:** Never use `dark:` Tailwind modifier on individual classes.
-The theme switches through CSS variables — components do not need to know which theme is active.
+**Rule:** Never use `dark:` Tailwind modifiers or raw palette utilities (`zinc-*`, `gray-*`, `slate-*`, `blue-*`, `indigo-*`). The theme switches solely through CSS custom properties in `frontend/app/globals.css`.
 
 ---
 
 ## 2. Semantic Color Tokens
 
-Always use these Tailwind class names. They map to CSS variables defined in `globals.css`.
+Always use these Tailwind class names. They map to CSS variables defined in `globals.css` and support `/N` alpha modifiers via `color-mix(in srgb, ...)` in `tailwind.config.ts`.
 
-### Surfaces
+| Purpose | Semantic token / Tailwind class | Light (`:root`) | Dark (`html.dark`) |
+| --- | --- | --- | --- |
+| Page canvas (Level 0) | `background` (`--bg-canvas`) | `#F8F9FB` | `#11141B` |
+| Chrome, sidebar and panels (Level 1) | `sidebar`, `card`, `card-foreground` (`--bg-panel`) | `#FFFFFF` / `#0F172A` | `#191E28` / `#F1F5F9` |
+| Sub-cards, sticky headers, hover (Level 2) | `secondary`, `muted` (`--bg-sub`) | `#F3F5F9` | `#222936` |
+| Tooltips and dropdowns | `popover`, `popover-foreground` | `#FFFFFF` / `#0F172A` | `#191E28` / `#F1F5F9` |
+| Main and secondary text | `foreground` (`--text-primary`), `muted-foreground` (`--text-secondary`) | `#0F172A` / `#475569` | `#F1F5F9` / `#94A3B8` |
+| Borders and fields | `border` (`--border-panel`), `hairline` (`--border-sub`), `input` | `#DCE2EC` / `#E4E9F2` / `#C8D1DF` | `#2A3242` / `#2D3647` / `#334155` |
+| Primary action and focus | `primary`, `accent`, `ring` (`--amber` / `--cta-bg`) | `#D97706` (`#0F172A` fg) | `#F59E0B` (`#11141B` fg) |
+| Positive and negative data | `success` (`--emerald`), `danger` (`--rose`) | `#059669` / `#BE123C` | `#1CE88C` / `#FB7185` |
+| Warning / destructive action | `warning` (`--caution-text`), `destructive` | `#9A3412` / `#BE123C` | `#FBBF24` / `#FB7185` |
+| Modal backdrop | `overlay` | `rgba(15, 23, 42, 0.56)` | `rgba(0, 0, 0, 0.64)` |
+| Floating layers | `shadow-float` (`--float-shadow`) | `0 8px 24px rgba(15, 23, 42, 0.12)` | `0 8px 24px rgba(0, 0, 0, 0.40)` |
 
-| Tailwind class   | CSS variable     | Purpose                          |
-| ---------------- | ---------------- | -------------------------------- |
-| `bg-background`  | `--background`   | Page / main content area         |
-| `bg-sidebar`     | `--sidebar`      | Sidebar surface                  |
-| `bg-card`        | `--card`         | Card / panel surface             |
-| `bg-popover`     | `--popover`      | Tooltips, dropdowns, floats      |
-| `bg-muted`       | `--muted`        | Subtle fills, secondary surfaces |
-| `bg-secondary`   | `--secondary`    | Inputs, secondary surfaces       |
-
-### Text
-
-| Tailwind class         | CSS variable           | Purpose                  |
-| ---------------------- | ---------------------- | ------------------------ |
-| `text-foreground`      | `--foreground`         | Primary text             |
-| `text-card-foreground` | `--card-foreground`    | Text inside cards        |
-| `text-muted-foreground`| `--muted-foreground`   | Secondary / muted text   |
-| `text-primary`         | `--primary`            | Indigo accent text       |
-| `text-success`         | `--success`            | Profit / positive values |
-| `text-danger`          | `--danger`             | Loss / negative values   |
-
-### Borders & Inputs
-
-| Tailwind class  | CSS variable | Purpose               |
-| --------------- | ------------ | --------------------- |
-| `border-border` | `--border`   | All borders, dividers |
-| `border-input`  | `--input`    | Input field borders   |
-| `ring-ring`     | `--ring`     | Focus rings           |
-
-### Accent / Brand
-
-| Tailwind class       | CSS variable    | Value     | Purpose              |
-| -------------------- | --------------- | --------- | -------------------- |
-| `bg-primary`         | `--primary`     | `#5153ba` | Primary CTA button   |
-| `bg-accent`          | `--accent`      | `#6366f1` | Indigo accent        |
-| `bg-destructive`     | `--destructive` | `#fb7185` | Destructive actions  |
+The source logo is `logo.svg` at the repository root. `frontend/public/logo.svg` and `frontend/app/icon.svg` must be byte-identical copies (`cmp logo.svg frontend/public/logo.svg` and `cmp logo.svg frontend/app/icon.svg`).
 
 ---
 
-## 3. Forbidden Patterns
+## 3. Forbidden Patterns (Enforced by `zero-blur-guard.test.ts`)
 
-These patterns are **never** acceptable:
+These patterns are **never** acceptable anywhere in `frontend/app`, `frontend/components` or `frontend/lib`:
 
 ```tsx
-// ❌ Hardcoded colors
-<div className="bg-zinc-900 text-gray-500 border-slate-800" />
+// ❌ Generic SaaS blue / violet / cyan accents or butter-yellow selection
+<div className="bg-blue-600 text-indigo-400 bg-amber-100" />
 
-// ❌ dark: modifier
-<div className="bg-white dark:bg-zinc-900" />
+// ❌ Hardcoded neutral palette classes or dark: modifiers
+<div className="bg-zinc-900 text-gray-500 dark:bg-slate-800" />
 
-// ❌ Arbitrary hex without justification
-<div className="bg-[#1a1a2e]" />
-
-// ❌ Inline style for color
-<div style={{ color: '#6366f1' }} />
+// ❌ Backdrop blur, ambient orbs, glass classes or transition-all (Zero-Blur · 60 FPS)
+<div className="backdrop-blur-md glass-card transition-all" />
 ```
 
-**Exception:** Chart canvas overlays and third-party embeds where CSS variables
-are unavailable. In those cases use the fixed accent value `#6063dd` (see §6).
+**Exception:** User-chosen tag/taxonomy color swatches in `frontend/lib/constants/colors.ts` are user data.
 
 ---
 
-## 4. Opacity with CSS Variables
+## 4. Shared Opaque Component Utility Classes
 
-Standard Tailwind opacity modifiers (`bg-foreground/10`) do not work with hex
-CSS variables. Use `color-mix` instead:
+Defined in `frontend/app/globals.css` under `@layer components`.
 
-```tsx
-// ✅ Correct
-<div className="bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)]" />
-
-// ✅ Or use a predefined utility class (see §5)
-
-// ❌ Wrong — opacity modifier silently breaks with hex variables
-<div className="bg-foreground/10" />
-```
-
----
-
-## 5. Component Utility Classes
-
-Defined in `frontend/app/globals.css` under `@layer components`. Use these
-instead of re-implementing complex surfaces.
-
-### Cards & Panels
-
-| Class          | Description                                                  | When to use                        |
-| -------------- | ------------------------------------------------------------ | ---------------------------------- |
-| `.solid-card`    | Opaque `bg-card`, no translucency                            | ALL cards, dashboard panels, tables|
-| `.radiant-card`  | Glass-morphism: `backdrop-blur-xl` (Deprecated by user pref) | Legacy/Do not use                  |
-| `.card-glossy`   | Same as `.radiant-card` without blur                          | Legacy/Do not use                  |
-
-### Buttons
-
-| Class         | Description                          | When to use              |
-| ------------- | ------------------------------------ | ------------------------ |
-| `.btn-ghost`    | Transparent with border              | Secondary actions        |
-| `.btn-solid`    | `bg-foreground text-background`      | Neutral confirm actions  |
-| `.btn-primary`  | Indigo fill with glow shadow         | Primary CTA              |
-
-### Navigation
-
-| Class        | Description                                     |
-| ------------ | ----------------------------------------------- |
-| `.nav-active`  | Active sidebar item: tinted bg + indigo left bar |
-
-### Segment Controls
-
-| Class                    | Description                                 |
-| ------------------------ | ------------------------------------------- |
-| `.metric-toggle-bar`       | Container for a segmented control           |
-| `.metric-toggle-active`    | Active segment pill                         |
-| `.metric-toggle-inactive`  | Inactive segment pill (hover state handled) |
-
-### Tables
-
-| Class           | Description                          |
-| --------------- | ------------------------------------ |
-| `.radiant-table`  | Row borders + hover using CSS tokens |
-
-### Glow & Effects
-
-| Class           | Description                           |
-| --------------- | ------------------------------------- |
-| `.glow-primary`   | Indigo box-shadow glow                |
-| `.glow-success`   | Emerald box-shadow glow               |
-| `.glow-danger`    | Rose box-shadow glow                  |
-| `.glass-card`     | 50% translucent card with blur        |
-| `.light-edge`     | Hair-thin top-lit border via `::before` |
-| `.noise-overlay`  | Subtle noise texture via `::after`    |
+| Class | Usage |
+| --- | --- |
+| `.surface-chrome` | Top bar and sidebar chrome (Level 1, 100 % opaque `--bg-panel`, `--border-panel`, `--top-edge`) |
+| `.solid-card` | Dashboard panels and tables (Level 1, 100 % opaque `--bg-panel`, `8px` radius) |
+| `.panel-sub` | KPI tiles, chart boxes, nested tiles and mobile list cards (Level 2, 100 % opaque `--bg-sub`, `6px` radius) |
+| `.panel-float` | Dialogs, popovers, dropdown menus and toasts (`8px` radius, opaque `--bg-panel`, single-layer `--float-shadow`) |
+| `.btn-primary`, `.btn-solid` | Solid-Amber primary action (`--cta-bg`, `1.5px solid var(--cta-border)`, dark `--cta-text`, `6px` radius) |
+| `.btn-secondary`, `.btn-ghost` | Opaque secondary action (`--btn-sec-bg`, `1px solid var(--btn-sec-border)`, `6px` radius) |
+| `.btn-selected`, `.pill-active` | Active filter / toggle pill (Soft-Orange `--sel-bg`, `1.5px solid var(--sel-border)`, `--sel-text`) |
+| `.price-pill` | Tabular-numeral price pill (`--bg-sub`, `1px solid var(--border-sub)`, `6px` radius) |
+| `.metric-toggle-bar` | Segmented-control container (`--bg-sub`, `1px solid var(--border-sub)`, `9999px` radius) |
+| `.metric-toggle-active`, `.metric-toggle-inactive` | Segment states (Soft-Orange active) |
+| `.sidebar-item`, `.nav-active` | Sidebar items (hover `--bg-sub`; active Soft-Orange `--sel-bg` + `--sel-text` + `2px` `--amber` left edge) |
+| `.wl-row`, `.radiant-table` | Row hover (`--bg-sub`), selection (`--sel-bg` + `2px` `--amber` left edge + `--sel-text` ticker), dimming (`opacity: 0.7`) |
+| `.badge-positive`, `.surface-success` | Vivid green signal badge/surface (`--emerald-bg`, `--emerald-border`, `--emerald`) |
+| `.badge-negative`, `.surface-danger` | Stress rose signal badge/surface (`--rose-bg`, `--rose-border`, `--rose`) |
+| `.badge-caution`, `.surface-caution`, `.surface-warning` | Caution badge/surface (`--caution-bg`, `--caution-text`, always **`1px dashed var(--caution-border)`**) |
+| `.badge-neutral` | Neutral opaque badge (`--bg-sub`, `--border-sub`, `--text-secondary`) |
 
 ---
 
-## 6. Fixed Accent Values (Exception Cases)
+## 5. Typography & Numerics
 
-Only for chart canvas overlays or third-party embeds where semantic tokens
-are unavailable:
-
-| Purpose                         | Value        | Example class                      |
-| ------------------------------- | ------------ | ---------------------------------- |
-| Active / selected button bg     | `#6063dd`    | `bg-[#6063dd] text-white`          |
-| Active button border            | `#6063dd/80` | `border-[#6063dd]/80`              |
-| Primary link / text accent      | `#6063dd`    | `text-[#6063dd]`                   |
-| Accent tint                     | `#6063dd/10` | `bg-[#6063dd]/10`                  |
-| Inactive / muted text           | `#717174`    | `text-[#717174]`                   |
-| Toolbar bg (light)              | `#e9e9e9`    | `bg-[#e9e9e9]`                     |
-| Toolbar border (light)          | `black/5`    | `border-black/5`                   |
+- **Display & UI Body (`--font-sans`):** `Inter` (400, 500, 600, 700)
+- **Quantitative / Mono (`--font-mono`):** `IBM Plex Mono` (400, 500, 600, 700)
+- **Tabular Numerals (`.tnum` / `.font-mono`):** Every price, P&L figure, percentage, ratio, count, and timestamp MUST use `font-mono` or `.tnum` (`font-variant-numeric: tabular-nums`).
+- **Secondary Units (`.unit-dim` / `.unit-muted`):** Render secondary units (`$`, `%`, `pts`, `M`) muted (`--text-muted`).
 
 ---
 
-## 7. Typography
+## 6. Chart Tokens (`frontend/lib/constants.ts`)
 
-| Purpose            | Classes                                              |
-| ------------------ | ---------------------------------------------------- |
-| Page heading       | `text-2xl font-semibold text-foreground`             |
-| Section heading    | `text-sm font-bold uppercase tracking-widest text-muted-foreground` |
-| Body text          | `text-sm text-foreground`                            |
-| Muted / secondary  | `text-sm text-muted-foreground`                      |
-| Numeric / P&L      | `font-mono` (always for numbers)                     |
-| Table header       | `text-[10px] font-bold uppercase tracking-widest text-muted-foreground` |
+Use `CHART_COLORS` for Recharts series and tooltips:
 
-Font stack: `var(--font-geist-sans)` → Inter → system-ui (mapped via `tailwind.config.ts`).
-
----
-
-## 8. Spacing & Border Radius
-
-- Spacing: Tailwind 4px grid (`p-2` = 8px, `p-4` = 16px, etc.)
-- Border radius tokens:
-  - `rounded-lg` → `var(--radius)` = `0.75rem`
-  - `rounded-md` → `calc(var(--radius) - 2px)`
-  - `rounded-sm` → `calc(var(--radius) - 4px)`
+| Key | Value | Purpose |
+| --- | --- | --- |
+| `CHART_COLORS.primary` | `var(--amber)` | Primary series (Amber `#D97706` / `#F59E0B`) |
+| `CHART_COLORS.success` | `var(--emerald-chart)` | Profit / positive series (`#10B981` Light / `#1CE88C` Dark) |
+| `CHART_COLORS.danger` | `var(--rose)` | Loss / negative series (`#BE123C` Light / `#FB7185` Dark) |
+| `CHART_COLORS.warning` | `var(--caution-border)` | Caution / threshold series |
+| `CHART_COLORS.grid` | `var(--chart-grid)` | Dashed (`3 3`) gridlines (`#E2E8F0` Light / `#252D3C` Dark) |
+| `CHART_COLORS.tooltip` | `--bg-panel` / `--border-panel` | Opaque Level-1 tooltip container |
 
 ---
 
-## 9. Animations
+## 7. Verification & Review Checklist (for `ui-reviewer`)
 
-Defined in `tailwind.config.ts`:
-
-| Class          | Behavior                        |
-| -------------- | ------------------------------- |
-| `animate-fade-in` | Opacity 0→1 over 0.4s ease-out |
-| `animate-slide-up`| Slide up 8px + fade over 0.4s  |
-
----
-
-## 10. Recharts Integration
-
-Charts use Recharts with `<ResponsiveContainer>`. Grid and tooltip styles are
-globally overridden in `globals.css` to use semantic tokens automatically.
-
-- Grid lines: `var(--border)` at 40% opacity
-- Tooltip: `var(--popover)` background, `var(--border)` border, `border-radius: 0.5rem`
-
-**Checklist for every chart:**
-- `<ResponsiveContainer width="100%" height={...}>` wrapping every chart
-- All axes labelled
-- Tooltip readable (no overflow)
-- Legend entries fully visible
-- `fill` / `stroke` values use semantic hex values from the token table above
-
----
-
-## 11. Review Checklist (for ui-reviewer)
-
-For every screenshot, verify:
-
-### Layout
-- [ ] No horizontal overflow on desktop (1440×900)
-- [ ] No horizontal overflow on mobile (375×812)
-- [ ] Cards use `.radiant-card`, `.card-glossy`, or `.solid-card`
-- [ ] Consistent padding inside panels
-
-### Colors
-- [ ] No hardcoded colors — only semantic tokens or documented exceptions (§6)
-- [ ] No `dark:` modifiers in source
-- [ ] `text-success` / `text-danger` used for P&L values
-- [ ] WCAG AA contrast: 4.5:1 normal text, 3:1 large text
-
-### Typography
-- [ ] Heading hierarchy correct (h1 → h2 → h3)
-- [ ] Numeric/P&L values use `font-mono`
-- [ ] Table headers use `text-[10px] font-bold uppercase tracking-widest`
-
-### Buttons & Controls
-- [ ] Primary CTAs use `.btn-primary` or `bg-primary`
-- [ ] Secondary actions use `.btn-ghost`
-- [ ] Segment controls use `.metric-toggle-bar`
-
-### Charts
-- [ ] Wrapped in `<ResponsiveContainer>`
-- [ ] All axes labelled
-- [ ] Tooltips don't overflow
-- [ ] Legend visible
-
-### Accessibility
-- [ ] Visible focus rings on interactive elements
-- [ ] Images/icons have `alt` or `aria-hidden="true"`
-- [ ] Form inputs have associated labels
-- [ ] Buttons have descriptive labels
+- Automated gates:
+  - `npx tsc --noEmit`, `npm run lint`, `npm test -- --watchAll=false` (including `globals-theme-parity.test.ts` and `zero-blur-guard.test.ts`), and `npm run build`.
+  - `cmp logo.svg frontend/public/logo.svg` and `cmp logo.svg frontend/app/icon.svg`.
+- Visual check in **both Layered Anthracite (Dark) and Pure White (Light)** at `1440×900` and `375×812`:
+  - [ ] All panels are 100 % opaque (`#FFFFFF` on `#F8F9FB` in Light; `#191E28` on `#11141B` in Dark) — zero transparency, zero blur, zero ambient orbs
+  - [ ] Primary CTAs (`.btn-primary`) are Solid Amber (`#D97706` Light / `#F59E0B` Dark) with high-contrast dark text (`#0F172A` / `#11141B`)
+  - [ ] Active pills and selected rows/nav items use Soft-Orange (`--sel-bg`, never butter-yellow) with a `2px` `--amber` left edge on rows/sidebar items
+  - [ ] Caution banners and badges use `.surface-caution` / `.badge-caution` (`1px dashed` border)
+  - [ ] All numeric values, P&L figures, percentages, and dates use `font-mono` / `.tnum` (`tabular-nums`)

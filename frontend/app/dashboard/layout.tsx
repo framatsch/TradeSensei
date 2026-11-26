@@ -205,10 +205,10 @@ function buildNavItems(context: AppContext): NavItem[] {
 // ─── Shared class constants ───────────────────────────────────────────────────
 
 const SECTION_HEADER_CLASS =
-  "px-4 pt-1 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-slate-500 select-none mt-8 first:mt-0";
+  "px-4 pt-1 pb-2 text-[11px] font-semibold tracking-[0.05em] uppercase text-muted-foreground select-none mt-8 first:mt-0";
 
 const L1_INACTIVE =
-  "rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60";
+  "sidebar-item text-muted-foreground";
 
 // ─── Reporting Hub sub-tabs ──────────────────────────────────────────────────
 
@@ -239,7 +239,7 @@ function NavLeafItem({
     <Link
       href={item.href}
       onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-2 text-sm font-normal transition-all duration-150 ${
+      className={`flex items-center gap-3 px-4 py-2 text-sm font-normal transition-colors duration-150 ${
         isActive ? "nav-active" : L1_INACTIVE
       }`}
     >
@@ -428,7 +428,7 @@ export default function DashboardLayout({ children }: Props) {
         {/* Sidebar */}
         {!hideGlobalSidebar && (
           <aside
-            className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 flex flex-col bg-sidebar border-border transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
+            className={`fixed lg:static top-[var(--topbar-height)] bottom-0 left-0 z-30 flex flex-col surface-chrome transition-[width,transform] duration-300 ease-in-out overflow-hidden shrink-0 ${
               mobileSidebarOpen ? "translate-x-0 w-56 border-r" : "-translate-x-full w-56 lg:translate-x-0"
             } ${
               desktopSidebarOpen

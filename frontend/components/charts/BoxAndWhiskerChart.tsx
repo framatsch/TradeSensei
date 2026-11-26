@@ -69,8 +69,8 @@ const CustomBox = (props: CustomBoxProps) => {
         y={y}
         width={width}
         height={height}
-        fill="hsl(var(--primary) / 0.2)"
-        stroke="hsl(var(--primary))"
+        fill="color-mix(in srgb, var(--primary) 20%, transparent)"
+        stroke="var(--primary)"
       />
       {/* Median line */}
       {/* Note: In a fully custom shape we might need scale to find exact median Y, 
@@ -135,25 +135,25 @@ export function BoxAndWhiskerChart({
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "hsl(var(--background))",
-            borderColor: "hsl(var(--border))",
+            backgroundColor: "var(--bg-panel)",
+            borderColor: "var(--border-panel)",
             borderRadius: "var(--radius)",
           }}
         />
         
         {/* Box for Q1-Q3 */}
-        <Bar dataKey="box" fill="hsl(var(--primary) / 0.5)" stroke="hsl(var(--primary))" />
+        <Bar dataKey="box" fill="color-mix(in srgb, var(--primary) 50%, transparent)" stroke="var(--primary)" />
         
         {/* Median and Whiskers */}
-        <Scatter dataKey="median" fill="hsl(var(--primary))" opacity={0}>
-          <ErrorBar dataKey="error" width={10} strokeWidth={2} stroke="hsl(var(--primary))" />
+        <Scatter dataKey="median" fill="var(--primary)" opacity={0}>
+          <ErrorBar dataKey="error" width={10} strokeWidth={2} stroke="var(--primary)" />
         </Scatter>
         
         {/* Outliers */}
-        <Scatter data={outliersData} dataKey="y" fill="hsl(var(--destructive))" />
+        <Scatter data={outliersData} dataKey="y" fill="var(--destructive)" />
         
         {/* Dot plot for N < 3 */}
-        <Scatter data={rawDotsData} dataKey="y" fill="hsl(var(--primary))" />
+        <Scatter data={rawDotsData} dataKey="y" fill="var(--primary)" />
       </ComposedChart>
     </ResponsiveContainer>
   );

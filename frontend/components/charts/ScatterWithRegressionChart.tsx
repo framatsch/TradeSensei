@@ -126,16 +126,16 @@ export function ScatterWithRegressionChart({
         <Tooltip
           cursor={{ strokeDasharray: "3 3" }}
           contentStyle={{
-            backgroundColor: "hsl(var(--background))",
-            borderColor: "hsl(var(--border))",
+            backgroundColor: "var(--bg-panel)",
+            borderColor: "var(--border-panel)",
             borderRadius: "var(--radius)",
           }}
         />
-        <Scatter name="Data" dataKey="y" fill="hsl(var(--primary))" />
+        <Scatter name="Data" dataKey="y" fill="var(--primary)" />
         <Line
           type="monotone"
           dataKey="regressionY"
-          stroke="hsl(var(--destructive))"
+          stroke="var(--destructive)"
           dot={false}
           activeDot={false}
           isAnimationActive={false}

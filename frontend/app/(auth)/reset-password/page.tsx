@@ -18,7 +18,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { Logo } from "@/components/ui/Logo";
 import { Spinner } from "@/components/ui/Spinner";
 import { resetPasswordApiV1AuthResetPasswordPost } from "@/lib/api/index";
 
@@ -94,7 +94,7 @@ function ResetPasswordForm() {
           minLength={8}
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
 
@@ -113,17 +113,17 @@ function ResetPasswordForm() {
           minLength={8}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
 
       {errorMessage && (
-        <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+        <p className="text-sm text-danger surface-danger border rounded-md px-3 py-2">
           {errorMessage}{" "}
           {errorMessage.includes("expired") && (
             <Link
               href="/forgot-password"
-              className="underline hover:text-red-300 transition-colors"
+              className="underline hover:text-danger/80 transition-colors"
             >
               Request a new link
             </Link>
@@ -134,7 +134,7 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+        className="btn-primary w-full py-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {isLoading && <Spinner size="sm" />}
         {isLoading ? "Saving…" : "Set new password"}
@@ -154,32 +154,19 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="flex flex-col items-center mb-8">
-          <Image
-            src="/logo.svg"
-            alt="Trade Sensei logo"
-            width={512}
-            height={512}
-            priority
-            className="rounded-xl mb-4"
-            style={{ width: "auto", maxWidth: "100%", height: "auto", maxHeight: "10rem" }}
-          />
-          <h1 className="text-2xl font-bold text-foreground mb-1 tracking-tight">
-            Trade Sensei
+    <main className="mx-auto flex min-h-screen max-w-lg items-center p-4">
+      <section className="solid-card w-full space-y-4 p-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Logo size={72} className="rounded-2xl" />
+          <h1 className="text-2xl font-semibold text-foreground">
+            Set a new password
           </h1>
-          <p className="text-muted-foreground text-sm">Set a new password</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
-          <Suspense fallback={<Spinner size="sm" />}>
-            <ResetPasswordForm />
-          </Suspense>
-        </div>
-      </div>
+        <Suspense fallback={<Spinner size="sm" />}>
+          <ResetPasswordForm />
+        </Suspense>
+      </section>
     </main>
   );
 }

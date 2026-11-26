@@ -79,7 +79,7 @@ export function LoginForm() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
@@ -107,12 +107,12 @@ export function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-secondary border border-border dark:border-border rounded-md text-foreground placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
           {errorMessage && (
-            <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
+            <p className="text-sm text-danger surface-danger border rounded-md px-3 py-2">
               {errorMessage}
             </p>
           )}
@@ -120,7 +120,7 @@ export function LoginForm() {
           <button
             type="submit"
             disabled={isPending}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-medium rounded-md transition-colors"
           >
             {isPending && <Spinner size="sm" />}
             {isPending ? "Signing in…" : "Sign In"}

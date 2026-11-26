@@ -52,7 +52,7 @@ export function InsufficientDataBanner({
   return (
     <div
       role="alert"
-      className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300"
+      className="flex items-start gap-3 rounded-lg surface-caution px-4 py-3 text-sm"
     >
       {/* Warning icon */}
       <svg
@@ -69,10 +69,10 @@ export function InsufficientDataBanner({
       </svg>
 
       <div className="flex-1 min-w-0">
-        <p className="font-medium">
+        <p className="font-medium text-foreground">
           Incomplete data for {analysisName}
         </p>
-        <p className="mt-0.5 text-amber-600/90 dark:text-amber-400/90">
+        <p className="mt-0.5 text-muted-foreground">
           {report.invalidTrades} {plural} missing:{" "}
           <span className="font-medium">{missingList}</span>.{" "}
           Only {report.coveragePercent}% of your trades ({report.validTrades}/
@@ -92,7 +92,7 @@ export function InsufficientDataBanner({
       <button
         onClick={() => setDismissed(true)}
         aria-label="Dismiss warning"
-        className="shrink-0 rounded p-0.5 hover:bg-amber-500/20 transition-colors"
+        className="shrink-0 rounded p-0.5 hover:bg-warning/20 transition-colors"
       >
         <svg
           viewBox="0 0 24 24"

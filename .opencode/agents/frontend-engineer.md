@@ -51,19 +51,23 @@ frontend/
 - All user-visible text is in English.
 - Loading and error states are always handled — no components that render `null` silently on error.
 
-## UI & Design System (Dual-Theme)
+## UI & Design System (Dual-Theme Zero-Blur · 60 FPS)
 
-Read `docs/styleguide.md` before writing any UI code. It is the single source of
-truth for tokens, component utility classes, typography, spacing, and forbidden patterns.
+Read **`docs/DESIGN.md`** (v2.0 — Performance-First Zero-Blur UI System) before writing any
+UI code — it is the single source of truth for look & feel (colors, 100 % opaque 3-level
+tonal surfaces, typography, radii, interaction states, Zero-Blur rule). Then read
+`docs/styleguide.md` for how those tokens are wired into Tailwind and `globals.css`
+(utility classes, forbidden patterns). If they disagree, `docs/DESIGN.md` wins.
 
-Key rules (full details in the styleguide):
+Key rules (full details in `docs/DESIGN.md` and `docs/styleguide.md`):
 
-- **Semantic tokens only** — never hardcode colors (`bg-zinc-900`, `text-gray-500`, etc.)
-- **No `dark:` modifiers** — the theme switches via CSS variables automatically
-- **Opacity via `color-mix`** — standard `/10` opacity modifiers break with hex variables
-- **Use utility classes** — `.radiant-card`, `.btn-primary`, `.nav-active`, `.radiant-table`, etc.
-- **`font-mono` for all numbers** — P&L, metrics, prices
-- **`text-success` / `text-danger`** for positive/negative values
+- **Semantic tokens only** — never hardcode colors (`bg-zinc-900`, `text-gray-500`, `blue-*`, `indigo-*`, etc.)
+- **No `dark:` modifiers** — the theme switches via CSS variables automatically (Layered Anthracite Dark default `#11141B` / `#191E28` / `#222936`, Pure White Light `#F8F9FB` / `#FFFFFF` / `#F3F5F9`)
+- **Zero-Blur · 60 FPS** — **never** use `backdrop-filter`, `backdrop-blur-*`, `filter: blur()` / `saturate()`, ambient orbs, `.glass-*` classes or `transition-all`; all surfaces are 100 % opaque
+- **Use shared opaque utility classes** — `.surface-chrome` (TopBar/sidebars), `.solid-card` (Level-1 panels), `.panel-sub` (Level-2 nested tiles & mobile list cards), `.panel-float` (menus/modals/toasts), `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.wl-row`, `.nav-active`, `.badge-*`, `.surface-caution`
+- **Solid Amber CTAs & Soft-Orange Selection** — `.btn-primary` uses `--cta-bg` with dark `--cta-text` (`text-primary-foreground`, never `text-white`); selection uses Soft-Orange `--sel-*` (never butter-yellow) with a `2px` `--amber` left edge
+- **`font-mono` (`tabular-nums`) for all numbers** — P&L, metrics, prices, dates
+- **`text-success` / `text-danger` / dashed `.badge-caution`** for market signals (strictly separated from UI selection)
 
 ## Data Fetching
 

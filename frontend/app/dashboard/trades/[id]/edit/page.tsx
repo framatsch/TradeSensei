@@ -45,7 +45,7 @@ export default function EditTradePage() {
   if (isError || !trade) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
-        <p className="text-red-400 font-medium mb-2">
+        <p className="text-danger font-medium mb-2">
           {isError ? "Failed to load trade." : "Trade not found."}
         </p>
         {isError && (
@@ -53,7 +53,7 @@ export default function EditTradePage() {
         )}
         <Link
           href="/dashboard/trades"
-          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-sm transition-colors"
         >
           Back to Trades
         </Link>

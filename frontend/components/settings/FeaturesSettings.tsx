@@ -114,7 +114,7 @@ export default function FeaturesSettings() {
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-150 ${
+              className={`inline-block h-4 w-4 transform rounded-full bg-[#f4f4f5] shadow transition-transform duration-150 ${
                 effectiveShowOpenTrades ? "translate-x-6" : "translate-x-1"
               }`}
             />
@@ -146,7 +146,7 @@ export default function FeaturesSettings() {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-150 ${
+                  className={`inline-block h-4 w-4 transform rounded-full bg-[#f4f4f5] shadow transition-transform duration-150 ${
                     enabled ? "translate-x-6" : "translate-x-1"
                   }`}
                 />

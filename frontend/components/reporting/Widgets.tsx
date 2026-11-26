@@ -513,13 +513,13 @@ export function DurationVsPnlScatterWidget({
 // ─── Attribution: Playbook vs Market Regime Heatmap ─────────────────────────────
 
 const HEATMAP_COLORS = [
-  "#f3f4f6",
-  "#c7d2fe",
-  "#a5b4fc",
-  "#818cf8",
-  "#6366f1",
-  "#4f46e5",
-  "#4338ca",
+  "color-mix(in srgb, var(--amber) 5%, transparent)",
+  "color-mix(in srgb, var(--amber) 14%, transparent)",
+  "color-mix(in srgb, var(--amber) 26%, transparent)",
+  "color-mix(in srgb, var(--amber) 40%, transparent)",
+  "color-mix(in srgb, var(--amber) 56%, transparent)",
+  "color-mix(in srgb, var(--amber) 74%, transparent)",
+  "color-mix(in srgb, var(--amber) 92%, transparent)",
 ];
 
 function heatColor(ratio: number): string {

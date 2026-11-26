@@ -56,16 +56,16 @@ export function SaveFilterModal({ isOpen, onClose, currentFilters }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
-        <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Save Current View</h2>
+      <div className="w-full max-w-md panel-float p-6">
+        <h2 className="mb-4 text-xl font-bold text-foreground">Save Current View</h2>
         
         <div className="mb-6">
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-foreground">
             View Name
           </label>
           <input
             type="text"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="w-full rounded-lg border border-input bg-secondary px-4 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder="e.g. My Winning Tech Shorts"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -77,14 +77,14 @@ export function SaveFilterModal({ isOpen, onClose, currentFilters }: Props) {
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            className="btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim() || createFilter.isPending}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn-primary disabled:opacity-50"
           >
             {createFilter.isPending ? "Saving..." : "Save View"}
           </button>

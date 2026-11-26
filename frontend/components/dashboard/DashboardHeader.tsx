@@ -68,9 +68,9 @@ interface ChartTooltipProps {
 function ChartTooltip({ active, payload }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   const val = payload[0].value;
-  const color = val >= 0 ? "#34d399" : "#fb7185";
+  const color = val >= 0 ? "var(--emerald)" : "var(--rose)";
   return (
-    <div className="bg-popover border border-border rounded-lg px-3 py-2 shadow-2xl text-xs">
+    <div className="panel-float px-3 py-2 text-xs">
       <span style={{ color }} className="font-semibold tabular-nums">
         {formatCurrency(val)}
       </span>
@@ -119,22 +119,13 @@ export function DashboardHeader({ summary }: Props) {
   }));
 
   // Gradient colors based on overall performance
-  const accentColor = isPositive ? "#34d399" : "#fb7185";
+  const accentColor = isPositive ? "var(--emerald-chart)" : "var(--rose)";
   const accentColorFaint = isPositive
-    ? "rgba(52, 211, 153, 0.12)"
-    : "rgba(251, 113, 133, 0.12)";
+    ? "var(--emerald-bg)"
+    : "var(--rose-bg)";
 
   return (
     <div className="solid-card relative">
-      {/* Ambient radial glow in the top-right corner */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-20 blur-3xl"
-        style={{
-          background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)`,
-        }}
-      />
-
       <div className="relative z-10 flex flex-col lg:flex-row gap-6 p-6 lg:p-8">
         {/* Left — numbers */}
         <div className="flex flex-col gap-5 lg:min-w-[260px]">

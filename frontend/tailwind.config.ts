@@ -16,6 +16,12 @@
 import type { Config } from "tailwindcss";
 import typography from "@tailwindcss/typography";
 
+const withAlpha = (cssVar: string): string =>
+  (({ opacityValue }: { opacityValue?: string }) =>
+    opacityValue === undefined
+      ? `var(${cssVar})`
+      : `color-mix(in srgb, var(${cssVar}) calc(${opacityValue} * 100%), transparent)`) as unknown as string;
+
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -26,51 +32,74 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "Inter", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "monospace"],
+        sans: [
+          "var(--font-sans)",
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        mono: [
+          "var(--font-mono)",
+          "IBM Plex Mono",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
+        ],
       },
       colors: {
-        background: "var(--background)",
-        sidebar: "var(--sidebar)",
-        foreground: "var(--foreground)",
+        background: withAlpha("--background"),
+        sidebar: withAlpha("--sidebar"),
+        foreground: withAlpha("--foreground"),
         card: {
-          DEFAULT: "var(--card)",
-          foreground: "var(--card-foreground)",
+          DEFAULT: withAlpha("--card"),
+          foreground: withAlpha("--card-foreground"),
         },
         popover: {
-          DEFAULT: "var(--popover)",
-          foreground: "var(--popover-foreground)",
+          DEFAULT: withAlpha("--popover"),
+          foreground: withAlpha("--popover-foreground"),
         },
         primary: {
-          DEFAULT: "var(--primary)",
-          foreground: "var(--primary-foreground)",
+          DEFAULT: withAlpha("--primary"),
+          foreground: withAlpha("--primary-foreground"),
         },
         secondary: {
-          DEFAULT: "var(--secondary)",
-          foreground: "var(--secondary-foreground)",
+          DEFAULT: withAlpha("--secondary"),
+          foreground: withAlpha("--secondary-foreground"),
         },
         muted: {
-          DEFAULT: "var(--muted)",
-          foreground: "var(--muted-foreground)",
+          DEFAULT: withAlpha("--surface-muted"),
+          foreground: withAlpha("--muted-foreground"),
         },
         accent: {
-          DEFAULT: "var(--accent)",
-          foreground: "var(--accent-foreground)",
+          DEFAULT: withAlpha("--accent"),
+          foreground: withAlpha("--accent-foreground"),
         },
         destructive: {
-          DEFAULT: "var(--destructive)",
-          foreground: "var(--destructive-foreground)",
+          DEFAULT: withAlpha("--destructive"),
+          foreground: withAlpha("--destructive-foreground"),
         },
         warning: {
-          DEFAULT: "var(--warning)",
-          foreground: "var(--warning-foreground)",
+          DEFAULT: withAlpha("--warning"),
+          foreground: withAlpha("--warning-foreground"),
         },
-        border: "var(--border)",
-        input: "var(--input)",
-        ring: "var(--ring)",
-        // Radiant / Obsidian semantic tokens
-        success: "var(--success)",
-        danger: "var(--danger)",
+        border: withAlpha("--border"),
+        hairline: withAlpha("--border-sub"),
+        input: withAlpha("--input"),
+        ring: withAlpha("--ring"),
+        success: withAlpha("--success"),
+        danger: withAlpha("--danger"),
+        brand: "var(--brand)",
+        overlay: "var(--overlay)",
+        canvas: "var(--chart-canvas)",
+      },
+      boxShadow: {
+        float: "var(--float-shadow)",
       },
       borderRadius: {
         lg: "var(--radius)",

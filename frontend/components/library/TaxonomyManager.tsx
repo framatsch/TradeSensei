@@ -81,7 +81,7 @@ export function TaxonomyManager() {
   // Form state
   const [name, setName] = useState("");
   const [selectedScopes, setSelectedScopes] = useState<string[]>(["trades"]);
-  const [colorHex, setColorHex] = useState("#3b82f6");
+  const [colorHex, setColorHex] = useState("#f59e0b");
   const [description, setDescription] = useState("");
   const [iconIdentifier, setIconIdentifier] = useState("");
 
@@ -142,7 +142,7 @@ export function TaxonomyManager() {
     setSelectedTaxonomy(null);
     setName("");
     setSelectedScopes(["trades"]);
-    setColorHex("#3b82f6");
+    setColorHex("#f59e0b");
     setDescription("");
     setIconIdentifier("");
     setIsEditing(true);
@@ -686,7 +686,7 @@ export function TaxonomyManager() {
                     aria-label={"color " + c}
                     aria-pressed={colorHex === c}
                     onClick={() => setColorHex(c)}
-                    className={"w-6 h-6 rounded-full transition-all " + (
+                    className={"w-6 h-6 rounded-full transition-colors " + (
                       colorHex === c
                         ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
                         : "hover:scale-110 opacity-80"
@@ -768,7 +768,7 @@ export function TaxonomyManager() {
                   </div>
                   <div
                     title={(tax.usage_count ?? 0) > 0 ? `Used ${tax.usage_count} time${tax.usage_count === 1 ? "" : "s"}` : "Not in use"}
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${(tax.usage_count ?? 0) > 0 ? "bg-green-500" : "bg-muted-foreground/30"}`}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${(tax.usage_count ?? 0) > 0 ? "bg-success" : "bg-muted-foreground/30"}`}
                   />
                 </div>
               </div>

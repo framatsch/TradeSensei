@@ -53,7 +53,7 @@ export function TradeCard({ trade, selectionMode = false, isSelected = false, on
 
   return (
     <div className="min-w-0">
-      <article className={`solid-card p-4 ${isSelected ? "ring-2 ring-primary" : ""}`}>
+      <article className={`panel-sub wl-row relative p-4 ${isSelected ? "selected ring-2 ring-primary" : ""}`}>
         <div className="flex items-start gap-3">
           {selectionMode && (
             <input

@@ -199,7 +199,7 @@ function TaxonomyPickerModal({ onConfirm, onCancel, isPending }: TaxonomyPickerM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="solid-card p-6 w-full max-w-sm shadow-2xl">
+      <div className="panel-float p-6 w-full max-w-sm">
         <h2 className="text-base font-semibold text-foreground mb-4">Assign Taxonomies</h2>
         <div className="flex flex-wrap gap-2 mb-6 min-h-12">
           {(taxonomies ?? []).length === 0 && (
@@ -232,7 +232,7 @@ function TaxonomyPickerModal({ onConfirm, onCancel, isPending }: TaxonomyPickerM
             type="button"
             disabled={selected.size === 0 || isPending}
             onClick={() => onConfirm(Array.from(selected))}
-            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white rounded-md text-sm"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground rounded-md text-sm"
           >
             {isPending ? "Saving…" : "Apply"}
           </button>
@@ -256,7 +256,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="solid-card p-6 w-full max-w-sm shadow-2xl">
+      <div className="panel-float p-6 w-full max-w-sm">
         <h2 className="text-base font-semibold text-foreground mb-4">Assign Playbook</h2>
         <div className="space-y-2 mb-6">
           <label className="flex items-center gap-3 cursor-pointer">
@@ -296,7 +296,7 @@ function PlaybookPickerModal({ onConfirm, onCancel, isPending }: PlaybookPickerM
             type="button"
             disabled={isPending}
             onClick={() => onConfirm(selected)}
-            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white rounded-md text-sm"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground rounded-md text-sm"
           >
             {isPending ? "Saving…" : "Apply"}
           </button>
@@ -320,7 +320,7 @@ function RenameViewModal({ currentName, onSave, onClose, isPending }: RenameView
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-2xl">
+      <div className="w-full max-w-md panel-float p-6">
         <h2 className="mb-4 text-base font-semibold text-foreground">Rename View</h2>
         <input
           type="text"
@@ -342,7 +342,7 @@ function RenameViewModal({ currentName, onSave, onClose, isPending }: RenameView
             type="button"
             disabled={!name.trim() || isPending}
             onClick={() => name.trim() && onSave(name.trim())}
-            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
           >
             {isPending ? "Saving…" : "Save"}
           </button>

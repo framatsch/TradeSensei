@@ -197,7 +197,7 @@ export function CheckinLightbox({ urls, initialIndex = 0, onClose }: Props) {
         {/* Controls */}
         <div className="flex flex-col items-center gap-4 mt-4 z-50">
           {/* Zoom Controls */}
-          <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full p-1 border border-white/10">
+          <div className="flex items-center gap-2 bg-black/50 rounded-full p-1 border border-white/10">
             <button
               type="button"
               onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}

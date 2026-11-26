@@ -76,7 +76,7 @@ export function GalleryView() {
             <div
               key={checkin.id}
               onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
-              className="group block relative solid-card hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              className="group block relative panel-sub overflow-hidden hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] cursor-pointer transition-colors duration-300 hover:-translate-y-1 hover:shadow-xl"
             >
               {/* Image Thumbnail */}
               <div 
@@ -103,7 +103,7 @@ export function GalleryView() {
                   </div>
                 )}
                 {checkin.screenshot_urls && checkin.screenshot_urls.length > 1 && (
-                  <div className="absolute bottom-6 right-6 bg-[color-mix(in_srgb,var(--background)_80%,transparent)] backdrop-blur-sm text-foreground text-xs px-2 py-1 rounded-md font-medium border border-border shadow-sm">
+                  <div className="absolute bottom-6 right-6 bg-[color-mix(in_srgb,var(--background)_80%,transparent)] text-foreground text-xs px-2 py-1 rounded-md font-medium border border-border shadow-sm">
                     +{checkin.screenshot_urls.length - 1}
                   </div>
                 )}

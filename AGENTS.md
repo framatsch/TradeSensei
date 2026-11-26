@@ -100,8 +100,46 @@ Detailed rules (anti-patterns, standards, DB conventions) live in the relevant a
 - **DB** — schema changes via Alembic only; never `create_all()` in production.
 - **Packages** — `uv add` only; never `pip install` or edit `pyproject.toml` manually.
 - **Frontend** — no `dark:` modifiers; use semantic tokens (`bg-background`, `text-foreground`, …).
+- **UI & Design** — every visual change follows **`docs/DESIGN.md`**. See "UI & Design System" below.
 - **OpenSpec** — before implementing any OpenSpec task, run `/openspec-apply-change` first.
 - **Broker ingestion** — every path must terminate in `ImportService.import_trades()`. See below.
+
+### UI & Design System — `docs/DESIGN.md` (MANDATORY for all UI work)
+
+> [!IMPORTANT]
+> **`docs/DESIGN.md` is the single source of truth for look & feel** (colors, tokens,
+> opaque tonal surfaces, typography, radii, interaction states). Read it before touching any
+> file under `frontend/`. `docs/styleguide.md` explains *how* the tokens are wired into
+> Tailwind / `globals.css`; if the two disagree, `docs/DESIGN.md` wins.
+
+Core rules (full spec in `docs/DESIGN.md` v2.0 — Performance-First Zero-Blur UI System):
+- **Dual-Theme Zero-Blur Architecture** — *Layered Anthracite* (`.dark` default,
+  `--bg-canvas: #11141B`, `--bg-panel: #191E28`, `--bg-sub: #222936` — no pure black) and
+  *Pure White* (`:root` light, `--bg-canvas: #F8F9FB`, `--bg-panel: #FFFFFF`,
+  `--bg-sub: #F3F5F9`). All surfaces are 100 % opaque; depth comes only from the three
+  tonal levels and `1px` hairline borders. Colors come only from the CSS custom properties in
+  `frontend/app/globals.css` via semantic Tailwind tokens. Never hardcode hex, never use `dark:`.
+- **Zero generic SaaS blue** — `blue-*`, `indigo-*`, `sky-*` (and `violet-*`, `purple-*`,
+  `cyan-*` as accent substitutes, plus butter-yellow `#FEF3C7` / `amber-100`) are forbidden
+  in classes, inline styles and chart colors. Exception: user-chosen tag/taxonomy colors
+  (`lib/constants/colors.ts`) are user data.
+- **UI Selection vs. Market Status Signals** — Solid Amber CTAs (`--cta-bg`: `#D97706`
+  Light / `#F59E0B` Dark, `.btn-primary` with dark `--cta-text`), Soft-Orange selection
+  (`--sel-bg`: `#FFF4ED` Light / `rgba(245, 158, 11, 0.14)` Dark) and `--amber` focus rings /
+  `2px` selection edges. Market/P&L state uses only `success`/`danger`/`warning`
+  (`--emerald`/`--rose`/`--caution-*`). Caution is always rendered with a `1px dashed`
+  border so it never collides with solid amber selection.
+- **Numbers** — every price, P&L, percentage, count and timestamp uses `font-mono`
+  (IBM Plex Mono) with `tabular-nums` (`.tnum`).
+- **Zero-Blur · 60 FPS (CRITICAL)** — **No** `backdrop-filter`, `backdrop-blur-*`,
+  `backdrop-saturate-*`, `filter: blur()` / `saturate()`, ambient orbs, glass classes or
+  `transition-all` anywhere. Shared opaque utilities: `.surface-chrome`, `.solid-card`,
+  `.panel-sub`, `.panel-float`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.wl-row`,
+  `.radiant-table`. Guarded by `frontend/__tests__/app/zero-blur-guard.test.ts` and
+  `frontend/__tests__/app/globals-theme-parity.test.ts`.
+
+Rollout status: `openspec/changes/apply-design-system/` (styling-only migration of the
+existing UI to `docs/DESIGN.md` v2.0).
 
 ### Broker Ingestion Paths
 
@@ -232,6 +270,8 @@ Agent instructions
 
 | Topic | Location |
 |-------|---------|
+| **UI design system (look & feel, tokens) — mandatory for UI work** | **`docs/DESIGN.md`** |
+| Frontend token wiring / utility classes | `docs/styleguide.md` |
 | API usage notes | `docs/api-usage.md` |
 | Environment variables | `docs/dev-guide.md` |
 | CI/CD pipelines | `.github/workflows/` |

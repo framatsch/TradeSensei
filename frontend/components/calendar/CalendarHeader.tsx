@@ -141,7 +141,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
               onClick={() => onViewModeChange(mode)}
               className={`px-3 py-1 text-sm rounded-sm capitalize transition-colors ${
                 viewMode === mode 
-                  ? 'bg-accent text-white shadow-sm' 
+                  ? 'bg-accent text-accent-foreground shadow-sm' 
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
             >
@@ -155,12 +155,12 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             {viewMode === 'year' ? 'Year P&L' : 'Month P&L'}
           </span>
           <div className="flex items-baseline gap-2">
-            <span className={`font-bold ${
-              totalPnL > 0 ? 'text-teal-600 dark:text-teal-400' : totalPnL < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+            <span className={`font-bold font-mono ${
+              totalPnL > 0 ? 'text-success font-mono' : totalPnL < 0 ? 'text-danger font-mono' : 'text-muted-foreground'
             }`}>
               {totalPnL > 0 ? '+' : ''}{currencySymbol}{Math.abs(totalPnL).toFixed(2)}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground font-mono">
               ({totalTrades} trades)
             </span>
           </div>

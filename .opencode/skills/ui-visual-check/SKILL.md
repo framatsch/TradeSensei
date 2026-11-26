@@ -54,7 +54,7 @@ Pass the screenshots to the `ui-reviewer` subagent for analysis:
 - Tailwind class misuse (wrong spacing, wrong colour tokens)
 - Recharts rendering issues (missing axes, overlapping labels)
 - Accessibility issues (missing alt text, low contrast, no focus ring)
-- Consistency with the design system (font sizes, colour palette)
+- Consistency with `docs/DESIGN.md` v2.0 (100 % opaque tonal surfaces in Layered Anthracite Dark & Pure White Light, zero blur/orbs, Solid Amber CTAs, Soft-Orange selection, dashed caution badges, `IBM Plex Mono` tabular numerals)
 ```
 
 ### Step 3 — Review Output

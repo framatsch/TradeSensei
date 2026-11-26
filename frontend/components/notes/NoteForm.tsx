@@ -56,9 +56,9 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
   const isNearLimit = charCount >= NOTE_WARN_LENGTH && !isOverLimit;
 
   const counterClass = isOverLimit
-    ? "text-red-500"
+    ? "text-danger"
     : isNearLimit
-      ? "text-amber-500"
+      ? "text-warning"
       : "text-muted-foreground";
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -92,7 +92,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
           onClick={() => setActiveTab("edit")}
           className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
             activeTab === "edit"
-              ? "bg-secondary text-foreground border border-b-0 border-border dark:border-border"
+              ? "bg-secondary text-foreground border border-b-0 border-border"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -103,7 +103,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
           onClick={() => setActiveTab("preview")}
           className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
             activeTab === "preview"
-              ? "bg-secondary text-foreground border border-b-0 border-border dark:border-border"
+              ? "bg-secondary text-foreground border border-b-0 border-border"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -123,22 +123,22 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
               }}
               placeholder="Record a point-in-time observation during the trade (e.g., 'Moved stop to breakeven', 'Price hesitating at VWAP')..."
               rows={4}
-              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none"
             />
             {/* Character counter */}
             <div className="mt-1 flex items-center justify-between">
               <div>
                 {contentError && (
-                  <p className="text-xs text-red-400">{contentError}</p>
+                  <p className="text-xs text-danger">{contentError}</p>
                 )}
               </div>
-              <span className={`text-xs ${counterClass}`}>
+              <span className={`text-xs font-mono ${counterClass}`}>
                 {charCount}/{NOTE_MAX_LENGTH}
               </span>
             </div>
           </>
         ) : (
-          <div className="min-h-[96px] px-3 py-2 rounded-lg bg-secondary/50 border border-border dark:border-border">
+          <div className="min-h-[96px] px-3 py-2 rounded-lg bg-secondary/50 border border-border">
             {content.trim() ? (
               <MarkdownRenderer content={content} />
             ) : (
@@ -164,7 +164,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
               value={emotion}
               onChange={(e) => setEmotion(e.target.value)}
               placeholder="e.g. Confident, Fearful…"
-              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border dark:border-border text-foreground placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             />
             <datalist id="emotion-options">
               {EMOTION_OPTIONS.map((opt) => (
@@ -177,7 +177,7 @@ export function NoteForm({ onSubmit, isSubmitting = false }: Props) {
         <button
           type="submit"
           disabled={isSubmitting || isOverLimit}
-          className="px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          className="px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {isSubmitting ? "Adding…" : "Add Note"}
         </button>

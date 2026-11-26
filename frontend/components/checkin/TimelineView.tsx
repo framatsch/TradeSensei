@@ -79,7 +79,7 @@ export function TimelineView() {
           <div
             key={checkin.id}
             onClick={() => router.push(`/dashboard/checkins/${checkin.date}`)}
-            className="group relative solid-card shadow-sm flex flex-col sm:flex-row cursor-pointer hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] transition-colors overflow-hidden"
+            className="group relative panel-sub overflow-hidden flex flex-col sm:flex-row cursor-pointer hover:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] transition-colors overflow-hidden"
           >
             {/* Image Thumbnail on the left */}
             {checkin.screenshot_urls && checkin.screenshot_urls.length > 0 && (
@@ -98,7 +98,7 @@ export function TimelineView() {
                     className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
                   />
                   {checkin.screenshot_urls.length > 1 && (
-                    <div className="absolute bottom-2 right-2 bg-[color-mix(in_srgb,var(--background)_80%,transparent)] backdrop-blur-sm text-foreground text-xs px-2 py-1 rounded-md font-medium border border-border shadow-sm">
+                    <div className="absolute bottom-2 right-2 bg-[color-mix(in_srgb,var(--background)_80%,transparent)] text-foreground text-xs px-2 py-1 rounded-md font-medium border border-border shadow-sm">
                       +{checkin.screenshot_urls.length - 1}
                     </div>
                   )}

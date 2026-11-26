@@ -83,7 +83,7 @@ export function SchwabConnectionCard() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Schwab brand mark */}
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-secondary text-white font-bold text-lg">
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-secondary text-secondary-foreground font-bold text-lg">
             S
           </div>
           <div>
@@ -97,12 +97,12 @@ export function SchwabConnectionCard() {
           data-testid={connected ? "status-connected" : "status-disconnected"}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
             connected
-              ? "bg-green-900/40 text-green-400 border border-green-700/40"
-              : "bg-secondary text-muted-foreground border border-border dark:border-border"
+              ? "badge-positive"
+              : "bg-secondary text-muted-foreground border border-border"
           }`}
         >
           <span
-            className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-zinc-500"}`}
+            className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-success" : "bg-muted-foreground"}`}
           />
           {connected ? "Connected" : "Not connected"}
         </span>
@@ -131,7 +131,7 @@ export function SchwabConnectionCard() {
               data-testid="sync-result"
               className="bg-secondary/50 rounded-lg px-4 py-3 text-sm space-y-1"
             >
-              <p className="text-green-400 font-medium">
+              <p className="text-success font-medium">
                 {lastSyncResult.imported_count} trade
                 {lastSyncResult.imported_count !== 1 ? "s" : ""} imported
               </p>
@@ -139,7 +139,7 @@ export function SchwabConnectionCard() {
                 <p className="text-muted-foreground">{lastSyncResult.skipped_count} skipped (duplicates)</p>
               )}
               {lastSyncResult.errors.length > 0 && (
-                <ul className="text-red-400 mt-1 space-y-0.5">
+                <ul className="text-danger mt-1 space-y-0.5">
                   {lastSyncResult.errors.map((e, i) => (
                     <li key={i}>{e}</li>
                   ))}
@@ -150,7 +150,7 @@ export function SchwabConnectionCard() {
 
           {/* Sync error */}
           {syncError && (
-            <p data-testid="sync-error" className="text-red-400 text-sm">
+            <p data-testid="sync-error" className="text-danger text-sm">
               {syncError}
             </p>
           )}
@@ -161,7 +161,7 @@ export function SchwabConnectionCard() {
               onClick={handleSync}
               disabled={isSyncing}
               data-testid="sync-button"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-sm font-medium rounded-lg transition-colors"
             >
               {isSyncing ? (
                 <>
@@ -212,7 +212,7 @@ export function SchwabConnectionCard() {
               onClick={handleDisconnect}
               disabled={isDisconnecting}
               data-testid="disconnect-button"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-red-400 hover:text-red-300 text-sm font-medium rounded-lg border border-red-800/40 hover:border-red-700/60 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-danger/10 disabled:opacity-50 disabled:cursor-not-allowed text-danger hover:text-danger/80 text-sm font-medium rounded-lg border border-danger/40 hover:border-danger/60 transition-colors"
             >
               {isDisconnecting ? "Disconnecting…" : "Disconnect"}
             </button>

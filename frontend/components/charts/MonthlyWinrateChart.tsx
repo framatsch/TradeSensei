@@ -35,6 +35,7 @@ import type { MonthlyWinratePoint } from "@/hooks/useMonthlyWinrate";
 import { Spinner } from "@/components/ui/Spinner";
 import { ChartShell } from "./ChartShell";
 import { MetricHelpLink } from "@/components/ui/MetricHelpLink";
+import { CHART_COLORS } from "@/lib/constants";
 
 interface TooltipPayload {
   payload: MonthlyWinratePoint;
@@ -58,8 +59,8 @@ function CustomTooltip({
       <p className="text-primary font-semibold">
         Win Rate: {(parseFloat(d.win_rate) * 100).toFixed(1)}%
       </p>
-      <p className="text-emerald-400">{d.win_count} wins</p>
-      <p className="text-red-400">{d.loss_count} losses</p>
+      <p className="text-success">{d.win_count} wins</p>
+      <p className="text-danger">{d.loss_count} losses</p>
       <p className="text-muted-foreground">{d.trade_count} total</p>
     </div>
   );
@@ -94,29 +95,29 @@ export function MonthlyWinrateChart() {
           data={data ?? []}
           margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
           />
           <YAxis
             domain={[0, 1]}
             tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tick={{ fill: CHART_COLORS.tick, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#334155" }}
+            axisLine={{ stroke: CHART_COLORS.axis }}
             width={44}
           />
           <ReferenceLine
             y={0.5}
-            stroke="#64748b"
+            stroke={CHART_COLORS.tick}
             strokeDasharray="4 4"
             label={{
               value: "50%",
               position: "right",
-              fill: "#64748b",
+              fill: CHART_COLORS.tick,
               fontSize: 10,
             }}
           />
@@ -125,7 +126,7 @@ export function MonthlyWinrateChart() {
             {(data ?? []).map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={parseFloat(entry.win_rate) >= 0.5 ? "#22c55e" : "#ef4444"}
+                fill={parseFloat(entry.win_rate) >= 0.5 ? CHART_COLORS.success : CHART_COLORS.danger}
                 fillOpacity={0.85}
               />
             ))}

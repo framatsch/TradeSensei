@@ -59,7 +59,7 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex flex-col bg-black/90"
       role="dialog"
       aria-modal="true"
       aria-label="Screenshot viewer"
@@ -116,7 +116,7 @@ function TradingViewTab({ trade, executions }: { trade: Trade; executions?: Logi
       </div>
 
       {/* TradingView link meta row */}
-      <div className="shrink-0 border-t border-border px-4 py-2 flex items-center gap-2 bg-zinc-100/40 dark:bg-zinc-900/40 rounded-b-xl">
+      <div className="shrink-0 border-t border-border px-4 py-2 flex items-center gap-2 bg-secondary rounded-b-xl">
         {editingLink ? (
           <>
             <input
@@ -125,26 +125,26 @@ function TradingViewTab({ trade, executions }: { trade: Trade; executions?: Logi
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") saveLink(); if (e.key === "Escape") setEditingLink(false); }}
               placeholder="https://www.tradingview.com/chart/..."
-              className="flex-1 rounded-md border border-border dark:border-border bg-card text-xs text-zinc-800 dark:text-foreground px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="flex-1 rounded-md border border-border bg-secondary text-xs text-foreground px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
               autoFocus
             />
             <button
               onClick={saveLink}
               disabled={isPending}
-              className="px-2.5 py-1 text-xs font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-md transition-colors"
+              className="px-2.5 py-1 text-xs font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-md transition-colors"
             >
               {isPending ? "…" : "Save"}
             </button>
             <button
               onClick={() => { setEditingLink(false); setDraft(trade.tradingview_link ?? ""); }}
-              className="px-2.5 py-1 text-xs text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 rounded-md transition-colors"
+              className="px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground rounded-md transition-colors"
             >
               Cancel
             </button>
           </>
         ) : trade.tradingview_link ? (
           <>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-zinc-400 shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-muted-foreground shrink-0">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
@@ -161,7 +161,7 @@ function TradingViewTab({ trade, executions }: { trade: Trade; executions?: Logi
               href={trade.tradingview_link}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-300 hover:text-primary dark:hover:text-primary transition-colors flex items-center gap-1"
+              className="shrink-0 px-2 py-1 text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
               title="Open in TradingView"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
@@ -173,7 +173,7 @@ function TradingViewTab({ trade, executions }: { trade: Trade; executions?: Logi
             </a>
             <button
               onClick={() => setEditingLink(true)}
-              className="shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+              className="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
               title="Edit link"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
@@ -185,7 +185,7 @@ function TradingViewTab({ trade, executions }: { trade: Trade; executions?: Logi
         ) : (
           <button
             onClick={() => setEditingLink(true)}
-            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -273,10 +273,10 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
           onClick={() => inputRef.current?.click()}
           className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed cursor-pointer transition-colors py-4 ${
             isDragging
-              ? "border-primary bg-blue-50 dark:bg-blue-900/20"
+              ? "border-primary bg-primary/10"
               : pasteHint
-              ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
-              : "border-border dark:border-border hover:border-blue-400 hover:bg-zinc-50 dark:hover:bg-zinc-700/40"
+              ? "border-success bg-success/10"
+              : "border-border hover:border-primary/60 hover:bg-secondary"
           }`}
         >
           <input
@@ -290,20 +290,20 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
           {uploading ? (
             <span className="text-sm text-primary animate-pulse">Uploading…</span>
           ) : pasteHint ? (
-            <span className="text-sm text-emerald-500 font-medium">Pasted!</span>
+            <span className="text-sm text-success font-medium">Pasted!</span>
           ) : (
             <>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-zinc-400">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-muted-foreground">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
               <span className="text-xs text-muted-foreground">
                 <span className="text-primary font-medium">Click</span> or drag & drop
-                <span className="mx-1 text-zinc-300 dark:text-zinc-600">·</span>
-                <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border dark:border-border rounded">⌘V</kbd> to paste
+                <span className="mx-1 text-muted-foreground">·</span>
+                <kbd className="px-1 py-0.5 text-xs font-mono bg-secondary border border-border rounded">⌘V</kbd> to paste
               </span>
-              <span className="text-xs text-zinc-400">PNG, JPG, GIF, WebP · max 20 MB</span>
+              <span className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP · max 20 MB</span>
             </>
           )}
         </div>
@@ -331,7 +331,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
                     }
                   }}
                   disabled={deleting}
-                  className="absolute top-2 right-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 p-1.5 rounded-md bg-black/60 text-white hover:bg-red-600/80 transition-all"
+                  className="absolute top-2 right-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 p-1.5 rounded-md bg-black/60 text-destructive-foreground hover:bg-danger/80 transition-colors"
                   title="Delete screenshot"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -351,7 +351,7 @@ function ScreenshotsTab({ trade }: { trade: Trade }) {
             ))}
           </div>
         ) : (
-          <p className="text-center text-sm text-zinc-400 py-4">No screenshots yet.</p>
+          <p className="text-center text-sm text-muted-foreground py-4">No screenshots yet.</p>
         )}
       </div>
     </>
@@ -405,8 +405,8 @@ export function MediaChartsCard({ trade, executions, className }: { trade: Trade
             }}
             className={`relative px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === tab
-                ? "border-b-2 border-primary text-primary dark:text-primary"
-                : "text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab === "tradingview" && "Chart"}
@@ -414,7 +414,7 @@ export function MediaChartsCard({ trade, executions, className }: { trade: Trade
               <>
                 Screenshots
                 {screenshotCount > 0 && (
-                  <span className="ml-1.5 text-xs bg-blue-100 dark:bg-blue-900/50 text-primary dark:text-primary px-1.5 py-0.5 rounded-full">
+                  <span className="ml-1.5 text-xs bg-primary/15 text-primary font-mono px-1.5 py-0.5 rounded-full">
                     {screenshotCount}
                   </span>
                 )}

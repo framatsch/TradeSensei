@@ -45,7 +45,7 @@ export function MarkdownRenderer({ content, className = "" }: Props) {
         "prose-em:text-muted-foreground",
         "prose-code:text-[color:var(--code-fg)] prose-code:bg-secondary/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs",
         "prose-pre:bg-background prose-pre:border prose-pre:border-border prose-pre:rounded-lg",
-        "prose-blockquote:border-l-zinc-500 prose-blockquote:text-muted-foreground",
+        "prose-blockquote:border-l-border prose-blockquote:text-muted-foreground",
         "prose-ul:text-foreground prose-ol:text-foreground",
         "prose-li:my-0.5",
         "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",

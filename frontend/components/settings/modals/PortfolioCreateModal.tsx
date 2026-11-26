@@ -70,8 +70,8 @@ export function PortfolioCreateModal({ onClose }: Props) {
   const canSubmit = name.trim().length > 0 && !createMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="panel-float max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-foreground">Create Portfolio</h3>
           <button
@@ -123,9 +123,9 @@ export function PortfolioCreateModal({ onClose }: Props) {
             </select>
           </div>
 
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-md p-3 flex gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-500" data-testid="currency-warning">
+          <div className="surface-caution rounded-md p-3 flex gap-2">
+            <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+            <p className="text-sm text-warning" data-testid="currency-warning">
               The base currency cannot be changed after the portfolio is created. It serves as the foundation for all performance metrics.
             </p>
           </div>
@@ -141,7 +141,7 @@ export function PortfolioCreateModal({ onClose }: Props) {
                   aria-label={`color ${c}`}
                   aria-pressed={color === c}
                   onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-full transition-all ${
+                  className={`w-6 h-6 rounded-full transition-colors ${
                     color === c
                       ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
                       : "hover:scale-110 opacity-80"
@@ -170,7 +170,7 @@ export function PortfolioCreateModal({ onClose }: Props) {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
               data-testid="submit-create-portfolio"
             >
               {createMutation.isPending ? "Creating..." : "Create Portfolio"}

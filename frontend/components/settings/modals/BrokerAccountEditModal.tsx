@@ -277,8 +277,8 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
   const canDelete = confirmName.trim() === account.name && !deleteMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-background rounded-lg border border-border shadow-xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div className="panel-float max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-foreground">Edit Account</h3>
           <button
@@ -388,7 +388,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
                   Test Connection
                 </button>
                 {testResult === "success" && (
-                  <p className="mt-2 text-xs text-emerald-400" data-testid="edit-test-connection-success">
+                  <p className="mt-2 text-xs text-success" data-testid="edit-test-connection-success">
                     {testMessage}
                   </p>
                 )}
@@ -413,7 +413,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
             <p className="text-xs font-semibold text-muted-foreground">Status</p>
             {isActive ? (
               <div className="space-y-2">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-900/50 text-emerald-400 border border-emerald-800">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-positive">
                   Active
                 </span>
                 <button
@@ -463,7 +463,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
               data-testid="save-edit-account"
             >
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
@@ -494,7 +494,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowClearTradesModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-destructive-foreground rounded-md hover:bg-danger/90 transition-colors"
                   data-testid="open-clear-trades-modal"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -535,7 +535,7 @@ export function BrokerAccountEditModal({ account, onClose }: Props) {
                 <button
                   onClick={handleDelete}
                   disabled={!canDelete}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-destructive-foreground rounded-md hover:bg-danger/90 disabled:opacity-50 transition-colors"
                   data-testid="delete-account-button"
                 >
                   <Trash2 className="h-4 w-4" />
