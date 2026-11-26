@@ -28,9 +28,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import jwt
 import pytest
 from httpx import AsyncClient
-from jose import jwt
 
 from app.core.config import settings
 from app.core.constants import TOKEN_ALGORITHM
