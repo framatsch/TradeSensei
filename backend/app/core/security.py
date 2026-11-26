@@ -27,7 +27,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any  # JWT payload values are heterogeneous (str, int, float)
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -171,7 +172,7 @@ def decode_token(token: str) -> uuid.UUID:
         raw: dict[str, Any] = jwt.decode(token, settings.secret_key, algorithms=[TOKEN_ALGORITHM])
         validated = TokenPayload.model_validate(raw)
         return validated.sub
-    except (JWTError, ValueError) as exc:
+    except (PyJWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired token.") from exc
 
 
@@ -204,7 +205,7 @@ def decode_refresh_token(token: str) -> tuple[uuid.UUID, int]:
         return validated.sub, rtv
     except InvalidTokenError:
         raise
-    except (JWTError, ValueError) as exc:
+    except (PyJWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired refresh token.") from exc
 
 
@@ -310,7 +311,7 @@ async def consume_one_time_token(token: str, db: AsyncSession) -> uuid.UUID:
         return validated.sub
     except InvalidTokenError:
         raise
-    except (JWTError, ValueError) as exc:
+    except (PyJWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired one-time token.") from exc
 
 
@@ -379,7 +380,7 @@ async def consume_password_reset_token(token: str, db: AsyncSession) -> uuid.UUI
         return validated.sub
     except InvalidTokenError:
         raise
-    except (JWTError, ValueError) as exc:
+    except (PyJWTError, ValueError) as exc:
         raise InvalidTokenError("Invalid or expired password-reset token.") from exc
 
 

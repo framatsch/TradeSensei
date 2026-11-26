@@ -256,7 +256,7 @@ class TestGoogleExchangeInvalidToken:
         """
         from datetime import timedelta
 
-        from jose import jwt
+        import jwt
 
         from app.core.config import settings
         from app.core.constants import TOKEN_ALGORITHM

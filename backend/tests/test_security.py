@@ -24,8 +24,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
 
+import jwt
 import pytest
-from jose import jwt
 
 from app.core.constants import TOKEN_ALGORITHM
 from app.core.exceptions import InvalidTokenError
@@ -267,7 +267,7 @@ class TestDecodeToken:
     def test_decode_token_invalid_raises_invalid_token_error(self) -> None:
         """A completely invalid (garbage) token string must raise InvalidTokenError.
 
-        This covers the path where the JWT library raises ``JWTError`` due
+        This covers the path where the JWT library raises ``PyJWTError`` due
         to a malformed or unsigned token.
         """
         with pytest.raises(InvalidTokenError):
@@ -299,7 +299,7 @@ class TestDecodeToken:
 
         This simulates an attacker forging a token with their own key.
         """
-        from jose import jwt as jose_jwt
+        import jwt as jose_jwt
 
         forged_payload: dict[str, Any] = {
             "sub": str(uuid.uuid4()),
@@ -324,7 +324,7 @@ class TestDecodeToken:
 class TestUnexpectedExceptionPropagates:
     """Task 5.4: Unexpected exceptions must NOT be swallowed by the auth handler.
 
-    ``decode_token`` catches only ``(JWTError, ValueError)``.  An ``AttributeError``
+    ``decode_token`` catches only ``(PyJWTError, ValueError)``.  An ``AttributeError``
     or other unexpected exception must propagate to the caller (→ 500), not be
     silently converted into a 401.
     """

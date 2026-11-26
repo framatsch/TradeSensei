@@ -20,8 +20,9 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+import jwt
 from fastapi import Request
-from jose import JWTError, jwt
+from jwt import PyJWTError
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -178,7 +179,7 @@ class AuditMiddleware:
                 settings.secret_key,
                 algorithms=[TOKEN_ALGORITHM],
             )
-        except JWTError:
+        except PyJWTError:
             return None, None, "invalid_token"
         user_id = payload.get("sub")
         email = payload.get("email") or payload.get("email_address")
