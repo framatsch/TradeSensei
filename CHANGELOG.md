@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-26
+
 ### Added
 - [docs] Added `docs/DESIGN.md` v2.0 (Performance-First UI System) as the mandatory single source of truth for look & feel, anchored in `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, the frontend/UI-reviewer agent files and `docs/styleguide.md`.
 - [frontend] Added guard tests `globals-theme-parity.test.ts` (every design token defined for Light and Dark) and `zero-blur-guard.test.ts` (no `backdrop-filter`, `backdrop-blur-*`, ambient orbs or `.glass-*`).
@@ -868,6 +870,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 - [infra] Dockerized development stack and GitHub Actions CI/CD pipelines.
 
 
+[1.21.0]: https://github.com/framatsch/TradeSensei/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/framatsch/TradeSensei/compare/v1.19.3...v1.20.0
 [1.19.3]: https://github.com/framatsch/TradeSensei/compare/v1.19.2...v1.19.3
 [1.19.2]: https://github.com/framatsch/TradeSensei/compare/v1.19.1...v1.19.2
@@ -884,7 +887,7 @@ Initial stable release. Complete trading analytics platform with portfolio manag
 [1.16.0]: https://github.com/framatsch/TradeSensei/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/framatsch/TradeSensei/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/framatsch/TradeSensei/compare/v1.13.0...v1.14.0
-[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.20.0...HEAD
+[unreleased]: https://github.com/framatsch/TradeSensei/compare/v1.21.0...HEAD
 [1.13.0]: https://github.com/framatsch/TradeSensei/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/framatsch/TradeSensei/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/framatsch/TradeSensei/compare/v1.10.0...v1.11.0
