@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- [backend] Replaced the unmaintained `python-jose` with `PyJWT` for access, refresh, one-time and password-reset tokens (and the audit middleware); `python-jose` had an unpatched algorithm-confusion advisory and pulled in the vulnerable `ecdsa` package. Token format (`HS256`, claims) is unchanged, so existing tokens stay valid. `ecdsa`, `rsa` and `pyasn1` are no longer dependencies.
+- [backend] Upgraded locked dependencies to fixed versions for open Dependabot advisories: `authlib` 1.9.10, `cryptography` 50.0.2, `urllib3` 2.8.0, `starlette` 1.10.0, `python-multipart` 0.0.34, `certifi` 2026.11.20, `anyio` 4.14.2, `dnspython` 2.9.2, `joserfc` 1.8.0, `idna` 3.20, `mako` 1.4.3 and `pydantic-settings` 2.16.3.
+- [frontend] Upgraded locked dependencies to fixed versions: `next-auth` 4.24.15 (critical email-normalizer bypass, `getToken()` crash), `next` 16.4.6, `ws`, `js-yaml`, `brace-expansion`, `browserslist`, `source-map-js` and `@babel/plugin-transform-modules-systemjs`. No high or critical npm advisories remain for the frontend.
+
 ## [1.21.0] - 2026-11-26
 
 ### Added
